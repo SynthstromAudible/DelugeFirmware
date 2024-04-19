@@ -49,9 +49,7 @@ class ParamManager;
 class SoundDrum;
 class StorageManager;
 
-class SMSharedData {
-
-};
+class SMSharedData {};
 
 class Serializer {
 public:
@@ -71,7 +69,7 @@ public:
 
 class XMLSerializer : Serializer {
 public:
-	XMLSerializer(StorageManager &ms);
+	XMLSerializer(StorageManager& ms);
 	virtual ~XMLSerializer();
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
@@ -88,11 +86,11 @@ public:
 	void write(char const* output) override;
 
 private:
-	StorageManager	&ms;
+	StorageManager& ms;
 
 	// Private member variables for XML display and parsing:
 public:
-	char*	writeClusterBuffer;
+	char* writeClusterBuffer;
 	uint8_t indentAmount;
 	int32_t fileWriteBufferCurrentPos;
 	int32_t fileTotalBytesWritten;
@@ -100,52 +98,44 @@ public:
 
 	Error writeXMLBufferToFile();
 	Error closeXMLFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
-	                            char const* endString = nullptr);
+	                               char const* endString = nullptr);
 };
-
 
 class Deserializer {
 public:
-
-
 	virtual bool prepareToReadTagOrAttributeValueOneCharAtATime() = 0;
 	virtual char readNextCharOfTagOrAttributeValue() = 0;
 	virtual int32_t getNumCharsRemainingInValue() = 0;
 
-//	virtual Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) = 0;
+	//	virtual Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) = 0;
 	virtual char const* readNextTagOrAttributeName() = 0;
 	virtual int32_t readTagOrAttributeValueInt() = 0;
 	virtual int32_t readTagOrAttributeValueHex(int32_t errorValue) = 0;
 
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
 	virtual void exitTag(char const* exitTagName = NULL) = 0;
-
-
-
 };
-
-
 
 class XMLDeserializer : Deserializer {
 public:
-	XMLDeserializer(StorageManager &msd);
+	XMLDeserializer(StorageManager& msd);
 	virtual ~XMLDeserializer();
 
-	 bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
-	 char const* readNextTagOrAttributeName() override;
-	 char readNextCharOfTagOrAttributeValue() override;
-	 int32_t getNumCharsRemainingInValue() override;
+	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
+	char const* readNextTagOrAttributeName() override;
+	char readNextCharOfTagOrAttributeValue() override;
+	int32_t getNumCharsRemainingInValue() override;
 
-//	 Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) override;
-	 int32_t readTagOrAttributeValueInt() override;
-	 int32_t readTagOrAttributeValueHex(int32_t errorValue) override;
+	//	 Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) override;
+	int32_t readTagOrAttributeValueInt() override;
+	int32_t readTagOrAttributeValueHex(int32_t errorValue) override;
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars);
-	 Error readTagOrAttributeValueString(String* string) override;
+	Error readTagOrAttributeValueString(String* string) override;
 
 	void exitTag(char const* exitTagName = NULL) override;
 
 private:
-	StorageManager	&msd;
+	StorageManager& msd;
 
 public:
 	UINT currentReadBufferEndPos;
@@ -178,7 +168,6 @@ public:
 	// bool readXMLFileCluster();
 	void xmlReadDone();
 };
-
 
 class StorageManager : public XMLSerializer, public XMLDeserializer {
 public:
@@ -223,14 +212,11 @@ public:
 
 	FirmwareVersion firmware_version = FirmwareVersion::current();
 
-
 	bool fileAccessFailedDuring;
 
 	// Member vars that were public before but do not need to be:
 
 private:
-
-
 	// ** End of member variables
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 

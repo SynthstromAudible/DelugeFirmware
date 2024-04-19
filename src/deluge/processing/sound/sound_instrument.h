@@ -80,7 +80,6 @@ public:
 	                            int32_t* highestReverbAmountFound);
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 	ArpeggiatorBase* getArp();
-	char const* getXMLTag() {
-		return "sound"; }
+	char const* getXMLTag() { return "sound"; }
 	ArpeggiatorSettings defaultArpSettings;
 };

@@ -185,7 +185,8 @@ Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, boo
 	fileTotalBytesWritten = 0;
 	fileAccessFailedDuringWrite = false;
 	char* fillB = fileClusterBuffer;
-	for (int i = 0; i < 32768; ++i) *fillB++ = 0;
+	for (int i = 0; i < 32768; ++i)
+		*fillB++ = 0;
 
 	write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 
@@ -238,7 +239,7 @@ Error StorageManager::writeBufferToFile() {
 // Returns false if some error, including error while writing
 Error StorageManager::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
 	return closeXMLFileAfterWriting(path, beginningString, endString);
-	#ifdef NEVER
+#ifdef NEVER
 	if (fileAccessFailedDuring) {
 		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
 		                          // don't want it to flush any data to the card or anything
@@ -304,7 +305,7 @@ Error StorageManager::closeFileAfterWriting(char const* path, char const* beginn
 	}
 
 	return Error::NONE;
-	#endif
+#endif
 }
 
 Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
@@ -807,22 +808,18 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 	return Error::NONE;
 }
 
-
 /*******************************************************************************
 
-	XMLSerializer
+    XMLSerializer
 
 ********************************************************************************/
 
-
-XMLSerializer::XMLSerializer (StorageManager &sm) : ms(ms), fileWriteBufferCurrentPos(0)
-{
+XMLSerializer::XMLSerializer(StorageManager& sm) : ms(ms), fileWriteBufferCurrentPos(0) {
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
 	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 }
 
-XMLSerializer::~XMLSerializer()
-{
+XMLSerializer::~XMLSerializer() {
 	GeneralMemoryAllocator::get().dealloc(writeClusterBuffer);
 }
 
@@ -882,7 +879,6 @@ void XMLSerializer::writeTag(char const* tag, char const* contents) {
 	write(tag);
 	write(">\n");
 }
-
 
 void XMLSerializer::writeAttribute(char const* name, int32_t number, bool onNewLine) {
 
@@ -962,10 +958,10 @@ void XMLSerializer::printIndents() {
 	}
 }
 
-
 Error XMLSerializer::writeXMLBufferToFile() {
 	UINT bytesWritten;
-	FRESULT result = f_write(&fileSystemStuff.currentFile, writeClusterBuffer, fileWriteBufferCurrentPos, &bytesWritten);
+	FRESULT result =
+	    f_write(&fileSystemStuff.currentFile, writeClusterBuffer, fileWriteBufferCurrentPos, &bytesWritten);
 	if (result != FR_OK || bytesWritten != fileWriteBufferCurrentPos) {
 		return Error::SD_CARD;
 	}
@@ -1046,20 +1042,16 @@ Error XMLSerializer::closeXMLFileAfterWriting(char const* path, char const* begi
 
 /*******************************************************************************
 
-	XMLDeserializer
+    XMLDeserializer
 
 ********************************************************************************/
 
-XMLDeserializer::XMLDeserializer (StorageManager &msd) : msd(msd), xmlArea(BETWEEN_TAGS), xmlReachedEnd(false), tagDepthCaller(0), tagDepthFile(0), xmlReadCount(0)
-{
-
+XMLDeserializer::XMLDeserializer(StorageManager& msd)
+    : msd(msd), xmlArea(BETWEEN_TAGS), xmlReachedEnd(false), tagDepthCaller(0), tagDepthFile(0), xmlReadCount(0) {
 }
 
-XMLDeserializer::~XMLDeserializer()
-{
-
+XMLDeserializer::~XMLDeserializer() {
 }
-
 
 // Only call this if IN_TAG_NAME
 // TODO: this is very sub-optimal and still calls readCharXML()
@@ -1374,7 +1366,6 @@ Error XMLDeserializer::readAttributeValueString(String* string) {
 	return error;
 }
 
-
 void XMLDeserializer::xmlReadDone() {
 	xmlReadCount++; // Increment first, cos we don't want to call SD routine immediately when it's 0
 
@@ -1394,7 +1385,8 @@ void XMLDeserializer::skipUntilChar(char endChar) {
 
 	readXMLFileClusterIfNecessary(); // Does this need to be here? Originally I didn't have it...
 	do {
-		while (fileReadBufferCurrentPos < currentReadBufferEndPos && fileClusterBuffer[fileReadBufferCurrentPos] != endChar) {
+		while (fileReadBufferCurrentPos < currentReadBufferEndPos
+		       && fileClusterBuffer[fileReadBufferCurrentPos] != endChar) {
 			fileReadBufferCurrentPos++;
 		}
 
@@ -1444,7 +1436,8 @@ char const* XMLDeserializer::readUntilChar(char endChar) {
 
 	do {
 		int32_t bufferPosAtStart = fileReadBufferCurrentPos;
-		while (fileReadBufferCurrentPos < currentReadBufferEndPos && fileClusterBuffer[fileReadBufferCurrentPos] != endChar) {
+		while (fileReadBufferCurrentPos < currentReadBufferEndPos
+		       && fileClusterBuffer[fileReadBufferCurrentPos] != endChar) {
 			fileReadBufferCurrentPos++;
 		}
 

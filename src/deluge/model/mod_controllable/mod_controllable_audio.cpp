@@ -882,16 +882,17 @@ void ModControllableAudio::writeTagsToFile(StorageManager& bdsm) {
 	bdsm.writeOpeningTagBeginning("delay");
 	bdsm.writeAttribute("pingPong", delay.pingPong);
 	bdsm.writeAttribute("analog", delay.analog);
-	bdsm.writeAttribute("syncType", (int32_t) delay.syncType, true);
+	bdsm.writeAttribute("syncType", (int32_t)delay.syncType, true);
 	// bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
 	bdsm.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(delay.syncLevel), true);
 	bdsm.closeTag();
 
 	// Sidechain
 	bdsm.writeOpeningTagBeginning("sidechain");
-	bdsm.writeAttribute("syncType", (int32_t) sidechain.syncType, true);
-	//bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
-	bdsm.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(sidechain.syncLevel), true);
+	bdsm.writeAttribute("syncType", (int32_t)sidechain.syncType, true);
+	// bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
+	bdsm.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(sidechain.syncLevel),
+	                    true);
 	bdsm.writeAttribute("attack", sidechain.attack);
 	bdsm.writeAttribute("release", sidechain.release);
 	bdsm.closeTag();
@@ -1111,11 +1112,12 @@ doReadPatchedParam:
 				bdsm.exitTag("analog");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				delay.syncType = (SyncType) bdsm.readTagOrAttributeValueInt();
+				delay.syncType = (SyncType)bdsm.readTagOrAttributeValueInt();
 				bdsm.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				delay.syncLevel = (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(bdsm.readTagOrAttributeValueInt());
+				delay.syncLevel =
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(bdsm.readTagOrAttributeValueInt());
 				bdsm.exitTag("syncLevel");
 			}
 			else {
@@ -1175,11 +1177,12 @@ doReadPatchedParam:
 				bdsm.exitTag("release");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				sidechain.syncType = (SyncType) bdsm.readTagOrAttributeValueInt();
+				sidechain.syncType = (SyncType)bdsm.readTagOrAttributeValueInt();
 				bdsm.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				sidechain.syncLevel = (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(bdsm.readTagOrAttributeValueInt());
+				sidechain.syncLevel =
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(bdsm.readTagOrAttributeValueInt());
 				bdsm.exitTag("syncLevel");
 			}
 			else {
