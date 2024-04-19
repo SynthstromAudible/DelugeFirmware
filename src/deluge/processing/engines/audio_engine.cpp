@@ -399,7 +399,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
 			for (int32_t i = 0; i < numToCull; i++) {
 				// hard cull (no release)
-				cullVoice(false, false, true, numSamples);
+				cullVoice(false, true, true, numSamples);
 			}
 
 #if ALPHA_OR_BETA_VERSION
@@ -409,12 +409,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 #endif
 		}
-		if (numSamplesOverLimit >= 5) {
 
-			// definitely do a soft cull (won't include audio clips)
-			cullVoice(false, true, true, numSamples);
-			logAction("forced cull");
-		}
 		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
 		// is increasing
 		else if (numSamplesOverLimit >= -5) {
