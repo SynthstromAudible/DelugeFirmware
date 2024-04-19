@@ -2441,7 +2441,14 @@ doSilentAudition:
 			}
 
 			drawNoteCode = true;
+			bool lastAuditionedYDisplayChanged = instrumentClipView.lastAuditionedYDisplay != yDisplay;
 			instrumentClipView.lastAuditionedYDisplay = yDisplay;
+
+			// are we in a synth / midi / cv clip
+			// and have we changed our note row selection
+			if (!isKit && lastAuditionedYDisplayChanged) {
+				instrumentClipView.potentiallyRefreshNoteRowMenu();
+			}
 
 			// Begin resampling / output-recording
 			if (Buttons::isButtonPressed(hid::button::RECORD)
