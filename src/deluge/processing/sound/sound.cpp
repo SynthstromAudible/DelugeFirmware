@@ -648,13 +648,13 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 			}
 			else if (!strcmp(tagName, "syncType")) {
 				if (arpSettings) {
-					arpSettings->syncType = bdsm.readSyncTypeFromFile(song);
+					arpSettings->syncType = (SyncType) bdsm.readTagOrAttributeValueInt();;
 				}
 				bdsm.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
 				if (arpSettings) {
-					arpSettings->syncLevel = bdsm.readAbsoluteSyncLevelFromFile(song);
+					arpSettings->syncLevel = (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(bdsm.readTagOrAttributeValueInt());
 				}
 				bdsm.exitTag("syncLevel");
 			}
@@ -1062,11 +1062,11 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 				bdsm.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				setLFOGlobalSyncType(bdsm.readSyncTypeFromFile(song));
+				setLFOGlobalSyncType((SyncType) bdsm.readTagOrAttributeValueInt());
 				bdsm.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				setLFOGlobalSyncLevel(bdsm.readAbsoluteSyncLevelFromFile(song));
+				setLFOGlobalSyncLevel((SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(bdsm.readTagOrAttributeValueInt()));
 				bdsm.exitTag("syncLevel");
 			}
 			else {
@@ -3924,8 +3924,10 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 	// LFOs
 	bdsm.writeOpeningTagBeginning("lfo1");
 	bdsm.writeAttribute("type", lfoTypeToString(lfoGlobalWaveType), false);
-	bdsm.writeSyncTypeToFile(currentSong, "syncType", lfoGlobalSyncType, false);
-	bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
+
+	bdsm.writeAttribute("syncType", (int32_t) lfoGlobalSyncType, false);
+	// bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
+	bdsm.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(lfoGlobalSyncLevel), false);
 	bdsm.closeTag();
 
 	bdsm.writeOpeningTagBeginning("lfo2");
@@ -3969,8 +3971,9 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 		bdsm.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		bdsm.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
 		bdsm.writeAttribute("numOctaves", arpSettings->numOctaves);
-		bdsm.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
-		bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
+		bdsm.writeAttribute("syncType", (int32_t) arpSettings->syncType);
+		// bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
+		bdsm.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(arpSettings->syncLevel), true);
 		bdsm.closeTag();
 	}
 

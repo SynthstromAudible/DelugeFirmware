@@ -1338,8 +1338,8 @@ weAreInArrangementEditorOrInClipInstance:
 	bdsm.writeAttribute("rootNote", rootNote);
 	bdsm.writeAttribute("inputTickMagnitude", insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
 	bdsm.writeAttribute("swingAmount", swingAmount);
-	bdsm.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
-
+	//bdsm.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
+	bdsm.writeAttribute("swingInterval", convertSyncLevelFromInternalValueToFileValue((SyncLevel) swingInterval), true);
 	if (tripletsOn) {
 		bdsm.writeAttribute("tripletsLevel", tripletsLevel);
 	}
@@ -1538,7 +1538,7 @@ Error Song::readFromFile(StorageManager& bdsm) {
 								bdsm.exitTag("shape");
 							}
 							else if (!strcmp(tagName, "syncLevel")) {
-								reverbSidechainSync = bdsm.readAbsoluteSyncLevelFromFile(this);
+								reverbSidechainSync = (SyncLevel)convertSyncLevelFromFileValueToInternalValue(bdsm.readTagOrAttributeValueInt());
 								reverbSidechainSync = (SyncLevel)std::min((uint8_t)reverbSidechainSync, (uint8_t)9);
 								bdsm.exitTag("syncLevel");
 							}
