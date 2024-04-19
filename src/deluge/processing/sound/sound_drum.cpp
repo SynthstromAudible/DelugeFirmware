@@ -170,12 +170,14 @@ void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, P
 void SoundDrum::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
 	bdsm.writeOpeningTagBeginning("sound");
 	bdsm.writeAttribute("name", name.get());
-	bdsm.writeAttribute("path", path.get());
 	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings);
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile(bdsm);
 	}
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeAttribute("path", path.get());
 
 	bdsm.writeClosingTag("sound");
 }

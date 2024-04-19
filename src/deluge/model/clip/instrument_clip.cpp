@@ -2330,6 +2330,8 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 		}
 	}
 
+	Clip::writeDataToFile(bdsm, song);
+
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	bdsm.writeAttribute("keyboardLayout", keyboardState.currentLayout);
 	bdsm.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
@@ -2337,8 +2339,6 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 	bdsm.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
 	bdsm.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
 	bdsm.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
-
-	Clip::writeDataToFile(bdsm, song);
 
 	if (output->type == OutputType::MIDI_OUT) {
 		paramManager.getMIDIParamCollection()->writeToFile(bdsm);
