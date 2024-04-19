@@ -660,7 +660,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 void Kit::offerReceivedCCToModControllable(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                            ModelStackWithTimelineCounter* modelStack) {
 	// NOTE: this call may change modelStack->timelineCounter etc!
-	ModControllableAudio::offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack);
+	ModControllableAudio::offerReceivedCCToLearnedParamsForClip(fromDevice, channel, ccNumber, value, modelStack);
 }
 void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                          ModelStackWithTimelineCounter* modelStack) {
@@ -679,7 +679,7 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 			Drum* thisDrum = thisNoteRow->drum;
 			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				((SoundDrum*)thisDrum)
-				    ->offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack, i);
+				    ->offerReceivedCCToLearnedParamsForClip(fromDevice, channel, ccNumber, value, modelStack, i);
 			}
 		}
 	}
