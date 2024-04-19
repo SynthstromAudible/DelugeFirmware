@@ -145,6 +145,8 @@ public:
 	// ui
 	UIType getUIType() { return UIType::SOUND_EDITOR; }
 
+	bool selectedNoteRow;
+
 private:
 	bool beginScreen(MenuItem* oldMenuItem = NULL);
 	uint8_t getActualParamFromScreen(uint8_t screen);
