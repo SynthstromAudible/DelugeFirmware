@@ -3903,7 +3903,7 @@ void Sound::writeParamsToFile(StorageManager& bdsm, ParamManager* paramManager, 
 }
 
 void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager,
-                        ArpeggiatorSettings* arpSettings, const char *pathAttribute) {
+                        ArpeggiatorSettings* arpSettings, const char* pathAttribute) {
 
 	bdsm.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
 	bdsm.writeAttribute("voicePriority", util::to_underlying(voicePriority));
