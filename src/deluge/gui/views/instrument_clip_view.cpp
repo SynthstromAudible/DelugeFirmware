@@ -27,6 +27,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/menus.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_kit_row_ui.h"
@@ -3596,7 +3597,14 @@ doSilentAudition:
 			}
 
 			drawNoteCode(yDisplay);
+			bool lastAuditionedYDisplayChanged = lastAuditionedYDisplay != yDisplay;
 			lastAuditionedYDisplay = yDisplay;
+
+			// are we in a synth / midi / cv clip
+			// and have we changed our note row selection
+			if (!isKit && lastAuditionedYDisplayChanged) {
+				potentiallyRefreshNoteRowMenu();
+			}
 
 			// Begin resampling / output-recording
 			if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
@@ -3636,6 +3644,19 @@ getOut:
 	// This has to happen after setSelectedDrum is called, cos that resets LEDs
 	if (!clipIsActiveOnInstrument && velocity) {
 		indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
+	}
+}
+
+void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
+	// are we in the sound editor menu for a selected note row?
+	if (getCurrentUI() == &soundEditor && soundEditor.selectedNoteRow) {
+		MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
+		// are we in the play direction menu?
+		if (currentMenuItem == &sequenceDirectionMenu) {
+			// if yes to all the above, then we want to refresh the menu
+			// to update play direction for the newly selected note row
+			currentMenuItem->readValueAgain();
+		}
 	}
 }
 
