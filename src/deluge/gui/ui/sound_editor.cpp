@@ -132,6 +132,7 @@ SoundEditor::SoundEditor() {
 	timeLastAttemptedAutomatedParamEdit = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	setupKitGlobalFXMenu = false;
+	selectedNoteRow = false;
 }
 
 bool SoundEditor::editingKit() {

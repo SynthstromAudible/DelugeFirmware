@@ -885,6 +885,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
   i.e. the existing notes will not be deleted and the clipboard contents will be added to the existing notes.
   Positioning/scale/timing semantics have not changed, only whether the notes are cleared before pasting.
 
+#### 4.5.6 - Configure Note Row Play Direction
+- ([#1739]) Added Synth/MIDI/CV clip configuration of note row play direction. Hold audition pad while entering the play direction menu to set the play direction for the selected note row. While in the note row play direction menu, you can select other note rows to quickly set the play directiom for multiple note rows.
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1208,6 +1211,8 @@ different firmware
 [#1589]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1589
 
 [#1607]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1607
+
+[#1739]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1739
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
