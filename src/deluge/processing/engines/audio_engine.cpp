@@ -251,13 +251,15 @@ void songSwapAboutToHappen() {
 	playbackHandler.stopAnyRecording();
 }
 
-// To be called when CPU is overloaded and we need to free it up. This stops the voice which has been releasing longest,
-// or if none, the voice playing longest.
-Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, size_t numSamples) {
+enum CullType { HARD, FORCE, SOFT_ALWAYS, SOFT };
+
+// To be called when CPU is overloaded and we need to free it up. This stops the voice which has been
+// releasing longest, or if none, the voice playing longest.
+Voice* cullVoice(bool saveVoice, CullType type, size_t numSamples) {
 	// Only include audio if doing a hard cull and not saving the voice
-	bool includeAudio = !saveVoice && !justDoFastRelease && definitelyCull;
+	bool includeAudio = !saveVoice && type == HARD;
 	// Skip releasing voices if doing a soft cull and definitely culling
-	bool skipReleasing = justDoFastRelease && definitelyCull;
+	bool skipReleasing = (type == SOFT_ALWAYS);
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
@@ -267,10 +269,10 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, si
 
 		if (ratingThisVoice > bestRating) {
 			// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-			// if (!skipReleasing || thisVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
-			bestRating = ratingThisVoice;
-			bestVoice = thisVoice;
-			//}
+			if (!skipReleasing || thisVoice->envelopes[0].fastReleaseIncrement < 65536) {
+				bestRating = ratingThisVoice;
+				bestVoice = thisVoice;
+			}
 		}
 	}
 
@@ -280,7 +282,9 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, si
 		    "E196"); // ronronsen got!!
 		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
-		if (justDoFastRelease) {
+		switch (type) {
+		case SOFT_ALWAYS:
+		case SOFT: {
 			if (bestVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE
 			    || bestVoice->envelopes[0].fastReleaseIncrement < 65536) {
 				bool stillGoing = bestVoice->doFastRelease(65536);
@@ -294,29 +298,22 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, si
 				          getNumVoices(), getNumAudio());
 #endif
 			}
-
-			else if (definitelyCull) {
-				bool stillGoing = bestVoice->doImmediateRelease();
-
-				if (!stillGoing) {
-					unassignVoice(bestVoice, bestVoice->assignedToSound);
-				}
-#if ALPHA_OR_BETA_VERSION
-				D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
-				          getNumVoices(), getNumAudio());
-#endif
-			}
-
-			else {
-				// Otherwise, it's already fast-releasing, so just leave it
-				D_PRINTLN("Didn't cull - best voice already releasing. numSamples:  %d. Voices left: %d", numSamples,
-				          getNumVoices());
-			}
-
-			bestVoice = NULL; // We don't want to return it
+			break;
 		}
 
-		else {
+		case FORCE: {
+			bool stillGoing = bestVoice->doImmediateRelease();
+
+			if (!stillGoing) {
+				unassignVoice(bestVoice, bestVoice->assignedToSound);
+			}
+#if ALPHA_OR_BETA_VERSION
+			D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+			          getNumVoices(), getNumAudio());
+#endif
+			break;
+		}
+		case HARD:
 			unassignVoice(bestVoice, bestVoice->assignedToSound, NULL, true, !saveVoice);
 			D_PRINTLN("hard-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
 			          getNumVoices(), getNumAudio());
@@ -325,7 +322,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, si
 
 	// Or if no Voices to cull, and we're not culling to make a new voice, try culling an AudioClip...
 	else if (includeAudio) {
-		if (currentSong && !justDoFastRelease) {
+		if (currentSong) {
 			currentSong->cullAudioClipVoice();
 		}
 	}
@@ -376,9 +373,10 @@ constexpr int32_t numSamplesLimit = 40; // storageManager.devVarC;
 // used for decisions in rendering engine
 constexpr int32_t direnessThreshold = numSamplesLimit - 20;
 
-// 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads earlier
-// for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close to the limit
-constexpr int MIN_VOICES = 7;
+// 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
+// earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
+// to the limit
+constexpr int MIN_VOICES = 5;
 
 // global (to this file) because it's used for determining whether to solicit voices via culling as well
 int32_t numToCull = 0;
@@ -400,9 +398,9 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
 			for (int32_t i = 0; i < numToCull; i++) {
 				// hard cull (no release)
-				cullVoice(false, true, true, numSamples);
+				cullVoice(false, HARD, numSamples);
 			}
-
+			cullVoice(false, FORCE, numSamples);
 #if ALPHA_OR_BETA_VERSION
 
 			definitelyLog = true;
@@ -417,7 +415,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 			// If not in first routine call this is inaccurate, so just release another voice since things are
 			// probably bad
-			cullVoice(false, true, numRoutines > 0, numSamples);
+			cullVoice(false, numRoutines == 0 ? SOFT : SOFT_ALWAYS, numSamples);
 			logAction("soft cull");
 		}
 	}
@@ -426,7 +424,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		// If it's real dire, do a proper immediate cull
 		if (numSamplesOverLimit >= 10) {
 			D_PRINTLN("under min voices but culling anyway");
-			cullVoice(false, false, true, numSamples);
+			cullVoice(false, FORCE, numSamples);
 		}
 	}
 }
@@ -1290,7 +1288,7 @@ Voice* solicitVoice(Sound* forSound) {
 		                  // up to the ones being culled
 		D_PRINTLN("soliciting via culling");
 doCull:
-		newVoice = cullVoice(true);
+		newVoice = cullVoice(true, HARD, numSamplesLastTime);
 	}
 
 	else if (firstUnassignedVoice) {

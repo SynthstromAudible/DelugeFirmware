@@ -34,7 +34,7 @@ public:
 	int32_t lastValuePreCurrentStage;
 	uint32_t timeEnteredState;
 	bool ignoredNoteOff;
-	uint32_t fastReleaseIncrement;
+	uint32_t fastReleaseIncrement{4096};
 	int32_t noteOn(bool directlyToDecay);
 	int32_t noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice);
 	void noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager);
