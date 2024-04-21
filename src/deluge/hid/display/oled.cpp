@@ -530,8 +530,8 @@ void OLED::setupPopup(int32_t width, int32_t height) {
 	popupMinY = (OLED_MAIN_HEIGHT_PIXELS - popupHeight) >> 1;
 	popupMaxY = OLED_MAIN_HEIGHT_PIXELS - popupMinY;
 
-	if (popupMinY < 0) {
-		popupMinY = 0;
+	if (popupMinY < OLED_MAIN_TOPMOST_PIXEL) {
+		popupMinY = OLED_MAIN_TOPMOST_PIXEL;
 	}
 	if (popupMaxY > OLED_MAIN_HEIGHT_PIXELS - 1) {
 		popupMaxY = OLED_MAIN_HEIGHT_PIXELS - 1;
@@ -899,7 +899,7 @@ void updateWorkingAnimation() {
 	}
 
 	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true, DisplayPopupType::GENERAL);
+	OLED::popupText(textNow.get(), true, DisplayPopupType::LOADING);
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
@@ -909,8 +909,11 @@ void OLED::displayWorkingAnimation(char const* word) {
 }
 
 void OLED::removeWorkingAnimation() {
-	if (workingAnimationText) {
+	if (hasPopupOfType(DisplayPopupType::LOADING)) {
 		removePopup();
+	}
+	else if (workingAnimationText) {
+		workingAnimationText = NULL;
 	}
 }
 

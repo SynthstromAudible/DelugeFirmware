@@ -1302,9 +1302,10 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 	return modelStackWithThreeMainThings;
 }
 
-bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber,
-                                                          uint8_t value, ModelStackWithTimelineCounter* modelStack,
-                                                          int32_t noteRowIndex) {
+bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDIDevice* fromDevice, uint8_t channel,
+                                                                 uint8_t ccNumber, uint8_t value,
+                                                                 ModelStackWithTimelineCounter* modelStack,
+                                                                 int32_t noteRowIndex) {
 	bool messageUsed = false;
 
 	// For each MIDI knob...
@@ -1404,10 +1405,99 @@ bool ModControllableAudio::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice
 						automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
 					}
 				}
-				// placeholder: if support is added for midi learning to song params, then you will need
-				// to possibly refresh the performance view display (see midi follow code below for doing this)
-				// you will need to check that you're dealing with a song param and not a clip param otherwise
-				// you may incorrectly refresh the performance view display
+			}
+		}
+	}
+	return messageUsed;
+}
+
+bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
+    MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+    ModelStackWithThreeMainThings* modelStackWithThreeMainThings) {
+	bool messageUsed = false;
+
+	// For each MIDI knob...
+	for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
+		MIDIKnob* knob = midiKnobArray.getElement(k);
+
+		// If this is the knob...
+		if (knob->midiInput.equalsNoteOrCC(fromDevice, channel, ccNumber)) {
+
+			messageUsed = true;
+
+			// See if this message is evidence that the knob is not "relative"
+			if (value >= 16 && value < 112) {
+				knob->relative = false;
+			}
+			// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
+			// region.
+			int32_t modPos = 0;
+			int32_t modLength = 0;
+
+			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
+
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				int32_t newKnobPos;
+
+				int32_t previousValue =
+				    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+				int32_t knobPos =
+				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
+
+				if (knob->relative) {
+					int32_t offset = value;
+					if (offset >= 64) {
+						offset -= 128;
+					}
+					int32_t lowerLimit = std::min(-64_i32, knobPos);
+					newKnobPos = knobPos + offset;
+					newKnobPos = std::max(newKnobPos, lowerLimit);
+					newKnobPos = std::min(newKnobPos, 64_i32);
+					if (newKnobPos == knobPos) {
+						continue;
+					}
+				}
+				else {
+					// add 64 to internal knobPos to compare to midi cc value received
+					// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
+					// because midi can only send a max midi value of 127
+					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
+					if (knobPosForMidiValueComparison > kMaxMIDIValue) {
+						knobPosForMidiValueComparison = kMaxMIDIValue;
+					}
+
+					// is the cc being received for the same value as the current knob pos? If so, do nothing
+					if (value != knobPosForMidiValueComparison) {
+						newKnobPos = calculateKnobPosForMidiTakeover(modelStackWithParam, knobPos, value, knob);
+					}
+					else {
+						continue;
+					}
+				}
+
+				// Convert the New Knob Position to a Parameter Value
+				int32_t newValue =
+				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+
+				// Set the new Parameter Value for the MIDI Learned Parameter
+				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
+				                                                          modLength);
+
+				// check if you're currently editing the same learned param in automation view or
+				// performance view if so, you will need to refresh the automation editor grid or the
+				// performance view
+				RootUI* rootUI = getRootUI();
+				if (rootUI == &automationView || rootUI == &performanceSessionView) {
+					int32_t id = modelStackWithParam->paramId;
+					params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
+					if (rootUI == &automationView) {
+						automationView.possiblyRefreshAutomationEditorGrid(nullptr, kind, id);
+					}
+					else {
+						possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+					}
+				}
 			}
 		}
 	}

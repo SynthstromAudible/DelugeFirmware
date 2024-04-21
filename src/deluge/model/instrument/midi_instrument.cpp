@@ -356,6 +356,10 @@ bool MIDIInstrument::readTagFromFile(char const* tagName) {
 			channel = MIDI_CHANNEL_TRANSPOSE;
 		}
 	}
+	else if (!strcmp(tagName, "midiChannel")) {
+		// fix for incorrect save files created on nightlies between 18/02/24 and 08/04/24
+		channel = storageManager.readTagOrAttributeValueInt();
+	}
 	else if (!strcmp(tagName, "zone")) {
 		char const* text = storageManager.readTagOrAttributeValue();
 		if (!strcmp(text, "lower")) {

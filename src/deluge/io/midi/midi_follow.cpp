@@ -29,6 +29,7 @@
 #include "io/midi/midi_engine.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
@@ -109,11 +110,7 @@ void MidiFollow::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
 /// 1) pressing and holding a clip pad in arranger view, song view, grid view
 /// 2) pressing and holding the audition pad of a row in arranger view
 /// 3) entering a clip
-Clip* getSelectedClip(bool useActiveClip) {
-	// special case for note and performance data where you want to let notes and MPE through to the active clip
-	if (useActiveClip) {
-		return getCurrentClip();
-	}
+Clip* getSelectedClip() {
 	Clip* clip = nullptr;
 
 	RootUI* rootUI = getRootUI();
@@ -149,6 +146,21 @@ Clip* getSelectedClip(bool useActiveClip) {
 	}
 
 	return clip;
+}
+
+// returns activeClip for the selected output
+// special case for note and performance data where you want to let notes,
+// midi modulation sources (e.g. mod wheel), and MPE through to the active clip
+Clip* getSelectedClip(ModelStack* modelStack) {
+	// If you have an output for which no clip is active,
+	// when auditioning a clip for that output,
+	// the active clip for that output should be set to the current clip.
+	Clip* currentClip = getCurrentClip();
+	if (currentClip->type == ClipType::INSTRUMENT) {
+		InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
+		return currentClip->output->activeClip;
+	}
+	return nullptr;
 }
 
 /// based on the current context, as determined by clip returned from the getSelectedClip function
@@ -361,7 +373,7 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 		if (note >= 0 && note <= 127) {
 			Clip* clip;
 			if (on) {
-				clip = getSelectedClip(true);
+				clip = getSelectedClip(modelStack);
 			}
 			else {
 				// for note off's, see if a note on message was previously sent so you can
@@ -389,8 +401,7 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
                                 ModelStack* modelStack) {
 
 	// Only send if not muted - but let note-offs through always, for safety
-	if (clip && (clip->output->type != OutputType::AUDIO)
-	    && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
+	if (clip && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 		// Output is a kit or melodic instrument
 		if (modelStackWithTimelineCounter) {
@@ -459,11 +470,9 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				    ->receivedCCFromMidiFollow(modelStack, clip, ccNumber, value);
 			}
 		}
-		// for these cc's, check if there's an active clip if the clip returned above is NULL
-		if (!clip) {
-			clip = modelStack->song->getCurrentClip();
-		}
-		if (clip && (clip->output->type != OutputType::AUDIO)) {
+		// for these cc's, always use the active clip for the output selected
+		clip = getSelectedClip(modelStack);
+		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
@@ -489,8 +498,8 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
-		Clip* clip = getSelectedClip(true);
-		if (clip && (clip->output->type != OutputType::AUDIO)) {
+		Clip* clip = getSelectedClip(modelStack);
+		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
@@ -517,8 +526,8 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
-		Clip* clip = getSelectedClip(true);
-		if (clip && (clip->output->type != OutputType::AUDIO)) {
+		Clip* clip = getSelectedClip(modelStack);
+		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {

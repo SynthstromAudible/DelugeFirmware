@@ -1,8 +1,19 @@
 # Deluge Community Firmware Change Log
 
-> To find a detailed list of how to use each feature, check
->
-here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
+> To find a detailed list of how to use each feature, check here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
+
+## c1.2.0 Chopin
+
+### User Interface
+
+- Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
+- Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
+  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
+  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+- Added new `YELLOW GRID MODE` which allows you configure the clip type between `DEFAULT`, `FILL`, and `ONCE` by holding on a clip pad and pressing `SELECT`. In this mode, while clips are inactive, the clip pads are highlighted different colours to indicate the current clip type.
+
+### MIDI
+- Added Universal SysEx Identity response, including firmware version.
 
 ## c1.1.0 Beethoven
 
@@ -78,6 +89,9 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Added a new default setting that controls which playback mode new slices of a kit will get. 
 - Added indicators to the waveform loop lock feature for both 7seg (rightmost `.`) and OLED (lock indicator).
 - Modified waveform marker rendering to improve clarity.
+- Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/menu_hierarchies.md)
+- Added MIDI learning of Song Params
+- Added Synth/MIDI/CV clip configuration of note row play direction. Hold audition pad while entering the play direction menu to set the play direction for the selected note row. While in the note row play direction menu, you can select other note rows to quickly set the play directiom for multiple note rows.
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
@@ -95,8 +109,8 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Added support for 5 and 6 note scales.
 - Added 8 new built-in scales: Melodic Minor, Hungarian Minor, Marva (Indian), Arabian, Whole Tone, Blues, Pentatonic
   Minor, Hirajoshi.
-- Added "play `ONCE`" clip launch mode, settable by turning the Select Encoder left while holding the audition pad in
-  Song view. Causes the clip to play once when triggered and then mute without changing the section.
+- Added "play `ONCE`" clip launch mode, settable in `ROW VIEW` (Song view) by pressing the Select Encoder while holding
+  the mute pad of a row. Causes the clip to play once when triggered and then mute without changing the section.
 - Added `NOT FILL` note probability. Similar to the `FILL` probability but only plays when the `FILL` button is *not*
   pressed.
 - Added support for copy/paste of single rows.
@@ -105,9 +119,9 @@ In addition, a number of improvements have been made to how the OLED display is 
 - The default ModFX type for songs is now DISABLED rather than FLANGER.
 - The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without
   unexpectedly changing the scale and root note of the whole song.
-- The arpeggiator has been completely redesigned to have advanced features for the user like independent octave and note
-  modes, rhythm, sequence length and ratcheting notes. It also enables MPE keyboards to give more expression to the
-  arpeggiated notes.
+- The arpeggiator has been completely redesigned to have advanced features for the user like independent Octave and Note
+  modes, Rhythm, Sequence Length and Ratchet notes. It also enables MPE keyboards to give more expression to the
+  arpeggiated notes by updating live the velocity of the notes based on Aftertouch or MPE Y data coming from the keyboard.
 
 ### Audio Clips
 
