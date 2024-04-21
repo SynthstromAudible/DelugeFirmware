@@ -253,11 +253,6 @@ constexpr int32_t kNumModulators = 2;
 
 constexpr int32_t kMaxNumVoicesUnison = 8;
 
-// TODO: Investigate whether we can move static voices to dynamic allocation and remove these
-constexpr int32_t kNumVoicesStatic = 24;
-constexpr int32_t kNumVoiceSamplesStatic = 20;
-constexpr int32_t kNumTimeStretchersStatic = 6;
-
 constexpr int32_t kMaxNumNoteOnsPending = 64;
 
 constexpr int32_t kNumUnsignedIntegersToRepPatchCables = 1;
