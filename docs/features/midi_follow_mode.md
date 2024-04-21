@@ -8,6 +8,8 @@ Master MIDI follow mode whereby after setting a master MIDI follow channel for S
 
 - Note: although there are three MIDI follow channel's (A/B/C), all three channels will control the instrument of the active context. The three follow channel's allows you to learn different devices to MIDI follow, should you require device specific channel settings.
 
+- Note: you can configure MIDI follow mode to only control clip parameters
+
 Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow feedback channel for mapped MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 
 Comes with an XML file (MIDIFollow.XML) with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
@@ -16,6 +18,7 @@ Comes with an XML file (MIDIFollow.XML) with default CC to Deluge parameter mapp
 - Set your follow and feedback channel(s)
 - Set your MIDI Controller(s) to the same channel(s)
 - Set a root note for your kits
+- Set whether you want to control song params
 - Confirm that your controller cc's are mapped to the parameters you want (via MIDIFollow.XML)
 - Play and control the deluge instruments and parameters with ease!
 
@@ -80,7 +83,9 @@ The parameters are controlled only in the current context.
 - So if you are controlling filter, for example, while in song view it will only control the song’s filter. If you enter a specific synth clip, it will only control that synths filter. If you are in a kit clip it will either control the entire kit or a specific row in that clip (depending on whether you have affect entire enabled or not)
 - In other words it checks what context you’re in and controls the parameters of that context.
 
-Note: You can control the parameters of a synth or kit clip without entering the clip from arranger or song view. Simply press and hold the clip in arranger or song view to preview the clip (as you would to change the parameters of that clip with the gold encoders) and then send MIDI cc's from your MIDI controller to adjust the parameters.
+Note 1: You can control the parameters of a synth or kit clip without entering the clip from arranger or song view. Simply press and hold the clip in arranger or song view to preview the clip (as you would to change the parameters of that clip with the gold encoders) and then send MIDI cc's from your MIDI controller to adjust the parameters.
+
+Note 2: if you have disabled control of song params, then CC's received will control the active clip of the last instrument selected (e.g. synth, kit, audio clip, midi clip).
 
 #### Default MIDI CC Mappings
 A default set of MIDI CC # to Deluge Parameter mappings has been created for MIDI Follow Mode. When you launch the Deluge after installing the firmware with MIDI Follow Mode, an XML file will be created to the root folder of the SD card titled "MIDIFollow.XML"
@@ -131,6 +136,7 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 - Enable or Disable MIDI Follow Feedback by setting/unsetting the MIDI Follow Feedback Channel
 - Enable or Disable MIDI Follow Feedback for Automated Parameters and set the MIDI Feedback Update Rate
 - Enable or Disable MIDI Follow Feedback Filtering of MIDI CC responses received within 1 second of sending feedback
+- Enable or Disable MIDI Follow Control of Song Parameter's
 2. When MIDI Follow Mode is enabled, a MIDI Follow Channel has been set, and you have mapped your MIDI CC's, your external controller's Notes and MIDI CC's will be automatically directed to control the Notes of the Active Instrument (e.g. Synth, Kit, MIDI, CV) or the Parameters of the Active View (e.g. Song View, Arranger View, Audio Clip View, Instrument Clip View).
 3. By default, the root note for kit's is C1 for the bottom kit row but this can be configured in the MIDI Follow menu.
 4. Pop-up's are shown on the display for mapped MIDI CC's to show the name of the parameter being controlled and value being set for the parameter. This can be disabled in the menu.
