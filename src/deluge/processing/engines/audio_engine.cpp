@@ -435,7 +435,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	numToCull = 0;
 
 	// don't smooth this - used for other decisions as well
-	if (numSamples >= direnessThreshold) { // 23
+	if (numSamples >= direnessThreshold) {
 
 		int32_t newDireness = numSamples - (direnessThreshold - 1);
 		if (newDireness > 14) {
