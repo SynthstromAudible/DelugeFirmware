@@ -2096,6 +2096,19 @@ traverseClips:
 			anyOutputsSoloingInArrangement = true;
 		}
 
+		if (thisOutput->clipInstances.getNumElements() == 0
+		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
+		    && thisOutput->type == OutputType::AUDIO) {
+			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
+			// things will go wrong later.
+			ParamManagerForTimeline paramManager{};
+
+			paramManager.setupUnpatched();
+			GlobalEffectable::initParams(&paramManager);
+
+			this->backUpParamManager((ModControllableAudio*)thisOutput->toModControllable(), NULL, &paramManager);
+		}
+
 		for (int32_t i = 0; i < thisOutput->clipInstances.getNumElements(); i++) {
 			ClipInstance* thisInstance = thisOutput->clipInstances.getElement(i);
 
