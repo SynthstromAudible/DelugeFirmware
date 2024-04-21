@@ -548,7 +548,7 @@ extern "C" volatile uint32_t usbLock;
 extern "C" void usb_main_host(void);
 
 void registerTasks() {
-	addRepeatingTask([]() { uiTimerManager.routine(); }, 101, 128 / 44100., 128 / 44100., 256 / 44100.);
+	addRepeatingTask([]() { uiTimerManager.routine(); }, 101, 0.001, 0.005, 0.010);
 	if (hid::display::have_oled_screen) {
 		addRepeatingTask(&(oledRoutine), 100, 0.01, 0.01, 0.02);
 	}
