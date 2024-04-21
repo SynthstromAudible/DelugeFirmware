@@ -2098,7 +2098,9 @@ loadOutput:
 		}
 
 		if (thisOutput->clipInstances.getNumElements() == 0
-		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr) {
+		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
+		    && thisOutput->type == OutputType::AUDIO) {
+
 			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
 			// things will go wrong later.
 			ParamManagerForTimeline paramManager{};
