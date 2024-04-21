@@ -1565,18 +1565,16 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 		int32_t channel =
 		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
 		        .channelOrZone;
-		if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
+		if (channel != MIDI_CHANNEL_NONE) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
 				if (ccNumber != MIDI_CC_NONE) {
-					((ModControllableAudio*)activeModControllableModelStack.modControllable)
-					    ->sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+					midiFollow.sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
 				}
 			}
 			else {
-				((ModControllableAudio*)activeModControllableModelStack.modControllable)
-				    ->sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+				midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
 			}
 		}
 	}
@@ -1752,6 +1750,10 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 	if (renderedVUMeter && (currentUI == &arrangerView || currentUI == &performanceSessionView)) {
 		uiNeedsRendering(currentUI, 0);
 	}
+
+	// midi follow and midi feedback enabled
+	// re-send midi cc's because learned parameter values may have changed
+	sendMidiFollowFeedback();
 }
 
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
