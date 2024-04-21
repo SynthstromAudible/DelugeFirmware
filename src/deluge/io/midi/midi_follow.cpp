@@ -27,6 +27,7 @@
 #include "hid/display/display.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_takeover.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -36,6 +37,7 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
@@ -441,6 +443,13 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 		Clip* clip = getSelectedClip();
 		// clip is allowed to be null here because there may not be an active clip
 		// e.g. you want to control the song level parameters
+
+		// if clip is null and you do not want to control song params
+		// control the active clip of the last instrument selected
+		if (!clip && !midiEngine.midiFollowControlSongParam) {
+			clip = getCurrentClip()->output->activeClip;
+		}
+
 		bool isMIDIClip = false;
 		bool isCVClip = false;
 		if (clip) {
@@ -451,23 +460,22 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				isCVClip = true;
 			}
 		}
-		// don't offer to ModControllableAudio::receivedCCFromMidiFollow if it's a MIDI or CV Clip
+
+		// don't offer to handleReceivedCC if it's a MIDI or CV Clip
 		// this is because this function is used to control internal deluge parameters only (patched, unpatched)
 		// midi/cv clip cc parameters are handled below in the offerReceivedCCToMelodicInstrument function
-		if (!isMIDIClip && !isCVClip && view.activeModControllableModelStack.modControllable
-		    && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
+		if (!isMIDIClip && !isCVClip && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
 			// if midi follow feedback and feedback filter is enabled,
 			// check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
 			// if it was greater or equal than 1 second ago, allow received midi cc to go through
-			// this helps avoid additional processing of midi cc's receiver
+			// this helps avoid additional processing of midi cc's received
 			if (!isFeedbackEnabled()
 			    || (isFeedbackEnabled()
 			        && (!midiEngine.midiFollowFeedbackFilter
 			            || (midiEngine.midiFollowFeedbackFilter
 			                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
 				// See if it's learned to a parameter
-				((ModControllableAudio*)view.activeModControllableModelStack.modControllable)
-				    ->receivedCCFromMidiFollow(modelStack, clip, ccNumber, value);
+				handleReceivedCC(modelStack, clip, ccNumber, value);
 			}
 		}
 		// for these cc's, always use the active clip for the output selected
@@ -487,6 +495,191 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				}
 			}
 		}
+	}
+}
+
+/// checks if the ccNumber received has been learned to any parameters in midi learning view
+/// if the cc has been learned, it sets the new value for that parameter
+/// this function works by first checking the active context to see if there is an active clip
+/// to determine if the cc intends to control a song level or clip level parameter
+void MidiFollow::handleReceivedCC(ModelStack* modelStack, Clip* clip, int32_t ccNumber, int32_t value) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
+
+	// setup model stack for the active context
+	// if clip is null, it means you want to control the song level parameters
+	if (!clip) {
+		if (currentSong->affectEntire) {
+			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		}
+	}
+	else if (modelStack) {
+		modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+	}
+
+	// check that model stack is valid
+	if (modelStackWithThreeMainThings || modelStackWithTimelineCounter) {
+		// loop through the grid to see if any parameters have been learned to the ccNumber received
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				if (paramToCC[xDisplay][yDisplay] == ccNumber) {
+					// obtain the model stack for the parameter the ccNumber received is learned to
+					ModelStackWithAutoParam* modelStackWithParam =
+					    getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip,
+					                           xDisplay, yDisplay, ccNumber, midiEngine.midiFollowDisplayParam);
+					// check if model stack is valid
+					if (modelStackWithParam && modelStackWithParam->autoParam) {
+						// get current value
+						int32_t oldValue =
+						    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+
+						// convert current value to knobPos to compare to cc value being received
+						int32_t knobPos =
+						    modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
+
+						// add 64 to internal knobPos to compare to midi cc value received
+						// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
+						// because midi can only send a max midi value of 127
+						int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
+						if (knobPosForMidiValueComparison > kMaxMIDIValue) {
+							knobPosForMidiValueComparison = kMaxMIDIValue;
+						}
+
+						// is the cc being received for the same value as the current knob pos? If so, do nothing
+						if (value != knobPosForMidiValueComparison) {
+							// calculate new knob position based on value received and deluge current value
+							int32_t newKnobPos = midiTakeover.calculateKnobPos(modelStackWithParam, knobPos, value,
+							                                                   nullptr, true, ccNumber);
+
+							// Convert the New Knob Position to a Parameter Value
+							int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(
+							    newKnobPos, modelStackWithParam);
+
+							// Set the new Parameter Value for the MIDI Learned Parameter
+							modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
+							                                                          view.modPos, view.modLength);
+
+							// check if you're currently editing the same learned param in automation view or
+							// performance view if so, you will need to refresh the automation editor grid or the
+							// performance view
+							bool editingParamInAutomationOrPerformanceView = false;
+							RootUI* rootUI = getRootUI();
+							if (rootUI == &automationView || rootUI == &performanceSessionView) {
+								int32_t id = modelStackWithParam->paramId;
+								params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
+								if (rootUI == &automationView) {
+									// pass the current clip because you want to check that you're editing the param
+									// for the same clip active in automation view
+									editingParamInAutomationOrPerformanceView =
+									    automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
+								}
+								else {
+									editingParamInAutomationOrPerformanceView =
+									    performanceSessionView.possiblyRefreshPerformanceViewDisplay(kind, id,
+									                                                                 newKnobPos);
+								}
+							}
+
+							// check if you should display name of the parameter that was changed and the value that
+							// has been set if you're in the automation view editor or performance view non-editing
+							// mode don't display popup if you're currently editing the same param
+							if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
+								params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+								view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/// called when updating the context,
+/// e.g. switching from song to clip, changing instruments presets, peeking a clip in song view
+/// this function:
+/// 1) checks the active context
+/// 2) sets up the model stack for that context
+/// 3) checks what parameters have been learned and obtains the model stack for those params
+/// 4) sends midi feedback of the current parameter value to the cc numbers learned to those parameters
+void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
+
+	// obtain clip for active context
+	Clip* clip = getSelectedClip();
+
+	// if clip is null and you do not want to control song params
+	// send feedback for the active clip
+	if (!clip && !midiEngine.midiFollowControlSongParam) {
+		clip = getCurrentClip()->output->activeClip;
+	}
+
+	// setup model stack for the active context
+	if (!clip) {
+		if (currentSong->affectEntire) {
+			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		}
+	}
+	else {
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+		if (modelStack) {
+			modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+		}
+	}
+
+	// check that model stack is valid
+	if (modelStackWithThreeMainThings || modelStackWithTimelineCounter) {
+		// loop through the grid to see if any parameters have been learned
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+				if (paramToCC[xDisplay][yDisplay] != MIDI_CC_NONE) {
+					// obtain the model stack for the parameter that has been learned
+					ModelStackWithAutoParam* modelStackWithParam =
+					    getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip,
+					                           xDisplay, yDisplay, MIDI_CC_NONE, false);
+					// check that model stack is valid
+					if (modelStackWithParam && modelStackWithParam->autoParam) {
+						if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
+							// obtain current value of the learned parameter
+							int32_t currentValue =
+							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+
+							// convert current value to a knob position
+							int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
+							    currentValue, modelStackWithParam);
+
+							// send midi feedback to the ccNumber learned to the param with the current knob
+							// position
+							sendCCForMidiFollowFeedback(channel, paramToCC[xDisplay][yDisplay], knobPos);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/// called when updating parameter values using mod (gold) encoders or the select encoder in the soudnEditor menu
+void MidiFollow::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos) {
+	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
+		LearnedMIDI& midiInput =
+		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)];
+
+		if (midiInput.isForMPEZone()) {
+			channel = midiInput.getMasterChannel();
+		}
+
+		int32_t midiOutputFilter = midiInput.channelOrZone;
+
+		midiEngine.sendCC(channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
+
+		timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 	}
 }
 
