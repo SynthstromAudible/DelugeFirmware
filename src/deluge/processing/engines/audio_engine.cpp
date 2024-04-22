@@ -550,14 +550,8 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	//  	D_PRINTLN(" samples but output ");
 	//  	D_PRINTLN(numSamples);
 	//  }
-	size_t smoothedSamples;
-	if (numSamples > numSamplesLastTime) {
-		smoothedSamples = (3 * numSamples + numSamplesLastTime) >> 2;
-	}
-	else {
-		smoothedSamples = numSamples;
-	}
-	setDireness(smoothedSamples);
+
+	setDireness(numSamples);
 
 	// when playback is enabled, blink play button to indicate high cpu usage
 	if (playbackHandler.isEitherClockActive() && cpuDireness >= 14) {
