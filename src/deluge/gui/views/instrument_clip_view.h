@@ -88,6 +88,7 @@ public:
 	int32_t getYVisualFromYDisplay(int32_t yDisplay);
 	int32_t getYVisualWithinOctaveFromYDisplay(int32_t yDisplay);
 	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
+	void potentiallyRefreshNoteRowMenu();
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void changeRootNote(uint8_t yDisplay);

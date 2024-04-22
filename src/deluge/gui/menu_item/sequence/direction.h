@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -35,6 +36,18 @@ public:
 			Kit* kit = getCurrentKit();
 			if (kit->selectedDrum != nullptr) {
 				return clip->getNoteRowForDrum(modelStack, kit->selectedDrum); // Still might be NULL;
+			}
+		}
+		else if (clip->output->type != OutputType::KIT) {
+			if (soundEditor.selectedNoteRow) {
+				// get model stack with note row but don't create note row if it doesn't exist
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
+				if (!modelStackWithNoteRow->getNoteRowAllowNull()) { // if note row doesn't exist yet, create it
+					modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
+					    modelStack, instrumentClipView.lastAuditionedYDisplay);
+				}
+				return modelStackWithNoteRow;
 			}
 		}
 		return modelStack->addNoteRow(0, nullptr);
@@ -86,9 +99,13 @@ public:
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) override {
-		if (!getCurrentInstrumentClip()->affectEntire && getCurrentOutputType() == OutputType::KIT
+		OutputType outputType = getCurrentOutputType();
+		if (!getCurrentInstrumentClip()->affectEntire && outputType == OutputType::KIT
 		    && (getCurrentKit()->selectedDrum == nullptr)) {
 			return MenuPermission::NO;
+		}
+		else if (outputType != OutputType::KIT) {
+			soundEditor.selectedNoteRow = isUIModeActive(UI_MODE_AUDITIONING);
 		}
 		return MenuPermission::YES;
 	}
