@@ -68,6 +68,7 @@ public:
 	bool midiFollowDisplayParam;
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation;
 	bool midiFollowFeedbackFilter;
+	bool midiFollowControlSongParam;
 	MIDITakeoverMode midiTakeover;
 	bool midiSelectKitRow;
 

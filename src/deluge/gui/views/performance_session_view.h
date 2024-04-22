@@ -122,6 +122,9 @@ public:
 	bool gridModeActive;
 	uint32_t timeGridModePress;
 
+	// public so mod controllable audio and midi follow can access it
+	bool possiblyRefreshPerformanceViewDisplay(deluge::modulation::params::Kind kind, int32_t id, int32_t newKnobPos);
+
 private:
 	// initialize
 	void initPadPress(PadPress& padPress);

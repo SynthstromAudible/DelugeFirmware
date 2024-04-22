@@ -625,6 +625,28 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 	onFXDisplay = true;
 }
 
+// if you had selected a parameter in performance view and the parameter name
+// and current value is displayed on the screen, don't show pop-up as the display already shows it
+// this checks that the param displayed on the screen in performance view
+// is the same param currently being edited with mod encoder and updates the display if needed
+bool PerformanceSessionView::possiblyRefreshPerformanceViewDisplay(params::Kind kind, int32_t id, int32_t newKnobPos) {
+	// check if you're not in editing mode
+	// and a param hold press is currently active
+	if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
+		if ((kind == performanceSessionView.lastPadPress.paramKind)
+		    && (id == performanceSessionView.lastPadPress.paramID)) {
+			int32_t valueForDisplay = view.calculateKnobPosForDisplay(kind, id, newKnobPos + kKnobPosOffset);
+			performanceSessionView.renderFXDisplay(kind, id, valueForDisplay);
+			return true;
+		}
+	}
+	// if a specific param is not active, reset display
+	else if (performanceSessionView.onFXDisplay) {
+		performanceSessionView.renderViewDisplay();
+	}
+	return false;
+}
+
 void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	renderViewDisplay();
 	sessionView.renderOLED(image);
