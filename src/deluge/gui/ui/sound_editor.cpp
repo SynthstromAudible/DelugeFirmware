@@ -243,6 +243,14 @@ void SoundEditor::setLedStates() {
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	Clip* clip = nullptr;
+	bool isUIInstrumentClipView = false;
+
+	if (rootUIIsClipMinderScreen()) {
+		clip = getCurrentClip();
+		isUIInstrumentClipView = clip->type == ClipType::INSTRUMENT;
+	}
+
 	// Encoder button
 	if (b == SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
@@ -314,7 +322,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Save button
 	else if (b == SAVE) {
 		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu()
-		    && getCurrentClip()->type != ClipType::AUDIO) {
+		    && clip->type != ClipType::AUDIO) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -365,7 +373,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	// Affect-entire button
-	else if (b == AFFECT_ENTIRE && getRootUI() == &instrumentClipView) {
+	else if (b == AFFECT_ENTIRE && isUIInstrumentClipView) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -396,7 +404,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			}
 
 			if (getRootUI() == &keyboardScreen) {
-				if (getCurrentClip()->onAutomationClipView) {
+				if (clip->onAutomationClipView) {
 					swapOutRootUILowLevel(&automationView);
 					automationView.openedInBackground();
 				}
@@ -411,9 +419,9 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				keyboardScreen.openedInBackground();
 			}
 			else if (getRootUI() == &automationView && !automationView.onArrangerView) {
-				if (getCurrentClip()->type == ClipType::INSTRUMENT) {
+				if (clip->type == ClipType::INSTRUMENT) {
 					if (automationView.onMenuView) {
-						getCurrentClip()->onAutomationClipView = false;
+						clip->onAutomationClipView = false;
 						automationView.onMenuView = false;
 						indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 					}
@@ -912,8 +920,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		// For Kit Instrument Clip with Affect Entire Enabled
-		else if (setupKitGlobalFXMenu && (getCurrentOutputType() == OutputType::KIT)
-		         && (getCurrentInstrumentClip()->affectEntire)) {
+		else if (setupKitGlobalFXMenu) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
 			}
@@ -1323,6 +1330,11 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	ArpeggiatorSettings* newArpSettings = nullptr;
 	ModControllableAudio* newModControllable = nullptr;
 
+	InstrumentClip* instrumentClip = nullptr;
+
+	Output* output = nullptr;
+	OutputType outputType = OutputType::NONE;
+
 	UI* currentUI = getCurrentUI();
 
 	bool isUIPerformanceView = ((getRootUI() == &performanceSessionView) || currentUI == &performanceSessionView);
@@ -1340,23 +1352,27 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 		}
 	}
 	else if (clip) {
+		output = clip->output;
+		outputType = output->type;
 
 		// InstrumentClips
 		if (clip->type == ClipType::INSTRUMENT) {
-			// Kit
-			if (clip->output->type == OutputType::KIT) {
-				Drum* selectedDrum = ((Kit*)clip->output)->selectedDrum;
+			instrumentClip = (InstrumentClip*)clip;
 
-				// If Affect Entire is selected
-				if (setupKitGlobalFXMenu && ((InstrumentClip*)clip)->affectEntire) {
-					newModControllable = (ModControllableAudio*)(Instrument*)clip->output->toModControllable();
-					newParamManager = &(((InstrumentClip*)clip)->paramManager);
+			// Kit
+			if (outputType == OutputType::KIT) {
+				Drum* selectedDrum = ((Kit*)output)->selectedDrum;
+
+				// If Affect Entire is selected and you didn't enter menu using a grid shortcut for a kit row param
+				if (setupKitGlobalFXMenu) {
+					newModControllable = (ModControllableAudio*)(Instrument*)output->toModControllable();
+					newParamManager = &instrumentClip->paramManager;
 				}
 
 				// If a SoundDrum is selected...
 				else if (selectedDrum) {
 					if (selectedDrum->type == DrumType::SOUND) {
-						NoteRow* noteRow = ((InstrumentClip*)clip)->getNoteRowForDrum(selectedDrum);
+						NoteRow* noteRow = instrumentClip->getNoteRowForDrum(selectedDrum);
 						if (noteRow == nullptr) {
 							return false;
 						}
@@ -1391,22 +1407,22 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 			else {
 
 				// Synth
-				if (clip->output->type == OutputType::SYNTH) {
-					newSound = (SoundInstrument*)clip->output;
+				if (outputType == OutputType::SYNTH) {
+					newSound = (SoundInstrument*)output;
 					newModControllable = newSound;
 				}
 
 				// CV or MIDI - not much happens
 
 				newParamManager = &clip->paramManager;
-				newArpSettings = &((InstrumentClip*)clip)->arpSettings;
+				newArpSettings = &instrumentClip->arpSettings;
 			}
 		}
 
 		// AudioClips
 		else {
 			newParamManager = &clip->paramManager;
-			newModControllable = (ModControllableAudio*)clip->output->toModControllable();
+			newModControllable = (ModControllableAudio*)output->toModControllable();
 		}
 	}
 
@@ -1417,21 +1433,20 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	}
 	else {
 		if (clip) {
-
 			actionLogger.deleteAllLogs();
 
 			if (clip->type == ClipType::INSTRUMENT) {
-				if (getCurrentOutputType() == OutputType::MIDI_OUT) {
+				if (outputType == OutputType::MIDI_OUT) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
 				}
-				else if (getCurrentOutputType() == OutputType::CV) {
+				else if (outputType == OutputType::CV) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_CV_INSTRUMENT;
 					goto doMIDIOrCV;
 				}
 
-				else if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
+				else if ((outputType == OutputType::KIT) && instrumentClip->affectEntire) {
 					newItem = &soundEditorRootMenuKitGlobalFX;
 				}
 
@@ -1520,6 +1535,7 @@ doMIDIOrCV:
 	menuItemNavigationRecord[navigationDepth] = newItem;
 
 	display->setNextTransitionDirection(1);
+
 	return true;
 }
 
