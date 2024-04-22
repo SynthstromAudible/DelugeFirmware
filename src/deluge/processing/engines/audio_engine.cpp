@@ -405,9 +405,9 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
 			for (int32_t i = 0; i < numToCull; i++) {
 				// hard cull (no release)
-				cullVoice(false, HARD, numSamples, nullptr);
+				cullVoice(false, FORCE, numSamples, nullptr);
 			}
-			cullVoice(false, FORCE, numSamples, nullptr);
+			cullVoice(false, SOFT_ALWAYS, numSamples, nullptr);
 #if ALPHA_OR_BETA_VERSION
 
 			definitelyLog = true;
@@ -424,6 +424,12 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			// probably bad
 			cullVoice(false, numRoutines == 0 ? SOFT : SOFT_ALWAYS, numSamples, nullptr);
 			logAction("soft cull");
+		}
+		// blink LED to alert the user
+		if (numSamplesOverLimit >= -6) {
+			if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
+				indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
+			}
 		}
 	}
 	else {
@@ -552,14 +558,6 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	//  }
 
 	setDireness(numSamples);
-
-	// when playback is enabled, blink play button to indicate high cpu usage
-	if (playbackHandler.isEitherClockActive() && cpuDireness >= 14) {
-		// check if indicator isn't already active
-		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
-			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
-		}
-	}
 
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
