@@ -240,7 +240,7 @@ void unassignAllVoices(bool deletingSong) {
 
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
-		unassignVoice(thisVoice, thisVoice->assignedToSound, nullptr);
+		unassignVoice(thisVoice, thisVoice->assignedToSound, nullptr, false);
 	}
 	activeVoices.empty();
 
