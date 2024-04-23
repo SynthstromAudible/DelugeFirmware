@@ -868,9 +868,10 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 }
 
 void ModControllableAudio::writeAttributesToFile() {
-	storageManager.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
-	storageManager.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
 	storageManager.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
+	storageManager.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	storageManager.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
 	storageManager.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
 	if (clippingAmount) {
 		storageManager.writeAttribute("clippingAmount", clippingAmount);
@@ -882,25 +883,9 @@ void ModControllableAudio::writeTagsToFile() {
 	storageManager.writeOpeningTagBeginning("delay");
 	storageManager.writeAttribute("pingPong", delay.pingPong);
 	storageManager.writeAttribute("analog", delay.analog);
-	storageManager.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
 	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
-	storageManager.closeTag();
-
-	// Sidechain
-	storageManager.writeOpeningTagBeginning("sidechain");
-	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
-	storageManager.writeAttribute("attack", sidechain.attack);
-	storageManager.writeAttribute("release", sidechain.release);
-	storageManager.closeTag();
-
-	// Audio compressor
-	storageManager.writeOpeningTagBeginning("audioCompressor");
-	storageManager.writeAttribute("attack", compressor.getAttack());
-	storageManager.writeAttribute("release", compressor.getRelease());
-	storageManager.writeAttribute("thresh", compressor.getThreshold());
-	storageManager.writeAttribute("ratio", compressor.getRatio());
-	storageManager.writeAttribute("compHPF", compressor.getSidechain());
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	storageManager.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
 	storageManager.closeTag();
 
 	// MIDI knobs
@@ -938,6 +923,24 @@ void ModControllableAudio::writeTagsToFile() {
 		}
 		storageManager.writeClosingTag("midiKnobs");
 	}
+
+	// Sidechain (renamed from "compressor" from the official firmware)
+	storageManager.writeOpeningTagBeginning("sidechain");
+	storageManager.writeAttribute("attack", sidechain.attack);
+	storageManager.writeAttribute("release", sidechain.release);
+	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	storageManager.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
+	storageManager.closeTag();
+
+	// Audio compressor
+	storageManager.writeOpeningTagBeginning("audioCompressor");
+	storageManager.writeAttribute("attack", compressor.getAttack());
+	storageManager.writeAttribute("release", compressor.getRelease());
+	storageManager.writeAttribute("thresh", compressor.getThreshold());
+	storageManager.writeAttribute("ratio", compressor.getRatio());
+	storageManager.writeAttribute("compHPF", compressor.getSidechain());
+	storageManager.closeTag();
 }
 
 void ModControllableAudio::writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
@@ -954,6 +957,8 @@ void ModControllableAudio::writeParamAttributesToFile(ParamManager* paramManager
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation, false,
 	                                       valuesForOverride);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	unpatchedParams->writeParamAsAttribute("compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
 	                                       writeAutomation, false, valuesForOverride);
 }

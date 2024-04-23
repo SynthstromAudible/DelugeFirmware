@@ -786,17 +786,14 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {
-
-	ModControllableAudio::writeAttributesToFile();
-
 	storageManager.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
 	storageManager.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
+	ModControllableAudio::writeAttributesToFile();
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	// <--
 }
 
 void GlobalEffectable::writeTagsToFile(ParamManager* paramManager, bool writeAutomation) {
-
-	ModControllableAudio::writeTagsToFile();
-
 	if (paramManager) {
 		storageManager.writeOpeningTagBeginning("defaultParams");
 		GlobalEffectable::writeParamAttributesToFile(paramManager, writeAutomation);
@@ -804,6 +801,8 @@ void GlobalEffectable::writeTagsToFile(ParamManager* paramManager, bool writeAut
 		GlobalEffectable::writeParamTagsToFile(paramManager, writeAutomation);
 		storageManager.writeClosingTag("defaultParams");
 	}
+
+	ModControllableAudio::writeTagsToFile();
 }
 
 void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
@@ -816,11 +815,6 @@ void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute("volume", params::UNPATCHED_VOLUME, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("pan", params::UNPATCHED_PAN, writeAutomation, false, valuesForOverride);
-
-	unpatchedParams->writeParamAsAttribute("lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
 
 	if (unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].containsSomething(0)) {
 		unpatchedParams->writeParamAsAttribute("pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation, false,
@@ -841,6 +835,12 @@ void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bo
 	                                       valuesForOverride);
 
 	ModControllableAudio::writeParamAttributesToFile(paramManager, writeAutomation, valuesForOverride);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	unpatchedParams->writeParamAsAttribute("lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
