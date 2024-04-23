@@ -158,7 +158,7 @@ void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, P
 	bdsm.writeOpeningTagBeginning("sound");
 	bdsm.writeFirmwareVersion();
 	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
-	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings);
+	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings, NULL);
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile(bdsm);
@@ -170,8 +170,8 @@ void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, P
 void SoundDrum::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
 	bdsm.writeOpeningTagBeginning("sound");
 	bdsm.writeAttribute("name", name.get());
-	bdsm.writeAttribute("path", path.get());
-	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings);
+
+	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings, path.get());
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile(bdsm);

@@ -868,9 +868,10 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 }
 
 void ModControllableAudio::writeAttributesToFile(StorageManager& bdsm) {
-	bdsm.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
-	bdsm.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
 	bdsm.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
+	bdsm.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
 	bdsm.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
 	if (clippingAmount) {
 		bdsm.writeAttribute("clippingAmount", clippingAmount);
@@ -882,25 +883,9 @@ void ModControllableAudio::writeTagsToFile(StorageManager& bdsm) {
 	bdsm.writeOpeningTagBeginning("delay");
 	bdsm.writeAttribute("pingPong", delay.pingPong);
 	bdsm.writeAttribute("analog", delay.analog);
-	bdsm.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
 	bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
-	bdsm.closeTag();
-
-	// Sidechain
-	bdsm.writeOpeningTagBeginning("sidechain");
-	bdsm.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
-	bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
-	bdsm.writeAttribute("attack", sidechain.attack);
-	bdsm.writeAttribute("release", sidechain.release);
-	bdsm.closeTag();
-
-	// Audio compressor
-	bdsm.writeOpeningTagBeginning("audioCompressor");
-	bdsm.writeAttribute("attack", compressor.getAttack());
-	bdsm.writeAttribute("release", compressor.getRelease());
-	bdsm.writeAttribute("thresh", compressor.getThreshold());
-	bdsm.writeAttribute("ratio", compressor.getRatio());
-	bdsm.writeAttribute("compHPF", compressor.getSidechain());
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
 	bdsm.closeTag();
 
 	// MIDI knobs
@@ -937,6 +922,24 @@ void ModControllableAudio::writeTagsToFile(StorageManager& bdsm) {
 		}
 		bdsm.writeClosingTag("midiKnobs");
 	}
+
+	// Sidechain (renamed from "compressor" from the official firmware)
+	bdsm.writeOpeningTagBeginning("sidechain");
+	bdsm.writeAttribute("attack", sidechain.attack);
+	bdsm.writeAttribute("release", sidechain.release);
+	bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
+	bdsm.closeTag();
+
+	// Audio compressor (this section is all new so we write it at the end)
+	bdsm.writeOpeningTagBeginning("audioCompressor");
+	bdsm.writeAttribute("attack", compressor.getAttack());
+	bdsm.writeAttribute("release", compressor.getRelease());
+	bdsm.writeAttribute("thresh", compressor.getThreshold());
+	bdsm.writeAttribute("ratio", compressor.getRatio());
+	bdsm.writeAttribute("compHPF", compressor.getSidechain());
+	bdsm.closeTag();
 }
 
 void ModControllableAudio::writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager,
@@ -953,6 +956,8 @@ void ModControllableAudio::writeParamAttributesToFile(StorageManager& bdsm, Para
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation,
 	                                       false, valuesForOverride);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	unpatchedParams->writeParamAsAttribute(bdsm, "compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
 	                                       writeAutomation, false, valuesForOverride);
 }

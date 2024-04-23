@@ -1002,7 +1002,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	return true;
 }
 
-void AudioClip::writeDataToFile(StorageManager& bdsm, Song* song) {
+bool AudioClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	bdsm.writeAttribute("trackName", output->name.get());
 
@@ -1042,11 +1042,17 @@ void AudioClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	Clip::writeDataToFile(bdsm, song);
 
+	bdsm.writeOpeningTagEnd();
+
+	Clip::writeMidiCommandsToFile(bdsm, song);
+
 	bdsm.writeOpeningTagBeginning("params");
 	GlobalEffectableForClip::writeParamAttributesToFile(bdsm, &paramManager, true);
 	bdsm.writeOpeningTagEnd();
 	GlobalEffectableForClip::writeParamTagsToFile(bdsm, &paramManager, true);
 	bdsm.writeClosingTag("params");
+
+	return true;
 }
 
 Error AudioClip::readFromFile(StorageManager& bdsm, Song* song) {
