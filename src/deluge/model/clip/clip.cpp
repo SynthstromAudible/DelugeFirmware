@@ -652,7 +652,7 @@ void Clip::writeToFile(Song* song) {
 	bool endedOpeningTag = writeDataToFile(song);
 
 	if (!endedOpeningTag) {
-		bdsm.writeOpeningTagEnd();
+		storageManager.writeOpeningTagEnd();
 	}
 
 	Clip::writeMidiCommandsToFile(song);

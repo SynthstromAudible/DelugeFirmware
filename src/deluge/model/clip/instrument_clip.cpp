@@ -2340,9 +2340,9 @@ bool InstrumentClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
 	storageManager.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
 
-	bdsm.writeOpeningTagEnd();
+	storageManager.writeOpeningTagEnd();
 
-	Clip::writeMidiCommandsToFile(bdsm, song);
+	Clip::writeMidiCommandsToFile(song);
 
 	if (output->type == OutputType::MIDI_OUT) {
 		paramManager.getMIDIParamCollection()->writeToFile();
