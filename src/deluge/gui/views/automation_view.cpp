@@ -426,6 +426,17 @@ void AutomationView::initializeView() {
 				clip->lastSelectedOutputType = outputType;
 			}
 
+			// if we're in a kit, we want to make sure the param selected is valid for current context
+			// e.g. only UNPATCHED_GLOBAL param kind's can be used with Kit Affect Entire enabled
+			if ((outputType == OutputType::KIT) && (clip->lastSelectedParamKind != params::Kind::NONE)) {
+				if (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL) {
+					clip->affectEntire = true;
+				}
+				else {
+					clip->affectEntire = false;
+				}
+			}
+
 			if (clip->wrapEditing) { // turn led off if it's on
 				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 			}
