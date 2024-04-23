@@ -178,7 +178,8 @@ public:
 	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	Error readFromFile(ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
 	                   ArpeggiatorSettings* arpSettings);
-	void writeToFile(bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings);
+	void writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager,
+	                 ArpeggiatorSettings* arpSettings, const char* pathAttribute = NULL);
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
 
 	void voiceUnassigned(ModelStackWithVoice* modelStack);

@@ -2272,17 +2272,11 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	return Error::NONE;
 }
 
-void InstrumentClip::writeDataToFile(Song* song) {
+bool InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
-	storageManager.writeAttribute("inKeyMode", inScaleMode);
-	storageManager.writeAttribute("yScroll", yScroll);
-	storageManager.writeAttribute("keyboardLayout", keyboardState.currentLayout);
-	storageManager.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
-	storageManager.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
-	storageManager.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
-	storageManager.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
-	storageManager.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
-	storageManager.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+	bdsm.writeAttribute("inKeyMode", inScaleMode);
+	bdsm.writeAttribute("yScroll", yScroll);
+	bdsm.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
 
 	if (onKeyboardScreen) {
 		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
@@ -2339,29 +2333,47 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 	Clip::writeDataToFile(song);
 
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeAttribute("keyboardLayout", keyboardState.currentLayout);
+	bdsm.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
+	bdsm.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
+	bdsm.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
+	bdsm.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
+	bdsm.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+
+	bdsm.writeOpeningTagEnd();
+
+	Clip::writeMidiCommandsToFile(bdsm, song);
+
 	if (output->type == OutputType::MIDI_OUT) {
 		paramManager.getMIDIParamCollection()->writeToFile();
 	}
 
 	if (output->type != OutputType::KIT) {
-		storageManager.writeOpeningTagBeginning("arpeggiator");
-		storageManager.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-		storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-		storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-		storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
-		storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
-		storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
-		storageManager.writeAttribute("syncType", arpSettings.syncType);
+		bdsm.writeOpeningTagBeginning("arpeggiator");
+		bdsm.writeAttribute("mode", (char*)arpPresetToOldArpMode(arpSettings.preset)); // For backwards compatibility
+		bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
+		bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
 
 		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-			storageManager.writeAttribute("gate", arpeggiatorGate);
-			storageManager.writeAttribute("rate", arpeggiatorRate);
-			storageManager.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
-			storageManager.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
-			storageManager.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
-			storageManager.writeAttribute("rhythm", arpeggiatorRhythm);
+			bdsm.writeAttribute("gate", arpeggiatorGate);
+			bdsm.writeAttribute("rate", arpeggiatorRate);
+			// Community Firmware parameters (always write them after the official ones, just before closing the parent
+			// tag)
+			bdsm.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
+			bdsm.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
+			bdsm.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
+			bdsm.writeAttribute("rhythm", arpeggiatorRhythm);
 		}
-		storageManager.closeTag();
+
+		// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+		bdsm.writeAttribute("syncType", arpSettings.syncType);
+		bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+		bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+		bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+
+		bdsm.closeTag();
 	}
 
 	if (output->type == OutputType::KIT) {
@@ -2408,6 +2420,8 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 		storageManager.writeClosingTag("noteRows");
 	}
+
+	return true;
 }
 
 Error InstrumentClip::readFromFile(Song* song) {

@@ -649,12 +649,18 @@ void Clip::writeToFile(Song* song) {
 
 	storageManager.writeOpeningTagBeginning(xmlTag);
 
-	writeDataToFile(song);
+	bool endedOpeningTag = writeDataToFile(bdsm, song);
+
+	if (!endedOpeningTag) {
+		bdsm.writeOpeningTagEnd();
+	}
+
+	Clip::writeMidiCommandsToFile(bdsm, song);
 
 	storageManager.writeClosingTag(xmlTag);
 }
 
-void Clip::writeDataToFile(Song* song) {
+bool Clip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	storageManager.writeAttribute("isPlaying", activeIfNoSolo);
 	storageManager.writeAttribute("isSoloing", soloingInSessionMode);
@@ -684,9 +690,12 @@ void Clip::writeDataToFile(Song* song) {
 	if (launchStyle != LaunchStyle::DEFAULT) {
 		storageManager.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
-	storageManager.writeOpeningTagEnd();
 
-	muteMIDICommand.writeNoteToFile("muteMidiCommand");
+	return false;
+}
+
+void Clip::writeMidiCommandsToFile(StorageManager& bdsm, Song* song) {
+	muteMIDICommand.writeNoteToFile(bdsm, "muteMidiCommand");
 }
 
 void Clip::readTagFromFile(char const* tagName, Song* song, int32_t* readAutomationUpToPos) {

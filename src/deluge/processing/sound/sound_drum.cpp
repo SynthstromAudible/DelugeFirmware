@@ -154,11 +154,11 @@ Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
-void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramManager) {
-	storageManager.writeOpeningTagBeginning("sound");
-	storageManager.writeFirmwareVersion();
-	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
-	Sound::writeToFile(savingSong, paramManager, &arpSettings);
+void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
+	bdsm.writeOpeningTagBeginning("sound");
+	bdsm.writeFirmwareVersion();
+	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings, NULL);
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile();
@@ -167,11 +167,11 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 	storageManager.writeClosingTag("sound");
 }
 
-void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
-	storageManager.writeOpeningTagBeginning("sound");
-	storageManager.writeAttribute("name", name.get());
-	storageManager.writeAttribute("path", path.get());
-	Sound::writeToFile(savingSong, paramManager, &arpSettings);
+void SoundDrum::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
+	bdsm.writeOpeningTagBeginning("sound");
+	bdsm.writeAttribute("name", name.get());
+
+	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings, path.get());
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile();

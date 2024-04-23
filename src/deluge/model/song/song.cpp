@@ -1316,29 +1316,24 @@ void Song::writeToFile() {
 		storageManager.writeAttribute("currentTrackInstanceArrangementPos", lastClipInstanceEnteredStartPos);
 
 weAreInArrangementEditorOrInClipInstance:
-		storageManager.writeAttribute("xScrollSongView", xScrollForReturnToSongView);
-		storageManager.writeAttribute("xZoomSongView", xZoomForReturnToSongView);
+		bdsm.writeAttribute("xScrollSongView", xScrollForReturnToSongView);
+		bdsm.writeAttribute("xZoomSongView", xZoomForReturnToSongView);
 	}
 
-	storageManager.writeAttribute("arrangementAutoScrollOn", arrangerAutoScrollModeActive);
+	bdsm.writeAttribute("arrangementAutoScrollOn", arrangerAutoScrollModeActive);
 
-	storageManager.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
-	storageManager.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
-	storageManager.writeAttribute("yScrollSongView", songViewYScroll);
-	storageManager.writeAttribute("songGridScrollX", songGridScrollX);
-	storageManager.writeAttribute("songGridScrollY", songGridScrollY);
-	storageManager.writeAttribute("sessionLayout", sessionLayout);
-
-	storageManager.writeAttribute("yScrollArrangementView", arrangementYScroll);
-	storageManager.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
-	storageManager.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
-	storageManager.writeAttribute("timePerTimerTick", timePerTimerTickBig >> 32);
-	storageManager.writeAttribute("timerTickFraction", (uint32_t)timePerTimerTickBig);
-	storageManager.writeAttribute("rootNote", rootNote);
-	storageManager.writeAttribute("inputTickMagnitude",
-	                              insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
-	storageManager.writeAttribute("swingAmount", swingAmount);
-	storageManager.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
+	bdsm.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
+	bdsm.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
+	bdsm.writeAttribute("yScrollSongView", songViewYScroll);
+	bdsm.writeAttribute("yScrollArrangementView", arrangementYScroll);
+	bdsm.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
+	bdsm.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
+	bdsm.writeAttribute("timePerTimerTick", timePerTimerTickBig >> 32);
+	bdsm.writeAttribute("timerTickFraction", (uint32_t)timePerTimerTickBig);
+	bdsm.writeAttribute("rootNote", rootNote);
+	bdsm.writeAttribute("inputTickMagnitude", insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
+	bdsm.writeAttribute("swingAmount", swingAmount);
+	bdsm.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
 
 	if (tripletsOn) {
 		storageManager.writeAttribute("tripletsLevel", tripletsLevel);
@@ -1346,8 +1341,6 @@ weAreInArrangementEditorOrInClipInstance:
 
 	storageManager.writeAttribute("affectEntire", affectEntire);
 	storageManager.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
-
-	storageManager.writeAttribute("midiLoopback", midiLoopback);
 
 	if (lastSelectedParamID != kNoSelection) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
@@ -1359,8 +1352,13 @@ weAreInArrangementEditorOrInClipInstance:
 
 	globalEffectable.writeAttributesToFile(false);
 
-	storageManager
-	    .writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeAttribute("midiLoopback", midiLoopback);
+	bdsm.writeAttribute("songGridScrollX", songGridScrollX);
+	bdsm.writeAttribute("songGridScrollY", songGridScrollY);
+	bdsm.writeAttribute("sessionLayout", sessionLayout);
+
+	bdsm.writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
 
 	storageManager.writeOpeningTag("modeNotes");
 	for (int32_t i = 0; i < numModeNotes; i++) {
@@ -1378,12 +1376,13 @@ weAreInArrangementEditorOrInClipInstance:
 	damping = std::min(damping, (uint32_t)2147483647);
 	width = std::min(width, (uint32_t)2147483647);
 
-	storageManager.writeAttribute("model", util::to_underlying(model));
-	storageManager.writeAttribute("roomSize", roomSize);
-	storageManager.writeAttribute("dampening", damping);
-	storageManager.writeAttribute("width", width);
-	storageManager.writeAttribute("pan", AudioEngine::reverbPan);
-	storageManager.writeOpeningTagEnd();
+	bdsm.writeAttribute("roomSize", roomSize);
+	bdsm.writeAttribute("dampening", damping);
+	bdsm.writeAttribute("width", width);
+	bdsm.writeAttribute("pan", AudioEngine::reverbPan);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeAttribute("model", util::to_underlying(model));
+	bdsm.writeOpeningTagEnd();
 
 	storageManager.writeOpeningTagBeginning("compressor");
 	storageManager.writeAttribute("attack", AudioEngine::reverbSidechain.attack);

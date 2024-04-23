@@ -168,8 +168,8 @@ public:
 	void unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumNames,
 	                                  bool shouldRetainLinksToSounds, bool shouldGrabMidiCommands,
 	                                  bool shouldBackUpExpressionParamsToo);
-	Error readFromFile(Song* song);
-	void writeDataToFile(Song* song);
+	Error readFromFile(StorageManager& bdsm, Song* song);
+	bool writeDataToFile(StorageManager& bdsm, Song* song);
 	void prepNoteRowsForExitingKitMode(Song* song);
 	void deleteNoteRow(ModelStackWithTimelineCounter* modelStack, int32_t i);
 	int16_t getTopYNote();

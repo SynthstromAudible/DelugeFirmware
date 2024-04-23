@@ -681,8 +681,7 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 				}
 				storageManager.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "mode")
-			         && storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
+			else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 				if (arpSettings) {
 					OldArpMode oldMode = stringToOldArpMode(storageManager.readTagOrAttributeValue());
@@ -3783,34 +3782,28 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute("arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute("ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
-	unpatchedParams->writeParamAsAttribute("compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute("oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute("oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX, writeAutomation);
-	patchedParams->writeParamAsAttribute("oscBVolume", params::LOCAL_OSC_B_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute("oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute("oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX, writeAutomation);
-	patchedParams->writeParamAsAttribute("noiseVolume", params::LOCAL_NOISE_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX,
+	                                     writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "oscBVolume", params::LOCAL_OSC_B_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX,
+	                                     writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "noiseVolume", params::LOCAL_NOISE_VOLUME, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("volume", params::GLOBAL_VOLUME_POST_FX, writeAutomation);
-	patchedParams->writeParamAsAttribute("pan", params::LOCAL_PAN, writeAutomation);
-	patchedParams->writeParamAsAttribute("waveFold", params::LOCAL_FOLD, writeAutomation);
-	// Filters
-	patchedParams->writeParamAsAttribute("lpfFrequency", params::LOCAL_LPF_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute("lpfResonance", params::LOCAL_LPF_RESONANCE, writeAutomation);
-	patchedParams->writeParamAsAttribute("lpfMorph", params::LOCAL_LPF_MORPH, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "volume", params::GLOBAL_VOLUME_POST_FX, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "pan", params::LOCAL_PAN, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("hpfFrequency", params::LOCAL_HPF_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute("hpfResonance", params::LOCAL_HPF_RESONANCE, writeAutomation);
-	patchedParams->writeParamAsAttribute("hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "lpfFrequency", params::LOCAL_LPF_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "lpfResonance", params::LOCAL_LPF_RESONANCE, writeAutomation);
+
+	patchedParams->writeParamAsAttribute(bdsm, "hpfFrequency", params::LOCAL_HPF_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "hpfResonance", params::LOCAL_HPF_RESONANCE, writeAutomation);
 
 	patchedParams->writeParamAsAttribute("lfo1Rate", params::GLOBAL_LFO_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute("lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ, writeAutomation);
@@ -3839,10 +3832,26 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 
 	patchedParams->writeParamAsAttribute("reverbAmount", params::GLOBAL_REVERB_AMOUNT, writeAutomation);
 
-	patchedParams->writeParamAsAttribute("arpeggiatorRate", params::GLOBAL_ARP_RATE, writeAutomation);
-	ModControllableAudio::writeParamAttributesToFile(paramManager, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "arpeggiatorRate", params::GLOBAL_ARP_RATE, writeAutomation);
 
-	storageManager.writeOpeningTagEnd();
+	ModControllableAudio::writeParamAttributesToFile(bdsm, paramManager, writeAutomation);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+
+	patchedParams->writeParamAsAttribute(bdsm, "lpfMorph", params::LOCAL_LPF_MORPH, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
+
+	patchedParams->writeParamAsAttribute(bdsm, "waveFold", params::LOCAL_FOLD, writeAutomation);
+
+	unpatchedParams->writeParamAsAttribute(bdsm, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
+
+	bdsm.writeOpeningTagEnd();
 
 	// Envelopes
 	storageManager.writeOpeningTagBeginning("envelope1");
@@ -3864,7 +3873,8 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	ModControllableAudio::writeParamTagsToFile(paramManager, writeAutomation);
 }
 
-void Sound::writeToFile(bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings) {
+void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager,
+                        ArpeggiatorSettings* arpSettings, const char* pathAttribute) {
 
 	storageManager.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
 	storageManager.writeAttribute("voicePriority", util::to_underlying(voicePriority));
@@ -3882,17 +3892,23 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 
 	ModControllableAudio::writeAttributesToFile();
 
-	storageManager.writeOpeningTagEnd(); // -------------------------------------------------------------------------
+	// Community Firmware parameters (always write them after the official ones)
+	if (pathAttribute) {
+		bdsm.writeAttribute("path", pathAttribute);
+	}
+
+	bdsm.writeOpeningTagEnd(); // -------------------------------------------------------------------------
 
 	writeSourceToFile(0, "osc1");
 	writeSourceToFile(1, "osc2");
 
 	// LFOs
-	storageManager.writeOpeningTagBeginning("lfo1");
-	storageManager.writeAttribute("type", lfoTypeToString(lfoGlobalWaveType), false);
-	storageManager.writeSyncTypeToFile(currentSong, "syncType", lfoGlobalSyncType, false);
-	storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
-	storageManager.closeTag();
+	bdsm.writeOpeningTagBeginning("lfo1");
+	bdsm.writeAttribute("type", lfoTypeToString(lfoGlobalWaveType), false);
+	bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeSyncTypeToFile(currentSong, "syncType", lfoGlobalSyncType, false);
+	bdsm.closeTag();
 
 	storageManager.writeOpeningTagBeginning("lfo2");
 	storageManager.writeAttribute("type", lfoTypeToString(lfoLocalWaveType), false);
@@ -3914,13 +3930,12 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 		storageManager.closeTag();
 	}
 
-	storageManager.writeOpeningTagBeginning("unison");
-	storageManager.writeAttribute("num", numUnison, false);
-	storageManager.writeAttribute("detune", unisonDetune, false);
-	storageManager.writeAttribute("spread", unisonStereoSpread, false);
-	storageManager.closeTag();
-
-	ModControllableAudio::writeTagsToFile();
+	bdsm.writeOpeningTagBeginning("unison");
+	bdsm.writeAttribute("num", numUnison, false);
+	bdsm.writeAttribute("detune", unisonDetune, false);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeAttribute("spread", unisonStereoSpread, false);
+	bdsm.closeTag();
 
 	if (paramManager) {
 		storageManager.writeOpeningTagBeginning("defaultParams");
@@ -3929,15 +3944,16 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	}
 
 	if (arpSettings) {
-		storageManager.writeOpeningTagBeginning("arpeggiator");
-		storageManager.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
-		storageManager.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
-		storageManager.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
-		storageManager.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
-		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
-		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
-		storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
-		storageManager.closeTag();
+		bdsm.writeOpeningTagBeginning("arpeggiator");
+		bdsm.writeAttribute("mode", arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
+		bdsm.writeAttribute("numOctaves", arpSettings->numOctaves);
+		bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
+		bdsm.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
+		bdsm.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
+		bdsm.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
+		bdsm.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
+		bdsm.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
+		bdsm.closeTag();
 	}
 
 	// Mod knobs
@@ -3962,7 +3978,9 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 			storageManager.closeTag();
 		}
 	}
-	storageManager.writeClosingTag("modKnobs");
+	bdsm.writeClosingTag("modKnobs");
+
+	ModControllableAudio::writeTagsToFile(bdsm);
 }
 
 int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {

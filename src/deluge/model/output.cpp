@@ -220,9 +220,8 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		if (soloingInArrangementMode) {
 			storageManager.writeAttribute("isSoloingInArrangement", 1);
 		}
-		storageManager.writeAttribute("isArmedForRecording", armedForRecording);
-		storageManager.writeAttribute("activeModFunction", modKnobMode);
-		storageManager.writeAttribute("colour", colour);
+		bdsm.writeAttribute("isArmedForRecording", armedForRecording);
+		bdsm.writeAttribute("activeModFunction", modKnobMode);
 
 		if (clipInstances.getNumElements()) {
 			storageManager.write("\n");
@@ -257,6 +256,8 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 			}
 			storageManager.write("\"");
 		}
+
+		bdsm.writeAttribute("colour", colour);
 	}
 
 	return false;
