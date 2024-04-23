@@ -108,7 +108,8 @@ public:
 	virtual void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
 
 	void writeToFile(StorageManager& bdsm, Song* song);
-	virtual void writeDataToFile(StorageManager& bdsm, Song* song);
+	virtual bool writeDataToFile(StorageManager& bdsm, Song* song);
+	void writeMidiCommandsToFile(StorageManager& bdsm, Song* song);
 	virtual char const* getXMLTag() = 0;
 	virtual Error readFromFile(StorageManager& bdsm, Song* song) = 0;
 	void readTagFromFile(StorageManager& bdsm, char const* tagName, Song* song, int32_t* readAutomationUpToPos);

@@ -65,7 +65,7 @@ bool SoundInstrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingO
 	}
 
 	Sound::writeToFile(bdsm, clipForSavingOutputOnly == NULL, paramManager,
-	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : NULL);
+	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : NULL, NULL);
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(bdsm, clipForSavingOutputOnly, song);
 
