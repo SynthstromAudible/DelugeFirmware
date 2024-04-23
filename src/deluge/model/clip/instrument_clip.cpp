@@ -2345,13 +2345,14 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 	if (output->type != OutputType::KIT) {
 		storageManager.writeOpeningTagBeginning("arpeggiator");
+		storageManager.writeAttribute("mode", (char*)arpPresetToOldArpMode(arpSettings.preset)); // For backwards compatibility
+		storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
+		storageManager.writeAttribute("syncType", arpSettings.syncType);
+		storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
 		storageManager.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
 		storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
 		storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-		storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
 		storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
-		storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
-		storageManager.writeAttribute("syncType", arpSettings.syncType);
 
 		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 			storageManager.writeAttribute("gate", arpeggiatorGate);

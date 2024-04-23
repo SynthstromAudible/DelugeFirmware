@@ -682,7 +682,7 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 				storageManager.exitTag("arpMode");
 			}
 			else if (!strcmp(tagName, "mode")
-			         && storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
+			         && storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 				if (arpSettings) {
 					OldArpMode oldMode = stringToOldArpMode(storageManager.readTagOrAttributeValue());
@@ -3930,13 +3930,15 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 
 	if (arpSettings) {
 		storageManager.writeOpeningTagBeginning("arpeggiator");
+		storageManager.writeAttribute("mode",
+		                              arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
+		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
+		storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
+		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		storageManager.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
 		storageManager.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
 		storageManager.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		storageManager.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
-		storageManager.writeAttribute("numOctaves", arpSettings->numOctaves);
-		storageManager.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
-		storageManager.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
 		storageManager.closeTag();
 	}
 

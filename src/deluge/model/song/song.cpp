@@ -1378,11 +1378,11 @@ weAreInArrangementEditorOrInClipInstance:
 	damping = std::min(damping, (uint32_t)2147483647);
 	width = std::min(width, (uint32_t)2147483647);
 
-	storageManager.writeAttribute("model", util::to_underlying(model));
 	storageManager.writeAttribute("roomSize", roomSize);
 	storageManager.writeAttribute("dampening", damping);
 	storageManager.writeAttribute("width", width);
 	storageManager.writeAttribute("pan", AudioEngine::reverbPan);
+	storageManager.writeAttribute("model", util::to_underlying(model));
 	storageManager.writeOpeningTagEnd();
 
 	storageManager.writeOpeningTagBeginning("compressor");
