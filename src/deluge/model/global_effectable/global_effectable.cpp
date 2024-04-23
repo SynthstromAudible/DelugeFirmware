@@ -786,17 +786,14 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 }
 
 void GlobalEffectable::writeAttributesToFile(StorageManager& bdsm, bool writeAutomation) {
-
-	ModControllableAudio::writeAttributesToFile(bdsm);
-
 	bdsm.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
 	bdsm.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
+	ModControllableAudio::writeAttributesToFile(bdsm);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	// <--
 }
 
 void GlobalEffectable::writeTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation) {
-
-	ModControllableAudio::writeTagsToFile(bdsm);
-
 	if (paramManager) {
 		bdsm.writeOpeningTagBeginning("defaultParams");
 		GlobalEffectable::writeParamAttributesToFile(bdsm, paramManager, writeAutomation);
@@ -804,6 +801,8 @@ void GlobalEffectable::writeTagsToFile(StorageManager& bdsm, ParamManager* param
 		GlobalEffectable::writeParamTagsToFile(bdsm, paramManager, writeAutomation);
 		bdsm.writeClosingTag("defaultParams");
 	}
+
+	ModControllableAudio::writeTagsToFile(bdsm);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager,
@@ -837,6 +836,12 @@ void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamMan
 	                                       valuesForOverride);
 
 	ModControllableAudio::writeParamAttributesToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	unpatchedParams->writeParamAsAttribute(bdsm, "lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
@@ -856,16 +861,12 @@ void GlobalEffectable::writeParamTagsToFile(StorageManager& bdsm, ParamManager* 
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
 	bdsm.closeTag();
 
 	bdsm.writeOpeningTagBeginning("hpf");
 	unpatchedParams->writeParamAsAttribute(bdsm, "frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
 	bdsm.closeTag();
 
@@ -918,7 +919,10 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 				                           readAutomationUpToPos);
 				bdsm.exitTag("resonance");
 			}
+
 			else if (!strcmp(tagName, "morph")) {
+				// We leave this here for compatibility with songs saved before moving this parameter to "lpfMorph" at
+				// root level
 				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH,
 				                           readAutomationUpToPos);
 				bdsm.exitTag("morph");
@@ -939,7 +943,10 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 				                           readAutomationUpToPos);
 				bdsm.exitTag("resonance");
 			}
+
 			else if (!strcmp(tagName, "morph")) {
+				// We leave this here for compatibility with songs saved before moving this parameter to "hpfMorph" at
+				// root level
 				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH,
 				                           readAutomationUpToPos);
 				bdsm.exitTag("morph");
@@ -952,6 +959,16 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT,
 		                           readAutomationUpToPos);
 		bdsm.exitTag("reverbAmount");
+	}
+
+	else if (!strcmp(tagName, "lpfMorph")) {
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
+		bdsm.exitTag("lpfMorph");
+	}
+
+	else if (!strcmp(tagName, "hpfMorph")) {
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
+		bdsm.exitTag("hpfMorph");
 	}
 
 	else if (!strcmp(tagName, "volume")) {

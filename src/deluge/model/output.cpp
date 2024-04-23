@@ -222,7 +222,6 @@ bool Output::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly
 		}
 		bdsm.writeAttribute("isArmedForRecording", armedForRecording);
 		bdsm.writeAttribute("activeModFunction", modKnobMode);
-		bdsm.writeAttribute("colour", colour);
 
 		if (clipInstances.getNumElements()) {
 			bdsm.write("\n");
@@ -257,6 +256,8 @@ bool Output::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly
 			}
 			bdsm.write("\"");
 		}
+
+		bdsm.writeAttribute("colour", colour);
 	}
 
 	return false;
