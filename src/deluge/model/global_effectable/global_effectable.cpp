@@ -915,6 +915,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 				storageManager.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "morph")) {
+				// We leave this here for compatibility with songs saved before moving this parameter to "lpfMorph" at
+				// root level
 				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
 				storageManager.exitTag("morph");
 			}
@@ -933,6 +935,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 				storageManager.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "morph")) {
+				// We leave this here for compatibility with songs saved before moving this parameter to "lpfMorph" at
+				// root level
 				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
 				storageManager.exitTag("morph");
 			}
