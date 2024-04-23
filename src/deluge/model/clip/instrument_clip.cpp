@@ -2272,7 +2272,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	return Error::NONE;
 }
 
-void InstrumentClip::writeDataToFile(Song* song) {
+bool InstrumentClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("inKeyMode", inScaleMode);
 	storageManager.writeAttribute("yScroll", yScroll);
 	storageManager.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
@@ -2339,6 +2339,10 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
 	storageManager.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
 	storageManager.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+
+	bdsm.writeOpeningTagEnd();
+
+	Clip::writeMidiCommandsToFile(bdsm, song);
 
 	if (output->type == OutputType::MIDI_OUT) {
 		paramManager.getMIDIParamCollection()->writeToFile();
@@ -2416,6 +2420,8 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 		storageManager.writeClosingTag("noteRows");
 	}
+
+	return true;
 }
 
 Error InstrumentClip::readFromFile(Song* song) {

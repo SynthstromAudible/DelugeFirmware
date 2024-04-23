@@ -158,7 +158,7 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 	storageManager.writeOpeningTagBeginning("sound");
 	storageManager.writeFirmwareVersion();
 	storageManager.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
-	Sound::writeToFile(savingSong, paramManager, &arpSettings);
+	Sound::writeToFile(savingSong, paramManager, &arpSettings, NULL);
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile();
@@ -170,14 +170,12 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	storageManager.writeOpeningTagBeginning("sound");
 	storageManager.writeAttribute("name", name.get());
-	Sound::writeToFile(savingSong, paramManager, &arpSettings);
+
+	Sound::writeToFile(savingSong, paramManager, &arpSettings, path.get());
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile();
 	}
-
-	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	storageManager.writeAttribute("path", path.get());
 
 	storageManager.writeClosingTag("sound");
 }

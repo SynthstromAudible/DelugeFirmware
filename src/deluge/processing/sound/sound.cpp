@@ -3870,7 +3870,8 @@ void Sound::writeParamsToFile(ParamManager* paramManager, bool writeAutomation) 
 	ModControllableAudio::writeParamTagsToFile(paramManager, writeAutomation);
 }
 
-void Sound::writeToFile(bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings) {
+void Sound::writeToFile(bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings,
+                        const char* pathAttribute) {
 
 	storageManager.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
 	storageManager.writeAttribute("voicePriority", util::to_underlying(voicePriority));
@@ -3887,6 +3888,11 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	}
 
 	ModControllableAudio::writeAttributesToFile();
+
+	// Community Firmware parameters (always write them after the official ones)
+	if (pathAttribute) {
+		storageManager.writeAttribute("path", pathAttribute);
+	}
 
 	storageManager.writeOpeningTagEnd(); // -------------------------------------------------------------------------
 

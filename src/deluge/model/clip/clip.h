@@ -108,7 +108,8 @@ public:
 	virtual void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
 
 	void writeToFile(Song* song);
-	virtual void writeDataToFile(Song* song);
+	virtual bool writeDataToFile(Song* song);
+	void writeMidiCommandsToFile(Song* song);
 	virtual char const* getXMLTag() = 0;
 	virtual Error readFromFile(Song* song) = 0;
 	void readTagFromFile(char const* tagName, Song* song, int32_t* readAutomationUpToPos);
