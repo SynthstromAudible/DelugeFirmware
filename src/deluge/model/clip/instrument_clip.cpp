@@ -2330,6 +2330,8 @@ void InstrumentClip::writeDataToFile(Song* song) {
 		}
 	}
 
+	Clip::writeDataToFile(song);
+
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	storageManager.writeAttribute("keyboardLayout", keyboardState.currentLayout);
 	storageManager.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
@@ -2337,8 +2339,6 @@ void InstrumentClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
 	storageManager.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
 	storageManager.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
-
-	Clip::writeDataToFile(song);
 
 	if (output->type == OutputType::MIDI_OUT) {
 		paramManager.getMIDIParamCollection()->writeToFile();

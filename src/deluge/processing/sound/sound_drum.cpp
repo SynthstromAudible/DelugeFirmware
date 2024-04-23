@@ -170,12 +170,14 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 void SoundDrum::writeToFile(bool savingSong, ParamManager* paramManager) {
 	storageManager.writeOpeningTagBeginning("sound");
 	storageManager.writeAttribute("name", name.get());
-	storageManager.writeAttribute("path", path.get());
 	Sound::writeToFile(savingSong, paramManager, &arpSettings);
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile();
 	}
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	storageManager.writeAttribute("path", path.get());
 
 	storageManager.writeClosingTag("sound");
 }
