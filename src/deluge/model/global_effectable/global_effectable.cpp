@@ -817,6 +817,11 @@ void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bo
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("pan", params::UNPATCHED_PAN, writeAutomation, false, valuesForOverride);
 
+	unpatchedParams->writeParamAsAttribute("lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+
 	if (unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].containsSomething(0)) {
 		unpatchedParams->writeParamAsAttribute("pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation, false,
 		                                       valuesForOverride);
@@ -855,16 +860,12 @@ void GlobalEffectable::writeParamTagsToFile(ParamManager* paramManager, bool wri
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
 	storageManager.closeTag();
 
 	storageManager.writeOpeningTagBeginning("hpf");
 	unpatchedParams->writeParamAsAttribute("frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
 	storageManager.closeTag();
 
@@ -942,6 +943,16 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	else if (!strcmp(tagName, "reverbAmount")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT, readAutomationUpToPos);
 		storageManager.exitTag("reverbAmount");
+	}
+
+	else if (!strcmp(tagName, "lpfMorph")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
+		storageManager.exitTag("lpfMorph");
+	}
+
+	else if (!strcmp(tagName, "hpfMorph")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
+		storageManager.exitTag("hpfMorph");
 	}
 
 	else if (!strcmp(tagName, "volume")) {
