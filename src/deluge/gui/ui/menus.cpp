@@ -1019,6 +1019,9 @@ defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAU
 defaults::PadBrightness defaultPadBrightness{STRING_FOR_DEFAULT_PAD_BRIGHTNESS,
                                              STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE};
 defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE, STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE};
+ToggleBool defaultHighCPUUsageIndicatorMode{STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
+                                            STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
+                                            FlashStorage::highCPUUsageIndicator};
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1035,6 +1038,7 @@ Submenu defaultsSubmenu{
         &defaultStartupSongMenu,
         &defaultPadBrightness,
         &defaultSliceMode,
+        &defaultHighCPUUsageIndicatorMode,
     },
 };
 
