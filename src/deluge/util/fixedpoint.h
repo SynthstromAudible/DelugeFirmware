@@ -115,7 +115,21 @@ static inline int32_t signed_saturate(int32_t val) {
 
 static inline int32_t add_saturation(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t add_saturation(int32_t a, int32_t b) {
-	return a + b;
+	// Based on http://locklessinc.com/articles/sat_arithmetic/
+	uint32_t res = a + b;
+	res |= -(res < a);
+
+	return res;
+}
+
+static inline int32_t mul_saturation(int32_t a, int32_t b) {
+	// Based on http://locklessinc.com/articles/sat_arithmetic
+	uint64_t res = static_cast<uint64_t>(a) * static_cast<uint64_t>(b);
+
+	uint32_t hi = static_cast<uint32_t>(res >> 32);
+	uint32_t lo = static_cast<uint32_t>(res);
+
+	return lo | -!!hi;
 }
 
 inline int32_t clz(uint32_t input) {
