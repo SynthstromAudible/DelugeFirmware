@@ -837,6 +837,9 @@ enum class String : size_t {
 
 	STRING_FOR_CANT_ENTER_SCALE,
 
+	// string for high CPU usage indicator default setting
+	STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
+
 	STRING_LAST
 };
 

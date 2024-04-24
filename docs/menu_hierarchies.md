@@ -215,6 +215,9 @@ The Settings menu contains the following menu hierarchy:
 		- Once
 		- Loop
 		- Stretch
+	- High CPU Indicator (CPU)
+		- Disabled (OFF)
+		- Enabled (ON)
 </details>
 
 <details><summary>Swing Interval (SWIN)</summary>

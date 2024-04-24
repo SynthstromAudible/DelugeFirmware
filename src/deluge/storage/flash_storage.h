@@ -60,6 +60,7 @@ extern bool automationDisableAuditionPadShortcuts;
 extern StartupSongMode defaultStartupSongMode;
 extern uint8_t defaultPadBrightness;
 extern SampleRepeatMode defaultSliceMode;
+extern bool highCPUUsageIndicator;
 
 void readSettings();
 void writeSettings();

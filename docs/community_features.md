@@ -197,8 +197,9 @@ Here is a list of general improvements that have been made, ordered from newest 
   - Minimum value = Bottom two lights fully lit
     - Between middle and minimum, the bottom two lights will be lit up proportionately to the value in that range
 
-#### 3.16 - Heavy CPU Usage (Culling) Indicator
-- ([#1506]) The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
+#### 3.16 - High CPU Usage Indicator
+- ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
+  - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 
 #### 3.19 - Sample Slice Default Mode
 

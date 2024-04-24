@@ -50,6 +50,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
@@ -391,6 +392,7 @@ uint8_t numRoutines = 0;
 // not in header (private to audio engine)
 /// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
 inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
+	bool culled = false;
 	int32_t numToCull = 0;
 	if (numAudio + numVoice > MIN_VOICES) {
 
@@ -414,6 +416,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			logAction("hard cull");
 
 #endif
+			culled = true;
 		}
 
 		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
@@ -424,12 +427,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			// probably bad
 			cullVoice(false, numRoutines == 0 ? SOFT : SOFT_ALWAYS, numSamples, nullptr);
 			logAction("soft cull");
-		}
-		// blink LED to alert the user
-		if (numSamplesOverLimit >= -6) {
-			if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
-				indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
-			}
+			culled = true;
 		}
 	}
 	else {
@@ -438,6 +436,13 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		if (numSamplesOverLimit >= 10) {
 			D_PRINTLN("under min voices but culling anyway");
 			cullVoice(false, FORCE, numSamples, nullptr);
+			culled = true;
+		}
+	}
+	// blink LED to alert the user
+	if (culled && FlashStorage::highCPUUsageIndicator) {
+		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
+			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
 	}
 }
