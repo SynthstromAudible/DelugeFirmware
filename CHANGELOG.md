@@ -82,7 +82,8 @@
     - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
 - Added a feature save user-defined pad brightness level and restore it at startup.
 - Mod (Gold) Encoder LED indicators are now Bipolar for Bipolar params (e.g. Param, Pitch, Patch Cables). Positive values illuminate the top two LEDs. Negative values illuminate the bottom two LEDs. The middle value doesn't light up any LEDs. 
-- The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
+- Added new `High CPU Usage Indicator`. The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
+  - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 - Removed ability to convert an Audio Clip to an Instrument Clip (Synth / Kit / MIDI / CV) as this conversion process is error/bug prone.
 - Restricted changing Synth/MIDI/CV Instrument CLip types to the Kit Instrument Clip Type and vice versa if the clip is not empty.
 - Added retrigger to all keyboard views.
