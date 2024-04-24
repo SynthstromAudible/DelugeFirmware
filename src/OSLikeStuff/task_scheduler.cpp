@@ -20,6 +20,8 @@
 #include "util/container/static_vector.hpp"
 #include <algorithm>
 #include <iostream>
+// currently 14 are in use
+constexpr int kMaxTasks = 20;
 struct Task {
 	TaskHandle handle;
 	uint8_t priority;
@@ -40,8 +42,8 @@ struct SortedTask {
 /// internal only to the task scheduler, hence all public. External interaction to use the api
 struct TaskManager {
 
-	std::array<Task, 20> list;
-	std::array<SortedTask, 20> sortedList;
+	std::array<Task, kMaxTasks> list;
+	std::array<SortedTask, kMaxTasks> sortedList;
 	TaskID index = 0;
 	double mustEndBefore = 128;
 	void start(double duration = 0);
@@ -121,7 +123,7 @@ void TaskManager::runTask(TaskID id) {
 	if (runtime < 0) {
 		runtime += rollTime;
 	}
-	if (list[id].averageDuration < 0.000001 | list[id].averageDuration > 0.01) {
+	if (list[id].averageDuration < 0.000001 || list[id].averageDuration > 0.01) {
 		list[id].averageDuration = runtime;
 	}
 	else {
