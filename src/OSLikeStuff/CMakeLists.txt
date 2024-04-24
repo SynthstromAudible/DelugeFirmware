@@ -8,7 +8,6 @@ file(GLOB_RECURSE OS_SOURCES CONFIGURE_DEPENDS
 target_sources(deluge PUBLIC ${OS_SOURCES})
 
 target_include_directories(deluge PUBLIC
-        ${CMAKE_CURRENT_BINARY_DIR}
         ${CMAKE_CURRENT_LIST_DIR}
         ${SHARED_INCLUDE}
 )
