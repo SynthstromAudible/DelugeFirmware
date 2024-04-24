@@ -173,6 +173,7 @@ enum Entries {
 166: "once" colour
 167: defaultSliceMode
 168: midiFollow control song params
+169: High CPU Usage Indicator
 */
 
 uint8_t defaultScale;
@@ -211,6 +212,8 @@ bool automationNudgeNote = true;
 bool automationDisableAuditionPadShortcuts = true;
 
 StartupSongMode defaultStartupSongMode;
+
+bool highCPUUsageIndicator;
 
 void resetSettings() {
 
@@ -297,6 +300,8 @@ void resetSettings() {
 	defaultStartupSongMode = StartupSongMode::BLANK;
 
 	defaultSliceMode = SampleRepeatMode::CUT;
+
+	highCPUUsageIndicator = false;
 }
 
 void resetMidiFollowSettings() {
@@ -651,6 +656,13 @@ void readSettings() {
 	else {
 		defaultSliceMode = static_cast<SampleRepeatMode>(buffer[167]);
 	}
+
+	if (buffer[169] != false && buffer[169] != true) {
+		highCPUUsageIndicator = false;
+	}
+	else {
+		highCPUUsageIndicator = buffer[169];
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -908,6 +920,8 @@ void writeSettings() {
 	buffer[166] = gui::menu_item::onceColourMenu.value;
 
 	buffer[167] = util::to_underlying(defaultSliceMode);
+
+	buffer[169] = highCPUUsageIndicator;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
