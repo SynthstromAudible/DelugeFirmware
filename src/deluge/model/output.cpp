@@ -222,7 +222,6 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 		}
 		storageManager.writeAttribute("isArmedForRecording", armedForRecording);
 		storageManager.writeAttribute("activeModFunction", modKnobMode);
-		storageManager.writeAttribute("colour", colour);
 
 		if (clipInstances.getNumElements()) {
 			storageManager.write("\n");
@@ -257,6 +256,8 @@ bool Output::writeDataToFile(Clip* clipForSavingOutputOnly, Song* song) {
 			}
 			storageManager.write("\"");
 		}
+
+		storageManager.writeAttribute("colour", colour);
 	}
 
 	return false;

@@ -1325,10 +1325,6 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
 	storageManager.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
 	storageManager.writeAttribute("yScrollSongView", songViewYScroll);
-	storageManager.writeAttribute("songGridScrollX", songGridScrollX);
-	storageManager.writeAttribute("songGridScrollY", songGridScrollY);
-	storageManager.writeAttribute("sessionLayout", sessionLayout);
-
 	storageManager.writeAttribute("yScrollArrangementView", arrangementYScroll);
 	storageManager.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
 	storageManager.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
@@ -1347,8 +1343,6 @@ weAreInArrangementEditorOrInClipInstance:
 	storageManager.writeAttribute("affectEntire", affectEntire);
 	storageManager.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
-	storageManager.writeAttribute("midiLoopback", midiLoopback);
-
 	if (lastSelectedParamID != kNoSelection) {
 		storageManager.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 		storageManager.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
@@ -1358,6 +1352,12 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	globalEffectable.writeAttributesToFile(false);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	storageManager.writeAttribute("midiLoopback", midiLoopback);
+	storageManager.writeAttribute("songGridScrollX", songGridScrollX);
+	storageManager.writeAttribute("songGridScrollY", songGridScrollY);
+	storageManager.writeAttribute("sessionLayout", sessionLayout);
 
 	storageManager
 	    .writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
@@ -1378,11 +1378,12 @@ weAreInArrangementEditorOrInClipInstance:
 	damping = std::min(damping, (uint32_t)2147483647);
 	width = std::min(width, (uint32_t)2147483647);
 
-	storageManager.writeAttribute("model", util::to_underlying(model));
 	storageManager.writeAttribute("roomSize", roomSize);
 	storageManager.writeAttribute("dampening", damping);
 	storageManager.writeAttribute("width", width);
 	storageManager.writeAttribute("pan", AudioEngine::reverbPan);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	storageManager.writeAttribute("model", util::to_underlying(model));
 	storageManager.writeOpeningTagEnd();
 
 	storageManager.writeOpeningTagBeginning("compressor");

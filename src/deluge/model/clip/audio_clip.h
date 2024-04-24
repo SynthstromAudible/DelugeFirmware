@@ -82,7 +82,7 @@ public:
 	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount);
 
 	Error readFromFile(Song* song);
-	void writeDataToFile(Song* song);
+	bool writeDataToFile(Song* song);
 	char const* getXMLTag() { return "audioClip"; }
 
 	SampleControls sampleControls;

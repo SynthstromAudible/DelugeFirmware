@@ -2272,17 +2272,10 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	return Error::NONE;
 }
 
-void InstrumentClip::writeDataToFile(Song* song) {
-
+bool InstrumentClip::writeDataToFile(Song* song) {
 	storageManager.writeAttribute("inKeyMode", inScaleMode);
 	storageManager.writeAttribute("yScroll", yScroll);
-	storageManager.writeAttribute("keyboardLayout", keyboardState.currentLayout);
 	storageManager.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
-	storageManager.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
-	storageManager.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
-	storageManager.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
-	storageManager.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
-	storageManager.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
 
 	if (onKeyboardScreen) {
 		storageManager.writeAttribute("onKeyboardScreen", (char*)"1");
@@ -2339,28 +2332,47 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 	Clip::writeDataToFile(song);
 
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	storageManager.writeAttribute("keyboardLayout", keyboardState.currentLayout);
+	storageManager.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
+	storageManager.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
+	storageManager.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
+	storageManager.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
+	storageManager.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+
+	storageManager.writeOpeningTagEnd();
+
+	Clip::writeMidiCommandsToFile(song);
+
 	if (output->type == OutputType::MIDI_OUT) {
 		paramManager.getMIDIParamCollection()->writeToFile();
 	}
 
 	if (output->type != OutputType::KIT) {
 		storageManager.writeOpeningTagBeginning("arpeggiator");
-		storageManager.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-		storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-		storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-		storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
-		storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+		storageManager.writeAttribute("mode",
+		                              (char*)arpPresetToOldArpMode(arpSettings.preset)); // For backwards compatibility
 		storageManager.writeAttribute("syncLevel", arpSettings.syncLevel);
-		storageManager.writeAttribute("syncType", arpSettings.syncType);
+		storageManager.writeAttribute("numOctaves", arpSettings.numOctaves);
 
 		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 			storageManager.writeAttribute("gate", arpeggiatorGate);
 			storageManager.writeAttribute("rate", arpeggiatorRate);
+			// Community Firmware parameters (always write them after the official ones, just before closing the parent
+			// tag)
 			storageManager.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
 			storageManager.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
 			storageManager.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
 			storageManager.writeAttribute("rhythm", arpeggiatorRhythm);
 		}
+
+		// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+		storageManager.writeAttribute("syncType", arpSettings.syncType);
+		storageManager.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		storageManager.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+		storageManager.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+		storageManager.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+
 		storageManager.closeTag();
 	}
 
@@ -2408,6 +2420,8 @@ void InstrumentClip::writeDataToFile(Song* song) {
 
 		storageManager.writeClosingTag("noteRows");
 	}
+
+	return true;
 }
 
 Error InstrumentClip::readFromFile(Song* song) {

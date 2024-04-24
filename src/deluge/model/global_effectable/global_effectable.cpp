@@ -786,17 +786,14 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 }
 
 void GlobalEffectable::writeAttributesToFile(bool writeAutomation) {
-
-	ModControllableAudio::writeAttributesToFile();
-
 	storageManager.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
 	storageManager.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
+	ModControllableAudio::writeAttributesToFile();
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	// <--
 }
 
 void GlobalEffectable::writeTagsToFile(ParamManager* paramManager, bool writeAutomation) {
-
-	ModControllableAudio::writeTagsToFile();
-
 	if (paramManager) {
 		storageManager.writeOpeningTagBeginning("defaultParams");
 		GlobalEffectable::writeParamAttributesToFile(paramManager, writeAutomation);
@@ -804,6 +801,8 @@ void GlobalEffectable::writeTagsToFile(ParamManager* paramManager, bool writeAut
 		GlobalEffectable::writeParamTagsToFile(paramManager, writeAutomation);
 		storageManager.writeClosingTag("defaultParams");
 	}
+
+	ModControllableAudio::writeTagsToFile();
 }
 
 void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bool writeAutomation,
@@ -836,6 +835,12 @@ void GlobalEffectable::writeParamAttributesToFile(ParamManager* paramManager, bo
 	                                       valuesForOverride);
 
 	ModControllableAudio::writeParamAttributesToFile(paramManager, writeAutomation, valuesForOverride);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	unpatchedParams->writeParamAsAttribute("lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute("hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(ParamManager* paramManager, bool writeAutomation,
@@ -855,16 +860,12 @@ void GlobalEffectable::writeParamTagsToFile(ParamManager* paramManager, bool wri
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
 	storageManager.closeTag();
 
 	storageManager.writeOpeningTagBeginning("hpf");
 	unpatchedParams->writeParamAsAttribute("frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute("resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute("morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
 	storageManager.closeTag();
 
@@ -914,6 +915,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 				storageManager.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "morph")) {
+				// We leave this here for compatibility with songs saved before moving this parameter to "lpfMorph" at
+				// root level
 				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
 				storageManager.exitTag("morph");
 			}
@@ -932,6 +935,8 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 				storageManager.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "morph")) {
+				// We leave this here for compatibility with songs saved before moving this parameter to "lpfMorph" at
+				// root level
 				unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
 				storageManager.exitTag("morph");
 			}
@@ -942,6 +947,16 @@ bool GlobalEffectable::readParamTagFromFile(char const* tagName, ParamManagerFor
 	else if (!strcmp(tagName, "reverbAmount")) {
 		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT, readAutomationUpToPos);
 		storageManager.exitTag("reverbAmount");
+	}
+
+	else if (!strcmp(tagName, "lpfMorph")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
+		storageManager.exitTag("lpfMorph");
+	}
+
+	else if (!strcmp(tagName, "hpfMorph")) {
+		unpatchedParams->readParam(unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
+		storageManager.exitTag("hpfMorph");
 	}
 
 	else if (!strcmp(tagName, "volume")) {
