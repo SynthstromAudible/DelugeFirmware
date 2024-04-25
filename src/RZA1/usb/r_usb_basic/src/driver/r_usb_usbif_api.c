@@ -35,8 +35,8 @@
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_reg_access.h"
 
 // Added by Rohan
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/intc/devdrv_intc.h"
-#include "timers_interrupts.h"
 
 #if defined(USB_CFG_HCDC_USE)
 #include "r_usb_hcdc_if.h"

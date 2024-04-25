@@ -17,12 +17,12 @@
 
 #include "definitions.h"
 
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/oled/oled_low_level.h"
 #include "RZA1/uart/sio_char.h"
 #include "drivers/dmac/dmac.h"
 #include "drivers/oled/oled.h"
 #include "drivers/rspi/rspi.h"
-#include "timers_interrupts.h"
 
 void MainOLED_WCom(char data) {
 	R_RSPI_SendBasic8(SPI_CHANNEL_OLED_MAIN, data);
