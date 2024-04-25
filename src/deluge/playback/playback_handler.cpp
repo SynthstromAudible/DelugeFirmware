@@ -2868,15 +2868,16 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	}
 
 	// See if midi cc received has been learned to a song param
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	// disabled this for now until midi learning for global effectable params can be repaired
+	/*ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	if (modelStackWithThreeMainThings) {
-		ModControllableAudio* modControllable = (ModControllableAudio*)modelStackWithThreeMainThings->modControllable;
-		if (modControllable) {
-			modControllable->offerReceivedCCToLearnedParamsForSong(fromDevice, channel, ccNumber, value,
-			                                                       modelStackWithThreeMainThings);
-		}
-	}
+	    ModControllableAudio* modControllable = (ModControllableAudio*)modelStackWithThreeMainThings->modControllable;
+	    if (modControllable) {
+	        modControllable->offerReceivedCCToLearnedParamsForSong(fromDevice, channel, ccNumber, value,
+	                                                               modelStackWithThreeMainThings);
+	    }
+	}*/
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
