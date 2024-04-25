@@ -622,8 +622,6 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of
           the Deluge grid (second pad from the top). Toggle interpolation on/off using Shift + Interpolation shortcut
           pad. The Interpolation shortcut pad will blink to indicate that interpolation is enabled.
-        - Updated `AUTOMATION VIEW` to remove select encoder scrolling selection of non-MIDI clip parameters. Select
-          encoder is now used to fine tune non-MIDI parameter values in the `AUTOMATION VIEW EDITOR`.
         - Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
         - Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
         - Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to
