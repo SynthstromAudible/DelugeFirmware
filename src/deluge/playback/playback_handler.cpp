@@ -2872,11 +2872,11 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	/*ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	if (modelStackWithThreeMainThings) {
-		ModControllableAudio* modControllable = (ModControllableAudio*)modelStackWithThreeMainThings->modControllable;
-		if (modControllable) {
-			modControllable->offerReceivedCCToLearnedParamsForSong(fromDevice, channel, ccNumber, value,
-			                                                       modelStackWithThreeMainThings);
-		}
+	    ModControllableAudio* modControllable = (ModControllableAudio*)modelStackWithThreeMainThings->modControllable;
+	    if (modControllable) {
+	        modControllable->offerReceivedCCToLearnedParamsForSong(fromDevice, channel, ccNumber, value,
+	                                                               modelStackWithThreeMainThings);
+	    }
 	}*/
 
 	// Go through all Outputs...
