@@ -72,7 +72,12 @@ int32_t UnpatchedParam::getFinalValue() {
 
 ParamDescriptor UnpatchedParam::getLearningThing() {
 	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP() + deluge::modulation::params::UNPATCHED_START);
+	if (getParamKind() == deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
+		paramDescriptor.setToNull(); // disable global effectable learning until xml parsing code can be repaired
+	}
+	else {
+		paramDescriptor.setToHaveParamOnly(getP() + deluge::modulation::params::UNPATCHED_START);
+	}
 	return paramDescriptor;
 }
 

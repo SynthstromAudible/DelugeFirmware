@@ -53,8 +53,9 @@ public:
 
 	ParamDescriptor getLearningThing() override {
 		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(deluge::modulation::params::UNPATCHED_START
-		                                   + deluge::modulation::params::UNPATCHED_PITCH_ADJUST);
+		paramDescriptor.setToNull(); // disable global effectable learning until xml parsing code can be repaired
+		// paramDescriptor.setToHaveParamOnly(deluge::modulation::params::UNPATCHED_START
+		//                                    + deluge::modulation::params::UNPATCHED_PITCH_ADJUST);
 		return paramDescriptor;
 	}
 };

@@ -41,12 +41,14 @@ void MenuItemWithCCLearning::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob
                                        int32_t midiChannel) {
 	ParamDescriptor paramDescriptor = getLearningThing();
 
-	bool success = soundEditor.currentModControllable->learnKnob(fromDevice, paramDescriptor, whichKnob, modKnobMode,
-	                                                             midiChannel, currentSong);
+	if (!paramDescriptor.isNull()) {
+		bool success = soundEditor.currentModControllable->learnKnob(fromDevice, paramDescriptor, whichKnob,
+		                                                             modKnobMode, midiChannel, currentSong);
 
-	if (success) {
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
-		view.setKnobIndicatorLevels();
-		soundEditor.markInstrumentAsEdited();
+		if (success) {
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));
+			view.setKnobIndicatorLevels();
+			soundEditor.markInstrumentAsEdited();
+		}
 	}
 }
