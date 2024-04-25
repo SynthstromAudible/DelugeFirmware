@@ -15,13 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/system/r_typedefs.h"
 #include "RZA1/uart/sio_char.h"
 #include "definitions.h"
 #include "deluge/deluge.h"
 #include "deluge/drivers/mtu/mtu.h"
-#include "timers_interrupts.h"
+#include "task_scheduler.h"
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 

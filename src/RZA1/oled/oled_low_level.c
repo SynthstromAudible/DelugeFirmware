@@ -19,6 +19,7 @@
 #include "definitions.h"
 #include "deluge/drivers/oled/oled.h"
 
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/mtu/mtu.h"
@@ -26,7 +27,6 @@
 #include "deluge/drivers/dmac/dmac.h"
 #include "deluge/drivers/rspi/rspi.h"
 #include "deluge/util/cfunctions.h"
-#include "timers_interrupts.h"
 
 #define OLED_CODE_FOR_CV 1
 
