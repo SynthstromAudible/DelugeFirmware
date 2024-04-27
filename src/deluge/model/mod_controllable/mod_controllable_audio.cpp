@@ -1219,7 +1219,7 @@ doReadPatchedParam:
 						relative = bdsm.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "controlsParam")) {
-						p = params::fileStringToParam(unpatchedParamKind_, bdsm.readTagOrAttributeValue());
+						p = params::fileStringToParam(unpatchedParamKind_, bdsm.readTagOrAttributeValue(), false);
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
 						s = stringToSource(bdsm.readTagOrAttributeValue());

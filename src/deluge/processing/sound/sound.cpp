@@ -921,7 +921,8 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 
 				while (*(tagName = bdsm.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "controlsParam")) {
-						p = params::fileStringToParam(params::Kind::UNPATCHED_SOUND, bdsm.readTagOrAttributeValue());
+						p = params::fileStringToParam(params::Kind::UNPATCHED_SOUND, bdsm.readTagOrAttributeValue(),
+						                              true);
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
 						s = stringToSource(bdsm.readTagOrAttributeValue());
