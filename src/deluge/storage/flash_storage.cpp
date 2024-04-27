@@ -303,7 +303,6 @@ void resetMidiFollowSettings() {
 	midiEngine.midiFollowFeedbackChannelType = MIDIFollowChannelType::NONE;
 	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiEngine.midiFollowFeedbackFilter = false;
-	midiEngine.midiFollowControlSongParam = true;
 }
 
 void resetAutomationSettings() {
@@ -568,7 +567,6 @@ void readSettings() {
 			midiEngine.midiFollowFeedbackChannelType = static_cast<MIDIFollowChannelType>(buffer[131]);
 			midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
 			midiEngine.midiFollowFeedbackFilter = !!buffer[133];
-			midiEngine.midiFollowControlSongParam = !!buffer[168];
 		}
 		else {
 			resetMidiFollowSettings();
@@ -660,10 +658,6 @@ static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
 	}
 	// midiEngine.midiFollowFeedbackFilter
 	else if (buffer[133] != false && buffer[133] != true) {
-		return false;
-	}
-	// midiEngine.midiFollowControlSongParam
-	else if (buffer[168] != false && buffer[168] != true) {
 		return false;
 	}
 	// place holder for checking if midi follow devices are valid
@@ -854,7 +848,6 @@ void writeSettings() {
 	buffer[131] = util::to_underlying(midiEngine.midiFollowFeedbackChannelType);
 	buffer[132] = util::to_underlying(midiEngine.midiFollowFeedbackAutomation);
 	buffer[133] = midiEngine.midiFollowFeedbackFilter;
-	buffer[168] = midiEngine.midiFollowControlSongParam;
 
 	buffer[146] = gridEmptyPadsCreateRec;
 
