@@ -1943,7 +1943,7 @@ loadOutput:
 						if (error != Error::NONE) {
 							goto gotError;
 						}
-
+						((Instrument*)newOutput)->existsOnCard = true;
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
 					}

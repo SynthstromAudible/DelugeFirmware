@@ -31,7 +31,7 @@
 
 Instrument::Instrument(OutputType newType) : Output(newType) {
 	editedByUser = false;
-	existsOnCard = true;
+	existsOnCard = false;
 	defaultVelocity = FlashStorage::defaultVelocity;
 }
 
