@@ -76,6 +76,7 @@
 - Added indicators to the waveform loop lock feature for both 7seg (rightmost `.`) and OLED (lock indicator).
 - Modified waveform marker rendering to improve clarity.
 - Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/menu_hierarchies.md)
+- Added MIDI learning of Song Params
 - Added Synth/MIDI/CV clip configuration of note row play direction. Hold audition pad while entering the play direction menu to set the play direction for the selected note row. While in the note row play direction menu, you can select other note rows to quickly set the play directiom for multiple note rows.
 
 In addition, a number of improvements have been made to how the OLED display is used:
