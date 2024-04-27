@@ -75,14 +75,14 @@ public:
 	virtual void prepareForHibernation() {}
 	virtual void prepareDrumToHaveNoActiveClip() {}
 
-	virtual void writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) = 0;
-	virtual Error readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) = 0;
+	virtual void writeToFile(StorageManager& writer, bool savingSong, ParamManager* paramManager) = 0;
+	virtual Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) = 0;
 	virtual void drumWontBeRenderedForAWhile();
 
 	virtual void getName(char* buffer) = 0; // May return up to 5 actual characters, so supply at least a char[6]
 	virtual void choke(ModelStackWithSoundFlags* modelStack) {} // modelStack can be NULL if you really insist
-	void writeMIDICommandsToFile(StorageManager& bdsm);
-	bool readDrumTagFromFile(StorageManager& bdsm, char const* tagName);
+	void writeMIDICommandsToFile(StorageManager& writer);
+	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
 	                                     int32_t whichExpressionimension, int32_t level);

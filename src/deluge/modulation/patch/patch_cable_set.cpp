@@ -794,7 +794,7 @@ done:
 	destinations[GLOBALITY_GLOBAL] = newDestinations[GLOBALITY_GLOBAL];
 }
 
-void PatchCableSet::readPatchCablesFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos) {
+void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
 	numPatchCables = 0;
 
 	// These are for loading in old-format presets, back when only one "range adjustable cable" was allowed.
@@ -802,7 +802,7 @@ void PatchCableSet::readPatchCablesFromFile(StorageManager& bdsm, int32_t readAu
 	int32_t rangeAdjustableCableP = 255;
 
 	char const* tagName;
-	while (*(tagName = bdsm.readNextTagOrAttributeName()) && numPatchCables < kMaxNumPatchCables) {
+	while (*(tagName = reader.readNextTagOrAttributeName()) && numPatchCables < kMaxNumPatchCables) {
 		if (!strcmp(tagName, "patchCable")) {
 
 			int32_t numCablesAtStartOfThing = numPatchCables;
@@ -813,33 +813,33 @@ void PatchCableSet::readPatchCablesFromFile(StorageManager& bdsm, int32_t readAu
 			AutoParam tempParam;
 
 			bool rangeAdjustable = false;
-			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "source")) {
-					source = stringToSource(bdsm.readTagOrAttributeValue());
+					source = stringToSource(reader.readTagOrAttributeValue());
 				}
 				else if (!strcmp(tagName, "destination")) {
 					destinationParamDescriptor.setToHaveParamOnly(
-					    params::fileStringToParam(params::Kind::UNPATCHED_SOUND, bdsm.readTagOrAttributeValue()));
+					    params::fileStringToParam(params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue()));
 				}
 				else if (!strcmp(tagName, "amount")) {
-					tempParam.readFromFile(bdsm, readAutomationUpToPos);
+					tempParam.readFromFile(reader, readAutomationUpToPos);
 				}
 				else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
-					rangeAdjustable = bdsm.readTagOrAttributeValueInt();
+					rangeAdjustable = reader.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName, "depthControlledBy")) {
-					while (*(tagName = bdsm.readNextTagOrAttributeName()) && numPatchCables < kMaxNumPatchCables - 1) {
+					while (*(tagName = reader.readNextTagOrAttributeName()) && numPatchCables < kMaxNumPatchCables - 1) {
 						if (!strcmp(tagName, "patchCable")) {
 							PatchSource rangeSource = PatchSource::NONE;
 							AutoParam tempRangeParam;
-							while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+							while (*(tagName = reader.readNextTagOrAttributeName())) {
 								if (!strcmp(tagName, "source")) {
-									rangeSource = stringToSource(bdsm.readTagOrAttributeValue());
+									rangeSource = stringToSource(reader.readTagOrAttributeValue());
 								}
 								else if (!strcmp(tagName, "amount")) {
-									tempRangeParam.readFromFile(bdsm, readAutomationUpToPos);
+									tempRangeParam.readFromFile(reader, readAutomationUpToPos);
 								}
-								bdsm.exitTag();
+								reader.exitTag();
 							}
 
 							if (rangeSource != PatchSource::NONE && tempRangeParam.containsSomething(0)) {
@@ -858,10 +858,10 @@ void PatchCableSet::readPatchCablesFromFile(StorageManager& bdsm, int32_t readAu
 							}
 						}
 doneWithThisRangeCable:
-						bdsm.exitTag();
+						reader.exitTag();
 					}
 				}
-				bdsm.exitTag();
+				reader.exitTag();
 			}
 			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull() && tempParam.containsSomething(0)) {
 				// Just make sure this cable is allowed in some capacity
@@ -912,7 +912,7 @@ abandonThisCable:
 				numPatchCables = numCablesAtStartOfThing;
 			}
 		}
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 
 	if (rangeAdjustableCableP != 255) {
@@ -925,13 +925,13 @@ abandonThisCable:
 	}
 }
 
-void PatchCableSet::writePatchCablesToFile(StorageManager& bdsm, bool writeAutomation) {
+void PatchCableSet::writePatchCablesToFile(StorageManager& writer, bool writeAutomation) {
 	if (!numPatchCables) {
 		return;
 	}
 
 	// Patch cables
-	bdsm.writeOpeningTag("patchCables");
+	writer.writeOpeningTag("patchCables");
 	for (int32_t c = 0; c < numPatchCables;
 	     c++) { // I have a feeling this should actually only do up to "numUsablePatchCables"... otherwise we end up
 		        // with like FM-related cables written to file for a subtractive preset... etc.
@@ -939,17 +939,17 @@ void PatchCableSet::writePatchCablesToFile(StorageManager& bdsm, bool writeAutom
 			continue; // If it's a depth-controlling cable, we'll deal with that separately, below.
 		}
 
-		bdsm.writeOpeningTagBeginning("patchCable");
-		bdsm.writeAttribute("source", sourceToString(patchCables[c].from));
-		bdsm.writeAttribute("destination",
+		writer.writeOpeningTagBeginning("patchCable");
+		writer.writeAttribute("source", sourceToString(patchCables[c].from));
+		writer.writeAttribute("destination",
 		                    params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
 		                                             patchCables[c].destinationParamDescriptor.getJustTheParam()));
 
-		bdsm.write("\n");
-		bdsm.printIndents();
-		bdsm.write("amount=\"");
-		patchCables[c].param.writeToFile(bdsm, writeAutomation);
-		bdsm.write("\"");
+		writer.write("\n");
+		writer.printIndents();
+		writer.write("amount=\"");
+		patchCables[c].param.writeToFile(writer, writeAutomation);
+		writer.write("\"");
 
 		// See if another cable(s) controls the range/depth of this cable
 		ParamDescriptor paramDescriptor = patchCables[c].destinationParamDescriptor;
@@ -959,31 +959,31 @@ void PatchCableSet::writePatchCablesToFile(StorageManager& bdsm, bool writeAutom
 			if (patchCables[d].destinationParamDescriptor == paramDescriptor) {
 				if (!anyDepthControllingCablesFound) {
 					anyDepthControllingCablesFound = true;
-					bdsm.writeOpeningTagEnd();
-					bdsm.writeOpeningTag("depthControlledBy");
+					writer.writeOpeningTagEnd();
+					writer.writeOpeningTag("depthControlledBy");
 				}
 
-				bdsm.writeOpeningTagBeginning("patchCable");
-				bdsm.writeAttribute("source", sourceToString(patchCables[d].from));
+				writer.writeOpeningTagBeginning("patchCable");
+				writer.writeAttribute("source", sourceToString(patchCables[d].from));
 
-				bdsm.write("\n");
-				bdsm.printIndents();
-				bdsm.write("amount=\"");
-				patchCables[d].param.writeToFile(bdsm, writeAutomation);
-				bdsm.write("\"");
-				bdsm.closeTag();
+				writer.write("\n");
+				writer.printIndents();
+				writer.write("amount=\"");
+				patchCables[d].param.writeToFile(writer, writeAutomation);
+				writer.write("\"");
+				writer.closeTag();
 			}
 		}
 
 		if (anyDepthControllingCablesFound) {
-			bdsm.writeClosingTag("depthControlledBy");
-			bdsm.writeClosingTag("patchCable");
+			writer.writeClosingTag("depthControlledBy");
+			writer.writeClosingTag("patchCable");
 		}
 		else {
-			bdsm.closeTag();
+			writer.closeTag();
 		}
 	}
-	bdsm.writeClosingTag("patchCables");
+	writer.writeClosingTag("patchCables");
 }
 
 int32_t PatchCableSet::getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s) {

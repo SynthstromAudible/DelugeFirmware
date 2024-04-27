@@ -176,9 +176,9 @@ public:
 	void setUnisonStereoSpread(int32_t newAmount);
 	void setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
-	Error readFromFile(StorageManager& bdsm, ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
+	Error readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
 	                   ArpeggiatorSettings* arpSettings);
-	void writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager,
+	void writeToFile(StorageManager& writer, bool savingSong, ParamManager* paramManager,
 	                 ArpeggiatorSettings* arpSettings);
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
 
@@ -216,10 +216,10 @@ public:
 	void setupAsDefaultSynth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
-	static void writeParamsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation);
-	static void readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* paramManager,
+	static void writeParamsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation);
+	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);
-	static bool readParamTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
 	static Error createParamManagerForLoading(ParamManagerForTimeline* paramManager);
@@ -240,7 +240,7 @@ public:
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager);
-	virtual bool readTagFromFile(StorageManager& bdsm, char const* tagName) = 0;
+	virtual bool readTagFromFile(Deserializer& reader, char const* tagName) = 0;
 	void detachSourcesFromAudioFiles();
 	void confirmNumVoices(char const* error);
 
@@ -281,11 +281,11 @@ private:
 	void setupUnisonStereoSpread();
 	void calculateEffectiveVolume();
 	void ensureKnobReferencesCorrectVolume(Knob* knob);
-	Error readTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 
-	void writeSourceToFile(StorageManager& bdsm, int32_t s, char const* tagName);
-	Error readSourceFromFile(StorageManager& bdsm, int32_t s, ParamManagerForTimeline* paramManager,
+	void writeSourceToFile(StorageManager& writer, int32_t s, char const* tagName);
+	Error readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerForTimeline* paramManager,
 	                         int32_t readAutomationUpToPos);
 	void stopSkippingRendering(ArpeggiatorSettings* arpSettings);
 	void startSkippingRendering(ModelStackWithSoundFlags* modelStack);

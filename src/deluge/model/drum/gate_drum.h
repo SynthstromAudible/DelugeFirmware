@@ -32,8 +32,8 @@ public:
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0);
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity);
-	void writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager);
-	Error readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	void writeToFile(StorageManager& writer, bool savingSong, ParamManager* paramManager);
+	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void getName(char* buffer);
 	int32_t getNumChannels();
 };

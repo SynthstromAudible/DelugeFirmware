@@ -37,7 +37,7 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void instrumentEdited(Instrument* instrument);
-	Error performLoad(StorageManager& bdsm, bool doClone = false);
+	Error performLoad(StorageManager& reader, bool doClone = false);
 	Error performLoadSynthToKit();
 	ActionResult timerCallback();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
@@ -86,7 +86,7 @@ private:
 	bool showingAuditionPads();
 	Error setupForOutputType();
 	void changeOutputType(OutputType newOutputType);
-	void revertToInitialPreset(StorageManager& bdsm);
+	void revertToInitialPreset(StorageManager& reader);
 	void exitAction();
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(String* oldName, String* newName);

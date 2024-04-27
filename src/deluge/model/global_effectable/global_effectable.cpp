@@ -785,213 +785,213 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
 }
 
-void GlobalEffectable::writeAttributesToFile(StorageManager& bdsm, bool writeAutomation) {
+void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
 
-	ModControllableAudio::writeAttributesToFile(bdsm);
+	ModControllableAudio::writeAttributesToFile(writer);
 
-	bdsm.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
-	bdsm.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
+	writer.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
+	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
 }
 
-void GlobalEffectable::writeTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation) {
+void GlobalEffectable::writeTagsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation) {
 
-	ModControllableAudio::writeTagsToFile(bdsm);
+	ModControllableAudio::writeTagsToFile(writer);
 
 	if (paramManager) {
-		bdsm.writeOpeningTagBeginning("defaultParams");
-		GlobalEffectable::writeParamAttributesToFile(bdsm, paramManager, writeAutomation);
-		bdsm.writeOpeningTagEnd();
-		GlobalEffectable::writeParamTagsToFile(bdsm, paramManager, writeAutomation);
-		bdsm.writeClosingTag("defaultParams");
+		writer.writeOpeningTagBeginning("defaultParams");
+		GlobalEffectable::writeParamAttributesToFile(writer, paramManager, writeAutomation);
+		writer.writeOpeningTagEnd();
+		GlobalEffectable::writeParamTagsToFile(writer, paramManager, writeAutomation);
+		writer.writeClosingTag("defaultParams");
 	}
 }
 
-void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager,
+void GlobalEffectable::writeParamAttributesToFile(StorageManager& writer, ParamManager* paramManager,
                                                   bool writeAutomation, int32_t* valuesForOverride) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute(bdsm, "reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT, writeAutomation,
+	unpatchedParams->writeParamAsAttribute(writer, "reverbAmount", params::UNPATCHED_REVERB_SEND_AMOUNT, writeAutomation,
 	                                       false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "volume", params::UNPATCHED_VOLUME, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(writer, "volume", params::UNPATCHED_VOLUME, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "pan", params::UNPATCHED_PAN, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(writer, "pan", params::UNPATCHED_PAN, writeAutomation, false,
 	                                       valuesForOverride);
 
 	if (unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].containsSomething(0)) {
-		unpatchedParams->writeParamAsAttribute(bdsm, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation,
+		unpatchedParams->writeParamAsAttribute(writer, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation,
 		                                       false, valuesForOverride);
 	}
 
 	if (unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].containsSomething(-2147483648)) {
-		unpatchedParams->writeParamAsAttribute(bdsm, "sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME,
+		unpatchedParams->writeParamAsAttribute(writer, "sidechainCompressorVolume", params::UNPATCHED_SIDECHAIN_VOLUME,
 		                                       writeAutomation, false, valuesForOverride);
 	}
 
-	unpatchedParams->writeParamAsAttribute(bdsm, "sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
+	unpatchedParams->writeParamAsAttribute(writer, "sidechainCompressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
 	                                       writeAutomation, false, valuesForOverride);
 
-	unpatchedParams->writeParamAsAttribute(bdsm, "modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(writer, "modFXDepth", params::UNPATCHED_MOD_FX_DEPTH, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "modFXRate", params::UNPATCHED_MOD_FX_RATE, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(writer, "modFXRate", params::UNPATCHED_MOD_FX_RATE, writeAutomation, false,
 	                                       valuesForOverride);
 
-	ModControllableAudio::writeParamAttributesToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
+	ModControllableAudio::writeParamAttributesToFile(writer, paramManager, writeAutomation, valuesForOverride);
 }
 
-void GlobalEffectable::writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
+void GlobalEffectable::writeParamTagsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation,
                                             int32_t* valuesForOverride) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	bdsm.writeOpeningTagBeginning("delay");
-	unpatchedParams->writeParamAsAttribute(bdsm, "rate", params::UNPATCHED_DELAY_RATE, writeAutomation, false,
+	writer.writeOpeningTagBeginning("delay");
+	unpatchedParams->writeParamAsAttribute(writer, "rate", params::UNPATCHED_DELAY_RATE, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "feedback", params::UNPATCHED_DELAY_AMOUNT, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(writer, "feedback", params::UNPATCHED_DELAY_AMOUNT, writeAutomation, false,
 	                                       valuesForOverride);
-	bdsm.closeTag();
+	writer.closeTag();
 
-	bdsm.writeOpeningTagBeginning("lpf");
-	unpatchedParams->writeParamAsAttribute(bdsm, "frequency", params::UNPATCHED_LPF_FREQ, writeAutomation, false,
+	writer.writeOpeningTagBeginning("lpf");
+	unpatchedParams->writeParamAsAttribute(writer, "frequency", params::UNPATCHED_LPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(writer, "resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(writer, "morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
-	bdsm.closeTag();
+	writer.closeTag();
 
-	bdsm.writeOpeningTagBeginning("hpf");
-	unpatchedParams->writeParamAsAttribute(bdsm, "frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
+	writer.writeOpeningTagBeginning("hpf");
+	unpatchedParams->writeParamAsAttribute(writer, "frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(writer, "resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	unpatchedParams->writeParamAsAttribute(writer, "morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
-	bdsm.closeTag();
+	writer.closeTag();
 
-	ModControllableAudio::writeParamTagsToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
+	ModControllableAudio::writeParamTagsToFile(writer, paramManager, writeAutomation, valuesForOverride);
 }
 
-void GlobalEffectable::readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* paramManager,
+void GlobalEffectable::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
                                           int32_t readAutomationUpToPos) {
 	char const* tagName;
 
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
-		if (readParamTagFromFile(bdsm, tagName, paramManager, readAutomationUpToPos)) {}
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
 		else {
-			bdsm.exitTag(tagName);
+			reader.exitTag(tagName);
 		}
 	}
 }
 
-bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* tagName,
+bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* tagName,
                                             ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
 	if (!strcmp(tagName, "delay")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "rate")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_DELAY_RATE,
+				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_DELAY_RATE,
 				                           readAutomationUpToPos);
-				bdsm.exitTag("rate");
+				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "feedback")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_DELAY_AMOUNT,
+				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_DELAY_AMOUNT,
 				                           readAutomationUpToPos);
-				bdsm.exitTag("feedback");
+				reader.exitTag("feedback");
 			}
 		}
-		bdsm.exitTag("delay");
+		reader.exitTag("delay");
 	}
 
 	else if (!strcmp(tagName, "lpf")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "frequency")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_FREQ,
+				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_FREQ,
 				                           readAutomationUpToPos);
-				bdsm.exitTag("frequency");
+				reader.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_RES,
+				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_RES,
 				                           readAutomationUpToPos);
-				bdsm.exitTag("resonance");
+				reader.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "morph")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH,
+				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH,
 				                           readAutomationUpToPos);
-				bdsm.exitTag("morph");
+				reader.exitTag("morph");
 			}
 		}
-		bdsm.exitTag("lpf");
+		reader.exitTag("lpf");
 	}
 
 	else if (!strcmp(tagName, "hpf")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "frequency")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_FREQ,
+				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_FREQ,
 				                           readAutomationUpToPos);
-				bdsm.exitTag("frequency");
+				reader.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_RES,
+				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_RES,
 				                           readAutomationUpToPos);
-				bdsm.exitTag("resonance");
+				reader.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "morph")) {
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH,
+				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH,
 				                           readAutomationUpToPos);
-				bdsm.exitTag("morph");
+				reader.exitTag("morph");
 			}
 		}
-		bdsm.exitTag("hpf");
+		reader.exitTag("hpf");
 	}
 
 	else if (!strcmp(tagName, "reverbAmount")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT,
 		                           readAutomationUpToPos);
-		bdsm.exitTag("reverbAmount");
+		reader.exitTag("reverbAmount");
 	}
 
 	else if (!strcmp(tagName, "volume")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
-		bdsm.exitTag("volume");
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
+		reader.exitTag("volume");
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorVolume")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_VOLUME,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_VOLUME,
 		                           readAutomationUpToPos);
-		bdsm.exitTag("sidechainCompressorVolume");
+		reader.exitTag("sidechainCompressorVolume");
 	}
 
 	else if (!strcmp(tagName, "sidechainCompressorShape")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE,
 		                           readAutomationUpToPos);
-		bdsm.exitTag("sidechainCompressorShape");
+		reader.exitTag("sidechainCompressorShape");
 	}
 
 	else if (!strcmp(tagName, "pan")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_PAN, readAutomationUpToPos);
-		bdsm.exitTag("pan");
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PAN, readAutomationUpToPos);
+		reader.exitTag("pan");
 	}
 
 	else if (!strcmp(tagName, "pitchAdjust")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_PITCH_ADJUST, readAutomationUpToPos);
-		bdsm.exitTag("pitchAdjust");
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PITCH_ADJUST, readAutomationUpToPos);
+		reader.exitTag("pitchAdjust");
 	}
 
 	else if (!strcmp(tagName, "modFXDepth")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_DEPTH, readAutomationUpToPos);
-		bdsm.exitTag("modFXDepth");
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_DEPTH, readAutomationUpToPos);
+		reader.exitTag("modFXDepth");
 	}
 
 	else if (!strcmp(tagName, "modFXRate")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_RATE, readAutomationUpToPos);
-		bdsm.exitTag("modFXRate");
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_MOD_FX_RATE, readAutomationUpToPos);
+		reader.exitTag("modFXRate");
 	}
 
-	else if (ModControllableAudio::readParamTagFromFile(bdsm, tagName, paramManager, readAutomationUpToPos)) {}
+	else if (ModControllableAudio::readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
 
 	else {
 		return false;
@@ -1001,7 +1001,7 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 }
 
 // paramManager is optional
-Error GlobalEffectable::readTagFromFile(StorageManager& bdsm, char const* tagName,
+Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagName,
                                         ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos,
                                         Song* song) {
 
@@ -1020,33 +1020,33 @@ Error GlobalEffectable::readTagFromFile(StorageManager& bdsm, char const* tagNam
 			initParams(paramManager);
 		}
 
-		GlobalEffectable::readParamsFromFile(bdsm, paramManager, readAutomationUpToPos);
-		bdsm.exitTag("defaultParams");
+		GlobalEffectable::readParamsFromFile(reader, paramManager, readAutomationUpToPos);
+		reader.exitTag("defaultParams");
 	}
 
 	else if (!strcmp(tagName, "modFXType")) {
-		modFXType = stringToFXType(bdsm.readTagOrAttributeValue());
-		bdsm.exitTag("modFXType");
+		modFXType = stringToFXType(reader.readTagOrAttributeValue());
+		reader.exitTag("modFXType");
 	}
 
 	else if (!strcmp(tagName, "modFXCurrentParam")) {
-		currentModFXParam = stringToModFXParam(bdsm.readTagOrAttributeValue());
-		bdsm.exitTag("modFXCurrentParam");
+		currentModFXParam = stringToModFXParam(reader.readTagOrAttributeValue());
+		reader.exitTag("modFXCurrentParam");
 	}
 
 	else if (!strcmp(tagName, "currentFilterType")) {
-		currentFilterType = stringToFilterType(bdsm.readTagOrAttributeValue());
-		bdsm.exitTag("currentFilterType");
+		currentFilterType = stringToFilterType(reader.readTagOrAttributeValue());
+		reader.exitTag("currentFilterType");
 	}
 
 	else {
-		return ModControllableAudio::readTagFromFile(bdsm, tagName, NULL, readAutomationUpToPos, song);
+		return ModControllableAudio::readTagFromFile(reader, tagName, NULL, readAutomationUpToPos, song);
 	}
 
 	return Error::NONE;
 }
 
-// Before calling this, check that (bdsm.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 &&
+// Before calling this, check that (reader.firmwareVersionOfFileBeingRead < FIRMWARE_1P2P0 &&
 // !paramManager->resonanceBackwardsCompatibilityProcessed)
 void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* paramManager) {
 

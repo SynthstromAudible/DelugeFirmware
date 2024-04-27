@@ -67,7 +67,7 @@ public:
 	virtual void write(char const* output) = 0;
 };
 
-class XMLSerializer : Serializer {
+class XMLSerializer : public Serializer {
 public:
 	XMLSerializer(StorageManager& ms);
 	virtual ~XMLSerializer();
@@ -107,16 +107,16 @@ public:
 	virtual char readNextCharOfTagOrAttributeValue() = 0;
 	virtual int32_t getNumCharsRemainingInValue() = 0;
 
-	//	virtual Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) = 0;
 	virtual char const* readNextTagOrAttributeName() = 0;
+	virtual	char const* readTagOrAttributeValue() = 0;
 	virtual int32_t readTagOrAttributeValueInt() = 0;
 	virtual int32_t readTagOrAttributeValueHex(int32_t errorValue) = 0;
-
+	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
 	virtual void exitTag(char const* exitTagName = NULL) = 0;
 };
 
-class XMLDeserializer : Deserializer {
+class XMLDeserializer : public Deserializer {
 public:
 	XMLDeserializer(StorageManager& msd);
 	virtual ~XMLDeserializer();
@@ -126,12 +126,11 @@ public:
 	char readNextCharOfTagOrAttributeValue() override;
 	int32_t getNumCharsRemainingInValue() override;
 
-	//	 Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) override;
 	int32_t readTagOrAttributeValueInt() override;
 	int32_t readTagOrAttributeValueHex(int32_t errorValue) override;
-	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars);
+	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) override;
 	Error readTagOrAttributeValueString(String* string) override;
-
+	char const* readTagOrAttributeValue() override;
 	void exitTag(char const* exitTagName = NULL) override;
 
 private:
@@ -152,7 +151,6 @@ public:
 
 	char stringBuffer[kFilenameBufferSize];
 
-	char const* readTagOrAttributeValue();
 	void skipUntilChar(char endChar);
 	uint32_t readCharXML(char* thisChar);
 	char const* readTagName();
@@ -167,6 +165,7 @@ public:
 	Error readAttributeValueString(String* string);
 	// bool readXMLFileCluster();
 	void xmlReadDone();
+	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 };
 
 class StorageManager : public XMLSerializer, public XMLDeserializer {

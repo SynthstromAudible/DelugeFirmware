@@ -2272,124 +2272,124 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	return Error::NONE;
 }
 
-void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
+void InstrumentClip::writeDataToFile(StorageManager& writer, Song* song) {
 
-	bdsm.writeAttribute("inKeyMode", inScaleMode);
-	bdsm.writeAttribute("yScroll", yScroll);
-	bdsm.writeAttribute("keyboardLayout", keyboardState.currentLayout);
-	bdsm.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
-	bdsm.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
-	bdsm.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
-	bdsm.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
-	bdsm.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
-	bdsm.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+	writer.writeAttribute("inKeyMode", inScaleMode);
+	writer.writeAttribute("yScroll", yScroll);
+	writer.writeAttribute("keyboardLayout", keyboardState.currentLayout);
+	writer.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
+	writer.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
+	writer.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
+	writer.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
+	writer.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
+	writer.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
 
 	if (onKeyboardScreen) {
-		bdsm.writeAttribute("onKeyboardScreen", (char*)"1");
+		writer.writeAttribute("onKeyboardScreen", (char*)"1");
 	}
 	if (onAutomationClipView) {
-		bdsm.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
+		writer.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
 	}
 	if (lastSelectedParamID != kNoSelection) {
-		bdsm.writeAttribute("lastSelectedParamID", lastSelectedParamID);
-		bdsm.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
-		bdsm.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
-		bdsm.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
-		bdsm.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedOutputType));
-		bdsm.writeAttribute("lastSelectedPatchSource", util::to_underlying(lastSelectedPatchSource));
+		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
+		writer.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
+		writer.writeAttribute("lastSelectedParamShortcutX", lastSelectedParamShortcutX);
+		writer.writeAttribute("lastSelectedParamShortcutY", lastSelectedParamShortcutY);
+		writer.writeAttribute("lastSelectedInstrumentType", util::to_underlying(lastSelectedOutputType));
+		writer.writeAttribute("lastSelectedPatchSource", util::to_underlying(lastSelectedPatchSource));
 	}
 	if (wrapEditing) {
-		bdsm.writeAttribute("crossScreenEditLevel", wrapEditLevel);
+		writer.writeAttribute("crossScreenEditLevel", wrapEditLevel);
 	}
 	if (output->type == OutputType::KIT) {
-		bdsm.writeAttribute("affectEntire", affectEntire);
+		writer.writeAttribute("affectEntire", affectEntire);
 	}
 
 	Instrument* instrument = (Instrument*)output;
 
 	if (output->type == OutputType::MIDI_OUT) {
-		bdsm.writeAttribute("midiChannel", ((MIDIInstrument*)instrument)->channel);
+		writer.writeAttribute("midiChannel", ((MIDIInstrument*)instrument)->channel);
 
 		if (((MIDIInstrument*)instrument)->channelSuffix != -1) {
-			bdsm.writeAttribute("midiChannelSuffix", ((MIDIInstrument*)instrument)->channelSuffix);
+			writer.writeAttribute("midiChannelSuffix", ((MIDIInstrument*)instrument)->channelSuffix);
 		}
 
 		// MIDI PGM
 		if (midiBank != 128) {
-			bdsm.writeAttribute("midiBank", midiBank);
+			writer.writeAttribute("midiBank", midiBank);
 		}
 		if (midiSub != 128) {
-			bdsm.writeAttribute("midiSub", midiSub);
+			writer.writeAttribute("midiSub", midiSub);
 		}
 		if (midiPGM != 128) {
-			bdsm.writeAttribute("midiPGM", midiPGM);
+			writer.writeAttribute("midiPGM", midiPGM);
 		}
 	}
 	else if (output->type == OutputType::CV) {
-		bdsm.writeAttribute("cvChannel", ((CVInstrument*)instrument)->channel);
+		writer.writeAttribute("cvChannel", ((CVInstrument*)instrument)->channel);
 	}
 	else {
-		bdsm.writeAttribute("instrumentPresetName", output->name.get());
+		writer.writeAttribute("instrumentPresetName", output->name.get());
 
 		if (!instrument->dirPath.isEmpty()) {
-			bdsm.writeAttribute("instrumentPresetFolder", instrument->dirPath.get());
+			writer.writeAttribute("instrumentPresetFolder", instrument->dirPath.get());
 		}
 	}
 
-	Clip::writeDataToFile(bdsm, song);
+	Clip::writeDataToFile(writer, song);
 
 	if (output->type == OutputType::MIDI_OUT) {
-		paramManager.getMIDIParamCollection()->writeToFile(bdsm);
+		paramManager.getMIDIParamCollection()->writeToFile(writer);
 	}
 
 	if (output->type != OutputType::KIT) {
-		bdsm.writeOpeningTagBeginning("arpeggiator");
-		bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-		bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-		bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-		bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
-		bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
-		bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
-		bdsm.writeAttribute("syncType", arpSettings.syncType);
+		writer.writeOpeningTagBeginning("arpeggiator");
+		writer.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		writer.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+		writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+		writer.writeAttribute("numOctaves", arpSettings.numOctaves);
+		writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+		writer.writeAttribute("syncLevel", arpSettings.syncLevel);
+		writer.writeAttribute("syncType", arpSettings.syncType);
 
 		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-			bdsm.writeAttribute("gate", arpeggiatorGate);
-			bdsm.writeAttribute("rate", arpeggiatorRate);
-			bdsm.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
-			bdsm.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
-			bdsm.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
-			bdsm.writeAttribute("rhythm", arpeggiatorRhythm);
+			writer.writeAttribute("gate", arpeggiatorGate);
+			writer.writeAttribute("rate", arpeggiatorRate);
+			writer.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
+			writer.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
+			writer.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
+			writer.writeAttribute("rhythm", arpeggiatorRhythm);
 		}
-		bdsm.closeTag();
+		writer.closeTag();
 	}
 
 	if (output->type == OutputType::KIT) {
-		bdsm.writeOpeningTagBeginning("kitParams");
-		GlobalEffectableForClip::writeParamAttributesToFile(bdsm, &paramManager, true);
-		bdsm.writeOpeningTagEnd();
-		GlobalEffectableForClip::writeParamTagsToFile(bdsm, &paramManager, true);
-		bdsm.writeClosingTag("kitParams");
+		writer.writeOpeningTagBeginning("kitParams");
+		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true);
+		writer.writeOpeningTagEnd();
+		GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true);
+		writer.writeClosingTag("kitParams");
 	}
 	else if (output->type == OutputType::SYNTH) {
-		bdsm.writeOpeningTagBeginning("soundParams");
-		Sound::writeParamsToFile(bdsm, &paramManager, true);
-		bdsm.writeClosingTag("soundParams");
+		writer.writeOpeningTagBeginning("soundParams");
+		Sound::writeParamsToFile(writer, &paramManager, true);
+		writer.writeClosingTag("soundParams");
 	}
 
 	if (output->type != OutputType::KIT) {
 		ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
 		if (expressionParams) {
-			expressionParams->writeToFile(bdsm);
+			expressionParams->writeToFile(writer);
 
 			if (output->type != OutputType::MIDI_OUT) {
-				bdsm.writeTag("bendRange", expressionParams->bendRanges[BEND_RANGE_MAIN]);
-				bdsm.writeTag("bendRangeMPE", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
+				writer.writeTag("bendRange", expressionParams->bendRanges[BEND_RANGE_MAIN]);
+				writer.writeTag("bendRangeMPE", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
 			}
 		}
 	}
 
 	if (noteRows.getNumElements()) {
-		bdsm.writeOpeningTag("noteRows");
+		writer.writeOpeningTag("noteRows");
 
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -2401,15 +2401,15 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 			}
 			// no matching drum found
 			if (drumIndex != -1) {
-				thisNoteRow->writeToFile(bdsm, drumIndex, this);
+				thisNoteRow->writeToFile(writer, drumIndex, this);
 			}
 		}
 
-		bdsm.writeClosingTag("noteRows");
+		writer.writeClosingTag("noteRows");
 	}
 }
 
-Error InstrumentClip::readFromFile(StorageManager& bdsm, Song* song) {
+Error InstrumentClip::readFromFile(Deserializer& reader, Song* song) {
 
 	Error error;
 
@@ -2441,17 +2441,17 @@ someError:
 
 	int32_t readAutomationUpToPos = kMaxSequenceLength;
 
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 
 		int32_t temp;
 
 		if (!strcmp(tagName, "inKeyMode")) {
-			inScaleMode = bdsm.readTagOrAttributeValueInt();
+			inScaleMode = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "instrumentPresetSlot")) {
-			int32_t slotHere = bdsm.readTagOrAttributeValueInt();
+			int32_t slotHere = reader.readTagOrAttributeValueInt();
 			String slotChars;
 			slotChars.setInt(slotHere, 3);
 			slotChars.concatenate(&instrumentPresetName);
@@ -2459,7 +2459,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "instrumentPresetSubSlot")) {
-			int32_t subSlotHere = bdsm.readTagOrAttributeValueInt();
+			int32_t subSlotHere = reader.readTagOrAttributeValueInt();
 			if (subSlotHere >= 0 && subSlotHere < 26) {
 				char buffer[2];
 				buffer[0] = 'A' + subSlotHere;
@@ -2469,103 +2469,103 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "instrumentPresetName")) {
-			bdsm.readTagOrAttributeValueString(&instrumentPresetName);
+			reader.readTagOrAttributeValueString(&instrumentPresetName);
 		}
 
 		else if (!strcmp(tagName, "instrumentPresetFolder")) {
-			bdsm.readTagOrAttributeValueString(&instrumentPresetDirPath);
+			reader.readTagOrAttributeValueString(&instrumentPresetDirPath);
 			dirPathHasBeenSpecified = true;
 		}
 
 		else if (!strcmp(tagName, "midiChannel")) {
 			outputTypeWhileLoading = OutputType::MIDI_OUT;
 
-			// if (!instrument) instrument = bdsm.createNewNonAudioInstrument(OutputType::MIDI_OUT, 0, -1);
-			instrumentPresetSlot = bdsm.readTagOrAttributeValueInt();
+			// if (!instrument) instrument = reader.createNewNonAudioInstrument(OutputType::MIDI_OUT, 0, -1);
+			instrumentPresetSlot = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "midiChannelSuffix")) {
-			instrumentPresetSubSlot = bdsm.readTagOrAttributeValueInt();
+			instrumentPresetSubSlot = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "cvChannel")) {
 			outputTypeWhileLoading = OutputType::CV;
 
-			// if (!instrument) instrument = bdsm.createNewNonAudioInstrument(OutputType::CV, 0, -1);
-			instrumentPresetSlot = bdsm.readTagOrAttributeValueInt();
+			// if (!instrument) instrument = reader.createNewNonAudioInstrument(OutputType::CV, 0, -1);
+			instrumentPresetSlot = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "midiBank")) {
-			midiBank = bdsm.readTagOrAttributeValueInt();
+			midiBank = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "midiSub")) {
-			midiSub = bdsm.readTagOrAttributeValueInt();
+			midiSub = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "midiPGM")) {
-			midiPGM = bdsm.readTagOrAttributeValueInt();
+			midiPGM = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScroll")) {
-			yScroll = bdsm.readTagOrAttributeValueInt();
+			yScroll = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "keyboardLayout")) {
-			keyboardState.currentLayout = (KeyboardLayoutType)bdsm.readTagOrAttributeValueInt();
+			keyboardState.currentLayout = (KeyboardLayoutType)reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "yScrollKeyboard")) {
-			keyboardState.isomorphic.scrollOffset = bdsm.readTagOrAttributeValueInt();
+			keyboardState.isomorphic.scrollOffset = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "keyboardRowInterval")) {
-			keyboardState.isomorphic.rowInterval = bdsm.readTagOrAttributeValueInt();
+			keyboardState.isomorphic.rowInterval = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "drumsScrollOffset")) {
-			keyboardState.drums.scrollOffset = bdsm.readTagOrAttributeValueInt();
+			keyboardState.drums.scrollOffset = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "drumsEdgeSize")) {
-			keyboardState.drums.edgeSize = bdsm.readTagOrAttributeValueInt();
+			keyboardState.drums.edgeSize = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "inKeyScrollOffset")) {
-			keyboardState.inKey.scrollOffset = bdsm.readTagOrAttributeValueInt();
+			keyboardState.inKey.scrollOffset = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "inKeyRowInterval")) {
-			keyboardState.inKey.rowInterval = bdsm.readTagOrAttributeValueInt();
+			keyboardState.inKey.rowInterval = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "crossScreenEditLevel")) {
-			wrapEditLevel = bdsm.readTagOrAttributeValueInt();
+			wrapEditLevel = reader.readTagOrAttributeValueInt();
 			wrapEditing = true;
 		}
 
 		else if (!strcmp(tagName, "onKeyboardScreen")) {
-			onKeyboardScreen = bdsm.readTagOrAttributeValueInt();
+			onKeyboardScreen = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
-			onAutomationClipView = bdsm.readTagOrAttributeValueInt();
+			onAutomationClipView = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamID")) {
-			lastSelectedParamID = bdsm.readTagOrAttributeValueInt();
+			lastSelectedParamID = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<params::Kind>(bdsm.readTagOrAttributeValueInt());
+			lastSelectedParamKind = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
-			lastSelectedParamShortcutX = bdsm.readTagOrAttributeValueInt();
+			lastSelectedParamShortcutX = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
-			lastSelectedParamShortcutY = bdsm.readTagOrAttributeValueInt();
+			lastSelectedParamShortcutY = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
@@ -2573,19 +2573,19 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
-			lastSelectedOutputType = static_cast<OutputType>(bdsm.readTagOrAttributeValueInt());
+			lastSelectedOutputType = static_cast<OutputType>(reader.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "lastSelectedPatchSource")) {
-			lastSelectedPatchSource = static_cast<PatchSource>(bdsm.readTagOrAttributeValueInt());
+			lastSelectedPatchSource = static_cast<PatchSource>(reader.readTagOrAttributeValueInt());
 		}
 
 		else if (!strcmp(tagName, "affectEntire")) {
-			affectEntire = bdsm.readTagOrAttributeValueInt();
+			affectEntire = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "soundMidiCommand")) { // Only for pre V2.0 song files
-			soundMidiCommand.readChannelFromFile(bdsm);
+			soundMidiCommand.readChannelFromFile(reader);
 		}
 
 		else if (!strcmp(tagName, "modKnobs")) { // Pre V2.0 only - for compatibility
@@ -2595,7 +2595,7 @@ someError:
 			output = song->getInstrumentFromPresetSlot(OutputType::MIDI_OUT, instrumentPresetSlot,
 			                                           instrumentPresetSubSlot, NULL, NULL, false);
 			if (!output) {
-				output = bdsm.createNewNonAudioInstrument(OutputType::MIDI_OUT, instrumentPresetSlot,
+				output = storageManager.createNewNonAudioInstrument(OutputType::MIDI_OUT, instrumentPresetSlot,
 				                                          instrumentPresetSubSlot);
 
 				if (!output) {
@@ -2610,7 +2610,7 @@ someError:
 			}
 
 			error =
-			    ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(bdsm, readAutomationUpToPos, &paramManager);
+			    ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(storageManager, readAutomationUpToPos, &paramManager);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -2621,74 +2621,74 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "arpeggiator")) {
-			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 				if (!strcmp(tagName, "rate")) {
-					arpeggiatorRate = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("rate");
+					arpeggiatorRate = reader.readTagOrAttributeValueInt();
+					reader.exitTag("rate");
 				}
 				else if (!strcmp(tagName, "ratchetProbability")) {
-					arpeggiatorRatchetProbability = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("ratchetProbability");
+					arpeggiatorRatchetProbability = reader.readTagOrAttributeValueInt();
+					reader.exitTag("ratchetProbability");
 				}
 				else if (!strcmp(tagName, "ratchetAmount")) {
-					arpeggiatorRatchetAmount = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("ratchetAmount");
+					arpeggiatorRatchetAmount = reader.readTagOrAttributeValueInt();
+					reader.exitTag("ratchetAmount");
 				}
 				else if (!strcmp(tagName, "sequenceLength")) {
-					arpeggiatorSequenceLength = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("sequenceLength");
+					arpeggiatorSequenceLength = reader.readTagOrAttributeValueInt();
+					reader.exitTag("sequenceLength");
 				}
 				else if (!strcmp(tagName, "rhythm")) {
 					arpeggiatorRhythm = storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("rhythm");
 				}
 				else if (!strcmp(tagName, "numOctaves")) {
-					arpSettings.numOctaves = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("numOctaves");
+					arpSettings.numOctaves = reader.readTagOrAttributeValueInt();
+					reader.exitTag("numOctaves");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
-					arpSettings.syncLevel = (SyncLevel)bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("syncLevel");
+					arpSettings.syncLevel = (SyncLevel)reader.readTagOrAttributeValueInt();
+					reader.exitTag("syncLevel");
 				}
 				else if (!strcmp(tagName, "syncType")) {
-					arpSettings.syncType = (SyncType)bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("syncType");
+					arpSettings.syncType = (SyncType)reader.readTagOrAttributeValueInt();
+					reader.exitTag("syncType");
 				}
-				else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+				else if (!strcmp(tagName, "mode") && storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
-					OldArpMode oldMode = stringToOldArpMode(bdsm.readTagOrAttributeValue());
+					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
 					arpSettings.mode = oldModeToArpMode(oldMode);
 					arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
 					arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
 					arpSettings.updatePresetFromCurrentSettings();
-					bdsm.exitTag("mode");
+					reader.exitTag("mode");
 				}
 				else if (!strcmp(tagName, "arpMode")) {
-					arpSettings.mode = stringToArpMode(bdsm.readTagOrAttributeValue());
+					arpSettings.mode = stringToArpMode(reader.readTagOrAttributeValue());
 					arpSettings.updatePresetFromCurrentSettings();
-					bdsm.exitTag("arpMode");
+					reader.exitTag("arpMode");
 				}
 				else if (!strcmp(tagName, "octaveMode")) {
-					arpSettings.octaveMode = stringToArpOctaveMode(bdsm.readTagOrAttributeValue());
+					arpSettings.octaveMode = stringToArpOctaveMode(reader.readTagOrAttributeValue());
 					arpSettings.updatePresetFromCurrentSettings();
-					bdsm.exitTag("octaveMode");
+					reader.exitTag("octaveMode");
 				}
 				else if (!strcmp(tagName, "noteMode")) {
-					arpSettings.noteMode = stringToArpNoteMode(bdsm.readTagOrAttributeValue());
+					arpSettings.noteMode = stringToArpNoteMode(reader.readTagOrAttributeValue());
 					arpSettings.updatePresetFromCurrentSettings();
-					bdsm.exitTag("noteMode");
+					reader.exitTag("noteMode");
 				}
 				else if (!strcmp(tagName, "mpeVelocity")) {
-					arpSettings.mpeVelocity = stringToArpMpeModSource(bdsm.readTagOrAttributeValue());
-					bdsm.exitTag("mpeVelocity");
+					arpSettings.mpeVelocity = stringToArpMpeModSource(reader.readTagOrAttributeValue());
+					reader.exitTag("mpeVelocity");
 				}
 				else if (!strcmp(tagName, "gate")) {
-					arpeggiatorGate = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("gate");
+					arpeggiatorGate = reader.readTagOrAttributeValueInt();
+					reader.exitTag("gate");
 				}
 				else {
-					bdsm.exitTag(tagName);
+					reader.exitTag(tagName);
 				}
 			}
 		}
@@ -2696,10 +2696,10 @@ someError:
 		// For song files from before V2.0, where Instruments were stored within the Clip.
 		// Loading Instrument from another Clip.
 		else if (!strcmp(tagName, "instrument")) {
-			if (*(tagName = bdsm.readNextTagOrAttributeName())) {
+			if (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "referToTrackId")) {
 					if (!output) {
-						int32_t clipId = bdsm.readTagOrAttributeValueInt();
+						int32_t clipId = reader.readTagOrAttributeValueInt();
 						clipId = std::max((int32_t)0, clipId);
 						if (clipId >= song->sessionClips.getNumElements()) {
 							error = Error::FILE_CORRUPTED;
@@ -2717,7 +2717,7 @@ someError:
 							arpSettings.cloneFrom(&((SoundInstrument*)output)->defaultArpSettings);
 						}
 					}
-					bdsm.exitTag("referToTrackId");
+					reader.exitTag("referToTrackId");
 				}
 			}
 		}
@@ -2742,7 +2742,7 @@ someError:
 				}
 
 loadInstrument:
-				error = output->readFromFile(bdsm, song, this, readAutomationUpToPos);
+				error = output->readFromFile(storageManager, song, this, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					goto someError;
 				}
@@ -2780,7 +2780,7 @@ loadInstrument:
 
 			// Normal case - load in brand new ParamManager
 
-			if (bdsm.firmware_version >= FirmwareVersion::official({1, 2, 0}) || !output) {
+			if (storageManager.firmware_version >= FirmwareVersion::official({1, 2, 0}) || !output) {
 createNewParamManager:
 				error = paramManager.setupWithPatching();
 				if (error != Error::NONE) {
@@ -2802,7 +2802,7 @@ createNewParamManager:
 					goto someError;
 				}
 			}
-			Sound::readParamsFromFile(bdsm, &paramManager, readAutomationUpToPos);
+			Sound::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
 		}
 
 		else if (!strcmp(tagName, "kitParams")) {
@@ -2813,7 +2813,7 @@ createNewParamManager:
 			}
 
 			GlobalEffectableForClip::initParams(&paramManager);
-			GlobalEffectableForClip::readParamsFromFile(bdsm, &paramManager, readAutomationUpToPos);
+			GlobalEffectableForClip::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
 		}
 
 		else if (!strcmp(tagName, "midiParams")) {
@@ -2823,7 +2823,7 @@ createNewParamManager:
 				goto someError;
 			}
 
-			error = readMIDIParamsFromFile(bdsm, readAutomationUpToPos);
+			error = readMIDIParamsFromFile(reader, readAutomationUpToPos);
 			if (error != Error::NONE) {
 				goto someError;
 			}
@@ -2831,18 +2831,18 @@ createNewParamManager:
 
 		else if (!strcmp(tagName, "noteRows")) {
 			int32_t minY = -32768;
-			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "noteRow")) {
 					NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(noteRows.getNumElements());
 					if (!newNoteRow) {
 						goto ramError;
 					}
-					error = newNoteRow->readFromFile(bdsm, &minY, this, song, readAutomationUpToPos);
+					error = newNoteRow->readFromFile(reader, &minY, this, song, readAutomationUpToPos);
 					if (error != Error::NONE) {
 						goto someError;
 					}
 				}
-				bdsm.exitTag();
+				reader.exitTag();
 			}
 		}
 
@@ -2854,7 +2854,7 @@ doReadExpressionParam:
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
 			ExpressionParamSet* expressionParams = (ExpressionParamSet*)summary->paramCollection;
 			if (expressionParams) {
-				expressionParams->readParam(bdsm, summary, temp, readAutomationUpToPos);
+				expressionParams->readParam(reader, summary, temp, readAutomationUpToPos);
 			}
 		}
 
@@ -2873,7 +2873,7 @@ doReadExpressionParam:
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
 			ExpressionParamSet* expressionParams = (ExpressionParamSet*)summary->paramCollection;
 			if (expressionParams) {
-				expressionParams->readFromFile(bdsm, summary, readAutomationUpToPos);
+				expressionParams->readFromFile(reader, summary, readAutomationUpToPos);
 			}
 		}
 
@@ -2882,7 +2882,7 @@ doReadExpressionParam:
 doReadBendRange:
 			ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 			if (expressionParams) {
-				expressionParams->bendRanges[temp] = bdsm.readTagOrAttributeValueInt();
+				expressionParams->bendRanges[temp] = reader.readTagOrAttributeValueInt();
 			}
 		}
 
@@ -2892,10 +2892,10 @@ doReadBendRange:
 		}
 
 		else {
-			readTagFromFile(bdsm, tagName, song, &readAutomationUpToPos);
+			readTagFromFile(reader, tagName, song, &readAutomationUpToPos);
 		}
 
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 
 	// Some stuff for song files before V2.0, where the Instrument would have been loaded at this point
@@ -2981,7 +2981,7 @@ doReadBendRange:
 
 	// Pre V3.2.0 (and also for some of 3.2's alpha phase), bend range wasn't adjustable, wasn't written in the file,
 	// and was always 12.
-	if (bdsm.firmware_version <= FirmwareVersion::official({3, 2, 0, "alpha"})
+	if (storageManager.firmware_version <= FirmwareVersion::official({3, 2, 0, "alpha"})
 	    && !paramManager.getExpressionParamSet()) {
 		ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 		if (expressionParams) {
@@ -3021,13 +3021,13 @@ doReadBendRange:
 	return Error::NONE;
 }
 
-Error InstrumentClip::readMIDIParamsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos) {
+Error InstrumentClip::readMIDIParamsFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
 
 	char const* tagName;
 
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "param")) {
-			// Error error = bdsm.readMIDIParamFromFile(readAutomationUpToPos, this);
+			// Error error = reader.readMIDIParamFromFile(readAutomationUpToPos, this);
 			// if (error != Error::NONE) return error;
 
 			char const* tagName;
@@ -3036,9 +3036,9 @@ Error InstrumentClip::readMIDIParamsFromFile(StorageManager& bdsm, int32_t readA
 			ParamCollectionSummary* summary;
 			ExpressionParamSet* expressionParams = NULL;
 
-			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "cc")) {
-					char const* contents = bdsm.readTagOrAttributeValue();
+					char const* contents = reader.readTagOrAttributeValue();
 					if (!strcasecmp(contents, "bend")) {
 						paramId = X_PITCH_BEND;
 expressionParam:
@@ -3065,7 +3065,7 @@ expressionParam:
 							if (paramId == CC_NUMBER_MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
-								if (bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+								if (storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 									paramId = Y_SLIDE_TIMBRE;
 									goto expressionParam;
 								}
@@ -3078,12 +3078,12 @@ expressionParam:
 							param = &midiParam->param;
 						}
 					}
-					bdsm.exitTag("cc");
+					reader.exitTag("cc");
 				}
 				else if (!strcmp(tagName, "value")) {
 					if (param) {
 
-						Error error = param->readFromFile(bdsm, readAutomationUpToPos);
+						Error error = param->readFromFile(reader, readAutomationUpToPos);
 						if (error != Error::NONE) {
 							return error;
 						}
@@ -3111,17 +3111,17 @@ expressionParam:
 							}
 						}
 					}
-					bdsm.exitTag("value");
+					reader.exitTag("value");
 				}
 				else {
-					bdsm.exitTag(tagName);
+					reader.exitTag(tagName);
 				}
 			}
 
-			bdsm.exitTag("param");
+			reader.exitTag("param");
 		}
 		else {
-			bdsm.exitTag(tagName);
+			reader.exitTag(tagName);
 		}
 	}
 

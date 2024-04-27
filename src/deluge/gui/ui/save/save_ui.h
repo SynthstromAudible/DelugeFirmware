@@ -26,7 +26,7 @@ public:
 	SaveUI();
 	bool opened();
 
-	virtual bool performSave(StorageManager& bdsm,
+	virtual bool performSave(StorageManager& writer,
 	                         bool mayOverwrite = false) = 0; // Returns true if success, or if otherwise dealt with
 	                                                         // (e.g. "overwrite" context menu brought up)
 	void focusRegained();

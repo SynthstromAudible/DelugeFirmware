@@ -78,6 +78,8 @@ struct RuntimeFeatureSetting {
 };
 
 class StorageManager;
+class Serializer;
+class Deserializer;
 
 /// Encapsulating class
 class RuntimeFeatureSettings {
@@ -96,8 +98,8 @@ public:
 
 	inline const char* getStartupSong() { return startupSong.get(); }
 	void init();
-	void readSettingsFromFile(StorageManager& bdsm);
-	void writeSettingsToFile(StorageManager& bdsm);
+	void readSettingsFromFile(StorageManager& reader);
+	void writeSettingsToFile(StorageManager& writer);
 
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};

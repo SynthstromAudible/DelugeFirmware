@@ -1614,28 +1614,28 @@ void PerformanceSessionView::savePerformanceViewLayout() {
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void PerformanceSessionView::writeDefaultsToFile(StorageManager& bdsm) {
+void PerformanceSessionView::writeDefaultsToFile(StorageManager& writer) {
 	// PerformanceView.xml
-	Error error = bdsm.createXMLFile(PERFORM_DEFAULTS_XML, true);
+	Error error = writer.createXMLFile(PERFORM_DEFAULTS_XML, true);
 	if (error != Error::NONE) {
 		return;
 	}
 
 	//<defaults>
-	bdsm.writeOpeningTagBeginning(PERFORM_DEFAULTS_TAG);
-	bdsm.writeOpeningTagEnd();
+	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_TAG);
+	writer.writeOpeningTagEnd();
 
 	//<defaultFXValues>
-	bdsm.writeOpeningTagBeginning(PERFORM_DEFAULTS_FXVALUES_TAG);
-	bdsm.writeOpeningTagEnd();
+	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_FXVALUES_TAG);
+	writer.writeOpeningTagEnd();
 
-	writeDefaultFXValuesToFile(bdsm);
+	writeDefaultFXValuesToFile(writer);
 
-	bdsm.writeClosingTag(PERFORM_DEFAULTS_FXVALUES_TAG);
+	writer.writeClosingTag(PERFORM_DEFAULTS_FXVALUES_TAG);
 
-	bdsm.writeClosingTag(PERFORM_DEFAULTS_TAG);
+	writer.writeClosingTag(PERFORM_DEFAULTS_TAG);
 
-	bdsm.closeFileAfterWriting();
+	writer.closeFileAfterWriting();
 
 	anyChangesToSave = false;
 }
@@ -1643,23 +1643,23 @@ void PerformanceSessionView::writeDefaultsToFile(StorageManager& bdsm) {
 /// creates "FX1 - FX16 tags"
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
 /// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
-void PerformanceSessionView::writeDefaultFXValuesToFile(StorageManager& bdsm) {
+void PerformanceSessionView::writeDefaultFXValuesToFile(StorageManager& writer) {
 	char tagName[10];
 	tagName[0] = 'F';
 	tagName[1] = 'X';
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		intToString(xDisplay + 1, &tagName[2]);
-		bdsm.writeOpeningTagBeginning(tagName);
-		bdsm.writeOpeningTagEnd();
-		writeDefaultFXParamToFile(bdsm, xDisplay);
-		writeDefaultFXRowValuesToFile(bdsm, xDisplay);
-		writeDefaultFXHoldStatusToFile(bdsm, xDisplay);
-		bdsm.writeClosingTag(tagName);
+		writer.writeOpeningTagBeginning(tagName);
+		writer.writeOpeningTagEnd();
+		writeDefaultFXParamToFile(writer, xDisplay);
+		writeDefaultFXRowValuesToFile(writer, xDisplay);
+		writeDefaultFXHoldStatusToFile(writer, xDisplay);
+		writer.writeClosingTag(tagName);
 	}
 }
 
 /// convert paramID to a paramName to write to XML
-void PerformanceSessionView::writeDefaultFXParamToFile(StorageManager& bdsm, int32_t xDisplay) {
+void PerformanceSessionView::writeDefaultFXParamToFile(StorageManager& writer, int32_t xDisplay) {
 	char const* paramName;
 
 	auto kind = layoutForPerformance[xDisplay].paramKind;
@@ -1670,7 +1670,7 @@ void PerformanceSessionView::writeDefaultFXParamToFile(StorageManager& bdsm, int
 		paramName = PERFORM_DEFAULTS_NO_PARAM;
 	}
 	//<param>
-	bdsm.writeTag(PERFORM_DEFAULTS_PARAM_TAG, paramName);
+	writer.writeTag(PERFORM_DEFAULTS_PARAM_TAG, paramName);
 
 	memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &layoutForPerformance[xDisplay],
 	       sizeof(ParamsForPerformance));
@@ -1678,50 +1678,50 @@ void PerformanceSessionView::writeDefaultFXParamToFile(StorageManager& bdsm, int
 
 /// creates "8 - 1 row # tags within a "row" tag"
 /// limiting # of rows to the # of rows on the grid (8 = kDisplayHeight)
-void PerformanceSessionView::writeDefaultFXRowValuesToFile(StorageManager& bdsm, int32_t xDisplay) {
+void PerformanceSessionView::writeDefaultFXRowValuesToFile(StorageManager& writer, int32_t xDisplay) {
 	//<row>
-	bdsm.writeOpeningTagBeginning(PERFORM_DEFAULTS_ROW_TAG);
-	bdsm.writeOpeningTagEnd();
+	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_ROW_TAG);
+	writer.writeOpeningTagEnd();
 	char rowNumber[5];
 	// creates tags from row 8 down to row 1
 	for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
 		intToString(yDisplay + 1, rowNumber);
-		bdsm.writeTag(rowNumber, defaultFXValues[xDisplay][yDisplay] + kKnobPosOffset);
+		writer.writeTag(rowNumber, defaultFXValues[xDisplay][yDisplay] + kKnobPosOffset);
 
 		backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 	}
-	bdsm.writeClosingTag(PERFORM_DEFAULTS_ROW_TAG);
+	writer.writeClosingTag(PERFORM_DEFAULTS_ROW_TAG);
 }
 
 /// for each FX column, write the held status, what row is being held, and what previous value was
 /// (previous value is used to reset param after you remove the held status)
-void PerformanceSessionView::writeDefaultFXHoldStatusToFile(StorageManager& bdsm, int32_t xDisplay) {
+void PerformanceSessionView::writeDefaultFXHoldStatusToFile(StorageManager& writer, int32_t xDisplay) {
 	//<hold>
-	bdsm.writeOpeningTagBeginning(PERFORM_DEFAULTS_HOLD_TAG);
-	bdsm.writeOpeningTagEnd();
+	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_HOLD_TAG);
+	writer.writeOpeningTagEnd();
 
 	if (fxPress[xDisplay].padPressHeld) {
 		//<status>
-		bdsm.writeTag(PERFORM_DEFAULTS_HOLD_STATUS_TAG, PERFORM_DEFAULTS_ON);
-		//<row>bdsm
-		bdsm.writeTag(PERFORM_DEFAULTS_ROW_TAG, fxPress[xDisplay].yDisplay + 1);
+		writer.writeTag(PERFORM_DEFAULTS_HOLD_STATUS_TAG, PERFORM_DEFAULTS_ON);
+		//<row>writer
+		writer.writeTag(PERFORM_DEFAULTS_ROW_TAG, fxPress[xDisplay].yDisplay + 1);
 		//<resetValue>
-		bdsm.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, fxPress[xDisplay].previousKnobPosition + kKnobPosOffset);
+		writer.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, fxPress[xDisplay].previousKnobPosition + kKnobPosOffset);
 
 		memcpy(&backupXMLDefaultFXPress[xDisplay], &fxPress[xDisplay], sizeof(FXColumnPress));
 	}
 	else {
 		//<status>
-		bdsm.writeTag(PERFORM_DEFAULTS_HOLD_STATUS_TAG, PERFORM_DEFAULTS_OFF);
+		writer.writeTag(PERFORM_DEFAULTS_HOLD_STATUS_TAG, PERFORM_DEFAULTS_OFF);
 		//<row>
-		bdsm.writeTag(PERFORM_DEFAULTS_ROW_TAG, kNoSelection);
+		writer.writeTag(PERFORM_DEFAULTS_ROW_TAG, kNoSelection);
 		//<resetValue>
-		bdsm.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, kNoSelection);
+		writer.writeTag(PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG, kNoSelection);
 
 		initFXPress(backupXMLDefaultFXPress[xDisplay]);
 	}
 
-	bdsm.writeClosingTag(PERFORM_DEFAULTS_HOLD_TAG);
+	writer.writeClosingTag(PERFORM_DEFAULTS_HOLD_TAG);
 }
 
 /// backup current layout, load saved layout, log layout change, update change status
@@ -1759,7 +1759,7 @@ void PerformanceSessionView::readDefaultsFromBackedUpFile() {
 }
 
 /// read defaults from XML
-void PerformanceSessionView::readDefaultsFromFile(StorageManager& bdsm) {
+void PerformanceSessionView::readDefaultsFromFile(StorageManager& reader) {
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -1767,14 +1767,14 @@ void PerformanceSessionView::readDefaultsFromFile(StorageManager& bdsm) {
 
 	FilePointer fp;
 	// PerformanceView.XML
-	bool success = bdsm.fileExists(PERFORM_DEFAULTS_XML, &fp);
+	bool success = reader.fileExists(PERFORM_DEFAULTS_XML, &fp);
 	if (!success) {
 		loadDefaultLayout();
 		return;
 	}
 
 	//<defaults>
-	Error error = bdsm.openXMLFile(&fp, PERFORM_DEFAULTS_TAG);
+	Error error = reader.openXMLFile(&fp, PERFORM_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		loadDefaultLayout();
 		return;
@@ -1782,14 +1782,14 @@ void PerformanceSessionView::readDefaultsFromFile(StorageManager& bdsm) {
 
 	char const* tagName;
 	// step into the <defaultFXValues> tag
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
-			readDefaultFXValuesFromFile(bdsm);
+			readDefaultFXValuesFromFile(storageManager);
 		}
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 
-	bdsm.closeFile();
+	reader.closeFile();
 
 	successfullyReadDefaultsFromFile = true;
 }
@@ -1811,7 +1811,7 @@ void PerformanceSessionView::loadDefaultLayout() {
 	successfullyReadDefaultsFromFile = true;
 }
 
-void PerformanceSessionView::readDefaultFXValuesFromFile(StorageManager& bdsm) {
+void PerformanceSessionView::readDefaultFXValuesFromFile(StorageManager& reader) {
 	char const* tagName;
 	char tagNameFX[5];
 	tagNameFX[0] = 'F';
@@ -1819,45 +1819,45 @@ void PerformanceSessionView::readDefaultFXValuesFromFile(StorageManager& bdsm) {
 
 	// loop through all FX number tags
 	//<FX#>
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// find the FX number that the tag corresponds to
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			intToString(xDisplay + 1, &tagNameFX[2]);
 
 			if (!strcmp(tagName, tagNameFX)) {
-				readDefaultFXParamAndRowValuesFromFile(bdsm, xDisplay);
+				readDefaultFXParamAndRowValuesFromFile(reader, xDisplay);
 				break;
 			}
 		}
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 }
 
-void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(StorageManager& bdsm, int32_t xDisplay) {
+void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(StorageManager& reader, int32_t xDisplay) {
 	char const* tagName;
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<param>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
-			readDefaultFXParamFromFile(bdsm, xDisplay);
+			readDefaultFXParamFromFile(reader, xDisplay);
 		}
 		//<row>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
-			readDefaultFXRowNumberValuesFromFile(bdsm, xDisplay);
+			readDefaultFXRowNumberValuesFromFile(reader, xDisplay);
 		}
 		//<hold>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_TAG)) {
-			readDefaultFXHoldStatusFromFile(bdsm, xDisplay);
+			readDefaultFXHoldStatusFromFile(reader, xDisplay);
 		}
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 }
 
 /// compares param name from <param> tag to the list of params available for use in performance view
 /// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay, yDisplay,
 /// rowColour, rowTailColour)
-void PerformanceSessionView::readDefaultFXParamFromFile(StorageManager& bdsm, int32_t xDisplay) {
+void PerformanceSessionView::readDefaultFXParamFromFile(StorageManager& reader, int32_t xDisplay) {
 	char const* paramName;
-	char const* tagName = bdsm.readTagOrAttributeValue();
+	char const* tagName = reader.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
 		paramName = params::paramNameForFile(songParamsForPerformance[i].paramKind,
@@ -1872,17 +1872,17 @@ void PerformanceSessionView::readDefaultFXParamFromFile(StorageManager& bdsm, in
 	}
 }
 
-void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager& bdsm, int32_t xDisplay) {
+void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager& reader, int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
 	// loop through all row <#> number tags
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// find the row number that the tag corresponds to
 		// reads from row 8 down to row 1
 		for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
 			intToString(yDisplay + 1, rowNumber);
 			if (!strcmp(tagName, rowNumber)) {
-				defaultFXValues[xDisplay][yDisplay] = bdsm.readTagOrAttributeValueInt() - kKnobPosOffset;
+				defaultFXValues[xDisplay][yDisplay] = reader.readTagOrAttributeValueInt() - kKnobPosOffset;
 
 				// check if a value greater than 64 was entered as a default value in xml file
 				if (defaultFXValues[xDisplay][yDisplay] > kKnobPosOffset) {
@@ -1899,17 +1899,17 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager
 				break;
 			}
 		}
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 }
 
-void PerformanceSessionView::readDefaultFXHoldStatusFromFile(StorageManager& bdsm, int32_t xDisplay) {
+void PerformanceSessionView::readDefaultFXHoldStatusFromFile(StorageManager& reader, int32_t xDisplay) {
 	char const* tagName;
 	// loop through the hold tags
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<status>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
-			char const* holdStatus = bdsm.readTagOrAttributeValue();
+			char const* holdStatus = reader.readTagOrAttributeValue();
 			if (!strcmp(holdStatus, PERFORM_DEFAULTS_ON)) {
 				if (!params::isParamStutter(layoutForPerformance[xDisplay].paramKind,
 				                            layoutForPerformance[xDisplay].paramID)) {
@@ -1923,7 +1923,7 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(StorageManager& bds
 		}
 		//<row>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
-			int32_t yDisplay = bdsm.readTagOrAttributeValueInt();
+			int32_t yDisplay = reader.readTagOrAttributeValueInt();
 			if ((yDisplay >= 1) && (yDisplay <= 8)) {
 				fxPress[xDisplay].yDisplay = yDisplay - 1;
 				fxPress[xDisplay].currentKnobPosition = defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay];
@@ -1934,14 +1934,14 @@ void PerformanceSessionView::readDefaultFXHoldStatusFromFile(StorageManager& bds
 		}
 		//<resetValue>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_RESETVALUE_TAG)) {
-			fxPress[xDisplay].previousKnobPosition = bdsm.readTagOrAttributeValueInt() - kKnobPosOffset;
+			fxPress[xDisplay].previousKnobPosition = reader.readTagOrAttributeValueInt() - kKnobPosOffset;
 			// check if a value greater than 64 was entered as a default value in xml file
 			if (fxPress[xDisplay].previousKnobPosition > kKnobPosOffset) {
 				fxPress[xDisplay].previousKnobPosition = kKnobPosOffset;
 			}
 			backupXMLDefaultFXPress[xDisplay].previousKnobPosition = fxPress[xDisplay].previousKnobPosition;
 		}
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 	initializeHeldFX(xDisplay);
 }

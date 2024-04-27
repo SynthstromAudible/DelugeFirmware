@@ -27,7 +27,7 @@ public:
 	bool opened();
 	void focusRegained();
 	// void selectEncoderAction(int8_t offset);
-	bool performSave(StorageManager& bdsm, bool mayOverwrite = false);
+	bool performSave(StorageManager& writer, bool mayOverwrite = false);
 
 	bool collectingSamples;
 

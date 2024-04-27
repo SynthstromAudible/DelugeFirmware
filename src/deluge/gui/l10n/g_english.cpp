@@ -719,7 +719,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FOLLOW_FEEDBACK_FILTER, "Filter Responses"},
         {STRING_FOR_FOLLOW_DEVICE_UNASSIGNED, "Device unassigned"},
         {STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED, "Channel unassigned"},
-        {STRING_FOR_FOLLOW_CONTROL_SONG_PARAM, "Control Song Param"},
         {STRING_FOR_INPUT_DIFFERENTIATION_ON, "Use learned device:"},
         {STRING_FOR_INPUT_DIFFERENTIATION_OFF, "Use any device"},
         {STRING_FOR_SELECT_KIT_ROW, "Select Kit Row"},

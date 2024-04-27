@@ -38,11 +38,11 @@ namespace params = deluge::modulation::params;
 SoundInstrument::SoundInstrument() : MelodicInstrument(OutputType::SYNTH) {
 }
 
-bool SoundInstrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+bool SoundInstrument::writeDataToFile(StorageManager& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
-	// MelodicInstrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song); // Nope, this gets called within the
+	// MelodicInstrument::writeDataToFile(writer, clipForSavingOutputOnly, song); // Nope, this gets called within the
 	// below call
-	writeMelodicInstrumentAttributesToFile(bdsm, clipForSavingOutputOnly, song);
+	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
 
 	ParamManager* paramManager;
 
@@ -64,23 +64,23 @@ bool SoundInstrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingO
 		}
 	}
 
-	Sound::writeToFile(bdsm, clipForSavingOutputOnly == NULL, paramManager,
+	Sound::writeToFile(writer, clipForSavingOutputOnly == NULL, paramManager,
 	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : NULL);
 
-	MelodicInstrument::writeMelodicInstrumentTagsToFile(bdsm, clipForSavingOutputOnly, song);
+	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 
 	return true;
 }
 
 // arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all separate from Clips and
 // won't store any arp stuff
-Error SoundInstrument::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error SoundInstrument::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
 	    setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);
 
-	return Sound::readFromFile(bdsm, modelStack, readAutomationUpToPos, &defaultArpSettings);
+	return Sound::readFromFile(reader, modelStack, readAutomationUpToPos, &defaultArpSettings);
 }
 
 void SoundInstrument::cutAllSound() {
@@ -409,8 +409,8 @@ ArpeggiatorSettings* SoundInstrument::getArpSettings(InstrumentClip* clip) {
 	return MelodicInstrument::getArpSettings(clip);
 }
 
-bool SoundInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
-	return MelodicInstrument::readTagFromFile(bdsm, tagName);
+bool SoundInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
+	return MelodicInstrument::readTagFromFile(reader, tagName);
 }
 
 void SoundInstrument::compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {

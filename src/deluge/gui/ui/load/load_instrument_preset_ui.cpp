@@ -502,7 +502,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 	}
 }
 
-void LoadInstrumentPresetUI::revertToInitialPreset(StorageManager& bdsm) {
+void LoadInstrumentPresetUI::revertToInitialPreset(StorageManager& reader) {
 
 	// Can only do this if we've changed Instrument in one of the two ways, but not both.
 	// TODO: that's very limiting, and I can't remember why I mandated this, or what would be so hard about allowing
@@ -571,7 +571,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset(StorageManager& bdsm) {
 
 			// Otherwise, create a new one
 			initialInstrument =
-			    bdsm.createNewNonAudioInstrument(initialOutputType, initialChannel, initialChannelSuffix);
+			    reader.createNewNonAudioInstrument(initialOutputType, initialChannel, initialChannelSuffix);
 			if (!initialInstrument) {
 				return;
 			}
@@ -608,13 +608,13 @@ void LoadInstrumentPresetUI::revertToInitialPreset(StorageManager& bdsm) {
 
 				FilePointer tempFilePointer;
 
-				bool success = bdsm.fileExists(filePath.get(), &tempFilePointer);
+				bool success = reader.fileExists(filePath.get(), &tempFilePointer);
 				if (!success) {
 					return;
 				}
 
 				error =
-				    bdsm.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType, false,
+				    reader.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType, false,
 				                                &initialInstrument, &tempFilePointer, &initialName, &initialDirPath);
 				if (error != Error::NONE) {
 					return;
@@ -838,7 +838,7 @@ addNumber:
 }
 
 // I thiiink you're supposed to check currentFileExists before calling this?
-Error LoadInstrumentPresetUI::performLoad(StorageManager& bdsm, bool doClone) {
+Error LoadInstrumentPresetUI::performLoad(StorageManager& reader, bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem == nullptr) {
@@ -918,7 +918,7 @@ giveUsedError:
 		// Browser::checkFP();
 
 		// synth or kit
-		error = bdsm.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
+		error = reader.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
 		                                    &newInstrument, &currentFileItem->filePointer, &enteredText, &currentDir);
 
 		if (error != Error::NONE) {

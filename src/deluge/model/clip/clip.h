@@ -34,6 +34,9 @@ class TimelineView;
 class ParamManagerForTimeline;
 class ModelStackWithTimelineCounter;
 class StorageManager;
+class Serializer;
+class Deserializer;
+
 class Clip : public TimelineCounter {
 public:
 	Clip(ClipType newType);
@@ -107,11 +110,11 @@ public:
 	virtual bool currentlyScrollableAndZoomable() = 0;
 	virtual void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
 
-	void writeToFile(StorageManager& bdsm, Song* song);
-	virtual void writeDataToFile(StorageManager& bdsm, Song* song);
+	void writeToFile(StorageManager& writer, Song* song);
+	virtual void writeDataToFile(StorageManager& writer, Song* song);
 	virtual char const* getXMLTag() = 0;
-	virtual Error readFromFile(StorageManager& bdsm, Song* song) = 0;
-	void readTagFromFile(StorageManager& bdsm, char const* tagName, Song* song, int32_t* readAutomationUpToPos);
+	virtual Error readFromFile(Deserializer& reader, Song* song) = 0;
+	void readTagFromFile(Deserializer& reader, char const* tagName, Song* song, int32_t* readAutomationUpToPos);
 
 	virtual void copyBasicsFrom(Clip* otherClip);
 	void setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature);

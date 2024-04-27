@@ -467,163 +467,163 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
 // defaultParams into it). arpSettings optional - no need if you're loading a new V2.0 song where Instruments are all
 // separate from Clips and won't store any arp stuff.
-Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
 
 	if (!strcmp(tagName, "osc1")) {
-		Error error = readSourceFromFile(bdsm, 0, paramManager, readAutomationUpToPos);
+		Error error = readSourceFromFile(reader, 0, paramManager, readAutomationUpToPos);
 		if (error != Error::NONE) {
 			return error;
 		}
-		bdsm.exitTag("osc1");
+		reader.exitTag("osc1");
 	}
 
 	else if (!strcmp(tagName, "osc2")) {
-		Error error = readSourceFromFile(bdsm, 1, paramManager, readAutomationUpToPos);
+		Error error = readSourceFromFile(reader, 1, paramManager, readAutomationUpToPos);
 		if (error != Error::NONE) {
 			return error;
 		}
-		bdsm.exitTag("osc2");
+		reader.exitTag("osc2");
 	}
 
 	else if (!strcmp(tagName, "mode")) {
-		char const* contents = bdsm.readTagOrAttributeValue();
+		char const* contents = reader.readTagOrAttributeValue();
 		if (synthMode != SynthMode::RINGMOD) { // Compatibility with old XML files
 			synthMode = stringToSynthMode(contents);
 		}
 		// Uart::print("synth mode set to: ");
 		// Uart::println(synthMode);
-		bdsm.exitTag("mode");
+		reader.exitTag("mode");
 	}
 
 	// Backwards-compatible reading of old-style oscs, from pre-mid-2016 files
 	else if (!strcmp(tagName, "oscillatorA")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 			if (!strcmp(tagName, "type")) {
-				sources[0].oscType = stringToOscType(bdsm.readTagOrAttributeValue());
-				bdsm.exitTag("type");
+				sources[0].oscType = stringToOscType(reader.readTagOrAttributeValue());
+				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME, readAutomationUpToPos);
-				bdsm.exitTag("volume");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME, readAutomationUpToPos);
+				reader.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "phaseWidth")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("phaseWidth");
+				reader.exitTag("phaseWidth");
 			}
 			else if (!strcmp(tagName, "note")) {
-				int32_t presetNote = std::clamp<int32_t>(bdsm.readTagOrAttributeValueInt(), 1, 127);
+				int32_t presetNote = std::clamp<int32_t>(reader.readTagOrAttributeValueInt(), 1, 127);
 
 				sources[0].transpose += presetNote - 60;
 				sources[1].transpose += presetNote - 60;
 				modulatorTranspose[0] += presetNote - 60;
 				modulatorTranspose[1] += presetNote - 60;
-				bdsm.exitTag("note");
+				reader.exitTag("note");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
-		bdsm.exitTag("oscillatorA");
+		reader.exitTag("oscillatorA");
 	}
 
 	else if (!strcmp(tagName, "oscillatorB")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
-				sources[1].oscType = stringToOscType(bdsm.readTagOrAttributeValue());
-				bdsm.exitTag("type");
+				sources[1].oscType = stringToOscType(reader.readTagOrAttributeValue());
+				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_B_VOLUME, readAutomationUpToPos);
-				bdsm.exitTag("volume");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_VOLUME, readAutomationUpToPos);
+				reader.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "phaseWidth")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_B_PHASE_WIDTH,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_PHASE_WIDTH,
 				                         readAutomationUpToPos);
-				// setParamPresetValue(params::LOCAL_OSC_B_PHASE_WIDTH, stringToInt(bdsm.readTagContents()) <<
+				// setParamPresetValue(params::LOCAL_OSC_B_PHASE_WIDTH, stringToInt(reader.readTagContents()) <<
 				// 1); // Special case - pw values are stored at half size in file
-				bdsm.exitTag("phaseWidth");
+				reader.exitTag("phaseWidth");
 			}
 			else if (!strcmp(tagName, "transpose")) {
-				sources[1].transpose += bdsm.readTagOrAttributeValueInt();
-				bdsm.exitTag("transpose");
+				sources[1].transpose += reader.readTagOrAttributeValueInt();
+				reader.exitTag("transpose");
 			}
 			else if (!strcmp(tagName, "cents")) {
-				sources[1].cents = bdsm.readTagOrAttributeValueInt();
-				bdsm.exitTag("cents");
+				sources[1].cents = reader.readTagOrAttributeValueInt();
+				reader.exitTag("cents");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
-		bdsm.exitTag("oscillatorB");
+		reader.exitTag("oscillatorB");
 	}
 
 	else if (!strcmp(tagName, "modulator1")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_MODULATOR_0_VOLUME,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_VOLUME,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("volume");
+				reader.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "transpose")) {
-				modulatorTranspose[0] += bdsm.readTagOrAttributeValueInt();
-				bdsm.exitTag("transpose");
+				modulatorTranspose[0] += reader.readTagOrAttributeValueInt();
+				reader.exitTag("transpose");
 			}
 			else if (!strcmp(tagName, "cents")) {
-				modulatorCents[0] = bdsm.readTagOrAttributeValueInt();
-				bdsm.exitTag("cents");
+				modulatorCents[0] = reader.readTagOrAttributeValueInt();
+				reader.exitTag("cents");
 			}
 			else if (!strcmp(tagName, "retrigPhase")) {
-				modulatorRetriggerPhase[0] = bdsm.readTagOrAttributeValueInt();
-				bdsm.exitTag("retrigPhase");
+				modulatorRetriggerPhase[0] = reader.readTagOrAttributeValueInt();
+				reader.exitTag("retrigPhase");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
-		bdsm.exitTag("modulator1");
+		reader.exitTag("modulator1");
 	}
 
 	else if (!strcmp(tagName, "modulator2")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_MODULATOR_1_VOLUME,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_VOLUME,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("volume");
+				reader.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "transpose")) {
-				modulatorTranspose[1] += bdsm.readTagOrAttributeValueInt();
-				bdsm.exitTag("transpose");
+				modulatorTranspose[1] += reader.readTagOrAttributeValueInt();
+				reader.exitTag("transpose");
 			}
 			else if (!strcmp(tagName, "cents")) {
-				modulatorCents[1] = bdsm.readTagOrAttributeValueInt();
-				bdsm.exitTag("cents");
+				modulatorCents[1] = reader.readTagOrAttributeValueInt();
+				reader.exitTag("cents");
 			}
 			else if (!strcmp(tagName, "retrigPhase")) {
-				modulatorRetriggerPhase[1] = bdsm.readTagOrAttributeValueInt();
-				bdsm.exitTag("retrigPhase");
+				modulatorRetriggerPhase[1] = reader.readTagOrAttributeValueInt();
+				reader.exitTag("retrigPhase");
 			}
 			else if (!strcmp(tagName, "toModulator1")) {
-				modulator1ToModulator0 = bdsm.readTagOrAttributeValueInt();
+				modulator1ToModulator0 = reader.readTagOrAttributeValueInt();
 				if (modulator1ToModulator0 != 0) {
 					modulator1ToModulator0 = 1;
 				}
-				bdsm.exitTag("toModulator1");
+				reader.exitTag("toModulator1");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
-		bdsm.exitTag("modulator2");
+		reader.exitTag("modulator2");
 	}
 
 	else if (!strcmp(tagName, "arpeggiator")) {
@@ -631,124 +631,124 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 		arpSettings->syncType = SYNC_TYPE_EVEN;
 		arpSettings->syncLevel = SYNC_LEVEL_NONE;
 
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 			if (!strcmp(tagName,
 			            "rate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs with
 				                   // firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
-				bdsm.exitTag("rate");
+				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
+				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "numOctaves")) {
 				if (arpSettings) {
-					arpSettings->numOctaves = bdsm.readTagOrAttributeValueInt();
+					arpSettings->numOctaves = reader.readTagOrAttributeValueInt();
 				}
-				bdsm.exitTag("numOctaves");
+				reader.exitTag("numOctaves");
 			}
 			else if (!strcmp(tagName, "syncType")) {
 				if (arpSettings) {
-					arpSettings->syncType = (SyncType)bdsm.readTagOrAttributeValueInt();
+					arpSettings->syncType = (SyncType)reader.readTagOrAttributeValueInt();
 					;
 				}
-				bdsm.exitTag("syncType");
+				reader.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
 				if (arpSettings) {
 					arpSettings->syncLevel = (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(
-					    bdsm.readTagOrAttributeValueInt());
+					    reader.readTagOrAttributeValueInt());
 				}
-				bdsm.exitTag("syncLevel");
+				reader.exitTag("syncLevel");
 			}
 			else if (!strcmp(tagName, "octaveMode")) {
 				if (arpSettings) {
-					arpSettings->octaveMode = stringToArpOctaveMode(bdsm.readTagOrAttributeValue());
+					arpSettings->octaveMode = stringToArpOctaveMode(reader.readTagOrAttributeValue());
 					arpSettings->updatePresetFromCurrentSettings();
 				}
-				bdsm.exitTag("octaveMode");
+				reader.exitTag("octaveMode");
 			}
 			else if (!strcmp(tagName, "noteMode")) {
 				if (arpSettings) {
-					arpSettings->noteMode = stringToArpNoteMode(bdsm.readTagOrAttributeValue());
+					arpSettings->noteMode = stringToArpNoteMode(reader.readTagOrAttributeValue());
 					arpSettings->updatePresetFromCurrentSettings();
 				}
-				bdsm.exitTag("noteMode");
+				reader.exitTag("noteMode");
 			}
 			else if (!strcmp(tagName, "mpeVelocity")) {
 				if (arpSettings) {
-					arpSettings->mpeVelocity = stringToArpMpeModSource(bdsm.readTagOrAttributeValue());
+					arpSettings->mpeVelocity = stringToArpMpeModSource(reader.readTagOrAttributeValue());
 				}
-				bdsm.exitTag("mpeVelocity");
+				reader.exitTag("mpeVelocity");
 			}
 			else if (!strcmp(tagName, "arpMode")) {
 				if (arpSettings) {
-					arpSettings->mode = stringToArpMode(bdsm.readTagOrAttributeValue());
+					arpSettings->mode = stringToArpMode(reader.readTagOrAttributeValue());
 					arpSettings->updatePresetFromCurrentSettings();
 				}
-				bdsm.exitTag("arpMode");
+				reader.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 0, 0})) {
+			else if (!strcmp(tagName, "mode") && storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
 				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 				if (arpSettings) {
-					OldArpMode oldMode = stringToOldArpMode(bdsm.readTagOrAttributeValue());
+					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
 					arpSettings->mode = oldModeToArpMode(oldMode);
 					arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
 					arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
 					arpSettings->updatePresetFromCurrentSettings();
 				}
-				bdsm.exitTag("mode");
+				reader.exitTag("mode");
 			}
 			else if (!strcmp(tagName,
 			                 "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
 				                        // with firmware in September 2016
 				ENSURE_PARAM_MANAGER_EXISTS
-				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE,
+				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE,
 				                           readAutomationUpToPos);
-				bdsm.exitTag("gate");
+				reader.exitTag("gate");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
 
-		bdsm.exitTag("arpeggiator");
+		reader.exitTag("arpeggiator");
 	}
 
 	else if (!strcmp(tagName, "transpose")) {
-		transpose = bdsm.readTagOrAttributeValueInt();
-		bdsm.exitTag("transpose");
+		transpose = reader.readTagOrAttributeValueInt();
+		reader.exitTag("transpose");
 	}
 
 	else if (!strcmp(tagName, "noiseVolume")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_NOISE_VOLUME, readAutomationUpToPos);
-		bdsm.exitTag("noiseVolume");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_NOISE_VOLUME, readAutomationUpToPos);
+		reader.exitTag("noiseVolume");
 	}
 
 	else if (!strcmp(tagName, "ratchetAmount")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT,
 		                           readAutomationUpToPos);
-		bdsm.exitTag("ratchetAmount");
+		reader.exitTag("ratchetAmount");
 	}
 
 	else if (!strcmp(tagName, "ratchetProbability")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 		                           readAutomationUpToPos);
-		bdsm.exitTag("ratchetProbability");
+		reader.exitTag("ratchetProbability");
 	}
 
 	else if (!strcmp(tagName, "sequenceLength")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
 		                           readAutomationUpToPos);
-		bdsm.exitTag("sequenceLength");
+		reader.exitTag("sequenceLength");
 	}
 
 	else if (!strcmp(tagName, "rhythm")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
 		storageManager.exitTag("rhythm");
 	}
 
@@ -756,13 +756,13 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 	                 "portamento")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
 		                              // with firmware in September 2016
 		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
-		bdsm.exitTag("portamento");
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
+		reader.exitTag("portamento");
 	}
 
 	// For backwards compatibility. If off, switch off for all operators
 	else if (!strcmp(tagName, "oscillatorReset")) {
-		int32_t value = bdsm.readTagOrAttributeValueInt();
+		int32_t value = reader.readTagOrAttributeValueInt();
 		if (!value) {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				oscRetriggerPhase[s] = 0xFFFFFFFF;
@@ -771,57 +771,57 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 				modulatorRetriggerPhase[m] = 0xFFFFFFFF;
 			}
 		}
-		bdsm.exitTag("oscillatorReset");
+		reader.exitTag("oscillatorReset");
 	}
 
 	else if (!strcmp(tagName, "unison")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "num")) {
-				int32_t contents = bdsm.readTagOrAttributeValueInt();
+				int32_t contents = reader.readTagOrAttributeValueInt();
 				numUnison = std::max((int32_t)0, std::min((int32_t)kMaxNumVoicesUnison, contents));
-				bdsm.exitTag("num");
+				reader.exitTag("num");
 			}
 			else if (!strcmp(tagName, "detune")) {
-				int32_t contents = bdsm.readTagOrAttributeValueInt();
+				int32_t contents = reader.readTagOrAttributeValueInt();
 				unisonDetune = std::clamp(contents, 0_i32, kMaxUnisonDetune);
-				bdsm.exitTag("detune");
+				reader.exitTag("detune");
 			}
 			else if (!strcmp(tagName, "spread")) {
-				int32_t contents = bdsm.readTagOrAttributeValueInt();
+				int32_t contents = reader.readTagOrAttributeValueInt();
 				unisonStereoSpread = std::clamp(contents, 0_i32, kMaxUnisonStereoSpread);
-				bdsm.exitTag("spread");
+				reader.exitTag("spread");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
-		bdsm.exitTag("unison");
+		reader.exitTag("unison");
 	}
 
 	else if (!strcmp(tagName, "oscAPitchAdjust")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_A_PITCH_ADJUST, readAutomationUpToPos);
-		bdsm.exitTag("oscAPitchAdjust");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PITCH_ADJUST, readAutomationUpToPos);
+		reader.exitTag("oscAPitchAdjust");
 	}
 
 	else if (!strcmp(tagName, "oscBPitchAdjust")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_B_PITCH_ADJUST, readAutomationUpToPos);
-		bdsm.exitTag("oscBPitchAdjust");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_PITCH_ADJUST, readAutomationUpToPos);
+		reader.exitTag("oscBPitchAdjust");
 	}
 
 	else if (!strcmp(tagName, "mod1PitchAdjust")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_MODULATOR_0_PITCH_ADJUST,
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_PITCH_ADJUST,
 		                         readAutomationUpToPos);
-		bdsm.exitTag("mod1PitchAdjust");
+		reader.exitTag("mod1PitchAdjust");
 	}
 
 	else if (!strcmp(tagName, "mod2PitchAdjust")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_MODULATOR_1_PITCH_ADJUST,
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_PITCH_ADJUST,
 		                         readAutomationUpToPos);
-		bdsm.exitTag("mod2PitchAdjust");
+		reader.exitTag("mod2PitchAdjust");
 	}
 
 	// Stuff from the early-2016 format, for compatibility
@@ -833,7 +833,7 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 			return Error::INSUFFICIENT_RAM;
 		}
 
-		range->getAudioFileHolder()->filePath.set(bdsm.readTagOrAttributeValue());
+		range->getAudioFileHolder()->filePath.set(reader.readTagOrAttributeValue());
 		sources[0].oscType = OscType::SAMPLE;
 		paramManager->getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
 		    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 0));
@@ -848,24 +848,24 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 		paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(
 		    getParamFromUserValue(params::LOCAL_OSC_B_VOLUME, 0));
 
-		bdsm.exitTag("fileName");
+		reader.exitTag("fileName");
 	}
 
 	else if (!strcmp(tagName, "cents")) {
-		int8_t newCents = bdsm.readTagOrAttributeValueInt();
+		int8_t newCents = reader.readTagOrAttributeValueInt();
 		// We don't need to call the setTranspose method here, because this will get called soon anyway, once the sample
 		// rate is known
 		sources[0].cents = (std::max((int8_t)-50, std::min((int8_t)50, newCents)));
-		bdsm.exitTag("cents");
+		reader.exitTag("cents");
 	}
 	else if (!strcmp(tagName, "continuous")) {
-		sources[0].repeatMode = static_cast<SampleRepeatMode>(bdsm.readTagOrAttributeValueInt());
+		sources[0].repeatMode = static_cast<SampleRepeatMode>(reader.readTagOrAttributeValueInt());
 		sources[0].repeatMode = std::min(sources[0].repeatMode, static_cast<SampleRepeatMode>(kNumRepeatModes - 1));
-		bdsm.exitTag("continuous");
+		reader.exitTag("continuous");
 	}
 	else if (!strcmp(tagName, "reversed")) {
-		sources[0].sampleControls.reversed = bdsm.readTagOrAttributeValueInt();
-		bdsm.exitTag("reversed");
+		sources[0].sampleControls.reversed = reader.readTagOrAttributeValueInt();
+		reader.exitTag("reversed");
 	}
 	else if (!strcmp(tagName, "zone")) {
 
@@ -878,35 +878,35 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 		range->sampleHolder.endMSec = 0;
 		range->sampleHolder.startPos = 0;
 		range->sampleHolder.endPos = 0;
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			// Because this is for old, early-2016 format, there'll only be seconds and milliseconds in here, not
 			// samples
 			if (!strcmp(tagName, "startSeconds")) {
-				range->sampleHolder.startMSec += bdsm.readTagOrAttributeValueInt() * 1000;
-				bdsm.exitTag("startSeconds");
+				range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt() * 1000;
+				reader.exitTag("startSeconds");
 			}
 			else if (!strcmp(tagName, "startMilliseconds")) {
-				range->sampleHolder.startMSec += bdsm.readTagOrAttributeValueInt();
-				bdsm.exitTag("startMilliseconds");
+				range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt();
+				reader.exitTag("startMilliseconds");
 			}
 			else if (!strcmp(tagName, "endSeconds")) {
-				range->sampleHolder.endMSec += bdsm.readTagOrAttributeValueInt() * 1000;
-				bdsm.exitTag("endSeconds");
+				range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt() * 1000;
+				reader.exitTag("endSeconds");
 			}
 			else if (!strcmp(tagName, "endMilliseconds")) {
-				range->sampleHolder.endMSec += bdsm.readTagOrAttributeValueInt();
-				bdsm.exitTag("endMilliseconds");
+				range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt();
+				reader.exitTag("endMilliseconds");
 			}
 		}
-		bdsm.exitTag("zone");
+		reader.exitTag("zone");
 	}
 
 	else if (!strcmp(tagName, "ringMod")) {
-		int32_t contents = bdsm.readTagOrAttributeValueInt();
+		int32_t contents = reader.readTagOrAttributeValueInt();
 		if (contents == 1) {
 			synthMode = SynthMode::RINGMOD;
 		}
-		bdsm.exitTag("ringMod");
+		reader.exitTag("ringMod");
 	}
 
 	else if (!strcmp(tagName, "modKnobs")) {
@@ -914,24 +914,24 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 		int32_t k = 0;
 		int32_t w = 0;
 
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "modKnob")) {
 
 				uint8_t p = params::GLOBAL_NONE;
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
-				while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "controlsParam")) {
-						p = params::fileStringToParam(params::Kind::UNPATCHED_SOUND, bdsm.readTagOrAttributeValue());
+						p = params::fileStringToParam(params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue());
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
-						s = stringToSource(bdsm.readTagOrAttributeValue());
+						s = stringToSource(reader.readTagOrAttributeValue());
 					}
 					else if (!strcmp(tagName, "patchAmountFromSecondSource")) {
-						s2 = stringToSource(bdsm.readTagOrAttributeValue());
+						s2 = stringToSource(reader.readTagOrAttributeValue());
 					}
-					bdsm.exitTag(tagName);
+					reader.exitTag(tagName);
 				}
 
 				if (k < kNumModButtons) { // Ensure we're not loading more than actually fit in our array
@@ -960,92 +960,92 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 					k++;
 				}
 			}
-			bdsm.exitTag();
+			reader.exitTag();
 		}
-		bdsm.exitTag("modKnobs");
+		reader.exitTag("modKnobs");
 	}
 
 	else if (!strcmp(tagName, "patchCables")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		paramManager->getPatchCableSet()->readPatchCablesFromFile(bdsm, readAutomationUpToPos);
-		bdsm.exitTag("patchCables");
+		paramManager->getPatchCableSet()->readPatchCablesFromFile(reader, readAutomationUpToPos);
+		reader.exitTag("patchCables");
 	}
 
 	else if (!strcmp(tagName, "volume")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_VOLUME_POST_FX, readAutomationUpToPos);
-		bdsm.exitTag("volume");
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_VOLUME_POST_FX, readAutomationUpToPos);
+		reader.exitTag("volume");
 	}
 
 	else if (!strcmp(tagName, "pan")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_PAN, readAutomationUpToPos);
-		bdsm.exitTag("pan");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_PAN, readAutomationUpToPos);
+		reader.exitTag("pan");
 	}
 
 	else if (!strcmp(tagName, "pitchAdjust")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_PITCH_ADJUST, readAutomationUpToPos);
-		bdsm.exitTag("pitchAdjust");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_PITCH_ADJUST, readAutomationUpToPos);
+		reader.exitTag("pitchAdjust");
 	}
 
 	else if (!strcmp(tagName, "modFXType")) {
 		bool result =
-		    setModFXType(stringToFXType(bdsm.readTagOrAttributeValue())); // This might not work if not enough RAM
+		    setModFXType(stringToFXType(reader.readTagOrAttributeValue())); // This might not work if not enough RAM
 		if (!result) {
 			display->displayError(Error::INSUFFICIENT_RAM);
 		}
-		bdsm.exitTag("modFXType");
+		reader.exitTag("modFXType");
 	}
 
 	else if (!strcmp(tagName, "fx")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 			if (!strcmp(tagName, "type")) {
 				bool result = setModFXType(
-				    stringToFXType(bdsm.readTagOrAttributeValue())); // This might not work if not enough RAM
+				    stringToFXType(reader.readTagOrAttributeValue())); // This might not work if not enough RAM
 				if (!result) {
 					display->displayError(Error::INSUFFICIENT_RAM);
 				}
-				bdsm.exitTag("type");
+				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_MOD_FX_RATE, readAutomationUpToPos);
-				bdsm.exitTag("rate");
+				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_RATE, readAutomationUpToPos);
+				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "feedback")) {
 				// This is for compatibility with old files. Some reverse calculation needs to be done.
-				int32_t finalValue = bdsm.readTagOrAttributeValueInt();
+				int32_t finalValue = reader.readTagOrAttributeValueInt();
 				int32_t i =
 				    (1 - pow(1 - ((float)finalValue / 2147483648), (float)1 / 3)) / 0.74 * 4294967296 - 2147483648;
 				ENSURE_PARAM_MANAGER_EXISTS
 				paramManager->getUnpatchedParamSet()
 				    ->params[params::UNPATCHED_MOD_FX_FEEDBACK]
 				    .setCurrentValueBasicForSetup(i);
-				bdsm.exitTag("feedback");
+				reader.exitTag("feedback");
 			}
 			else if (!strcmp(tagName, "offset")) {
 				// This is for compatibility with old files. Some reverse calculation needs to be done.
-				int32_t contents = bdsm.readTagOrAttributeValueInt();
+				int32_t contents = reader.readTagOrAttributeValueInt();
 				int32_t value = ((int64_t)contents << 8) - 2147483648;
 				ENSURE_PARAM_MANAGER_EXISTS
 				paramManager->getUnpatchedParamSet()
 				    ->params[params::UNPATCHED_MOD_FX_OFFSET]
 				    .setCurrentValueBasicForSetup(value);
-				bdsm.exitTag("offset");
+				reader.exitTag("offset");
 			}
 			else if (!strcmp(tagName, "depth")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_MOD_FX_DEPTH,
+				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_DEPTH,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("depth");
+				reader.exitTag("depth");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
-		bdsm.exitTag("fx");
+		reader.exitTag("fx");
 	}
 
 	else if (!strcmp(tagName, "lfo1")) {
@@ -1053,86 +1053,86 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 		// setLFOGlobalSyncLevel will also set type based on value.
 		setLFOGlobalSyncLevel(SYNC_LEVEL_NONE);
 
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
-				setLFOGlobalWave(stringToLFOType(bdsm.readTagOrAttributeValue()));
-				bdsm.exitTag("type");
+				setLFOGlobalWave(stringToLFOType(reader.readTagOrAttributeValue()));
+				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_LFO_FREQ, readAutomationUpToPos);
-				bdsm.exitTag("rate");
+				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ, readAutomationUpToPos);
+				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				setLFOGlobalSyncType((SyncType)bdsm.readTagOrAttributeValueInt());
-				bdsm.exitTag("syncType");
+				setLFOGlobalSyncType((SyncType)reader.readTagOrAttributeValueInt());
+				reader.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
 				setLFOGlobalSyncLevel(
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(bdsm.readTagOrAttributeValueInt()));
-				bdsm.exitTag("syncLevel");
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt()));
+				reader.exitTag("syncLevel");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
-		bdsm.exitTag("lfo1");
+		reader.exitTag("lfo1");
 	}
 
 	else if (!strcmp(tagName, "lfo2")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
-				lfoLocalWaveType = stringToLFOType(bdsm.readTagOrAttributeValue());
-				bdsm.exitTag("type");
+				lfoLocalWaveType = stringToLFOType(reader.readTagOrAttributeValue());
+				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("rate");
+				reader.exitTag("rate");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
-		bdsm.exitTag("lfo2");
+		reader.exitTag("lfo2");
 	}
 
 	else if (!strcmp(tagName, "sideChainSend")) {
-		sideChainSendLevel = bdsm.readTagOrAttributeValueInt();
-		bdsm.exitTag("sideChainSend");
+		sideChainSendLevel = reader.readTagOrAttributeValueInt();
+		reader.exitTag("sideChainSend");
 	}
 
 	else if (!strcmp(tagName, "lpf")) {
 		bool switchedOn = true; // For backwards compatibility with pre November 2015 files
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "status")) {
-				int32_t contents = bdsm.readTagOrAttributeValueInt();
+				int32_t contents = reader.readTagOrAttributeValueInt();
 				switchedOn = std::max((int32_t)0, std::min((int32_t)1, contents));
-				bdsm.exitTag("status");
+				reader.exitTag("status");
 			}
 			else if (!strcmp(tagName, "frequency")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_LPF_FREQ, readAutomationUpToPos);
-				bdsm.exitTag("frequency");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_FREQ, readAutomationUpToPos);
+				reader.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "morph")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_LPF_MORPH, readAutomationUpToPos);
-				bdsm.exitTag("morph");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_MORPH, readAutomationUpToPos);
+				reader.exitTag("morph");
 			}
 			else if (!strcmp(tagName, "resonance")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_LPF_RESONANCE,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_RESONANCE,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("resonance");
+				reader.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "mode")) { // For old, pre- October 2016 files
-				lpfMode = stringToLPFType(bdsm.readTagOrAttributeValue());
-				bdsm.exitTag("mode");
+				lpfMode = stringToLPFType(reader.readTagOrAttributeValue());
+				reader.exitTag("mode");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
 		if (!switchedOn) {
@@ -1141,35 +1141,35 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 			    getParamFromUserValue(params::LOCAL_LPF_FREQ, 50));
 		}
 
-		bdsm.exitTag("lpf");
+		reader.exitTag("lpf");
 	}
 
 	else if (!strcmp(tagName, "hpf")) {
 		bool switchedOn = true; // For backwards compatibility with pre November 2015 files
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "status")) {
-				int32_t contents = bdsm.readTagOrAttributeValueInt();
+				int32_t contents = reader.readTagOrAttributeValueInt();
 				switchedOn = std::max((int32_t)0, std::min((int32_t)1, contents));
-				bdsm.exitTag("status");
+				reader.exitTag("status");
 			}
 			else if (!strcmp(tagName, "frequency")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_HPF_FREQ, readAutomationUpToPos);
-				bdsm.exitTag("frequency");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_FREQ, readAutomationUpToPos);
+				reader.exitTag("frequency");
 			}
 			else if (!strcmp(tagName, "resonance")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_HPF_RESONANCE,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_RESONANCE,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("resonance");
+				reader.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "morph")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_HPF_MORPH, readAutomationUpToPos);
-				bdsm.exitTag("morph");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_MORPH, readAutomationUpToPos);
+				reader.exitTag("morph");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
 		if (!switchedOn) {
@@ -1178,113 +1178,113 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 			    getParamFromUserValue(params::LOCAL_HPF_FREQ, 50));
 		}
 
-		bdsm.exitTag("hpf");
+		reader.exitTag("hpf");
 	}
 
 	else if (!strcmp(tagName, "envelope1")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK, readAutomationUpToPos);
-				bdsm.exitTag("attack");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK, readAutomationUpToPos);
+				reader.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_0_DECAY, readAutomationUpToPos);
-				bdsm.exitTag("decay");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_DECAY, readAutomationUpToPos);
+				reader.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_0_SUSTAIN,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_SUSTAIN,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("sustain");
+				reader.exitTag("sustain");
 			}
 			else if (!strcmp(tagName, "release")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_0_RELEASE,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_RELEASE,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("release");
+				reader.exitTag("release");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
 
-		bdsm.exitTag("envelope1");
+		reader.exitTag("envelope1");
 	}
 
 	else if (!strcmp(tagName, "envelope2")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK, readAutomationUpToPos);
-				bdsm.exitTag("attack");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK, readAutomationUpToPos);
+				reader.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_1_DECAY, readAutomationUpToPos);
-				bdsm.exitTag("decay");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_DECAY, readAutomationUpToPos);
+				reader.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_1_SUSTAIN,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_SUSTAIN,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("sustain");
+				reader.exitTag("sustain");
 			}
 			else if (!strcmp(tagName, "release")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_1_RELEASE,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_RELEASE,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("release");
+				reader.exitTag("release");
 			}
 			else {
-				bdsm.exitTag(tagName);
+				reader.exitTag(tagName);
 			}
 		}
 
-		bdsm.exitTag("envelope2");
+		reader.exitTag("envelope2");
 	}
 
 	else if (!strcmp(tagName, "polyphonic")) {
-		polyphonic = stringToPolyphonyMode(bdsm.readTagOrAttributeValue());
-		bdsm.exitTag("polyphonic");
+		polyphonic = stringToPolyphonyMode(reader.readTagOrAttributeValue());
+		reader.exitTag("polyphonic");
 	}
 
 	else if (!strcmp(tagName, "voicePriority")) {
-		voicePriority = static_cast<VoicePriority>(bdsm.readTagOrAttributeValueInt());
-		bdsm.exitTag("voicePriority");
+		voicePriority = static_cast<VoicePriority>(reader.readTagOrAttributeValueInt());
+		reader.exitTag("voicePriority");
 	}
 
 	else if (!strcmp(tagName, "reverbAmount")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_REVERB_AMOUNT, readAutomationUpToPos);
-		bdsm.exitTag("reverbAmount");
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_REVERB_AMOUNT, readAutomationUpToPos);
+		reader.exitTag("reverbAmount");
 	}
 
 	else if (!strcmp(tagName, "defaultParams")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		Sound::readParamsFromFile(bdsm, paramManager, readAutomationUpToPos);
-		bdsm.exitTag("defaultParams");
+		Sound::readParamsFromFile(reader, paramManager, readAutomationUpToPos);
+		reader.exitTag("defaultParams");
 	}
 	else if (!strcmp(tagName, "waveFold")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_FOLD, readAutomationUpToPos);
-		bdsm.exitTag("waveFold");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_FOLD, readAutomationUpToPos);
+		reader.exitTag("waveFold");
 	}
 
 	else {
-		Error result = ModControllableAudio::readTagFromFile(bdsm, tagName, paramManager, readAutomationUpToPos, song);
+		Error result = ModControllableAudio::readTagFromFile(reader, tagName, paramManager, readAutomationUpToPos, song);
 		if (result == Error::NONE) {}
 		else if (result != Error::RESULT_TAG_UNUSED) {
 			return result;
 		}
-		else if (readTagFromFile(bdsm, tagName)) {}
+		else if (readTagFromFile(reader, tagName)) {}
 		else {
-			result = bdsm.tryReadingFirmwareTagFromFile(tagName);
+			result = storageManager.tryReadingFirmwareTagFromFile(tagName);
 			if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 				return result;
 			}
-			bdsm.exitTag();
+			reader.exitTag();
 		}
 	}
 
@@ -3058,14 +3058,14 @@ bool Sound::hasFilters() {
 	return (getSynthMode() != SynthMode::FM);
 }
 
-void Sound::readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* paramManager,
+void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
                                int32_t readAutomationUpToPos) {
 	char const* tagName;
 
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
-		if (readParamTagFromFile(bdsm, tagName, paramManager, readAutomationUpToPos)) {}
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
 		else {
-			bdsm.exitTag(tagName);
+			reader.exitTag(tagName);
 		}
 	}
 }
@@ -3073,7 +3073,7 @@ void Sound::readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* pa
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
 // defaultParams into it) arpSettings optional - no need if you're loading a new V2.0+ song where Instruments are all
 // separate from Clips and won't store any arp stuff
-Error Sound::readFromFile(StorageManager& bdsm, ModelStackWithModControllable* modelStack,
+Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack,
                           int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings) {
 
 	modulatorTranspose[1] = 0;
@@ -3084,21 +3084,21 @@ Error Sound::readFromFile(StorageManager& bdsm, ModelStackWithModControllable* m
 
 	ParamManagerForTimeline paramManager;
 
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		Error result =
-		    readTagFromFile(bdsm, tagName, &paramManager, readAutomationUpToPos, arpSettings, modelStack->song);
+		    readTagFromFile(reader, tagName, &paramManager, readAutomationUpToPos, arpSettings, modelStack->song);
 		if (result == Error::NONE) {}
 		else if (result != Error::RESULT_TAG_UNUSED) {
 			return result;
 		}
 		else {
-			bdsm.exitTag(tagName);
+			reader.exitTag(tagName);
 		}
 	}
 
 	// If we actually got a paramManager, we can do resonance compensation on it
 	if (paramManager.containsAnyMainParamCollections()) {
-		if (bdsm.firmware_version < FirmwareVersion::official({1, 2, 0})) {
+		if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0})) {
 			compensateVolumeForResonance(modelStack->addParamManager(&paramManager));
 		}
 
@@ -3180,76 +3180,76 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstack-usage="
 /**
- * Reads the parameters from the bdsm's current file into paramManager
+ * Reads the parameters from the reader's current file into paramManager
  * stack usage would be unbounded if file contained infinite tags
  */
-Error Sound::readSourceFromFile(StorageManager& bdsm, int32_t s, ParamManagerForTimeline* paramManager,
+Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerForTimeline* paramManager,
                                 int32_t readAutomationUpToPos) {
 
 	Source* source = &sources[s];
 
 	char const* tagName;
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "type")) {
-			source->setOscType(stringToOscType(bdsm.readTagOrAttributeValue()));
-			bdsm.exitTag("type");
+			source->setOscType(stringToOscType(reader.readTagOrAttributeValue()));
+			reader.exitTag("type");
 		}
 		else if (!strcmp(tagName, "phaseWidth")) {
 			ENSURE_PARAM_MANAGER_EXISTS
-			patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH + s,
+			patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH + s,
 			                         readAutomationUpToPos);
-			bdsm.exitTag("phaseWidth");
+			reader.exitTag("phaseWidth");
 		}
 		else if (!strcmp(tagName, "volume")) {
 			ENSURE_PARAM_MANAGER_EXISTS
-			patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME + s, readAutomationUpToPos);
-			bdsm.exitTag("volume");
+			patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME + s, readAutomationUpToPos);
+			reader.exitTag("volume");
 		}
 		else if (!strcmp(tagName, "transpose")) {
-			source->transpose = bdsm.readTagOrAttributeValueInt();
-			bdsm.exitTag("transpose");
+			source->transpose = reader.readTagOrAttributeValueInt();
+			reader.exitTag("transpose");
 		}
 		else if (!strcmp(tagName, "cents")) {
-			source->cents = bdsm.readTagOrAttributeValueInt();
-			bdsm.exitTag("cents");
+			source->cents = reader.readTagOrAttributeValueInt();
+			reader.exitTag("cents");
 		}
 		else if (!strcmp(tagName, "loopMode")) {
-			source->repeatMode = static_cast<SampleRepeatMode>(bdsm.readTagOrAttributeValueInt());
+			source->repeatMode = static_cast<SampleRepeatMode>(reader.readTagOrAttributeValueInt());
 			source->repeatMode = std::min(source->repeatMode, static_cast<SampleRepeatMode>(kNumRepeatModes - 1));
-			bdsm.exitTag("loopMode");
+			reader.exitTag("loopMode");
 		}
 		else if (!strcmp(tagName, "oscillatorSync")) {
-			int32_t value = bdsm.readTagOrAttributeValueInt();
+			int32_t value = reader.readTagOrAttributeValueInt();
 			oscillatorSync = (value != 0);
-			bdsm.exitTag("oscillatorSync");
+			reader.exitTag("oscillatorSync");
 		}
 		else if (!strcmp(tagName, "reversed")) {
-			source->sampleControls.reversed = bdsm.readTagOrAttributeValueInt();
-			bdsm.exitTag("reversed");
+			source->sampleControls.reversed = reader.readTagOrAttributeValueInt();
+			reader.exitTag("reversed");
 		}
 		/*
 		else if (!strcmp(tagName, "sampleSync")) {
-		    source->sampleSync = stringToBool(bdsm.readTagContents());
-		    bdsm.exitTag("sampleSync");
+		    source->sampleSync = stringToBool(reader.readTagContents());
+		    reader.exitTag("sampleSync");
 		}
 		*/
 		else if (!strcmp(tagName, "timeStretchEnable")) {
-			source->sampleControls.pitchAndSpeedAreIndependent = bdsm.readTagOrAttributeValueInt();
-			bdsm.exitTag("timeStretchEnable");
+			source->sampleControls.pitchAndSpeedAreIndependent = reader.readTagOrAttributeValueInt();
+			reader.exitTag("timeStretchEnable");
 		}
 		else if (!strcmp(tagName, "timeStretchAmount")) {
-			source->timeStretchAmount = bdsm.readTagOrAttributeValueInt();
-			bdsm.exitTag("timeStretchAmount");
+			source->timeStretchAmount = reader.readTagOrAttributeValueInt();
+			reader.exitTag("timeStretchAmount");
 		}
 		else if (!strcmp(tagName, "linearInterpolation")) {
-			if (bdsm.readTagOrAttributeValueInt()) {
+			if (reader.readTagOrAttributeValueInt()) {
 				source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
 			}
-			bdsm.exitTag("linearInterpolation");
+			reader.exitTag("linearInterpolation");
 		}
 		else if (!strcmp(tagName, "retrigPhase")) {
-			oscRetriggerPhase[s] = bdsm.readTagOrAttributeValueInt();
-			bdsm.exitTag("retrigPhase");
+			oscRetriggerPhase[s] = reader.readTagOrAttributeValueInt();
+			reader.exitTag("retrigPhase");
 		}
 		else if (!strcmp(tagName, "fileName")) {
 
@@ -3258,9 +3258,9 @@ Error Sound::readSourceFromFile(StorageManager& bdsm, int32_t s, ParamManagerFor
 				return Error::INSUFFICIENT_RAM;
 			}
 
-			bdsm.readTagOrAttributeValueString(&range->getAudioFileHolder()->filePath);
+			reader.readTagOrAttributeValueString(&range->getAudioFileHolder()->filePath);
 
-			bdsm.exitTag("fileName");
+			reader.exitTag("fileName");
 		}
 		else if (!strcmp(tagName, "zone")) {
 
@@ -3274,51 +3274,51 @@ Error Sound::readSourceFromFile(StorageManager& bdsm, int32_t s, ParamManagerFor
 			range->sampleHolder.startPos = 0;
 			range->sampleHolder.endPos = 0;
 
-			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "startSeconds")) {
-					range->sampleHolder.startMSec += bdsm.readTagOrAttributeValueInt() * 1000;
-					bdsm.exitTag("startSeconds");
+					range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt() * 1000;
+					reader.exitTag("startSeconds");
 				}
 				else if (!strcmp(tagName, "startMilliseconds")) {
-					range->sampleHolder.startMSec += bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("startMilliseconds");
+					range->sampleHolder.startMSec += reader.readTagOrAttributeValueInt();
+					reader.exitTag("startMilliseconds");
 				}
 				else if (!strcmp(tagName, "endSeconds")) {
-					range->sampleHolder.endMSec += bdsm.readTagOrAttributeValueInt() * 1000;
-					bdsm.exitTag("endSeconds");
+					range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt() * 1000;
+					reader.exitTag("endSeconds");
 				}
 				else if (!strcmp(tagName, "endMilliseconds")) {
-					range->sampleHolder.endMSec += bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("endMilliseconds");
+					range->sampleHolder.endMSec += reader.readTagOrAttributeValueInt();
+					reader.exitTag("endMilliseconds");
 				}
 
 				else if (!strcmp(tagName, "startSamplePos")) {
-					range->sampleHolder.startPos = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("startSamplePos");
+					range->sampleHolder.startPos = reader.readTagOrAttributeValueInt();
+					reader.exitTag("startSamplePos");
 				}
 				else if (!strcmp(tagName, "endSamplePos")) {
-					range->sampleHolder.endPos = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("endSamplePos");
+					range->sampleHolder.endPos = reader.readTagOrAttributeValueInt();
+					reader.exitTag("endSamplePos");
 				}
 
 				else if (!strcmp(tagName, "startLoopPos")) {
-					range->sampleHolder.loopStartPos = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("startLoopPos");
+					range->sampleHolder.loopStartPos = reader.readTagOrAttributeValueInt();
+					reader.exitTag("startLoopPos");
 				}
 				else if (!strcmp(tagName, "endLoopPos")) {
-					range->sampleHolder.loopEndPos = bdsm.readTagOrAttributeValueInt();
-					bdsm.exitTag("endLoopPos");
+					range->sampleHolder.loopEndPos = reader.readTagOrAttributeValueInt();
+					reader.exitTag("endLoopPos");
 				}
 
 				else {
-					bdsm.exitTag(tagName);
+					reader.exitTag(tagName);
 				}
 			}
-			bdsm.exitTag("zone");
+			reader.exitTag("zone");
 		}
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
 
-			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 				if (!strcmp(tagName, "sampleRange") || !strcmp(tagName, "wavetableRange")) {
 
@@ -3334,51 +3334,51 @@ Error Sound::readSourceFromFile(StorageManager& bdsm, int32_t s, ParamManagerFor
 
 					AudioFileHolder* holder = tempRange->getAudioFileHolder();
 
-					while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+					while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 						if (!strcmp(tagName, "fileName")) {
-							bdsm.readTagOrAttributeValueString(&holder->filePath);
-							bdsm.exitTag("fileName");
+							reader.readTagOrAttributeValueString(&holder->filePath);
+							reader.exitTag("fileName");
 						}
 						else if (!strcmp(tagName, "rangeTopNote")) {
-							tempRange->topNote = bdsm.readTagOrAttributeValueInt();
-							bdsm.exitTag("rangeTopNote");
+							tempRange->topNote = reader.readTagOrAttributeValueInt();
+							reader.exitTag("rangeTopNote");
 						}
 						else if (source->oscType != OscType::WAVETABLE) {
 							if (!strcmp(tagName, "zone")) {
 
-								while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+								while (*(tagName = reader.readNextTagOrAttributeName())) {
 									if (!strcmp(tagName, "startSamplePos")) {
-										((SampleHolder*)holder)->startPos = bdsm.readTagOrAttributeValueInt();
-										bdsm.exitTag("startSamplePos");
+										((SampleHolder*)holder)->startPos = reader.readTagOrAttributeValueInt();
+										reader.exitTag("startSamplePos");
 									}
 									else if (!strcmp(tagName, "endSamplePos")) {
-										((SampleHolder*)holder)->endPos = bdsm.readTagOrAttributeValueInt();
-										bdsm.exitTag("endSamplePos");
+										((SampleHolder*)holder)->endPos = reader.readTagOrAttributeValueInt();
+										reader.exitTag("endSamplePos");
 									}
 
 									else if (!strcmp(tagName, "startLoopPos")) {
 										((SampleHolderForVoice*)holder)->loopStartPos =
-										    bdsm.readTagOrAttributeValueInt();
-										bdsm.exitTag("startLoopPos");
+										    reader.readTagOrAttributeValueInt();
+										reader.exitTag("startLoopPos");
 									}
 									else if (!strcmp(tagName, "endLoopPos")) {
-										((SampleHolderForVoice*)holder)->loopEndPos = bdsm.readTagOrAttributeValueInt();
-										bdsm.exitTag("endLoopPos");
+										((SampleHolderForVoice*)holder)->loopEndPos = reader.readTagOrAttributeValueInt();
+										reader.exitTag("endLoopPos");
 									}
 									else {
-										bdsm.exitTag(tagName);
+										reader.exitTag(tagName);
 									}
 								}
-								bdsm.exitTag("zone");
+								reader.exitTag("zone");
 							}
 							else if (!strcmp(tagName, "transpose")) {
-								((SampleHolderForVoice*)holder)->transpose = bdsm.readTagOrAttributeValueInt();
-								bdsm.exitTag("transpose");
+								((SampleHolderForVoice*)holder)->transpose = reader.readTagOrAttributeValueInt();
+								reader.exitTag("transpose");
 							}
 							else if (!strcmp(tagName, "cents")) {
-								((SampleHolderForVoice*)holder)->cents = bdsm.readTagOrAttributeValueInt();
-								bdsm.exitTag("cents");
+								((SampleHolderForVoice*)holder)->cents = reader.readTagOrAttributeValueInt();
+								reader.exitTag("cents");
 							}
 							else {
 								goto justExitTag;
@@ -3386,7 +3386,7 @@ Error Sound::readSourceFromFile(StorageManager& bdsm, int32_t s, ParamManagerFor
 						}
 						else {
 justExitTag:
-							bdsm.exitTag(tagName);
+							reader.exitTag(tagName);
 						}
 					}
 
@@ -3412,17 +3412,17 @@ gotError:
 					void* destinationRange = (MultisampleRange*)source->ranges.getElementAddress(i);
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);
 
-					bdsm.exitTag();
+					reader.exitTag();
 				}
 				else {
-					bdsm.exitTag();
+					reader.exitTag();
 				}
 			}
 
-			bdsm.exitTag();
+			reader.exitTag();
 		}
 		else {
-			bdsm.exitTag();
+			reader.exitTag();
 		}
 	}
 
@@ -3430,91 +3430,91 @@ gotError:
 }
 #pragma GCC diagnostic pop
 
-void Sound::writeSourceToFile(StorageManager& bdsm, int32_t s, char const* tagName) {
+void Sound::writeSourceToFile(StorageManager& writer, int32_t s, char const* tagName) {
 
 	Source* source = &sources[s];
 
-	bdsm.writeOpeningTagBeginning(tagName);
+	writer.writeOpeningTagBeginning(tagName);
 
 	if (synthMode != SynthMode::FM) {
-		bdsm.writeAttribute("type", oscTypeToString(source->oscType));
+		writer.writeAttribute("type", oscTypeToString(source->oscType));
 	}
 
 	// If (multi)sample...
 	if (source->oscType == OscType::SAMPLE
 	    && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
-		bdsm.writeAttribute("loopMode", util::to_underlying(source->repeatMode));
-		bdsm.writeAttribute("reversed", source->sampleControls.reversed);
-		bdsm.writeAttribute("timeStretchEnable", source->sampleControls.pitchAndSpeedAreIndependent);
-		bdsm.writeAttribute("timeStretchAmount", source->timeStretchAmount);
+		writer.writeAttribute("loopMode", util::to_underlying(source->repeatMode));
+		writer.writeAttribute("reversed", source->sampleControls.reversed);
+		writer.writeAttribute("timeStretchEnable", source->sampleControls.pitchAndSpeedAreIndependent);
+		writer.writeAttribute("timeStretchAmount", source->timeStretchAmount);
 		if (source->sampleControls.interpolationMode == InterpolationMode::LINEAR) {
-			bdsm.writeAttribute("linearInterpolation", 1);
+			writer.writeAttribute("linearInterpolation", 1);
 		}
 
 		int32_t numRanges = source->ranges.getNumElements();
 
 		if (numRanges > 1) {
-			bdsm.writeOpeningTagEnd();
-			bdsm.writeOpeningTag("sampleRanges");
+			writer.writeOpeningTagEnd();
+			writer.writeOpeningTag("sampleRanges");
 		}
 
 		for (int32_t e = 0; e < numRanges; e++) {
 			MultisampleRange* range = (MultisampleRange*)source->ranges.getElement(e);
 
 			if (numRanges > 1) {
-				bdsm.writeOpeningTagBeginning("sampleRange");
+				writer.writeOpeningTagBeginning("sampleRange");
 
 				if (e != numRanges - 1) {
-					bdsm.writeAttribute("rangeTopNote", range->topNote);
+					writer.writeAttribute("rangeTopNote", range->topNote);
 				}
 			}
 
-			bdsm.writeAttribute("fileName", range->sampleHolder.audioFile
+			writer.writeAttribute("fileName", range->sampleHolder.audioFile
 			                                    ? range->sampleHolder.audioFile->filePath.get()
 			                                    : range->sampleHolder.filePath.get());
 			if (range->sampleHolder.transpose) {
-				bdsm.writeAttribute("transpose", range->sampleHolder.transpose);
+				writer.writeAttribute("transpose", range->sampleHolder.transpose);
 			}
 			if (range->sampleHolder.cents) {
-				bdsm.writeAttribute("cents", range->sampleHolder.cents);
+				writer.writeAttribute("cents", range->sampleHolder.cents);
 			}
 
-			bdsm.writeOpeningTagEnd();
+			writer.writeOpeningTagEnd();
 
-			bdsm.writeOpeningTagBeginning("zone");
-			bdsm.writeAttribute("startSamplePos", range->sampleHolder.startPos);
-			bdsm.writeAttribute("endSamplePos", range->sampleHolder.endPos);
+			writer.writeOpeningTagBeginning("zone");
+			writer.writeAttribute("startSamplePos", range->sampleHolder.startPos);
+			writer.writeAttribute("endSamplePos", range->sampleHolder.endPos);
 			if (range->sampleHolder.loopStartPos) {
-				bdsm.writeAttribute("startLoopPos", range->sampleHolder.loopStartPos);
+				writer.writeAttribute("startLoopPos", range->sampleHolder.loopStartPos);
 			}
 			if (range->sampleHolder.loopEndPos) {
-				bdsm.writeAttribute("endLoopPos", range->sampleHolder.loopEndPos);
+				writer.writeAttribute("endLoopPos", range->sampleHolder.loopEndPos);
 			}
-			bdsm.closeTag();
+			writer.closeTag();
 
 			if (numRanges > 1) {
-				bdsm.writeClosingTag("sampleRange");
+				writer.writeClosingTag("sampleRange");
 			}
 		}
 
 		if (numRanges > 1) {
-			bdsm.writeClosingTag("sampleRanges");
+			writer.writeClosingTag("sampleRanges");
 		}
 		else if (numRanges == 0) {
-			bdsm.writeOpeningTagEnd();
+			writer.writeOpeningTagEnd();
 		}
 
-		bdsm.writeClosingTag(tagName);
+		writer.writeClosingTag(tagName);
 	}
 
 	// Otherwise, if we're *not* a (multi)sample, here's the other option, which includes (multi)wavetable
 	else {
-		bdsm.writeAttribute("transpose", source->transpose);
-		bdsm.writeAttribute("cents", source->cents);
+		writer.writeAttribute("transpose", source->transpose);
+		writer.writeAttribute("cents", source->cents);
 		if (s == 1 && oscillatorSync) {
-			bdsm.writeAttribute("oscillatorSync", oscillatorSync);
+			writer.writeAttribute("oscillatorSync", oscillatorSync);
 		}
-		bdsm.writeAttribute("retrigPhase", oscRetriggerPhase[s]);
+		writer.writeAttribute("retrigPhase", oscRetriggerPhase[s]);
 
 		// Sub-option for (multi)wavetable
 		if (source->oscType == OscType::WAVETABLE && synthMode != SynthMode::FM) {
@@ -3522,33 +3522,33 @@ void Sound::writeSourceToFile(StorageManager& bdsm, int32_t s, char const* tagNa
 			int32_t numRanges = source->ranges.getNumElements();
 
 			if (numRanges > 1) {
-				bdsm.writeOpeningTagEnd();
-				bdsm.writeOpeningTag("wavetableRanges");
+				writer.writeOpeningTagEnd();
+				writer.writeOpeningTag("wavetableRanges");
 			}
 
 			for (int32_t e = 0; e < numRanges; e++) {
 				MultisampleRange* range = (MultisampleRange*)source->ranges.getElement(e);
 
 				if (numRanges > 1) {
-					bdsm.writeOpeningTagBeginning("wavetableRange");
+					writer.writeOpeningTagBeginning("wavetableRange");
 
 					if (e != numRanges - 1) {
-						bdsm.writeAttribute("rangeTopNote", range->topNote);
+						writer.writeAttribute("rangeTopNote", range->topNote);
 					}
 				}
 
-				bdsm.writeAttribute("fileName", range->sampleHolder.audioFile
+				writer.writeAttribute("fileName", range->sampleHolder.audioFile
 				                                    ? range->sampleHolder.audioFile->filePath.get()
 				                                    : range->sampleHolder.filePath.get());
 
 				if (numRanges > 1) {
-					bdsm.closeTag();
+					writer.closeTag();
 				}
 			}
 
 			if (numRanges > 1) {
-				bdsm.writeClosingTag("wavetableRanges");
-				bdsm.writeClosingTag(tagName);
+				writer.writeClosingTag("wavetableRanges");
+				writer.writeClosingTag(tagName);
 			}
 			else {
 				goto justCloseTag;
@@ -3557,12 +3557,12 @@ void Sound::writeSourceToFile(StorageManager& bdsm, int32_t s, char const* tagNa
 
 		else {
 justCloseTag:
-			bdsm.closeTag();
+			writer.closeTag();
 		}
 	}
 }
 
-bool Sound::readParamTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
                                  int32_t readAutomationUpToPos) {
 
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
@@ -3571,232 +3571,232 @@ bool Sound::readParamTagFromFile(StorageManager& bdsm, char const* tagName, Para
 	PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
 
 	if (!strcmp(tagName, "arpeggiatorGate")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
-		bdsm.exitTag("arpeggiatorGate");
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
+		reader.exitTag("arpeggiatorGate");
 	}
 	else if (!strcmp(tagName, "ratchetProbability")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 		                           readAutomationUpToPos);
-		bdsm.exitTag("ratchetProbability");
+		reader.exitTag("ratchetProbability");
 	}
 	else if (!strcmp(tagName, "ratchetAmount")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_AMOUNT,
 		                           readAutomationUpToPos);
-		bdsm.exitTag("ratchetAmount");
+		reader.exitTag("ratchetAmount");
 	}
 	else if (!strcmp(tagName, "sequenceLength")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
 		                           readAutomationUpToPos);
-		bdsm.exitTag("sequenceLength");
+		reader.exitTag("sequenceLength");
 	}
 	else if (!strcmp(tagName, "rhythm")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
 		storageManager.exitTag("rhythm");
 	}
 	else if (!strcmp(tagName, "portamento")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
-		bdsm.exitTag("portamento");
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
+		reader.exitTag("portamento");
 	}
 	else if (!strcmp(tagName, "compressorShape")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_SIDECHAIN_SHAPE,
 		                           readAutomationUpToPos);
-		bdsm.exitTag("compressorShape");
+		reader.exitTag("compressorShape");
 	}
 
 	else if (!strcmp(tagName, "noiseVolume")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_NOISE_VOLUME, readAutomationUpToPos);
-		bdsm.exitTag("noiseVolume");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_NOISE_VOLUME, readAutomationUpToPos);
+		reader.exitTag("noiseVolume");
 	}
 	else if (!strcmp(tagName, "oscAVolume")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME, readAutomationUpToPos);
-		bdsm.exitTag("oscAVolume");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME, readAutomationUpToPos);
+		reader.exitTag("oscAVolume");
 	}
 	else if (!strcmp(tagName, "oscBVolume")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_B_VOLUME, readAutomationUpToPos);
-		bdsm.exitTag("oscBVolume");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_VOLUME, readAutomationUpToPos);
+		reader.exitTag("oscBVolume");
 	}
 	else if (!strcmp(tagName, "oscAPulseWidth")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH, readAutomationUpToPos);
-		bdsm.exitTag("oscAPulseWidth");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PHASE_WIDTH, readAutomationUpToPos);
+		reader.exitTag("oscAPulseWidth");
 	}
 	else if (!strcmp(tagName, "oscBPulseWidth")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_B_PHASE_WIDTH, readAutomationUpToPos);
-		bdsm.exitTag("oscBPulseWidth");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_PHASE_WIDTH, readAutomationUpToPos);
+		reader.exitTag("oscBPulseWidth");
 	}
 	else if (!strcmp(tagName, "oscAWavetablePosition")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_A_WAVE_INDEX, readAutomationUpToPos);
-		bdsm.exitTag();
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_WAVE_INDEX, readAutomationUpToPos);
+		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "oscBWavetablePosition")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_B_WAVE_INDEX, readAutomationUpToPos);
-		bdsm.exitTag();
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_WAVE_INDEX, readAutomationUpToPos);
+		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "volume")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_VOLUME_POST_FX, readAutomationUpToPos);
-		bdsm.exitTag("volume");
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_VOLUME_POST_FX, readAutomationUpToPos);
+		reader.exitTag("volume");
 	}
 	else if (!strcmp(tagName, "pan")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_PAN, readAutomationUpToPos);
-		bdsm.exitTag("pan");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_PAN, readAutomationUpToPos);
+		reader.exitTag("pan");
 	}
 	else if (!strcmp(tagName, "lpfFrequency")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_LPF_FREQ, readAutomationUpToPos);
-		bdsm.exitTag("lpfFrequency");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_FREQ, readAutomationUpToPos);
+		reader.exitTag("lpfFrequency");
 	}
 	else if (!strcmp(tagName, "lpfResonance")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_LPF_RESONANCE, readAutomationUpToPos);
-		bdsm.exitTag("lpfResonance");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_RESONANCE, readAutomationUpToPos);
+		reader.exitTag("lpfResonance");
 	}
 	else if (!strcmp(tagName, "lpfMorph")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_LPF_MORPH, readAutomationUpToPos);
-		bdsm.exitTag("lpfMorph");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LPF_MORPH, readAutomationUpToPos);
+		reader.exitTag("lpfMorph");
 	}
 	else if (!strcmp(tagName, "hpfFrequency")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_HPF_FREQ, readAutomationUpToPos);
-		bdsm.exitTag("hpfFrequency");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_FREQ, readAutomationUpToPos);
+		reader.exitTag("hpfFrequency");
 	}
 	else if (!strcmp(tagName, "hpfResonance")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_HPF_RESONANCE, readAutomationUpToPos);
-		bdsm.exitTag("hpfResonance");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_RESONANCE, readAutomationUpToPos);
+		reader.exitTag("hpfResonance");
 	}
 	else if (!strcmp(tagName, "hpfMorph")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_HPF_MORPH, readAutomationUpToPos);
-		bdsm.exitTag("hpfMorph");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_HPF_MORPH, readAutomationUpToPos);
+		reader.exitTag("hpfMorph");
 	}
 	else if (!strcmp(tagName, "waveFold")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_FOLD, readAutomationUpToPos);
-		bdsm.exitTag("waveFold");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_FOLD, readAutomationUpToPos);
+		reader.exitTag("waveFold");
 	}
 
 	else if (!strcmp(tagName, "envelope1")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK, readAutomationUpToPos);
-				bdsm.exitTag("attack");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK, readAutomationUpToPos);
+				reader.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_0_DECAY, readAutomationUpToPos);
-				bdsm.exitTag("decay");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_DECAY, readAutomationUpToPos);
+				reader.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_0_SUSTAIN,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_SUSTAIN,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("sustain");
+				reader.exitTag("sustain");
 			}
 			else if (!strcmp(tagName, "release")) {
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_0_RELEASE,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_RELEASE,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("release");
+				reader.exitTag("release");
 			}
 		}
-		bdsm.exitTag("envelope1");
+		reader.exitTag("envelope1");
 	}
 	else if (!strcmp(tagName, "envelope2")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK, readAutomationUpToPos);
-				bdsm.exitTag("attack");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK, readAutomationUpToPos);
+				reader.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_1_DECAY, readAutomationUpToPos);
-				bdsm.exitTag("decay");
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_DECAY, readAutomationUpToPos);
+				reader.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_1_SUSTAIN,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_SUSTAIN,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("sustain");
+				reader.exitTag("sustain");
 			}
 			else if (!strcmp(tagName, "release")) {
-				patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_ENV_1_RELEASE,
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_RELEASE,
 				                         readAutomationUpToPos);
-				bdsm.exitTag("release");
+				reader.exitTag("release");
 			}
 		}
-		bdsm.exitTag("envelope2");
+		reader.exitTag("envelope2");
 	}
 	else if (!strcmp(tagName, "lfo1Rate")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_LFO_FREQ, readAutomationUpToPos);
-		bdsm.exitTag("lfo1Rate");
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ, readAutomationUpToPos);
+		reader.exitTag("lfo1Rate");
 	}
 	else if (!strcmp(tagName, "lfo2Rate")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ, readAutomationUpToPos);
-		bdsm.exitTag("lfo2Rate");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ, readAutomationUpToPos);
+		reader.exitTag("lfo2Rate");
 	}
 	else if (!strcmp(tagName, "modulator1Amount")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_MODULATOR_0_VOLUME, readAutomationUpToPos);
-		bdsm.exitTag("modulator1Amount");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_VOLUME, readAutomationUpToPos);
+		reader.exitTag("modulator1Amount");
 	}
 	else if (!strcmp(tagName, "modulator2Amount")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_MODULATOR_1_VOLUME, readAutomationUpToPos);
-		bdsm.exitTag("modulator2Amount");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_VOLUME, readAutomationUpToPos);
+		reader.exitTag("modulator2Amount");
 	}
 	else if (!strcmp(tagName, "modulator1Feedback")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_MODULATOR_0_FEEDBACK, readAutomationUpToPos);
-		bdsm.exitTag("modulator1Feedback");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_FEEDBACK, readAutomationUpToPos);
+		reader.exitTag("modulator1Feedback");
 	}
 	else if (!strcmp(tagName, "modulator2Feedback")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_MODULATOR_1_FEEDBACK, readAutomationUpToPos);
-		bdsm.exitTag("modulator2Feedback");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_FEEDBACK, readAutomationUpToPos);
+		reader.exitTag("modulator2Feedback");
 	}
 	else if (!strcmp(tagName, "carrier1Feedback")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_CARRIER_0_FEEDBACK, readAutomationUpToPos);
-		bdsm.exitTag("carrier1Feedback");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_CARRIER_0_FEEDBACK, readAutomationUpToPos);
+		reader.exitTag("carrier1Feedback");
 	}
 	else if (!strcmp(tagName, "carrier2Feedback")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_CARRIER_1_FEEDBACK, readAutomationUpToPos);
-		bdsm.exitTag("carrier2Feedback");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_CARRIER_1_FEEDBACK, readAutomationUpToPos);
+		reader.exitTag("carrier2Feedback");
 	}
 	else if (!strcmp(tagName, "pitchAdjust")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_PITCH_ADJUST, readAutomationUpToPos);
-		bdsm.exitTag("pitchAdjust");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_PITCH_ADJUST, readAutomationUpToPos);
+		reader.exitTag("pitchAdjust");
 	}
 	else if (!strcmp(tagName, "oscAPitchAdjust")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_A_PITCH_ADJUST, readAutomationUpToPos);
-		bdsm.exitTag("oscAPitchAdjust");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_PITCH_ADJUST, readAutomationUpToPos);
+		reader.exitTag("oscAPitchAdjust");
 	}
 	else if (!strcmp(tagName, "oscBPitchAdjust")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_OSC_B_PITCH_ADJUST, readAutomationUpToPos);
-		bdsm.exitTag("oscBPitchAdjust");
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_PITCH_ADJUST, readAutomationUpToPos);
+		reader.exitTag("oscBPitchAdjust");
 	}
 	else if (!strcmp(tagName, "mod1PitchAdjust")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_MODULATOR_0_PITCH_ADJUST,
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_PITCH_ADJUST,
 		                         readAutomationUpToPos);
-		bdsm.exitTag("mod1PitchAdjust");
+		reader.exitTag("mod1PitchAdjust");
 	}
 	else if (!strcmp(tagName, "mod2PitchAdjust")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::LOCAL_MODULATOR_1_PITCH_ADJUST,
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_PITCH_ADJUST,
 		                         readAutomationUpToPos);
-		bdsm.exitTag("mod2PitchAdjust");
+		reader.exitTag("mod2PitchAdjust");
 	}
 	else if (!strcmp(tagName, "modFXRate")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_MOD_FX_RATE, readAutomationUpToPos);
-		bdsm.exitTag("modFXRate");
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_RATE, readAutomationUpToPos);
+		reader.exitTag("modFXRate");
 	}
 	else if (!strcmp(tagName, "modFXDepth")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_MOD_FX_DEPTH, readAutomationUpToPos);
-		bdsm.exitTag("modFXDepth");
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_DEPTH, readAutomationUpToPos);
+		reader.exitTag("modFXDepth");
 	}
 	else if (!strcmp(tagName, "delayRate")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_DELAY_RATE, readAutomationUpToPos);
-		bdsm.exitTag("delayRate");
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_DELAY_RATE, readAutomationUpToPos);
+		reader.exitTag("delayRate");
 	}
 	else if (!strcmp(tagName, "delayFeedback")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_DELAY_FEEDBACK, readAutomationUpToPos);
-		bdsm.exitTag("delayFeedback");
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_DELAY_FEEDBACK, readAutomationUpToPos);
+		reader.exitTag("delayFeedback");
 	}
 	else if (!strcmp(tagName, "reverbAmount")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_REVERB_AMOUNT, readAutomationUpToPos);
-		bdsm.exitTag("reverbAmount");
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_REVERB_AMOUNT, readAutomationUpToPos);
+		reader.exitTag("reverbAmount");
 	}
 	else if (!strcmp(tagName, "arpeggiatorRate")) {
-		patchedParams->readParam(bdsm, patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
-		bdsm.exitTag("arpeggiatorRate");
+		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_ARP_RATE, readAutomationUpToPos);
+		reader.exitTag("arpeggiatorRate");
 	}
 	else if (!strcmp(tagName, "patchCables")) {
-		paramManager->getPatchCableSet()->readPatchCablesFromFile(bdsm, readAutomationUpToPos);
-		bdsm.exitTag("patchCables");
+		paramManager->getPatchCableSet()->readPatchCablesFromFile(reader, readAutomationUpToPos);
+		reader.exitTag("patchCables");
 	}
-	else if (ModControllableAudio::readParamTagFromFile(bdsm, tagName, paramManager, readAutomationUpToPos)) {}
+	else if (ModControllableAudio::readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
 
 	else {
 		return false;
@@ -3805,206 +3805,206 @@ bool Sound::readParamTagFromFile(StorageManager& bdsm, char const* tagName, Para
 	return true;
 }
 
-void Sound::writeParamsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation) {
+void Sound::writeParamsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute(bdsm, "arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(bdsm, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+	unpatchedParams->writeParamAsAttribute(writer, "arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
 
-	unpatchedParams->writeParamAsAttribute(bdsm, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
+	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
 	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(bdsm, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+	unpatchedParams->writeParamAsAttribute(writer, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
 	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(bdsm, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(bdsm, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(bdsm, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX,
+	patchedParams->writeParamAsAttribute(writer, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX,
 	                                     writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "oscBVolume", params::LOCAL_OSC_B_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX,
+	patchedParams->writeParamAsAttribute(writer, "oscBVolume", params::LOCAL_OSC_B_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX,
 	                                     writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "noiseVolume", params::LOCAL_NOISE_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "noiseVolume", params::LOCAL_NOISE_VOLUME, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "volume", params::GLOBAL_VOLUME_POST_FX, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "pan", params::LOCAL_PAN, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "waveFold", params::LOCAL_FOLD, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "volume", params::GLOBAL_VOLUME_POST_FX, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "pan", params::LOCAL_PAN, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "waveFold", params::LOCAL_FOLD, writeAutomation);
 	// Filters
-	patchedParams->writeParamAsAttribute(bdsm, "lpfFrequency", params::LOCAL_LPF_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "lpfResonance", params::LOCAL_LPF_RESONANCE, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "lpfMorph", params::LOCAL_LPF_MORPH, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "lpfFrequency", params::LOCAL_LPF_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "lpfResonance", params::LOCAL_LPF_RESONANCE, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "lpfMorph", params::LOCAL_LPF_MORPH, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "hpfFrequency", params::LOCAL_HPF_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "hpfResonance", params::LOCAL_HPF_RESONANCE, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "hpfFrequency", params::LOCAL_HPF_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "hpfResonance", params::LOCAL_HPF_RESONANCE, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "lfo1Rate", params::GLOBAL_LFO_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "lfo1Rate", params::GLOBAL_LFO_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "modulator1Amount", params::LOCAL_MODULATOR_0_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "modulator1Feedback", params::LOCAL_MODULATOR_0_FEEDBACK,
+	patchedParams->writeParamAsAttribute(writer, "modulator1Amount", params::LOCAL_MODULATOR_0_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "modulator1Feedback", params::LOCAL_MODULATOR_0_FEEDBACK,
 	                                     writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "modulator2Amount", params::LOCAL_MODULATOR_1_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "modulator2Feedback", params::LOCAL_MODULATOR_1_FEEDBACK,
+	patchedParams->writeParamAsAttribute(writer, "modulator2Amount", params::LOCAL_MODULATOR_1_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "modulator2Feedback", params::LOCAL_MODULATOR_1_FEEDBACK,
 	                                     writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "carrier1Feedback", params::LOCAL_CARRIER_0_FEEDBACK, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "carrier2Feedback", params::LOCAL_CARRIER_1_FEEDBACK, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "carrier1Feedback", params::LOCAL_CARRIER_0_FEEDBACK, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "carrier2Feedback", params::LOCAL_CARRIER_1_FEEDBACK, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "pitchAdjust", params::LOCAL_PITCH_ADJUST, writeAutomation, true);
-	patchedParams->writeParamAsAttribute(bdsm, "oscAPitchAdjust", params::LOCAL_OSC_A_PITCH_ADJUST, writeAutomation,
+	patchedParams->writeParamAsAttribute(writer, "pitchAdjust", params::LOCAL_PITCH_ADJUST, writeAutomation, true);
+	patchedParams->writeParamAsAttribute(writer, "oscAPitchAdjust", params::LOCAL_OSC_A_PITCH_ADJUST, writeAutomation,
 	                                     true);
-	patchedParams->writeParamAsAttribute(bdsm, "oscBPitchAdjust", params::LOCAL_OSC_B_PITCH_ADJUST, writeAutomation,
+	patchedParams->writeParamAsAttribute(writer, "oscBPitchAdjust", params::LOCAL_OSC_B_PITCH_ADJUST, writeAutomation,
 	                                     true);
-	patchedParams->writeParamAsAttribute(bdsm, "mod1PitchAdjust", params::LOCAL_MODULATOR_0_PITCH_ADJUST,
+	patchedParams->writeParamAsAttribute(writer, "mod1PitchAdjust", params::LOCAL_MODULATOR_0_PITCH_ADJUST,
 	                                     writeAutomation, true);
-	patchedParams->writeParamAsAttribute(bdsm, "mod2PitchAdjust", params::LOCAL_MODULATOR_1_PITCH_ADJUST,
+	patchedParams->writeParamAsAttribute(writer, "mod2PitchAdjust", params::LOCAL_MODULATOR_1_PITCH_ADJUST,
 	                                     writeAutomation, true);
 
-	patchedParams->writeParamAsAttribute(bdsm, "modFXRate", params::GLOBAL_MOD_FX_RATE, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "modFXDepth", params::GLOBAL_MOD_FX_DEPTH, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "modFXRate", params::GLOBAL_MOD_FX_RATE, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "modFXDepth", params::GLOBAL_MOD_FX_DEPTH, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "delayRate", params::GLOBAL_DELAY_RATE, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "delayFeedback", params::GLOBAL_DELAY_FEEDBACK, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "delayRate", params::GLOBAL_DELAY_RATE, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "delayFeedback", params::GLOBAL_DELAY_FEEDBACK, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "reverbAmount", params::GLOBAL_REVERB_AMOUNT, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "reverbAmount", params::GLOBAL_REVERB_AMOUNT, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(bdsm, "arpeggiatorRate", params::GLOBAL_ARP_RATE, writeAutomation);
-	ModControllableAudio::writeParamAttributesToFile(bdsm, paramManager, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "arpeggiatorRate", params::GLOBAL_ARP_RATE, writeAutomation);
+	ModControllableAudio::writeParamAttributesToFile(writer, paramManager, writeAutomation);
 
-	bdsm.writeOpeningTagEnd();
+	writer.writeOpeningTagEnd();
 
 	// Envelopes
-	bdsm.writeOpeningTagBeginning("envelope1");
-	patchedParams->writeParamAsAttribute(bdsm, "attack", params::LOCAL_ENV_0_ATTACK, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "decay", params::LOCAL_ENV_0_DECAY, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "sustain", params::LOCAL_ENV_0_SUSTAIN, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "release", params::LOCAL_ENV_0_RELEASE, writeAutomation);
-	bdsm.closeTag();
+	writer.writeOpeningTagBeginning("envelope1");
+	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_0_ATTACK, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_0_DECAY, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_0_SUSTAIN, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_0_RELEASE, writeAutomation);
+	writer.closeTag();
 
-	bdsm.writeOpeningTagBeginning("envelope2");
-	patchedParams->writeParamAsAttribute(bdsm, "attack", params::LOCAL_ENV_1_ATTACK, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "decay", params::LOCAL_ENV_1_DECAY, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "sustain", params::LOCAL_ENV_1_SUSTAIN, writeAutomation);
-	patchedParams->writeParamAsAttribute(bdsm, "release", params::LOCAL_ENV_1_RELEASE, writeAutomation);
-	bdsm.closeTag();
+	writer.writeOpeningTagBeginning("envelope2");
+	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_1_ATTACK, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_1_DECAY, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_1_SUSTAIN, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_1_RELEASE, writeAutomation);
+	writer.closeTag();
 
-	paramManager->getPatchCableSet()->writePatchCablesToFile(bdsm, writeAutomation);
+	paramManager->getPatchCableSet()->writePatchCablesToFile(writer, writeAutomation);
 
-	ModControllableAudio::writeParamTagsToFile(bdsm, paramManager, writeAutomation);
+	ModControllableAudio::writeParamTagsToFile(writer, paramManager, writeAutomation);
 }
 
-void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager,
+void Sound::writeToFile(StorageManager& writer, bool savingSong, ParamManager* paramManager,
                         ArpeggiatorSettings* arpSettings) {
 
-	bdsm.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
-	bdsm.writeAttribute("voicePriority", util::to_underlying(voicePriority));
+	writer.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
+	writer.writeAttribute("voicePriority", util::to_underlying(voicePriority));
 
 	// Send level
 	if (sideChainSendLevel != 0) {
-		bdsm.writeAttribute("sideChainSend", sideChainSendLevel);
+		writer.writeAttribute("sideChainSend", sideChainSendLevel);
 	}
 
-	bdsm.writeAttribute("mode", (char*)synthModeToString(synthMode));
+	writer.writeAttribute("mode", (char*)synthModeToString(synthMode));
 
 	if (transpose != 0) {
-		bdsm.writeAttribute("transpose", transpose);
+		writer.writeAttribute("transpose", transpose);
 	}
 
-	ModControllableAudio::writeAttributesToFile(bdsm);
+	ModControllableAudio::writeAttributesToFile(writer);
 
-	bdsm.writeOpeningTagEnd(); // -------------------------------------------------------------------------
+	writer.writeOpeningTagEnd(); // -------------------------------------------------------------------------
 
-	writeSourceToFile(bdsm, 0, "osc1");
-	writeSourceToFile(bdsm, 1, "osc2");
+	writeSourceToFile(writer, 0, "osc1");
+	writeSourceToFile(writer, 1, "osc2");
 
 	// LFOs
-	bdsm.writeOpeningTagBeginning("lfo1");
-	bdsm.writeAttribute("type", lfoTypeToString(lfoGlobalWaveType), false);
+	writer.writeOpeningTagBeginning("lfo1");
+	writer.writeAttribute("type", lfoTypeToString(lfoGlobalWaveType), false);
 
-	bdsm.writeAttribute("syncType", (int32_t)lfoGlobalSyncType, false);
-	// bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
-	bdsm.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(lfoGlobalSyncLevel),
+	writer.writeAttribute("syncType", (int32_t)lfoGlobalSyncType, false);
+	// writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
+	writer.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(lfoGlobalSyncLevel),
 	                    false);
-	bdsm.closeTag();
+	writer.closeTag();
 
-	bdsm.writeOpeningTagBeginning("lfo2");
-	bdsm.writeAttribute("type", lfoTypeToString(lfoLocalWaveType), false);
-	bdsm.closeTag();
+	writer.writeOpeningTagBeginning("lfo2");
+	writer.writeAttribute("type", lfoTypeToString(lfoLocalWaveType), false);
+	writer.closeTag();
 
 	if (synthMode == SynthMode::FM) {
 
-		bdsm.writeOpeningTagBeginning("modulator1");
-		bdsm.writeAttribute("transpose", modulatorTranspose[0]);
-		bdsm.writeAttribute("cents", modulatorCents[0]);
-		bdsm.writeAttribute("retrigPhase", modulatorRetriggerPhase[0]);
-		bdsm.closeTag();
+		writer.writeOpeningTagBeginning("modulator1");
+		writer.writeAttribute("transpose", modulatorTranspose[0]);
+		writer.writeAttribute("cents", modulatorCents[0]);
+		writer.writeAttribute("retrigPhase", modulatorRetriggerPhase[0]);
+		writer.closeTag();
 
-		bdsm.writeOpeningTagBeginning("modulator2");
-		bdsm.writeAttribute("transpose", modulatorTranspose[1]);
-		bdsm.writeAttribute("cents", modulatorCents[1]);
-		bdsm.writeAttribute("retrigPhase", modulatorRetriggerPhase[1]);
-		bdsm.writeAttribute("toModulator1", modulator1ToModulator0);
-		bdsm.closeTag();
+		writer.writeOpeningTagBeginning("modulator2");
+		writer.writeAttribute("transpose", modulatorTranspose[1]);
+		writer.writeAttribute("cents", modulatorCents[1]);
+		writer.writeAttribute("retrigPhase", modulatorRetriggerPhase[1]);
+		writer.writeAttribute("toModulator1", modulator1ToModulator0);
+		writer.closeTag();
 	}
 
-	bdsm.writeOpeningTagBeginning("unison");
-	bdsm.writeAttribute("num", numUnison, false);
-	bdsm.writeAttribute("detune", unisonDetune, false);
-	bdsm.writeAttribute("spread", unisonStereoSpread, false);
-	bdsm.closeTag();
+	writer.writeOpeningTagBeginning("unison");
+	writer.writeAttribute("num", numUnison, false);
+	writer.writeAttribute("detune", unisonDetune, false);
+	writer.writeAttribute("spread", unisonStereoSpread, false);
+	writer.closeTag();
 
-	ModControllableAudio::writeTagsToFile(bdsm);
+	ModControllableAudio::writeTagsToFile(writer);
 
 	if (paramManager) {
-		bdsm.writeOpeningTagBeginning("defaultParams");
-		Sound::writeParamsToFile(bdsm, paramManager, false);
-		bdsm.writeClosingTag("defaultParams");
+		writer.writeOpeningTagBeginning("defaultParams");
+		Sound::writeParamsToFile(writer, paramManager, false);
+		writer.writeClosingTag("defaultParams");
 	}
 
 	if (arpSettings) {
-		bdsm.writeOpeningTagBeginning("arpeggiator");
-		bdsm.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
-		bdsm.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
-		bdsm.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
-		bdsm.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
-		bdsm.writeAttribute("numOctaves", arpSettings->numOctaves);
-		bdsm.writeAttribute("syncType", (int32_t)arpSettings->syncType);
-		// bdsm.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
-		bdsm.writeAttribute("syncLevel",
+		writer.writeOpeningTagBeginning("arpeggiator");
+		writer.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
+		writer.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
+		writer.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
+		writer.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
+		writer.writeAttribute("numOctaves", arpSettings->numOctaves);
+		writer.writeAttribute("syncType", (int32_t)arpSettings->syncType);
+		// writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
+		writer.writeAttribute("syncLevel",
 		                    currentSong->convertSyncLevelFromInternalValueToFileValue(arpSettings->syncLevel), true);
-		bdsm.closeTag();
+		writer.closeTag();
 	}
 
 	// Mod knobs
-	bdsm.writeOpeningTag("modKnobs");
+	writer.writeOpeningTag("modKnobs");
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
 			ModKnob* knob = &modKnobs[k][w];
-			bdsm.writeOpeningTagBeginning("modKnob");
-			bdsm.writeAttribute(
+			writer.writeOpeningTagBeginning("modKnob");
+			writer.writeAttribute(
 			    "controlsParam",
 			    params::paramNameForFile(params::Kind::UNPATCHED_SOUND, knob->paramDescriptor.getJustTheParam()),
 			    false);
 			if (!knob->paramDescriptor.isJustAParam()) {
-				bdsm.writeAttribute("patchAmountFromSource", sourceToString(knob->paramDescriptor.getTopLevelSource()),
+				writer.writeAttribute("patchAmountFromSource", sourceToString(knob->paramDescriptor.getTopLevelSource()),
 				                    false);
 
 				if (knob->paramDescriptor.hasSecondSource()) {
-					bdsm.writeAttribute("patchAmountFromSecondSource",
+					writer.writeAttribute("patchAmountFromSecondSource",
 					                    sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
 				}
 			}
-			bdsm.closeTag();
+			writer.closeTag();
 		}
 	}
-	bdsm.writeClosingTag("modKnobs");
+	writer.writeClosingTag("modKnobs");
 }
 
 int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {

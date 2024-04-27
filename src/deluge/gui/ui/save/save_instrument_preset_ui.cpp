@@ -114,7 +114,7 @@ gotError:
 	return true;
 }
 
-bool SaveInstrumentPresetUI::performSave(StorageManager& bdsm, bool mayOverwrite) {
+bool SaveInstrumentPresetUI::performSave(StorageManager& writer, bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
@@ -146,7 +146,7 @@ fail:
 		return false;
 	}
 
-	error = bdsm.createXMLFile(filePath.get(), mayOverwrite, false);
+	error = writer.createXMLFile(filePath.get(), mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
@@ -172,7 +172,7 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
-	instrumentToSave->writeToFile(bdsm, getCurrentClip(), currentSong);
+	instrumentToSave->writeToFile(writer, getCurrentClip(), currentSong);
 
 	char const* endString;
 	switch (outputTypeToLoad) {

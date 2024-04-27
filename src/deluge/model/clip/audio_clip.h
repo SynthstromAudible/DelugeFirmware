@@ -81,8 +81,8 @@ public:
 	/// Return true if successfully shifted, as clip cannot be shifted past beginning
 	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount);
 
-	Error readFromFile(StorageManager& bdsm, Song* song);
-	void writeDataToFile(StorageManager& bdsm, Song* song);
+	Error readFromFile(Deserializer& reader, Song* song);
+	void writeDataToFile(StorageManager& writer, Song* song);
 	char const* getXMLTag() { return "audioClip"; }
 
 	SampleControls sampleControls;

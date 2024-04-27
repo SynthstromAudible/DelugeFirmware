@@ -286,31 +286,31 @@ void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* 
 	}
 }
 
-void MIDIParamCollection::writeToFile(StorageManager& bdsm) {
+void MIDIParamCollection::writeToFile(StorageManager& writer) {
 	if (params.getNumElements()) {
 
-		bdsm.writeOpeningTag("midiParams");
+		writer.writeOpeningTag("midiParams");
 
 		for (int32_t i = 0; i < params.getNumElements(); i++) {
 			MIDIParam* midiParam = params.getElement(i);
 			int32_t cc = midiParam->cc;
 
-			bdsm.writeOpeningTag("param");
+			writer.writeOpeningTag("param");
 			if (cc == CC_NUMBER_NONE) { // Why would I have put this in here?
-				bdsm.writeTag("cc", "none");
+				writer.writeTag("cc", "none");
 			}
 			else {
-				bdsm.writeTag("cc", cc);
+				writer.writeTag("cc", cc);
 			}
 
-			bdsm.writeOpeningTag("value", false);
-			midiParam->param.writeToFile(bdsm, true);
-			bdsm.writeClosingTag("value", false);
+			writer.writeOpeningTag("value", false);
+			midiParam->param.writeToFile(writer, true);
+			writer.writeClosingTag("value", false);
 
-			bdsm.writeClosingTag("param");
+			writer.writeClosingTag("param");
 		}
 
-		bdsm.writeClosingTag("midiParams");
+		writer.writeClosingTag("midiParams");
 	}
 }
 

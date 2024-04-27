@@ -227,7 +227,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 }
 
 // Before calling this, you must set loadButtonReleased.
-void LoadSongUI::performLoad(StorageManager& bdsm) {
+void LoadSongUI::performLoad(StorageManager& reader) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -245,7 +245,7 @@ void LoadSongUI::performLoad(StorageManager& bdsm) {
 		playbackHandler.switchToSession();
 	}
 
-	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, "song");
+	Error error = reader.openXMLFile(&currentFileItem->filePointer, "song");
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return;
@@ -283,7 +283,7 @@ ramError:
 
 someError:
 		display->displayError(error);
-		bdsm.closeFile();
+		reader.closeFile();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
 		if (!currentSong) {
@@ -318,13 +318,13 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = preLoadedSong->readFromFile(bdsm);
+	error = preLoadedSong->readFromFile(reader);
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 	AudioEngine::logAction("d");
 
-	bool success = bdsm.closeFile();
+	bool success = reader.closeFile();
 
 	if (!success) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
@@ -698,7 +698,7 @@ void LoadSongUI::exitAction() {
 	timerCallback();
 }
 
-void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
+void LoadSongUI::drawSongPreview(StorageManager& reader, bool toStore) {
 
 	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {
@@ -716,7 +716,7 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, "song", "", true);
+	Error error = reader.openXMLFile(&currentFileItem->filePointer, "song", "", true);
 	if (error != Error::NONE) {
 		if (error != Error::NONE) {
 			display->displayError(error);
@@ -726,11 +726,11 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 
 	char const* tagName;
 	int32_t previewNumPads = 40;
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "previewNumPads")) {
-			previewNumPads = bdsm.readTagOrAttributeValueInt();
-			bdsm.exitTag("previewNumPads");
+			previewNumPads = reader.readTagOrAttributeValueInt();
+			reader.exitTag("previewNumPads");
 		}
 		else if (!strcmp(tagName, "preview")) {
 			int32_t skipNumCharsAfterRow = 0;
@@ -743,12 +743,12 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 			int32_t width = endX - startX;
 			int32_t numCharsToRead = width * 3 * 2;
 
-			if (!bdsm.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+			if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 				goto stopLoadingPreview;
 			}
 
 			for (int32_t y = startY; y < endY; y++) {
-				char const* hexChars = bdsm.readNextCharsOfTagOrAttributeValue(numCharsToRead);
+				char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(numCharsToRead);
 				if (!hexChars) {
 					goto stopLoadingPreview;
 				}
@@ -764,11 +764,11 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 			goto stopLoadingPreview;
 		}
 		else {
-			bdsm.exitTag(tagName);
+			reader.exitTag(tagName);
 		}
 	}
 stopLoadingPreview:
-	bdsm.closeFile();
+	reader.closeFile();
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {
