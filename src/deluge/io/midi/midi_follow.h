@@ -40,8 +40,7 @@ public:
 	MidiFollow();
 	void readDefaultsFromFile(StorageManager& bdsm);
 
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
-	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
 	                                                bool displayError = true);
 	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,

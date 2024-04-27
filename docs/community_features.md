@@ -80,8 +80,7 @@ Here is a list of general improvements that have been made, ordered from newest 
       but any already sounding notes will be stopped.
 
 - ([#889]) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
-  clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger
-  view, song view, audio clip view, instrument clip view).
+  clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active or selected clip).
     - For a detailed description of this feature, please refer to the feature
       documentation: [MIDI Follow Mode Documentation]
     - Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's.
