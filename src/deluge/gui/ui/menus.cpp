@@ -878,8 +878,6 @@ midi::FollowFeedbackChannelType midiFollowFeedbackChannelMenu{STRING_FOR_CHANNEL
 midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
 ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
                                         midiEngine.midiFollowFeedbackFilter};
-ToggleBool midiFollowControlSongParamMenu{STRING_FOR_FOLLOW_CONTROL_SONG_PARAM, STRING_FOR_FOLLOW_CONTROL_SONG_PARAM,
-                                          midiEngine.midiFollowControlSongParam};
 
 Submenu midiFollowChannelSubmenu{
     STRING_FOR_CHANNEL,
@@ -909,7 +907,6 @@ Submenu midiFollowSubmenu{
         &midiFollowKitRootNoteMenu,
         &midiFollowFeedbackSubmenu,
         &midiFollowDisplayParamMenu,
-        &midiFollowControlSongParamMenu,
     },
 };
 
