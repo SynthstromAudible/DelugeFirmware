@@ -32,8 +32,6 @@
 - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of the
   Deluge grid (second pad from the top). Toggle interpolation on/off using Shift + Interpolation shortcut pad. The
   Interpolation shortcut pad will blink to indicate that interpolation is enabled.
-- Updated `AUTOMATION VIEW` to remove select encoder scrolling selection of non-MIDI clip parameters. Select encoder is
-  now used to fine tune non-MIDI parameter values in the `AUTOMATION VIEW EDITOR`.
 - Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
 - Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
 - Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to provide the ability to access the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu press Clip (if you are in a clip) or Song (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` while you are still in the menu. You will be able to interact with the grid to edit automation for the current parameter / patch cable selected in the menu.
@@ -68,8 +66,9 @@
     - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
     - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
 - Added a feature save user-defined pad brightness level and restore it at startup.
-- Mod (Gold) Encoder LED indicators are now Bipolar for Bipolar params (e.g. Param, Pitch, Patch Cables). Positive values illuminate the top two LEDs. Negative values illuminate the bottom two LEDs. The middle value doesn't light up any LEDs. 
-- The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
+- Mod (Gold) Encoder LED indicators are now Bipolar for Bipolar params (e.g. Pan, Pitch, Patch Cables). Positive values illuminate the top two LEDs. Negative values illuminate the bottom two LEDs. The middle value doesn't light up any LEDs. 
+- Added new `High CPU Usage Indicator`. The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
+  - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 - Removed ability to convert an Audio Clip to an Instrument Clip (Synth / Kit / MIDI / CV) as this conversion process is error/bug prone.
 - Restricted changing Synth/MIDI/CV Instrument CLip types to the Kit Instrument Clip Type and vice versa if the clip is not empty.
 - Added retrigger to all keyboard views.
