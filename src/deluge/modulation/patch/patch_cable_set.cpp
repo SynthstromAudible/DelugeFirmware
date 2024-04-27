@@ -819,7 +819,7 @@ void PatchCableSet::readPatchCablesFromFile(StorageManager& bdsm, int32_t readAu
 				}
 				else if (!strcmp(tagName, "destination")) {
 					destinationParamDescriptor.setToHaveParamOnly(
-					    params::fileStringToParam(params::Kind::UNPATCHED_SOUND, bdsm.readTagOrAttributeValue()));
+					    params::fileStringToParam(params::Kind::UNPATCHED_SOUND, bdsm.readTagOrAttributeValue(), true));
 				}
 				else if (!strcmp(tagName, "amount")) {
 					tempParam.readFromFile(bdsm, readAutomationUpToPos);
