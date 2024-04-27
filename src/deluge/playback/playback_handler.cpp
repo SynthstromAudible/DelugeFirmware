@@ -2868,16 +2868,15 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	}
 
 	// See if midi cc received has been learned to a song param
-	// Disabled while we investigate a crash issue with midi learning song params
-	/*ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	if (modelStackWithThreeMainThings) {
-	    ModControllableAudio* modControllable = (ModControllableAudio*)modelStackWithThreeMainThings->modControllable;
-	    if (modControllable) {
-	        modControllable->offerReceivedCCToLearnedParamsForSong(fromDevice, channel, ccNumber, value,
-	                                                               modelStackWithThreeMainThings);
-	    }
-	}*/
+		ModControllableAudio* modControllable = (ModControllableAudio*)modelStackWithThreeMainThings->modControllable;
+		if (modControllable) {
+			modControllable->offerReceivedCCToLearnedParamsForSong(fromDevice, channel, ccNumber, value,
+			                                                       modelStackWithThreeMainThings);
+		}
+	}
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
