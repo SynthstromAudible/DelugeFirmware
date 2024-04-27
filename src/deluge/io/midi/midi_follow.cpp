@@ -134,17 +134,17 @@ Clip* getSelectedClip() {
 		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 			clip = arrangerView.getClipForSelection();
 		}
-		break;
-	case UIType::AUTOMATION_VIEW:
-		if (automationView.getAutomationSubType() == AutomationSubType::ARRANGER) {
-			// if you're in arranger automation view, no clip will be selected for param control
-			break;
-		}
-		[[fallthrough]];
-	default:
-		// if you're not in sessionView, arrangerView, or performanceView, then you're in a clip
+	}
+
+	if (!clip) {
+		// if you haven't selected a clip above, return the activeClip of the current instrument
 		clip = getCurrentClip();
-		break;
+		if (clip) {
+			Output* output = clip->output;
+			if (output) {
+				clip = output->activeClip;
+			}
+		}
 	}
 
 	return clip;
@@ -158,9 +158,11 @@ Clip* getSelectedClip(ModelStack* modelStack) {
 	// when auditioning a clip for that output,
 	// the active clip for that output should be set to the current clip.
 	Clip* currentClip = getCurrentClip();
-	if (currentClip->type == ClipType::INSTRUMENT) {
-		InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-		return currentClip->output->activeClip;
+	if (currentClip && (currentClip->type == ClipType::INSTRUMENT)) {
+		if (currentClip->output) {
+			InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
+			return currentClip->output->activeClip;
+		}
 	}
 	return nullptr;
 }
@@ -168,8 +170,7 @@ Clip* getSelectedClip(ModelStack* modelStack) {
 /// based on the current context, as determined by clip returned from the getSelectedClip function
 /// obtain the modelStackWithParam for that context and return it so it can be used by midi follow
 ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
-                                   ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
+MidiFollow::getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
                                    int32_t xDisplay, int32_t yDisplay, int32_t ccNumber, bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
@@ -180,33 +181,10 @@ MidiFollow::getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWith
 			    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, xDisplay, yDisplay);
 		}
 	}
-	// null clip means you're dealing with the song context
-	else {
-		if (modelStackWithThreeMainThings) {
-			modelStackWithParam = getModelStackWithParamForSong(modelStackWithThreeMainThings, xDisplay, yDisplay);
-		}
-	}
 
 	if (displayError && (paramToCC[xDisplay][yDisplay] == ccNumber)
 	    && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
 		displayParamControlError(xDisplay, yDisplay);
-	}
-
-	return modelStackWithParam;
-}
-
-ModelStackWithAutoParam*
-MidiFollow::getModelStackWithParamForSong(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
-                                          int32_t xDisplay, int32_t yDisplay) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
-
-	if (paramID != kNoParamID) {
-		// can't control Pitch or Sidechain params in Song view
-		if ((paramID != params::UNPATCHED_PITCH_ADJUST) && (paramID != params::UNPATCHED_SIDECHAIN_SHAPE)
-		    && (paramID != params::UNPATCHED_SIDECHAIN_VOLUME)) {
-			modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
-		}
 	}
 
 	return modelStackWithParam;
@@ -444,12 +422,6 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 		// clip is allowed to be null here because there may not be an active clip
 		// e.g. you want to control the song level parameters
 
-		// if clip is null and you do not want to control song params
-		// control the active clip of the last instrument selected
-		if (!clip && !midiEngine.midiFollowControlSongParam) {
-			clip = getCurrentClip()->output->activeClip;
-		}
-
 		bool isMIDIClip = false;
 		bool isCVClip = false;
 		if (clip) {
@@ -464,7 +436,8 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 		// don't offer to handleReceivedCC if it's a MIDI or CV Clip
 		// this is because this function is used to control internal deluge parameters only (patched, unpatched)
 		// midi/cv clip cc parameters are handled below in the offerReceivedCCToMelodicInstrument function
-		if (!isMIDIClip && !isCVClip && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
+		if (clip && !isMIDIClip && !isCVClip
+		    && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)) {
 			// if midi follow feedback and feedback filter is enabled,
 			// check time elapsed since last midi cc was sent with midi feedback for this same ccNumber
 			// if it was greater or equal than 1 second ago, allow received midi cc to go through
@@ -505,30 +478,23 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 void MidiFollow::handleReceivedCC(ModelStack* modelStack, Clip* clip, int32_t ccNumber, int32_t value) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
 	// setup model stack for the active context
-	// if clip is null, it means you want to control the song level parameters
-	if (!clip) {
-		if (currentSong->affectEntire) {
-			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		}
-	}
-	else if (modelStack) {
+	if (modelStack) {
 		modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 	}
 
 	// check that model stack is valid
-	if (modelStackWithThreeMainThings || modelStackWithTimelineCounter) {
+	if (modelStackWithTimelineCounter) {
 		// loop through the grid to see if any parameters have been learned to the ccNumber received
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				if (paramToCC[xDisplay][yDisplay] == ccNumber) {
 					// obtain the model stack for the parameter the ccNumber received is learned to
 					ModelStackWithAutoParam* modelStackWithParam =
-					    getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip,
-					                           xDisplay, yDisplay, ccNumber, midiEngine.midiFollowDisplayParam);
+					    getModelStackWithParam(modelStackWithTimelineCounter, clip, xDisplay, yDisplay, ccNumber,
+					                           midiEngine.midiFollowDisplayParam);
 					// check if model stack is valid
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						// get current value
@@ -608,25 +574,13 @@ void MidiFollow::handleReceivedCC(ModelStack* modelStack, Clip* clip, int32_t cc
 void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
 	// obtain clip for active context
 	Clip* clip = getSelectedClip();
 
-	// if clip is null and you do not want to control song params
-	// send feedback for the active clip
-	if (!clip && !midiEngine.midiFollowControlSongParam) {
-		clip = getCurrentClip()->output->activeClip;
-	}
-
 	// setup model stack for the active context
-	if (!clip) {
-		if (currentSong->affectEntire) {
-			modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-		}
-	}
-	else {
+	if (clip) {
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 		if (modelStack) {
 			modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -634,15 +588,14 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 	}
 
 	// check that model stack is valid
-	if (modelStackWithThreeMainThings || modelStackWithTimelineCounter) {
+	if (modelStackWithTimelineCounter) {
 		// loop through the grid to see if any parameters have been learned
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 				if (paramToCC[xDisplay][yDisplay] != MIDI_CC_NONE) {
 					// obtain the model stack for the parameter that has been learned
-					ModelStackWithAutoParam* modelStackWithParam =
-					    getModelStackWithParam(modelStackWithThreeMainThings, modelStackWithTimelineCounter, clip,
-					                           xDisplay, yDisplay, MIDI_CC_NONE, false);
+					ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(
+					    modelStackWithTimelineCounter, clip, xDisplay, yDisplay, MIDI_CC_NONE, false);
 					// check that model stack is valid
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
