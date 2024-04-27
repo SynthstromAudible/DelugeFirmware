@@ -138,6 +138,7 @@ public:
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 	void setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft, int32_t knobPosRight);
 	void resetInterpolationShortcutBlinking();
+	bool getAffectEntire();
 
 private:
 	// button action functions
