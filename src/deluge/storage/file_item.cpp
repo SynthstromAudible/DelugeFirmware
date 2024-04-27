@@ -31,14 +31,18 @@ Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating)
 	isFolder = false;
 	instrumentAlreadyInSong = !hibernating;
 	displayName = filename.get();
-	String tempFilePath;
-	tempFilePath.set(newInstrument->dirPath.get());
-	tempFilePath.concatenate("/");
-	tempFilePath.concatenate(filename.get());
-	bool fileExists = storageManager.fileExists(tempFilePath.get(), &filePointer);
-	if (!fileExists) {
-		D_PRINTLN("couldn't get filepath for file %d", filename.get());
+	if (newInstrument->existsOnCard && filePointer.sclust == 0) {
+		String tempFilePath;
+		tempFilePath.set(newInstrument->dirPath.get());
+		tempFilePath.concatenate("/");
+		tempFilePath.concatenate(filename.get());
+		bool fileExists = storageManager.fileExists(tempFilePath.get(), &filePointer);
+		if (!fileExists) {
+			D_PRINTLN("couldn't get filepath for file %d", filename.get());
+			return Error::FILE_NOT_FOUND;
+		}
 	}
+
 	return Error::NONE;
 }
 
