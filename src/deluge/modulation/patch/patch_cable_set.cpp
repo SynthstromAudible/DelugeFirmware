@@ -819,7 +819,7 @@ void PatchCableSet::readPatchCablesFromFile(int32_t readAutomationUpToPos) {
 				}
 				else if (!strcmp(tagName, "destination")) {
 					destinationParamDescriptor.setToHaveParamOnly(params::fileStringToParam(
-					    params::Kind::UNPATCHED_SOUND, storageManager.readTagOrAttributeValue()));
+					    params::Kind::UNPATCHED_SOUND, storageManager.readTagOrAttributeValue(), true));
 				}
 				else if (!strcmp(tagName, "amount")) {
 					tempParam.readFromFile(readAutomationUpToPos);

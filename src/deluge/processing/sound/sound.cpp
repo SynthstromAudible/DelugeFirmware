@@ -920,7 +920,7 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "controlsParam")) {
 						p = params::fileStringToParam(params::Kind::UNPATCHED_SOUND,
-						                              storageManager.readTagOrAttributeValue());
+						                              storageManager.readTagOrAttributeValue(), true);
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
 						s = stringToSource(storageManager.readTagOrAttributeValue());
