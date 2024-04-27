@@ -191,6 +191,8 @@ private:
 	// backup current layout
 	void backupPerformanceLayout();
 	bool performanceLayoutBackedUp;
+	bool shouldRestorePreviousHoldPress(int32_t xDisplay);
+	void restorePreviousHoldPress(int32_t xDisplay);
 	void logPerformanceViewPress(int32_t xDisplay, bool closeAction = true);
 	bool anyChangesToLog();
 	FXColumnPress backupFXPress[kDisplayWidth];
