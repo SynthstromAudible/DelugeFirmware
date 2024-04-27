@@ -229,8 +229,9 @@ MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* mo
 		paramID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 	}
 	if ((paramKind != params::Kind::NONE) && (paramID != kNoParamID)) {
+		// Note: useMenuContext parameter will always be false for MidiFollow
 		modelStackWithParam =
-		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind);
+		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind, true, false);
 	}
 
 	return modelStackWithParam;
@@ -263,9 +264,11 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 			paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 		}
 	}
+
 	if ((paramKind != params::Kind::NONE) && (paramID != kNoParamID)) {
-		modelStackWithParam =
-		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind);
+		// Note: useMenuContext parameter will always be false for MidiFollow
+		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID,
+		                                                           paramKind, instrumentClip->affectEntire, false);
 	}
 
 	return modelStackWithParam;
@@ -279,8 +282,9 @@ MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* mo
 	int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
 	if (paramID != kNoParamID) {
+		// Note: useMenuContext parameter will always be false for MidiFollow
 		modelStackWithParam =
-		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind);
+		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind, true, false);
 	}
 
 	return modelStackWithParam;

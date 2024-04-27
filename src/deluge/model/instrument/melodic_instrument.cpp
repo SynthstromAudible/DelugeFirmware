@@ -698,7 +698,8 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 
 ModelStackWithAutoParam* MelodicInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
                                                                    Clip* clip, int32_t paramID,
-                                                                   deluge::modulation::params::Kind paramKind) {
+                                                                   deluge::modulation::params::Kind paramKind,
+                                                                   bool affectEntire, bool useMenuStack) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =

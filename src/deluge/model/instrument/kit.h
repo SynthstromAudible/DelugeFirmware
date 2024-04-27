@@ -143,7 +143,15 @@ public:
 	OrderedResizeableArrayWith32bitKey drumsWithRenderingActive;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
+	                                                bool affectEntire, bool useMenuStack);
+	ModelStackWithAutoParam* getModelStackWithParamForKit(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                      int32_t paramID, deluge::modulation::params::Kind paramKind,
+	                                                      bool useMenuStack);
+	ModelStackWithAutoParam* getModelStackWithParamForKitRow(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                                         int32_t paramID,
+	                                                         deluge::modulation::params::Kind paramKind,
+	                                                         bool useMenuStack);
 
 protected:
 	bool isKit() { return true; }
