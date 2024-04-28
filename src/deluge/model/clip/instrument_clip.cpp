@@ -2596,7 +2596,7 @@ someError:
 			                                           instrumentPresetSubSlot, NULL, NULL, false);
 			if (!output) {
 				output = storageManager.createNewNonAudioInstrument(OutputType::MIDI_OUT, instrumentPresetSlot,
-				                                          instrumentPresetSubSlot);
+				                                                    instrumentPresetSubSlot);
 
 				if (!output) {
 					goto ramError;
@@ -2609,8 +2609,8 @@ someError:
 				return error;
 			}
 
-			error =
-			    ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(storageManager, readAutomationUpToPos, &paramManager);
+			error = ((MIDIInstrument*)output)
+			            ->readModKnobAssignmentsFromFile(storageManager, readAutomationUpToPos, &paramManager);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -2655,7 +2655,8 @@ someError:
 					arpSettings.syncType = (SyncType)reader.readTagOrAttributeValueInt();
 					reader.exitTag("syncType");
 				}
-				else if (!strcmp(tagName, "mode") && storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+				else if (!strcmp(tagName, "mode")
+				         && storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
 					arpSettings.mode = oldModeToArpMode(oldMode);

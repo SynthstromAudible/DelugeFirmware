@@ -1339,7 +1339,8 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("inputTickMagnitude", insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
 	writer.writeAttribute("swingAmount", swingAmount);
 	// writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
-	writer.writeAttribute("swingInterval", convertSyncLevelFromInternalValueToFileValue((SyncLevel)swingInterval), true);
+	writer.writeAttribute("swingInterval", convertSyncLevelFromInternalValueToFileValue((SyncLevel)swingInterval),
+	                      true);
 	if (tripletsOn) {
 		writer.writeAttribute("tripletsLevel", tripletsLevel);
 	}
@@ -1700,8 +1701,8 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "timePerTimerTick")) {
-				newTimePerTimerTick =
-				    (newTimePerTimerTick & (uint64_t)0xFFFFFFFF) | ((uint64_t)reader.readTagOrAttributeValueInt() << 32);
+				newTimePerTimerTick = (newTimePerTimerTick & (uint64_t)0xFFFFFFFF)
+				                      | ((uint64_t)reader.readTagOrAttributeValueInt() << 32);
 				reader.exitTag("timePerTimerTick");
 			}
 

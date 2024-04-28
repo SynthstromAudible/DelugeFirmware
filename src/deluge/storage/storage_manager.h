@@ -108,7 +108,7 @@ public:
 	virtual int32_t getNumCharsRemainingInValue() = 0;
 
 	virtual char const* readNextTagOrAttributeName() = 0;
-	virtual	char const* readTagOrAttributeValue() = 0;
+	virtual char const* readTagOrAttributeValue() = 0;
 	virtual int32_t readTagOrAttributeValueInt() = 0;
 	virtual int32_t readTagOrAttributeValueHex(int32_t errorValue) = 0;
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;

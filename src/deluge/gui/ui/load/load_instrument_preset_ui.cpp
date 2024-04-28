@@ -615,7 +615,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset(StorageManager& reader) {
 
 				error =
 				    reader.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType, false,
-				                                &initialInstrument, &tempFilePointer, &initialName, &initialDirPath);
+				                                  &initialInstrument, &tempFilePointer, &initialName, &initialDirPath);
 				if (error != Error::NONE) {
 					return;
 				}
@@ -919,7 +919,7 @@ giveUsedError:
 
 		// synth or kit
 		error = reader.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
-		                                    &newInstrument, &currentFileItem->filePointer, &enteredText, &currentDir);
+		                                      &newInstrument, &currentFileItem->filePointer, &enteredText, &currentDir);
 
 		if (error != Error::NONE) {
 			return error;

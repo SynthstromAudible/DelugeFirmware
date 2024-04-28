@@ -506,7 +506,8 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 			else if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME,
+				                         readAutomationUpToPos);
 				reader.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "phaseWidth")) {
@@ -539,7 +540,8 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 			else if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_VOLUME, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_B_VOLUME,
+				                         readAutomationUpToPos);
 				reader.exitTag("volume");
 			}
 			else if (!strcmp(tagName, "phaseWidth")) {
@@ -687,7 +689,8 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "mode") && storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
+			else if (!strcmp(tagName, "mode")
+			         && storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
 				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 				if (arpSettings) {
 					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
@@ -1011,7 +1014,8 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 			else if (!strcmp(tagName, "rate")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_RATE, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_MOD_FX_RATE,
+				                         readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "feedback")) {
@@ -1185,12 +1189,14 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK,
+				                         readAutomationUpToPos);
 				reader.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_DECAY, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_DECAY,
+				                         readAutomationUpToPos);
 				reader.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
@@ -1217,12 +1223,14 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK,
+				                         readAutomationUpToPos);
 				reader.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
 				ENSURE_PARAM_MANAGER_EXISTS
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_DECAY, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_DECAY,
+				                         readAutomationUpToPos);
 				reader.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
@@ -1273,7 +1281,8 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 	}
 
 	else {
-		Error result = ModControllableAudio::readTagFromFile(reader, tagName, paramManager, readAutomationUpToPos, song);
+		Error result =
+		    ModControllableAudio::readTagFromFile(reader, tagName, paramManager, readAutomationUpToPos, song);
 		if (result == Error::NONE) {}
 		else if (result != Error::RESULT_TAG_UNUSED) {
 			return result;
@@ -3202,7 +3211,8 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 		}
 		else if (!strcmp(tagName, "volume")) {
 			ENSURE_PARAM_MANAGER_EXISTS
-			patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME + s, readAutomationUpToPos);
+			patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_OSC_A_VOLUME + s,
+			                         readAutomationUpToPos);
 			reader.exitTag("volume");
 		}
 		else if (!strcmp(tagName, "transpose")) {
@@ -3363,7 +3373,8 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 										reader.exitTag("startLoopPos");
 									}
 									else if (!strcmp(tagName, "endLoopPos")) {
-										((SampleHolderForVoice*)holder)->loopEndPos = reader.readTagOrAttributeValueInt();
+										((SampleHolderForVoice*)holder)->loopEndPos =
+										    reader.readTagOrAttributeValueInt();
 										reader.exitTag("endLoopPos");
 									}
 									else {
@@ -3470,8 +3481,8 @@ void Sound::writeSourceToFile(StorageManager& writer, int32_t s, char const* tag
 			}
 
 			writer.writeAttribute("fileName", range->sampleHolder.audioFile
-			                                    ? range->sampleHolder.audioFile->filePath.get()
-			                                    : range->sampleHolder.filePath.get());
+			                                      ? range->sampleHolder.audioFile->filePath.get()
+			                                      : range->sampleHolder.filePath.get());
 			if (range->sampleHolder.transpose) {
 				writer.writeAttribute("transpose", range->sampleHolder.transpose);
 			}
@@ -3538,8 +3549,8 @@ void Sound::writeSourceToFile(StorageManager& writer, int32_t s, char const* tag
 				}
 
 				writer.writeAttribute("fileName", range->sampleHolder.audioFile
-				                                    ? range->sampleHolder.audioFile->filePath.get()
-				                                    : range->sampleHolder.filePath.get());
+				                                      ? range->sampleHolder.audioFile->filePath.get()
+				                                      : range->sampleHolder.filePath.get());
 
 				if (numRanges > 1) {
 					writer.closeTag();
@@ -3671,11 +3682,13 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 	else if (!strcmp(tagName, "envelope1")) {
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK,
+				                         readAutomationUpToPos);
 				reader.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_DECAY, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_DECAY,
+				                         readAutomationUpToPos);
 				reader.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
@@ -3694,11 +3707,13 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 	else if (!strcmp(tagName, "envelope2")) {
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK,
+				                         readAutomationUpToPos);
 				reader.exitTag("attack");
 			}
 			else if (!strcmp(tagName, "decay")) {
-				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_DECAY, readAutomationUpToPos);
+				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_DECAY,
+				                         readAutomationUpToPos);
 				reader.exitTag("decay");
 			}
 			else if (!strcmp(tagName, "sustain")) {
@@ -3731,11 +3746,13 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		reader.exitTag("modulator2Amount");
 	}
 	else if (!strcmp(tagName, "modulator1Feedback")) {
-		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_FEEDBACK, readAutomationUpToPos);
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_0_FEEDBACK,
+		                         readAutomationUpToPos);
 		reader.exitTag("modulator1Feedback");
 	}
 	else if (!strcmp(tagName, "modulator2Feedback")) {
-		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_FEEDBACK, readAutomationUpToPos);
+		patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_MODULATOR_1_FEEDBACK,
+		                         readAutomationUpToPos);
 		reader.exitTag("modulator2Feedback");
 	}
 	else if (!strcmp(tagName, "carrier1Feedback")) {
@@ -3820,7 +3837,8 @@ void Sound::writeParamsToFile(StorageManager& writer, ParamManager* paramManager
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
+	                                       writeAutomation);
 
 	patchedParams->writeParamAsAttribute(writer, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
@@ -3931,7 +3949,7 @@ void Sound::writeToFile(StorageManager& writer, bool savingSong, ParamManager* p
 	writer.writeAttribute("syncType", (int32_t)lfoGlobalSyncType, false);
 	// writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
 	writer.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(lfoGlobalSyncLevel),
-	                    false);
+	                      false);
 	writer.closeTag();
 
 	writer.writeOpeningTagBeginning("lfo2");
@@ -3978,7 +3996,7 @@ void Sound::writeToFile(StorageManager& writer, bool savingSong, ParamManager* p
 		writer.writeAttribute("syncType", (int32_t)arpSettings->syncType);
 		// writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
 		writer.writeAttribute("syncLevel",
-		                    currentSong->convertSyncLevelFromInternalValueToFileValue(arpSettings->syncLevel), true);
+		                      currentSong->convertSyncLevelFromInternalValueToFileValue(arpSettings->syncLevel), true);
 		writer.closeTag();
 	}
 
@@ -3993,12 +4011,12 @@ void Sound::writeToFile(StorageManager& writer, bool savingSong, ParamManager* p
 			    params::paramNameForFile(params::Kind::UNPATCHED_SOUND, knob->paramDescriptor.getJustTheParam()),
 			    false);
 			if (!knob->paramDescriptor.isJustAParam()) {
-				writer.writeAttribute("patchAmountFromSource", sourceToString(knob->paramDescriptor.getTopLevelSource()),
-				                    false);
+				writer.writeAttribute("patchAmountFromSource",
+				                      sourceToString(knob->paramDescriptor.getTopLevelSource()), false);
 
 				if (knob->paramDescriptor.hasSecondSource()) {
 					writer.writeAttribute("patchAmountFromSecondSource",
-					                    sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
+					                      sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
 				}
 			}
 			writer.closeTag();

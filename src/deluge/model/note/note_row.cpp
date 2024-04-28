@@ -2955,7 +2955,7 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 
 		else if (!strcmp(tagName, "drumIndex")) {
 			drum = (Drum*)reader.readTagOrAttributeValueInt(); // Sneaky - we store an integer in place of this pointer,
-			                                                 // then swap it back to something meaningful later
+			                                                   // then swap it back to something meaningful later
 		}
 
 		else if (!strcmp(tagName, "gateOutput")) {

@@ -1006,8 +1006,8 @@ void AudioClip::writeDataToFile(StorageManager& writer, Song* song) {
 
 	writer.writeAttribute("trackName", output->name.get());
 
-	writer.writeAttribute("filePath",
-	                    sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get() : sampleHolder.filePath.get());
+	writer.writeAttribute("filePath", sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get()
+	                                                         : sampleHolder.filePath.get());
 	writer.writeAttribute("startSamplePos", sampleHolder.startPos);
 	writer.writeAttribute("endSamplePos", sampleHolder.endPos);
 	writer.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);

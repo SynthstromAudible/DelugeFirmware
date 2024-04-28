@@ -138,7 +138,7 @@ public:
 protected:
 	virtual void writeReferenceAttributesToFile(
 	    StorageManager& writer) = 0; // These go both into MIDIDEVICES.XML and also any song/preset
-	                               // files where there's a reference to this Device.
+	                                 // files where there's a reference to this Device.
 	void writeDefinitionAttributesToFile(StorageManager& writer); // These only go into MIDIDEVICES.XML.
 };
 

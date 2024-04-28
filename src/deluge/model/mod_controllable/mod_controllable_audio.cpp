@@ -884,7 +884,8 @@ void ModControllableAudio::writeTagsToFile(StorageManager& writer) {
 	writer.writeAttribute("analog", delay.analog);
 	writer.writeAttribute("syncType", (int32_t)delay.syncType, true);
 	// writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
-	writer.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(delay.syncLevel), true);
+	writer.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(delay.syncLevel),
+	                      true);
 	writer.closeTag();
 
 	// Sidechain
@@ -892,7 +893,7 @@ void ModControllableAudio::writeTagsToFile(StorageManager& writer) {
 	writer.writeAttribute("syncType", (int32_t)sidechain.syncType, true);
 	// writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
 	writer.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(sidechain.syncLevel),
-	                    true);
+	                      true);
 	writer.writeAttribute("attack", sidechain.attack);
 	writer.writeAttribute("release", sidechain.release);
 	writer.closeTag();
@@ -916,14 +917,15 @@ void ModControllableAudio::writeTagsToFile(StorageManager& writer) {
 			    writer,
 			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
 			writer.writeAttribute("relative", knob->relative);
-			writer.writeAttribute("controlsParam",
-			                    params::paramNameForFile(unpatchedParamKind_, knob->paramDescriptor.getJustTheParam()));
+			writer.writeAttribute("controlsParam", params::paramNameForFile(unpatchedParamKind_,
+			                                                                knob->paramDescriptor.getJustTheParam()));
 			if (!knob->paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
-				writer.writeAttribute("patchAmountFromSource", sourceToString(knob->paramDescriptor.getTopLevelSource()));
+				writer.writeAttribute("patchAmountFromSource",
+				                      sourceToString(knob->paramDescriptor.getTopLevelSource()));
 
 				if (knob->paramDescriptor.hasSecondSource()) {
 					writer.writeAttribute("patchAmountFromSecondSource",
-					                    sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
+					                      sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
 				}
 			}
 
@@ -946,22 +948,22 @@ void ModControllableAudio::writeParamAttributesToFile(StorageManager& writer, Pa
                                                       bool writeAutomation, int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->writeParamAsAttribute(writer, "stutterRate", params::UNPATCHED_STUTTER_RATE, writeAutomation, false,
-	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(writer, "stutterRate", params::UNPATCHED_STUTTER_RATE, writeAutomation,
+	                                       false, valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(writer, "sampleRateReduction", params::UNPATCHED_SAMPLE_RATE_REDUCTION,
 	                                       writeAutomation, false, valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(writer, "bitCrush", params::UNPATCHED_BITCRUSHING, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation, false,
-	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(writer, "modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation,
+	                                       false, valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(writer, "modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation,
 	                                       false, valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(writer, "compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
 	                                       writeAutomation, false, valuesForOverride);
 }
 
-void ModControllableAudio::writeParamTagsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation,
-                                                int32_t* valuesForOverride) {
+void ModControllableAudio::writeParamTagsToFile(StorageManager& writer, ParamManager* paramManager,
+                                                bool writeAutomation, int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	writer.writeOpeningTagBeginning("equalizer");
@@ -984,7 +986,8 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 	if (!strcmp(tagName, "equalizer")) {
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "bass")) {
-				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BASS, readAutomationUpToPos);
+				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BASS,
+				                           readAutomationUpToPos);
 				reader.exitTag("bass");
 			}
 			else if (!strcmp(tagName, "treble")) {
@@ -1007,7 +1010,8 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 	}
 
 	else if (!strcmp(tagName, "stutterRate")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_STUTTER_RATE, readAutomationUpToPos);
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_STUTTER_RATE,
+		                           readAutomationUpToPos);
 		reader.exitTag("stutterRate");
 	}
 
@@ -1018,7 +1022,8 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 	}
 
 	else if (!strcmp(tagName, "bitCrush")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BITCRUSHING, readAutomationUpToPos);
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BITCRUSHING,
+		                           readAutomationUpToPos);
 		reader.exitTag("bitCrush");
 	}
 

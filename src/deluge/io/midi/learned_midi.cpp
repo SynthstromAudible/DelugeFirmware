@@ -88,7 +88,7 @@ void LearnedMIDI::writeToFile(StorageManager& writer, char const* commandName, i
 	}
 
 	writer.writeOpeningTagBeginning(commandName);
-	writeAttributesToFile( writer, midiMessageType);
+	writeAttributesToFile(writer, midiMessageType);
 
 	if (device) {
 		writer.writeOpeningTagEnd();

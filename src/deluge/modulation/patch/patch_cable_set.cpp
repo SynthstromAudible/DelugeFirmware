@@ -828,7 +828,8 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 					rangeAdjustable = reader.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName, "depthControlledBy")) {
-					while (*(tagName = reader.readNextTagOrAttributeName()) && numPatchCables < kMaxNumPatchCables - 1) {
+					while (*(tagName = reader.readNextTagOrAttributeName())
+					       && numPatchCables < kMaxNumPatchCables - 1) {
 						if (!strcmp(tagName, "patchCable")) {
 							PatchSource rangeSource = PatchSource::NONE;
 							AutoParam tempRangeParam;
@@ -942,8 +943,8 @@ void PatchCableSet::writePatchCablesToFile(StorageManager& writer, bool writeAut
 		writer.writeOpeningTagBeginning("patchCable");
 		writer.writeAttribute("source", sourceToString(patchCables[c].from));
 		writer.writeAttribute("destination",
-		                    params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
-		                                             patchCables[c].destinationParamDescriptor.getJustTheParam()));
+		                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+		                                               patchCables[c].destinationParamDescriptor.getJustTheParam()));
 
 		writer.write("\n");
 		writer.printIndents();

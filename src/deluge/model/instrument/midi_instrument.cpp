@@ -333,8 +333,8 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 
 	if (!strcmp(tagName, "modKnobs")) {
 		readModKnobAssignmentsFromFile(
-		    storageManager, kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get it. I
-		                               // think it'd only be relevant for pre-V2.0 song file... maybe?
+		    storageManager, kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get
+		                                         // it. I think it'd only be relevant for pre-V2.0 song file... maybe?
 	}
 	else if (!strcmp(tagName, "polyToMonoConversion")) {
 		while (*(tagName = reader.readNextTagOrAttributeName())) {

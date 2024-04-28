@@ -109,7 +109,7 @@ bool Kit::writeDataToFile(StorageManager& writer, Clip* clipForSavingOutputOnly,
 	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == NULL);
 
 	writer.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
-	                           // Attributes end
+	                             // Attributes end
 	// saving song
 	if (!clipForSavingOutputOnly) {
 		if (midiInput.containsSomething()) {
@@ -147,8 +147,8 @@ bool Kit::writeDataToFile(StorageManager& writer, Clip* clipForSavingOutputOnly,
 				}
 				// Or if saving Song, we know there's a NoteRow, so no need to save the ParamManager
 
-				writeDrumToFile(writer, drum, paramManagerForDrum, (clipForSavingOutputOnly == NULL), &selectedDrumIndex,
-				                &drumIndex, song);
+				writeDrumToFile(writer, drum, paramManagerForDrum, (clipForSavingOutputOnly == NULL),
+				                &selectedDrumIndex, &drumIndex, song);
 
 				removeDrumFromLinkedList(drum);
 				drum->next = NULL;
