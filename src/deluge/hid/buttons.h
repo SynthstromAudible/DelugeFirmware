@@ -26,7 +26,6 @@ namespace Buttons {
 ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 bool isButtonPressed(deluge::hid::Button b);
 bool isShiftButtonPressed();
-bool isNewOrShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);
 
 /**

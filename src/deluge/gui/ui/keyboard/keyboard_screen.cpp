@@ -493,7 +493,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
 			bool result;
-			if (Buttons::isNewOrShiftButtonPressed()) {
+			if (Buttons::isShiftButtonPressed()) {
 				result = createNewInstrument(OutputType::KIT);
 			}
 			else {
@@ -508,7 +508,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
 		if (on) {
 			bool result;
-			if (Buttons::isNewOrShiftButtonPressed()) {
+			if (Buttons::isShiftButtonPressed()) {
 				result = createNewInstrument(OutputType::SYNTH);
 			}
 			else {
