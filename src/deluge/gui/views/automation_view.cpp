@@ -1688,7 +1688,7 @@ void AutomationView::handleKitButtonAction(OutputType outputType, bool on) {
 			initParameterSelection();
 			resetParameterShortcutBlinking();
 		}
-		if (Buttons::isNewOrShiftButtonPressed()) {
+		if (Buttons::isShiftButtonPressed()) {
 			instrumentClipView.createNewInstrument(OutputType::KIT);
 		}
 		else {
@@ -1706,7 +1706,7 @@ void AutomationView::handleSynthButtonAction(OutputType outputType, bool on) {
 			resetParameterShortcutBlinking();
 		}
 		// this gets triggered when you change an existing clip to synth / create a new synth clip in song mode
-		if (Buttons::isNewOrShiftButtonPressed()) {
+		if (Buttons::isShiftButtonPressed()) {
 			instrumentClipView.createNewInstrument(OutputType::SYNTH);
 		}
 		// this gets triggered when you change clip type to synth from within inside clip view
