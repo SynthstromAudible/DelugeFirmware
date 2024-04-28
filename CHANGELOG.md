@@ -6,17 +6,16 @@
 
 ### Sound Engine
 
-- Added an adapted version of the reverb found in Émilie Gillet's Mutable Instruments Rings module. Can be enabled via a
-  new `REVERB MODEL` sub-menu under the existing Reverb menu.
-    - The Mutable reverb model has been set as the default reverb model for new songs. Old songs will respect the reverb
+- Added an adapted version of the reverb found in Émilie Gillet's Mutable Instruments Rings module. Switch between reverb types within the new `MODEL` sub-menu under `SOUND > FX > REVERB`.
+    - This `MUTABLE` reverb model has been set as the default reverb model for new songs. Old songs will respect the reverb
       model used with those songs.
 - Added compressors to synths, kits, audio clips, and kit rows. The compressor can be enabled and edited from their
   respective menus.
-- Fixed a bug in compressor makeup gain that was causing lower volume than official with low compression amounts. For
+- Fixed a bug in compressor makeup gain that was causing lower volume than official firmware with low compression amounts. For
   songs made with community release 1.0.x, you can compensate by slightly lowering the song master level. This is done
-  via affect entire in song/arranger mode, or by using the song menu (press select) -> Master -> Volume
-- Fixed stereo unison spread + ringmod + noise causing excessively loud output.
-- Fixed some bugs around the waveform Loop Lock feature which allowed setting invalid loop points.
+  via affect entire in song/arranger mode, or by entering the `SONG MENU` by pressing `SELECT` in Song View and navigating to  `MASTER > VOLUME`
+- Fixed Stereo Unison Spread + Ringmod Synth Mode + Noise causing excessively loud output.
+- Fixed some bugs around the Waveform Loop Lock feature which allowed setting invalid loop points.
 
 ### User Interface
 
@@ -25,84 +24,76 @@
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
 - Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.
   - You can also use the `SELECT ENCODER` while in the `AUTOMATION VIEW EDITOR` to scroll to any patch cables that exist.
-- Updated `AUTOMATION VIEW EDITOR` to allow you to edit Bipolar params according to their Bipolar nature. E.g. Positive values are shown in the top four pads, Negative value in the bottom four pads, and the Middle value is shown by not lighting up any pads.
+- Updated `AUTOMATION VIEW EDITOR` to allow you to edit Bipolar params according to their Bipolar nature. E.g. positive values are shown in the top four pads, negative value in the bottom four pads, and the middle value (0) is shown by not lighting up any pads.
 - Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset
   file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the
   Automation Overview and with the shortcut combos (e.g. Shift + Shortcut Pad).
-- Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of the
-  Deluge grid (second pad from the top). Toggle interpolation on/off using Shift + Interpolation shortcut pad. The
+- Updated `AUTOMATION VIEW` to move the `INTERPOLATION` shortcut to the `INTERPOLATION` pad in the first column of the
+  Deluge grid (second pad from the top). Toggle interpolation on/off using `SHIFT` + `INTERPOLATION` shortcut pad. The
   Interpolation shortcut pad will blink to indicate that interpolation is enabled.
-- Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
-- Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
-- Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to provide the ability to access the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu press Clip (if you are in a clip) or Song (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` while you are still in the menu. You will be able to interact with the grid to edit automation for the current parameter / patch cable selected in the menu.
-- Added configuration of the number of count-in bars under `SETTINGS > RECORDING > COUNT-IN BARS`
+- Updated `AUTOMATION VIEW` to provide access to `SETTINGS` menu (`SHIFT` + press `SELECT`)
+- Updated `AUTOMATION VIEW` to provide access to the `SOUND` menu (press `SELECT`)
+- Updated automatable parameter editing menu's (accessed via `SOUND` menu or `SHIFT + PARAMETER SHORTCUT`) to provide the ability to access the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the parameter menu press `CLIP` (if you are in a clip) or `SONG` (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` for that respective parameter or patch cable.
+- Added configuration of the number of `COUNT-IN BARS` from 1 to 4. Found under `SETTINGS > RECORDING > COUNT-IN BARS`.
 - Added Mod Button popups to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and Type,
   Reverb Room Size, Compressor Mode, ModFX Type and Param).
-- Added a menu for song parameters, accessible in Song View and Arranger View by pressing on the Select Encoder.
-- Added a `AFFECT ENTIRE GLOBAL FX MENU` to Kits, accessible in Kit Clip View by pressing on the Select Encoder with
-  Affect Entire enabled.
-- Added support for LUMI Keys SYSEX protocol protocol. When hosting a LUMI Keys keyboard, the current scale will
-  automatically be set on the keyboard.
-- Streamlined recording new clips in Grid mode while Deluge is playing. Short-press empty clip pads in Grid green mode
-  while recording is enabled to automatically create a new clip and queue it for
-  recording at the start of the next bar.
-- Fixed a bug preventing clip selection while Shift was held.
-- Fixed numerous bugs, including some crash bugs, around the display of quantized stutter.
-- Fixed a bug with shift+scroll on small menus which would allow moving off the end of the menu, causing crashes.
+- Added a menu for Song-level parameters, accessible in `SONG VIEW` and `ARRANGER VIEW` by pressing `SELECT`.
+- Added a `KIT FX MENU` to KITS which allows you to customize the AFFECT ENTIRE KIT parameters with greater control.   Accessible in `KIT CLIP VIEW` by pressing `SELECT` with `AFFECT ENTIRE` enabled.
+- Added support for LUMI Keys SYSEX protocol. When hosting a LUMI Keys keyboard, the Deluge's current scale will
+  automatically be set on the LUMI's keyboard.
+- Streamlined recording new clips in `GRID VIEW` while the Deluge is playing. Short-press empty clip pads in Grid View's `GREEN MODE` while recording is armed to automatically create a new clip and queue it to record at the start of the next bar.
+- Fixed a bug preventing clip selection while `SHIFT` was held.
+- Fixed numerous bugs, including some crash bugs, around the display of `QUANTIZED STUTTER`.
+- Fixed a bug with `SHIFT + SCROLL SELECT ENCODER` on small menus which would allow moving off the end of the menu, causing crashes.
 - Fixed several bugs with pad grid rendering.
-- Added Master Chromatic Transpose of All Scale Mode Instrument Clips from All Song Views (Song Row/Grid, Arranger,
-  Arranger Automation and Performance View.) Uses the same shortcut as in a Synth / Midi / CV clip (Press and
-  turn `▼︎▲︎` to transpose the clips by +/- 1 semitone). The number of semitones transposed is customizable (Press shift
-  and turn `▼︎▲︎`). After transposing the display show the new Root Note (and Scale Name if you have an OLED display).
-- Added sidebar functionality in keyboard screens - by default it is velocity (red) and mod wheel (blue), holding a pad
-  sets it momentarily and tapping latches it. The functionality can be changed by holding the top pad and scrolling
-  select.
-- Updated the count-in setting to allow specifying the number of bars (1-4).
-- Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views.
-- Added ability to save a synth/sample drum back to an instrument preset by holding audition and pressing save.
-- Mod (Gold) Encoders learned to the Mod Matrix can now access the full range of the Mod Matrix / Patch Cable parameters (e.g. from -50 to +50).
+- Added Master Chromatic Transpose of All Scale Mode Instrument Clips from any SONG View (SONG, ARRANGER,
+  ARRANGER AUTOMATION and PERFORMANCE VIEW.) Uses the same shortcut as in a Synth/Midi/CV clip (Press and
+  turn `▼︎▲︎` to transpose all clips by +/- 1 semitone). The number of semitones transposed is customizable (Press `SHIFT`
+  + turn `▼︎▲︎`). After transposing, the display shows the new Root Note (and Scale Name on OLED displays).
+- Added `SIDEBAR CONTROLS` in  `KEYBOARD VIEW` for synths. By default the two sidebar columns pertain to `VELOCITY` (red) and `MOD WHEEL` (blue). Holding a pad sets it momentarily to that value, tapping a pad latches it to that value. The functionality can be changed per column by holding the top pad and turning `SELECT` and include 'CHORDS', `CHORD MEMORY`, and `SCALES`.
+- Added a `VU METER` toggle that displays the VU Meter on the sidebar in `SONG`, `ARRANGER`, & `PERFORMANCE VIEW`.
+- Added ability to save a drum kit row back to an synth preset by pressing `AUDITION` + `SAVE`.
+- Mod (Gold) Encoders learned to the Mod Matrix can now access the full range of the Mod Matrix / Patch Cable parameters (Values from -50 to +50 where previously only 0 to +50 were accesible via Mod (Gold) Encoders).
 - Added feature to automatically load song projects at startup.
-    - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`.
+    - To activate the feature, press `SHIFT` + `SELECT`: `MENU > DEFAULTS > STARTUP SONG`.
     - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
     - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
-- Added a feature save user-defined pad brightness level and restore it at startup.
-- Mod (Gold) Encoder LED indicators are now Bipolar for Bipolar params (e.g. Pan, Pitch, Patch Cables). Positive values illuminate the top two LEDs. Negative values illuminate the bottom two LEDs. The middle value doesn't light up any LEDs. 
-- Added new `High CPU Usage Indicator`. The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
+- Added a feature which saves user-defined pad brightness level and restores it at startup. `SETTINGS>DEFAULTS>PAD BRIGHTNESS`
+- Mod (Gold) Encoder LED indicators are now bipolar for bipolar params (e.g. `PAN`, `PITCH`, Patch Cables). Positive values illuminate the top two LEDs. Negative values illuminate the bottom two LEDs. The middle value doesn't light up any LEDs. 
+- Added new `High CPU Usage Indicator`. The `PLAY` button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
   - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
-- Removed ability to convert an Audio Clip to an Instrument Clip (Synth / Kit / MIDI / CV) as this conversion process is error/bug prone.
-- Restricted changing Synth/MIDI/CV Instrument CLip types to the Kit Instrument Clip Type and vice versa if the clip is not empty.
+- Removed ability to convert an Audio Clip to an Instrument Clip (Synth/Kit/MIDI/CV) as this conversion process is currently error/bug prone.
+- Restricted changing Synth/MIDI/CV Clips to the Kit Clips and vice versa if the clip is not empty.
 - Added retrigger to all keyboard views.
-- Added a new default setting that controls which playback mode new slices of a kit will get. 
-- Added indicators to the waveform loop lock feature for both 7seg (rightmost `.`) and OLED (lock indicator).
+- Added a new default setting that controls which playback mode new slices of a kit will receive. 
+- Added indicators when `WAVEFORM LOOP LOCK` is enabled. 7SEG displays a rightmost `.` on screen and OLED displays a lock icon.
 - Modified waveform marker rendering to improve clarity.
 - Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/menu_hierarchies.md)
-- Added MIDI learning of Song Params
-- Added Synth/MIDI/CV clip configuration of note row play direction. Hold audition pad while entering the play direction menu to set the play direction for the selected note row. While in the note row play direction menu, you can select other note rows to quickly set the play directiom for multiple note rows.
+- Added MIDI learning of Song Params.
+- Added Synth/MIDI/CV clip configuration of note row play direction. Hold `AUDITION` while entering the `PLAY DIRECTION` menu to set the play direction for the selected note row. While in the note row play direction menu, you can select other note rows to quickly set the play directiom for multiple note rows.
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
-- Added parameter name (including mod matrix / patch cable mappings) to Mod (Gold) Encoder popups.
+- Added parameter names (including mod matrix / patch cable mappings) to Mod (Gold) Encoder popups.
 - `ARRANGER VIEW` and `SONG VIEW` now display the name of the current view on the screen.
 - The 12TET note name is now displayed along with the MIDI note number.
-- Added a new community setting which allows emulating the 7SEG style on the OLED display.
+- Added a new community setting which allows emulating the 7SEG style on the OLED display. When set to 'TOGGLE' press `SHIFT`+`LEARN/INPUT`+`AFFECT ENTIRE` to switch to the emulated 7SEG display. 
 - Fixed several cases where popups could get stuck open.
 - Fixed a number of minor rendering bugs.
 
 ### Sequencer
 
-- When changing instrument presets in session or arranger view all presets are now changed. Individual clips can still
-  have their presets changed by first entering the clip.
+- When changing instrument presets in `SONG VIEW` or `ARRANGER VIEW`, all pertaining clips of that instrument switch as well. Individual clips can still have only their preset changed by doing so in `CLIP VIEW`.
 - Added support for 5 and 6 note scales.
 - Added 8 new built-in scales: Melodic Minor, Hungarian Minor, Marva (Indian), Arabian, Whole Tone, Blues, Pentatonic
   Minor, Hirajoshi.
-- Added "play `ONCE`" clip launch mode, settable in `ROW VIEW` (Song view) by pressing the Select Encoder while holding
-  the mute pad of a row. Causes the clip to play once when triggered and then mute without changing the section.
+- Added `ONCE CLIP` launch mode, which allows a clip to play just once when launched and then mute itself. Settable in Song's `ROWS VIEW` by holding the `MUTE` pad of a row and then pressing `SELECT`. Causes 
 - Added `NOT FILL` note probability. Similar to the `FILL` probability but only plays when the `FILL` button is *not*
   pressed.
 - Added support for copy/paste of single rows.
-- Added support for "gentle paste" of notes which pastes notes without removing old ones.
+- Added support for notes to `PASTE GENTLY` which pastes notes without removing old ones.
 - Fixed numerous crash bugs around parameter automation when entering and leaving clip view.
-- The default ModFX type for songs is now DISABLED rather than FLANGER.
+- The default Mod-FX type for songs is now DISABLED rather than FLANGER.
 - The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without
   unexpectedly changing the scale and root note of the whole song.
 - The arpeggiator has been completely redesigned to have advanced features for the user like independent Octave and Note
@@ -111,14 +102,14 @@ In addition, a number of improvements have been made to how the OLED display is 
 
 ### Audio Clips
 
-- The default ModFX type is now DISABLED rather than FLANGER for Audio Clips (this means ModFX can be disabled on Audio
+- The default Mod-FX type is now DISABLED rather than FLANGER for Audio Clips (this means Mod-FX can be disabled on Audio
   Clips which was not previously possible).
 
 ### Kits
 
 - Drum randomization is no longer limited to only 10 sounds per folder.
 - Fixed several crashes related to drum randomization.
-- The default ModFX type for kit affect-entire is now DISABLED rather than FLANGER.
+- The default Mod-FX type for kit affect-entire is now DISABLED rather than FLANGER.
 
 ### MIDI
 
