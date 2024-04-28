@@ -38,8 +38,11 @@ Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating)
 		tempFilePath.concatenate(filename.get());
 		bool fileExists = storageManager.fileExists(tempFilePath.get(), &filePointer);
 		if (!fileExists) {
-			D_PRINTLN("couldn't get filepath for file %d", filename.get());
-			return Error::FILE_NOT_FOUND;
+			// this is recoverable later - will make a default synth or browse from top folder when encountering the
+			// null filepointer
+			D_PRINTLN("couldn't get filepath for file %s", filename.get());
+			// so we don't look for it again
+			newInstrument->existsOnCard = false;
 		}
 	}
 
