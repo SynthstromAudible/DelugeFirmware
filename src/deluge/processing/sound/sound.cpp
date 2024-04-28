@@ -681,7 +681,8 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 				}
 				storageManager.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "mode")) {
+			else if (!strcmp(tagName, "mode")
+			         && storageManager.firmware_version < FirmwareVersion::community({1, 2, 0})) {
 				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 				// but only if the new params are not already read and set,
 				// that is, if we detect they have a value other than default
