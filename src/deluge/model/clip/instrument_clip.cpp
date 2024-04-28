@@ -2669,14 +2669,18 @@ someError:
 					arpSettings.syncType = (SyncType)storageManager.readTagOrAttributeValueInt();
 					storageManager.exitTag("syncType");
 				}
-				else if (!strcmp(tagName, "mode")
-				         && storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+				else if (!strcmp(tagName, "mode")) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+					// but only if the new params are not already read and set,
+					// that is, if we detect they have a value other than default
 					OldArpMode oldMode = stringToOldArpMode(storageManager.readTagOrAttributeValue());
-					arpSettings.mode = oldModeToArpMode(oldMode);
-					arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
-					arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
-					arpSettings.updatePresetFromCurrentSettings();
+					if (arpSettings.mode == ArpMode::OFF && arpSettings.noteMode == ArpNoteMode::UP
+					    && arpSettings.octaveMode == ArpOctaveMode::UP) {
+						arpSettings.mode = oldModeToArpMode(oldMode);
+						arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
+						arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
+						arpSettings.updatePresetFromCurrentSettings();
+					}
 					storageManager.exitTag("mode");
 				}
 				else if (!strcmp(tagName, "arpMode")) {
