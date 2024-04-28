@@ -272,14 +272,6 @@ bool shiftHasChanged() {
 	return toReturn;
 }
 
-bool isNewOrShiftButtonPressed() {
-#ifdef BUTTON_NEW_X
-	return buttonStates[BUTTON_NEW_X][BUTTON_NEW_Y];
-#else
-	return buttonStates[shiftButtonCoord.x][shiftButtonCoord.y];
-#endif
-}
-
 // Correct any misunderstandings
 void noPressesHappening(bool inCardRoutine) {
 	for (int32_t x = 0; x < NUM_BUTTON_COLS; x++) {

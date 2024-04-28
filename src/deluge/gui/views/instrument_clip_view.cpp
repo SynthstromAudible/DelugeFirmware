@@ -443,7 +443,7 @@ doOther:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			if (Buttons::isNewOrShiftButtonPressed()) {
+			if (Buttons::isShiftButtonPressed()) {
 				createNewInstrument(OutputType::KIT);
 			}
 			else {
@@ -460,7 +460,7 @@ doOther:
 			}
 
 			if (currentUIMode == UI_MODE_NONE) {
-				if (Buttons::isNewOrShiftButtonPressed()) {
+				if (Buttons::isShiftButtonPressed()) {
 					createNewInstrument(OutputType::SYNTH);
 				}
 				else {
