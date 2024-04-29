@@ -111,7 +111,7 @@ public:
 	virtual bool wantsToBeginArrangementRecording() { return armedForRecording; }
 
 	// FIXME:I think that supplying clip here is only a hangover from old pre-2.0 files...
-	virtual Error readFromFile(StorageManager& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	virtual Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 
 	virtual bool readTagFromFile(Deserializer& reader, char const* tagName);
 	void writeToFile(StorageManager& reader, Clip* clipForSavingOutputOnly, Song* song);

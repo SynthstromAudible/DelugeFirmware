@@ -263,7 +263,7 @@ bool Output::writeDataToFile(StorageManager& writer, Clip* clipForSavingOutputOn
 }
 
 // Most classes inheriting from Output actually override this with their own version...
-Error Output::readFromFile(StorageManager& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error Output::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
