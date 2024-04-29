@@ -50,7 +50,7 @@ public:
 	                            Kit** kitWithMostReverb, int32_t* highestReverbAmountFound);
 
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
-	bool writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song);
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
 	void deleteBackedUpParamManagers(Song* song);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack,
 	                   PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE) override;

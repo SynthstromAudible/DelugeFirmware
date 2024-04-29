@@ -45,7 +45,7 @@ void MIDIDrum::unassignAllVoices() {
 	}
 }
 
-void MIDIDrum::writeToFile(Serializer &writer, bool savingSong, ParamManager* paramManager) {
+void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("midiOutput");
 
 	writer.writeAttribute("channel", channel, false);

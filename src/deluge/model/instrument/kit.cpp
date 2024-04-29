@@ -85,7 +85,7 @@ Drum* Kit::getPrevDrum(Drum* fromDrum) {
 	return thisDrum;
 }
 
-bool Kit::writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song) {
+bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
 	Instrument::writeDataToFile(writer, clipForSavingOutputOnly, song);
 
@@ -239,7 +239,7 @@ moveOn:
 	return true;
 }
 
-void Kit::writeDrumToFile(Serializer &writer, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
+void Kit::writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
                           int32_t* selectedDrumIndex, int32_t* drumIndex, Song* song) {
 	if (thisDrum == selectedDrum) {
 		*selectedDrumIndex = *drumIndex;

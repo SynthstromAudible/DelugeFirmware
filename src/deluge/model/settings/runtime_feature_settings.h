@@ -99,7 +99,7 @@ public:
 	inline const char* getStartupSong() { return startupSong.get(); }
 	void init();
 	void readSettingsFromFile(StorageManager& reader);
-	void writeSettingsToFile(StorageManager &writer);
+	void writeSettingsToFile(StorageManager& writer);
 
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};

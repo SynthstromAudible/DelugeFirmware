@@ -65,17 +65,17 @@ public:
 	inline int32_t getMasterChannel() { return (channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE) * 15; }
 
 	void writeAttributesToFile(Serializer& writer, int32_t midiMessageType);
-	void writeToFile(Serializer &writer, char const* commandName,
+	void writeToFile(Serializer& writer, char const* commandName,
 	                 int32_t midiMessageType); // Writes the actual tag in addition to the attributes
 	void readFromFile(Deserializer& reader, int32_t midiMessageType);
 
-	inline void writeNoteToFile(Serializer &writer, char const* commandName) {
+	inline void writeNoteToFile(Serializer& writer, char const* commandName) {
 		writeToFile(writer, commandName, MIDI_MESSAGE_NOTE);
 	}
-	inline void writeCCToFile(Serializer &writer, char const* commandName) {
+	inline void writeCCToFile(Serializer& writer, char const* commandName) {
 		writeToFile(writer, commandName, MIDI_MESSAGE_CC);
 	}
-	inline void writeChannelToFile(Serializer &writer, char const* commandName) {
+	inline void writeChannelToFile(Serializer& writer, char const* commandName) {
 		writeToFile(writer, commandName, MIDI_MESSAGE_NONE);
 	}
 

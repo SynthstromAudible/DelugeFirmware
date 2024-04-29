@@ -3199,7 +3199,7 @@ getOut: {}
 	return Error::NONE;
 }
 
-void NoteRow::writeToFile(Serializer &writer, int32_t drumIndex, InstrumentClip* clip) {
+void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip) {
 	writer.writeOpeningTagBeginning("noteRow");
 
 	bool forKit = (clip->output->type == OutputType::KIT);

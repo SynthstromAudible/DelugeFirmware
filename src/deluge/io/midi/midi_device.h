@@ -47,7 +47,7 @@ public:
 		mpeUpperZoneLastMemberChannel = 15;
 	}
 	int32_t channelToZone(int32_t inputChannel);
-	void writeToFile(Serializer &writer, char const* tagName);
+	void writeToFile(Serializer& writer, char const* tagName);
 	bool worthWritingToFile();
 	void readFromFile(Deserializer& reader, MIDIDevice* deviceToSendMCMsOn);
 	void moveUpperZoneOutOfWayOfLowerZone();
@@ -86,16 +86,16 @@ public:
 class MIDIDevice {
 public:
 	MIDIDevice();
-	void writeReferenceToFile(Serializer &writer, char const* tagName = "device");
+	void writeReferenceToFile(Serializer& writer, char const* tagName = "device");
 	virtual void writeToFlash(uint8_t* memory) = 0;
 	virtual char const* getDisplayName() = 0;
-	void writeToFile(Serializer &writer, char const* tagName);
+	void writeToFile(Serializer& writer, char const* tagName);
 	void readFromFile(Deserializer& reader);
 	void dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb);
 	bool wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter);
 	void sendAllMCMs();
 	bool worthWritingToFile();
-	void writePorts(Serializer &writer);
+	void writePorts(Serializer& writer);
 
 	virtual void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) = 0;
 
@@ -137,9 +137,9 @@ public:
 
 protected:
 	virtual void writeReferenceAttributesToFile(
-	    Serializer &writer) = 0; // These go both into MIDIDEVICES.XML and also any song/preset
-	                                 // files where there's a reference to this Device.
-	void writeDefinitionAttributesToFile(Serializer &writer); // These only go into MIDIDEVICES.XML.
+	    Serializer& writer) = 0; // These go both into MIDIDEVICES.XML and also any song/preset
+	                             // files where there's a reference to this Device.
+	void writeDefinitionAttributesToFile(Serializer& writer); // These only go into MIDIDEVICES.XML.
 };
 
 class MIDIDeviceUSB : public MIDIDevice {
@@ -160,7 +160,7 @@ public:
 class MIDIDeviceUSBHosted : public MIDIDeviceUSB {
 public:
 	MIDIDeviceUSBHosted() {}
-	void writeReferenceAttributesToFile(Serializer &writer);
+	void writeReferenceAttributesToFile(Serializer& writer);
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 
@@ -228,7 +228,7 @@ public:
 class MIDIDeviceUSBUpstream final : public MIDIDeviceUSB {
 public:
 	MIDIDeviceUSBUpstream(uint8_t portNum = 0) : MIDIDeviceUSB(portNum) {}
-	void writeReferenceAttributesToFile(Serializer &writer);
+	void writeReferenceAttributesToFile(Serializer& writer);
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 };
@@ -238,7 +238,7 @@ public:
 	MIDIDeviceDINPorts() {
 		connectionFlags = 1; // DIN ports are always connected
 	}
-	void writeReferenceAttributesToFile(Serializer &writer);
+	void writeReferenceAttributesToFile(Serializer& writer);
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
@@ -249,7 +249,7 @@ public:
 class MIDIDeviceLoopback final : public MIDIDevice {
 public:
 	MIDIDeviceLoopback() { connectionFlags = 1; }
-	void writeReferenceAttributesToFile(Serializer &writer);
+	void writeReferenceAttributesToFile(Serializer& writer);
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);

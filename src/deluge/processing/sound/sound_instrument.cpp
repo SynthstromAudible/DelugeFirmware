@@ -38,7 +38,7 @@ namespace params = deluge::modulation::params;
 SoundInstrument::SoundInstrument() : MelodicInstrument(OutputType::SYNTH) {
 }
 
-bool SoundInstrument::writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song) {
+bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
 	// MelodicInstrument::writeDataToFile(writer, clipForSavingOutputOnly, song); // Nope, this gets called within the
 	// below call

@@ -75,13 +75,13 @@ public:
 	virtual void prepareForHibernation() {}
 	virtual void prepareDrumToHaveNoActiveClip() {}
 
-	virtual void writeToFile(Serializer &writer, bool savingSong, ParamManager* paramManager) = 0;
+	virtual void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) = 0;
 	virtual Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) = 0;
 	virtual void drumWontBeRenderedForAWhile();
 
 	virtual void getName(char* buffer) = 0; // May return up to 5 actual characters, so supply at least a char[6]
 	virtual void choke(ModelStackWithSoundFlags* modelStack) {} // modelStack can be NULL if you really insist
-	void writeMIDICommandsToFile(Serializer &writer);
+	void writeMIDICommandsToFile(Serializer& writer);
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,

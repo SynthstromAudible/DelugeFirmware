@@ -279,7 +279,7 @@ void MIDIInstrument::sendMIDIPGM() {
 	}
 }
 
-bool MIDIInstrument::writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song) {
+bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 	// NonAudioInstrument::writeDataToFile(writer, clipForSavingOutputOnly, song); // Nope, this gets called within the
 	// below call
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);

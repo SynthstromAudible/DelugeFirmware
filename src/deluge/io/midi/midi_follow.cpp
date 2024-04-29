@@ -766,7 +766,7 @@ bool MidiFollow::isFeedbackEnabled() {
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void MidiFollow::writeDefaultsToFile(StorageManager &writer) {
+void MidiFollow::writeDefaultsToFile(StorageManager& writer) {
 	// MidiFollow.xml
 	Error error = writer.createXMLFile(MIDI_DEFAULTS_XML, true);
 	if (error != Error::NONE) {

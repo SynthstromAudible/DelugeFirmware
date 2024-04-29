@@ -107,7 +107,7 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);
 void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory);
 void recountSmallestMPEZones();
-void writeDevicesToFile(StorageManager &writer);
+void writeDevicesToFile(StorageManager& writer);
 void readAHostedDeviceFromFile(Deserializer& reader);
 void readDevicesFromFile(StorageManager& reader);
 

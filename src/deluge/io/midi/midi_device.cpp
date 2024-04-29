@@ -43,7 +43,7 @@ MIDIDevice::MIDIDevice() {
 	mpeZoneBendRanges[MPE_ZONE_UPPER_NUMBERED_FROM_0][BEND_RANGE_FINGER_LEVEL] = 48;
 }
 
-void MIDIDevice::writeReferenceToFile(Serializer &writer, char const* tagName) {
+void MIDIDevice::writeReferenceToFile(Serializer& writer, char const* tagName) {
 	writer.writeOpeningTagBeginning(tagName);
 	writeReferenceAttributesToFile(writer);
 	writer.closeTag();
@@ -180,7 +180,7 @@ bool MIDIDevice::worthWritingToFile() {
 	        || !sendClock);
 }
 
-void MIDIDevice::writePorts(Serializer &writer) {
+void MIDIDevice::writePorts(Serializer& writer) {
 	ports[MIDI_DIRECTION_INPUT_TO_DELUGE].writeToFile(writer, "input");
 	ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].writeToFile(writer, "output");
 }
@@ -208,14 +208,14 @@ void MIDIDevice::readFromFile(Deserializer& reader) {
 	}
 }
 
-void MIDIDevice::writeDefinitionAttributesToFile(Serializer &writer) { // These only go into MIDIDEVICES.XML.
+void MIDIDevice::writeDefinitionAttributesToFile(Serializer& writer) { // These only go into MIDIDEVICES.XML.
 	if (hasDefaultVelocityToLevelSet()) {
 		writer.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
 	}
 	writer.writeAttribute("sendClock", sendClock);
 }
 
-void MIDIDevice::writeToFile(Serializer &writer, char const* tagName) {
+void MIDIDevice::writeToFile(Serializer& writer, char const* tagName) {
 	writer.writeOpeningTagBeginning(tagName);
 	writeReferenceAttributesToFile(writer);
 	writeDefinitionAttributesToFile(writer);
@@ -266,7 +266,7 @@ void MIDIPort::moveLowerZoneOutOfWayOfUpperZone() {
 	}
 }
 
-void MIDIPort::writeToFile(Serializer &writer, char const* tagName) {
+void MIDIPort::writeToFile(Serializer& writer, char const* tagName) {
 
 	int32_t numUpperMemberChannels = 15 - mpeUpperZoneLastMemberChannel;
 
@@ -464,7 +464,7 @@ void MIDIDeviceUSB::sendSysex(const uint8_t* data, int32_t len) {
 	}
 }
 
-void MIDIDeviceUSBHosted::writeReferenceAttributesToFile(Serializer &writer) {
+void MIDIDeviceUSBHosted::writeReferenceAttributesToFile(Serializer& writer) {
 	writer.writeAttribute("name", name.get());
 	writer.writeAttributeHex("vendorId", vendorId, 4);
 	writer.writeAttributeHex("productId", productId, 4);
@@ -519,7 +519,7 @@ void MIDIDeviceUSBHosted::callHook(Hook hook) {
 	}
 }
 
-void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile(Serializer &writer) {
+void MIDIDeviceUSBUpstream::writeReferenceAttributesToFile(Serializer& writer) {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
 	writer.writeAttribute("port", portNumber ? "upstreamUSB2" : "upstreamUSB", false);
 }
@@ -542,7 +542,7 @@ char const* MIDIDeviceUSBUpstream::getDisplayName() {
 	}
 }
 
-void MIDIDeviceDINPorts::writeReferenceAttributesToFile(Serializer &writer) {
+void MIDIDeviceDINPorts::writeReferenceAttributesToFile(Serializer& writer) {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set
 	writer.writeAttribute("port", "din", false);
 }
@@ -574,7 +574,7 @@ void MIDIDeviceDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 	}
 }
 
-void MIDIDeviceLoopback::writeReferenceAttributesToFile(Serializer &writer) {
+void MIDIDeviceLoopback::writeReferenceAttributesToFile(Serializer& writer) {
 	writer.writeAttribute("port", "loopbackMidi", false);
 }
 

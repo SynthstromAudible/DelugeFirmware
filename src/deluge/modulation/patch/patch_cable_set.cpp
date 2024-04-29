@@ -926,7 +926,7 @@ abandonThisCable:
 	}
 }
 
-void PatchCableSet::writePatchCablesToFile(Serializer &writer, bool writeAutomation) {
+void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomation) {
 	if (!numPatchCables) {
 		return;
 	}

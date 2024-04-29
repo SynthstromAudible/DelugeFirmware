@@ -1614,7 +1614,7 @@ void PerformanceSessionView::savePerformanceViewLayout() {
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void PerformanceSessionView::writeDefaultsToFile(StorageManager &writer) {
+void PerformanceSessionView::writeDefaultsToFile(StorageManager& writer) {
 	// PerformanceView.xml
 	Error error = writer.createXMLFile(PERFORM_DEFAULTS_XML, true);
 	if (error != Error::NONE) {
@@ -1643,7 +1643,7 @@ void PerformanceSessionView::writeDefaultsToFile(StorageManager &writer) {
 /// creates "FX1 - FX16 tags"
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
 /// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
-void PerformanceSessionView::writeDefaultFXValuesToFile(StorageManager &writer) {
+void PerformanceSessionView::writeDefaultFXValuesToFile(StorageManager& writer) {
 	char tagName[10];
 	tagName[0] = 'F';
 	tagName[1] = 'X';
@@ -1659,7 +1659,7 @@ void PerformanceSessionView::writeDefaultFXValuesToFile(StorageManager &writer) 
 }
 
 /// convert paramID to a paramName to write to XML
-void PerformanceSessionView::writeDefaultFXParamToFile(Serializer &writer, int32_t xDisplay) {
+void PerformanceSessionView::writeDefaultFXParamToFile(Serializer& writer, int32_t xDisplay) {
 	char const* paramName;
 
 	auto kind = layoutForPerformance[xDisplay].paramKind;
@@ -1678,7 +1678,7 @@ void PerformanceSessionView::writeDefaultFXParamToFile(Serializer &writer, int32
 
 /// creates "8 - 1 row # tags within a "row" tag"
 /// limiting # of rows to the # of rows on the grid (8 = kDisplayHeight)
-void PerformanceSessionView::writeDefaultFXRowValuesToFile(Serializer &writer, int32_t xDisplay) {
+void PerformanceSessionView::writeDefaultFXRowValuesToFile(Serializer& writer, int32_t xDisplay) {
 	//<row>
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_ROW_TAG);
 	writer.writeOpeningTagEnd();
@@ -1695,7 +1695,7 @@ void PerformanceSessionView::writeDefaultFXRowValuesToFile(Serializer &writer, i
 
 /// for each FX column, write the held status, what row is being held, and what previous value was
 /// (previous value is used to reset param after you remove the held status)
-void PerformanceSessionView::writeDefaultFXHoldStatusToFile(Serializer &writer, int32_t xDisplay) {
+void PerformanceSessionView::writeDefaultFXHoldStatusToFile(Serializer& writer, int32_t xDisplay) {
 	//<hold>
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_HOLD_TAG);
 	writer.writeOpeningTagEnd();

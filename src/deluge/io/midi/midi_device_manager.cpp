@@ -448,7 +448,7 @@ void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint
 	}
 }
 
-void writeDevicesToFile(StorageManager &writer) {
+void writeDevicesToFile(StorageManager& writer) {
 	if (!anyChangesToSave) {
 		return;
 	}

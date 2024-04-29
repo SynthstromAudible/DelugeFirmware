@@ -286,7 +286,7 @@ void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* 
 	}
 }
 
-void MIDIParamCollection::writeToFile(Serializer &writer) {
+void MIDIParamCollection::writeToFile(Serializer& writer) {
 	if (params.getNumElements()) {
 
 		writer.writeOpeningTag("midiParams");

@@ -82,7 +82,7 @@ void LearnedMIDI::writeAttributesToFile(Serializer& writer, int32_t midiMessageT
 	}
 }
 
-void LearnedMIDI::writeToFile(Serializer &writer, char const* commandName, int32_t midiMessageType) {
+void LearnedMIDI::writeToFile(Serializer& writer, char const* commandName, int32_t midiMessageType) {
 	if (!containsSomething()) {
 		return;
 	}

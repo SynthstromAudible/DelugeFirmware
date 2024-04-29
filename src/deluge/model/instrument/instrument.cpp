@@ -61,7 +61,7 @@ void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
 	}
 }
 
-bool Instrument::writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song) {
+bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 	// midi channels are always saved, either to the midi preset or the song
 	if (type == OutputType::MIDI_OUT) {
 		char const* slotXMLTag = getSlotXMLTag();

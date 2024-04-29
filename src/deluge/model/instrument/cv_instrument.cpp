@@ -80,7 +80,7 @@ void CVInstrument::updatePitchBendOutput(bool outputToo) {
 	cvEngine.setCVPitchBend(channel, totalBendAmount, outputToo);
 }
 
-bool CVInstrument::writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song) {
+bool CVInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 	// NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below
 	// call
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);

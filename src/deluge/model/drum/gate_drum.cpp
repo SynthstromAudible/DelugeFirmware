@@ -35,7 +35,7 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	state = false;
 }
 
-void GateDrum::writeToFile(Serializer &writer, bool savingSong, ParamManager* paramManager) {
+void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("gateOutput");
 
 	writer.writeAttribute("channel", channel, false);

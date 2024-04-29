@@ -114,7 +114,7 @@ gotError:
 	return true;
 }
 
-bool SaveInstrumentPresetUI::performSave(StorageManager &writer, bool mayOverwrite) {
+bool SaveInstrumentPresetUI::performSave(StorageManager& writer, bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}

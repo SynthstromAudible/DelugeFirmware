@@ -238,7 +238,7 @@ public:
 	void doubleClipLength(InstrumentClip* clip, Action* action = NULL);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);
 	Error readFromFile(Deserializer& reader);
-	void writeToFile(StorageManager &writer);
+	void writeToFile(StorageManager& writer);
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	bool modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave);
 	uint8_t getYNoteIndexInMode(int32_t yNote);

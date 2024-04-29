@@ -1841,7 +1841,7 @@ addNewNodeAt0IfNecessary:
 	}
 }
 
-void AutoParam::writeToFile(Serializer &writer, bool writeAutomation, int32_t* valueForOverride) {
+void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride) {
 	char buffer[9];
 
 	writer.write("0x");

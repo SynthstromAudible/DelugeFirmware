@@ -2272,7 +2272,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	return Error::NONE;
 }
 
-void InstrumentClip::writeDataToFile(Serializer &writer, Song* song) {
+void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	writer.writeAttribute("inKeyMode", inScaleMode);
 	writer.writeAttribute("yScroll", yScroll);

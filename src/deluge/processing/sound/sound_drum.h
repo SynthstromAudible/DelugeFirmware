@@ -47,8 +47,8 @@ public:
 	bool readTagFromFile(Deserializer& reader, char const* tagName);
 	Error loadAllSamples(bool mayActuallyReadFiles);
 	void prepareForHibernation();
-	void writeToFile(Serializer &writer, bool savingSong, ParamManager* paramManager);
-	void writeToFileAsInstrument(StorageManager &writer, bool savingSong, ParamManager* paramManager);
+	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager);
+	void writeToFileAsInstrument(StorageManager& writer, bool savingSong, ParamManager* paramManager);
 	void getName(char* buffer);
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void choke(ModelStackWithSoundFlags* modelStack);

@@ -643,7 +643,7 @@ bool Clip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Timeline
 	return true;
 }
 
-void Clip::writeToFile(Serializer &writer, Song* song) {
+void Clip::writeToFile(Serializer& writer, Song* song) {
 
 	char const* xmlTag = getXMLTag();
 
@@ -654,7 +654,7 @@ void Clip::writeToFile(Serializer &writer, Song* song) {
 	writer.writeClosingTag(xmlTag);
 }
 
-void Clip::writeDataToFile(Serializer &writer, Song* song) {
+void Clip::writeDataToFile(Serializer& writer, Song* song) {
 
 	writer.writeAttribute("isPlaying", activeIfNoSolo);
 	writer.writeAttribute("isSoloing", soloingInSessionMode);

@@ -191,7 +191,7 @@ ParamManager* Output::getParamManager(Song* song) {
 	}
 }
 
-void Output::writeToFile(StorageManager &writer, Clip* clipForSavingOutputOnly, Song* song) {
+void Output::writeToFile(StorageManager& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
 	char const* tagName = getXMLTag();
 	writer.writeOpeningTagBeginning(tagName);
@@ -211,7 +211,7 @@ void Output::writeToFile(StorageManager &writer, Clip* clipForSavingOutputOnly, 
 	}
 }
 
-bool Output::writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song) {
+bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
 	if (!clipForSavingOutputOnly) {
 		if (mutedInArrangementMode) {

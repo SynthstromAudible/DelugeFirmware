@@ -31,7 +31,7 @@ public:
 	void noteOffPostArp(int32_t noteCode, int32_t oldMIDIChannel, int32_t velocity);
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
 	                                              int32_t whichExpressionDmiension, ArpNote* arpNote);
-	bool writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song);
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
 	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDmiension);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupWithoutActiveClip(ModelStack* modelStack);

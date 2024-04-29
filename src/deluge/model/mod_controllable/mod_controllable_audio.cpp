@@ -877,7 +877,7 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	}
 }
 
-void ModControllableAudio::writeTagsToFile(Serializer &writer) {
+void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	// Delay
 	writer.writeOpeningTagBeginning("delay");
 	writer.writeAttribute("pingPong", delay.pingPong);
@@ -944,7 +944,7 @@ void ModControllableAudio::writeTagsToFile(Serializer &writer) {
 	}
 }
 
-void ModControllableAudio::writeParamAttributesToFile(Serializer &writer, ParamManager* paramManager,
+void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,
                                                       bool writeAutomation, int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -962,8 +962,8 @@ void ModControllableAudio::writeParamAttributesToFile(Serializer &writer, ParamM
 	                                       writeAutomation, false, valuesForOverride);
 }
 
-void ModControllableAudio::writeParamTagsToFile(Serializer &writer, ParamManager* paramManager,
-                                                bool writeAutomation, int32_t* valuesForOverride) {
+void ModControllableAudio::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
+                                                int32_t* valuesForOverride) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	writer.writeOpeningTagBeginning("equalizer");
