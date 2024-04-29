@@ -793,7 +793,7 @@ void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutom
 	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
 }
 
-void GlobalEffectable::writeTagsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation) {
+void GlobalEffectable::writeTagsToFile(Serializer &writer, ParamManager* paramManager, bool writeAutomation) {
 
 	ModControllableAudio::writeTagsToFile(writer);
 
@@ -806,7 +806,7 @@ void GlobalEffectable::writeTagsToFile(StorageManager& writer, ParamManager* par
 	}
 }
 
-void GlobalEffectable::writeParamAttributesToFile(StorageManager& writer, ParamManager* paramManager,
+void GlobalEffectable::writeParamAttributesToFile(Serializer &writer, ParamManager* paramManager,
                                                   bool writeAutomation, int32_t* valuesForOverride) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -839,7 +839,7 @@ void GlobalEffectable::writeParamAttributesToFile(StorageManager& writer, ParamM
 	ModControllableAudio::writeParamAttributesToFile(writer, paramManager, writeAutomation, valuesForOverride);
 }
 
-void GlobalEffectable::writeParamTagsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation,
+void GlobalEffectable::writeParamTagsToFile(Serializer &writer, ParamManager* paramManager, bool writeAutomation,
                                             int32_t* valuesForOverride) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();

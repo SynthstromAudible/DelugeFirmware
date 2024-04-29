@@ -165,7 +165,7 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 	ParamCollection::setPlayPos(pos, modelStack, reversed);
 }
 
-void ParamSet::writeParamAsAttribute(StorageManager& writer, char const* name, int32_t p, bool writeAutomation,
+void ParamSet::writeParamAsAttribute(Serializer &writer, char const* name, int32_t p, bool writeAutomation,
                                      bool onlyIfContainsSomething, int32_t* valuesForOverride) {
 	if (onlyIfContainsSomething && !params[p].containsSomething()) {
 		return;
@@ -609,7 +609,7 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 
 char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 
-bool ExpressionParamSet::writeToFile(StorageManager& writer, bool mustWriteOpeningTagEndFirst) {
+bool ExpressionParamSet::writeToFile(Serializer &writer, bool mustWriteOpeningTagEndFirst) {
 
 	bool writtenAnyYet = false;
 

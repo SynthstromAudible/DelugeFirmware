@@ -1002,7 +1002,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	return true;
 }
 
-void AudioClip::writeDataToFile(StorageManager& writer, Song* song) {
+void AudioClip::writeDataToFile(Serializer &writer, Song* song) {
 
 	writer.writeAttribute("trackName", output->name.get());
 

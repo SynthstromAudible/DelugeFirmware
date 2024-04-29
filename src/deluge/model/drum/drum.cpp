@@ -42,7 +42,7 @@ Drum::Drum(DrumType newType) : type(newType) {
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
-void Drum::writeMIDICommandsToFile(StorageManager& writer) {
+void Drum::writeMIDICommandsToFile(Serializer &writer) {
 	midiInput.writeNoteToFile(writer, "midiInput");
 	muteMIDICommand.writeNoteToFile(writer, "midiMuteCommand");
 }

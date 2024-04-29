@@ -61,7 +61,7 @@ public:
 
 	// virtual void writeInstrumentDataToFile(bool savingSong, char const* slotName = "presetSlot", char const*
 	// subSlotName = "presetSubSlot");
-	bool writeDataToFile(StorageManager& writer, Clip* clipForSavingOutputOnly, Song* song);
+	bool writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(Deserializer& reader, char const* tagName);
 
 	virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}

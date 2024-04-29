@@ -62,7 +62,7 @@ public:
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack);
 	void notifyPingpongOccurred(ModelStackWithParamCollection* modelStack);
 
-	void writeToFile(StorageManager& writer);
+	void writeToFile(Serializer &writer);
 	int32_t moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithParamCollection* modelStack);
 
 	deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::MIDI; }

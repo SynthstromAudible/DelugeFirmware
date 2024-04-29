@@ -41,12 +41,12 @@ public:
 	                                  bool grainHadInput = true);
 
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
-	void writeTagsToFile(StorageManager& writer, ParamManager* paramManager, bool writeToFile);
+	void writeTagsToFile(Serializer &writer, ParamManager* paramManager, bool writeToFile);
 	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                      int32_t readAutomationUpToPos, Song* song);
-	static void writeParamAttributesToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation,
+	static void writeParamAttributesToFile(Serializer &writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
-	static void writeParamTagsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation,
+	static void writeParamTagsToFile(Serializer &writer, ParamManager* paramManager, bool writeAutomation,
 	                                 int32_t* valuesForOverride = NULL);
 	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);

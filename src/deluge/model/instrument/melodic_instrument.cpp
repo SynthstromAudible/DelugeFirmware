@@ -37,7 +37,7 @@
 #include "storage/storage_manager.h"
 #include <cstring>
 
-bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(StorageManager& writer, Clip* clipForSavingOutputOnly,
+bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Serializer &writer, Clip* clipForSavingOutputOnly,
                                                                Song* song) {
 	Instrument::writeDataToFile(writer, clipForSavingOutputOnly, song);
 	if (!clipForSavingOutputOnly) {
@@ -58,7 +58,7 @@ bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(StorageManager& w
 	return false;
 }
 
-void MelodicInstrument::writeMelodicInstrumentTagsToFile(StorageManager& writer, Clip* clipForSavingOutputOnly,
+void MelodicInstrument::writeMelodicInstrumentTagsToFile(Serializer &writer, Clip* clipForSavingOutputOnly,
                                                          Song* song) {
 
 	if (!clipForSavingOutputOnly) {

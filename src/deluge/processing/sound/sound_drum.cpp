@@ -154,7 +154,7 @@ Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
-void SoundDrum::writeToFileAsInstrument(StorageManager& writer, bool savingSong, ParamManager* paramManager) {
+void SoundDrum::writeToFileAsInstrument(StorageManager &writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("sound");
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
@@ -167,7 +167,7 @@ void SoundDrum::writeToFileAsInstrument(StorageManager& writer, bool savingSong,
 	writer.writeClosingTag("sound");
 }
 
-void SoundDrum::writeToFile(StorageManager& writer, bool savingSong, ParamManager* paramManager) {
+void SoundDrum::writeToFile(Serializer &writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("sound");
 	writer.writeAttribute("name", name.get());
 	writer.writeAttribute("path", path.get());

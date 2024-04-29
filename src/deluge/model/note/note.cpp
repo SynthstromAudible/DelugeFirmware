@@ -24,7 +24,7 @@ Note::Note() {
 
 /*
 
-void Note::writeToFile(StorageManager& writer) {
+void Note::writeToFile(Serializer &writer) {
     writer.writeOpeningTag((char*)"note");
 
     writer.writeTag((char*)"length", length);

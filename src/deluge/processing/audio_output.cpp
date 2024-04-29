@@ -297,7 +297,7 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
 
 // Unlike for Instruments, AudioOutputs will only be written as part of a Song, so clipForSavingOutputOnly will always
 // be NULL
-bool AudioOutput::writeDataToFile(StorageManager& writer, Clip* clipForSavingOutputOnly, Song* song) {
+bool AudioOutput::writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song) {
 
 	writer.writeAttribute("name", name.get());
 

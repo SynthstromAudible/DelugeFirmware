@@ -169,7 +169,7 @@ public:
 	                                  bool shouldRetainLinksToSounds, bool shouldGrabMidiCommands,
 	                                  bool shouldBackUpExpressionParamsToo);
 	Error readFromFile(Deserializer& reader, Song* song);
-	void writeDataToFile(StorageManager& writer, Song* song);
+	void writeDataToFile(Serializer &writer, Song* song);
 	void prepNoteRowsForExitingKitMode(Song* song);
 	void deleteNoteRow(ModelStackWithTimelineCounter* modelStack, int32_t i);
 	int16_t getTopYNote();

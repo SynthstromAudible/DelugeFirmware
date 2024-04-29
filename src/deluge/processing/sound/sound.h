@@ -178,7 +178,7 @@ public:
 	void setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack);
 	Error readFromFile(Deserializer& reader, ModelStackWithModControllable* modelStack, int32_t readAutomationUpToPos,
 	                   ArpeggiatorSettings* arpSettings);
-	void writeToFile(StorageManager& writer, bool savingSong, ParamManager* paramManager,
+	void writeToFile(Serializer &writer, bool savingSong, ParamManager* paramManager,
 	                 ArpeggiatorSettings* arpSettings);
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
 
@@ -216,7 +216,7 @@ public:
 	void setupAsDefaultSynth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
-	static void writeParamsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation);
+	static void writeParamsToFile(Serializer &writer, ParamManager* paramManager, bool writeAutomation);
 	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
@@ -284,7 +284,7 @@ private:
 	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 
-	void writeSourceToFile(StorageManager& writer, int32_t s, char const* tagName);
+	void writeSourceToFile(Serializer &writer, int32_t s, char const* tagName);
 	Error readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerForTimeline* paramManager,
 	                         int32_t readAutomationUpToPos);
 	void stopSkippingRendering(ArpeggiatorSettings* arpSettings);

@@ -30,7 +30,7 @@ class ModelStackWithThreeMainThings;
 class SoundInstrument final : public Sound, public MelodicInstrument {
 public:
 	SoundInstrument();
-	bool writeDataToFile(StorageManager& writer, Clip* clipForSavingOutputOnly, Song* song);
+	bool writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly, Song* song);
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void cutAllSound();
 	bool noteIsOn(int32_t noteCode, bool resetTimeEntered);

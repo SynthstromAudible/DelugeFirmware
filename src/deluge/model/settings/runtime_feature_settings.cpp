@@ -231,7 +231,7 @@ void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& reader) {
 	reader.closeFile();
 }
 
-void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& writer) {
+void RuntimeFeatureSettings::writeSettingsToFile(StorageManager &writer) {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
 	Error error = writer.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);

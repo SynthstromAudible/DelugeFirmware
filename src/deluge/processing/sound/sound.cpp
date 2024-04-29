@@ -3441,7 +3441,7 @@ gotError:
 }
 #pragma GCC diagnostic pop
 
-void Sound::writeSourceToFile(StorageManager& writer, int32_t s, char const* tagName) {
+void Sound::writeSourceToFile(Serializer &writer, int32_t s, char const* tagName) {
 
 	Source* source = &sources[s];
 
@@ -3822,7 +3822,7 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 	return true;
 }
 
-void Sound::writeParamsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation) {
+void Sound::writeParamsToFile(Serializer &writer, ParamManager* paramManager, bool writeAutomation) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
@@ -3918,7 +3918,7 @@ void Sound::writeParamsToFile(StorageManager& writer, ParamManager* paramManager
 	ModControllableAudio::writeParamTagsToFile(writer, paramManager, writeAutomation);
 }
 
-void Sound::writeToFile(StorageManager& writer, bool savingSong, ParamManager* paramManager,
+void Sound::writeToFile(Serializer &writer, bool savingSong, ParamManager* paramManager,
                         ArpeggiatorSettings* arpSettings) {
 
 	writer.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));

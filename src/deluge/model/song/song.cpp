@@ -1282,7 +1282,7 @@ void Song::writeTemplateSong(const char* templatePath) {
 	                                     "\n</song>\n");
 }
 
-void Song::writeToFile(StorageManager& writer) {
+void Song::writeToFile(StorageManager &writer) {
 
 	setupClipIndexesForSaving();
 

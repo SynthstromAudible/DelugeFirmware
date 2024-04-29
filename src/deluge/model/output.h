@@ -114,8 +114,8 @@ public:
 	virtual Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 
 	virtual bool readTagFromFile(Deserializer& reader, char const* tagName);
-	void writeToFile(StorageManager& reader, Clip* clipForSavingOutputOnly, Song* song);
-	virtual bool writeDataToFile(StorageManager& writer, Clip* clipForSavingOutputOnly,
+	void writeToFile(StorageManager& writer, Clip* clipForSavingOutputOnly, Song* song);
+	virtual bool writeDataToFile(Serializer &writer, Clip* clipForSavingOutputOnly,
 	                             Song* song); // Returns true if it's ended the opening tag and gone into the sub-tags
 
 	virtual Error loadAllAudioFiles(bool mayActuallyReadFiles) { return Error::NONE; }
