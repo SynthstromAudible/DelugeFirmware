@@ -248,7 +248,9 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	if (rootUIIsClipMinderScreen()) {
 		clip = getCurrentClip();
-		isUIInstrumentClipView = clip->type == ClipType::INSTRUMENT;
+		if (clip) {
+			isUIInstrumentClipView = clip->type == ClipType::INSTRUMENT;
+		}
 	}
 
 	// Encoder button
@@ -321,8 +323,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Save button
 	else if (b == SAVE) {
-		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && !inSongMenu()
-		    && clip->type != ClipType::AUDIO) {
+		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && isUIInstrumentClipView) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -398,7 +399,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Keyboard button
 	else if (b == KEYBOARD) {
-		if (on && currentUIMode == UI_MODE_NONE && !editingKit()) {
+		if (on && currentUIMode == UI_MODE_NONE && isUIInstrumentClipView) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -418,24 +419,20 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
-			else if (getRootUI() == &automationView && !automationView.onArrangerView) {
-				if (clip->type == ClipType::INSTRUMENT) {
-					if (automationView.onMenuView) {
-						clip->onAutomationClipView = false;
-						automationView.onMenuView = false;
-						indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
-					}
-					automationView.resetInterpolationShortcutBlinking();
-					swapOutRootUILowLevel(&keyboardScreen);
-					keyboardScreen.openedInBackground();
+			else if (getRootUI() == &automationView) {
+				if (automationView.onMenuView) {
+					clip->onAutomationClipView = false;
+					automationView.onMenuView = false;
+					indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 				}
+				automationView.resetInterpolationShortcutBlinking();
+				swapOutRootUILowLevel(&keyboardScreen);
+				keyboardScreen.openedInBackground();
 			}
 
-			if (getRootUI() != &performanceSessionView) {
-				PadLEDs::reassessGreyout();
+			PadLEDs::reassessGreyout();
 
-				indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
-			}
+			indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
 		}
 	}
 
