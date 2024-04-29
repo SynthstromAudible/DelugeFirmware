@@ -685,14 +685,19 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 				}
 				bdsm.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+			else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 2, 0})) {
 				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+				// but only if the new params are not already read and set,
+				// that is, if we detect they have a value other than default
 				if (arpSettings) {
 					OldArpMode oldMode = stringToOldArpMode(bdsm.readTagOrAttributeValue());
-					arpSettings->mode = oldModeToArpMode(oldMode);
-					arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
-					arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
-					arpSettings->updatePresetFromCurrentSettings();
+					if (arpSettings->mode == ArpMode::OFF && arpSettings->noteMode == ArpNoteMode::UP
+					    && arpSettings->octaveMode == ArpOctaveMode::UP) {
+						arpSettings->mode = oldModeToArpMode(oldMode);
+						arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
+						arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
+						arpSettings->updatePresetFromCurrentSettings();
+					}
 				}
 				bdsm.exitTag("mode");
 			}
