@@ -28,5 +28,3 @@ jobs:
           branch: release/1.1
           labels: |
             cherry-picked
-          reviewers: |
-            m-m-adams
