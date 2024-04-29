@@ -98,7 +98,7 @@ public:
 
 	inline const char* getStartupSong() { return startupSong.get(); }
 	void init();
-	void readSettingsFromFile(StorageManager& reader);
+	void readSettingsFromFile(StorageManager& bdsm);
 	void writeSettingsToFile(StorageManager& writer);
 
 protected:

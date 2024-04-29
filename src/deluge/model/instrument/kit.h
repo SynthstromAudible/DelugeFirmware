@@ -149,7 +149,7 @@ protected:
 	bool isKit() { return true; }
 
 private:
-	Error readDrumFromFile(StorageManager& reader, Song* song, Clip* clip, DrumType drumType,
+	Error readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumType drumType,
 	                       int32_t readAutomationUpToPos);
 	void writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
 	                     int32_t* selectedDrumIndex, int32_t* drumIndex, Song* song);

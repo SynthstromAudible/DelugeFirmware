@@ -38,7 +38,7 @@ Clip* getSelectedClip(ModelStack* modelStack);
 class MidiFollow final {
 public:
 	MidiFollow();
-	void readDefaultsFromFile(StorageManager& reader);
+	void readDefaultsFromFile(StorageManager& bdsm);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
 	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,

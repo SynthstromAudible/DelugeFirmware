@@ -164,18 +164,19 @@ void RuntimeFeatureSettings::init() {
 	                            RuntimeFeatureStateEmulatedDisplay::Hardware);
 }
 
-void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& reader) {
+void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
 	FilePointer fp;
-	bool success = reader.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
+
+	bool success = bdsm.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
 	if (!success) {
 		return;
 	}
 
-	Error error = reader.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
+	Error error = bdsm.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error != Error::NONE) {
 		return;
 	}
-
+	Deserializer& reader = bdsm.deserializer();
 	String currentName;
 	int32_t currentValue = 0;
 	char const* currentTag = nullptr;
@@ -228,7 +229,7 @@ void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& reader) {
 		}
 		reader.exitTag(currentTag);
 	}
-	reader.closeFile();
+	bdsm.closeFile();
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& writer) {

@@ -526,22 +526,22 @@ worthIt:
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
-void readDevicesFromFile(StorageManager& reader) {
+void readDevicesFromFile(StorageManager& bdsm) {
 	if (successfullyReadDevicesFromFile) {
 		return; // Yup, we only want to do this once
 	}
 
 	FilePointer fp;
-	bool success = reader.fileExists("MIDIDevices.XML", &fp);
+	bool success = bdsm.fileExists("MIDIDevices.XML", &fp);
 	if (!success) {
 		return;
 	}
 
-	Error error = reader.openXMLFile(&fp, "midiDevices");
+	Error error = bdsm.openXMLFile(&fp, "midiDevices");
 	if (error != Error::NONE) {
 		return;
 	}
-
+	Deserializer& reader = bdsm.deserializer();
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "dinPorts")) {
@@ -566,7 +566,7 @@ void readDevicesFromFile(StorageManager& reader) {
 		reader.exitTag();
 	}
 
-	reader.closeFile();
+	bdsm.closeFile();
 
 	recountSmallestMPEZones();
 

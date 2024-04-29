@@ -1614,13 +1614,13 @@ void PerformanceSessionView::savePerformanceViewLayout() {
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void PerformanceSessionView::writeDefaultsToFile(StorageManager& writer) {
+void PerformanceSessionView::writeDefaultsToFile(StorageManager& bdsm) {
 	// PerformanceView.xml
-	Error error = writer.createXMLFile(PERFORM_DEFAULTS_XML, true);
+	Error error = bdsm.createXMLFile(PERFORM_DEFAULTS_XML, true);
 	if (error != Error::NONE) {
 		return;
 	}
-
+	Serializer& writer = bdsm.serializer();
 	//<defaults>
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();
@@ -1635,7 +1635,7 @@ void PerformanceSessionView::writeDefaultsToFile(StorageManager& writer) {
 
 	writer.writeClosingTag(PERFORM_DEFAULTS_TAG);
 
-	writer.closeFileAfterWriting();
+	bdsm.closeFileAfterWriting();
 
 	anyChangesToSave = false;
 }
@@ -1643,7 +1643,7 @@ void PerformanceSessionView::writeDefaultsToFile(StorageManager& writer) {
 /// creates "FX1 - FX16 tags"
 /// limiting # of FX to the # of columns on the grid (16 = kDisplayWidth)
 /// could expand # of FX in the future if we allow user to selected from a larger bank of FX / build their own FX
-void PerformanceSessionView::writeDefaultFXValuesToFile(StorageManager& writer) {
+void PerformanceSessionView::writeDefaultFXValuesToFile(Serializer& writer) {
 	char tagName[10];
 	tagName[0] = 'F';
 	tagName[1] = 'X';
@@ -1759,7 +1759,7 @@ void PerformanceSessionView::readDefaultsFromBackedUpFile() {
 }
 
 /// read defaults from XML
-void PerformanceSessionView::readDefaultsFromFile(StorageManager& reader) {
+void PerformanceSessionView::readDefaultsFromFile(StorageManager& bdsm) {
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -1767,19 +1767,19 @@ void PerformanceSessionView::readDefaultsFromFile(StorageManager& reader) {
 
 	FilePointer fp;
 	// PerformanceView.XML
-	bool success = reader.fileExists(PERFORM_DEFAULTS_XML, &fp);
+	bool success = bdsm.fileExists(PERFORM_DEFAULTS_XML, &fp);
 	if (!success) {
 		loadDefaultLayout();
 		return;
 	}
 
 	//<defaults>
-	Error error = reader.openXMLFile(&fp, PERFORM_DEFAULTS_TAG);
+	Error error = bdsm.openXMLFile(&fp, PERFORM_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		loadDefaultLayout();
 		return;
 	}
-
+	Deserializer& reader = bdsm.deserializer();
 	char const* tagName;
 	// step into the <defaultFXValues> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1789,7 +1789,7 @@ void PerformanceSessionView::readDefaultsFromFile(StorageManager& reader) {
 		reader.exitTag();
 	}
 
-	reader.closeFile();
+	bdsm.closeFile();
 
 	successfullyReadDefaultsFromFile = true;
 }
@@ -1811,12 +1811,13 @@ void PerformanceSessionView::loadDefaultLayout() {
 	successfullyReadDefaultsFromFile = true;
 }
 
-void PerformanceSessionView::readDefaultFXValuesFromFile(StorageManager& reader) {
+void PerformanceSessionView::readDefaultFXValuesFromFile(StorageManager& bdsm) {
 	char const* tagName;
 	char tagNameFX[5];
 	tagNameFX[0] = 'F';
 	tagNameFX[1] = 'X';
 
+	Deserializer& reader = bdsm.deserializer();
 	// loop through all FX number tags
 	//<FX#>
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1825,7 +1826,7 @@ void PerformanceSessionView::readDefaultFXValuesFromFile(StorageManager& reader)
 			intToString(xDisplay + 1, &tagNameFX[2]);
 
 			if (!strcmp(tagName, tagNameFX)) {
-				readDefaultFXParamAndRowValuesFromFile(reader, xDisplay);
+				readDefaultFXParamAndRowValuesFromFile(bdsm, xDisplay);
 				break;
 			}
 		}
@@ -1833,20 +1834,21 @@ void PerformanceSessionView::readDefaultFXValuesFromFile(StorageManager& reader)
 	}
 }
 
-void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(StorageManager& reader, int32_t xDisplay) {
+void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(StorageManager& bdsm, int32_t xDisplay) {
 	char const* tagName;
+	Deserializer& reader = bdsm.deserializer();
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<param>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
-			readDefaultFXParamFromFile(reader, xDisplay);
+			readDefaultFXParamFromFile(bdsm, xDisplay);
 		}
 		//<row>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_ROW_TAG)) {
-			readDefaultFXRowNumberValuesFromFile(reader, xDisplay);
+			readDefaultFXRowNumberValuesFromFile(bdsm, xDisplay);
 		}
 		//<hold>
 		else if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_TAG)) {
-			readDefaultFXHoldStatusFromFile(reader, xDisplay);
+			readDefaultFXHoldStatusFromFile(bdsm, xDisplay);
 		}
 		reader.exitTag();
 	}
@@ -1855,8 +1857,9 @@ void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(StorageManag
 /// compares param name from <param> tag to the list of params available for use in performance view
 /// if param is found, it loads the layout info for that param into the view (paramKind, paramID, xDisplay, yDisplay,
 /// rowColour, rowTailColour)
-void PerformanceSessionView::readDefaultFXParamFromFile(StorageManager& reader, int32_t xDisplay) {
+void PerformanceSessionView::readDefaultFXParamFromFile(StorageManager& bdsm, int32_t xDisplay) {
 	char const* paramName;
+	Deserializer& reader = bdsm.deserializer();
 	char const* tagName = reader.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
@@ -1872,9 +1875,10 @@ void PerformanceSessionView::readDefaultFXParamFromFile(StorageManager& reader, 
 	}
 }
 
-void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager& reader, int32_t xDisplay) {
+void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager& bdsm, int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
+	Deserializer& reader = bdsm.deserializer();
 	// loop through all row <#> number tags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// find the row number that the tag corresponds to
@@ -1882,7 +1886,7 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager
 		for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
 			intToString(yDisplay + 1, rowNumber);
 			if (!strcmp(tagName, rowNumber)) {
-				defaultFXValues[xDisplay][yDisplay] = reader.readTagOrAttributeValueInt() - kKnobPosOffset;
+				defaultFXValues[xDisplay][yDisplay] = bdsm.readTagOrAttributeValueInt() - kKnobPosOffset;
 
 				// check if a value greater than 64 was entered as a default value in xml file
 				if (defaultFXValues[xDisplay][yDisplay] > kKnobPosOffset) {
@@ -1903,9 +1907,10 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager
 	}
 }
 
-void PerformanceSessionView::readDefaultFXHoldStatusFromFile(StorageManager& reader, int32_t xDisplay) {
+void PerformanceSessionView::readDefaultFXHoldStatusFromFile(StorageManager& bdsm, int32_t xDisplay) {
 	char const* tagName;
 	// loop through the hold tags
+	Deserializer& reader = bdsm.deserializer();
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<status>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {

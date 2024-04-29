@@ -90,7 +90,7 @@ gotError:
 	return true;
 }
 
-bool SaveKitRowUI::performSave(StorageManager& writer, bool mayOverwrite) {
+bool SaveKitRowUI::performSave(StorageManager& bdsm, bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
@@ -114,7 +114,7 @@ fail:
 		return false;
 	}
 
-	error = writer.createXMLFile(filePath.get(), mayOverwrite, false);
+	error = bdsm.createXMLFile(filePath.get(), mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
@@ -140,11 +140,11 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
-	soundDrumToSave->writeToFileAsInstrument(writer, false, paramManagerToSave);
+	soundDrumToSave->writeToFileAsInstrument(bdsm, false, paramManagerToSave);
 
 	char const* endString = "\n</sound>\n";
 
-	error = writer.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
+	error = bdsm.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
 		goto fail;

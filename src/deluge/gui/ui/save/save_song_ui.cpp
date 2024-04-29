@@ -107,7 +107,7 @@ void SaveSongUI::focusRegained() {
 	return SaveUI::focusRegained();
 }
 
-bool SaveSongUI::performSave(StorageManager& writer, bool mayOverwrite) {
+bool SaveSongUI::performSave(StorageManager& bdsm, bool mayOverwrite) {
 
 	if (ALPHA_OR_BETA_VERSION && currentlyAccessingCard) {
 		FREEZE_WITH_ERROR("E316");
@@ -129,7 +129,7 @@ gotError:
 		return false;
 	}
 
-	bool fileAlreadyExisted = writer.fileExists(filePath.get());
+	bool fileAlreadyExisted = bdsm.fileExists(filePath.get());
 
 	if (!mayOverwrite && fileAlreadyExisted) {
 		context_menu::overwriteFile.currentSaveUI = this;
@@ -334,7 +334,7 @@ failAfterOpeningSourceFile:
 				}
 
 				// Create file to write
-				error = writer.createFile(&recorderFileSystemStuff.currentFile, destFilePath, false);
+				error = bdsm.createFile(&recorderFileSystemStuff.currentFile, destFilePath, false);
 				if (error == Error::FILE_ALREADY_EXISTS) {
 				} // No problem - the audio file was already there from before, so we don't need to copy it again now.
 				else if (error != Error::NONE) {
@@ -347,7 +347,7 @@ failAfterOpeningSourceFile:
 					// Copy
 					while (true) {
 						UINT bytesRead;
-						result = f_read(&fileSystemStuff.currentFile, writer.fileClusterBuffer,
+						result = f_read(&fileSystemStuff.currentFile, bdsm.fileClusterBuffer,
 						                audioFileManager.clusterSize, &bytesRead);
 						if (result) {
 							D_PRINTLN("read fail");
@@ -361,7 +361,7 @@ fail3:
 						}
 
 						UINT bytesWritten;
-						result = f_write(&recorderFileSystemStuff.currentFile, writer.fileClusterBuffer, bytesRead,
+						result = f_write(&recorderFileSystemStuff.currentFile, bdsm.fileClusterBuffer, bytesRead,
 						                 &bytesWritten);
 						if (result || bytesWritten != bytesRead) {
 							D_PRINTLN("write fail %d", result);
@@ -409,7 +409,7 @@ fail3:
 				goto gotError;
 			}
 
-			if (!writer.fileExists(filePathDuringWrite.get())) {
+			if (!bdsm.fileExists(filePathDuringWrite.get())) {
 				break;
 			}
 
@@ -423,7 +423,7 @@ fail3:
 	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
 
 	// Write the actual song file
-	error = writer.createXMLFile(filePathDuringWrite.get(), false, false);
+	error = bdsm.createXMLFile(filePathDuringWrite.get(), false, false);
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -431,10 +431,10 @@ fail3:
 	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be
 	// for either overwriting or not.
 
-	currentSong->writeToFile(writer);
+	currentSong->writeToFile(bdsm);
 
-	error = writer.closeFileAfterWriting(filePathDuringWrite.get(),
-	                                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
+	error = bdsm.closeFileAfterWriting(filePathDuringWrite.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
+	                                   "\n</song>\n");
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -466,10 +466,10 @@ cardError:
 	currentSong->dirPath.set(&currentDir);
 
 	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
-		runtimeFeatureSettings.writeSettingsToFile(writer);
+		runtimeFeatureSettings.writeSettingsToFile(bdsm);
 	}
 	// While we're at it, save MIDI devices if there's anything new to save.
-	MIDIDeviceManager::writeDevicesToFile(writer);
+	MIDIDeviceManager::writeDevicesToFile(bdsm);
 
 	close();
 	return true;

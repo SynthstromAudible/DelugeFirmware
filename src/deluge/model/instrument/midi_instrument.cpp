@@ -385,11 +385,11 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 
 // paramManager is sometimes NULL (when called from the above function), for reasons I've kinda forgotten, yet
 // everything seems to still work...
-Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& reader, int32_t readAutomationUpToPos,
+Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos,
                                                      ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
-
+	Deserializer& reader = bdsm.deserializer();
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
 			MIDIParamCollection* midiParamCollection = NULL;
@@ -397,7 +397,7 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& reader, int
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
 			Error error =
-			    reader.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection, &modKnobCCAssignments[m]);
+			    bdsm.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection, &modKnobCCAssignments[m]);
 			if (error != Error::NONE) {
 				return error;
 			}

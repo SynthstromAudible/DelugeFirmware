@@ -65,6 +65,7 @@ public:
 	virtual void writeClosingTag(char const* tag, bool shouldPrintIndents = true) = 0;
 	virtual void printIndents() = 0;
 	virtual void write(char const* output) = 0;
+	virtual StorageManager& msw() = 0;
 };
 
 class XMLSerializer : public Serializer {
@@ -84,6 +85,7 @@ public:
 	void writeClosingTag(char const* tag, bool shouldPrintIndents = true) override;
 	void printIndents() override;
 	void write(char const* output) override;
+	StorageManager& msw() override { return ms; }
 
 private:
 	StorageManager& ms;
@@ -114,6 +116,7 @@ public:
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
 	virtual void exitTag(char const* exitTagName = NULL) = 0;
+	virtual StorageManager& msr() = 0;
 };
 
 class XMLDeserializer : public Deserializer {
@@ -166,6 +169,7 @@ public:
 	// bool readXMLFileCluster();
 	void xmlReadDone();
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
+	StorageManager& msr() override { return msd; }
 };
 
 class StorageManager : public XMLSerializer, public XMLDeserializer {
@@ -212,6 +216,9 @@ public:
 	FirmwareVersion firmware_version = FirmwareVersion::current();
 
 	bool fileAccessFailedDuring;
+
+	Serializer& serializer() { return (Serializer&)*this; }
+	Deserializer& deserializer() { return (Deserializer&)*this; }
 
 	// Member vars that were public before but do not need to be:
 

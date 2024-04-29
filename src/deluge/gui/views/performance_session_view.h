@@ -156,18 +156,18 @@ private:
 
 	/// write/load default values
 	void writeDefaultsToFile(StorageManager& writer);
-	void writeDefaultFXValuesToFile(StorageManager& writer);
+	void writeDefaultFXValuesToFile(Serializer& writer);
 	void writeDefaultFXParamToFile(Serializer& writer, int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(Serializer& writer, int32_t xDisplay);
 	void writeDefaultFXHoldStatusToFile(Serializer& writer, int32_t xDisplay);
 	void loadDefaultLayout();
 	void readDefaultsFromBackedUpFile();
-	void readDefaultsFromFile(StorageManager& reader);
-	void readDefaultFXValuesFromFile(StorageManager& reader);
-	void readDefaultFXParamAndRowValuesFromFile(StorageManager& reader, int32_t xDisplay);
-	void readDefaultFXParamFromFile(StorageManager& reader, int32_t xDisplay);
-	void readDefaultFXRowNumberValuesFromFile(StorageManager& reader, int32_t xDisplay);
-	void readDefaultFXHoldStatusFromFile(StorageManager& reader, int32_t xDisplay);
+	void readDefaultsFromFile(StorageManager& bdsm);
+	void readDefaultFXValuesFromFile(StorageManager& bdsm);
+	void readDefaultFXParamAndRowValuesFromFile(StorageManager& bdsm, int32_t xDisplay);
+	void readDefaultFXParamFromFile(StorageManager& bdsm, int32_t xDisplay);
+	void readDefaultFXRowNumberValuesFromFile(StorageManager& bdsm, int32_t xDisplay);
+	void readDefaultFXHoldStatusFromFile(StorageManager& bdsm, int32_t xDisplay);
 	void initializeHeldFX(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;

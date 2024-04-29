@@ -824,7 +824,7 @@ void MidiFollow::writeDefaultMappingsToFile() {
 }
 
 /// read defaults from XML
-void MidiFollow::readDefaultsFromFile(StorageManager& reader) {
+void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -835,21 +835,21 @@ void MidiFollow::readDefaultsFromFile(StorageManager& reader) {
 
 	FilePointer fp;
 	// MIDIFollow.XML
-	bool success = reader.fileExists(MIDI_DEFAULTS_XML, &fp);
+	bool success = bdsm.fileExists(MIDI_DEFAULTS_XML, &fp);
 	if (!success) {
-		writeDefaultsToFile(reader);
+		writeDefaultsToFile(bdsm);
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
 
 	//<defaults>
-	Error error = reader.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
+	Error error = bdsm.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
-		writeDefaultsToFile(reader);
+		writeDefaultsToFile(bdsm);
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
-
+	Deserializer& reader = bdsm.deserializer();
 	char const* tagName;
 	// step into the <defaultCCMappings> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -859,7 +859,7 @@ void MidiFollow::readDefaultsFromFile(StorageManager& reader) {
 		reader.exitTag();
 	}
 
-	reader.closeFile();
+	bdsm.closeFile();
 
 	successfullyReadDefaultsFromFile = true;
 }

@@ -325,14 +325,15 @@ doReadDrum:
 	return Error::NONE;
 }
 
-Error Kit::readDrumFromFile(StorageManager& reader, Song* song, Clip* clip, DrumType drumType,
+Error Kit::readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumType drumType,
                             int32_t readAutomationUpToPos) {
 
-	Drum* newDrum = reader.createNewDrum(drumType);
+	Drum* newDrum = bdsm.createNewDrum(drumType);
 	if (!newDrum) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
+	Deserializer& reader = bdsm.deserializer();
 	Error error = newDrum->readFromFile(
 	    reader, song, clip,
 	    readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it

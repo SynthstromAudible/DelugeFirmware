@@ -109,7 +109,7 @@ void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint
 void recountSmallestMPEZones();
 void writeDevicesToFile(StorageManager& writer);
 void readAHostedDeviceFromFile(Deserializer& reader);
-void readDevicesFromFile(StorageManager& reader);
+void readDevicesFromFile(StorageManager& bdsm);
 
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
