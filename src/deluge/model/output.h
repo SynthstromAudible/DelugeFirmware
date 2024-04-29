@@ -114,7 +114,7 @@ public:
 	virtual Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 
 	virtual bool readTagFromFile(Deserializer& reader, char const* tagName);
-	void writeToFile(StorageManager& writer, Clip* clipForSavingOutputOnly, Song* song);
+	void writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
 	virtual bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
 	                             Song* song); // Returns true if it's ended the opening tag and gone into the sub-tags
 

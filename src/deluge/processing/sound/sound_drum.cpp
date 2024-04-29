@@ -154,10 +154,11 @@ Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
-void SoundDrum::writeToFileAsInstrument(StorageManager& writer, bool savingSong, ParamManager* paramManager) {
-	writer.writeOpeningTagBeginning("sound");
-	writer.writeFirmwareVersion();
-	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
+	Serializer& writer = bdsm.serializer();
+	bdsm.writeOpeningTagBeginning("sound");
+	bdsm.writeFirmwareVersion();
+	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings);
 
 	if (savingSong) {

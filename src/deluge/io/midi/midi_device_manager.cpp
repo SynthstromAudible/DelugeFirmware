@@ -448,7 +448,7 @@ void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint
 	}
 }
 
-void writeDevicesToFile(StorageManager& writer) {
+void writeDevicesToFile(StorageManager& bdsm) {
 	if (!anyChangesToSave) {
 		return;
 	}
@@ -480,16 +480,16 @@ void writeDevicesToFile(StorageManager& writer) {
 	return;
 
 worthIt:
-	Error error = writer.createXMLFile("MIDIDevices.XML", true);
+	Error error = bdsm.createXMLFile("MIDIDevices.XML", true);
 	if (error != Error::NONE) {
 		return;
 	}
 
 	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
-
+	Serializer& writer = bdsm.serializer();
 	writer.writeOpeningTagBeginning("midiDevices");
-	writer.writeFirmwareVersion();
-	writer.writeEarliestCompatibleFirmwareVersion("4.0.0");
+	bdsm.writeFirmwareVersion();
+	bdsm.writeEarliestCompatibleFirmwareVersion("4.0.0");
 	writer.writeOpeningTagEnd();
 
 	if (dinMIDIPorts.worthWritingToFile()) {
@@ -516,7 +516,7 @@ worthIt:
 
 	writer.writeClosingTag("midiDevices");
 
-	writer.closeFileAfterWriting();
+	bdsm.closeFileAfterWriting();
 
 	// Hook point for Hosted USB MIDI Device
 	if (specificMIDIDevice != NULL) {

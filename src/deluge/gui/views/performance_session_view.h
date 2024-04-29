@@ -155,7 +155,7 @@ private:
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	/// write/load default values
-	void writeDefaultsToFile(StorageManager& writer);
+	void writeDefaultsToFile(StorageManager& bdsm);
 	void writeDefaultFXValuesToFile(Serializer& writer);
 	void writeDefaultFXParamToFile(Serializer& writer, int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(Serializer& writer, int32_t xDisplay);

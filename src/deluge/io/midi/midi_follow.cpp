@@ -766,13 +766,13 @@ bool MidiFollow::isFeedbackEnabled() {
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void MidiFollow::writeDefaultsToFile(StorageManager& writer) {
+void MidiFollow::writeDefaultsToFile(StorageManager& bdsm) {
 	// MidiFollow.xml
-	Error error = writer.createXMLFile(MIDI_DEFAULTS_XML, true);
+	Error error = bdsm.createXMLFile(MIDI_DEFAULTS_XML, true);
 	if (error != Error::NONE) {
 		return;
 	}
-
+	Serializer& writer = bdsm.serializer();
 	//<defaults>
 	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();
@@ -787,7 +787,7 @@ void MidiFollow::writeDefaultsToFile(StorageManager& writer) {
 
 	writer.writeClosingTag(MIDI_DEFAULTS_TAG);
 
-	writer.closeFileAfterWriting();
+	bdsm.closeFileAfterWriting();
 }
 
 /// convert paramID to a paramName to write to XML

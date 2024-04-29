@@ -1282,14 +1282,14 @@ void Song::writeTemplateSong(const char* templatePath) {
 	                                     "\n</song>\n");
 }
 
-void Song::writeToFile(StorageManager& writer) {
+void Song::writeToFile(StorageManager& bdsm) {
 
 	setupClipIndexesForSaving();
-
+	Serializer& writer = bdsm.serializer();
 	writer.writeOpeningTagBeginning("song");
 
-	writer.writeFirmwareVersion();
-	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+	bdsm.writeFirmwareVersion();
+	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 
 	writer.writeAttribute("previewNumPads", "144");
 
@@ -1407,7 +1407,7 @@ weAreInArrangementEditorOrInClipInstance:
 
 	writer.writeOpeningTag("instruments");
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->writeToFile(writer, NULL, this);
+		thisOutput->writeToFile(bdsm, NULL, this);
 	}
 	writer.writeClosingTag("instruments");
 

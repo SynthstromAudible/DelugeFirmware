@@ -191,14 +191,15 @@ ParamManager* Output::getParamManager(Song* song) {
 	}
 }
 
-void Output::writeToFile(StorageManager& writer, Clip* clipForSavingOutputOnly, Song* song) {
+void Output::writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
+	Serializer& writer = bdsm.serializer();
 	char const* tagName = getXMLTag();
 	writer.writeOpeningTagBeginning(tagName);
 
 	if (clipForSavingOutputOnly) {
-		writer.writeFirmwareVersion();
-		writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+		bdsm.writeFirmwareVersion();
+		bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 	}
 
 	bool endedOpeningTag = writeDataToFile(writer, clipForSavingOutputOnly, song);

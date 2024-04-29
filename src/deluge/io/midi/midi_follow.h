@@ -93,7 +93,7 @@ private:
 	bool isFeedbackEnabled();
 
 	// saving
-	void writeDefaultsToFile(StorageManager& writer);
+	void writeDefaultsToFile(StorageManager& bdsm);
 	void writeDefaultMappingsToFile();
 
 	// loading

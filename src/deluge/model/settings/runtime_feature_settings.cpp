@@ -232,17 +232,17 @@ void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
 	bdsm.closeFile();
 }
 
-void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& writer) {
+void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	Error error = writer.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
+	Error error = bdsm.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
 	if (error != Error::NONE) {
 		return;
 	}
-
+	Serializer& writer = bdsm.serializer();
 	writer.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
-	writer.writeFirmwareVersion();
-	writer.writeEarliestCompatibleFirmwareVersion("4.1.3");
+	bdsm.writeFirmwareVersion();
+	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.3");
 	writer.writeAttribute("startupSong", currentSong->getSongFullPath().get());
 	writer.writeOpeningTagEnd();
 
@@ -265,5 +265,5 @@ void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& writer) {
 	}
 
 	writer.writeClosingTag(TAG_RUNTIME_FEATURE_SETTINGS);
-	writer.closeFileAfterWriting();
+	bdsm.closeFileAfterWriting();
 }
