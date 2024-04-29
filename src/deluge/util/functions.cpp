@@ -1090,6 +1090,12 @@ char const* arpOctaveModeToString(ArpOctaveMode mode) {
 	case ArpOctaveMode::DOWN:
 		return "down";
 
+	case ArpOctaveMode::UP_DOWN:
+		return "upDown";
+
+	case ArpOctaveMode::ALTERNATE:
+		return "alt";
+
 	case ArpOctaveMode::RANDOM:
 		return "random";
 
