@@ -93,6 +93,7 @@ The Settings menu contains the following menu hierarchy:
 		- Jump
 		- Pickup (PICK)
 		- Scale (SCAL)
+		- Relative (RELA)
 	- Commands (CMD)
 		- Play
 		- Restart (REST)

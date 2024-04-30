@@ -208,6 +208,7 @@ enum class String : size_t {
 	STRING_FOR_JUMP,
 	STRING_FOR_PICK_UP,
 	STRING_FOR_SCALE,
+	STRING_FOR_RELATIVE,
 
 	// gui/menu_item/mod_fx/type.h
 	STRING_FOR_FLANGER,
