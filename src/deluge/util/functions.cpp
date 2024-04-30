@@ -988,6 +988,30 @@ char const* oldArpModeToString(OldArpMode mode) {
 	}
 }
 
+char const* arpPresetToOldArpMode(ArpPreset preset) {
+	switch (preset) {
+	case ArpPreset::OFF:
+		return "off";
+
+	case ArpPreset::UP:
+		return "up";
+
+	case ArpPreset::DOWN:
+		return "down";
+
+	case ArpPreset::BOTH:
+		return "both";
+
+	case ArpPreset::RANDOM:
+		return "random";
+
+	default:
+		// In case the user selected a Custom mode, we don't know how to convert it to
+		// the old mode so we default to "up" cause at least the arp is ON for sure
+		return "up";
+	}
+}
+
 OldArpMode stringToOldArpMode(char const* string) {
 	if (!strcmp(string, "up")) {
 		return OldArpMode::UP;
@@ -1066,6 +1090,12 @@ char const* arpOctaveModeToString(ArpOctaveMode mode) {
 	switch (mode) {
 	case ArpOctaveMode::DOWN:
 		return "down";
+
+	case ArpOctaveMode::UP_DOWN:
+		return "upDown";
+
+	case ArpOctaveMode::ALTERNATE:
+		return "alt";
 
 	case ArpOctaveMode::RANDOM:
 		return "random";

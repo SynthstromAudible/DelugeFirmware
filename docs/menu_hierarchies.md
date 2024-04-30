@@ -78,8 +78,11 @@ The Settings menu contains the following menu hierarchy:
 				- Disabled (OFF)
 				- Enabled (ON)
 		- Display Param (DISP)
-			- Disabled (ON)
-			- Enabled (OFF)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Control Song Param (SONG)
+			- Disabled (OFF)
+			- Enabled (ON)
 	- Select Kit Row (KROW)
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -212,6 +215,9 @@ The Settings menu contains the following menu hierarchy:
 		- Once
 		- Loop
 		- Stretch
+	- High CPU Indicator (CPU)
+		- Disabled (OFF)
+		- Enabled (ON)
 </details>
 
 <details><summary>Swing Interval (SWIN)</summary>

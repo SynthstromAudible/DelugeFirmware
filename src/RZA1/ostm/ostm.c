@@ -22,7 +22,7 @@
 #include "RZA1/system/iodefines/ostm_iodefine.h"
 #include "RZA1/system/r_typedefs.h"
 
-static struct st_ostm* const OSTimers[] = {&OSTM0, &OSTM1};
+static struct st_ostm volatile* const OSTimers[] = {&OSTM0, &OSTM1};
 
 void enableTimer(int timerNo)
 {
@@ -49,7 +49,13 @@ void setTimerValue(int timerNo, uint32_t timerValue)
     OSTimers[timerNo]->OSTMnCMP = timerValue;
 }
 
-uint32_t getTimerValue(int timerNo)
+volatile uint32_t getTimerValue(int timerNo)
 {
     return OSTimers[timerNo]->OSTMnCNT;
+}
+
+volatile double getTimerValueSeconds(int timerNo)
+{
+    double seconds = ((double)getTimerValue(timerNo) / DELUGE_CLOCKS_PERf);
+    return seconds;
 }

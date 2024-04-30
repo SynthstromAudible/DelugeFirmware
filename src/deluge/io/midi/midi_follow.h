@@ -40,8 +40,7 @@ public:
 	MidiFollow();
 	void readDefaultsFromFile(StorageManager& bdsm);
 
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
-	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
 	                                                bool displayError = true);
 	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,
@@ -62,6 +61,10 @@ public:
 	int32_t previousKnobPos[kMaxMIDIValue + 1];
 	uint32_t timeLastCCSent[kMaxMIDIValue + 1];
 	uint32_t timeAutomationFeedbackLastSent;
+
+	// public so it can be called from View::sendMidiFollowFeedback
+	void sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation = false);
+	void sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos);
 
 private:
 	// initialize
@@ -84,6 +87,7 @@ private:
 	                                   int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
 
+	void handleReceivedCC(ModelStack* modelStack, Clip* clip, int32_t ccNumber, int32_t value);
 	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
 	bool isFeedbackEnabled();
 

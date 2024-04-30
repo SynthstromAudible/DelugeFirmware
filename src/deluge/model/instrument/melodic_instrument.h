@@ -91,7 +91,8 @@ public:
 	EarlyNoteArray notesAuditioned;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
+	                                                bool affectEntire, bool useMenuStack);
 
 private:
 	void possiblyRefreshAutomationEditorGrid(int32_t ccNumber);

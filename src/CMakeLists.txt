@@ -1,7 +1,8 @@
 cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR})
 
-target_sources(deluge PUBLIC main.c resetprg.c fault_handler.c c_lib_alternatives.S sys_stubs.c timers_interrupts.c)
+target_sources(deluge PUBLIC main.c resetprg.c c_lib_alternatives.S sys_stubs.c)
 
+add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)
 add_subdirectory(RZA1)
 add_subdirectory(RTT)

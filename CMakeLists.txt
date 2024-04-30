@@ -232,7 +232,7 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<CONFIG:DEBUG>:-Wno-unused-parameter>
 
     $<$<CONFIG:DEBUG>:-Werror=write-strings>
-
+    -DUSE_TASK_MANAGER
     # Offsetof for non standard types is supported in GCC,
     # if another compiler does not support it they are obligated to error
 

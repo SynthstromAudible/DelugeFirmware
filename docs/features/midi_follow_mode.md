@@ -4,7 +4,7 @@
 
 ## Description:
 
-Master MIDI follow mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger view, song view, audio clip view, instrument clip view). 
+Master MIDI follow mode whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active or selected clip. MIDI follow mode does not control song parameters.
 
 - Note: although there are three MIDI follow channel's (A/B/C), all three channels will control the instrument of the active context. The three follow channel's allows you to learn different devices to MIDI follow, should you require device specific channel settings.
 
@@ -73,14 +73,14 @@ Notes and note associated performance data received (e.g. CC1, MPE CC74) on the 
 - Note 3: MIDI Follow mode will always send notes to the active clip. This means that if you leave or unselect a clip, you can still send notes to that clip because in the Deluge, that clip is still recognized as the last active clip.
 
 ### **CC's:**
-CC's received on the master MIDI channel that have been mapped to a parameter will change the value of that parameter in the active context (e.g. song, arranger, audio clip, instrument clip).
+CC's received on the master MIDI channel that have been mapped to a parameter will change the value of that parameter in the active context (e.g. audio clip or instrument clip).
 
 The parameters are controlled only in the current context.
 
-- So if you are controlling filter, for example, while in song view it will only control the song’s filter. If you enter a specific synth clip, it will only control that synths filter. If you are in a kit clip it will either control the entire kit or a specific row in that clip (depending on whether you have affect entire enabled or not)
+- So if you enter a specific synth clip, it will only control that synths filter. If you are in a kit clip it will either control the entire kit or a specific row in that clip (depending on whether you have affect entire enabled or not)
+- If you are in song view or arranger view and holding down a clip (selecting it), it will only control the parameters for that selected clip.
+- If you are in song view and haven't selected a clip, it will control the parameters of the active instrument of the last clip selected.
 - In other words it checks what context you’re in and controls the parameters of that context.
-
-Note: You can control the parameters of a synth or kit clip without entering the clip from arranger or song view. Simply press and hold the clip in arranger or song view to preview the clip (as you would to change the parameters of that clip with the gold encoders) and then send MIDI cc's from your MIDI controller to adjust the parameters.
 
 #### Default MIDI CC Mappings
 A default set of MIDI CC # to Deluge Parameter mappings has been created for MIDI Follow Mode. When you launch the Deluge after installing the firmware with MIDI Follow Mode, an XML file will be created to the root folder of the SD card titled "MIDIFollow.XML"
@@ -117,7 +117,7 @@ For mapped MIDI CC's, a pop up is shown on the display whenever MIDI CC's are re
 
 <img width="170" alt="Screen Shot 2023-12-04 at 2 32 25 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f4e8115c-c2af-4cfe-94cf-d2e117201cd5">
 
-Note: if the MIDI CC being received is for a Parameter that cannot be controlled in the current context (e.g. trying to control Attack while in Song View), the pop-up message will say "Can't Control: Parameter Name".
+Note: if the MIDI CC being received is for a Parameter that cannot be controlled in the current context (e.g. trying to control Attack while in a Kit with Affect Entire enabled), the pop-up message will say "Can't Control: Parameter Name".
 
 <img width="191" alt="Screen Shot 2023-12-04 at 2 32 03 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/b2dcefb2-4f90-4b23-804c-3250bfd24862">
 
@@ -131,7 +131,7 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 - Enable or Disable MIDI Follow Feedback by setting/unsetting the MIDI Follow Feedback Channel
 - Enable or Disable MIDI Follow Feedback for Automated Parameters and set the MIDI Feedback Update Rate
 - Enable or Disable MIDI Follow Feedback Filtering of MIDI CC responses received within 1 second of sending feedback
-2. When MIDI Follow Mode is enabled, a MIDI Follow Channel has been set, and you have mapped your MIDI CC's, your external controller's Notes and MIDI CC's will be automatically directed to control the Notes of the Active Instrument (e.g. Synth, Kit, MIDI, CV) or the Parameters of the Active View (e.g. Song View, Arranger View, Audio Clip View, Instrument Clip View).
+2. When MIDI Follow Mode is enabled, a MIDI Follow Channel has been set, and you have mapped your MIDI CC's, your external controller's Notes and MIDI CC's will be automatically directed to control the Notes of the Active Instrument (e.g. Synth, Kit, MIDI, CV) and Parameters of the Active Instrument or Selected Clip.
 3. By default, the root note for kit's is C1 for the bottom kit row but this can be configured in the MIDI Follow menu.
 4. Pop-up's are shown on the display for mapped MIDI CC's to show the name of the parameter being controlled and value being set for the parameter. This can be disabled in the menu.
 5. MIDI feedback is sent for mapped CC's when the active context changes, change presets, or you change the value of a mapped parameter on the deluge (e.g. using mod encoders or select encoder if you're int he menu). MIDI feedback can be disabled in the menu by setting the MIDI feedback channel to NONE.

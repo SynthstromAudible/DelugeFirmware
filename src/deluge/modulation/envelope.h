@@ -23,7 +23,7 @@
 class Sound;
 class Voice;
 class ParamManagerForTimeline;
-
+constexpr uint32_t SOFT_CULL_INCREMENT = 65536;
 class Envelope {
 public:
 	Envelope();

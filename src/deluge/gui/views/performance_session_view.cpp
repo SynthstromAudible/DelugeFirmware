@@ -625,6 +625,28 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 	onFXDisplay = true;
 }
 
+// if you had selected a parameter in performance view and the parameter name
+// and current value is displayed on the screen, don't show pop-up as the display already shows it
+// this checks that the param displayed on the screen in performance view
+// is the same param currently being edited with mod encoder and updates the display if needed
+bool PerformanceSessionView::possiblyRefreshPerformanceViewDisplay(params::Kind kind, int32_t id, int32_t newKnobPos) {
+	// check if you're not in editing mode
+	// and a param hold press is currently active
+	if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
+		if ((kind == performanceSessionView.lastPadPress.paramKind)
+		    && (id == performanceSessionView.lastPadPress.paramID)) {
+			int32_t valueForDisplay = view.calculateKnobPosForDisplay(kind, id, newKnobPos + kKnobPosOffset);
+			performanceSessionView.renderFXDisplay(kind, id, valueForDisplay);
+			return true;
+		}
+	}
+	// if a specific param is not active, reset display
+	else if (performanceSessionView.onFXDisplay) {
+		performanceSessionView.renderViewDisplay();
+	}
+	return false;
+}
+
 void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	renderViewDisplay();
 	sessionView.renderOLED(image);
@@ -1019,6 +1041,13 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		    || ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
 		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) >= kHoldTime))) {
 
+			// if there was a previously held pad in this column and you pressed another pad
+			// but didn't set that pad to held, then when we let go of this pad, we want the
+			// the value to be set back to the value of the previously held pad
+			if (shouldRestorePreviousHoldPress(xDisplay)) {
+				fxPress[xDisplay].previousKnobPosition = backupFXPress[xDisplay].currentKnobPosition;
+			}
+
 			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, !defaultEditingMode);
 		}
 		// if releasing a pad that was quickly pressed, give it held status
@@ -1082,8 +1111,18 @@ void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* mod
                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
 	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, fxPress[xDisplay].previousKnobPosition,
 	                      renderDisplay)) {
-		initFXPress(fxPress[xDisplay]);
-		initPadPress(lastPadPress);
+		// if there was a previously held pad in this column and you pressed another pad
+		// but didn't set that pad to held, then when we let go of this pad, we want to
+		// restore the pad press info back to the previous held pad state
+		if (shouldRestorePreviousHoldPress(xDisplay)) {
+			restorePreviousHoldPress(xDisplay);
+		}
+		// otherwise there isn't anymore active presses in this FX column, so we'll
+		// initialize all press info
+		else {
+			initFXPress(fxPress[xDisplay]);
+			initPadPress(lastPadPress);
+		}
 	}
 }
 
@@ -1159,14 +1198,24 @@ bool PerformanceSessionView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
 	return false;
 }
 
-/// backup performance layout so changes can be undone / redone later
+/// backup performance layout column press info so changes can be undone / redone later
 void PerformanceSessionView::backupPerformanceLayout() {
-	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		if (successfullyReadDefaultsFromFile) {
+	if (successfullyReadDefaultsFromFile) {
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			memcpy(&backupFXPress[xDisplay], &fxPress[xDisplay], sizeof(FXColumnPress));
 		}
 	}
 	performanceLayoutBackedUp = true;
+}
+
+/// re-load performance layout column press info from backup
+void PerformanceSessionView::restorePreviousHoldPress(int32_t xDisplay) {
+	memcpy(&fxPress[xDisplay], &backupFXPress[xDisplay], sizeof(FXColumnPress));
+	lastPadPress.yDisplay = backupFXPress[xDisplay].yDisplay;
+}
+
+bool PerformanceSessionView::shouldRestorePreviousHoldPress(int32_t xDisplay) {
+	return (!fxPress[xDisplay].padPressHeld && backupFXPress[xDisplay].padPressHeld);
 }
 
 /// used in conjunction with backupPerformanceLayout to log changes

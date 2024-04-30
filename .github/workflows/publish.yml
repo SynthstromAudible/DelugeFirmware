@@ -6,6 +6,8 @@ on:
       tag:
         required: true
         type: string
+      branch:
+        type: string
   workflow_dispatch:
     inputs:
       run-id:
@@ -15,6 +17,11 @@ on:
         options:
           - nightly
           - beta
+      branch:
+        type: choice
+        options:
+          - release/1.1
+          - community
 
 permissions:
   contents: write #required to update release tags
@@ -24,6 +31,11 @@ jobs:
     name: PublishRelease
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout branch #required to put the tag on the correct branch
+        if: inputs.branch != null
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
       - name: Download Build Artifact
         if: inputs.run-id == null
         uses: actions/download-artifact@v4
