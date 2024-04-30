@@ -421,6 +421,8 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
   controller reaches its maximum or minimum position, the MIDI encoder/Fader will move in sync with the Deluge. The
   Deluge value will always decrease/increase in the same direction as the MIDI controller.
 
+  **4. `RELATIVE`:** The Deluge will increase/decrease its internal encoder position/Parameter value using the relative value changes (offset) sent by the controller. The controller must be actually sending relative value changes (127 for down and 1 for up) in order for this to work.
+
 #### 4.2.4 - Alternative Delay Types for Param Encoders (Gold encoders)
 
 - ([#282]) Ability to select in `COMMUNITY FEATURES` menu, which parameters are controlled when you click the `DELAY`

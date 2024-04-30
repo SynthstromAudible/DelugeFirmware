@@ -70,6 +70,7 @@
 - Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/menu_hierarchies.md)
 - Added MIDI learning of Song Params.
 - Added Synth/MIDI/CV clip configuration of note row play direction. Hold `AUDITION` while entering the `PLAY DIRECTION` menu to set the play direction for the selected note row. While in the note row play direction menu, you can select other note rows to quickly set the play directiom for multiple note rows.
+- Added New MIDI Takeover Mode: `RELATIVE` for use with controllers sending relative value changes
 
 In addition, a number of improvements have been made to how the OLED display is used:
 

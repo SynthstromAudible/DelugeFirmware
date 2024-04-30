@@ -591,9 +591,9 @@ enum class MIDITakeoverMode : uint8_t {
 	JUMP,
 	PICKUP,
 	SCALE,
+	RELATIVE,
 };
-constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::SCALE) + 1;
-constexpr int32_t kMIDITakeoverKnobSyncThreshold = 5;
+constexpr auto kNumMIDITakeoverModes = util::to_underlying(MIDITakeoverMode::RELATIVE) + 1;
 
 enum class MIDIFollowChannelType : uint8_t {
 	A,

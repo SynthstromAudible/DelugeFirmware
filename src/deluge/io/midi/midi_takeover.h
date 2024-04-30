@@ -25,8 +25,16 @@ class MidiTakeover final {
 public:
 	MidiTakeover();
 
-	int32_t calculateKnobPos(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, int32_t value,
-	                         MIDIKnob* knob = nullptr, bool doingMidiFollow = false, int32_t ccNumber = MIDI_CC_NONE);
+	int32_t calculateKnobPos(int32_t knobPos, int32_t value, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
+	                         int32_t ccNumber = MIDI_CC_NONE);
+
+private:
+	void savePreviousKnobPos(int32_t knobPos, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
+	                         int32_t ccNumber = MIDI_CC_NONE);
+	void saveKnobPos(int32_t knobPos, MIDIKnob* knob);
+	void saveKnobPos(int32_t knobPos, int32_t ccNumber);
+	int32_t getPreviousKnobPos(int32_t knobPos, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
+	                           int32_t ccNumber = MIDI_CC_NONE);
 };
 
 extern MidiTakeover midiTakeover;
