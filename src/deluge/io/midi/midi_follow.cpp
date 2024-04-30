@@ -817,7 +817,8 @@ void MidiFollow::writeDefaultMappingsToFile() {
 			if (writeTag) {
 				char buffer[10];
 				intToString(paramToCC[xDisplay][yDisplay], buffer);
-				storageManager.writeTag(paramName, buffer);
+				Serializer& writer = storageManager.serializer();
+				writer.writeTag(paramName, buffer);
 			}
 		}
 	}

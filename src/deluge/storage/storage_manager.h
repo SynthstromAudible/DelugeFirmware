@@ -172,7 +172,7 @@ public:
 	StorageManager& msr() override { return msd; }
 };
 
-class StorageManager : public XMLSerializer, public XMLDeserializer {
+class StorageManager : public XMLDeserializer {
 public:
 	StorageManager();
 	virtual ~StorageManager();
@@ -217,10 +217,10 @@ public:
 
 	bool fileAccessFailedDuring;
 
-	Serializer& serializer() { return (Serializer&)*this; }
+	Serializer& serializer() { return (Serializer&)mSerializer; }
 	Deserializer& deserializer() { return (Deserializer&)*this; }
 
-	// Member vars that were public before but do not need to be:
+	XMLSerializer mSerializer;
 
 private:
 	// ** End of member variables

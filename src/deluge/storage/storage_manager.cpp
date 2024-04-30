@@ -64,7 +64,7 @@ extern void songLoaded(Song* song);
 // any other data so that invalidation and stuff works
 struct FileSystemStuff fileSystemStuff;
 
-StorageManager::StorageManager() : XMLSerializer(*this), XMLDeserializer(*this) {
+StorageManager::StorageManager() : mSerializer(*this), XMLDeserializer(*this) {
 	fileClusterBuffer = NULL;
 }
 
@@ -181,16 +181,17 @@ Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, boo
 		return error;
 	}
 
-	fileWriteBufferCurrentPos = 0;
-	fileTotalBytesWritten = 0;
-	fileAccessFailedDuringWrite = false;
+	XMLSerializer& writer = (XMLSerializer&)serializer();
+	writer.fileWriteBufferCurrentPos = 0;
+	writer.fileTotalBytesWritten = 0;
+	writer.fileAccessFailedDuringWrite = false;
 	char* fillB = fileClusterBuffer;
 	for (int i = 0; i < 32768; ++i)
 		*fillB++ = 0;
 
-	write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 
-	indentAmount = 0;
+	writer.indentAmount = 0;
 
 	return Error::NONE;
 }
@@ -226,19 +227,22 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 
 Error StorageManager::writeBufferToFile() {
 	UINT bytesWritten;
-	FRESULT result = f_write(&fileSystemStuff.currentFile, fileClusterBuffer, fileWriteBufferCurrentPos, &bytesWritten);
-	if (result != FR_OK || bytesWritten != fileWriteBufferCurrentPos) {
+	XMLSerializer& writer = (XMLSerializer&)serializer();
+	FRESULT result =
+	    f_write(&fileSystemStuff.currentFile, fileClusterBuffer, writer.fileWriteBufferCurrentPos, &bytesWritten);
+	if (result != FR_OK || bytesWritten != writer.fileWriteBufferCurrentPos) {
 		return Error::SD_CARD;
 	}
 
-	fileTotalBytesWritten += fileWriteBufferCurrentPos;
+	writer.fileTotalBytesWritten += writer.fileWriteBufferCurrentPos;
 
 	return Error::NONE;
 }
 
 // Returns false if some error, including error while writing
 Error StorageManager::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
-	return closeXMLFileAfterWriting(path, beginningString, endString);
+	XMLSerializer& writer = (XMLSerializer&)serializer();
+	return writer.closeXMLFileAfterWriting(path, beginningString, endString);
 #ifdef NEVER
 	if (fileAccessFailedDuring) {
 		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
@@ -401,11 +405,11 @@ bool StorageManager::closeFile() {
 }
 
 void StorageManager::writeFirmwareVersion() {
-	writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
+	serializer().writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
 }
 
 void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionString) {
-	writeAttribute("earliestCompatibleFirmware", versionString);
+	serializer().writeAttribute("earliestCompatibleFirmware", versionString);
 }
 
 // Gets ready to access SD card.
@@ -460,8 +464,10 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 	fileSystemStuff.currentFile.sect = 0;       /* Invalidate current data sector */
 	fileSystemStuff.currentFile.fptr = 0;       /* Set file pointer top of the file */
 
+	XMLSerializer& writer = (XMLSerializer&)serializer();
+
 	fileAccessFailedDuring = false;
-	fileAccessFailedDuringWrite = false;
+	writer.fileAccessFailedDuringWrite = false;
 }
 
 Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* filePointer) {
