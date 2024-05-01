@@ -64,7 +64,7 @@ extern void songLoaded(Song* song);
 // any other data so that invalidation and stuff works
 struct FileSystemStuff fileSystemStuff;
 
-StorageManager::StorageManager() : mSerializer(*this), XMLDeserializer(*this) {
+StorageManager::StorageManager() : mSerializer(*this), mDeserializer(*this) {
 	fileClusterBuffer = NULL;
 }
 
@@ -201,8 +201,8 @@ bool StorageManager::fileExists(char const* pathName) {
 	if (error != Error::NONE) {
 		return false;
 	}
-
-	FRESULT result = f_stat(pathName, &staticFNO);
+	FILINFO tempFNO;
+	FRESULT result = f_stat(pathName, &tempFNO);
 	return (result == FR_OK);
 }
 
@@ -312,24 +312,18 @@ Error StorageManager::closeFileAfterWriting(char const* path, char const* beginn
 #endif
 }
 
-Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
+
+Error XMLDeserializer::ReadFromXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
                                   bool ignoreIncorrectFirmware) {
-
-	AudioEngine::logAction("openXMLFile");
-
-	openFilePointer(filePointer);
-
-	// Prep to read first Cluster shortly
 	fileReadBufferCurrentPos = audioFileManager.clusterSize;
 	currentReadBufferEndPos = audioFileManager.clusterSize;
 
-	firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
+	msd.firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
 
 	tagDepthFile = 0;
 	tagDepthCaller = 0;
 	xmlReachedEnd = false;
 	xmlArea = BETWEEN_TAGS;
-
 	char const* tagName;
 
 	while (*(tagName = readNextTagOrAttributeName())) {
@@ -338,27 +332,44 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTag
 			return Error::NONE;
 		}
 
-		Error result = tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
+		Error result = msd.tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
 		if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 			return result;
 		}
 		exitTag(tagName);
 	}
+	return Error::FILE_CORRUPTED;
+}
 
+
+Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
+                                  bool ignoreIncorrectFirmware) {
+
+	AudioEngine::logAction("openXMLFile");
+
+	openFilePointer(filePointer);
+
+	// Prep to read first Cluster shortly
+
+
+	Error err = mDeserializer.ReadFromXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
+	if (err == Error::NONE ) return Error::NONE;
 	f_close(&fileSystemStuff.currentFile);
+
 	return Error::FILE_CORRUPTED;
 }
 
 Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
 
+	Deserializer& reader = (Deserializer&) mDeserializer;
 	if (!strcmp(tagName, "firmwareVersion")) {
-		char const* firmware_version_string = readTagOrAttributeValue();
+		char const* firmware_version_string = reader.readTagOrAttributeValue();
 		firmware_version = FirmwareVersion::parse(firmware_version_string);
 	}
 
 	// If this tag doesn't exist, it's from old firmware so is ok
 	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
-		char const* firmware_version_string = readTagOrAttributeValue();
+		char const* firmware_version_string = reader.readTagOrAttributeValue();
 		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
 		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
 			f_close(&fileSystemStuff.currentFile);
@@ -373,26 +384,6 @@ Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ig
 	return Error::NONE;
 }
 
-bool StorageManager::readXMLFileCluster() {
-
-	AudioEngine::logAction("readXMLFileCluster");
-
-	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)fileClusterBuffer, audioFileManager.clusterSize,
-	                        &currentReadBufferEndPos);
-	if (result) {
-		fileAccessFailedDuring = true;
-		return false;
-	}
-
-	// If error or we reached end of file
-	if (!currentReadBufferEndPos) {
-		return false;
-	}
-
-	fileReadBufferCurrentPos = 0;
-
-	return true;
-}
 
 // Returns false if some error, including error while writing
 bool StorageManager::closeFile() {
@@ -464,10 +455,10 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 	fileSystemStuff.currentFile.sect = 0;       /* Invalidate current data sector */
 	fileSystemStuff.currentFile.fptr = 0;       /* Set file pointer top of the file */
 
-	XMLSerializer& writer = (XMLSerializer&)serializer();
+	//XMLSerializer& writer = (XMLSerializer&)serializer();
 
 	fileAccessFailedDuring = false;
-	writer.fileAccessFailedDuringWrite = false;
+	//writer.fileAccessFailedDuringWrite = false; // *** JFF HACK ***
 }
 
 Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* filePointer) {
@@ -518,8 +509,8 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 		D_PRINTLN("Allocating instrument file failed -  %d", name->get());
 		return Error::INSUFFICIENT_RAM;
 	}
-
-	error = newInstrument->readFromFile(*this, song, clip, 0);
+	Deserializer& reader = (Deserializer&) mDeserializer;
+	error = newInstrument->readFromFile(reader, song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -600,6 +591,8 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
                                       String* dirPath) {
 	OutputType outputType = OutputType::SYNTH;
 	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
+	XMLDeserializer& reader = (XMLDeserializer&) mDeserializer;
+
 	if (!newDrum) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -613,7 +606,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(*this, song, clip, 0);
+	error = newDrum->readFromFile(mDeserializer, song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -764,10 +757,10 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
-
-	while (*(tagName = readNextTagOrAttributeName())) {
+	Deserializer& reader = (Deserializer&) mDeserializer;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "cc")) {
-			char const* contents = readTagOrAttributeValue();
+			char const* contents = reader.readTagOrAttributeValue();
 			if (!strcasecmp(contents, "bend")) {
 				cc = CC_NUMBER_PITCH_BEND;
 			}
@@ -785,7 +778,7 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 				cc = CC_NUMBER_Y_AXIS;
 			}
 
-			exitTag("cc");
+			reader.exitTag("cc");
 		}
 		else if (!strcmp(tagName, "value")) {
 			if (cc != CC_NUMBER_NONE && midiParamCollection) {
@@ -795,15 +788,15 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 					return Error::INSUFFICIENT_RAM;
 				}
 
-				Error error = midiParam->param.readFromFile(*this, readAutomationUpToPos);
+				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}
 			}
-			exitTag("value");
+			reader.exitTag("value");
 		}
 		else {
-			exitTag(tagName);
+			reader.exitTag(tagName);
 		}
 	}
 
@@ -1165,7 +1158,7 @@ doReadName:
 	do {
 		int32_t bufferPosAtStart = fileReadBufferCurrentPos;
 		while (fileReadBufferCurrentPos < currentReadBufferEndPos) {
-			char thisChar = msd.fileClusterBuffer[fileReadBufferCurrentPos];
+			char thisChar = readerFileClusterBuffer[fileReadBufferCurrentPos];
 
 			switch (thisChar) {
 			case ' ':
@@ -1197,9 +1190,9 @@ reachedNameEnd:
 			haveReachedNameEnd = true;
 			// If possible, just return a pointer to the chars within the existing buffer
 			if (!charPos && fileReadBufferCurrentPos < currentReadBufferEndPos) {
-				fileClusterBuffer[fileReadBufferCurrentPos] = 0; // NULL end of the string we're returning
+				readerFileClusterBuffer[fileReadBufferCurrentPos] = 0; // NULL end of the string we're returning
 				fileReadBufferCurrentPos++;                      // Gets us past the endChar
-				return &fileClusterBuffer[bufferPosAtStart];
+				return &readerFileClusterBuffer[bufferPosAtStart];
 			}
 		}
 
@@ -1207,8 +1200,7 @@ reachedNameEnd:
 		int32_t numCharsToCopy = std::min<int32_t>(numCharsHere, kFilenameBufferSize - 1 - charPos);
 
 		if (numCharsToCopy > 0) {
-			memcpy(&stringBuffer[charPos], &fileClusterBuffer[bufferPosAtStart], numCharsToCopy);
-
+			memcpy(&stringBuffer[charPos], &readerFileClusterBuffer[bufferPosAtStart], numCharsToCopy);
 			charPos += numCharsToCopy;
 		}
 
@@ -1237,7 +1229,7 @@ char const* XMLDeserializer::readNextTagOrAttributeName() {
 #if ALPHA_OR_BETA_VERSION
 		// Can happen with invalid files, though I'm implementing error checks whenever a user alerts me to a scenario.
 		// Fraser got this, Nov 2021.
-		FREEZE_WITH_ERROR("E365");
+		//FREEZE_WITH_ERROR("E365"); // *** JFF HACK ***
 #else
 		__builtin_unreachable();
 #endif
@@ -1392,7 +1384,7 @@ void XMLDeserializer::skipUntilChar(char endChar) {
 	readXMLFileClusterIfNecessary(); // Does this need to be here? Originally I didn't have it...
 	do {
 		while (fileReadBufferCurrentPos < currentReadBufferEndPos
-		       && fileClusterBuffer[fileReadBufferCurrentPos] != endChar) {
+		       && readerFileClusterBuffer[fileReadBufferCurrentPos] != endChar) {
 			fileReadBufferCurrentPos++;
 		}
 
@@ -1410,7 +1402,7 @@ Error XMLDeserializer::readStringUntilChar(String* string, char endChar) {
 
 	do {
 		int32_t bufferPosNow = fileReadBufferCurrentPos;
-		while (bufferPosNow < currentReadBufferEndPos && fileClusterBuffer[bufferPosNow] != endChar) {
+		while (bufferPosNow < currentReadBufferEndPos && readerFileClusterBuffer[bufferPosNow] != endChar) {
 			bufferPosNow++;
 		}
 
@@ -1418,7 +1410,7 @@ Error XMLDeserializer::readStringUntilChar(String* string, char endChar) {
 
 		if (numCharsHere) {
 			Error error =
-			    string->concatenateAtPos(&fileClusterBuffer[fileReadBufferCurrentPos], newStringPos, numCharsHere);
+			    string->concatenateAtPos(&readerFileClusterBuffer[fileReadBufferCurrentPos], newStringPos, numCharsHere);
 
 			fileReadBufferCurrentPos = bufferPosNow;
 
@@ -1443,23 +1435,23 @@ char const* XMLDeserializer::readUntilChar(char endChar) {
 	do {
 		int32_t bufferPosAtStart = fileReadBufferCurrentPos;
 		while (fileReadBufferCurrentPos < currentReadBufferEndPos
-		       && fileClusterBuffer[fileReadBufferCurrentPos] != endChar) {
+		       && readerFileClusterBuffer[fileReadBufferCurrentPos] != endChar) {
 			fileReadBufferCurrentPos++;
 		}
 
 		// If possible, just return a pointer to the chars within the existing buffer
 		if (!charPos && fileReadBufferCurrentPos < currentReadBufferEndPos) {
-			fileClusterBuffer[fileReadBufferCurrentPos] = 0;
+			readerFileClusterBuffer[fileReadBufferCurrentPos] = 0;
 
 			fileReadBufferCurrentPos++; // Gets us past the endChar
-			return &fileClusterBuffer[bufferPosAtStart];
+			return &readerFileClusterBuffer[bufferPosAtStart];
 		}
 
 		int32_t numCharsHere = fileReadBufferCurrentPos - bufferPosAtStart;
 		int32_t numCharsToCopy = std::min<int32_t>(numCharsHere, kFilenameBufferSize - 1 - charPos);
 
 		if (numCharsToCopy > 0) {
-			memcpy(&stringBuffer[charPos], &fileClusterBuffer[bufferPosAtStart], numCharsToCopy);
+			memcpy(&stringBuffer[charPos], &readerFileClusterBuffer[bufferPosAtStart], numCharsToCopy);
 
 			charPos += numCharsToCopy;
 		}
@@ -1487,7 +1479,7 @@ char const* XMLDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChars
 		int32_t currentReadBufferEndPosNow = std::min<int32_t>(currentReadBufferEndPos, bufferPosAtEnd);
 
 		while (fileReadBufferCurrentPos < currentReadBufferEndPosNow) {
-			if (fileClusterBuffer[fileReadBufferCurrentPos] == charAtEndOfValue) {
+			if (readerFileClusterBuffer[fileReadBufferCurrentPos] == charAtEndOfValue) {
 				goto reachedEndCharEarly;
 			}
 			fileReadBufferCurrentPos++;
@@ -1499,12 +1491,12 @@ char const* XMLDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChars
 		// existing buffer
 		if (numCharsHere == numChars) {
 			xmlReadDone();
-			return &fileClusterBuffer[bufferPosAtStart];
+			return &readerFileClusterBuffer[bufferPosAtStart];
 		}
 
 		// Otherwise, so long as we read something, add it to our buffer we're putting the output in
 		if (numCharsHere > 0) {
-			memcpy(&stringBuffer[charPos], &fileClusterBuffer[bufferPosAtStart], numCharsHere);
+			memcpy(&stringBuffer[charPos], &readerFileClusterBuffer[bufferPosAtStart], numCharsHere);
 
 			charPos += numCharsHere;
 
@@ -1680,7 +1672,7 @@ Error XMLDeserializer::readTagOrAttributeValueString(String* string) {
 int32_t XMLDeserializer::getNumCharsRemainingInValue() {
 
 	int32_t pos = fileReadBufferCurrentPos;
-	while (pos < currentReadBufferEndPos && fileClusterBuffer[pos] != charAtEndOfValue) {
+	while (pos < currentReadBufferEndPos && readerFileClusterBuffer[pos] != charAtEndOfValue) {
 		pos++;
 	}
 
@@ -1714,7 +1706,7 @@ bool XMLDeserializer::readXMLFileClusterIfNecessary() {
 	// Load next Cluster if necessary
 	if (fileReadBufferCurrentPos >= audioFileManager.clusterSize) {
 		xmlReadCount = 0;
-		bool result = msd.readXMLFileCluster();
+		bool result = readXMLFileCluster();
 		if (!result) {
 			xmlReachedEnd = true;
 		}
@@ -1736,7 +1728,7 @@ uint32_t XMLDeserializer::readCharXML(char* thisChar) {
 		return 0;
 	}
 
-	*thisChar = fileClusterBuffer[fileReadBufferCurrentPos];
+	*thisChar = readerFileClusterBuffer[fileReadBufferCurrentPos];
 
 	fileReadBufferCurrentPos++;
 
@@ -1789,4 +1781,30 @@ void XMLDeserializer::exitTag(char const* exitTagName) {
 	// where we are in the xml parsing, caller depth represents the callers view. The caller can be shallower
 	// as the file will open past empty or unused tags, but should never be deeper.
 	tagDepthCaller = tagDepthFile;
+}
+
+
+bool XMLDeserializer::readXMLFileCluster() {
+
+	AudioEngine::logAction("readXMLFileCluster");
+
+	currentReadBufferEndPos = 0;
+
+	FRESULT result = f_read(&fileSystemStuff.currentFile, readerFileClusterBuffer, audioFileManager.clusterSize,
+	                        (UINT*) &currentReadBufferEndPos);
+
+
+	if (result) {
+		msd.fileAccessFailedDuring = true;
+		return false;
+	}
+
+	// If error or we reached end of file
+	if (!currentReadBufferEndPos) {
+		return false;
+	}
+
+	fileReadBufferCurrentPos = 0;
+
+	return true;
 }

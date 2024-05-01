@@ -318,7 +318,7 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = preLoadedSong->readFromFile(bdsm);
+	error = preLoadedSong->readFromFile(bdsm.deserializer());
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}

@@ -136,14 +136,15 @@ public:
 	char const* readTagOrAttributeValue() override;
 	void exitTag(char const* exitTagName = NULL) override;
 
+
+
 private:
 	StorageManager& msd;
 
 public:
 	UINT currentReadBufferEndPos;
 	int32_t fileReadBufferCurrentPos;
-
-	char* fileClusterBuffer; // This buffer is reused in various places outside of StorageManager proper.
+	char* readerFileClusterBuffer; // This buffer is reused in various places outside of StorageManager proper.
 
 	uint8_t xmlArea; // state variable for tokenizer
 	bool xmlReachedEnd;
@@ -166,13 +167,16 @@ public:
 	bool readXMLFileClusterIfNecessary();
 	Error readStringUntilChar(String* string, char endChar);
 	Error readAttributeValueString(String* string);
-	// bool readXMLFileCluster();
+	bool readXMLFileCluster();
 	void xmlReadDone();
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 	StorageManager& msr() override { return msd; }
+
+	Error ReadFromXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
+                                  bool ignoreIncorrectFirmware);
 };
 
-class StorageManager : public XMLDeserializer {
+class StorageManager {
 public:
 	StorageManager();
 	virtual ~StorageManager();
@@ -216,18 +220,15 @@ public:
 	FirmwareVersion firmware_version = FirmwareVersion::current();
 
 	bool fileAccessFailedDuring;
-
+	char* fileClusterBuffer; // This buffer is reused in various places outside of StorageManager proper.
 	Serializer& serializer() { return (Serializer&)mSerializer; }
 	Deserializer& deserializer() { return (Deserializer&)*this; }
 
 	XMLSerializer mSerializer;
-
+	XMLDeserializer mDeserializer;
 private:
 	// ** End of member variables
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
-
-public:
-	bool readXMLFileCluster();
 };
 
 extern StorageManager storageManager;

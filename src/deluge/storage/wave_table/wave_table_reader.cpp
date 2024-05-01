@@ -39,6 +39,7 @@ Error WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t 
 Error WaveTableReader::readNewCluster() {
 
 	UINT bytesRead;
+
 	FRESULT result = f_read(&fileSystemStuff.currentFile, storageManager.fileClusterBuffer,
 	                        audioFileManager.clusterSize, &bytesRead);
 	if (result) {

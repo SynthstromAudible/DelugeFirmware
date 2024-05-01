@@ -846,7 +846,7 @@ void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 	//<defaults>
 	Error error = bdsm.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
-		writeDefaultsToFile(bdsm);
+		//writeDefaultsToFile(bdsm); // *** JFF HACK ***
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}

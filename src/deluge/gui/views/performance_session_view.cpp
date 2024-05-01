@@ -1886,7 +1886,7 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager
 		for (int32_t yDisplay = kDisplayHeight - 1; yDisplay >= 0; yDisplay--) {
 			intToString(yDisplay + 1, rowNumber);
 			if (!strcmp(tagName, rowNumber)) {
-				defaultFXValues[xDisplay][yDisplay] = bdsm.readTagOrAttributeValueInt() - kKnobPosOffset;
+				defaultFXValues[xDisplay][yDisplay] = reader.readTagOrAttributeValueInt() - kKnobPosOffset;
 
 				// check if a value greater than 64 was entered as a default value in xml file
 				if (defaultFXValues[xDisplay][yDisplay] > kKnobPosOffset) {
