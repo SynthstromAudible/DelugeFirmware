@@ -548,7 +548,10 @@ extern "C" volatile uint32_t usbLock;
 extern "C" void usb_main_host(void);
 
 void registerTasks() {
-	addRepeatingTask([]() { uiTimerManager.routine(); }, 101, 0.001, 0.005, 0.010);
+	// needs to be called very frequently,
+	// handles animations and checks on the timers for any infrequent actions
+	// long term this should probably be made into an idle task
+	addRepeatingTask([]() { uiTimerManager.routine(); }, 101, 0.0001, 0.001, 0.005);
 	if (hid::display::have_oled_screen) {
 		addRepeatingTask(&(oledRoutine), 100, 0.01, 0.01, 0.02);
 	}
@@ -570,7 +573,7 @@ void registerTasks() {
 	// addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
 
 	// formerly part of audio routine
-	addRepeatingTask([]() { playbackHandler.routine(); }, 10, 4 / 44100., 16 / 44100, 64 / 44100.);
+	addRepeatingTask([]() { playbackHandler.routine(); }, 10, 1 / 44100., 16 / 44100, 32 / 44100.);
 	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, 60, 0.1, 0.1, 0.2);
 	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, 61, 0.01, 0.1, 0.1);
 	addRepeatingTask(&AudioEngine::slowRoutine, 70, 0.01, 0.05, 0.1);
