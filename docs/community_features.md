@@ -313,7 +313,7 @@ Here is a list of features that have been added to the firmware as a list, group
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:
-        1. Enter `SETTINGS > DEFAULTS > UI > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
+        1. Enter `SETTINGS > DEFAULTS > UI > SONG > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
         2. Exit Settings menu to save settings
     - The following steps enable you to quickly create and arm new clips for recording:
         1. In Grid view, make sure you are in Green mode.
