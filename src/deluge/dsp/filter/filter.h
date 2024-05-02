@@ -58,7 +58,7 @@ public:
 	 * @param extraSaturation extra saturation value
 	 */
 	[[gnu::hot]] void filterMono(q31_t* startSample, q31_t* endSample, int32_t sampleIncrememt = 1) {
-		if (wetLevel == ONE_Q31) {
+		if (dryFade < 0.001) {
 			static_cast<T*>(this)->doFilter(startSample, endSample, sampleIncrememt);
 		}
 		else {
@@ -84,7 +84,7 @@ public:
 	 * @param extraSaturation extra saturation value
 	 */
 	[[gnu::hot]] void filterStereo(q31_t* startSample, q31_t* endSample) {
-		if (wetLevel == ONE_Q31) {
+		if (dryFade < 0.001) {
 			static_cast<T*>(this)->doFilterStereo(startSample, endSample);
 		}
 		else {

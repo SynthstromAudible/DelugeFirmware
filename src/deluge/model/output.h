@@ -153,8 +153,8 @@ public:
 	bool recordingInArrangement;
 
 	virtual ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                                                        int32_t paramID,
-	                                                        deluge::modulation::params::Kind paramKind) = 0;
+	                                                        int32_t paramID, deluge::modulation::params::Kind paramKind,
+	                                                        bool affectEntire, bool useMenuStack) = 0;
 	virtual bool needsEarlyPlayback() const { return false; }
 
 protected:

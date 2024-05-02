@@ -16,31 +16,44 @@ add_compile_definitions(
 FetchContent_MakeAvailable(CppUTest)
 
 file(GLOB_RECURSE deluge_SOURCES
+
+        # Required for memory tests
+        ../../src/deluge/memory/*
+
+        # Used for prints
+        ../../src/deluge/gui/l10n/*
+
+        # Used by most other modules
+        ../../src/deluge/util/*
+
         # Mock implementations
         mocks/*
 )
 
-add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp)
-target_sources(UnitTests PRIVATE ${deluge_SOURCES})
-target_include_directories(UnitTests PRIVATE
+add_executable(32BitTests RunAllTests.cpp memory_tests.cpp)
+target_sources(32BitTests PRIVATE ${deluge_SOURCES})
+target_include_directories(32BitTests PRIVATE
+
         # include the non test project source
         mocks
-        ../../src
         ../../src/deluge
+        ../../src/NE10/inc
+        ../../src
 )
 
-set_target_properties(UnitTests
+set_target_properties(32BitTests
         PROPERTIES
         C_STANDARD 23
         C_STANDARD_REQUIRED ON
         CXX_STANDARD 23
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS ON
+        LINK_FLAGS -m32
 )
 
-target_link_libraries(UnitTests CppUTest CppUTestExt)
+target_link_libraries(32BitTests CppUTest CppUTestExt)
 
 # strchr is seemingly different in x86
-target_compile_options(UnitTests PUBLIC
+target_compile_options(32BitTests PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
 )

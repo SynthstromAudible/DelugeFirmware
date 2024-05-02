@@ -41,9 +41,9 @@
 #include <stdbool.h>
 
 // Additions by Rohan
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"
-#include "timers_interrupts.h"
 
 #if ((USB_CFG_DTC == USB_CFG_ENABLE) || (USB_CFG_DMA == USB_CFG_ENABLE))
 #include "RZA1/usb/r_usb_basic/src/hw/inc/r_usb_dmac.h"

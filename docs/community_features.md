@@ -80,8 +80,7 @@ Here is a list of general improvements that have been made, ordered from newest 
       but any already sounding notes will be stopped.
 
 - ([#889]) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
-  clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger
-  view, song view, audio clip view, instrument clip view).
+  clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active or selected clip).
     - For a detailed description of this feature, please refer to the feature
       documentation: [MIDI Follow Mode Documentation]
     - Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's.
@@ -340,7 +339,7 @@ Here is a list of features that have been added to the firmware as a list, group
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:
-        1. Enter `SETTINGS > DEFAULTS > UI > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
+        1. Enter `SETTINGS > DEFAULTS > UI > SONG > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
         2. Exit Settings menu to save settings
     - The following steps enable you to quickly create and arm new clips for recording:
         1. In Grid view, make sure you are in Green mode.
@@ -622,8 +621,6 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of
           the Deluge grid (second pad from the top). Toggle interpolation on/off using Shift + Interpolation shortcut
           pad. The Interpolation shortcut pad will blink to indicate that interpolation is enabled.
-        - Updated `AUTOMATION VIEW` to remove select encoder scrolling selection of non-MIDI clip parameters. Select
-          encoder is now used to fine tune non-MIDI parameter values in the `AUTOMATION VIEW EDITOR`.
         - Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
         - Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
         - Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to

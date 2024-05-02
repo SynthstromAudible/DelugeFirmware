@@ -13,13 +13,13 @@ on:
 
 jobs:
   release-build:
-    name: Build Check
+    name: Build check - Release
     uses: ./.github/workflows/build.yml
     with:
       firmware-retention-days: 5
       build-type: 'Release'
   debug-build:
-    name: Build Check
+    name: Build check - Debug
     uses: ./.github/workflows/build.yml
     with:
       firmware-retention-days: 5

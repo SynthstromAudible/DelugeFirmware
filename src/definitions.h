@@ -1,7 +1,7 @@
 #pragma once
+#include "OSLikeStuff/fault_handler/fault_handler.h" // IWYU pragma: export (for expanding the freeze with error macro)
 #include "RZA1/cpu_specific.h"
 #include "RZA1/system/r_typedefs.h"
-#include "fault_handler.h" // IWYU pragma: export (for expanding the freeze with error macro)
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
