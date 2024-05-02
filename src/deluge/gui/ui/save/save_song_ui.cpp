@@ -335,7 +335,6 @@ failAfterOpeningSourceFile:
 
 				// Create file to write
 				error = bdsm.createFile(&recorderFileSystemStuff.currentFile, destFilePath, false);
-
 				if (error == Error::FILE_ALREADY_EXISTS) {
 				} // No problem - the audio file was already there from before, so we don't need to copy it again now.
 				else if (error != Error::NONE) {
@@ -344,6 +343,7 @@ failAfterOpeningSourceFile:
 					// Or if everything's fine and we're ready to write / copy...
 				}
 				else {
+
 					// Copy
 					while (true) {
 						UINT bytesRead;

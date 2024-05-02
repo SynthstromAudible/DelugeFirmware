@@ -291,7 +291,7 @@ doReadDrum:
 		}
 		else if (!strcmp(tagName, "MIDIInput")) {
 			midiInput.readNoteFromFile(reader);
-			reader.exitTag();
+			storageManager.exitTag();
 		}
 		else {
 			Error result =

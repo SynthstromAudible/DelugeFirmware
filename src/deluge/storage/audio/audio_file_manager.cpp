@@ -69,6 +69,7 @@ AudioFileManager::AudioFileManager() {
 }
 
 void AudioFileManager::init() {
+
 	clusterBeingLoaded = NULL;
 
 	Error error = storageManager.initSD();
@@ -90,9 +91,6 @@ void AudioFileManager::init() {
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(clusterSizeAtBoot + CACHE_LINE_SIZE * 2);
 	storageManager.fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 
-	void* temp2 = GeneralMemoryAllocator::get().allocLowSpeed(clusterSizeAtBoot + CACHE_LINE_SIZE * 2);
-	XMLDeserializer& reader = (XMLDeserializer&) storageManager.deserializer();
-	reader.readerFileClusterBuffer = (char*)temp2 + CACHE_LINE_SIZE;
 	clusterObjectSize = sizeof(Cluster) + clusterSize;
 }
 

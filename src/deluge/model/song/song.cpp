@@ -1783,8 +1783,8 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-				lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
-				reader.exitTag("lastSelectedParamArrayPosition");
+				lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
+				storageManager.exitTag("lastSelectedParamArrayPosition");
 			}
 
 			// legacy section, read as part of global effectable (songParams tag) post c1.1
@@ -1938,7 +1938,7 @@ gotError:
 
 loadOutput:
 						error = newOutput->readFromFile(
-						    reader, this, NULL,
+						    storageManager, this, NULL,
 						    0); // If it finds any default params, it'll make a ParamManager and "back it up"
 						if (error != Error::NONE) {
 							goto gotError;

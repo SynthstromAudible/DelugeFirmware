@@ -278,7 +278,7 @@ Error Output::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t
 	return Error::NONE;
 }
 
-// If this returns false, the caller has to call reader.exitTag();
+// If this returns false, the caller has to call storageManager.exitTag();
 bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	if (!strcmp(tagName, "isMutedInArrangement")) {

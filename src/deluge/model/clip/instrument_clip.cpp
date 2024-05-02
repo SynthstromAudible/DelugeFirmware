@@ -2569,7 +2569,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
+			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
@@ -2640,8 +2640,8 @@ someError:
 					reader.exitTag("sequenceLength");
 				}
 				else if (!strcmp(tagName, "rhythm")) {
-					arpeggiatorRhythm = reader.readTagOrAttributeValueInt();
-					reader.exitTag("rhythm");
+					arpeggiatorRhythm = storageManager.readTagOrAttributeValueInt();
+					storageManager.exitTag("rhythm");
 				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = reader.readTagOrAttributeValueInt();
@@ -2743,7 +2743,7 @@ someError:
 				}
 
 loadInstrument:
-				error = output->readFromFile(reader, song, this, readAutomationUpToPos);
+				error = output->readFromFile(storageManager, song, this, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					goto someError;
 				}
