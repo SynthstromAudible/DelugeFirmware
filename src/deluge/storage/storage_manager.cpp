@@ -350,15 +350,15 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTag
 }
 
 Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
-
+	Deserializer& reader = (Deserializer&)*this;
 	if (!strcmp(tagName, "firmwareVersion")) {
-		char const* firmware_version_string = readTagOrAttributeValue();
+		char const* firmware_version_string = reader.readTagOrAttributeValue();
 		firmware_version = FirmwareVersion::parse(firmware_version_string);
 	}
 
 	// If this tag doesn't exist, it's from old firmware so is ok
 	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
-		char const* firmware_version_string = readTagOrAttributeValue();
+		char const* firmware_version_string = reader.readTagOrAttributeValue();
 		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
 		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
 			f_close(&fileSystemStuff.currentFile);
@@ -764,8 +764,8 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
-
-	while (*(tagName = readNextTagOrAttributeName())) {
+	Deserializer& reader = (Deserializer&)*this;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "cc")) {
 			char const* contents = readTagOrAttributeValue();
 			if (!strcasecmp(contents, "bend")) {
@@ -785,7 +785,7 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 				cc = CC_NUMBER_Y_AXIS;
 			}
 
-			exitTag("cc");
+			reader.exitTag("cc");
 		}
 		else if (!strcmp(tagName, "value")) {
 			if (cc != CC_NUMBER_NONE && midiParamCollection) {
@@ -800,10 +800,10 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 					return error;
 				}
 			}
-			exitTag("value");
+			reader.exitTag("value");
 		}
 		else {
-			exitTag(tagName);
+			reader.exitTag(tagName);
 		}
 	}
 
