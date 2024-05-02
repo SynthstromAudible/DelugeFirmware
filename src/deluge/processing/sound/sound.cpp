@@ -752,7 +752,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 	else if (!strcmp(tagName, "rhythm")) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
-		storageManager.exitTag("rhythm");
+		reader.exitTag("rhythm");
 	}
 
 	else if (!strcmp(tagName,
@@ -3602,7 +3602,7 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 	}
 	else if (!strcmp(tagName, "rhythm")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
-		storageManager.exitTag("rhythm");
+		reader.exitTag("rhythm");
 	}
 	else if (!strcmp(tagName, "portamento")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);

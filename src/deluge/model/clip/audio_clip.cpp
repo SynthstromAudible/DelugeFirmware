@@ -1145,7 +1145,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
 		}
 
 		else {

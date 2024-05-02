@@ -2569,7 +2569,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-			lastSelectedParamArrayPosition = storageManager.readTagOrAttributeValueInt();
+			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
@@ -2640,8 +2640,8 @@ someError:
 					reader.exitTag("sequenceLength");
 				}
 				else if (!strcmp(tagName, "rhythm")) {
-					arpeggiatorRhythm = storageManager.readTagOrAttributeValueInt();
-					storageManager.exitTag("rhythm");
+					arpeggiatorRhythm = reader.readTagOrAttributeValueInt();
+					reader.exitTag("rhythm");
 				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = reader.readTagOrAttributeValueInt();
