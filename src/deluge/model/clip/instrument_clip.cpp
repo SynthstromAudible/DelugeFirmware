@@ -2743,7 +2743,7 @@ someError:
 				}
 
 loadInstrument:
-				error = output->readFromFile(storageManager, song, this, readAutomationUpToPos);
+				error = output->readFromFile(reader, song, this, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					goto someError;
 				}

@@ -64,8 +64,8 @@ extern void songLoaded(Song* song);
 // any other data so that invalidation and stuff works
 struct FileSystemStuff fileSystemStuff;
 
-StorageManager::StorageManager() : mSerializer(*this), XMLDeserializer(*this) {
-	fileClusterBuffer = NULL;
+StorageManager::StorageManager() : mSerializer(*this), mDeserializer(*this) {
+	mDeserializer.fileClusterBuffer = NULL;
 }
 
 StorageManager::~StorageManager() {
@@ -185,7 +185,7 @@ Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, boo
 	writer.fileWriteBufferCurrentPos = 0;
 	writer.fileTotalBytesWritten = 0;
 	writer.fileAccessFailedDuringWrite = false;
-	char* fillB = fileClusterBuffer;
+	char* fillB = mDeserializer.fileClusterBuffer;
 	for (int i = 0; i < 32768; ++i)
 		*fillB++ = 0;
 
@@ -228,8 +228,8 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 Error StorageManager::writeBufferToFile() {
 	UINT bytesWritten;
 	XMLSerializer& writer = (XMLSerializer&)serializer();
-	FRESULT result =
-	    f_write(&fileSystemStuff.currentFile, fileClusterBuffer, writer.fileWriteBufferCurrentPos, &bytesWritten);
+	FRESULT result = f_write(&fileSystemStuff.currentFile, mDeserializer.fileClusterBuffer,
+	                         writer.fileWriteBufferCurrentPos, &bytesWritten);
 	if (result != FR_OK || bytesWritten != writer.fileWriteBufferCurrentPos) {
 		return Error::SD_CARD;
 	}
@@ -312,45 +312,8 @@ Error StorageManager::closeFileAfterWriting(char const* path, char const* beginn
 #endif
 }
 
-Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
-                                  bool ignoreIncorrectFirmware) {
-
-	AudioEngine::logAction("openXMLFile");
-
-	openFilePointer(filePointer);
-
-	// Prep to read first Cluster shortly
-	fileReadBufferCurrentPos = audioFileManager.clusterSize;
-	currentReadBufferEndPos = audioFileManager.clusterSize;
-
-	firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
-
-	tagDepthFile = 0;
-	tagDepthCaller = 0;
-	xmlReachedEnd = false;
-	xmlArea = BETWEEN_TAGS;
-
-	char const* tagName;
-
-	while (*(tagName = readNextTagOrAttributeName())) {
-
-		if (!strcmp(tagName, firstTagName) || !strcmp(tagName, altTagName)) {
-			return Error::NONE;
-		}
-
-		Error result = tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
-		if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
-			return result;
-		}
-		exitTag(tagName);
-	}
-
-	f_close(&fileSystemStuff.currentFile);
-	return Error::FILE_CORRUPTED;
-}
-
 Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
-	Deserializer& reader = (Deserializer&)*this;
+	Deserializer& reader = mDeserializer;
 	if (!strcmp(tagName, "firmwareVersion")) {
 		char const* firmware_version_string = reader.readTagOrAttributeValue();
 		firmware_version = FirmwareVersion::parse(firmware_version_string);
@@ -377,19 +340,19 @@ bool StorageManager::readXMLFileCluster() {
 
 	AudioEngine::logAction("readXMLFileCluster");
 
-	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)fileClusterBuffer, audioFileManager.clusterSize,
-	                        &currentReadBufferEndPos);
+	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)mDeserializer.fileClusterBuffer,
+	                        audioFileManager.clusterSize, &mDeserializer.currentReadBufferEndPos);
 	if (result) {
 		fileAccessFailedDuring = true;
 		return false;
 	}
 
 	// If error or we reached end of file
-	if (!currentReadBufferEndPos) {
+	if (!mDeserializer.currentReadBufferEndPos) {
 		return false;
 	}
 
-	fileReadBufferCurrentPos = 0;
+	mDeserializer.fileReadBufferCurrentPos = 0;
 
 	return true;
 }
@@ -519,7 +482,7 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	error = newInstrument->readFromFile(*this, song, clip, 0);
+	error = newInstrument->readFromFile(mDeserializer, song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -613,7 +576,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(*this, song, clip, 0);
+	error = newDrum->readFromFile(mDeserializer, song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -764,10 +727,10 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
-	Deserializer& reader = (Deserializer&)*this;
+	Deserializer& reader = mDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "cc")) {
-			char const* contents = readTagOrAttributeValue();
+			char const* contents = reader.readTagOrAttributeValue();
 			if (!strcasecmp(contents, "bend")) {
 				cc = CC_NUMBER_PITCH_BEND;
 			}
@@ -795,7 +758,7 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 					return Error::INSUFFICIENT_RAM;
 				}
 
-				Error error = midiParam->param.readFromFile(*this, readAutomationUpToPos);
+				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -1165,7 +1128,7 @@ doReadName:
 	do {
 		int32_t bufferPosAtStart = fileReadBufferCurrentPos;
 		while (fileReadBufferCurrentPos < currentReadBufferEndPos) {
-			char thisChar = msd.fileClusterBuffer[fileReadBufferCurrentPos];
+			char thisChar = fileClusterBuffer[fileReadBufferCurrentPos];
 
 			switch (thisChar) {
 			case ' ':
@@ -1789,4 +1752,56 @@ void XMLDeserializer::exitTag(char const* exitTagName) {
 	// where we are in the xml parsing, caller depth represents the callers view. The caller can be shallower
 	// as the file will open past empty or unused tags, but should never be deeper.
 	tagDepthCaller = tagDepthFile;
+}
+
+Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
+                                  bool ignoreIncorrectFirmware) {
+
+	AudioEngine::logAction("openXMLFile");
+
+	// Prep to read first Cluster shortly
+
+	Error err = mDeserializer.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
+	if (err == Error::NONE)
+		return Error::NONE;
+	f_close(&fileSystemStuff.currentFile);
+
+	return Error::FILE_CORRUPTED;
+}
+
+Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
+                                   bool ignoreIncorrectFirmware) {
+
+	AudioEngine::logAction("openXMLFile");
+
+	msd.openFilePointer(filePointer);
+
+	// Prep to read first Cluster shortly
+	fileReadBufferCurrentPos = audioFileManager.clusterSize;
+	currentReadBufferEndPos = audioFileManager.clusterSize;
+
+	msd.firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
+
+	tagDepthFile = 0;
+	tagDepthCaller = 0;
+	xmlReachedEnd = false;
+	xmlArea = BETWEEN_TAGS;
+
+	char const* tagName;
+
+	while (*(tagName = readNextTagOrAttributeName())) {
+
+		if (!strcmp(tagName, firstTagName) || !strcmp(tagName, altTagName)) {
+			return Error::NONE;
+		}
+
+		Error result = msd.tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
+		if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
+			return result;
+		}
+		exitTag(tagName);
+	}
+
+	f_close(&fileSystemStuff.currentFile);
+	return Error::FILE_CORRUPTED;
 }

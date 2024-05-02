@@ -345,7 +345,8 @@ gotError5:
 	}
 
 	char const* sourceBuffer =
-	    storageManager.fileClusterBuffer; // This will get changed if we're converting an existing Sample in memory.
+	    storageManager.mDeserializer
+	        .fileClusterBuffer; // This will get changed if we're converting an existing Sample in memory.
 	uint32_t bytesOverlappingFromLastCluster;
 
 #define MAGNITUDE_REDUCTION_FOR_FFT 12

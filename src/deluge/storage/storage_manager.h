@@ -136,6 +136,9 @@ public:
 	char const* readTagOrAttributeValue() override;
 	void exitTag(char const* exitTagName = NULL) override;
 
+	Error openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
+	                  bool ignoreIncorrectFirmware = false);
+
 private:
 	StorageManager& msd;
 
@@ -172,7 +175,7 @@ public:
 	StorageManager& msr() override { return msd; }
 };
 
-class StorageManager : public XMLDeserializer {
+class StorageManager {
 public:
 	StorageManager();
 	virtual ~StorageManager();
@@ -218,9 +221,10 @@ public:
 	bool fileAccessFailedDuring;
 
 	Serializer& serializer() { return (Serializer&)mSerializer; }
-	Deserializer& deserializer() { return (Deserializer&)*this; }
+	Deserializer& deserializer() { return (Deserializer&)mDeserializer; }
 
 	XMLSerializer mSerializer;
+	XMLDeserializer mDeserializer;
 
 private:
 	// ** End of member variables
