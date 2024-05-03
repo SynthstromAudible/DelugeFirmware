@@ -25,9 +25,7 @@
       model used with those songs.
 - Added compressors to synths, kits, audio clips, and kit rows. The compressor can be enabled and edited from their
   respective menus.
-- Fixed a bug in compressor makeup gain that was causing lower volume than official with low compression amounts. For
-  songs made with community release 1.0.x, you can compensate by slightly lowering the song master level. This is done
-  via affect entire in song/arranger mode, or by using the song menu (press select) -> Master -> Volume
+- Compressor behavior has been changed to reduce clipping. Songs made on c1.0 may need to have their volume manually adjusted to compensate.
 - Fixed stereo unison spread + ringmod + noise causing excessively loud output.
 - Fixed some bugs around the waveform Loop Lock feature which allowed setting invalid loop points.
 
