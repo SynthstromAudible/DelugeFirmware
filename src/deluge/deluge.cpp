@@ -564,7 +564,7 @@ void registerTasks() {
 	addRepeatingTask([]() { encoders::readEncoders(); }, 49, 0.001, 0.001, 0.001);
 	addRepeatingTask([]() { encoders::interpretEncoders(true); }, 10, 0.001, 0.001, 0.005);
 	// this one actually actions them
-	addRepeatingTask([]() { encoders::interpretEncoders(false); }, 48, 0.005, 0.005, 0.025);
+	addRepeatingTask([]() { encoders::interpretEncoders(false); }, 48, 0.005, 0.005, 0.01);
 
 	// addRepeatingTask([]() { AudioEngine::routineWithClusterLoading(true); }, 0, 1 / 44100., 16 / 44100., 32 / 44100.,
 	// true);
@@ -572,7 +572,7 @@ void registerTasks() {
 	addRepeatingTask(&(AudioEngine::routine), 0, 1 / 44100., 16 / 44100., 32 / 44100.);
 	// addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
 
-	// formerly part of audio routine
+	// formerly part of audio routine, updates midi and clock
 	addRepeatingTask([]() { playbackHandler.routine(); }, 10, 1 / 44100., 16 / 44100, 32 / 44100.);
 	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, 60, 0.1, 0.1, 0.2);
 	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, 61, 0.01, 0.1, 0.1);
