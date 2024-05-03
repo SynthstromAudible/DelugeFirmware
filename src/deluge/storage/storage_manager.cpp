@@ -68,7 +68,7 @@ extern void songLoaded(Song* song);
 struct FileSystemStuff fileSystemStuff;
 
 StorageManager::StorageManager() {
-	smDeserializer.fileClusterBuffer = NULL;
+	//smDeserializer.fileClusterBuffer = NULL;
 }
 
 StorageManager::~StorageManager() {
@@ -1020,6 +1020,9 @@ Error XMLSerializer::closeXMLFileAfterWriting(char const* path, char const* begi
 
 XMLDeserializer::XMLDeserializer(StorageManager& msd)
     : msd(msd), xmlArea(BETWEEN_TAGS), xmlReachedEnd(false), tagDepthCaller(0), tagDepthFile(0), xmlReadCount(0) {
+
+	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
+	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 }
 
 XMLDeserializer::~XMLDeserializer() {
