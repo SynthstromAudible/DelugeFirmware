@@ -55,6 +55,9 @@ void routineForSD(void);
 StorageManager storageManager{};
 FILINFO staticFNO;
 DIR staticDIR;
+XMLSerializer smSerializer(storageManager);
+XMLDeserializer smDeserializer(storageManager);
+
 char charAtEndOfValue;
 
 extern void initialiseConditions();
@@ -64,8 +67,8 @@ extern void songLoaded(Song* song);
 // any other data so that invalidation and stuff works
 struct FileSystemStuff fileSystemStuff;
 
-StorageManager::StorageManager() : mSerializer(*this), mDeserializer(*this) {
-	mDeserializer.fileClusterBuffer = NULL;
+StorageManager::StorageManager() {
+	smDeserializer.fileClusterBuffer = NULL;
 }
 
 StorageManager::~StorageManager() {
@@ -185,7 +188,7 @@ Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, boo
 	writer.fileWriteBufferCurrentPos = 0;
 	writer.fileTotalBytesWritten = 0;
 	writer.fileAccessFailedDuringWrite = false;
-	char* fillB = mDeserializer.fileClusterBuffer;
+	char* fillB = smDeserializer.fileClusterBuffer;
 	for (int i = 0; i < 32768; ++i)
 		*fillB++ = 0;
 
@@ -228,7 +231,7 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 Error StorageManager::writeBufferToFile() {
 	UINT bytesWritten;
 	XMLSerializer& writer = (XMLSerializer&)serializer();
-	FRESULT result = f_write(&fileSystemStuff.currentFile, mDeserializer.fileClusterBuffer,
+	FRESULT result = f_write(&fileSystemStuff.currentFile, smDeserializer.fileClusterBuffer,
 	                         writer.fileWriteBufferCurrentPos, &bytesWritten);
 	if (result != FR_OK || bytesWritten != writer.fileWriteBufferCurrentPos) {
 		return Error::SD_CARD;
@@ -313,7 +316,7 @@ Error StorageManager::closeFileAfterWriting(char const* path, char const* beginn
 }
 
 Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
-	Deserializer& reader = mDeserializer;
+	Deserializer& reader = smDeserializer;
 	if (!strcmp(tagName, "firmwareVersion")) {
 		char const* firmware_version_string = reader.readTagOrAttributeValue();
 		firmware_version = FirmwareVersion::parse(firmware_version_string);
@@ -340,19 +343,19 @@ bool StorageManager::readXMLFileCluster() {
 
 	AudioEngine::logAction("readXMLFileCluster");
 
-	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)mDeserializer.fileClusterBuffer,
-	                        audioFileManager.clusterSize, &mDeserializer.currentReadBufferEndPos);
+	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)smDeserializer.fileClusterBuffer,
+	                        audioFileManager.clusterSize, &smDeserializer.currentReadBufferEndPos);
 	if (result) {
 		fileAccessFailedDuring = true;
 		return false;
 	}
 
 	// If error or we reached end of file
-	if (!mDeserializer.currentReadBufferEndPos) {
+	if (!smDeserializer.currentReadBufferEndPos) {
 		return false;
 	}
 
-	mDeserializer.fileReadBufferCurrentPos = 0;
+	smDeserializer.fileReadBufferCurrentPos = 0;
 
 	return true;
 }
@@ -482,7 +485,7 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	error = newInstrument->readFromFile(mDeserializer, song, clip, 0);
+	error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -576,7 +579,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(mDeserializer, song, clip, 0);
+	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
 
 	bool fileSuccess = closeFile();
 
@@ -727,7 +730,7 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
-	Deserializer& reader = mDeserializer;
+	Deserializer& reader = smDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "cc")) {
 			char const* contents = reader.readTagOrAttributeValue();
@@ -1761,7 +1764,7 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTag
 
 	// Prep to read first Cluster shortly
 
-	Error err = mDeserializer.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
+	Error err = smDeserializer.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
 	if (err == Error::NONE)
 		return Error::NONE;
 	f_close(&fileSystemStuff.currentFile);

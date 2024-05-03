@@ -344,8 +344,7 @@ gotError5:
 		                                                      // in AIFF files, with their "offset"
 	}
 
-	char const* sourceBuffer =
-	    storageManager.mDeserializer
+	char const* sourceBuffer = smDeserializer
 	        .fileClusterBuffer; // This will get changed if we're converting an existing Sample in memory.
 	uint32_t bytesOverlappingFromLastCluster;
 

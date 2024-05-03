@@ -89,7 +89,7 @@ void AudioFileManager::init() {
 	clusterSizeAtBoot = clusterSize;
 
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(clusterSizeAtBoot + CACHE_LINE_SIZE * 2);
-	storageManager.mDeserializer.fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	smDeserializer.fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 
 	clusterObjectSize = sizeof(Cluster) + clusterSize;
 }

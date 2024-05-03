@@ -175,6 +175,9 @@ public:
 	StorageManager& msr() override { return msd; }
 };
 
+extern XMLSerializer smSerializer;
+extern XMLDeserializer smDeserializer;
+
 class StorageManager {
 public:
 	StorageManager();
@@ -220,12 +223,8 @@ public:
 
 	bool fileAccessFailedDuring;
 
-	Serializer& serializer() { return (Serializer&)mSerializer; }
-	Deserializer& deserializer() { return (Deserializer&)mDeserializer; }
-
-	XMLSerializer mSerializer;
-	XMLDeserializer mDeserializer;
-
+	Serializer& serializer() { return (Serializer&) smSerializer; }
+	Deserializer& deserializer() { return (Deserializer&) smDeserializer; }
 private:
 	// ** End of member variables
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
@@ -237,3 +236,4 @@ public:
 extern StorageManager storageManager;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
+

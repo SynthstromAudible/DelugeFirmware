@@ -347,7 +347,7 @@ failAfterOpeningSourceFile:
 					// Copy
 					while (true) {
 						UINT bytesRead;
-						result = f_read(&fileSystemStuff.currentFile, bdsm.mDeserializer.fileClusterBuffer,
+						result = f_read(&fileSystemStuff.currentFile, smDeserializer.fileClusterBuffer,
 						                audioFileManager.clusterSize, &bytesRead);
 						if (result) {
 							D_PRINTLN("read fail");
@@ -361,7 +361,7 @@ fail3:
 						}
 
 						UINT bytesWritten;
-						result = f_write(&recorderFileSystemStuff.currentFile, bdsm.mDeserializer.fileClusterBuffer,
+						result = f_write(&recorderFileSystemStuff.currentFile, smDeserializer.fileClusterBuffer,
 						                 bytesRead, &bytesWritten);
 						if (result || bytesWritten != bytesRead) {
 							D_PRINTLN("write fail %d", result);
