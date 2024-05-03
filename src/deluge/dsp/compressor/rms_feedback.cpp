@@ -24,6 +24,8 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 	setThreshold(0);
 	setRatio(64 << 24);
 	setSidechain(0);
+	// Default to the maximum useful base gain
+	baseGain_ = 1.35f;
 }
 // 16 is ln(1<<24) - 1, i.e. where we start clipping
 // since this applies to output
@@ -73,10 +75,7 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 
 	// this is the most gain available without overflow
 	// Amount of gain. Must not exceed 3.43 as that will result in a gain > 31
-	//
-	// Since reduction is always negative, we only need to worry about the case where reduction == 0 to determine the
-	// maximum headroom. er can not exceed 2.08, so we have 1.35 neppers of headroom.
-	float dbGain = 1.35f + er + reduction;
+	float dbGain = baseGain_ + er + reduction;
 
 	float gain = std::exp((dbGain));
 	gain = std::min<float>(gain, 31);
