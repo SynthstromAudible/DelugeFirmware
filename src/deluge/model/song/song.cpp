@@ -24,6 +24,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
@@ -5521,7 +5522,8 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 			songViewYScroll++;
 		}
 
-		uiNeedsRendering(&sessionView);
+		// use root UI in case this is called from performance view
+		sessionView.requestRendering(getRootUI());
 	}
 
 	return newClip;

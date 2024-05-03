@@ -887,10 +887,8 @@ void Session::cancelArmingForClip(Clip* clip, int32_t* clipIndex) {
 	if (clip->getCurrentlyRecordingLinearly()) {
 		bool anyDeleted = currentSong->deletePendingOverdubs(clip->output, clipIndex);
 		if (anyDeleted) {
-			RootUI* rootUI = getRootUI();
-			if (rootUI == &sessionView || rootUI == &performanceSessionView) {
-				uiNeedsRendering(rootUI);
-			}
+			// use root UI in case this is called from performance view
+			sessionView.requestRendering(getRootUI());
 		}
 	}
 
@@ -1095,10 +1093,8 @@ void Session::soloClipAction(Clip* clip, int32_t buttonPressLatency) {
 			// Special case if doing tempoless recording elsewhere
 			if (playbackHandler.playbackState) {
 				playbackHandler.finishTempolessRecording(true, buttonPressLatency);
-				RootUI* rootUI = getRootUI();
-				if (rootUI == &sessionView || rootUI == &performanceSessionView) {
-					uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
-				}
+				// use root UI in case this is called from performance view
+				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 				goto renderAndGetOut;
 			}
 		}
@@ -1113,10 +1109,7 @@ void Session::soloClipAction(Clip* clip, int32_t buttonPressLatency) {
 
 renderAndGetOut:
 	if (anyClipsDeleted) {
-		RootUI* rootUI = getRootUI();
-		if (rootUI == &sessionView || rootUI == &performanceSessionView) {
-			uiNeedsRendering(rootUI);
-		}
+		sessionView.requestRendering(getRootUI());
 	}
 }
 
@@ -1201,12 +1194,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 void Session::armingChanged() {
 	RootUI* rootUI = getRootUI();
 	if (rootUI == &sessionView || rootUI == &performanceSessionView) {
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			uiNeedsRendering(rootUI, 0xFFFFFFFF, 0xFFFFFFFF);
-		}
-		else {
-			uiNeedsRendering(rootUI, 0, 0xFFFFFFFF); // Only need the mute pads
-		}
+		sessionView.requestRendering(rootUI, 0, 0xFFFFFFFF);
 
 		if (getCurrentUI()->canSeeViewUnderneath()) {
 			if (display->haveOLED()) {
@@ -2011,10 +1999,8 @@ bool Session::endPlayback() {
 	if (anyClipsRemoved) {
 
 		// Re-render
-		RootUI* rootUI = getRootUI();
-		if (rootUI == &sessionView || rootUI == &performanceSessionView) {
-			uiNeedsRendering(rootUI);
-		}
+		// use root UI in case this is called from performance view
+		sessionView.requestRendering(getRootUI());
 
 		// And exit RECORD mode, as indicated on LED
 		if (playbackHandler.recording == RecordingMode::NORMAL) {
