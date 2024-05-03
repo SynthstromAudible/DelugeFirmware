@@ -258,7 +258,8 @@ voice::VoiceCount voice::polyphonicVoiceCountMenu{STRING_FOR_MAX_VOICES};
 UnpatchedParam portaMenu{STRING_FOR_PORTAMENTO, params::UNPATCHED_PORTAMENTO};
 voice::Priority priorityMenu{STRING_FOR_PRIORITY};
 
-Submenu voiceMenu{STRING_FOR_VOICE, {&polyphonyMenu, &unisonMenu, &portaMenu, &priorityMenu}};
+Submenu voiceMenu{STRING_FOR_VOICE,
+                  {&polyphonyMenu, &unisonMenu, &voice::polyphonicVoiceCountMenu, &portaMenu, &priorityMenu}};
 
 // Modulator menu -----------------------------------------------------------------------
 

@@ -3918,7 +3918,6 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 
 	bdsm.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
 	bdsm.writeAttribute("voicePriority", util::to_underlying(voicePriority));
-	bdsm.writeAttribute("maxVoices", maxVoiceCount);
 
 	// Send level
 	if (sideChainSendLevel != 0) {
@@ -4022,6 +4021,9 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 	bdsm.writeClosingTag("modKnobs");
 
 	ModControllableAudio::writeTagsToFile(bdsm);
+	
+	// community attributes, new additions will stop official firmware from continuing to parse the sound
+	bdsm.writeAttribute("maxVoices", maxVoiceCount);
 }
 
 int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {

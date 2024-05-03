@@ -33,6 +33,10 @@ public:
 	void writeCurrentValue() override { soundEditor.currentSound->maxVoiceCount = this->getValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		Sound* sound = static_cast<Sound*>(modControllable);
+		return (sound->polyphonic == PolyphonyMode::POLY);
+	}
 };
 
 extern VoiceCount polyphonicVoiceCountMenu;
