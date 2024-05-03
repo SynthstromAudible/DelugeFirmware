@@ -163,13 +163,16 @@ public:
 	char const* readNextAttributeName();
 	char const* readUntilChar(char endChar);
 	char const* readAttributeValue();
+
+	bool fileAccessFailedDuring;
+
 	int32_t readIntUntilChar(char endChar);
 	bool getIntoAttributeValue();
 	int32_t readAttributeValueInt();
 	bool readXMLFileClusterIfNecessary();
 	Error readStringUntilChar(String* string, char endChar);
 	Error readAttributeValueString(String* string);
-	// bool readXMLFileCluster();
+	bool readXMLFileCluster();
 	void xmlReadDone();
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 	StorageManager& msr() override { return msd; }
@@ -221,16 +224,12 @@ public:
 
 	FirmwareVersion firmware_version = FirmwareVersion::current();
 
-	bool fileAccessFailedDuring;
-
 	Serializer& serializer() { return (Serializer&) smSerializer; }
 	Deserializer& deserializer() { return (Deserializer&) smDeserializer; }
 private:
 	// ** End of member variables
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 
-public:
-	bool readXMLFileCluster();
 };
 
 extern StorageManager storageManager;

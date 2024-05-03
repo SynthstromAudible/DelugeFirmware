@@ -68,7 +68,7 @@ extern void songLoaded(Song* song);
 struct FileSystemStuff fileSystemStuff;
 
 StorageManager::StorageManager() {
-	//smDeserializer.fileClusterBuffer = NULL;
+
 }
 
 StorageManager::~StorageManager() {
@@ -246,73 +246,6 @@ Error StorageManager::writeBufferToFile() {
 Error StorageManager::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
 	XMLSerializer& writer = (XMLSerializer&)serializer();
 	return writer.closeXMLFileAfterWriting(path, beginningString, endString);
-#ifdef NEVER
-	if (fileAccessFailedDuring) {
-		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
-		                          // don't want it to flush any data to the card or anything
-	}
-	Error error = writeBufferToFile();
-	if (error != Error::NONE) {
-		return Error::WRITE_FAIL;
-	}
-
-	FRESULT result = f_close(&fileSystemStuff.currentFile);
-	if (result) {
-		return Error::WRITE_FAIL;
-	}
-
-	if (path) {
-		// Check file exists
-		result = f_open(&fileSystemStuff.currentFile, path, FA_READ);
-		if (result) {
-			return Error::WRITE_FAIL;
-		}
-	}
-
-	// Check size
-	if (f_size(&fileSystemStuff.currentFile) != fileTotalBytesWritten) {
-		return Error::WRITE_FAIL;
-	}
-
-	// Check beginning
-	if (beginningString) {
-		UINT dontCare;
-		int32_t length = strlen(beginningString);
-		result = f_read(&fileSystemStuff.currentFile, miscStringBuffer, length, &dontCare);
-		if (result) {
-			return Error::WRITE_FAIL;
-		}
-		if (memcmp(miscStringBuffer, beginningString, length)) {
-			return Error::WRITE_FAIL;
-		}
-	}
-
-	// Check end
-	if (endString) {
-		UINT dontCare;
-		int32_t length = strlen(endString);
-
-		result = f_lseek(&fileSystemStuff.currentFile, fileTotalBytesWritten - length);
-		if (result) {
-			return Error::WRITE_FAIL;
-		}
-
-		result = f_read(&fileSystemStuff.currentFile, miscStringBuffer, length, &dontCare);
-		if (result) {
-			return Error::WRITE_FAIL;
-		}
-		if (memcmp(miscStringBuffer, endString, length)) {
-			return Error::WRITE_FAIL;
-		}
-	}
-
-	result = f_close(&fileSystemStuff.currentFile);
-	if (result) {
-		return Error::WRITE_FAIL;
-	}
-
-	return Error::NONE;
-#endif
 }
 
 Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
@@ -339,30 +272,9 @@ Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ig
 	return Error::NONE;
 }
 
-bool StorageManager::readXMLFileCluster() {
-
-	AudioEngine::logAction("readXMLFileCluster");
-
-	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)smDeserializer.fileClusterBuffer,
-	                        audioFileManager.clusterSize, &smDeserializer.currentReadBufferEndPos);
-	if (result) {
-		fileAccessFailedDuring = true;
-		return false;
-	}
-
-	// If error or we reached end of file
-	if (!smDeserializer.currentReadBufferEndPos) {
-		return false;
-	}
-
-	smDeserializer.fileReadBufferCurrentPos = 0;
-
-	return true;
-}
-
 // Returns false if some error, including error while writing
 bool StorageManager::closeFile() {
-	if (fileAccessFailedDuring) {
+	if (smDeserializer.fileAccessFailedDuring) {
 		return false; // Calling f_close if this is false might be dangerous - if access has failed, we don't want it to
 		              // flush any data to the card or anything
 	}
@@ -432,7 +344,7 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 
 	XMLSerializer& writer = (XMLSerializer&)serializer();
 
-	fileAccessFailedDuring = false;
+	smDeserializer.fileAccessFailedDuring = false;
 	writer.fileAccessFailedDuringWrite = false;
 }
 
@@ -1683,7 +1595,7 @@ bool XMLDeserializer::readXMLFileClusterIfNecessary() {
 	// Load next Cluster if necessary
 	if (fileReadBufferCurrentPos >= audioFileManager.clusterSize) {
 		xmlReadCount = 0;
-		bool result = msd.readXMLFileCluster();
+		bool result = readXMLFileCluster();
 		if (!result) {
 			xmlReachedEnd = true;
 		}
@@ -1697,6 +1609,29 @@ bool XMLDeserializer::readXMLFileClusterIfNecessary() {
 
 	return false;
 }
+
+
+bool XMLDeserializer::readXMLFileCluster() {
+
+	AudioEngine::logAction("readXMLFileCluster");
+
+	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)fileClusterBuffer,
+	                        audioFileManager.clusterSize, &currentReadBufferEndPos);
+	if (result) {
+		fileAccessFailedDuring = true;
+		return false;
+	}
+
+	// If error or we reached end of file
+	if (!currentReadBufferEndPos) {
+		return false;
+	}
+
+	fileReadBufferCurrentPos = 0;
+
+	return true;
+}
+
 
 uint32_t XMLDeserializer::readCharXML(char* thisChar) {
 
@@ -1811,3 +1746,4 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 	f_close(&fileSystemStuff.currentFile);
 	return Error::FILE_CORRUPTED;
 }
+
