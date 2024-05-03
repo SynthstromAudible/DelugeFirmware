@@ -4021,7 +4021,7 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 	bdsm.writeClosingTag("modKnobs");
 
 	ModControllableAudio::writeTagsToFile(bdsm);
-	
+
 	// community attributes, new additions will stop official firmware from continuing to parse the sound
 	bdsm.writeAttribute("maxVoices", maxVoiceCount);
 }
