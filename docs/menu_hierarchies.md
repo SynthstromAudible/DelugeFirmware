@@ -916,6 +916,7 @@ The Sound menu contains the following menu hierarchy:
 		- Unison Number (NUM)
 		- Unison Detune (DETU)
 		- Unison Stereo Spread (SPRE)
+    - Max Voices (VCNT)
 	- Portamento (PORT)
 	- Priority (PRIO)
 		- Low
