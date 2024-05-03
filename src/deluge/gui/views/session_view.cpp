@@ -1297,8 +1297,8 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 				return ActionResult::NOT_DEALT_WITH;
 
 			clip->colourOffset += offset;
-			// use root UI in case this is called from performance view
-			requestRendering(getRootUI(), 1 << selectedClipYDisplay, 0);
+
+			requestRendering(this, 1 << selectedClipYDisplay, 0);
 
 			return ActionResult::DEALT_WITH;
 		}
@@ -2071,12 +2071,18 @@ void SessionView::graphicsRoutine() {
 }
 
 void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		// Just redrawing should be faster than evaluating every cell in every row
-		uiNeedsRendering(ui, 0xFFFFFFFF, 0xFFFFFFFF);
+	if (ui == &performanceSessionView) {
+		// don't re-render main pads in performance view
+		uiNeedsRendering(ui, 0, whichSideRows);
 	}
+	else if (ui == &sessionView) {
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			// Just redrawing should be faster than evaluating every cell in every row
+			uiNeedsRendering(ui, 0xFFFFFFFF, 0xFFFFFFFF);
+		}
 
-	uiNeedsRendering(ui, whichMainRows, whichSideRows);
+		uiNeedsRendering(ui, whichMainRows, whichSideRows);
+	}
 }
 
 void SessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
@@ -3590,8 +3596,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 			else {
 				track->colour = static_cast<int16_t>(track->colour + (colourStep * offsetY) + 192) % 192;
 			}
-			// use root UI in case this is called from performance view
-			requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
+			requestRendering(this);
 		}
 
 		return ActionResult::DEALT_WITH;
