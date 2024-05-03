@@ -451,6 +451,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_POLYPHONY, "POLYPHONY"},
         {STRING_FOR_PRIORITY, "PRIORITY"},
         {STRING_FOR_VOICE, "VOICE"},
+        {STRING_FOR_MAX_VOICES, "MAX VOICES"},
         {STRING_FOR_DESTINATION, "Destination"},
         {STRING_FOR_RETRIGGER_PHASE, "Retrigger phase"},
         {STRING_FOR_LFO1_TYPE, "LFO1 type"},

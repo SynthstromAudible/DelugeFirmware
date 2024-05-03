@@ -1253,6 +1253,11 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 		bdsm.exitTag("polyphonic");
 	}
 
+	else if (!strcmp(tagName, "maxVoices")) {
+		maxVoiceCount = bdsm.readTagOrAttributeValueInt();
+		bdsm.exitTag("maxVoices");
+	}
+
 	else if (!strcmp(tagName, "voicePriority")) {
 		voicePriority = static_cast<VoicePriority>(bdsm.readTagOrAttributeValueInt());
 		bdsm.exitTag("voicePriority");
@@ -3078,6 +3083,9 @@ void Sound::readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* pa
 // separate from Clips and won't store any arp stuff
 Error Sound::readFromFile(StorageManager& bdsm, ModelStackWithModControllable* modelStack,
                           int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings) {
+	if (bdsm.firmware_version < FirmwareVersion::community({1, 2, 0})) {
+		maxVoiceCount = 16; // it's 8 on new synths, so this will load existing/official synths at 16
+	}
 
 	modulatorTranspose[1] = 0;
 	memset(oscRetriggerPhase, 0, sizeof(oscRetriggerPhase));
@@ -3913,6 +3921,7 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 
 	bdsm.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
 	bdsm.writeAttribute("voicePriority", util::to_underlying(voicePriority));
+	bdsm.writeAttribute("maxVoices", maxVoiceCount);
 
 	// Send level
 	if (sideChainSendLevel != 0) {

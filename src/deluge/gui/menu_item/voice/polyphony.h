@@ -26,7 +26,18 @@
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::voice {
-class Polyphony final : public Selection {
+class VoiceCount : public Integer {
+public:
+	using Integer::Integer;
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->maxVoiceCount); }
+	void writeCurrentValue() override { soundEditor.currentSound->maxVoiceCount = this->getValue(); }
+	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
+};
+
+extern VoiceCount polyphonicVoiceCountMenu;
+
+class PolyphonyType final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->polyphonic); }
@@ -64,6 +75,12 @@ public:
 			options.push_back(l10n::getView(l10n::String::STRING_FOR_CHOKE));
 		}
 		return options;
+	}
+	MenuItem* selectButtonPress() override {
+		if (this->getValue<PolyphonyMode>() == PolyphonyMode::POLY) {
+			return &polyphonicVoiceCountMenu;
+		}
+		return Selection::selectButtonPress();
 	}
 
 	bool usesAffectEntire() override { return true; }
