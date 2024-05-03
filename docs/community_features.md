@@ -5,6 +5,16 @@
 Every time a Pull Request improves the community firmware it shall be noted down what it accomplishes and how it is
 used.
 
+Please note that this document describes the state of the very latest
+development work for a future Deluge version at a given time, and many of the
+features are not yet available in released stable versions. Documentation
+about released versions can be found here:
+
+- [1.1.x (Beethoven)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/docs/community_features.md)
+- [1.0.x (Amadeus)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/community_features.md)
+
+For more detailed version information, see the [changelog](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/CHANGELOG.md).
+
 Reference the 'Community Features Menu' section at the end of this document to understand what each entry is and their
 7SEG abbreviations.
 
