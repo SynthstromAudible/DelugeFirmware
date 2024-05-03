@@ -3083,9 +3083,6 @@ void Sound::readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* pa
 // separate from Clips and won't store any arp stuff
 Error Sound::readFromFile(StorageManager& bdsm, ModelStackWithModControllable* modelStack,
                           int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings) {
-	if (bdsm.firmware_version < FirmwareVersion::community({1, 2, 0})) {
-		maxVoiceCount = 16; // it's 8 on new synths, so this will load existing/official synths at 16
-	}
 
 	modulatorTranspose[1] = 0;
 	memset(oscRetriggerPhase, 0, sizeof(oscRetriggerPhase));
