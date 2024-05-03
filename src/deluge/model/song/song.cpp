@@ -183,6 +183,9 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbSidechainSync = SYNC_LEVEL_8TH;
 	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
 
+	// setup base compressor gain to match 1.0
+	globalEffectable.compressor.setBaseGain(0.85);
+
 	// initialize automation arranger view variables
 	lastSelectedParamID = kNoSelection;
 	lastSelectedParamKind = params::Kind::NONE;
