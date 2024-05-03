@@ -1503,12 +1503,11 @@ ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
 
 ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
-		sessionView.verticalEncoderAction(offset, inCardRoutine);
+		return sessionView.verticalEncoderAction(offset, inCardRoutine);
 	}
 	else {
-		arrangerView.verticalEncoderAction(offset, inCardRoutine);
+		return arrangerView.verticalEncoderAction(offset, inCardRoutine);
 	}
-	return ActionResult::DEALT_WITH;
 }
 
 /// why do I need this? (code won't compile without it)

@@ -123,6 +123,8 @@ public:
 
 	Clip* getClipForSelection();
 
+	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
+
 private:
 	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();
