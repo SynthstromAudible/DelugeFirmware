@@ -1060,7 +1060,7 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	scroller->doHighlight = doHighlight;
 
 	sideScrollerDirection = 1;
-	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, 400);
+	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kScrollTime);
 }
 
 void OLED::stopScrollingAnimation() {
@@ -1136,7 +1136,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		timeInterval = (sideScrollerDirection >= 0) ? 15 : 5;
 	}
 	else {
-		timeInterval = 400;
+		timeInterval = kScrollTime;
 		sideScrollerDirection = -sideScrollerDirection;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			sideScrollers[s].finished = false;
