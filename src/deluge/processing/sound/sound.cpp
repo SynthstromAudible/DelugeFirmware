@@ -1238,6 +1238,11 @@ Error Sound::readTagFromFile(char const* tagName, ParamManagerForTimeline* param
 		storageManager.exitTag("polyphonic");
 	}
 
+	else if (!strcmp(tagName, "maxVoices")) {
+		maxVoiceCount = storageManager.readTagOrAttributeValueInt();
+		storageManager.exitTag("maxVoices");
+	}
+
 	else if (!strcmp(tagName, "voicePriority")) {
 		voicePriority = static_cast<VoicePriority>(storageManager.readTagOrAttributeValueInt());
 		storageManager.exitTag("voicePriority");
@@ -3898,6 +3903,7 @@ void Sound::writeToFile(bool savingSong, ParamManager* paramManager, Arpeggiator
 	if (pathAttribute) {
 		storageManager.writeAttribute("path", pathAttribute);
 	}
+	storageManager.writeAttribute("maxVoices", maxVoiceCount);
 
 	storageManager.writeOpeningTagEnd(); // -------------------------------------------------------------------------
 
