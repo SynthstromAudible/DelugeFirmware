@@ -109,10 +109,36 @@ void MidiFollow::initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]) {
 
 /// checks to see if there is an active clip for the current context
 /// cases where there is an active clip:
-/// 1) pressing and holding a clip pad in arranger view, song view, grid view
-/// 2) pressing and holding the audition pad of a row in arranger view
-/// 3) entering a clip
-Clip* getSelectedClip() {
+/// 1) pressing and holding a clip pad in arranger view, song row view, song grid view
+/// 2) pressing and holding the audition pad of a row in arranger view and in
+///	   arranger performance view, arranger automation view
+/// 3) entering a clip or previousy held a clip
+Clip* MidiFollow::getSelectedOrActiveClip() {
+	Clip* clip = nullptr;
+
+	clip = getSelectedClip();
+
+	if (!clip) {
+		clip = getCurrentClip();
+		if (clip) {
+			Output* output = clip->output;
+			if (output) {
+				clip = output->activeClip;
+			}
+		}
+	}
+
+	return clip;
+}
+
+/// check if the current context is the song
+bool isClipContext() {
+}
+
+/// see if you are pressing and holding a clip in arranger view, song row view, song grid view
+/// see if you are pressing and holding audition pad in arranger view, arranger perf view, or
+/// arranger automation view
+Clip* MidiFollow::getSelectedClip() {
 	Clip* clip = nullptr;
 
 	RootUI* rootUI = getRootUI();
@@ -134,17 +160,13 @@ Clip* getSelectedClip() {
 		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 			clip = arrangerView.getClipForSelection();
 		}
-	}
-
-	if (!clip) {
-		// if you haven't selected a clip above, return the activeClip of the current instrument
-		clip = getCurrentClip();
-		if (clip) {
-			Output* output = clip->output;
-			if (output) {
-				clip = output->activeClip;
-			}
+		break;
+	case UIType::AUTOMATION_VIEW:
+		// if you're in the arranger automation view, check if you're holding audition pad
+		if (automationView.onArrangerView) {
+			clip = arrangerView.getClipForSelection();
 		}
+		break;
 	}
 
 	return clip;
@@ -153,7 +175,7 @@ Clip* getSelectedClip() {
 // returns activeClip for the selected output
 // special case for note and performance data where you want to let notes,
 // midi modulation sources (e.g. mod wheel), and MPE through to the active clip
-Clip* getSelectedClip(ModelStack* modelStack) {
+Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 	// If you have an output for which no clip is active,
 	// when auditioning a clip for that output,
 	// the active clip for that output should be set to the current clip.
@@ -357,7 +379,7 @@ void MidiFollow::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t ch
 		if (note >= 0 && note <= 127) {
 			Clip* clip;
 			if (on) {
-				clip = getSelectedClip(modelStack);
+				clip = getActiveClip(modelStack);
 			}
 			else {
 				// for note off's, see if a note on message was previously sent so you can
@@ -422,7 +444,7 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context (for params that's only for the active mod controllable stack)
-		Clip* clip = getSelectedClip();
+		Clip* clip = getSelectedOrActiveClip();
 		// clip is allowed to be null here because there may not be an active clip
 		// e.g. you want to control the song level parameters
 
@@ -456,7 +478,7 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 			}
 		}
 		// for these cc's, always use the active clip for the output selected
-		clip = getSelectedClip(modelStack);
+		clip = getActiveClip(modelStack);
 		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			if (modelStackWithTimelineCounter) {
@@ -581,7 +603,7 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 
 	// obtain clip for active context
-	Clip* clip = getSelectedClip();
+	Clip* clip = getSelectedOrActiveClip();
 
 	// setup model stack for the active context
 	if (clip) {
@@ -648,7 +670,7 @@ void MidiFollow::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint
 	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
-		Clip* clip = getSelectedClip(modelStack);
+		Clip* clip = getActiveClip(modelStack);
 		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
@@ -676,7 +698,7 @@ void MidiFollow::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int
 	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context
-		Clip* clip = getSelectedClip(modelStack);
+		Clip* clip = getActiveClip(modelStack);
 		if (clip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 

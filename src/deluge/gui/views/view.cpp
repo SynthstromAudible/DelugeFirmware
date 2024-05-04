@@ -1566,18 +1566,31 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
 		        .channelOrZone;
 		if (channel != MIDI_CHANNEL_NONE) {
-			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
-				if (ccNumber != MIDI_CC_NONE) {
-					midiFollow.sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+			// make sure we're not sending feedback for Song param context
+			if (isClipContext()) {
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+					int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
+					if (ccNumber != MIDI_CC_NONE) {
+						midiFollow.sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+					}
 				}
-			}
-			else {
-				midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+				else {
+					midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+				}
 			}
 		}
 	}
+}
+
+// sets flag to let caller know if we are dealing with clip context
+bool View::isClipContext() {
+	bool itsAClip = false;
+	if (activeModControllableModelStack.modControllable) {
+		itsAClip = (activeModControllableModelStack.timelineCounterIsSet()
+		            && activeModControllableModelStack.getTimelineCounter() != currentSong);
+	}
+	return itsAClip;
 }
 
 void View::displayAutomation() {
