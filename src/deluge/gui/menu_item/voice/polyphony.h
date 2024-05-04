@@ -26,12 +26,21 @@
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::voice {
-class VoiceCount : public Integer {
+class VoiceCount : public IntegerWithOff {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->maxVoiceCount); }
-	void writeCurrentValue() override { soundEditor.currentSound->maxVoiceCount = this->getValue(); }
-	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	using IntegerWithOff::IntegerWithOff;
+	void readCurrentValue() override {
+		uint8_t voiceCount = soundEditor.currentSound->maxVoiceCount;
+		if (voiceCount > getMaxValue()) {
+			voiceCount = 0;
+		}
+		this->setValue(voiceCount);
+	}
+	void writeCurrentValue() override {
+		int32_t num = this->getValue();
+		soundEditor.currentSound->maxVoiceCount = num == 0 ? 127 : num;
+	}
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
