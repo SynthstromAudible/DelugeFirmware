@@ -50,6 +50,17 @@ void IntegerWithOff::drawValue() {
 		Integer::drawValue();
 	}
 }
+void IntegerWithOff::drawPixelsForOled() {
+	if (this->getValue() == 0) {
+		deluge::hid::display::OLED::drawStringCentred("OFF", 18 + OLED_MAIN_TOPMOST_PIXEL,
+		                                              deluge::hid::display::OLED::oledMainImage[0],
+		                                              OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX, kTextHugeSizeY);
+	}
+
+	else {
+		Integer::drawPixelsForOled();
+	}
+}
 
 void Integer::drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
 	char buffer[12];

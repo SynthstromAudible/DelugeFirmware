@@ -1253,6 +1253,11 @@ Error Sound::readTagFromFile(StorageManager& bdsm, char const* tagName, ParamMan
 		bdsm.exitTag("polyphonic");
 	}
 
+	else if (!strcmp(tagName, "maxVoices")) {
+		maxVoiceCount = bdsm.readTagOrAttributeValueInt();
+		bdsm.exitTag("maxVoices");
+	}
+
 	else if (!strcmp(tagName, "voicePriority")) {
 		voicePriority = static_cast<VoicePriority>(bdsm.readTagOrAttributeValueInt());
 		bdsm.exitTag("voicePriority");
@@ -3931,6 +3936,7 @@ void Sound::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* par
 	if (pathAttribute) {
 		bdsm.writeAttribute("path", pathAttribute);
 	}
+	bdsm.writeAttribute("maxVoices", maxVoiceCount);
 
 	bdsm.writeOpeningTagEnd(); // -------------------------------------------------------------------------
 
