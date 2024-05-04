@@ -173,6 +173,8 @@ constexpr int32_t kFlashTime = 110;
 constexpr int32_t kFastFlashTime = 60;
 constexpr int32_t kSampleMarkerBlinkTime = 200;
 
+constexpr int32_t kScrollTime = 400;
+
 constexpr int32_t USE_DEFAULT_VELOCITY = 255;
 
 constexpr int32_t kMaxSequenceLength = 1610612736; // The biggest multiple of 3 which can fit in a signed 32-bit int32_t
