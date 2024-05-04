@@ -451,8 +451,14 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 			        && (!midiEngine.midiFollowFeedbackFilter
 			            || (midiEngine.midiFollowFeedbackFilter
 			                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
-				// See if it's learned to a parameter
-				handleReceivedCC(modelStack, clip, ccNumber, value);
+
+				// setup model stack for the active context
+				if (modelStack) {
+					auto modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+
+					// See if it's learned to a parameter
+					handleReceivedCC(*modelStackWithTimelineCounter, clip, ccNumber, value);
+				}
 			}
 		}
 		// for these cc's, always use the active clip for the output selected
@@ -479,87 +485,76 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 /// if the cc has been learned, it sets the new value for that parameter
 /// this function works by first checking the active context to see if there is an active clip
 /// to determine if the cc intends to control a song level or clip level parameter
-void MidiFollow::handleReceivedCC(ModelStack* modelStack, Clip* clip, int32_t ccNumber, int32_t value) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithTimelineCounter, Clip* clip,
+                                  int32_t ccNumber, int32_t value) {
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
+	// loop through the grid to see if any parameters have been learned to the ccNumber received
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			if (paramToCC[xDisplay][yDisplay] == ccNumber) {
+				// obtain the model stack for the parameter the ccNumber received is learned to
+				ModelStackWithAutoParam* modelStackWithParam =
+				    getModelStackWithParam(&modelStackWithTimelineCounter, clip, xDisplay, yDisplay, ccNumber,
+				                           midiEngine.midiFollowDisplayParam);
+				// check if model stack is valid
+				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					// get current value
+					int32_t oldValue =
+					    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
 
-	// setup model stack for the active context
-	if (modelStack) {
-		modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-	}
+					// convert current value to knobPos to compare to cc value being received
+					int32_t knobPos =
+					    modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
 
-	// check that model stack is valid
-	if (modelStackWithTimelineCounter) {
-		// loop through the grid to see if any parameters have been learned to the ccNumber received
-		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-				if (paramToCC[xDisplay][yDisplay] == ccNumber) {
-					// obtain the model stack for the parameter the ccNumber received is learned to
-					ModelStackWithAutoParam* modelStackWithParam =
-					    getModelStackWithParam(modelStackWithTimelineCounter, clip, xDisplay, yDisplay, ccNumber,
-					                           midiEngine.midiFollowDisplayParam);
-					// check if model stack is valid
-					if (modelStackWithParam && modelStackWithParam->autoParam) {
-						// get current value
-						int32_t oldValue =
-						    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+					// add 64 to internal knobPos to compare to midi cc value received
+					// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
+					// because midi can only send a max midi value of 127
+					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
+					if (knobPosForMidiValueComparison > kMaxMIDIValue) {
+						knobPosForMidiValueComparison = kMaxMIDIValue;
+					}
 
-						// convert current value to knobPos to compare to cc value being received
-						int32_t knobPos =
-						    modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
+					// is the cc being received for the same value as the current knob pos? If so, do nothing
+					if (value != knobPosForMidiValueComparison) {
+						// calculate new knob position based on value received and deluge current value
+						int32_t newKnobPos =
+						    midiTakeover.calculateKnobPos(modelStackWithParam, knobPos, value, nullptr, true, ccNumber);
 
-						// add 64 to internal knobPos to compare to midi cc value received
-						// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
-						// because midi can only send a max midi value of 127
-						int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
-						if (knobPosForMidiValueComparison > kMaxMIDIValue) {
-							knobPosForMidiValueComparison = kMaxMIDIValue;
+						// Convert the New Knob Position to a Parameter Value
+						int32_t newValue =
+						    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
+
+						// Set the new Parameter Value for the MIDI Learned Parameter
+						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
+						                                                          view.modPos, view.modLength);
+
+						// check if you're currently editing the same learned param in automation view or
+						// performance view if so, you will need to refresh the automation editor grid or the
+						// performance view
+						bool editingParamInAutomationOrPerformanceView = false;
+						RootUI* rootUI = getRootUI();
+						if (rootUI == &automationView || rootUI == &performanceSessionView) {
+							int32_t id = modelStackWithParam->paramId;
+							params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+
+							if (rootUI == &automationView) {
+								// pass the current clip because you want to check that you're editing the param
+								// for the same clip active in automation view
+								editingParamInAutomationOrPerformanceView =
+								    automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
+							}
+							else {
+								editingParamInAutomationOrPerformanceView =
+								    performanceSessionView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+							}
 						}
 
-						// is the cc being received for the same value as the current knob pos? If so, do nothing
-						if (value != knobPosForMidiValueComparison) {
-							// calculate new knob position based on value received and deluge current value
-							int32_t newKnobPos = midiTakeover.calculateKnobPos(modelStackWithParam, knobPos, value,
-							                                                   nullptr, true, ccNumber);
-
-							// Convert the New Knob Position to a Parameter Value
-							int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(
-							    newKnobPos, modelStackWithParam);
-
-							// Set the new Parameter Value for the MIDI Learned Parameter
-							modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
-							                                                          view.modPos, view.modLength);
-
-							// check if you're currently editing the same learned param in automation view or
-							// performance view if so, you will need to refresh the automation editor grid or the
-							// performance view
-							bool editingParamInAutomationOrPerformanceView = false;
-							RootUI* rootUI = getRootUI();
-							if (rootUI == &automationView || rootUI == &performanceSessionView) {
-								int32_t id = modelStackWithParam->paramId;
-								params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-
-								if (rootUI == &automationView) {
-									// pass the current clip because you want to check that you're editing the param
-									// for the same clip active in automation view
-									editingParamInAutomationOrPerformanceView =
-									    automationView.possiblyRefreshAutomationEditorGrid(clip, kind, id);
-								}
-								else {
-									editingParamInAutomationOrPerformanceView =
-									    performanceSessionView.possiblyRefreshPerformanceViewDisplay(kind, id,
-									                                                                 newKnobPos);
-								}
-							}
-
-							// check if you should display name of the parameter that was changed and the value that
-							// has been set if you're in the automation view editor or performance view non-editing
-							// mode don't display popup if you're currently editing the same param
-							if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
-								params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-								view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
-							}
+						// check if you should display name of the parameter that was changed and the value that
+						// has been set if you're in the automation view editor or performance view non-editing
+						// mode don't display popup if you're currently editing the same param
+						if (midiEngine.midiFollowDisplayParam && !editingParamInAutomationOrPerformanceView) {
+							params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+							view.displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos);
 						}
 					}
 				}
