@@ -28,11 +28,12 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-MidiTakeover midiTakeover{};
-
-// initialize variables
-MidiTakeover::MidiTakeover() {
-}
+void savePreviousKnobPos(int32_t knobPos, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
+                         int32_t ccNumber = MIDI_CC_NONE);
+void saveKnobPos(int32_t knobPos, MIDIKnob* knob);
+void saveKnobPos(int32_t knobPos, int32_t ccNumber);
+int32_t getPreviousKnobPos(int32_t knobPos, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
+                           int32_t ccNumber = MIDI_CC_NONE);
 
 /// based on the midi takeover default setting of RELATIVE, JUMP, PICKUP, or SCALE
 /// this function will calculate the knob position that the deluge parameter that the midi cc
@@ -164,7 +165,7 @@ int32_t MidiTakeover::calculateKnobPos(int32_t knobPos, int32_t value, MIDIKnob*
 
 /// save the current midi knob position as the previous midi knob position so that it can be used next time the
 /// takeover code is executed
-void MidiTakeover::savePreviousKnobPos(int32_t knobPos, MIDIKnob* knob, bool doingMidiFollow, int32_t ccNumber) {
+void savePreviousKnobPos(int32_t knobPos, MIDIKnob* knob, bool doingMidiFollow, int32_t ccNumber) {
 	if (knob != nullptr) {
 		saveKnobPos(knobPos, knob);
 	}
@@ -174,19 +175,19 @@ void MidiTakeover::savePreviousKnobPos(int32_t knobPos, MIDIKnob* knob, bool doi
 }
 
 // save previous knob position if regular midi learn is being used
-void MidiTakeover::saveKnobPos(int32_t knobPos, MIDIKnob* knob) {
+void saveKnobPos(int32_t knobPos, MIDIKnob* knob) {
 	knob->previousPosition = knobPos;
 	knob->previousPositionSaved = true;
 }
 
 // save previous knob position if midi follow is being used
-void MidiTakeover::saveKnobPos(int32_t knobPos, int32_t ccNumber) {
+void saveKnobPos(int32_t knobPos, int32_t ccNumber) {
 	midiFollow.previousKnobPos[ccNumber] = knobPos;
 }
 
 // returns previous knob position saved
 // checks if a previous knob position has been saved, if not, it saves current midi knob position
-int32_t MidiTakeover::getPreviousKnobPos(int32_t knobPos, MIDIKnob* knob, bool doingMidiFollow, int32_t ccNumber) {
+int32_t getPreviousKnobPos(int32_t knobPos, MIDIKnob* knob, bool doingMidiFollow, int32_t ccNumber) {
 	if (knob != nullptr) {
 		if (!knob->previousPositionSaved) {
 			saveKnobPos(knobPos, knob);

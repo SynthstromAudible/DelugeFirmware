@@ -535,7 +535,7 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 					    modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
 
 					// calculate new knob position based on value received and deluge current value
-					int32_t newKnobPos = midiTakeover.calculateKnobPos(knobPos, value, nullptr, true, ccNumber);
+					int32_t newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, nullptr, true, ccNumber);
 					// is the cc being received for the same value as the current knob pos? If so, do nothing
 					if (newKnobPos != knobPos) {
 						// Convert the New Knob Position to a Parameter Value
