@@ -2050,7 +2050,24 @@ char const* ModControllableAudio::getSidechainDisplayName() {
 
 /// displays names of parameters assigned to gold knobs
 void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, bool on) {
+	// the code below handles displaying parameter names on OLED and 7SEG
+
+	/* logic for OLED:
+	- it will display parameter names when you are holding down the mod button
+	- it will display the parameter name assigned to the top and bottom gold knob
+	- e.g. Volume
+	       Pan
+	*/
+
+	/* logic for 7SEG:
+	- while holding down mod button: display parameter assigned to top gold knob
+	- after mod button is released: display parameter assigned to bottom gold knob
+	*/
+
 	DEF_STACK_STRING_BUF(popupMsg, 100);
+	// if we have an OLED display
+	// or a 7SEG display and mod button is pressed
+	// then we will display the top gold knob parameter
 	if (display->haveOLED() || on) {
 		char parameterName[30];
 		view.getParameterNameFromModEncoder(1, parameterName);
@@ -2059,9 +2076,15 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	// in the song context,
 	// the bottom knob for modButton 6 (stutter) doesn't have a parameter
 	if (!((whichModButton == 6) && (!view.isClipContext()))) {
+		// if we have an OLED display, we want to add a new line so we can
+		// display the bottom gold knob param below the top gold knob param
 		if (display->haveOLED()) {
 			popupMsg.append("\n");
 		}
+		// if we have an OLED display
+		// or a 7SEG display and mod button is released
+		// then we will display the bottom gold knob parameter
+		// on OLED bottom gold knob param is rendered below the top gold knob param
 		if (display->haveOLED() || !on) {
 
 			char parameterName[30];
@@ -2069,6 +2092,8 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 			popupMsg.append(parameterName);
 		}
 	}
+	// if we have OLED, a pop up is shown while we are holding down mod button
+	// pop-up is removed after we release the mod button
 	if (display->haveOLED()) {
 		if (on) {
 			display->popupText(popupMsg.c_str());
@@ -2077,6 +2102,8 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 			display->cancelPopup();
 		}
 	}
+	// if we have 7SEG, we display a temporary popup whenever mod button is pressed
+	// and when it is released
 	else {
 		display->displayPopup(popupMsg.c_str());
 	}
