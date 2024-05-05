@@ -173,6 +173,8 @@ constexpr int32_t kFlashTime = 110;
 constexpr int32_t kFastFlashTime = 60;
 constexpr int32_t kSampleMarkerBlinkTime = 200;
 
+constexpr int32_t kScrollTime = 400;
+
 constexpr int32_t USE_DEFAULT_VELOCITY = 255;
 
 constexpr int32_t kMaxSequenceLength = 1610612736; // The biggest multiple of 3 which can fit in a signed 32-bit int32_t
@@ -229,7 +231,7 @@ enum class OutputType : uint8_t {
 	NONE = 255,
 };
 
-enum class ThingType {
+enum class ThingType : uint8_t {
 	SYNTH,
 	KIT,
 	SONG,
@@ -252,11 +254,6 @@ constexpr int32_t kNumLFOs = 2;
 constexpr int32_t kNumModulators = 2;
 
 constexpr int32_t kMaxNumVoicesUnison = 8;
-
-// TODO: Investigate whether we can move static voices to dynamic allocation and remove these
-constexpr int32_t kNumVoicesStatic = 24;
-constexpr int32_t kNumVoiceSamplesStatic = 20;
-constexpr int32_t kNumTimeStretchersStatic = 6;
 
 constexpr int32_t kMaxNumNoteOnsPending = 64;
 
@@ -346,7 +343,7 @@ constexpr int32_t kMaxKnobPosForDelayAmount = (kMaxKnobPos / 2) - 1;
 constexpr int32_t kParamValueIncrementForQuantizedStutter = 15;
 constexpr int32_t kMinKnobPosForQuantizedStutter = 52;
 
-enum class PerformanceEditingMode : int32_t {
+enum class PerformanceEditingMode : uint8_t {
 	DISABLED,
 	VALUE,
 	PARAM,
@@ -361,7 +358,7 @@ enum class MIDIFollowFeedbackAutomationMode : uint8_t {
 	HIGH,
 };
 
-enum class OscType {
+enum class OscType : uint8_t {
 	SINE,
 	TRIANGLE,
 	SQUARE,
@@ -379,7 +376,7 @@ constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
 constexpr int32_t kNumOscTypes = util::to_underlying(OscType::INPUT_STEREO) + 1;
 
-enum class LFOType {
+enum class LFOType : uint8_t {
 	SINE,
 	TRIANGLE,
 	SQUARE,
@@ -393,13 +390,13 @@ constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK) + 1;
 // SyncType values correspond to the index of the first option of the specific
 // type in the selection menu. There are 9 different levels for each type (see
 // also SyncLevel)
-enum SyncType {
+enum SyncType : uint8_t {
 	SYNC_TYPE_EVEN = 0,
 	SYNC_TYPE_TRIPLET = 10,
 	SYNC_TYPE_DOTTED = 19,
 };
 
-enum SyncLevel {
+enum SyncLevel : uint8_t {
 	SYNC_LEVEL_NONE = 0,
 	SYNC_LEVEL_WHOLE = 1,
 	SYNC_LEVEL_2ND = 2,
@@ -412,14 +409,14 @@ enum SyncLevel {
 	SYNC_LEVEL_256TH = 9,
 };
 
-enum class SynthMode {
+enum class SynthMode : uint8_t {
 	SUBTRACTIVE,
 	FM,
 	RINGMOD,
 };
 constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
-enum class ModFXType {
+enum class ModFXType : uint8_t {
 	NONE,
 	FLANGER,
 	CHORUS,
@@ -434,12 +431,12 @@ constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
 constexpr int32_t SAMPLE_MIN_TRANSPOSE = (-96);
 
-enum WavFormat {
+enum WavFormat : uint8_t {
 	WAV_FORMAT_PCM = 1,
 	WAV_FORMAT_FLOAT = 3,
 };
 
-enum class PolyphonyMode {
+enum class PolyphonyMode : uint8_t {
 	AUTO,
 	POLY,
 	MONO,

@@ -72,7 +72,7 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(0); // half of the way up
+	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(889516852); // 3/4 of the way up
 	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
 
@@ -523,12 +523,16 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
                                                                    ModelStackWithAutoParam* modelStack) {
 	if (*getModKnobMode() == 4) {
+		DEF_STACK_STRING_BUF(popupMsg, 40);
 		int current;
 		int displayLevel;
 		int ledLevel;
 		const char* unit;
 		// this is only reachable in comp editing mode, otherwise it's an existent param
 		if (whichModEncoder == 1) { // sidechain (threshold)
+			if (display->haveOLED()) {
+				popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_THRESHOLD));
+			}
 			current = (compressor.getThreshold() >> 24) - 64;
 			current += offset;
 			current = std::clamp(current, -64, 64);
@@ -542,6 +546,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			switch (currentCompParam) {
 
 			case CompParam::RATIO:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RATIO));
+				}
 				current = (compressor.getRatio() >> 24) - 64;
 				current += offset;
 				// this range is ratio of 2 to 20
@@ -552,6 +559,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::ATTACK:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ATTACK));
+				}
 				current = (compressor.getAttack() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
@@ -562,6 +572,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::RELEASE:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RELEASE));
+				}
 				current = (compressor.getRelease() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
@@ -572,6 +585,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				break;
 
 			case CompParam::SIDECHAIN:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HPF));
+				}
 				current = (compressor.getSidechain() >> 24) - 64;
 				current += offset;
 				current = std::clamp(current, -64, 64);
@@ -583,12 +599,16 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			}
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
 		}
-		char buffer[12];
-		intToString(displayLevel, buffer);
+
 		if (display->haveOLED()) {
-			strncat(buffer, unit, 4);
+			popupMsg.append(": ");
+			popupMsg.appendInt(displayLevel);
+			popupMsg.append(unit);
 		}
-		display->displayPopup(buffer);
+		else {
+			popupMsg.appendInt(displayLevel);
+		}
+		display->displayPopup(popupMsg.c_str());
 
 		return ActionResult::DEALT_WITH;
 	}
@@ -766,17 +786,14 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 }
 
 void GlobalEffectable::writeAttributesToFile(StorageManager& bdsm, bool writeAutomation) {
-
-	ModControllableAudio::writeAttributesToFile(bdsm);
-
 	bdsm.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
 	bdsm.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
+	ModControllableAudio::writeAttributesToFile(bdsm);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	// <--
 }
 
 void GlobalEffectable::writeTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation) {
-
-	ModControllableAudio::writeTagsToFile(bdsm);
-
 	if (paramManager) {
 		bdsm.writeOpeningTagBeginning("defaultParams");
 		GlobalEffectable::writeParamAttributesToFile(bdsm, paramManager, writeAutomation);
@@ -784,6 +801,8 @@ void GlobalEffectable::writeTagsToFile(StorageManager& bdsm, ParamManager* param
 		GlobalEffectable::writeParamTagsToFile(bdsm, paramManager, writeAutomation);
 		bdsm.writeClosingTag("defaultParams");
 	}
+
+	ModControllableAudio::writeTagsToFile(bdsm);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager,
@@ -817,6 +836,12 @@ void GlobalEffectable::writeParamAttributesToFile(StorageManager& bdsm, ParamMan
 	                                       valuesForOverride);
 
 	ModControllableAudio::writeParamAttributesToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	unpatchedParams->writeParamAsAttribute(bdsm, "lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(bdsm, "hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
@@ -836,16 +861,12 @@ void GlobalEffectable::writeParamTagsToFile(StorageManager& bdsm, ParamManager* 
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
 	bdsm.closeTag();
 
 	bdsm.writeOpeningTagBeginning("hpf");
 	unpatchedParams->writeParamAsAttribute(bdsm, "frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(bdsm, "resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(bdsm, "morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
 	bdsm.closeTag();
 
@@ -898,7 +919,10 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 				                           readAutomationUpToPos);
 				bdsm.exitTag("resonance");
 			}
+
 			else if (!strcmp(tagName, "morph")) {
+				// We leave this here for compatibility with songs saved before moving this parameter to "lpfMorph" at
+				// root level
 				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH,
 				                           readAutomationUpToPos);
 				bdsm.exitTag("morph");
@@ -919,7 +943,10 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 				                           readAutomationUpToPos);
 				bdsm.exitTag("resonance");
 			}
+
 			else if (!strcmp(tagName, "morph")) {
+				// We leave this here for compatibility with songs saved before moving this parameter to "hpfMorph" at
+				// root level
 				unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH,
 				                           readAutomationUpToPos);
 				bdsm.exitTag("morph");
@@ -934,14 +961,18 @@ bool GlobalEffectable::readParamTagFromFile(StorageManager& bdsm, char const* ta
 		bdsm.exitTag("reverbAmount");
 	}
 
+	else if (!strcmp(tagName, "lpfMorph")) {
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
+		bdsm.exitTag("lpfMorph");
+	}
+
+	else if (!strcmp(tagName, "hpfMorph")) {
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
+		bdsm.exitTag("hpfMorph");
+	}
+
 	else if (!strcmp(tagName, "volume")) {
 		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_VOLUME, readAutomationUpToPos);
-		// volume adjustment for songs saved on community 1.0.0 or later, but before version 1.1.0
-		// reduces the saved song volume by approximately 21% (889516852 / 4294967295)
-		if (bdsm.firmware_version >= FirmwareVersion::official({4, 1, 4, "alpha"})
-		    && bdsm.firmware_version < FirmwareVersion::community({1, 0, 0})) {
-			unpatchedParams->shiftParamValues(params::UNPATCHED_VOLUME, -889516852);
-		}
 		bdsm.exitTag("volume");
 	}
 

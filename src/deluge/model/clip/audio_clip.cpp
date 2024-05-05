@@ -170,7 +170,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 
 	// Got to check reachedMaxFileSize here, cos that'll go true a bit before cardRoutine() sets status to ERROR
-	if (recorder->status == RECORDER_STATUS_ABORTED || recorder->reachedMaxFileSize) {
+	if (recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize) {
 		abortRecording();
 		return;
 	}
@@ -277,7 +277,7 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 
 	// If we have a recorder that's gotten into error/aborted state, but we haven't registered that here yet, do that
 	// now. This isn't really the ideal place for this...
-	if (recorder && recorder->status == RECORDER_STATUS_ABORTED) {
+	if (recorder && recorder->status == RecorderStatus::ABORTED) {
 		abortRecording();
 	}
 
@@ -966,7 +966,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	Sample* sample;
 	if (recorder) {
 		sample =
-		    ((recorder->status == RECORDER_STATUS_ABORTED || recorder->reachedMaxFileSize) ? NULL : recorder->sample);
+		    ((recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize) ? NULL : recorder->sample);
 	}
 	else {
 		sample = ((Sample*)sampleHolder.audioFile);
@@ -1002,7 +1002,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	return true;
 }
 
-void AudioClip::writeDataToFile(StorageManager& bdsm, Song* song) {
+bool AudioClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	bdsm.writeAttribute("trackName", output->name.get());
 
@@ -1042,11 +1042,17 @@ void AudioClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	Clip::writeDataToFile(bdsm, song);
 
+	bdsm.writeOpeningTagEnd();
+
+	Clip::writeMidiCommandsToFile(bdsm, song);
+
 	bdsm.writeOpeningTagBeginning("params");
 	GlobalEffectableForClip::writeParamAttributesToFile(bdsm, &paramManager, true);
 	bdsm.writeOpeningTagEnd();
 	GlobalEffectableForClip::writeParamTagsToFile(bdsm, &paramManager, true);
 	bdsm.writeClosingTag("params");
+
+	return true;
 }
 
 Error AudioClip::readFromFile(StorageManager& bdsm, Song* song) {
@@ -1311,4 +1317,8 @@ uint64_t AudioClip::getCullImmunity() {
 	// We're gonna cull time-stretching ones first
 	bool doingTimeStretching = (voiceSample && voiceSample->timeStretcher);
 	return ((uint64_t)voicePriority << 33) + ((uint64_t)!doingTimeStretching << 32) + distanceFromEnd;
+}
+
+ParamManagerForTimeline* AudioClip::getCurrentParamManager() {
+	return &paramManager;
 }

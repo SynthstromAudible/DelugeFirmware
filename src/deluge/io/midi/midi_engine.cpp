@@ -29,6 +29,7 @@
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
+#include "version.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -755,6 +756,27 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		return;
 	}
 	unsigned payloadOffset = 2;
+	// Non-real time universal SysEx broadcast
+	if (data[1] == SysEx::SYSEX_UNIVERSAL_NONRT && data[2] == 0x7f) {
+		// Identity request
+		if (data[3] == SysEx::SYSEX_UNIVERSAL_IDENTITY && data[4] == 0x01) {
+			const uint8_t reply[] = {
+			    SysEx::SYSEX_START, SysEx::SYSEX_UNIVERSAL_NONRT,
+			    0x7f, // Device channel, we don't have one yet
+			    SysEx::SYSEX_UNIVERSAL_IDENTITY, 0x02,
+			    // Manufacturer ID
+			    SysEx::DELUGE_SYSEX_ID_BYTE0, SysEx::DELUGE_SYSEX_ID_BYTE1, SysEx::DELUGE_SYSEX_ID_BYTE2,
+			    // 14bit device family LSB, MSB
+			    SysEx::DELUGE_SYSEX_ID_BYTE3, 0,
+			    // 14bit device family member LSB, MSB
+			    0, 0,
+			    // Four byte firmware version in human readable order
+			    FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, FIRMWARE_VERSION_PATCH, 0, SysEx::SYSEX_END};
+			device->sendSysex(reply, sizeof(reply));
+		}
+		return;
+	}
+
 	if (data[1] == SysEx::DELUGE_SYSEX_ID_BYTE0 && data[2] == SysEx::DELUGE_SYSEX_ID_BYTE1
 	    && data[3] == SysEx::DELUGE_SYSEX_ID_BYTE2 && data[4] == SysEx::DELUGE_SYSEX_ID_BYTE3) {
 		payloadOffset = 5;

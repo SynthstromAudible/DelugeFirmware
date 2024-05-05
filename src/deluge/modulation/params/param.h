@@ -258,7 +258,7 @@ char const* paramNameForFile(Kind kind, ParamType param);
 /// Given a string and the expected Kind, attempts to find the ParamType value for that param.
 ///
 /// As with paramNameForFile, the returned ParamType is offset by UNPATCHED_START for unpatched params.
-ParamType fileStringToParam(Kind kind, char const* name);
+ParamType fileStringToParam(Kind kind, char const* name, bool allowPatched);
 
 /// Magic number which represents an invalid or missing param type
 constexpr uint32_t kNoParamID = 0xFFFFFFFF;
@@ -321,11 +321,11 @@ const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , UNPATCHED_STUTTER_RATE},
     {UNPATCHED_VOLUME    , UNPATCHED_PITCH_ADJUST, kNoParamID                , UNPATCHED_PAN               , kNoParamID				   , UNPATCHED_SAMPLE_RATE_REDUCTION, UNPATCHED_BITCRUSHING , kNoParamID},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , UNPATCHED_LPF_MORPH			, UNPATCHED_LPF_RES     , UNPATCHED_LPF_FREQ},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , UNPATCHED_HPF_MORPH			, UNPATCHED_HPF_RES     , UNPATCHED_HPF_FREQ},
-    {kNoParamID          , kNoParamID            , UNPATCHED_SIDECHAIN_VOLUME, kNoParamID                  , UNPATCHED_SIDECHAIN_SHAPE   , kNoParamID			   		, UNPATCHED_BASS        , UNPATCHED_BASS_FREQ},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_LPF_MORPH	   , kNoParamID						, UNPATCHED_LPF_RES     , UNPATCHED_LPF_FREQ},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_HPF_MORPH	   , kNoParamID						, UNPATCHED_HPF_RES     , UNPATCHED_HPF_FREQ},
+    {kNoParamID          , kNoParamID            , UNPATCHED_SIDECHAIN_VOLUME, kNoParamID                  , UNPATCHED_SIDECHAIN_SHAPE , kNoParamID			   			, UNPATCHED_BASS        , UNPATCHED_BASS_FREQ},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, UNPATCHED_TREBLE      , UNPATCHED_TREBLE_FREQ},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_MOD_FX_OFFSET     , UNPATCHED_MOD_FX_FEEDBACK		, UNPATCHED_MOD_FX_DEPTH, UNPATCHED_MOD_FX_RATE},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_MOD_FX_OFFSET   , UNPATCHED_MOD_FX_FEEDBACK		, UNPATCHED_MOD_FX_DEPTH, UNPATCHED_MOD_FX_RATE},
     {kNoParamID          , kNoParamID            , kNoParamID                , UNPATCHED_REVERB_SEND_AMOUNT, kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
     {UNPATCHED_DELAY_RATE, kNoParamID            , kNoParamID                , UNPATCHED_DELAY_AMOUNT      , kNoParamID				   , kNoParamID			  		 	, kNoParamID            , kNoParamID},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID}};

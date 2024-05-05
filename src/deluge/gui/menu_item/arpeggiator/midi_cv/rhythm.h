@@ -44,12 +44,9 @@ public:
 	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
-		char name[12];
-		// Index: Name
-		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
-		deluge::hid::display::OLED::drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL,
-		                                              deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
+		deluge::hid::display::OLED::drawStringCentred(
+		    arpRhythmPatternNames[this->getValue()], yPixel + OLED_MAIN_TOPMOST_PIXEL,
+		    deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

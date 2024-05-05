@@ -259,7 +259,7 @@ void nullifyUIs() {
 
 void renderUIsForOled() {
 	int32_t u = numUIsOpen - 1;
-	while (u && uiNavigationHierarchy[u]->oledShowsUIUnderneath) {
+	while ((u > 0) && uiNavigationHierarchy[u]->oledShowsUIUnderneath) {
 		u--;
 	}
 

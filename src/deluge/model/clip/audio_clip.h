@@ -82,7 +82,7 @@ public:
 	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount);
 
 	Error readFromFile(StorageManager& bdsm, Song* song);
-	void writeDataToFile(StorageManager& bdsm, Song* song);
+	bool writeDataToFile(StorageManager& bdsm, Song* song);
 	char const* getXMLTag() { return "audioClip"; }
 
 	SampleControls sampleControls;
@@ -111,6 +111,8 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
 		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
 	};
+
+	ParamManagerForTimeline* getCurrentParamManager();
 
 protected:
 	bool cloneOutput(ModelStackWithTimelineCounter* modelStack);

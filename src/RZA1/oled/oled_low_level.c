@@ -19,6 +19,7 @@
 #include "definitions.h"
 #include "deluge/drivers/oled/oled.h"
 
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/mtu/mtu.h"
@@ -31,11 +32,7 @@
 
 void setupSPIInterrupts()
 {
-
-    R_INTC_Disable(INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3);
-    R_INTC_RegistIntFunc(INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, &cvSPITransferComplete);
-    R_INTC_SetPriority(INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
-    R_INTC_Enable(INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3);
+    setupAndEnableInterrupt(cvSPITransferComplete, INTC_ID_SPRI0 + SPI_CHANNEL_CV * 3, 5);
 }
 
 void enqueueCVMessage(int channel, uint32_t message)

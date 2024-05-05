@@ -17,6 +17,7 @@
 
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -662,7 +663,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 void Kit::offerReceivedCCToModControllable(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                            ModelStackWithTimelineCounter* modelStack) {
 	// NOTE: this call may change modelStack->timelineCounter etc!
-	ModControllableAudio::offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack);
+	ModControllableAudio::offerReceivedCCToLearnedParamsForClip(fromDevice, channel, ccNumber, value, modelStack);
 }
 void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                          ModelStackWithTimelineCounter* modelStack) {
@@ -681,7 +682,7 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 			Drum* thisDrum = thisNoteRow->drum;
 			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				((SoundDrum*)thisDrum)
-				    ->offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack, i);
+				    ->offerReceivedCCToLearnedParamsForClip(fromDevice, channel, ccNumber, value, modelStack, i);
 			}
 		}
 	}
@@ -1611,25 +1612,65 @@ gotParamManager:
 
 // for (Drum* drum = firstDrum; drum; drum = drum->next) {
 
+/// for a kit we have two types of automation: with Affect Entire and without Affect Entire
 ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                     int32_t paramID, params::Kind paramKind) {
+                                                     int32_t paramID, params::Kind paramKind, bool affectEntire,
+                                                     bool useMenuStack) {
+	if (affectEntire) {
+		return getModelStackWithParamForKit(modelStack, clip, paramID, paramKind, useMenuStack);
+	}
+	else {
+		return getModelStackWithParamForKitRow(modelStack, clip, paramID, paramKind, useMenuStack);
+	}
+}
+
+/// for a kit we have two types of automation: with Affect Entire and without Affect Entire
+/// for a kit with affect entire on, we are automating information at the kit level
+ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                           int32_t paramID, params::Kind paramKind, bool useMenuStack) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-	// for a kit we have two types of automation: with Affect Entire and without Affect Entire
-	// for a kit with affect entire off, we are automating information at the noterow level
-	if (!instrumentClip->affectEntire) {
-		Drum* drum = selectedDrum;
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 
-		if (drum && drum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
+	if (useMenuStack) {
+		modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(soundEditor.currentModControllable,
+		                                                                          soundEditor.currentParamManager);
+	}
+	else {
+		modelStackWithThreeMainThings =
+		    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
+	}
 
-			ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip->getNoteRowForSelectedDrum(modelStack);
+	if (modelStackWithThreeMainThings) {
+		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
+	}
 
-			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+	return modelStackWithParam;
+}
 
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
+/// for a kit we have two types of automation: with Affect Entire and without Affect Entire
+/// for a kit with affect entire off, we are automating information at the noterow level
+ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                              int32_t paramID, params::Kind paramKind,
+                                                              bool useMenuStack) {
+	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
+	if (selectedDrum && selectedDrum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
+
+		ModelStackWithNoteRow* modelStackWithNoteRow = ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
+
+		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
+
+			if (useMenuStack) {
+				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
+				    soundEditor.currentModControllable, soundEditor.currentParamManager);
+			}
+			else {
+				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
+			}
+
+			if (modelStackWithThreeMainThings) {
 				if (paramKind == deluge::modulation::params::Kind::PATCHED) {
 					modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 				}
@@ -1642,16 +1683,6 @@ ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCount
 					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID);
 				}
 			}
-		}
-	}
-
-	else { // model stack for automating kit params when "affect entire" is enabled
-
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
-
-		if (modelStackWithThreeMainThings) {
-			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 		}
 	}
 

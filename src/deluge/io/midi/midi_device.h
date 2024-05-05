@@ -100,7 +100,7 @@ public:
 	inline void sendCC(int32_t channel, int32_t cc, int32_t value) { sendMessage(0x0B, channel, cc, value); }
 
 	// data should be a complete message with data[0] = 0xf0, data[len-1] = 0xf7
-	virtual void sendSysex(uint8_t* data, int32_t len) = 0;
+	virtual void sendSysex(const uint8_t* data, int32_t len) = 0;
 
 	virtual int32_t sendBufferSpace() = 0;
 
@@ -147,7 +147,7 @@ public:
 		needsToSendMCMs = 0;
 	}
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-	void sendSysex(uint8_t* data, int32_t len) override;
+	void sendSysex(const uint8_t* data, int32_t len) override;
 	int32_t sendBufferSpace() override;
 	void connectedNow(int32_t midiDeviceNum);
 	void sendMCMsNowIfNeeded();
@@ -240,7 +240,7 @@ public:
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-	void sendSysex(uint8_t* data, int32_t len) override;
+	void sendSysex(const uint8_t* data, int32_t len) override;
 	int32_t sendBufferSpace() override;
 };
 
@@ -251,6 +251,6 @@ public:
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-	void sendSysex(uint8_t* data, int32_t len) override;
+	void sendSysex(const uint8_t* data, int32_t len) override;
 	int32_t sendBufferSpace() override;
 };

@@ -15,12 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/system/r_typedefs.h"
 #include "RZA1/uart/sio_char.h"
 #include "definitions.h"
 #include "deluge/deluge.h"
 #include "deluge/drivers/mtu/mtu.h"
+#include "task_scheduler.h"
 
 static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 
@@ -31,7 +33,8 @@ static void midiAndGateOutputTimerInterrupt(uint32_t int_sense) {
 	R_INTC_Disable(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT]);
 
 	timerClearCompareMatchTGRA(TIMER_MIDI_GATE_OUTPUT);
-	timerGoneOff();
+	midiAndGateTimerGoneOff();
+	// re enabled at the end of the audio routine iff the gate needs to be triggered between renders
 }
 
 uint32_t triggerClockRisingEdgeTimes[TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED];
@@ -39,14 +42,7 @@ uint32_t triggerClockRisingEdgeTimes[TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED];
 uint32_t triggerClockRisingEdgesReceived = 0;
 uint32_t triggerClockRisingEdgesProcessed = 0;
 
-static void clearIRQInterrupt(int irqNumber) {
-	uint16_t flagRead = INTC.IRQRR.WORD;
-	if (flagRead & (1 << irqNumber)) {
-		INTC.IRQRR.WORD = flagRead & ~(1 << irqNumber);
-	}
-}
-
-static void int_irq6(uint32_t sense) {
+static void triggerClockInputHandler(uint32_t sense) {
 	uint16_t dummy_read;
 
 	R_INTC_Disable(IRQ_INTERRUPT_0 + 6);
@@ -83,15 +79,11 @@ int main(void) {
 	mtuEnableAccess();
 
 	// Set up MIDI / gate output timer
-	disableTimer(TIMER_MIDI_GATE_OUTPUT);
-	*TCNT[TIMER_MIDI_GATE_OUTPUT] = 0u;
-	timerClearCompareMatchTGRA(TIMER_MIDI_GATE_OUTPUT);
-	timerEnableInterruptsTGRA(TIMER_MIDI_GATE_OUTPUT);
-	timerControlSetup(TIMER_MIDI_GATE_OUTPUT, 1, 64);
+	// this timer is setup but not enabled, as generally this will be processed by the audio routine.
+	// Enabled in audio routine when the gate output will be during the next render window and the window cannot be
+	// shortened to accommodate it. It's probably a waste of a system timer and can likely be refactored out
+	setupTimerWithInterruptHandler(TIMER_MIDI_GATE_OUTPUT, 64, midiAndGateOutputTimerInterrupt, 5);
 
-	/* The setup process the interrupt IntTgfa function.*/
-	R_INTC_RegistIntFunc(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT], &midiAndGateOutputTimerInterrupt);
-	R_INTC_SetPriority(INTC_ID_TGIA[TIMER_MIDI_GATE_OUTPUT], 5);
 	// Original comment regarding above priority: "Must be greater than 9, so less prioritized than USB interrupt, so
 	// that can still happen while this happening. But must be lower number / more prioritized than MIDI UART TX DMA
 	// interrupt! Or else random crash occasionally." But, I've now undone the change in "USB sending as host now done
@@ -100,19 +92,13 @@ int main(void) {
 	// thought was that USB "hardware bug", which I ended up resolving later anyway.
 
 	// Set up slow system timer - 33 ticks per millisecond (30.30303 microseconds per tick) on A1
-	disableTimer(TIMER_SYSTEM_SLOW);
-	timerControlSetup(TIMER_SYSTEM_SLOW, 0, 1024);
-	enableTimer(TIMER_SYSTEM_SLOW);
+	setupRunningClock(TIMER_SYSTEM_SLOW, 1024);
 
 	// Set up fast system timer - 528 ticks per millisecond (1.893939 microseconds per tick) on A1
-	disableTimer(TIMER_SYSTEM_FAST);
-	timerControlSetup(TIMER_SYSTEM_FAST, 0, 64);
-	enableTimer(TIMER_SYSTEM_FAST);
+	setupRunningClock(TIMER_SYSTEM_FAST, 64);
 
 	// Set up super-fast system timer - 33.792 ticks per microsecond (29.5928 nanoseconds per tick) on A1
-	disableTimer(TIMER_SYSTEM_SUPERFAST);
-	timerControlSetup(TIMER_SYSTEM_SUPERFAST, 0, 1);
-	enableTimer(TIMER_SYSTEM_SUPERFAST);
+	setupRunningClock(TIMER_SYSTEM_SUPERFAST, 1);
 
 	// Uart setup and pin mux ------------------------------------------------------------------------------------------
 
@@ -143,11 +129,8 @@ int main(void) {
 	/* Configure IRQs detections on falling edge. Due to the presence of a transistor, we want to read falling edges on
 	 * the trigger clock rather than rising. */
 	INTC.ICR1 = 0b0101010101010101;
-
-	R_INTC_Disable(IRQ_INTERRUPT_0 + 6);
-	R_INTC_RegistIntFunc(IRQ_INTERRUPT_0 + 6, &int_irq6);
-	R_INTC_SetPriority(IRQ_INTERRUPT_0 + 6, 5);
-	R_INTC_Enable(IRQ_INTERRUPT_0 + 6);
+	// this is the same priority as the midi/gate interrupt despite the comment saying they need to be different
+	setupAndEnableInterrupt(triggerClockInputHandler, IRQ_INTERRUPT_0 + 6, 5);
 
 	deluge_main();
 

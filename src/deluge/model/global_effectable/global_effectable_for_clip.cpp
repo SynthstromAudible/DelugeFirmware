@@ -183,7 +183,12 @@ doNormal:
 
 		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
 		                           reverbSendAmount, pan, true);
-		compressor.renderVolNeutral(globalEffectableBuffer, numSamples, volumePostFX);
+		if (compThreshold > 0) {
+			compressor.renderVolNeutral(globalEffectableBuffer, numSamples, volumePostFX);
+		}
+		else {
+			compressor.reset();
+		}
 		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 	}
 

@@ -24,6 +24,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
@@ -182,6 +183,9 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbSidechainShape = -601295438;
 	reverbSidechainSync = SYNC_LEVEL_8TH;
 	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
+
+	// setup base compressor gain to match 1.0
+	globalEffectable.compressor.setBaseGain(0.85);
 
 	// initialize automation arranger view variables
 	lastSelectedParamID = kNoSelection;
@@ -1326,10 +1330,6 @@ weAreInArrangementEditorOrInClipInstance:
 	bdsm.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
 	bdsm.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
 	bdsm.writeAttribute("yScrollSongView", songViewYScroll);
-	bdsm.writeAttribute("songGridScrollX", songGridScrollX);
-	bdsm.writeAttribute("songGridScrollY", songGridScrollY);
-	bdsm.writeAttribute("sessionLayout", sessionLayout);
-
 	bdsm.writeAttribute("yScrollArrangementView", arrangementYScroll);
 	bdsm.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
 	bdsm.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
@@ -1347,8 +1347,6 @@ weAreInArrangementEditorOrInClipInstance:
 	bdsm.writeAttribute("affectEntire", affectEntire);
 	bdsm.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
 
-	bdsm.writeAttribute("midiLoopback", midiLoopback);
-
 	if (lastSelectedParamID != kNoSelection) {
 		bdsm.writeAttribute("lastSelectedParamID", lastSelectedParamID);
 		bdsm.writeAttribute("lastSelectedParamKind", util::to_underlying(lastSelectedParamKind));
@@ -1358,6 +1356,12 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	globalEffectable.writeAttributesToFile(bdsm, false);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeAttribute("midiLoopback", midiLoopback);
+	bdsm.writeAttribute("songGridScrollX", songGridScrollX);
+	bdsm.writeAttribute("songGridScrollY", songGridScrollY);
+	bdsm.writeAttribute("sessionLayout", sessionLayout);
 
 	bdsm.writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
 
@@ -1377,11 +1381,12 @@ weAreInArrangementEditorOrInClipInstance:
 	damping = std::min(damping, (uint32_t)2147483647);
 	width = std::min(width, (uint32_t)2147483647);
 
-	bdsm.writeAttribute("model", util::to_underlying(model));
 	bdsm.writeAttribute("roomSize", roomSize);
 	bdsm.writeAttribute("dampening", damping);
 	bdsm.writeAttribute("width", width);
 	bdsm.writeAttribute("pan", AudioEngine::reverbPan);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeAttribute("model", util::to_underlying(model));
 	bdsm.writeOpeningTagEnd();
 
 	bdsm.writeOpeningTagBeginning("compressor");
@@ -1941,7 +1946,7 @@ loadOutput:
 						if (error != Error::NONE) {
 							goto gotError;
 						}
-
+						((Instrument*)newOutput)->existsOnCard = true;
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
 					}
@@ -2043,41 +2048,42 @@ loadOutput:
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	int32_t count = 0;
+
 	// Match all Clips up with their Output
 	// For each Clip in session and arranger
-	ClipArray* clipArray = &sessionClips;
-traverseClips:
-	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-		Clip* thisClip = clipArray->getClipAtIndex(c); // TODO: deal with other Clips too!
+	std::array<ClipArray*, 2> const arrays{
+	    &sessionClips,
+	    &arrangementOnlyClips,
+	};
+	for (ClipArray* clipArray : arrays) {
+		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
+			Clip* thisClip = clipArray->getClipAtIndex(c); // TODO: deal with other Clips too!
 
-		if (!(count & 31)) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
-			AudioEngine::logAction("aaa0");
-		}
-		count++;
+			if (!(count & 31)) {
+				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				AudioEngine::logAction("aaa0");
+			}
+			count++;
 
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(thisClip);
 
-		Error error = thisClip->claimOutput(modelStackWithTimelineCounter);
-		if (error != Error::NONE) {
-			return error;
-		}
+			Error error = thisClip->claimOutput(modelStackWithTimelineCounter);
+			if (error != Error::NONE) {
+				return error;
+			}
 
-		// Correct different non-synced rates of old song files
-		// In a perfect world, we'd do this for Kits, MIDI and CV too
-		if (bdsm.firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
-		    && thisClip->output->type == OutputType::SYNTH) {
-			if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
-			    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
-				ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
-				thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues((1 << 30)
-				                                                                                    + (1 << 28));
+			// Correct different non-synced rates of old song files
+			// In a perfect world, we'd do this for Kits, MIDI and CV too
+			if (bdsm.firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
+			    && thisClip->output->type == OutputType::SYNTH) {
+				if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
+				    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
+					ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
+					thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues((1 << 30)
+					                                                                                    + (1 << 28));
+				}
 			}
 		}
-	}
-	if (clipArray != &arrangementOnlyClips) {
-		clipArray = &arrangementOnlyClips;
-		goto traverseClips;
 	}
 
 	AudioEngine::logAction("matched up");
@@ -2093,6 +2099,19 @@ traverseClips:
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->soloingInArrangementMode) {
 			anyOutputsSoloingInArrangement = true;
+		}
+
+		if (thisOutput->clipInstances.getNumElements() == 0
+		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
+		    && thisOutput->type == OutputType::AUDIO) {
+			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
+			// things will go wrong later.
+			ParamManagerForTimeline paramManager{};
+
+			paramManager.setupUnpatched();
+			GlobalEffectable::initParams(&paramManager);
+
+			this->backUpParamManager((ModControllableAudio*)thisOutput->toModControllable(), NULL, &paramManager);
 		}
 
 		for (int32_t i = 0; i < thisOutput->clipInstances.getNumElements(); i++) {
@@ -2420,7 +2439,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 	// Go through each SampleRecorder, feeding them audio
 	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder; recorder = recorder->next) {
 
-		if (recorder->status >= RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
+		if (recorder->status >= RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 			continue;
 		}
 
@@ -5506,7 +5525,8 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 			songViewYScroll++;
 		}
 
-		uiNeedsRendering(&sessionView);
+		// use root UI in case this is called from performance view
+		sessionView.requestRendering(getRootUI());
 	}
 
 	return newClip;

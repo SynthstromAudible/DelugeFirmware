@@ -1254,17 +1254,17 @@ void View::setKnobIndicatorLevel(uint8_t whichModEncoder) {
 		}
 	}
 	else {
+		if (modelStackWithParam->paramId == 255) {
+			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
+			                                                                              modelStackWithParam);
+			knobPos += kKnobPosOffset;
+		}
 		// is it not just a param? then its a patch cable
-		if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
+		else if (!((modelStackWithParam->paramId & 0x0000FF00) == 0x0000FF00)) {
 			// default value for patch cable
 			// (equals 0 (midpoint) in -128 to +128 range)
 			knobPos = 64;
 			isBipolar = true;
-		}
-		else {
-			knobPos = modelStackWithParam->modControllable->getKnobPosForNonExistentParam(whichModEncoder,
-			                                                                              modelStackWithParam);
-			knobPos += kKnobPosOffset;
 		}
 	}
 
@@ -1507,13 +1507,7 @@ void View::setModLedStates() {
 	}
 
 	// Sort out actual "mod" LEDs
-	int32_t modKnobMode = -1;
-	if (activeModControllableModelStack.modControllable) {
-		uint8_t* modKnobModePointer = activeModControllableModelStack.modControllable->getModKnobMode();
-		if (modKnobModePointer) {
-			modKnobMode = *modKnobModePointer;
-		}
-	}
+	int32_t modKnobMode = getModKnobMode();
 
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
@@ -1531,6 +1525,17 @@ void View::setModLedStates() {
 			indicator_leds::setLedState(indicator_leds::modLed[i], on);
 		}
 	}
+}
+
+int32_t View::getModKnobMode() {
+	int32_t modKnobMode = -1;
+	if (activeModControllableModelStack.modControllable) {
+		uint8_t* modKnobModePointer = activeModControllableModelStack.modControllable->getModKnobMode();
+		if (modKnobModePointer) {
+			modKnobMode = *modKnobModePointer;
+		}
+	}
+	return modKnobMode;
 }
 
 void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {
@@ -1560,18 +1565,16 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 		int32_t channel =
 		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
 		        .channelOrZone;
-		if ((channel != MIDI_CHANNEL_NONE) && activeModControllableModelStack.modControllable) {
+		if (channel != MIDI_CHANNEL_NONE) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
 				if (ccNumber != MIDI_CC_NONE) {
-					((ModControllableAudio*)activeModControllableModelStack.modControllable)
-					    ->sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+					midiFollow.sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
 				}
 			}
 			else {
-				((ModControllableAudio*)activeModControllableModelStack.modControllable)
-				    ->sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
+				midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
 			}
 		}
 	}
@@ -1641,6 +1644,9 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 	return false;
 }
 
+// lookup table for the min value of each pad's value range used to display vu meter on the grid
+const float dBFSForYDisplay[kDisplayHeight] = {-30.8, -26.4, -22.0, -17.6, -13.2, -8.8, -4.4, -0.2};
+
 int32_t View::getMaxYDisplayForVUMeter(float level) {
 	// dBFS (dB below clipping) calculation
 	// 16.7 = log(2^24) which is the approxRMSLevel at which clipping begins
@@ -1655,8 +1661,8 @@ int32_t View::getMaxYDisplayForVUMeter(float level) {
 		// 4.4 = 4.3 is dBFS range for a given row + 0.1
 		// 0.1 is added to the dBFS range for a given row to arrive at the minimum value for the next row
 		/*
-		y7 = clipping (0 or higher)
-		y6 = -4.4 to -0.1
+		y7 = clipping (-0.2 or higher)
+		y6 = -4.4 to -0.3
 		y5 = -8.8 to -4.5
 		y4 = -13.2 to -8.9
 		y3 = -17.6 to -13.3
@@ -1664,9 +1670,8 @@ int32_t View::getMaxYDisplayForVUMeter(float level) {
 		y1 = -26.4 to -22.1
 		y0 = -30.8 to -26.5
 		*/
-		float dBFSForYDisplay = -30.8 + (yDisplay * 4.4);
 		// if dBFS >= dBFSForYDisplay it means that the dBFS value should be rendered in that Y row
-		if (dBFS >= dBFSForYDisplay) {
+		if (dBFS >= dBFSForYDisplay[yDisplay]) {
 			maxYDisplay = yDisplay;
 		}
 		else {
@@ -1745,6 +1750,10 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 	if (renderedVUMeter && (currentUI == &arrangerView || currentUI == &performanceSessionView)) {
 		uiNeedsRendering(currentUI, 0);
 	}
+
+	// midi follow and midi feedback enabled
+	// re-send midi cc's because learned parameter values may have changed
+	sendMidiFollowFeedback();
 }
 
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
@@ -2583,15 +2592,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		}
 		// No break
 	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
-	case UI_MODE_STUTTERING:
-		// this code is needed to allow users to launch clips while stuttering
-		// without it the deluge becomes unresponsive if you try to launch a clip while stuttering
-		// this is because it gets stuck in the stuttering UI mode and can't get out
-		if (on) {
-			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
-			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
-		}
-		break;
+
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
@@ -2601,6 +2602,16 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		}
 		else {
 			exitUIMode(UI_MODE_HOLDING_STATUS_PAD);
+		}
+		break;
+
+	case UI_MODE_STUTTERING:
+		// this code is needed to allow users to launch clips while stuttering
+		// without it the deluge becomes unresponsive if you try to launch a clip while stuttering
+		// this is because it gets stuck in the stuttering UI mode and can't get out
+		if (on) {
+			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
+			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
 

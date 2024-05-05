@@ -356,6 +356,10 @@ bool MIDIInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) 
 			channel = MIDI_CHANNEL_TRANSPOSE;
 		}
 	}
+	else if (!strcmp(tagName, "midiChannel")) {
+		// fix for incorrect save files created on nightlies between 18/02/24 and 08/04/24
+		channel = bdsm.readTagOrAttributeValueInt();
+	}
 	else if (!strcmp(tagName, "zone")) {
 		char const* text = bdsm.readTagOrAttributeValue();
 		if (!strcmp(text, "lower")) {
@@ -1011,7 +1015,8 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 
 ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                                 int32_t paramID,
-                                                                deluge::modulation::params::Kind paramKind) {
+                                                                deluge::modulation::params::Kind paramKind,
+                                                                bool affectEntire, bool useMenuStack) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =

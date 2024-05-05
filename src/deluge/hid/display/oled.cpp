@@ -88,6 +88,18 @@ const uint8_t OLED::rightArrowIcon[] = {
     0b00000100,
 };
 
+// This icon is missing the bottom row because it's 9 pixels tall and bytes only have 8 bits. Remember to draw a
+// rectangle under it so it looks correct
+const uint8_t OLED::lockIcon[] = {
+    0b11111000, //<
+    0b11111110, //<
+    0b00001001, //<
+    0b01111001, //<
+    0b01111001, //<
+    0b11111110, //<
+    0b11111000, //<
+};
+
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
 #endif
@@ -518,8 +530,8 @@ void OLED::setupPopup(int32_t width, int32_t height) {
 	popupMinY = (OLED_MAIN_HEIGHT_PIXELS - popupHeight) >> 1;
 	popupMaxY = OLED_MAIN_HEIGHT_PIXELS - popupMinY;
 
-	if (popupMinY < 0) {
-		popupMinY = 0;
+	if (popupMinY < OLED_MAIN_TOPMOST_PIXEL) {
+		popupMinY = OLED_MAIN_TOPMOST_PIXEL;
 	}
 	if (popupMaxY > OLED_MAIN_HEIGHT_PIXELS - 1) {
 		popupMaxY = OLED_MAIN_HEIGHT_PIXELS - 1;
@@ -887,7 +899,7 @@ void updateWorkingAnimation() {
 	}
 
 	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true, DisplayPopupType::GENERAL);
+	OLED::popupText(textNow.get(), true, DisplayPopupType::LOADING);
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
@@ -897,8 +909,11 @@ void OLED::displayWorkingAnimation(char const* word) {
 }
 
 void OLED::removeWorkingAnimation() {
-	if (workingAnimationText) {
+	if (hasPopupOfType(DisplayPopupType::LOADING)) {
 		removePopup();
+	}
+	else if (workingAnimationText) {
+		workingAnimationText = NULL;
 	}
 }
 
@@ -1045,7 +1060,7 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	scroller->doHighlight = doHighlight;
 
 	sideScrollerDirection = 1;
-	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, 400);
+	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kScrollTime);
 }
 
 void OLED::stopScrollingAnimation() {
@@ -1121,7 +1136,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		timeInterval = (sideScrollerDirection >= 0) ? 15 : 5;
 	}
 	else {
-		timeInterval = 400;
+		timeInterval = kScrollTime;
 		sideScrollerDirection = -sideScrollerDirection;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			sideScrollers[s].finished = false;

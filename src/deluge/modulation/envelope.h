@@ -23,7 +23,7 @@
 class Sound;
 class Voice;
 class ParamManagerForTimeline;
-
+constexpr uint32_t SOFT_CULL_INCREMENT = 65536;
 class Envelope {
 public:
 	Envelope();
@@ -34,7 +34,7 @@ public:
 	int32_t lastValuePreCurrentStage;
 	uint32_t timeEnteredState;
 	bool ignoredNoteOff;
-	uint32_t fastReleaseIncrement;
+	uint32_t fastReleaseIncrement{4096};
 	int32_t noteOn(bool directlyToDecay);
 	int32_t noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice);
 	void noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager);

@@ -1,10 +1,8 @@
 # Deluge Community Firmware Change Log
 
-> To find a detailed list of how to use each feature, check
->
-here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
+> To find a detailed list of how to use each feature, check here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
 
-## c1.2.0 Unnamed
+## c1.2.0 Chopin
 
 ### User Interface
 
@@ -14,6 +12,10 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+- Added new `YELLOW GRID MODE` which allows you configure the clip type between `DEFAULT`, `FILL`, and `ONCE` by holding on a clip pad and pressing `SELECT`. In this mode, while clips are inactive, the clip pads are highlighted different colours to indicate the current clip type.
+
+### MIDI
+- Added Universal SysEx Identity response, including firmware version.
 
 ## c1.1.0 Beethoven
 
@@ -25,9 +27,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
       model used with those songs.
 - Added compressors to synths, kits, audio clips, and kit rows. The compressor can be enabled and edited from their
   respective menus.
-- Fixed a bug in compressor makeup gain that was causing lower volume than official with low compression amounts. For
-  songs made with community release 1.0.x, you can compensate by slightly lowering the song master level. This is done
-  via affect entire in song/arranger mode, or by using the song menu (press select) -> Master -> Volume
+- Compressor behavior has been changed to reduce clipping. Songs made on c1.0 may need to have their volume manually adjusted to compensate.
 - Fixed stereo unison spread + ringmod + noise causing excessively loud output.
 - Fixed some bugs around the waveform Loop Lock feature which allowed setting invalid loop points.
 
@@ -37,6 +37,7 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
   pressing the Pink Mode pad. Allows quick control of Song Global FX.
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
 - Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.
+  - You can also use the `SELECT ENCODER` while in the `AUTOMATION VIEW EDITOR` to scroll to any patch cables that exist.
 - Updated `AUTOMATION VIEW EDITOR` to allow you to edit Bipolar params according to their Bipolar nature. E.g. Positive values are shown in the top four pads, Negative value in the bottom four pads, and the Middle value is shown by not lighting up any pads.
 - Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset
   file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the
@@ -44,8 +45,6 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of the
   Deluge grid (second pad from the top). Toggle interpolation on/off using Shift + Interpolation shortcut pad. The
   Interpolation shortcut pad will blink to indicate that interpolation is enabled.
-- Updated `AUTOMATION VIEW` to remove select encoder scrolling selection of non-MIDI clip parameters. Select encoder is
-  now used to fine tune non-MIDI parameter values in the `AUTOMATION VIEW EDITOR`.
 - Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
 - Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
 - Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to provide the ability to access the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu press Clip (if you are in a clip) or Song (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` while you are still in the menu. You will be able to interact with the grid to edit automation for the current parameter / patch cable selected in the menu.
@@ -71,7 +70,6 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
 - Added sidebar functionality in keyboard screens - by default it is velocity (red) and mod wheel (blue), holding a pad
   sets it momentarily and tapping latches it. The functionality can be changed by holding the top pad and scrolling
   select.
-- Updated the count-in setting to allow specifying the number of bars (1-4).
 - Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views.
 - Added ability to save a synth/sample drum back to an instrument preset by holding audition and pressing save.
 - Mod (Gold) Encoders learned to the Mod Matrix can now access the full range of the Mod Matrix / Patch Cable parameters (e.g. from -50 to +50).
@@ -80,11 +78,18 @@ here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/b
     - Modes are `NEW SONG`,`TEMPLATE`,`LAST OPENED SONG`,`LAST SAVED SONG`.
     - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
 - Added a feature save user-defined pad brightness level and restore it at startup.
-- Mod (Gold) Encoder LED indicators are now Bipolar for Bipolar params (e.g. Param, Pitch, Patch Cables). Positive values illuminate the top two LEDs. Negative values illuminate the bottom two LEDs. The middle value doesn't light up any LEDs. 
-- The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
+- Mod (Gold) Encoder LED indicators are now Bipolar for Bipolar params (e.g. Pan, Pitch, Patch Cables). Positive values illuminate the top two LEDs. Negative values illuminate the bottom two LEDs. The middle value doesn't light up any LEDs. 
+- Added new `High CPU Usage Indicator`. The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
+  - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 - Removed ability to convert an Audio Clip to an Instrument Clip (Synth / Kit / MIDI / CV) as this conversion process is error/bug prone.
 - Restricted changing Synth/MIDI/CV Instrument CLip types to the Kit Instrument Clip Type and vice versa if the clip is not empty.
 - Added retrigger to all keyboard views.
+- Added a new default setting that controls which playback mode new slices of a kit will get. 
+- Added indicators to the waveform loop lock feature for both 7seg (rightmost `.`) and OLED (lock indicator).
+- Modified waveform marker rendering to improve clarity.
+- Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/menu_hierarchies.md)
+- Added MIDI learning of Song Params
+- Added Synth/MIDI/CV clip configuration of note row play direction. Hold audition pad while entering the play direction menu to set the play direction for the selected note row. While in the note row play direction menu, you can select other note rows to quickly set the play directiom for multiple note rows.
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
@@ -102,8 +107,8 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Added support for 5 and 6 note scales.
 - Added 8 new built-in scales: Melodic Minor, Hungarian Minor, Marva (Indian), Arabian, Whole Tone, Blues, Pentatonic
   Minor, Hirajoshi.
-- Added "play `ONCE`" clip launch mode, settable by turning the Select Encoder left while holding the audition pad in
-  Song view. Causes the clip to play once when triggered and then mute without changing the section.
+- Added "play `ONCE`" clip launch mode, settable in `ROW VIEW` (Song view) by pressing the Select Encoder while holding
+  the mute pad of a row. Causes the clip to play once when triggered and then mute without changing the section.
 - Added `NOT FILL` note probability. Similar to the `FILL` probability but only plays when the `FILL` button is *not*
   pressed.
 - Added support for copy/paste of single rows.
@@ -112,9 +117,9 @@ In addition, a number of improvements have been made to how the OLED display is 
 - The default ModFX type for songs is now DISABLED rather than FLANGER.
 - The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without
   unexpectedly changing the scale and root note of the whole song.
-- The arpeggiator has been completely redesigned to have advanced features for the user like independent octave and note
-  modes, rhythm, sequence length and ratcheting notes. It also enables MPE keyboards to give more expression to the
-  arpeggiated notes.
+- The arpeggiator has been completely redesigned to have advanced features for the user like independent Octave and Note
+  modes, Rhythm, Sequence Length and Ratchet notes. It also enables MPE keyboards to give more expression to the
+  arpeggiated notes by updating live the velocity of the notes based on Aftertouch or MPE Y data coming from the keyboard.
 
 ### Audio Clips
 

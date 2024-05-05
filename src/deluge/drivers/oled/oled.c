@@ -17,6 +17,7 @@
 
 #include "definitions.h"
 
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/oled/oled_low_level.h"
 #include "RZA1/uart/sio_char.h"
 #include "drivers/dmac/dmac.h"
@@ -92,12 +93,6 @@ void oledMainInit() {
 	bufferPICUart(251); // D/C high
 	uartFlushIfNotSending(UART_ITEM_PIC);
 #endif
-
-	/*
-	R_INTC_RegistIntFunc(INTC_ID_RSPI_SPTI0 + SPI_CHANNEL_OLED_MAIN * 3, oledTransferComplete);
-	R_INTC_SetPriority(INTC_ID_RSPI_SPTI0 + SPI_CHANNEL_OLED_MAIN * 3, 13); // Not very important
-	R_INTC_Enable(INTC_ID_RSPI_SPTI0 + SPI_CHANNEL_OLED_MAIN * 3);
-*/
 }
 
 struct SpiTransferQueueItem spiTransferQueue[SPI_TRANSFER_QUEUE_SIZE];
@@ -151,7 +146,5 @@ void oledDMAInit() {
 	uint32_t dmarsTX = DMARS_FOR_RSPI_TX + (SPI_CHANNEL_OLED_MAIN << 2);
 	setDMARS(OLED_SPI_DMA_CHANNEL, dmarsTX);
 
-	R_INTC_RegistIntFunc(DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, oledTransferComplete);
-	R_INTC_SetPriority(DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, 13); // Priority is not very important
-	R_INTC_Enable(DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL);
+	setupAndEnableInterrupt(oledTransferComplete, DMA_INTERRUPT_0 + OLED_SPI_DMA_CHANNEL, 13);
 }

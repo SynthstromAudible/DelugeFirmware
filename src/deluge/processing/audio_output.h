@@ -63,7 +63,7 @@ public:
 	// A TimelineCounter is required
 	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack) {
-		ModControllableAudio::offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value, modelStack);
+		ModControllableAudio::offerReceivedCCToLearnedParamsForClip(fromDevice, channel, ccNumber, value, modelStack);
 	}
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack) {
@@ -83,7 +83,8 @@ public:
 	bool echoing; // Doesn't get cloned - we wouldn't want that!
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
+	                                                bool affectEntire, bool useMenuStack);
 
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);

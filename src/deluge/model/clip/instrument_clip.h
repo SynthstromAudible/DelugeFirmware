@@ -108,12 +108,14 @@ public:
 	void copyBasicsFrom(Clip* otherClip);
 
 	ArpeggiatorSettings arpSettings; // Not valid for Kits
+
 	int32_t arpeggiatorRate;
-	int32_t arpeggiatorRatchetProbability;
-	int32_t arpeggiatorRatchetAmount;
-	int32_t arpeggiatorSequenceLength;
-	int32_t arpeggiatorRhythm;
 	int32_t arpeggiatorGate;
+
+	uint32_t arpeggiatorRatchetProbability;
+	uint32_t arpeggiatorRatchetAmount;
+	uint32_t arpeggiatorSequenceLength;
+	uint32_t arpeggiatorRhythm;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 
@@ -167,7 +169,7 @@ public:
 	                                  bool shouldRetainLinksToSounds, bool shouldGrabMidiCommands,
 	                                  bool shouldBackUpExpressionParamsToo);
 	Error readFromFile(StorageManager& bdsm, Song* song);
-	void writeDataToFile(StorageManager& bdsm, Song* song);
+	bool writeDataToFile(StorageManager& bdsm, Song* song);
 	void prepNoteRowsForExitingKitMode(Song* song);
 	void deleteNoteRow(ModelStackWithTimelineCounter* modelStack, int32_t i);
 	int16_t getTopYNote();
@@ -217,6 +219,7 @@ public:
 	Error transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                                ModelStackWithTimelineCounter* modelStackClone);
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
+	ParamManagerForTimeline* getCurrentParamManager();
 	Error claimOutput(ModelStackWithTimelineCounter* modelStack) override;
 	char const* getXMLTag() { return "instrumentClip"; }
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,

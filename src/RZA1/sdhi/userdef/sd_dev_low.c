@@ -52,6 +52,7 @@ Includes   <System Includes> , "Project Includes"
 #include "RZA1/system/iobitmasks/gpio_iobitmask.h"
 #include "deluge/drivers/uart/uart.h"
 #include "deluge/deluge.h"
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 
 /******************************************************************************
 Typedef definitions
@@ -175,17 +176,11 @@ static int sddev_init_0(void)
     sddev_set_port_0(SD_PORT_SERIAL);
 
 #ifdef    SDCFG_HWINT
-    R_INTC_RegistIntFunc(INTC_ID_SDHI0_0, sddev_sd_int_handler_0);
-    R_INTC_SetPriority(INTC_ID_SDHI0_0, INT_LEVEL_SDHI);
-    R_INTC_Enable(INTC_ID_SDHI0_0);
 
-    R_INTC_RegistIntFunc(INTC_ID_SDHI0_3, sddev_sd_int_handler_0);
-    R_INTC_SetPriority(INTC_ID_SDHI0_3, INT_LEVEL_SDHI);
-    R_INTC_Enable(INTC_ID_SDHI0_3);
+    setupAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_0, INT_LEVEL_SDHI);
+    setupAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_3, INT_LEVEL_SDHI);
+    setupAndEnableInterrupt(sddev_sd_int_handler_0, INTC_ID_SDHI0_1, INT_LEVEL_SDHI);
 
-    R_INTC_RegistIntFunc(INTC_ID_SDHI0_1, sddev_sdio_int_handler_0);
-    R_INTC_SetPriority(INTC_ID_SDHI0_1, INT_LEVEL_SDHI);
-    R_INTC_Enable(INTC_ID_SDHI0_1);
 #endif
 
 #ifdef    SDCFG_CD_INT
@@ -224,17 +219,10 @@ static int sddev_init_1(void)
     sddev_set_port_1(SD_PORT_SERIAL);
 
 #ifdef    SDCFG_HWINT
-    R_INTC_RegistIntFunc(INTC_ID_SDHI1_0, sddev_sd_int_handler_1);
-    R_INTC_SetPriority(INTC_ID_SDHI1_0, INT_LEVEL_SDHI);
-    R_INTC_Enable(INTC_ID_SDHI1_0);
 
-    R_INTC_RegistIntFunc(INTC_ID_SDHI1_3, sddev_sd_int_handler_1);
-    R_INTC_SetPriority(INTC_ID_SDHI1_3, INT_LEVEL_SDHI);
-    R_INTC_Enable(INTC_ID_SDHI1_3);
-
-    R_INTC_RegistIntFunc(INTC_ID_SDHI1_1, sddev_sdio_int_handler_1);
-    R_INTC_SetPriority(INTC_ID_SDHI1_1, INT_LEVEL_SDHI);
-    R_INTC_Enable(INTC_ID_SDHI1_1);
+    setupAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_0, INT_LEVEL_SDHI);
+    setupAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_3, INT_LEVEL_SDHI);
+    setupAndEnableInterrupt(sddev_sd_int_handler_1, INTC_ID_SDHI1_1, INT_LEVEL_SDHI);
 #endif
 
 #ifdef    SDCFG_CD_INT

@@ -89,11 +89,10 @@ public:
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual ModFXType getModFXType() = 0;
 	virtual bool setModFXType(ModFXType newType);
-	bool offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                    ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
-	void receivedCCFromMidiFollow(ModelStack* modelStack, Clip* clip, int32_t ccNumber, int32_t value);
-	void sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation = false);
-	void sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos);
+	bool offerReceivedCCToLearnedParamsForClip(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
+	bool offerReceivedCCToLearnedParamsForSong(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	                                           ModelStackWithThreeMainThings* modelStackWithThreeMainThings);
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	virtual bool learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob,
@@ -165,12 +164,6 @@ public:
 
 	MidiKnobArray midiKnobArray;
 	int32_t postReverbVolumeLastTime;
-
-private:
-	int32_t calculateKnobPosForMidiTakeover(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos,
-	                                        int32_t value, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
-	                                        int32_t ccNumber = MIDI_CC_NONE);
-	bool possiblyRefreshPerformanceViewDisplay(deluge::modulation::params::Kind kind, int32_t id, int32_t newKnobPos);
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,

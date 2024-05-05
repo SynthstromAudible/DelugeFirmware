@@ -465,7 +465,10 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 					noteRow->attemptNoteAdd(0, 1, velocity, probability, modelStackWithNoteRow, action);
 					if (!thisDrum->earlyNoteStillActive) {
 						D_PRINTLN("skipping next note");
-						noteRow->skipNextNote = true;
+
+						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
+						// note-ons until at least tick 1 to avoid double-playing that note
+						noteRow->ignoreNoteOnsBefore_ = 1;
 					}
 				}
 			}
@@ -489,7 +492,9 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 					int32_t probability = noteRow->getDefaultProbability(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, probability, modelStackWithNoteRow, action);
 					if (!basicNote->stillActive) {
-						noteRow->skipNextNote = true;
+						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
+						// note-ons until at least tick 1 to avoid double-playing that note
+						noteRow->ignoreNoteOnsBefore_ = 1;
 					}
 				}
 			}
@@ -2267,17 +2272,11 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 	return Error::NONE;
 }
 
-void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
+bool InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	bdsm.writeAttribute("inKeyMode", inScaleMode);
 	bdsm.writeAttribute("yScroll", yScroll);
-	bdsm.writeAttribute("keyboardLayout", keyboardState.currentLayout);
 	bdsm.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
-	bdsm.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
-	bdsm.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
-	bdsm.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
-	bdsm.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
-	bdsm.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
 
 	if (onKeyboardScreen) {
 		bdsm.writeAttribute("onKeyboardScreen", (char*)"1");
@@ -2333,31 +2332,47 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 	Clip::writeDataToFile(bdsm, song);
 
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	bdsm.writeAttribute("keyboardLayout", keyboardState.currentLayout);
+	bdsm.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
+	bdsm.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
+	bdsm.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
+	bdsm.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
+	bdsm.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+
+	bdsm.writeOpeningTagEnd();
+
+	Clip::writeMidiCommandsToFile(bdsm, song);
+
 	if (output->type == OutputType::MIDI_OUT) {
 		paramManager.getMIDIParamCollection()->writeToFile(bdsm);
 	}
 
 	if (output->type != OutputType::KIT) {
-		if (arpSettings.mode != ArpMode::OFF) {
-			bdsm.writeOpeningTagBeginning("arpeggiator");
-			bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-			bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-			bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-			bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
-			bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
-			bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
-			bdsm.writeAttribute("syncType", arpSettings.syncType);
+		bdsm.writeOpeningTagBeginning("arpeggiator");
+		bdsm.writeAttribute("mode", (char*)arpPresetToOldArpMode(arpSettings.preset)); // For backwards compatibility
+		bdsm.writeAttribute("syncLevel", arpSettings.syncLevel);
+		bdsm.writeAttribute("numOctaves", arpSettings.numOctaves);
 
-			if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-				bdsm.writeAttribute("gate", arpeggiatorGate);
-				bdsm.writeAttribute("rate", arpeggiatorRate);
-				bdsm.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
-				bdsm.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
-				bdsm.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
-				bdsm.writeAttribute("rhythm", arpeggiatorRhythm);
-			}
-			bdsm.closeTag();
+		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+			bdsm.writeAttribute("gate", arpeggiatorGate);
+			bdsm.writeAttribute("rate", arpeggiatorRate);
+			// Community Firmware parameters (always write them after the official ones, just before closing the parent
+			// tag)
+			bdsm.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
+			bdsm.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
+			bdsm.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
+			bdsm.writeAttribute("rhythm", arpeggiatorRhythm);
 		}
+
+		// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+		bdsm.writeAttribute("syncType", arpSettings.syncType);
+		bdsm.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		bdsm.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+		bdsm.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+		bdsm.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+
+		bdsm.closeTag();
 	}
 
 	if (output->type == OutputType::KIT) {
@@ -2404,6 +2419,8 @@ void InstrumentClip::writeDataToFile(StorageManager& bdsm, Song* song) {
 
 		bdsm.writeClosingTag("noteRows");
 	}
+
+	return true;
 }
 
 Error InstrumentClip::readFromFile(StorageManager& bdsm, Song* song) {
@@ -2652,13 +2669,18 @@ someError:
 					arpSettings.syncType = (SyncType)bdsm.readTagOrAttributeValueInt();
 					bdsm.exitTag("syncType");
 				}
-				else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+				else if (!strcmp(tagName, "mode") && bdsm.firmware_version < FirmwareVersion::community({1, 2, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+					// but only if the new params are not already read and set,
+					// that is, if we detect they have a value other than default
 					OldArpMode oldMode = stringToOldArpMode(bdsm.readTagOrAttributeValue());
-					arpSettings.mode = oldModeToArpMode(oldMode);
-					arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
-					arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
-					arpSettings.updatePresetFromCurrentSettings();
+					if (arpSettings.mode == ArpMode::OFF && arpSettings.noteMode == ArpNoteMode::UP
+					    && arpSettings.octaveMode == ArpOctaveMode::UP) {
+						arpSettings.mode = oldModeToArpMode(oldMode);
+						arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
+						arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
+						arpSettings.updatePresetFromCurrentSettings();
+					}
 					bdsm.exitTag("mode");
 				}
 				else if (!strcmp(tagName, "arpMode")) {
@@ -3858,6 +3880,29 @@ void InstrumentClip::getSuggestedParamManager(Clip* newClip, ParamManagerForTime
 	}
 }
 
+ParamManagerForTimeline* InstrumentClip::getCurrentParamManager() {
+	ParamManagerForTimeline* currentParamManager = nullptr;
+
+	if (output->type == OutputType::KIT && !affectEntire) {
+		Drum* selectedDrum = ((Kit*)output)->selectedDrum;
+
+		// If a SoundDrum is selected...
+		if (selectedDrum) {
+			if (selectedDrum->type == DrumType::SOUND) {
+				NoteRow* noteRow = getNoteRowForDrum(selectedDrum);
+				if (noteRow != nullptr) {
+					currentParamManager = &noteRow->paramManager;
+				}
+			}
+		}
+	}
+	else {
+		currentParamManager = &paramManager;
+	}
+
+	return currentParamManager;
+}
+
 Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 	if (!output) { // Would only have an output already if file from before V2.0.0 I think? So, this block normally does
@@ -3873,19 +3918,8 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 		                                                       instrumentName, dirPath, false);
 
 		if (!output) {
-			if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
-				output = storageManager.createNewNonAudioInstrument(outputType, backedUpInstrumentSlot[outputTypeAsIdx],
-				                                                    backedUpInstrumentSubSlot[outputTypeAsIdx]);
 
-				if (!output) {
-					return Error::INSUFFICIENT_RAM;
-				}
-
-				modelStack->song->addOutput(output);
-			}
-			else {
-				return Error::FILE_CORRUPTED;
-			}
+			return Error::FILE_CORRUPTED;
 		}
 	}
 
@@ -4147,7 +4181,8 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
-		thisNoteRow->skipNextNote = false;
+		// All notes should be recorded
+		thisNoteRow->ignoreNoteOnsBefore_ = 0;
 
 		bool mayStillLengthen = true;
 
@@ -4173,11 +4208,12 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 
 					NoteRow* newNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 					if (newNoteRow) {
-						newNoteRow->attemptNoteAdd(
-						    0, lastNote->length, lastNote->velocity, lastNote->probability, modelStackWithNoteRow,
-						    NULL); // I'm guessing I deliberately didn't send the Action in here, cos didn't want to
-						           // make this Note on the new InstrumentClip undoable?
-						newNoteRow->skipNextNote = true;
+						// I'm guessing I deliberately didn't send the Action in here, cos didn't want to
+						// make this Note on the new InstrumentClip undoable?
+						newNoteRow->attemptNoteAdd(0, lastNote->length, lastNote->velocity, lastNote->probability,
+						                           modelStackWithNoteRow, nullptr);
+						// Make sure we don't double-play the note
+						newNoteRow->ignoreNoteOnsBefore_ = 1;
 					}
 				}
 
@@ -4388,13 +4424,14 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 	NoteRow* noteRow = modelStack->getNoteRow();
 
+	// Rounded position in sequencer ticks of the note-on event.
 	int32_t quantizedPos = 0;
 
 	bool reversed = modelStack->isCurrentlyPlayingReversed();
 	int32_t effectiveLength = modelStack->getLoopLength();
 
 	if (forcePos0) {
-		noteRow->skipNextNote = true;
+		noteRow->ignoreNoteOnsBefore_ = 1;
 	}
 	else {
 		uint32_t unquantizedPos = modelStack->getLivePos();
@@ -4402,22 +4439,30 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 		bool quantizedLater = false;
 
 		if (FlashStorage::recordQuantizeLevel) {
+			// If triplets are currently enabled in the song
 			uint32_t baseThing = modelStack->song->tripletsOn ? 4 : 3;
-			uint16_t quantizeInterval = baseThing << (8 + modelStack->song->insideWorldTickMagnitude
-			                                          + modelStack->song->insideWorldTickMagnitudeOffsetFromBPM
-			                                          - FlashStorage::recordQuantizeLevel);
-			quantizedPos = unquantizedPos / quantizeInterval * quantizeInterval;
-			int32_t offset = unquantizedPos - quantizedPos;
+			// Number of sequencer ticks we're quantizing to.
+			//
+			// If this is larger than 0x7fffffff we have significant problems down the line, so just cast here so we're
+			// honest.
+			auto quantizeInterval =
+			    static_cast<int32_t>(baseThing << (8 + modelStack->song->insideWorldTickMagnitude
+			                                       + modelStack->song->insideWorldTickMagnitudeOffsetFromBPM
+			                                       - FlashStorage::recordQuantizeLevel));
+			auto offset = static_cast<int32_t>(unquantizedPos % quantizeInterval);
+			quantizedPos = static_cast<int32_t>(unquantizedPos - static_cast<uint32_t>(offset));
 
-			int32_t amountLaterThanMiddle = (offset - (quantizeInterval >> 1));
+			int32_t amountLaterThanMiddle = offset - (quantizeInterval / 2);
 			if (reversed) {
+				// Invert the sense of "amountLaterThanMiddle", and offset by 1 to account for the reversed sense of
+				// time.
 				amountLaterThanMiddle = 1 - amountLaterThanMiddle;
 			}
 			quantizedLater = (amountLaterThanMiddle >= 0);
 
 			// If quantizing to the right...
-			if (quantizedLater != reversed) { // If need to quantize forwards (to later in time)...
-				quantizedPos += quantizeInterval;
+			if (quantizedLater != reversed) {
+				quantizedPos += static_cast<int32_t>(quantizeInterval);
 
 				// If that's quantized it right to the end of the loop-length or maybe beyond...
 				if (quantizedPos >= effectiveLength) {
@@ -4426,14 +4471,15 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 					// we'll put the Note.
 					if (playbackHandler.recording == RecordingMode::ARRANGEMENT && isArrangementOnlyClip()) {
 
-						Error error;
+						Error error{Error::NONE};
 
 						// If the NoteRow has independent *length* (not just independent play-pos), then it needs to be
 						// treated individually.
-						if (noteRow->loopLengthIfIndependent) {
+						if (noteRow->loopLengthIfIndependent != 0) {
 							if (output->type == OutputType::KIT
 							    && noteRows.getNumElements()
-							           != ((InstrumentClip*)beingRecordedFromClip)->noteRows.getNumElements()) {
+							           != (static_cast<InstrumentClip*>(beingRecordedFromClip))
+							                  ->noteRows.getNumElements()) {
 								error = Error::UNSPECIFIED;
 							}
 
@@ -4443,10 +4489,10 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 								    duplicateModelStackForClipBeingRecordedFrom(modelStack, otherModelStackMemory);
 
 								NoteRow* otherNoteRow = otherModelStackWithNoteRow->getNoteRowAllowNull();
-								if (otherNoteRow) { // It "should" always have it...
+								if (otherNoteRow != nullptr) { // It "should" always have it...
 
-									int32_t whichRepeatThisIs = (uint32_t)noteRow->loopLengthIfIndependent
-									                            / (uint32_t)otherNoteRow->loopLengthIfIndependent;
+									int32_t whichRepeatThisIs =
+									    noteRow->loopLengthIfIndependent / otherNoteRow->loopLengthIfIndependent;
 									noteRow->appendNoteRow(modelStack, otherModelStackWithNoteRow,
 									                       noteRow->loopLengthIfIndependent, whichRepeatThisIs,
 									                       otherNoteRow->loopLengthIfIndependent);
@@ -4500,7 +4546,7 @@ doNormal: // Wrap it back to the start.
 
 		// If we quantized later, make sure that that note doesn't get played really soon when the play-pos reaches it
 		if (quantizedLater || playbackHandler.ticksLeftInCountIn) {
-			noteRow->skipNextNote = true;
+			noteRow->ignoreNoteOnsBefore_ = quantizedPos + 1;
 			expectEvent();
 		}
 	}
@@ -4523,8 +4569,8 @@ doNormal: // Wrap it back to the start.
 
 	else {
 		int32_t probability = noteRow->getDefaultProbability(modelStack);
-		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, modelStack,
-		                                             NULL); // Don't supply Action, cos we've done our own thing, above
+		// Don't supply Action, cos we've done our own thing, above
+		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, modelStack, nullptr);
 	}
 
 	// If that didn't work, get out - but not in the special case for linear recording, discussed below.

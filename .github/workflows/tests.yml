@@ -34,10 +34,14 @@ jobs:
       - name: Run CTest
         run: ctest --test-dir build --output-junit results/ctest_results.xml
 
-      - name: Run CppUTest
+      - name: Run 32 bit CppUTest
         run: |
           cd build/results
-          ../unit/RunAllTests -ojunit
+          ../32bit_unit_tests/32BitTests -ojunit
+      - name: Run main CppUTest
+        run: |
+          cd build/results
+          ../unit/UnitTests -ojunit
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4

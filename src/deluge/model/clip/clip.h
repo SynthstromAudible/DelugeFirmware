@@ -78,6 +78,7 @@ public:
 	  // for AudioClips
 	virtual void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL);
 	virtual void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager, Sound* sound);
+	virtual ParamManagerForTimeline* getCurrentParamManager() { return nullptr; }
 
 	// You're likely to want to call pickAnActiveClipIfPossible() after this
 	virtual void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
@@ -107,7 +108,8 @@ public:
 	virtual void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
 
 	void writeToFile(StorageManager& bdsm, Song* song);
-	virtual void writeDataToFile(StorageManager& bdsm, Song* song);
+	virtual bool writeDataToFile(StorageManager& bdsm, Song* song);
+	void writeMidiCommandsToFile(StorageManager& bdsm, Song* song);
 	virtual char const* getXMLTag() = 0;
 	virtual Error readFromFile(StorageManager& bdsm, Song* song) = 0;
 	void readTagFromFile(StorageManager& bdsm, char const* tagName, Song* song, int32_t* readAutomationUpToPos);

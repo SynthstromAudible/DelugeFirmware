@@ -29,6 +29,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
@@ -49,6 +50,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
@@ -105,6 +107,19 @@ extern "C" uint32_t getAudioSampleTimerMS() {
 int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 
 namespace AudioEngine {
+
+constexpr int32_t kNumVoicesStatic = 48;
+constexpr int32_t kNumVoiceSamplesStatic = 24;
+constexpr int32_t kNumTimeStretchersStatic = 24;
+// used for culling
+constexpr int32_t numSamplesLimit = 40; // storageManager.devVarC;
+// used for decisions in rendering engine
+constexpr int32_t direnessThreshold = numSamplesLimit - 20;
+
+// 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
+// earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
+// to the limit
+constexpr int MIN_VOICES = 5;
 
 dsp::Reverb reverb{};
 PLACE_INTERNAL_FRUNK SideChain reverbSidechain{};
@@ -180,8 +195,9 @@ VoiceSample* firstUnassignedVoiceSample = voiceSamples;
 
 TimeStretcher timeStretchers[kNumTimeStretchersStatic] = {};
 TimeStretcher* firstUnassignedTimeStretcher = timeStretchers;
-
-Voice* firstUnassignedVoice;
+Voice staticVoices[kNumVoicesStatic] = {};
+/// will be garbage, reconstruct when used
+Voice* firstUnassignedVoice = staticVoices;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
@@ -210,6 +226,9 @@ void init() {
 	for (int32_t i = 0; i < kNumTimeStretchersStatic; i++) {
 		timeStretchers[i].nextUnassigned = (i == kNumTimeStretchersStatic - 1) ? NULL : &timeStretchers[i + 1];
 	}
+	for (int32_t i = 0; i < kNumVoicesStatic; i++) {
+		staticVoices[i].nextUnassigned = (i == kNumVoicesStatic - 1) ? NULL : &staticVoices[i + 1];
+	}
 
 	i2sTXBufferPos = (uint32_t)getTxBufferStart();
 
@@ -222,9 +241,7 @@ void unassignAllVoices(bool deletingSong) {
 
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
-
-		thisVoice->setAsUnassigned(NULL, deletingSong);
-		disposeOfVoice(thisVoice);
+		unassignVoice(thisVoice, thisVoice->assignedToSound, nullptr, false);
 	}
 	activeVoices.empty();
 
@@ -250,13 +267,15 @@ void songSwapAboutToHappen() {
 	playbackHandler.stopAnyRecording();
 }
 
-// To be called when CPU is overloaded and we need to free it up. This stops the voice which has been releasing longest,
-// or if none, the voice playing longest.
-Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, size_t numSamples) {
+enum CullType { HARD, FORCE, SOFT_ALWAYS, SOFT };
+
+// To be called when CPU is overloaded and we need to free it up. This stops the voice which has been
+// releasing longest, or if none, the voice playing longest.
+Voice* cullVoice(bool saveVoice, CullType type, size_t numSamples, Sound* stopFrom) {
 	// Only include audio if doing a hard cull and not saving the voice
-	bool includeAudio = !saveVoice && !justDoFastRelease && definitelyCull;
+	bool includeAudio = !saveVoice && type == HARD;
 	// Skip releasing voices if doing a soft cull and definitely culling
-	bool skipReleasing = justDoFastRelease && definitelyCull;
+	bool skipReleasing = (type == SOFT_ALWAYS);
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
@@ -266,10 +285,14 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, si
 
 		if (ratingThisVoice > bestRating) {
 			// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-			// if (!skipReleasing || thisVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE) {
-			bestRating = ratingThisVoice;
-			bestVoice = thisVoice;
-			//}
+			if (!skipReleasing
+			    || (thisVoice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
+			        && thisVoice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT)) {
+				if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
+					bestRating = ratingThisVoice;
+					bestVoice = thisVoice;
+				}
+			}
 		}
 	}
 
@@ -279,10 +302,12 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, si
 		    "E196"); // ronronsen got!!
 		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
-		if (justDoFastRelease) {
+		switch (type) {
+		case SOFT_ALWAYS:
+		case SOFT: {
 			if (bestVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE
-			    || bestVoice->envelopes[0].fastReleaseIncrement < 65536) {
-				bool stillGoing = bestVoice->doFastRelease(65536);
+			    || bestVoice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT) {
+				bool stillGoing = bestVoice->doFastRelease(SOFT_CULL_INCREMENT);
 
 				if (!stillGoing) {
 					unassignVoice(bestVoice, bestVoice->assignedToSound);
@@ -293,29 +318,22 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, si
 				          getNumVoices(), getNumAudio());
 #endif
 			}
-
-			else if (definitelyCull) {
-				bool stillGoing = bestVoice->doImmediateRelease();
-
-				if (!stillGoing) {
-					unassignVoice(bestVoice, bestVoice->assignedToSound);
-				}
-#if ALPHA_OR_BETA_VERSION
-				D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
-				          getNumVoices(), getNumAudio());
-#endif
-			}
-
-			else {
-				// Otherwise, it's already fast-releasing, so just leave it
-				D_PRINTLN("Didn't cull - best voice already releasing. numSamples:  %d. Voices left: %d", numSamples,
-				          getNumVoices());
-			}
-
-			bestVoice = NULL; // We don't want to return it
+			break;
 		}
 
-		else {
+		case FORCE: {
+			bool stillGoing = bestVoice->doImmediateRelease();
+
+			if (!stillGoing) {
+				unassignVoice(bestVoice, bestVoice->assignedToSound);
+			}
+#if ALPHA_OR_BETA_VERSION
+			D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+			          getNumVoices(), getNumAudio());
+#endif
+			break;
+		}
+		case HARD:
 			unassignVoice(bestVoice, bestVoice->assignedToSound, NULL, true, !saveVoice);
 			D_PRINTLN("hard-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
 			          getNumVoices(), getNumAudio());
@@ -324,7 +342,7 @@ Voice* cullVoice(bool saveVoice, bool justDoFastRelease, bool definitelyCull, si
 
 	// Or if no Voices to cull, and we're not culling to make a new voice, try culling an AudioClip...
 	else if (includeAudio) {
-		if (currentSong && !justDoFastRelease) {
+		if (currentSong) {
 			currentSong->cullAudioClipVoice();
 		}
 	}
@@ -370,21 +388,12 @@ Debug::AverageDT rvb("reverb", Debug::uS);
 #endif
 
 uint8_t numRoutines = 0;
-// used for culling
-constexpr int32_t numSamplesLimit = 42; // storageManager.devVarC;
-// used for decisions in rendering engine
-constexpr int32_t direnessThreshold = numSamplesLimit - 20;
-
-// 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads earlier
-// for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close to the limit
-constexpr int MIN_VOICES = 7;
-
-// global (to this file) because it's used for determining whether to solicit voices via culling as well
-int32_t numToCull = 0;
 
 // not in header (private to audio engine)
 /// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
 inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
+	bool culled = false;
+	int32_t numToCull = 0;
 	if (numAudio + numVoice > MIN_VOICES) {
 
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
@@ -398,30 +407,27 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
 			for (int32_t i = 0; i < numToCull; i++) {
 				// hard cull (no release)
-				cullVoice(false, false, true, numSamples);
+				cullVoice(false, FORCE, numSamples, nullptr);
 			}
-
+			cullVoice(false, SOFT_ALWAYS, numSamples, nullptr);
 #if ALPHA_OR_BETA_VERSION
 
 			definitelyLog = true;
 			logAction("hard cull");
 
 #endif
+			culled = true;
 		}
-		if (numSamplesOverLimit >= 5) {
 
-			// definitely do a soft cull (won't include audio clips)
-			cullVoice(false, true, true, numSamples);
-			logAction("forced cull");
-		}
 		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
 		// is increasing
-		else if (numSamplesOverLimit >= -5) {
+		else if (numSamplesOverLimit >= -6) {
 
 			// If not in first routine call this is inaccurate, so just release another voice since things are
 			// probably bad
-			cullVoice(false, true, numRoutines > 0, numSamples);
+			cullVoice(false, numRoutines == 0 ? SOFT : SOFT_ALWAYS, numSamples, nullptr);
 			logAction("soft cull");
+			culled = true;
 		}
 	}
 	else {
@@ -429,7 +435,14 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		// If it's real dire, do a proper immediate cull
 		if (numSamplesOverLimit >= 10) {
 			D_PRINTLN("under min voices but culling anyway");
-			cullVoice(false, false, true, numSamples);
+			cullVoice(false, FORCE, numSamples, nullptr);
+			culled = true;
+		}
+	}
+	// blink LED to alert the user
+	if (culled && FlashStorage::highCPUUsageIndicator) {
+		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
+			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
 	}
 }
@@ -437,10 +450,9 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 // not in header (private to audio engine)
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
-	numToCull = 0;
 
 	// don't smooth this - used for other decisions as well
-	if (numSamples >= direnessThreshold) { // 23
+	if (numSamples >= direnessThreshold) {
 
 		int32_t newDireness = numSamples - (direnessThreshold - 1);
 		if (newDireness > 14) {
@@ -468,8 +480,8 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 			}
 		}
 	}
-
-	else if (numSamples < direnessThreshold - 10) {
+	// otherwise lower it (with some hysteresis to avoid jittering
+	else if (numSamples < direnessThreshold - 3) {
 
 		if ((int32_t)(audioSampleTimer - timeDirenessChanged) >= (kSampleRate >> 3)) { // Only if it's been long enough
 			timeDirenessChanged = audioSampleTimer;
@@ -490,8 +502,9 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	aeCtr.note();
 #endif
 
+#ifndef USE_TASK_MANAGER
 	playbackHandler.routine();
-
+#endif
 	// At this point, there may be MIDI, including clocks, waiting to be sent.
 
 	GeneralMemoryAllocator::get().checkStack("AudioDriver::routine");
@@ -549,19 +562,8 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	//  	D_PRINTLN(" samples but output ");
 	//  	D_PRINTLN(numSamples);
 	//  }
-	size_t smoothedSamples;
-	if (numSamples > numSamplesLastTime) {
-		smoothedSamples = (3 * numSamples + numSamplesLastTime) >> 2;
-	}
-	else {
-		smoothedSamples = numSamples;
-	}
-	setDireness(smoothedSamples);
 
-	// when playback is enabled, blink play button to indicate high cpu usage
-	if (playbackHandler.isEitherClockActive() && cpuDireness >= 14) {
-		indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
-	}
+	setDireness(numSamples);
 
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
@@ -966,6 +968,13 @@ void routine() {
 
 	numRoutines = 0;
 	while (doSomeOutputting() && numRoutines < 2) {
+
+#ifndef USE_TASK_MANAGER
+		if (numRoutines > 0) {
+			deluge::hid::encoders::readEncoders();
+			deluge::hid::encoders::interpretEncoders(true);
+		}
+#endif
 		numRoutines += 1;
 		routine_();
 		routineBeenCalled = true;
@@ -1096,7 +1105,7 @@ bool doSomeOutputting() {
 		// Go through each SampleRecorder, feeding them audio
 		for (SampleRecorder* recorder = firstRecorder; recorder; recorder = recorder->next) {
 
-			if (recorder->status >= RECORDER_STATUS_FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			if (recorder->status >= RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 				continue;
 			}
 
@@ -1278,27 +1287,20 @@ void getReverbParamsFromSong(Song* song) {
 Voice* solicitVoice(Sound* forSound) {
 
 	Voice* newVoice;
-	// if we're gonna hard cull, just do it now instead of allocating
-	if (cpuDireness > 13 && numToCull > 0) {
 
-		cpuDireness -= 1; // Stop this triggering for lots of new voices. We just don't know how they'll weigh
-		                  // up to the ones being culled
-		D_PRINTLN("soliciting via culling");
-doCull:
-		newVoice = cullVoice(true);
-	}
-
-	else if (firstUnassignedVoice) {
-
+	if (firstUnassignedVoice) {
 		newVoice = firstUnassignedVoice;
+		// reconstruct it
+		new (newVoice) Voice();
 		firstUnassignedVoice = firstUnassignedVoice->nextUnassigned;
 	}
 
 	else {
+
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Voice));
 		if (!memory) {
 			if (activeVoices.getNumElements()) {
-				goto doCull;
+				memory = cullVoice(true, HARD, numSamplesLastTime, forSound);
 			}
 			else {
 				return NULL;
@@ -1321,6 +1323,10 @@ doCull:
 		disposeOfVoice(newVoice);
 		return NULL;
 	}
+	/// @todo: maybe this should be configurable between 4/8/16/unlimited?
+	if (forSound->numVoicesAssigned >= forSound->maxVoiceCount) {
+		cullVoice(false, SOFT_ALWAYS, numSamplesLastTime, forSound);
+	}
 	return newVoice;
 }
 
@@ -1332,7 +1338,7 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 
 	activeVoices.checkVoiceExists(voice, sound, "E195");
 
-	voice->setAsUnassigned(modelStack->addVoice(voice));
+	voice->setAsUnassigned(modelStack ? modelStack->addVoice(voice) : nullptr);
 	if (removeFromVector) {
 		uint32_t keyWords[2];
 		keyWords[0] = (uint32_t)sound;
@@ -1341,7 +1347,13 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 	}
 
 	if (shouldDispose) {
-		disposeOfVoice(voice);
+		if (voice >= staticVoices && voice < &staticVoices[kNumVoicesStatic]) {
+			voice->nextUnassigned = firstUnassignedVoice;
+			firstUnassignedVoice = voice;
+		}
+		else {
+			disposeOfVoice(voice);
+		}
 	}
 }
 
@@ -1454,7 +1466,7 @@ void doRecorderCardRoutines() {
 		}
 
 		// If complete, discard it
-		if (recorder->status == RECORDER_STATUS_AWAITING_DELETION) {
+		if (recorder->status == RecorderStatus::AWAITING_DELETION) {
 			D_PRINTLN("deleting recorder");
 			*prevPointer = recorder->next;
 			recorder->~SampleRecorder();

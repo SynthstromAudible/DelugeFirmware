@@ -24,6 +24,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -47,6 +48,7 @@
 #include "model/consequence/consequence_begin_playback.h"
 #include "model/consequence/consequence_tempo_change.h"
 #include "model/instrument/kit.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_holder.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -256,7 +258,8 @@ void PlaybackHandler::recordButtonPressed() {
 				if (currentPlaybackMode == &session) {
 					bool anyClipsRemoved = currentSong->deletePendingOverdubs(NULL, NULL, true);
 					if (anyClipsRemoved) {
-						uiNeedsRendering(&sessionView);
+						// use root UI in case this is called from performance view
+						sessionView.requestRendering(getRootUI());
 					}
 				}
 				else {
@@ -2643,9 +2646,11 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, 
 					switchToSession();
 				}
 
-				session.toggleClipStatus(clip, &c, false,
-				                         kMIDIKeyInputLatency); // Beware - calling this might insert or delete a Clip!
-				uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
+				// Beware - calling this might insert or delete a Clip!
+				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
+
+				// use root UI in case this is called from performance view
+				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 			}
 			foundAnything = true;
 		}
@@ -2866,6 +2871,17 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 		midiFollow.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, modelStack);
 	}
 
+	// See if midi cc received has been learned to a song param
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	if (modelStackWithThreeMainThings) {
+		ModControllableAudio* modControllable = (ModControllableAudio*)modelStackWithThreeMainThings->modControllable;
+		if (modControllable) {
+			modControllable->offerReceivedCCToLearnedParamsForSong(fromDevice, channel, ccNumber, value,
+			                                                       modelStackWithThreeMainThings);
+		}
+	}
+
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
@@ -2879,10 +2895,9 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 
 			if (!isMPE) {
 				// See if it's learned to a parameter
-				thisOutput->offerReceivedCCToLearnedParams(
-				    fromDevice, channel, ccNumber, value,
-				    modelStackWithTimelineCounter); // NOTE: this call may change
-				                                    // modelStackWithTimelineCounter->timelineCounter etc!
+				// NOTE: this call may change modelStackWithTimelineCounter->timelineCounter etc!
+				thisOutput->offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value,
+				                                           modelStackWithTimelineCounter);
 			}
 
 			thisOutput->offerReceivedCC(modelStackWithTimelineCounter, fromDevice, channel, ccNumber, value,
@@ -2973,10 +2988,11 @@ probablyExitRecordMode:
 	}
 
 	// If pending overdubs already exist, then delete those.
-	else if (currentSong->deletePendingOverdubs()) { // TODO: this traverses all Clips. So does further down. This could
-		                                             // be combined
+	else if (currentSong->deletePendingOverdubs()) {
+		// TODO: this traverses all Clips. So does further down. This could be combined
 		session.launchSchedulingMightNeedCancelling();
-		uiNeedsRendering(&sessionView);
+		// use root UI in case this is called from performance view
+		sessionView.requestRendering(getRootUI());
 
 		goto probablyExitRecordMode;
 	}

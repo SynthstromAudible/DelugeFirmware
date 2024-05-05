@@ -95,11 +95,12 @@ public:
 	// could be int8 for aftertouch/Y but Midi 2 will allow those to be 14 bit too
 	int16_t lastOutputMonoExpression[3]{0};
 	char const* getXMLTag() { return "midi"; }
-	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "midiChannel"; }
+	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel"; }
 	char const* getSubSlotXMLTag() { return "suffix"; }
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
+	                                                bool affectEntire, bool useMenuStack);
 
 protected:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,

@@ -5,6 +5,16 @@
 Every time a Pull Request improves the community firmware it shall be noted down what it accomplishes and how it is
 used.
 
+Please note that this document describes the state of the very latest
+development work for a future Deluge version at a given time, and many of the
+features are not yet available in released stable versions. Documentation
+about released versions can be found here:
+
+- [1.1.x (Beethoven)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/docs/community_features.md)
+- [1.0.x (Amadeus)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/community_features.md)
+
+For more detailed version information, see the [changelog](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/CHANGELOG.md).
+
 Reference the 'Community Features Menu' section at the end of this document to understand what each entry is and their
 7SEG abbreviations.
 
@@ -80,8 +90,7 @@ Here is a list of general improvements that have been made, ordered from newest 
       but any already sounding notes will be stopped.
 
 - ([#889]) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
-  clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger
-  view, song view, audio clip view, instrument clip view).
+  clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active or selected clip).
     - For a detailed description of this feature, please refer to the feature
       documentation: [MIDI Follow Mode Documentation]
     - Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's.
@@ -198,15 +207,16 @@ Here is a list of general improvements that have been made, ordered from newest 
   - Minimum value = Bottom two lights fully lit
     - Between middle and minimum, the bottom two lights will be lit up proportionately to the value in that range
 
-#### 3.16 - Heavy CPU Usage (Culling) Indicator
-- ([#1506]) The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
+#### 3.16 - High CPU Usage Indicator
+- ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
+  - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 
 #### 3.17 - Select Audio Clip Source from Audio Clip Menu
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
 
 #### 3.18 - Remove Timestretching From Audio Clip Sample
-- ([#1542]) Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
+- ([#1542]) Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
 
@@ -345,7 +355,7 @@ Here is a list of features that have been added to the firmware as a list, group
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:
-        1. Enter `SETTINGS > DEFAULTS > UI > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
+        1. Enter `SETTINGS > DEFAULTS > UI > SONG > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
         2. Exit Settings menu to save settings
     - The following steps enable you to quickly create and arm new clips for recording:
         1. In Grid view, make sure you are in Green mode.
@@ -403,8 +413,8 @@ Here is a list of features that have been added to the firmware as a list, group
     - The VU meter will render the decibels below clipping on the grid with the colours green, orange and red.
         - Red indicates clipping and is rendered on the top row of the grid.
         - Each row on the grid corresponds to the following decibels below clipping values:
-            - y7 = clipping (0 or higher)
-            - y6 = -4.4 to -0.1
+            - y7 = clipping (-0.2 or higher)
+            - y6 = -4.4 to -0.3
             - y5 = -8.8 to -4.5
             - y4 = -13.2 to -8.9
             - y3 = -17.6 to -13.3
@@ -627,14 +637,13 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of
           the Deluge grid (second pad from the top). Toggle interpolation on/off using Shift + Interpolation shortcut
           pad. The Interpolation shortcut pad will blink to indicate that interpolation is enabled.
-        - Updated `AUTOMATION VIEW` to remove select encoder scrolling selection of non-MIDI clip parameters. Select
-          encoder is now used to fine tune non-MIDI parameter values in the `AUTOMATION VIEW EDITOR`.
         - Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
         - Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
         - Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to
           provide the ability to access the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the menu
           press Clip (if you are in a clip) or Song (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` while you are still in the menu. You will be able to interact with the grid to edit automation for the current parameter / patch cable selected in the menu.
     - ([#1374]) Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.
+      - ([#1607]) You can also use the `SELECT ENCODER` while in the `AUTOMATION VIEW EDITOR` to scroll to any patch cables that exist.
     - ([#1456]) Added an in-between-layer in the Deluge menu system to be able to access and interact with the `AUTOMATION VIEW EDITOR` while you are still in the menu from the regular `ARRANGER / CLIP VIEW`. When you exit the menu you will be returned to the View you were in prior to entering the menu. Press Clip (if you are in a clip) or Song (if you are in arranger) to temporarily open the `AUTOMATION VIEW EDITOR` while you are still in the menu.    
     - ([#1480]) As a follow-up to [#1374] which enabled enabled patch cables to be edited in Automation View, the Automation Editor has now been modified to display param values according to whether the Param is bipolar or not. If it's a bipolar param, the grid will light up as follows:
       - Middle value = no pads lit up
@@ -914,6 +923,9 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 - ([#805]) Pressing `SHIFT` + `CROSS SCREEN` + `◀︎▶︎` will paste any notes on the clipboard _over_ the existing notes
   i.e. the existing notes will not be deleted and the clipboard contents will be added to the existing notes.
   Positioning/scale/timing semantics have not changed, only whether the notes are cleared before pasting.
+
+#### 4.5.6 - Configure Note Row Play Direction
+- ([#1739]) Added Synth/MIDI/CV clip configuration of note row play direction. Hold audition pad while entering the play direction menu to set the play direction for the selected note row. While in the note row play direction menu, you can select other note rows to quickly set the play directiom for multiple note rows.
 
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
@@ -1240,6 +1252,10 @@ different firmware
 [#1542]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1542
 
 [#1589]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1589
+
+[#1607]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1607
+
+[#1739]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1739
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 

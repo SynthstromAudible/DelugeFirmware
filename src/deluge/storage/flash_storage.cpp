@@ -172,6 +172,8 @@ enum Entries {
 165: "fill" colour
 166: "once" colour
 167: defaultSliceMode
+168: midiFollow control song params
+169: High CPU Usage Indicator
 168: defaultShortSliceMode
 */
 
@@ -213,6 +215,8 @@ bool automationNudgeNote = true;
 bool automationDisableAuditionPadShortcuts = true;
 
 StartupSongMode defaultStartupSongMode;
+
+bool highCPUUsageIndicator;
 
 void resetSettings() {
 
@@ -298,6 +302,9 @@ void resetSettings() {
 
 	defaultStartupSongMode = StartupSongMode::BLANK;
 
+	defaultSliceMode = SampleRepeatMode::CUT;
+
+	highCPUUsageIndicator = false;
 	defaultSliceMode = SampleRepeatMode::CUT;
 	defaultShortSliceMode = true;
 }
@@ -647,13 +654,18 @@ void readSettings() {
 	}
 
 	if (buffer[167] >= kNumRepeatModes) {
-		defaultSliceMode = SampleRepeatMode::ONCE;
+		defaultSliceMode = SampleRepeatMode::CUT;
 	}
 	else {
 		defaultSliceMode = static_cast<SampleRepeatMode>(buffer[167]);
 	}
 
-	defaultShortSliceMode = buffer[168];
+	if (buffer[169] != false && buffer[169] != true) {
+		highCPUUsageIndicator = false;
+	}
+	else {
+		highCPUUsageIndicator = buffer[169];
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -906,6 +918,8 @@ void writeSettings() {
 	buffer[166] = gui::menu_item::onceColourMenu.value;
 
 	buffer[167] = util::to_underlying(defaultSliceMode);
+
+	buffer[169] = highCPUUsageIndicator;
 
 	buffer[168] = defaultShortSliceMode;
 
