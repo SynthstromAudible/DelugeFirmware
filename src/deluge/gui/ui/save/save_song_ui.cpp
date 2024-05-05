@@ -423,7 +423,7 @@ fail3:
 	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
 
 	// Write the actual song file
-	error = bdsm.createXMLFile(filePathDuringWrite.get(), false, false);
+	error = bdsm.createXMLFile(filePathDuringWrite.get(), smSerializer, false, false);
 	if (error != Error::NONE) {
 		goto gotError;
 	}

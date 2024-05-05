@@ -114,7 +114,7 @@ fail:
 		return false;
 	}
 
-	error = bdsm.createXMLFile(filePath.get(), mayOverwrite, false);
+	error = bdsm.createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;

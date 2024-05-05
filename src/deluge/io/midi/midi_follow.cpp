@@ -768,7 +768,7 @@ bool MidiFollow::isFeedbackEnabled() {
 /// I should check if file exists before creating one
 void MidiFollow::writeDefaultsToFile(StorageManager& bdsm) {
 	// MidiFollow.xml
-	Error error = bdsm.createXMLFile(MIDI_DEFAULTS_XML, true);
+	Error error = bdsm.createXMLFile(MIDI_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -844,7 +844,7 @@ void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 	}
 
 	//<defaults>
-	Error error = bdsm.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
+	Error error = bdsm.openXMLFile(&fp, smDeserializer, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		writeDefaultsToFile(bdsm);
 		successfullyReadDefaultsFromFile = true;

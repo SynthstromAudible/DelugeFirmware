@@ -480,7 +480,7 @@ void writeDevicesToFile(StorageManager& bdsm) {
 	return;
 
 worthIt:
-	Error error = bdsm.createXMLFile("MIDIDevices.XML", true);
+	Error error = bdsm.createXMLFile("MIDIDevices.XML", smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -537,7 +537,7 @@ void readDevicesFromFile(StorageManager& bdsm) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&fp, "midiDevices");
+	Error error = bdsm.openXMLFile(&fp, smDeserializer, "midiDevices");
 	if (error != Error::NONE) {
 		return;
 	}

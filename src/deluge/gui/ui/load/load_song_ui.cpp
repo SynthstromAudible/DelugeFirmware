@@ -245,7 +245,7 @@ void LoadSongUI::performLoad(StorageManager& bdsm) {
 		playbackHandler.switchToSession();
 	}
 
-	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, "song");
+	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song");
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return;
@@ -716,7 +716,7 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, "song", "", true);
+	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song", "", true);
 	if (error != Error::NONE) {
 		if (error != Error::NONE) {
 			display->displayError(error);

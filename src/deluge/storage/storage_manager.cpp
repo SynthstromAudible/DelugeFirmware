@@ -173,7 +173,7 @@ cutFolderPathAndTryCreating:
 	return Error::NONE;
 }
 
-Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, bool displayErrors) {
+Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer, bool mayOverwrite, bool displayErrors) {
 
 	Error error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
 	if (error != Error::NONE) {
@@ -184,7 +184,6 @@ Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, boo
 		return error;
 	}
 
-	XMLSerializer& writer = (XMLSerializer&)serializer();
 	writer.fileWriteBufferCurrentPos = 0;
 	writer.fileTotalBytesWritten = 0;
 	writer.fileAccessFailedDuringWrite = false;
@@ -368,7 +367,7 @@ Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* fil
 		firstTagName = "kit";
 	}
 
-	Error error = openXMLFile(filePointer, firstTagName, altTagName);
+	Error error = openXMLFile(filePointer, smDeserializer, firstTagName, altTagName);
 	return error;
 }
 
@@ -1695,14 +1694,14 @@ void XMLDeserializer::exitTag(char const* exitTagName) {
 	tagDepthCaller = tagDepthFile;
 }
 
-Error StorageManager::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
+Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer &reader, char const* firstTagName, char const* altTagName,
                                   bool ignoreIncorrectFirmware) {
 
 	AudioEngine::logAction("openXMLFile");
 
 	// Prep to read first Cluster shortly
 
-	Error err = smDeserializer.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
+	Error err = reader.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
 	if (err == Error::NONE)
 		return Error::NONE;
 	f_close(&fileSystemStuff.currentFile);

@@ -172,7 +172,7 @@ void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&fp, TAG_RUNTIME_FEATURE_SETTINGS);
+	Error error = bdsm.openXMLFile(&fp, smDeserializer, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -235,7 +235,7 @@ void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
 void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	Error error = bdsm.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, true);
+	Error error = bdsm.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}

@@ -187,8 +187,8 @@ public:
 	virtual ~StorageManager();
 
 	Error createFile(FIL* file, char const* filePath, bool mayOverwrite);
-	Error createXMLFile(char const* pathName, bool mayOverwrite = false, bool displayErrors = true);
-	Error openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
+	Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false, bool displayErrors = true);
+	Error openXMLFile (FilePointer* filePointer, XMLDeserializer &reader, char const* firstTagName, char const* altTagName = "",
 	                  bool ignoreIncorrectFirmware = false);
 
 	Error initSD();

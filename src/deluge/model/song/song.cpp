@@ -1273,7 +1273,7 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 
 void Song::writeTemplateSong(const char* templatePath) {
 	name.set("DEFAULT");
-	Error error = storageManager.createXMLFile(templatePath, false, false);
+	Error error = storageManager.createXMLFile(templatePath, smSerializer, false, false);
 	if (error != Error::NONE) {
 		return;
 	}

@@ -1616,7 +1616,7 @@ void PerformanceSessionView::savePerformanceViewLayout() {
 /// I should check if file exists before creating one
 void PerformanceSessionView::writeDefaultsToFile(StorageManager& bdsm) {
 	// PerformanceView.xml
-	Error error = bdsm.createXMLFile(PERFORM_DEFAULTS_XML, true);
+	Error error = bdsm.createXMLFile(PERFORM_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -1774,7 +1774,7 @@ void PerformanceSessionView::readDefaultsFromFile(StorageManager& bdsm) {
 	}
 
 	//<defaults>
-	Error error = bdsm.openXMLFile(&fp, PERFORM_DEFAULTS_TAG);
+	Error error = bdsm.openXMLFile(&fp, smDeserializer, PERFORM_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		loadDefaultLayout();
 		return;
