@@ -205,8 +205,7 @@ public:
 	                             Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
 	Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString);
-	Error readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
-	                            int8_t* getCC = NULL);
+
 	Drum* createNewDrum(DrumType drumType);
 	Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
 	                      FilePointer* filePointer, String* name, String* dirPath);

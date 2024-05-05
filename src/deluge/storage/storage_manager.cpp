@@ -74,14 +74,6 @@ StorageManager::StorageManager() {
 StorageManager::~StorageManager() {
 }
 
-#define BETWEEN_TAGS 0
-#define IN_TAG_NAME 1
-#define IN_TAG_PAST_NAME 2
-#define IN_ATTRIBUTE_NAME 3
-#define PAST_ATTRIBUTE_NAME 4
-#define PAST_EQUALS_SIGN 5
-#define IN_ATTRIBUTE_VALUE 6
-
 Error StorageManager::checkSpaceOnCard() {
 	D_PRINTLN("free clusters:  %d", fileSystemStuff.fileSystem.free_clst);
 	return fileSystemStuff.fileSystem.free_clst
@@ -612,65 +604,6 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 	return newDrum;
 }
 
-// This has now mostly been replaced by an equivalent-ish function in InstrumentClip.
-// Now, this will only ever be called in two scenarios:
-// -- Pre-V2.0 files, so we know there's no mention of bend or aftertouch in this case where we have a ParamManager.
-// -- When reading a MIDIInstrument, so we know there's no ParamManager (I checked), so no need to actually read the
-// param.
-Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
-                                            int8_t* getCC) {
-
-	char const* tagName;
-	int32_t cc = CC_NUMBER_NONE;
-	Deserializer& reader = smDeserializer;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "cc")) {
-			char const* contents = reader.readTagOrAttributeValue();
-			if (!strcasecmp(contents, "bend")) {
-				cc = CC_NUMBER_PITCH_BEND;
-			}
-			else if (!strcasecmp(contents, "aftertouch")) {
-				cc = CC_NUMBER_AFTERTOUCH;
-			}
-			else if (!strcasecmp(contents, "none")) {
-				cc = CC_NUMBER_NONE;
-			}
-			else {
-				cc = stringToInt(contents);
-			}
-			// will be sent as mod wheel and also map to internal mono expression
-			if (cc == CC_NUMBER_MOD_WHEEL) {
-				cc = CC_NUMBER_Y_AXIS;
-			}
-
-			reader.exitTag("cc");
-		}
-		else if (!strcmp(tagName, "value")) {
-			if (cc != CC_NUMBER_NONE && midiParamCollection) {
-
-				MIDIParam* midiParam = midiParamCollection->params.getOrCreateParamFromCC(cc, 0);
-				if (!midiParam) {
-					return Error::INSUFFICIENT_RAM;
-				}
-
-				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
-				if (error != Error::NONE) {
-					return error;
-				}
-			}
-			reader.exitTag("value");
-		}
-		else {
-			reader.exitTag(tagName);
-		}
-	}
-
-	if (getCC) {
-		*getCC = cc;
-	}
-
-	return Error::NONE;
-}
 
 /*******************************************************************************
 
@@ -909,6 +842,14 @@ Error XMLSerializer::closeFileAfterWriting(char const* path, char const* beginni
     XMLDeserializer
 
 ********************************************************************************/
+
+#define BETWEEN_TAGS 0
+#define IN_TAG_NAME 1
+#define IN_TAG_PAST_NAME 2
+#define IN_ATTRIBUTE_NAME 3
+#define PAST_ATTRIBUTE_NAME 4
+#define PAST_EQUALS_SIGN 5
+#define IN_ATTRIBUTE_VALUE 6
 
 XMLDeserializer::XMLDeserializer()
     : xmlArea(BETWEEN_TAGS), xmlReachedEnd(false), tagDepthCaller(0), tagDepthFile(0), xmlReadCount(0), msd(NULL) {
