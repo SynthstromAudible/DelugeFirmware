@@ -772,7 +772,7 @@ void MidiFollow::writeDefaultsToFile(StorageManager& bdsm) {
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = bdsm.serializer();
+	Serializer& writer = smSerializer;
 	//<defaults>
 	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();
@@ -817,7 +817,7 @@ void MidiFollow::writeDefaultMappingsToFile() {
 			if (writeTag) {
 				char buffer[10];
 				intToString(paramToCC[xDisplay][yDisplay], buffer);
-				Serializer& writer = storageManager.serializer();
+				Serializer& writer = smSerializer;
 				writer.writeTag(paramName, buffer);
 			}
 		}
@@ -850,7 +850,7 @@ void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	char const* tagName;
 	// step into the <defaultCCMappings> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {

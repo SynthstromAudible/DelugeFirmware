@@ -1620,7 +1620,7 @@ void PerformanceSessionView::writeDefaultsToFile(StorageManager& bdsm) {
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = bdsm.serializer();
+	Serializer& writer = smSerializer;
 	//<defaults>
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();
@@ -1779,7 +1779,7 @@ void PerformanceSessionView::readDefaultsFromFile(StorageManager& bdsm) {
 		loadDefaultLayout();
 		return;
 	}
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	char const* tagName;
 	// step into the <defaultFXValues> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1817,7 +1817,7 @@ void PerformanceSessionView::readDefaultFXValuesFromFile(StorageManager& bdsm) {
 	tagNameFX[0] = 'F';
 	tagNameFX[1] = 'X';
 
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	// loop through all FX number tags
 	//<FX#>
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1836,7 +1836,7 @@ void PerformanceSessionView::readDefaultFXValuesFromFile(StorageManager& bdsm) {
 
 void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(StorageManager& bdsm, int32_t xDisplay) {
 	char const* tagName;
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<param>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
@@ -1859,7 +1859,7 @@ void PerformanceSessionView::readDefaultFXParamAndRowValuesFromFile(StorageManag
 /// rowColour, rowTailColour)
 void PerformanceSessionView::readDefaultFXParamFromFile(StorageManager& bdsm, int32_t xDisplay) {
 	char const* paramName;
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	char const* tagName = reader.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
@@ -1878,7 +1878,7 @@ void PerformanceSessionView::readDefaultFXParamFromFile(StorageManager& bdsm, in
 void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager& bdsm, int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	// loop through all row <#> number tags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// find the row number that the tag corresponds to
@@ -1910,7 +1910,7 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager
 void PerformanceSessionView::readDefaultFXHoldStatusFromFile(StorageManager& bdsm, int32_t xDisplay) {
 	char const* tagName;
 	// loop through the hold tags
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<status>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {

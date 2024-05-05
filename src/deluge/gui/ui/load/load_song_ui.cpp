@@ -318,7 +318,7 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = preLoadedSong->readFromFile(bdsm.deserializer());
+	error = preLoadedSong->readFromFile(smDeserializer);
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
@@ -723,7 +723,7 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 			return;
 		}
 	}
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	char const* tagName;
 	int32_t previewNumPads = 40;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {

@@ -333,7 +333,7 @@ Error Kit::readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumTy
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	Error error = newDrum->readFromFile(
 	    reader, song, clip,
 	    readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it

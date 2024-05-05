@@ -389,7 +389,7 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& bdsm, int32
                                                      ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
 			MIDIParamCollection* midiParamCollection = NULL;

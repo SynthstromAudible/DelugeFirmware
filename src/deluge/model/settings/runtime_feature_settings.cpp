@@ -176,7 +176,7 @@ void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	String currentName;
 	int32_t currentValue = 0;
 	char const* currentTag = nullptr;
@@ -239,7 +239,7 @@ void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = bdsm.serializer();
+	Serializer& writer = smSerializer;
 	writer.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	bdsm.writeFirmwareVersion();
 	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.3");

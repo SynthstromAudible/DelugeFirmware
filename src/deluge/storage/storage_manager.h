@@ -224,8 +224,7 @@ public:
 
 	FirmwareVersion firmware_version = FirmwareVersion::current();
 
-	Serializer& serializer() { return (Serializer&) smSerializer; }
-	Deserializer& deserializer() { return (Deserializer&) smDeserializer; }
+
 private:
 	// ** End of member variables
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);

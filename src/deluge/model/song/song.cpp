@@ -1285,7 +1285,7 @@ void Song::writeTemplateSong(const char* templatePath) {
 void Song::writeToFile(StorageManager& bdsm) {
 
 	setupClipIndexesForSaving();
-	Serializer& writer = bdsm.serializer();
+	Serializer& writer = smSerializer;
 	writer.writeOpeningTagBeginning("song");
 
 	bdsm.writeFirmwareVersion();

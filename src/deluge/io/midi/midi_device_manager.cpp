@@ -486,7 +486,7 @@ worthIt:
 	}
 
 	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
-	Serializer& writer = bdsm.serializer();
+	Serializer& writer = smSerializer;
 	writer.writeOpeningTagBeginning("midiDevices");
 	bdsm.writeFirmwareVersion();
 	bdsm.writeEarliestCompatibleFirmwareVersion("4.0.0");
@@ -537,11 +537,11 @@ void readDevicesFromFile(StorageManager& bdsm) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&fp, smDeserializer, "midiDevices");
+	Error error = bdsm.openXMLFile(&fp, smDeserializer,  "midiDevices");
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = bdsm.deserializer();
+	Deserializer& reader = smDeserializer;
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "dinPorts")) {

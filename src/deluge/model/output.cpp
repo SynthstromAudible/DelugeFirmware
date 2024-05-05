@@ -193,7 +193,7 @@ ParamManager* Output::getParamManager(Song* song) {
 
 void Output::writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
-	Serializer& writer = bdsm.serializer();
+	Serializer& writer = smSerializer;
 	char const* tagName = getXMLTag();
 	writer.writeOpeningTagBeginning(tagName);
 

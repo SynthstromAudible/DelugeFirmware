@@ -227,23 +227,9 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 	return true;
 }
 
-Error StorageManager::writeBufferToFile() {
-	UINT bytesWritten;
-	XMLSerializer& writer = (XMLSerializer&)serializer();
-	FRESULT result = f_write(&fileSystemStuff.currentFile, smDeserializer.fileClusterBuffer,
-	                         writer.fileWriteBufferCurrentPos, &bytesWritten);
-	if (result != FR_OK || bytesWritten != writer.fileWriteBufferCurrentPos) {
-		return Error::SD_CARD;
-	}
-
-	writer.fileTotalBytesWritten += writer.fileWriteBufferCurrentPos;
-
-	return Error::NONE;
-}
-
 // Returns false if some error, including error while writing
 Error StorageManager::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
-	XMLSerializer& writer = (XMLSerializer&)serializer();
+	XMLSerializer& writer = (XMLSerializer&)smSerializer;
 	return writer.closeXMLFileAfterWriting(path, beginningString, endString);
 }
 
@@ -282,11 +268,11 @@ bool StorageManager::closeFile() {
 }
 
 void StorageManager::writeFirmwareVersion() {
-	serializer().writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
+	smSerializer.writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
 }
 
 void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionString) {
-	serializer().writeAttribute("earliestCompatibleFirmware", versionString);
+	smSerializer.writeAttribute("earliestCompatibleFirmware", versionString);
 }
 
 // Gets ready to access SD card.
@@ -341,7 +327,7 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 	fileSystemStuff.currentFile.sect = 0;       /* Invalidate current data sector */
 	fileSystemStuff.currentFile.fptr = 0;       /* Set file pointer top of the file */
 
-	XMLSerializer& writer = (XMLSerializer&)serializer();
+	XMLSerializer& writer = (XMLSerializer&)smSerializer;
 
 	smDeserializer.fileAccessFailedDuring = false;
 	writer.fileAccessFailedDuringWrite = false;
