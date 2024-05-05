@@ -1324,7 +1324,7 @@ Voice* solicitVoice(Sound* forSound) {
 		return NULL;
 	}
 	/// @todo: maybe this should be configurable between 4/8/16/unlimited?
-	if (forSound->numVoicesAssigned > 16) {
+	if (forSound->numVoicesAssigned >= forSound->maxVoiceCount) {
 		cullVoice(false, SOFT_ALWAYS, numSamplesLastTime, forSound);
 	}
 	return newVoice;

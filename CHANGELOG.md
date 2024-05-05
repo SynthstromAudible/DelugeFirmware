@@ -68,7 +68,6 @@
 - Added sidebar functionality in keyboard screens - by default it is velocity (red) and mod wheel (blue), holding a pad
   sets it momentarily and tapping latches it. The functionality can be changed by holding the top pad and scrolling
   select.
-- Updated the count-in setting to allow specifying the number of bars (1-4).
 - Added `VU Meter` rendering in the sidebar in Song / Arranger / Performance Views.
 - Added ability to save a synth/sample drum back to an instrument preset by holding audition and pressing save.
 - Mod (Gold) Encoders learned to the Mod Matrix can now access the full range of the Mod Matrix / Patch Cable parameters (e.g. from -50 to +50).
