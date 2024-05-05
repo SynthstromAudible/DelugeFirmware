@@ -488,8 +488,8 @@ worthIt:
 	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
 	Serializer& writer = smSerializer;
 	writer.writeOpeningTagBeginning("midiDevices");
-	bdsm.writeFirmwareVersion();
-	bdsm.writeEarliestCompatibleFirmwareVersion("4.0.0");
+	writer.writeFirmwareVersion();
+	writer.writeEarliestCompatibleFirmwareVersion("4.0.0");
 	writer.writeOpeningTagEnd();
 
 	if (dinMIDIPorts.worthWritingToFile()) {

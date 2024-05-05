@@ -198,8 +198,8 @@ void Output::writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, So
 	writer.writeOpeningTagBeginning(tagName);
 
 	if (clipForSavingOutputOnly) {
-		bdsm.writeFirmwareVersion();
-		bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+		writer.writeFirmwareVersion();
+		writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 	}
 
 	bool endedOpeningTag = writeDataToFile(writer, clipForSavingOutputOnly, song);

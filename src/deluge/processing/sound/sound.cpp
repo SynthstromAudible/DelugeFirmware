@@ -298,7 +298,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 void Sound::possiblySetupDefaultExpressionPatching(ParamManager* paramManager) {
 
-	if (storageManager.firmware_version < FirmwareVersion::official({4, 0, 0, "beta"})) {
+	if (smDeserializer.firmware_version < FirmwareVersion::official({4, 0, 0, "beta"})) {
 
 		if (!paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::AFTERTOUCH)
 		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::X)
@@ -690,7 +690,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag("arpMode");
 			}
 			else if (!strcmp(tagName, "mode")
-			         && storageManager.firmware_version < FirmwareVersion::community({1, 0, 0})) {
+			         && smDeserializer.firmware_version < FirmwareVersion::community({1, 0, 0})) {
 				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 				if (arpSettings) {
 					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
@@ -1289,7 +1289,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		}
 		else if (readTagFromFile(reader, tagName)) {}
 		else {
-			result = storageManager.tryReadingFirmwareTagFromFile(tagName);
+			result = smDeserializer.tryReadingFirmwareTagFromFile(tagName);
 			if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 				return result;
 			}
@@ -3107,7 +3107,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	// If we actually got a paramManager, we can do resonance compensation on it
 	if (paramManager.containsAnyMainParamCollections()) {
-		if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0})) {
+		if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0})) {
 			compensateVolumeForResonance(modelStack->addParamManager(&paramManager));
 		}
 
@@ -3146,7 +3146,7 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {
 
 	// If it was an old-firmware file, we need to compensate for resonance
-	if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0}) && synthMode != SynthMode::FM) {
+	if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0}) && synthMode != SynthMode::FM) {
 		if (modelStack->paramManager->resonanceBackwardsCompatibilityProcessed) {
 			return;
 		}

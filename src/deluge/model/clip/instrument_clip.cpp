@@ -2656,7 +2656,7 @@ someError:
 					reader.exitTag("syncType");
 				}
 				else if (!strcmp(tagName, "mode")
-				         && storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+				         && smDeserializer.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
 					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
 					arpSettings.mode = oldModeToArpMode(oldMode);
@@ -2781,7 +2781,7 @@ loadInstrument:
 
 			// Normal case - load in brand new ParamManager
 
-			if (storageManager.firmware_version >= FirmwareVersion::official({1, 2, 0}) || !output) {
+			if (smDeserializer.firmware_version >= FirmwareVersion::official({1, 2, 0}) || !output) {
 createNewParamManager:
 				error = paramManager.setupWithPatching();
 				if (error != Error::NONE) {
@@ -2982,7 +2982,7 @@ doReadBendRange:
 
 	// Pre V3.2.0 (and also for some of 3.2's alpha phase), bend range wasn't adjustable, wasn't written in the file,
 	// and was always 12.
-	if (storageManager.firmware_version <= FirmwareVersion::official({3, 2, 0, "alpha"})
+	if (smDeserializer.firmware_version <= FirmwareVersion::official({3, 2, 0, "alpha"})
 	    && !paramManager.getExpressionParamSet()) {
 		ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 		if (expressionParams) {
@@ -3066,7 +3066,7 @@ expressionParam:
 							if (paramId == CC_NUMBER_MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
-								if (storageManager.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+								if (smDeserializer.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 									paramId = Y_SLIDE_TIMBRE;
 									goto expressionParam;
 								}
@@ -4018,7 +4018,7 @@ haveNoDrum:
 				if (thisNoteRow->drum) {
 
 					// If saved before V2.1, see if we need linear interpolation
-					if (storageManager.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
+					if (smDeserializer.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 						if (thisNoteRow->drum->type == DrumType::SOUND) {
 							SoundDrum* sound = (SoundDrum*)thisNoteRow->drum;
 
@@ -4096,7 +4096,7 @@ haveNoDrum:
 	compensateVolumeForResonance(modelStack);
 
 	// If saved before V2.1....
-	if (storageManager.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
+	if (smDeserializer.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 
 		if (output->type == OutputType::SYNTH) {
 			SoundInstrument* sound = (SoundInstrument*)output;
@@ -4111,7 +4111,7 @@ haveNoDrum:
 
 		// For songs saved before V2.0, ensure that non-square oscillators have PW set to 0 (cos PW in this case didn't
 		// have an effect then but it will now)
-		if (storageManager.firmware_version < FirmwareVersion::official({2, 0, 0, "beta"})) {
+		if (smDeserializer.firmware_version < FirmwareVersion::official({2, 0, 0, "beta"})) {
 			if (output->type == OutputType::SYNTH) {
 				SoundInstrument* sound = (SoundInstrument*)output;
 

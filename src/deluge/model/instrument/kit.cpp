@@ -303,7 +303,7 @@ doReadDrum:
 			else {
 				if (Instrument::readTagFromFile(reader, tagName)) {}
 				else {
-					Error result = storageManager.tryReadingFirmwareTagFromFile(tagName);
+					Error result = smDeserializer.tryReadingFirmwareTagFromFile(tagName);
 					if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 						return result;
 					}
@@ -907,7 +907,7 @@ void Kit::prepareForHibernationOrDeletion() {
 void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song) {
 
 	// If it was a pre-V1.2.0 firmware file, we need to compensate for resonance
-	if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0})
+	if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0})
 	    && !paramManager->resonanceBackwardsCompatibilityProcessed) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();

@@ -21,6 +21,7 @@
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
 #include <cstdint>
+#include "version.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -67,6 +68,14 @@ public:
 	virtual void write(char const* output) = 0;
 	virtual Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                                    char const* endString = nullptr) = 0;
+
+	void writeFirmwareVersion() {
+		writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
+	}
+
+	void writeEarliestCompatibleFirmwareVersion(char const* versionString) {
+		writeAttribute("earliestCompatibleFirmware", versionString);
+	}
 };
 
 class XMLSerializer : public Serializer {
@@ -154,6 +163,9 @@ public:
 
 	char stringBuffer[kFilenameBufferSize];
 
+	FirmwareVersion firmware_version = FirmwareVersion::current();
+	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
+
 	void skipUntilChar(char endChar);
 	uint32_t readCharXML(char* thisChar);
 	char const* readTagName();
@@ -171,7 +183,6 @@ public:
 	Error readAttributeValueString(String* string);
 	bool readXMLFileCluster();
 	void xmlReadDone();
-	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 };
 
 extern XMLSerializer smSerializer;
@@ -194,7 +205,6 @@ public:
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);
 
-	void writeFirmwareVersion();
 	bool checkSDPresent();
 	bool checkSDInitialized();
 
@@ -202,19 +212,18 @@ public:
 	Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
 	                             Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
 	Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
-	void writeEarliestCompatibleFirmwareVersion(char const* versionString);
+
 
 	Drum* createNewDrum(DrumType drumType);
 	Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
 	                      FilePointer* filePointer, String* name, String* dirPath);
 	void openFilePointer(FilePointer* fp);
-	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 
 	Error checkSpaceOnCard();
 
 	// ** Start of public member variables. These are used outside of StorageManager.
 
-	FirmwareVersion firmware_version = FirmwareVersion::current();
+
 
 private:
 	// ** End of member variables

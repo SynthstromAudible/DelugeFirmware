@@ -241,8 +241,8 @@ void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {
 	}
 	Serializer& writer = smSerializer;
 	writer.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
-	bdsm.writeFirmwareVersion();
-	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.3");
+	writer.writeFirmwareVersion();
+	writer.writeEarliestCompatibleFirmwareVersion("4.1.3");
 	writer.writeAttribute("startupSong", currentSong->getSongFullPath().get());
 	writer.writeOpeningTagEnd();
 

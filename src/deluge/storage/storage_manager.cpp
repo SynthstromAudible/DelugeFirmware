@@ -220,29 +220,7 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 	return true;
 }
 
-Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
-	Deserializer& reader = smDeserializer;
-	if (!strcmp(tagName, "firmwareVersion")) {
-		char const* firmware_version_string = reader.readTagOrAttributeValue();
-		firmware_version = FirmwareVersion::parse(firmware_version_string);
-	}
 
-	// If this tag doesn't exist, it's from old firmware so is ok
-	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
-		char const* firmware_version_string = reader.readTagOrAttributeValue();
-		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
-		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
-			f_close(&fileSystemStuff.currentFile);
-			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
-		}
-	}
-
-	else {
-		return Error::RESULT_TAG_UNUSED;
-	}
-
-	return Error::NONE;
-}
 
 // Returns false if some error, including error while writing
 bool StorageManager::closeFile() {
@@ -254,13 +232,6 @@ bool StorageManager::closeFile() {
 	return (result == FR_OK);
 }
 
-void StorageManager::writeFirmwareVersion() {
-	smSerializer.writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
-}
-
-void StorageManager::writeEarliestCompatibleFirmwareVersion(char const* versionString) {
-	smSerializer.writeAttribute("earliestCompatibleFirmware", versionString);
-}
 
 // Gets ready to access SD card.
 // You should call this before you're gonna do any accessing - otherwise any errors won't reflect if there's in fact
@@ -396,7 +367,7 @@ deleteInstrumentAndGetOut:
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
-		if (firmware_version < FirmwareVersion::official({2, 2, 0, "beta"}) && outputType == OutputType::KIT) {
+		if (smDeserializer.firmware_version < FirmwareVersion::official({2, 2, 0, "beta"}) && outputType == OutputType::KIT) {
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupUnpatched();
 			if (error != Error::NONE) {
@@ -1639,7 +1610,7 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 	fileReadBufferCurrentPos = audioFileManager.clusterSize;
 	currentReadBufferEndPos = audioFileManager.clusterSize;
 
-	msd->firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
+	firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
 
 	tagDepthFile = 0;
 	tagDepthCaller = 0;
@@ -1654,7 +1625,7 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 			return Error::NONE;
 		}
 
-		Error result = msd->tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
+		Error result = tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
 		if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 			return result;
 		}
@@ -1663,4 +1634,28 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 
 	f_close(&fileSystemStuff.currentFile);
 	return Error::FILE_CORRUPTED;
+}
+
+Error XMLDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
+
+	if (!strcmp(tagName, "firmwareVersion")) {
+		char const* firmware_version_string = readTagOrAttributeValue();
+		firmware_version = FirmwareVersion::parse(firmware_version_string);
+	}
+
+	// If this tag doesn't exist, it's from old firmware so is ok
+	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
+		char const* firmware_version_string = readTagOrAttributeValue();
+		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
+		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
+			f_close(&fileSystemStuff.currentFile);
+			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
+		}
+	}
+
+	else {
+		return Error::RESULT_TAG_UNUSED;
+	}
+
+	return Error::NONE;
 }

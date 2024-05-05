@@ -1288,8 +1288,8 @@ void Song::writeToFile(StorageManager& bdsm) {
 	Serializer& writer = smSerializer;
 	writer.writeOpeningTagBeginning("song");
 
-	bdsm.writeFirmwareVersion();
-	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+	writer.writeFirmwareVersion();
+	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 
 	writer.writeAttribute("previewNumPads", "144");
 
@@ -1476,7 +1476,7 @@ Error Song::readFromFile(Deserializer& reader) {
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
 	// reverb mode
-	if (storageManager.firmware_version < FirmwareVersion::official({4, 1, 4})) {
+	if (smDeserializer.firmware_version < FirmwareVersion::official({4, 1, 4})) {
 		AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
 	}
 
@@ -1656,11 +1656,11 @@ Error Song::readFromFile(Deserializer& reader) {
 		default:
 unknownTag:
 			if (!strcmp(tagName, "firmwareVersion") || !strcmp(tagName, "earliestCompatibleFirmware")) {
-				storageManager.tryReadingFirmwareTagFromFile(tagName);
+				smDeserializer.tryReadingFirmwareTagFromFile(tagName);
 				reader.exitTag(tagName);
 			}
 			else if (!strcmp(tagName, "preview") || !strcmp(tagName, "previewNumPads")) {
-				storageManager.tryReadingFirmwareTagFromFile(tagName);
+				smDeserializer.tryReadingFirmwareTagFromFile(tagName);
 				reader.exitTag(tagName);
 			}
 			else if (!strcmp(tagName, "sessionLayout")) {
@@ -2011,7 +2011,7 @@ loadOutput:
 					return result;
 				}
 				else {
-					Error result = storageManager.tryReadingFirmwareTagFromFile(tagName);
+					Error result = smDeserializer.tryReadingFirmwareTagFromFile(tagName);
 					if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 						return result;
 					}
@@ -2024,7 +2024,7 @@ loadOutput:
 		}
 	}
 
-	if (storageManager.firmware_version >= FirmwareVersion::official({3, 1, 0, "alpha2"})) {
+	if (smDeserializer.firmware_version >= FirmwareVersion::official({3, 1, 0, "alpha2"})) {
 		// Basically, like all other "sync" type parameters, the file value and internal value are different for
 		// swingInterval. But unlike other ones, which get converted as we go, we do this one at the end once we
 		// know we have enough info to do the conversion
@@ -2071,7 +2071,7 @@ loadOutput:
 
 			// Correct different non-synced rates of old song files
 			// In a perfect world, we'd do this for Kits, MIDI and CV too
-			if (storageManager.firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
+			if (smDeserializer.firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
 			    && thisClip->output->type == OutputType::SYNTH) {
 				if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
 				    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
@@ -2163,7 +2163,7 @@ skipInstance:
 		}
 
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
-		if (storageManager.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
+		if (smDeserializer.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 			if (thisOutput->type == OutputType::SYNTH) {
 				SoundInstrument* sound = (SoundInstrument*)thisOutput;
 
@@ -2204,7 +2204,7 @@ skipInstance:
 	}
 
 	// Pre V1.2...
-	if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0})) {
+	if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0})) {
 
 		deleteAllBackedUpParamManagers(true); // Before V1.2, lots of extras of these could be created during loading
 		globalEffectable.compensateVolumeForResonance(&paramManager);
