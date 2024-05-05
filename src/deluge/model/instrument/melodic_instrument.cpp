@@ -23,6 +23,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -31,6 +32,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
@@ -354,6 +356,10 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value, doingMidiThru);
+		namespace params = deluge::modulation::params;
+		if (fromDevice == &MIDIDeviceManager::loopbackMidi) {
+			midiFollow.handleReceivedCC(*modelStackWithTimelineCounter, activeClip, ccNumber, value);
+		}
 	}
 }
 void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
@@ -390,12 +396,13 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 			// this is the same range as mpe Y axis but unipolar
 			value32 = (value) << 24;
 			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);
-			// Don't also pass to ccReveived since it will now be handled by output mono expression in midi clips
-			// instead
+			// Don't also pass to ccReveived since it will now be handled by output mono expression in midi
+			// clips instead
 			return;
 		}
 
-		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this themselves
+		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this
+		// themselves
 		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
 
 		possiblyRefreshAutomationEditorGrid(ccNumber);
@@ -423,8 +430,8 @@ void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* m
 	}
 }
 
-// noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one
-// note).
+// noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to
+// one note).
 void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                            MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel, int32_t value,
                                            int32_t noteCode, bool* doingMidiThru) {
@@ -448,13 +455,13 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 		}
 
 		// Still send the aftertouch even if the Output is muted. MidiInstruments will check for and block this
-		// themselves MPE should never send poly aftertouch but we might as well handle it anyway Polyphonic aftertouch
-		// gets processed along with MPE
+		// themselves MPE should never send poly aftertouch but we might as well handle it anyway Polyphonic
+		// aftertouch gets processed along with MPE
 		if (noteCode != -1) {
 			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, Z_PRESSURE, noteCode,
 			                                          MIDICharacteristic::NOTE);
-			// We wouldn't be here if this was MPE input, so we know this incoming polyphonic aftertouch message is
-			// allowed
+			// We wouldn't be here if this was MPE input, so we know this incoming polyphonic aftertouch message
+			// is allowed
 		}
 
 		// Or, channel pressure
@@ -515,8 +522,8 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 	}
 
 	notesAuditioned.empty();
-	earlyNotes
-	    .empty(); // This is fine, though in a perfect world we'd prefer to just mark the notes as no longer active
+	earlyNotes.empty(); // This is fine, though in a perfect world we'd prefer to just mark the notes as no
+	                    // longer active
 	if (activeClip) {
 		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
 	}
@@ -604,7 +611,8 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 	if (modelStack->timelineCounterIsSet()) {
 		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 
-		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a region.
+		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
+		// region.
 		if (view.modLength
 		    && modelStack->getTimelineCounter() == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 			modPos = view.modPos;
@@ -641,9 +649,10 @@ ArpeggiatorSettings* MelodicInstrument::getArpSettings(InstrumentClip* clip) {
 
 bool expressionValueChangesMustBeDoneSmoothly = false; // Wee bit of a workaround
 
-// Ok this is similar to processParamFromInputMIDIChannel(), above, but for MPE. It's different because one input
-// message might have multiple AutoParams it applies to (i.e. because the member channel might have multiple notes /
-// NoteRows). And also because the AutoParam is allowed to not exist at all - e.g. if there's no NoteRow for the note
+// Ok this is similar to processParamFromInputMIDIChannel(), above, but for MPE. It's different because one
+// input message might have multiple AutoParams it applies to (i.e. because the member channel might have
+// multiple notes / NoteRows). And also because the AutoParam is allowed to not exist at all - e.g. if there's
+// no NoteRow for the note
 // - but we still want to cause a sound change in response to the message.
 void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack,
                                                                   int32_t newValue, int32_t whichExpressionDimension,
@@ -652,23 +661,23 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 	expressionValueChangesMustBeDoneSmoothly = true;
 
 	// If recording, we send the new value to the AutoParam, which will also sound that change right now.
-	if (modelStack
-	        ->timelineCounterIsSet()) { // && playbackHandler.isEitherClockActive() && playbackHandler.recording) {
+	if (modelStack->timelineCounterIsSet()) { // && playbackHandler.isEitherClockActive() &&
+		                                      // playbackHandler.recording) {
 		modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
 
 		for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
 			ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
 			if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)]
-			    == channelOrNoteNumber) { // If we're actually identifying by MIDICharacteristic::NOTE, we could do a
-				                          // much faster search,
+			    == channelOrNoteNumber) { // If we're actually identifying by MIDICharacteristic::NOTE, we could
+				                          // do a much faster search,
 				// but let's not bother - that's only done when we're receiving MIDI polyphonic aftertouch
 				// messages, and there's hardly much to search through.
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    ((InstrumentClip*)modelStack->getTimelineCounter())
 				        ->getNoteRowForYNote(
 				            arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-				            modelStack); // No need to create - it should already exist if they're recording a note
-				                         // here.
+				            modelStack); // No need to create - it should already exist if they're recording a
+				                         // note here.
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
 					bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, newValue,
