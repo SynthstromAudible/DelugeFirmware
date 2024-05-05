@@ -1363,7 +1363,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDIDevice* fro
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 
 				// calculate new knob position based on value received and deluge current value
-				newKnobPos = midiTakeover.calculateKnobPos(knobPos, value, knob);
+				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob);
 				// is the cc being received for the same value as the current knob pos? If so, do nothing
 				if (newKnobPos == knobPos) {
 					continue;
@@ -1431,7 +1431,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 
 				// calculate new knob position based on value received and deluge current value
-				newKnobPos = midiTakeover.calculateKnobPos(knobPos, value, knob);
+				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob);
 				// is the cc being received for the same value as the current knob pos? If so, do nothing
 				if (newKnobPos == knobPos) {
 					continue;
