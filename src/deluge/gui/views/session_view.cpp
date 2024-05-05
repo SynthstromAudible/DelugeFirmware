@@ -45,6 +45,7 @@
 #include "hid/led/pad_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
+#include "io/midi/midi_follow.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -1666,6 +1667,7 @@ void SessionView::removeClip(Clip* clip) {
 
 	clip->stopAllNotesPlaying(currentSong); // Stops any MIDI-controlled auditioning / stuck notes
 
+	midiFollow.removeClip(clip);
 	currentSong->removeSessionClip(clip, clipIndex);
 
 	if (playbackHandler.isEitherClockActive() && currentPlaybackMode == &session) {
