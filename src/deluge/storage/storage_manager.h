@@ -65,6 +65,8 @@ public:
 	virtual void writeClosingTag(char const* tag, bool shouldPrintIndents = true) = 0;
 	virtual void printIndents() = 0;
 	virtual void write(char const* output) = 0;
+	virtual Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
+	                            char const* endString = nullptr) = 0;
 
 };
 
@@ -97,8 +99,8 @@ public:
 	bool fileAccessFailedDuringWrite;
 
 	Error writeXMLBufferToFile();
-	Error closeXMLFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
-	                               char const* endString = nullptr);
+	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
+	                            char const* endString = nullptr) override;
 };
 
 class Deserializer {
@@ -189,8 +191,7 @@ public:
 
 	Error initSD();
 	bool closeFile();
-	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
-	                            char const* endString = nullptr);
+
 
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);

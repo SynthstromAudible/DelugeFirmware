@@ -1635,7 +1635,7 @@ void PerformanceSessionView::writeDefaultsToFile(StorageManager& bdsm) {
 
 	writer.writeClosingTag(PERFORM_DEFAULTS_TAG);
 
-	bdsm.closeFileAfterWriting();
+	writer.closeFileAfterWriting();
 
 	anyChangesToSave = false;
 }

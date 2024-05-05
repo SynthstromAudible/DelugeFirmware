@@ -516,7 +516,7 @@ worthIt:
 
 	writer.writeClosingTag("midiDevices");
 
-	bdsm.closeFileAfterWriting();
+	writer.closeFileAfterWriting();
 
 	// Hook point for Hosted USB MIDI Device
 	if (specificMIDIDevice != NULL) {

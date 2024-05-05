@@ -433,7 +433,7 @@ fail3:
 
 	currentSong->writeToFile(bdsm);
 
-	error = bdsm.closeFileAfterWriting(filePathDuringWrite.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
+	error = smSerializer.closeFileAfterWriting(filePathDuringWrite.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
 	                                   "\n</song>\n");
 	if (error != Error::NONE) {
 		goto gotError;

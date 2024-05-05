@@ -144,7 +144,7 @@ fail:
 
 	char const* endString = "\n</sound>\n";
 
-	error = bdsm.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
+	error = smSerializer.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
 		goto fail;

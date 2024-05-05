@@ -228,12 +228,6 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 	return true;
 }
 
-// Returns false if some error, including error while writing
-Error StorageManager::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
-	XMLSerializer& writer = (XMLSerializer&)smSerializer;
-	return writer.closeXMLFileAfterWriting(path, beginningString, endString);
-}
-
 Error StorageManager::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
 	Deserializer& reader = smDeserializer;
 	if (!strcmp(tagName, "firmwareVersion")) {
@@ -842,7 +836,7 @@ Error XMLSerializer::writeXMLBufferToFile() {
 }
 
 // Returns false if some error, including error while writing
-Error XMLSerializer::closeXMLFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
+Error XMLSerializer::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
 	if (fileAccessFailedDuringWrite) {
 		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
 		                          // don't want it to flush any data to the card or anything

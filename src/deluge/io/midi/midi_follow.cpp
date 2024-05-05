@@ -787,7 +787,7 @@ void MidiFollow::writeDefaultsToFile(StorageManager& bdsm) {
 
 	writer.writeClosingTag(MIDI_DEFAULTS_TAG);
 
-	bdsm.closeFileAfterWriting();
+	writer.closeFileAfterWriting();
 }
 
 /// convert paramID to a paramName to write to XML

@@ -265,5 +265,5 @@ void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {
 	}
 
 	writer.writeClosingTag(TAG_RUNTIME_FEATURE_SETTINGS);
-	bdsm.closeFileAfterWriting();
+	writer.closeFileAfterWriting();
 }
