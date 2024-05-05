@@ -115,6 +115,13 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 	else if (whichModButton == 5) {
 		displayModFXSettings(on);
 	}
+	// Other Mod Buttons
+	else {
+		// Env Attack / Release not relevant for global effectable context
+		if (whichModButton != 2) {
+			displayOtherModKnobSettings(whichModButton, on);
+		}
+	}
 }
 
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
@@ -614,6 +621,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 	}
 	return ActionResult::NOT_DEALT_WITH;
 }
+
 // Always check this doesn't return NULL!
 int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 
