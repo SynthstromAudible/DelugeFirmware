@@ -233,7 +233,8 @@ Here is a list of general improvements that have been made, ordered from newest 
 
   - by default, a slice shorter then 2s is switched to playback mode "ONCE"
   - Added a toggle that switches this behaviour off
-  - if it is `OFF` then the Samples Slice Default Mode will be used
+  - under MENU > DEFAULTS > SHORT SLICE ONCE
+  - if it is `DISABLED` then the Samples Slice Default Mode will be used
 
 ## 4. New Features Added
 
