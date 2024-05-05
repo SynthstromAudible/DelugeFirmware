@@ -131,10 +131,6 @@ Clip* MidiFollow::getSelectedOrActiveClip() {
 	return clip;
 }
 
-/// check if the current context is the song
-bool isClipContext() {
-}
-
 /// see if you are pressing and holding a clip in arranger view, song row view, song grid view
 /// see if you are pressing and holding audition pad in arranger view, arranger perf view, or
 /// arranger automation view
