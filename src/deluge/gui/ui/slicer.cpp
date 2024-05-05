@@ -650,8 +650,14 @@ getOut:
 		uint32_t nextDrumStart = lengthInSamples / numClips;
 		firstRange->sampleHolder.endPos = nextDrumStart;
 
-		firstDrum->sources[0].repeatMode =
-		    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
+		if (FlashStorage::defaultShortSliceMode) {
+			firstDrum->sources[0].repeatMode =
+			    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
+		}
+
+		else {
+			firstDrum->sources[0].repeatMode = FlashStorage::defaultSliceMode;
+		}
 
 		firstDrum->sources[0].sampleControls.reversed = false;
 
@@ -715,8 +721,14 @@ ramError2:
 			nextDrumStart = (uint64_t)lengthInSamples * (i + 1) / numClips;
 			range->sampleHolder.endPos = nextDrumStart;
 
-			newDrum->sources[0].repeatMode =
-			    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
+			if (FlashStorage::defaultShortSliceMode == true) {
+				newDrum->sources[0].repeatMode =
+				    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
+			}
+
+			else {
+				newDrum->sources[0].repeatMode = FlashStorage::defaultSliceMode;
+			}
 
 			range->sampleHolder.filePath.set(&sample->filePath);
 			range->sampleHolder.loadFile(false, false, true);

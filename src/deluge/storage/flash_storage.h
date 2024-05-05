@@ -61,6 +61,7 @@ extern StartupSongMode defaultStartupSongMode;
 extern uint8_t defaultPadBrightness;
 extern SampleRepeatMode defaultSliceMode;
 extern bool highCPUUsageIndicator;
+extern bool defaultShortSliceMode;
 
 void readSettings();
 void writeSettings();

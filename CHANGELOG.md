@@ -6,8 +6,10 @@
 
 ### User Interface
 
-- Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
-- Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
+- Added a toggle that switches off the automatic playback mode "ONCE" for short samples
+- Added a new default setting that controls which playback mode new slices of a kit will get. 
+- Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
+- Updated audio clip's sample loading to load sample without time stretching. Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
 - Added new `YELLOW GRID MODE` which allows you configure the clip type between `DEFAULT`, `FILL`, and `ONCE` by holding on a clip pad and pressing `SELECT`. In this mode, while clips are inactive, the clip pads are highlighted different colours to indicate the current clip type.

@@ -1021,6 +1021,10 @@ defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE, STRING_FOR_D
 ToggleBool defaultHighCPUUsageIndicatorMode{STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
                                             STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
                                             FlashStorage::highCPUUsageIndicator};
+
+ToggleBool defaultShortSliceMenu{STRING_FOR_SHORT_SLICE_MODE, STRING_FOR_SHORT_SLICE_MODE_MENU_TITLE,
+                                 FlashStorage::defaultShortSliceMode};
+
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1037,7 +1041,7 @@ Submenu defaultsSubmenu{
         &defaultStartupSongMenu,
         &defaultPadBrightness,
         &defaultSliceMode,
-        &defaultHighCPUUsageIndicatorMode,
+        &defaultShortSliceMenu,
     },
 };
 
