@@ -1298,21 +1298,24 @@ static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
                                             0};
 
 void View::modButtonAction(uint8_t whichButton, bool on) {
-	UI* currentUI = getCurrentUI();
+	RootUI* rootUI = getRootUI();
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if (((currentUI == &automationView) || (getRootUI() == &automationView))
-	    && !automationView.isOnAutomationOverview()) {
-		return;
+	if ((rootUI == &automationView) && !automationView.isOnAutomationOverview()) {
+		// exception for arranger view and pressing mod button 0 so you can toggle VU meter
+		if (!(automationView.onArrangerView && whichButton == 0)) {
+			return;
+		}
 	}
 
 	pretendModKnobsUntouchedForAWhile();
 
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
-			if (isUIModeWithinRange(modButtonUIModes) || (currentUI == &performanceSessionView)) {
-				// only displaying VU meter in session view, arranger view and performance view at the moment
-				if (currentUI == &sessionView || currentUI == &arrangerView || currentUI == &performanceSessionView) {
+			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performanceSessionView)) {
+				// only displaying VU meter in session view, arranger view, performance view and arranger automation
+				// view
+				if (!rootUIIsClipMinderScreen()) {
 					// are we pressing the same button that is currently selected
 					if (*activeModControllableModelStack.modControllable->getModKnobMode() == whichButton) {
 						// you just pressed the volume mod button and it was already selected previously
@@ -1323,7 +1326,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 					}
 					// refresh sidebar if VU meter previously rendered is still showing
 					if (renderedVUMeter) {
-						uiNeedsRendering(currentUI, 0); // only render sidebar
+						uiNeedsRendering(rootUI, 0); // only render sidebar
 					}
 				}
 
