@@ -4081,37 +4081,47 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 
 	int32_t modKnobMode = *getModKnobMode();
 
-	ModKnob* ourModKnob = &modKnobs[modKnobMode][1];
+	ModKnob* ourModKnobTop = &modKnobs[modKnobMode][1];
+	ModKnob* ourModKnobBottom = &modKnobs[modKnobMode][0];
 
-	// LPF/HPF/EQ
-	if (whichModButton == 1) {
-		if (getSynthMode() != SynthMode::FM) {
-			FilterType currentFilterType;
-			if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)) {
-				currentFilterType = FilterType::LPF;
-			}
-			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)) {
-				currentFilterType = FilterType::HPF;
-			}
-			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
-			                                                              + params::UNPATCHED_TREBLE)) {
-				currentFilterType = FilterType::EQ;
-			}
-			displayFilterSettings(on, currentFilterType);
-		}
+	// mod button popup logic
+	// if top knob == LPF Freq && bottom knob == LPF Reso
+	// if top knob == HPF Freq && bottom knob == HPF Reso
+	// if top knob == Treble && bottom knob == Bass
+	// --> displayFilterSettings(on, currentFilterType);
+
+	// if top knob == Delay Rate && bottom knob == Delay Amount
+	// --> displayDelaySettings(on);
+
+	// if top knob == Sidechain && bottom knob == Reverb Amount
+	// --> displaySidechainAndReverbSettings(on);
+
+	// else --> display param name
+
+	if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)
+	    && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_RESONANCE)) {
+		displayFilterSettings(on, FilterType::LPF);
 	}
-	// Delay
-	else if (whichModButton == 3) {
-		if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_RATE)) {
-			displayDelaySettings(on);
-		}
+	else if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)
+	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_RESONANCE)) {
+		displayFilterSettings(on, FilterType::HPF);
 	}
-	// Sidechain/Reverb
-	else if (whichModButton == 4) {
-		if ((ourModKnob->paramDescriptor.hasJustOneSource()
-		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN)) {
-			displaySidechainAndReverbSettings(on);
-		}
+	else if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START + params::UNPATCHED_TREBLE)
+	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
+	                                                                       + params::UNPATCHED_BASS)) {
+		displayFilterSettings(on, FilterType::EQ);
+	}
+	else if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_RATE)
+	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_FEEDBACK)) {
+		displayDelaySettings(on);
+	}
+	else if ((ourModKnobTop->paramDescriptor.hasJustOneSource()
+	          && ourModKnobTop->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN)
+	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_REVERB_AMOUNT)) {
+		displaySidechainAndReverbSettings(on);
+	}
+	else {
+		displayOtherModKnobSettings(whichModButton, on);
 	}
 }
 
