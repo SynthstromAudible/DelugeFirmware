@@ -614,6 +614,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE, "Pad brightness."},
         {STRING_FOR_DEFAULT_SLICE_MODE, "Sample Slice Mode"},
         {STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE, "Sample Slice Mode"},
+        {STRING_FOR_SHORT_SLICE_MODE, "Short Slice Once"},
+        {STRING_FOR_SHORT_SLICE_MODE_MENU_TITLE, "Short Slice Once"},
         {STRING_FOR_CV_INSTRUMENT, "CV instrument"},
         {STRING_FOR_ACTIVE, "ACTIVE"},
         {STRING_FOR_STOPPED, "STOPPED"},
