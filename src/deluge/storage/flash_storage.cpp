@@ -668,8 +668,6 @@ void readSettings() {
 	}
 }
 
-
-
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
 	// midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone
 	if ((buffer[126] < 0 || buffer[126] >= NUM_CHANNELS) && buffer[126] != MIDI_CHANNEL_NONE) {
