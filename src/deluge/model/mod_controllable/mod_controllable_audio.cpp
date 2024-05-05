@@ -2056,7 +2056,7 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 		view.getParameterNameFromModEncoder(1, parameterName);
 		popupMsg.append(parameterName);
 	}
-	// in the song context, 
+	// in the song context,
 	// the bottom knob for modButton 6 (stutter) doesn't have a parameter
 	if (!((whichModButton == 6) && (!view.isClipContext()))) {
 		if (display->haveOLED()) {
