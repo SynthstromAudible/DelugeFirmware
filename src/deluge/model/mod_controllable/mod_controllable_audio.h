@@ -196,6 +196,7 @@ protected:
 	void displayFilterSettings(bool on, FilterType currentFilterType);
 	void displayDelaySettings(bool on);
 	void displaySidechainAndReverbSettings(bool on);
+	void displayOtherModKnobSettings(uint8_t whichModButton, bool on);
 
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
