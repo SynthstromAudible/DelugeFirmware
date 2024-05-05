@@ -174,7 +174,7 @@ enum Entries {
 167: defaultSliceMode
 168: midiFollow control song params
 169: High CPU Usage Indicator
-168: defaultShortSliceMode
+170: defaultShortSliceMode
 */
 
 uint8_t defaultScale;
@@ -668,6 +668,8 @@ void readSettings() {
 	}
 }
 
+defaultShortSliceMode = buffer[170];
+
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
 	// midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone
 	if ((buffer[126] < 0 || buffer[126] >= NUM_CHANNELS) && buffer[126] != MIDI_CHANNEL_NONE) {
@@ -921,7 +923,7 @@ void writeSettings() {
 
 	buffer[169] = highCPUUsageIndicator;
 
-	buffer[168] = defaultShortSliceMode;
+	buffer[170] = defaultShortSliceMode;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
