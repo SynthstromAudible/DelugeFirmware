@@ -668,7 +668,7 @@ void readSettings() {
 	}
 }
 
-defaultShortSliceMode = buffer[170];
+
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
 	// midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone
