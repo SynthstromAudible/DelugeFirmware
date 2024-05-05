@@ -68,7 +68,6 @@ extern void songLoaded(Song* song);
 struct FileSystemStuff fileSystemStuff;
 
 StorageManager::StorageManager() {
-
 }
 
 StorageManager::~StorageManager() {
@@ -165,7 +164,8 @@ cutFolderPathAndTryCreating:
 	return Error::NONE;
 }
 
-Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer, bool mayOverwrite, bool displayErrors) {
+Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer, bool mayOverwrite,
+                                    bool displayErrors) {
 
 	Error error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
 	writer.ms = this;
@@ -603,7 +603,6 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 
 	return newDrum;
 }
-
 
 /*******************************************************************************
 
@@ -1531,13 +1530,12 @@ bool XMLDeserializer::readXMLFileClusterIfNecessary() {
 	return false;
 }
 
-
 bool XMLDeserializer::readXMLFileCluster() {
 
 	AudioEngine::logAction("readXMLFileCluster");
 
-	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)fileClusterBuffer,
-	                        audioFileManager.clusterSize, &currentReadBufferEndPos);
+	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)fileClusterBuffer, audioFileManager.clusterSize,
+	                        &currentReadBufferEndPos);
 	if (result) {
 		fileAccessFailedDuring = true;
 		return false;
@@ -1552,7 +1550,6 @@ bool XMLDeserializer::readXMLFileCluster() {
 
 	return true;
 }
-
 
 uint32_t XMLDeserializer::readCharXML(char* thisChar) {
 
@@ -1616,8 +1613,8 @@ void XMLDeserializer::exitTag(char const* exitTagName) {
 	tagDepthCaller = tagDepthFile;
 }
 
-Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer &reader, char const* firstTagName, char const* altTagName,
-                                  bool ignoreIncorrectFirmware) {
+Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const* firstTagName,
+                                  char const* altTagName, bool ignoreIncorrectFirmware) {
 
 	AudioEngine::logAction("openXMLFile");
 
@@ -1667,4 +1664,3 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 	f_close(&fileSystemStuff.currentFile);
 	return Error::FILE_CORRUPTED;
 }
-

@@ -112,6 +112,6 @@ private:
 	void sendMonophonicExpressionEvent(int32_t whichExpressionDimension);
 	void combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
-	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
-	                            int8_t* getCC = NULL);
+	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
+	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = NULL);
 };

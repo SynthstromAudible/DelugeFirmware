@@ -66,8 +66,7 @@ public:
 	virtual void printIndents() = 0;
 	virtual void write(char const* output) = 0;
 	virtual Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
-	                            char const* endString = nullptr) = 0;
-
+	                                    char const* endString = nullptr) = 0;
 };
 
 class XMLSerializer : public Serializer {
@@ -116,7 +115,6 @@ public:
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
 	virtual void exitTag(char const* exitTagName = NULL) = 0;
-
 };
 
 class XMLDeserializer : public Deserializer {
@@ -185,13 +183,13 @@ public:
 	virtual ~StorageManager();
 
 	Error createFile(FIL* file, char const* filePath, bool mayOverwrite);
-	Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false, bool displayErrors = true);
-	Error openXMLFile (FilePointer* filePointer, XMLDeserializer &reader, char const* firstTagName, char const* altTagName = "",
-	                  bool ignoreIncorrectFirmware = false);
+	Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false,
+	                    bool displayErrors = true);
+	Error openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const* firstTagName,
+	                  char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 
 	Error initSD();
 	bool closeFile();
-
 
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);
@@ -218,14 +216,11 @@ public:
 
 	FirmwareVersion firmware_version = FirmwareVersion::current();
 
-
 private:
 	// ** End of member variables
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
-
 };
 
 extern StorageManager storageManager;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
-

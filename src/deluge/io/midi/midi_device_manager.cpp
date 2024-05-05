@@ -537,7 +537,7 @@ void readDevicesFromFile(StorageManager& bdsm) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&fp, smDeserializer,  "midiDevices");
+	Error error = bdsm.openXMLFile(&fp, smDeserializer, "midiDevices");
 	if (error != Error::NONE) {
 		return;
 	}

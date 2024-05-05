@@ -88,7 +88,6 @@ void AudioFileManager::init() {
 
 	clusterSizeAtBoot = clusterSize;
 
-
 	clusterObjectSize = sizeof(Cluster) + clusterSize;
 }
 

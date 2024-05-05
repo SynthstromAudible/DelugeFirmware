@@ -414,14 +414,13 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& bdsm, int32
 	return Error::NONE;
 }
 
-
 // This has now mostly been replaced by an equivalent-ish function in InstrumentClip.
 // Now, this will only ever be called in two scenarios:
 // -- Pre-V2.0 files, so we know there's no mention of bend or aftertouch in this case where we have a ParamManager.
 // -- When reading a MIDIInstrument, so we know there's no ParamManager (I checked), so no need to actually read the
 // param.
-Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos, MIDIParamCollection* midiParamCollection,
-                                            int8_t* getCC) {
+Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
+                                            MIDIParamCollection* midiParamCollection, int8_t* getCC) {
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
