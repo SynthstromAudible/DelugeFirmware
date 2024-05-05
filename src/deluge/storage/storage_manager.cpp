@@ -55,8 +55,8 @@ void routineForSD(void);
 StorageManager storageManager{};
 FILINFO staticFNO;
 DIR staticDIR;
-XMLSerializer smSerializer(storageManager);
-XMLDeserializer smDeserializer(storageManager);
+XMLSerializer smSerializer;
+XMLDeserializer smDeserializer;
 
 char charAtEndOfValue;
 
@@ -176,6 +176,7 @@ cutFolderPathAndTryCreating:
 Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer, bool mayOverwrite, bool displayErrors) {
 
 	Error error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
+	writer.ms = this;
 	if (error != Error::NONE) {
 		if (displayErrors) {
 			display->removeWorkingAnimation();
@@ -683,7 +684,7 @@ Error StorageManager::readMIDIParamFromFile(int32_t readAutomationUpToPos, MIDIP
 
 ********************************************************************************/
 
-XMLSerializer::XMLSerializer(StorageManager& sm) : ms(ms), fileWriteBufferCurrentPos(0) {
+XMLSerializer::XMLSerializer() : fileWriteBufferCurrentPos(0), ms(NULL) {
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
 	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
 }
@@ -915,8 +916,8 @@ Error XMLSerializer::closeXMLFileAfterWriting(char const* path, char const* begi
 
 ********************************************************************************/
 
-XMLDeserializer::XMLDeserializer(StorageManager& msd)
-    : msd(msd), xmlArea(BETWEEN_TAGS), xmlReachedEnd(false), tagDepthCaller(0), tagDepthFile(0), xmlReadCount(0) {
+XMLDeserializer::XMLDeserializer()
+    : xmlArea(BETWEEN_TAGS), xmlReachedEnd(false), tagDepthCaller(0), tagDepthFile(0), xmlReadCount(0), msd(NULL) {
 
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
 	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
@@ -1686,7 +1687,7 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer &rea
 	AudioEngine::logAction("openXMLFile");
 
 	// Prep to read first Cluster shortly
-
+	reader.msd = this;
 	Error err = reader.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
 	if (err == Error::NONE)
 		return Error::NONE;
@@ -1700,13 +1701,13 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 
 	AudioEngine::logAction("openXMLFile");
 
-	msd.openFilePointer(filePointer);
+	msd->openFilePointer(filePointer);
 
 	// Prep to read first Cluster shortly
 	fileReadBufferCurrentPos = audioFileManager.clusterSize;
 	currentReadBufferEndPos = audioFileManager.clusterSize;
 
-	msd.firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
+	msd->firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
 
 	tagDepthFile = 0;
 	tagDepthCaller = 0;
@@ -1721,7 +1722,7 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 			return Error::NONE;
 		}
 
-		Error result = msd.tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
+		Error result = msd->tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
 		if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 			return result;
 		}

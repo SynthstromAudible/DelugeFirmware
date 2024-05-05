@@ -65,12 +65,12 @@ public:
 	virtual void writeClosingTag(char const* tag, bool shouldPrintIndents = true) = 0;
 	virtual void printIndents() = 0;
 	virtual void write(char const* output) = 0;
-	virtual StorageManager& msw() = 0;
+
 };
 
 class XMLSerializer : public Serializer {
 public:
-	XMLSerializer(StorageManager& ms);
+	XMLSerializer();
 	virtual ~XMLSerializer();
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
@@ -85,10 +85,8 @@ public:
 	void writeClosingTag(char const* tag, bool shouldPrintIndents = true) override;
 	void printIndents() override;
 	void write(char const* output) override;
-	StorageManager& msw() override { return ms; }
 
-private:
-	StorageManager& ms;
+	StorageManager* ms;
 
 	// Private member variables for XML display and parsing:
 public:
@@ -116,12 +114,12 @@ public:
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
 	virtual void exitTag(char const* exitTagName = NULL) = 0;
-	virtual StorageManager& msr() = 0;
+
 };
 
 class XMLDeserializer : public Deserializer {
 public:
-	XMLDeserializer(StorageManager& msd);
+	XMLDeserializer();
 	virtual ~XMLDeserializer();
 
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
@@ -139,8 +137,7 @@ public:
 	Error openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                  bool ignoreIncorrectFirmware = false);
 
-private:
-	StorageManager& msd;
+	StorageManager* msd;
 
 public:
 	UINT currentReadBufferEndPos;
@@ -175,7 +172,6 @@ public:
 	bool readXMLFileCluster();
 	void xmlReadDone();
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
-	StorageManager& msr() override { return msd; }
 };
 
 extern XMLSerializer smSerializer;
@@ -217,8 +213,6 @@ public:
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 
 	Error checkSpaceOnCard();
-
-	Error writeBufferToFile(); // *** JFF
 
 	// ** Start of public member variables. These are used outside of StorageManager.
 
