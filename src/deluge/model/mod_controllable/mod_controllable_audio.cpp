@@ -2047,3 +2047,37 @@ char const* ModControllableAudio::getSidechainDisplayName() {
 		return l10n::get(STRING_FOR_FAST);
 	}
 }
+
+/// displays names of parameters assigned to gold knobs
+void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, bool on) {
+	DEF_STACK_STRING_BUF(popupMsg, 100);
+	if (display->haveOLED() || on) {
+		char parameterName[30];
+		view.getParameterNameFromModEncoder(1, parameterName);
+		popupMsg.append(parameterName);
+	}
+	// in the song context, 
+	// the bottom knob for modButton 6 (stutter) doesn't have a parameter
+	if (!((whichModButton == 6) && (!view.isClipContext()))) {
+		if (display->haveOLED()) {
+			popupMsg.append("\n");
+		}
+		if (display->haveOLED() || !on) {
+
+			char parameterName[30];
+			view.getParameterNameFromModEncoder(0, parameterName);
+			popupMsg.append(parameterName);
+		}
+	}
+	if (display->haveOLED()) {
+		if (on) {
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
+	}
+	else {
+		display->displayPopup(popupMsg.c_str());
+	}
+}
