@@ -204,6 +204,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_JUMP, "Jump"},
         {STRING_FOR_PICK_UP, "Pickup"},
         {STRING_FOR_SCALE, "Scale"},
+        {STRING_FOR_RELATIVE, "Relative"},
         {STRING_FOR_FLANGER, "Flanger"},
         {STRING_FOR_CHORUS, "Chorus"},
         {STRING_FOR_PHASER, "Phaser"},

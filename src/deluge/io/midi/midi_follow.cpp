@@ -462,7 +462,6 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 			        && (!midiEngine.midiFollowFeedbackFilter
 			            || (midiEngine.midiFollowFeedbackFilter
 			                && ((AudioEngine::audioSampleTimer - timeLastCCSent[ccNumber]) >= kSampleRate))))) {
-
 				// setup model stack for the active context
 				if (modelStack) {
 					auto modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -517,20 +516,10 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 					int32_t knobPos =
 					    modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
 
-					// add 64 to internal knobPos to compare to midi cc value received
-					// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
-					// because midi can only send a max midi value of 127
-					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
-					if (knobPosForMidiValueComparison > kMaxMIDIValue) {
-						knobPosForMidiValueComparison = kMaxMIDIValue;
-					}
-
+					// calculate new knob position based on value received and deluge current value
+					int32_t newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, nullptr, true, ccNumber);
 					// is the cc being received for the same value as the current knob pos? If so, do nothing
-					if (value != knobPosForMidiValueComparison) {
-						// calculate new knob position based on value received and deluge current value
-						int32_t newKnobPos =
-						    midiTakeover.calculateKnobPos(modelStackWithParam, knobPos, value, nullptr, true, ccNumber);
-
+					if (newKnobPos != knobPos) {
 						// Convert the New Knob Position to a Parameter Value
 						int32_t newValue =
 						    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);

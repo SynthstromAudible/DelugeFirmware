@@ -21,12 +21,7 @@
 #include "modulation/knob.h"
 #include "modulation/params/param_set.h"
 
-class MidiTakeover final {
-public:
-	MidiTakeover();
-
-	int32_t calculateKnobPos(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, int32_t value,
-	                         MIDIKnob* knob = nullptr, bool doingMidiFollow = false, int32_t ccNumber = MIDI_CC_NONE);
-};
-
-extern MidiTakeover midiTakeover;
+namespace MidiTakeover {
+int32_t calculateKnobPos(int32_t knobPos, int32_t value, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
+                         int32_t ccNumber = MIDI_CC_NONE);
+} // namespace MidiTakeover

@@ -1362,35 +1362,11 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDIDevice* fro
 				int32_t knobPos =
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 
-				if (knob->relative) {
-					int32_t offset = value;
-					if (offset >= 64) {
-						offset -= 128;
-					}
-					int32_t lowerLimit = std::min(-64_i32, knobPos);
-					newKnobPos = knobPos + offset;
-					newKnobPos = std::max(newKnobPos, lowerLimit);
-					newKnobPos = std::min(newKnobPos, 64_i32);
-					if (newKnobPos == knobPos) {
-						continue;
-					}
-				}
-				else {
-					// add 64 to internal knobPos to compare to midi cc value received
-					// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
-					// because midi can only send a max midi value of 127
-					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
-					if (knobPosForMidiValueComparison > kMaxMIDIValue) {
-						knobPosForMidiValueComparison = kMaxMIDIValue;
-					}
-
-					// is the cc being received for the same value as the current knob pos? If so, do nothing
-					if (value != knobPosForMidiValueComparison) {
-						newKnobPos = midiTakeover.calculateKnobPos(modelStackWithParam, knobPos, value, knob);
-					}
-					else {
-						continue;
-					}
+				// calculate new knob position based on value received and deluge current value
+				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob);
+				// is the cc being received for the same value as the current knob pos? If so, do nothing
+				if (newKnobPos == knobPos) {
+					continue;
 				}
 
 				// Convert the New Knob Position to a Parameter Value
@@ -1454,35 +1430,11 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				int32_t knobPos =
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 
-				if (knob->relative) {
-					int32_t offset = value;
-					if (offset >= 64) {
-						offset -= 128;
-					}
-					int32_t lowerLimit = std::min(-64_i32, knobPos);
-					newKnobPos = knobPos + offset;
-					newKnobPos = std::max(newKnobPos, lowerLimit);
-					newKnobPos = std::min(newKnobPos, 64_i32);
-					if (newKnobPos == knobPos) {
-						continue;
-					}
-				}
-				else {
-					// add 64 to internal knobPos to compare to midi cc value received
-					// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
-					// because midi can only send a max midi value of 127
-					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
-					if (knobPosForMidiValueComparison > kMaxMIDIValue) {
-						knobPosForMidiValueComparison = kMaxMIDIValue;
-					}
-
-					// is the cc being received for the same value as the current knob pos? If so, do nothing
-					if (value != knobPosForMidiValueComparison) {
-						newKnobPos = midiTakeover.calculateKnobPos(modelStackWithParam, knobPos, value, knob);
-					}
-					else {
-						continue;
-					}
+				// calculate new knob position based on value received and deluge current value
+				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob);
+				// is the cc being received for the same value as the current knob pos? If so, do nothing
+				if (newKnobPos == knobPos) {
+					continue;
 				}
 
 				// Convert the New Knob Position to a Parameter Value
