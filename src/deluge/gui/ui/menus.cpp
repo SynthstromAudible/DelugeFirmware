@@ -30,6 +30,7 @@
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/defaults/bend_range.h"
 #include "gui/menu_item/defaults/grid_default_active_mode.h"
+#include "gui/menu_item/defaults/hold_time.h"
 #include "gui/menu_item/defaults/keyboard_layout.h"
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/metronome_volume.h"
@@ -1022,6 +1023,8 @@ defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE, STRING_FOR_D
 ToggleBool defaultHighCPUUsageIndicatorMode{STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
                                             STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
                                             FlashStorage::highCPUUsageIndicator};
+defaults::HoldTime defaultHoldTimeMenu{STRING_FOR_HOLD_TIME, STRING_FOR_HOLD_TIME};
+
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1039,6 +1042,7 @@ Submenu defaultsSubmenu{
         &defaultPadBrightness,
         &defaultSliceMode,
         &defaultHighCPUUsageIndicatorMode,
+        &defaultHoldTimeMenu,
     },
 };
 
