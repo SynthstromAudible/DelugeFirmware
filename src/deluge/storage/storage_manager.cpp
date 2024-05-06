@@ -583,8 +583,9 @@ void Serializer::writeAbsoluteSyncLevelToFile(Song* song, char const* name, Sync
 	writeAttribute(name, song->convertSyncLevelFromInternalValueToFileValue(internalValue), onNewLine);
 }
 
-void Serializer::writeFirmwareVersion() { writeAttribute("firmwareVersion", kFirmwareVersionStringShort); }
-
+void Serializer::writeFirmwareVersion() {
+	writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
+}
 
 XMLSerializer::XMLSerializer() : fileWriteBufferCurrentPos(0), ms(NULL) {
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
