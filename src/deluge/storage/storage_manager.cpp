@@ -18,6 +18,7 @@
 #include "storage/storage_manager.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
+#include "fatfs/fatfs.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
@@ -37,6 +38,8 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/firmware_version.h"
+#include "util/functions.h"
+#include "util/try.h"
 #include "version.h"
 #include <string.h>
 
@@ -61,7 +64,7 @@ extern void songLoaded(Song* song);
 
 // Because FATFS and FIL objects store buffers for SD read data to be read to via DMA, we have to space them apart from
 // any other data so that invalidation and stuff works
-struct FileSystemStuff fileSystemStuff;
+struct FileSystemStuff fileSystemStuff {};
 
 StorageManager::StorageManager() {
 	fileClusterBuffer = NULL;
@@ -1008,16 +1011,16 @@ Error StorageManager::checkSpaceOnCard() {
 }
 
 // Creates folders and subfolders as needed!
-Error StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwrite) {
+std::expected<FatFS::File, Error> StorageManager::createFile(char const* filePath, bool mayOverwrite) {
 
 	Error error = initSD();
 	if (error != Error::NONE) {
-		return error;
+		return std::unexpected(error);
 	}
 
 	error = checkSpaceOnCard();
 	if (error != Error::NONE) {
-		return error;
+		return std::unexpected(error);
 	}
 
 	bool triedCreatingFolder = false;
@@ -1031,22 +1034,21 @@ Error StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwr
 	}
 
 tryAgain:
-	FRESULT result = f_open(file, filePath, mode);
-
-	if (result != FR_OK) {
+	auto opened = FatFS::File::open(filePath, mode);
+	if (!opened) {
 
 processError:
 		// If folder doesn't exist, try creating it - once only
-		if (result == FR_NO_PATH) {
+		if (opened.error() == FatFS::Error::NO_PATH) {
 			if (triedCreatingFolder) {
-				return Error::FOLDER_DOESNT_EXIST;
+				return std::unexpected(Error::FOLDER_DOESNT_EXIST);
 			}
 			triedCreatingFolder = true;
 
 			String folderPath;
 			error = folderPath.set(filePath);
 			if (error != Error::NONE) {
-				return error;
+				return std::unexpected(error);
 			}
 
 			// Get just the folder path
@@ -1054,22 +1056,22 @@ cutFolderPathAndTryCreating:
 			char const* folderPathChars = folderPath.get();
 			char const* slashAddr = strrchr(folderPathChars, '/');
 			if (!slashAddr) {
-				return Error::UNSPECIFIED; // Shouldn't happen
+				return std::unexpected(Error::UNSPECIFIED); // Shouldn't happen
 			}
 			int32_t slashPos = (uint32_t)slashAddr - (uint32_t)folderPathChars;
 
 			error = folderPath.shorten(slashPos);
 			if (error != Error::NONE) {
-				return error;
+				return std::unexpected(error);
 			}
 
 			// Try making the folder
-			result = f_mkdir(folderPath.get());
-			if (result == FR_OK) {
+			auto made_dir = FatFS::mkdir(folderPath.get());
+			if (made_dir) {
 				goto tryAgain;
 			}
-			else if (result
-			         == FR_NO_PATH) { // If that folder couldn't be created because its parent folder didn't exist...
+			// If that folder couldn't be created because its parent folder didn't exist...
+			else if (made_dir.error() == FatFS::Error::NO_PATH) {
 				triedCreatingFolder = false;      // Let it do multiple tries again
 				goto cutFolderPathAndTryCreating; // Go and try creating the parent folder
 			}
@@ -1080,27 +1082,29 @@ cutFolderPathAndTryCreating:
 
 		// Otherwise, just return the appropriate error.
 		else {
-			error = fresultToDelugeErrorCode(result);
+
+			error = fatfsErrorToDelugeError(opened.error());
 			if (error == Error::SD_CARD) {
 				error = Error::WRITE_FAIL; // Get a bit more specific if we only got the most general error.
 			}
-			return error;
+			return std::unexpected(error);
 		}
 	}
 
-	return Error::NONE;
+	return opened.value();
 }
 
 Error StorageManager::createXMLFile(char const* filePath, bool mayOverwrite, bool displayErrors) {
 
-	Error error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
-	if (error != Error::NONE) {
+	auto created = createFile(filePath, mayOverwrite);
+	if (!created) {
 		if (displayErrors) {
 			display->removeWorkingAnimation();
-			display->displayError(error);
+			display->displayError(created.error());
 		}
-		return error;
+		return created.error();
 	}
+	fileSystemStuff.currentFile = created.value().inner();
 
 	fileBufferCurrentPos = 0;
 	fileTotalBytesWritten = 0;
@@ -1381,7 +1385,9 @@ Error StorageManager::initSD() {
 	}
 
 	// Otherwise, we can mount the filesystem...
-	result = f_mount(&fileSystemStuff.fileSystem, "", 1);
+	D_TRY_CATCH(fileSystemStuff.fileSystem.mount(1).transform_error(fatfsErrorToDelugeError), error, {
+		return error; //<
+	});
 
 	return fresultToDelugeErrorCode(result);
 }
