@@ -426,6 +426,17 @@ void AutomationView::initializeView() {
 				clip->lastSelectedOutputType = outputType;
 			}
 
+			// if we're in a kit, we want to make sure the param selected is valid for current context
+			// e.g. only UNPATCHED_GLOBAL param kind's can be used with Kit Affect Entire enabled
+			if ((outputType == OutputType::KIT) && (clip->lastSelectedParamKind != params::Kind::NONE)) {
+				if (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL) {
+					clip->affectEntire = true;
+				}
+				else {
+					clip->affectEntire = false;
+				}
+			}
+
 			if (clip->wrapEditing) { // turn led off if it's on
 				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 			}
@@ -592,8 +603,8 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	// erase current occupancy mask as it will be refreshed
 	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
-	performActualRender(whichRows, &image[0][0], occupancyMask, currentSong->xScroll[navSysId],
-	                    currentSong->xZoom[navSysId], kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
+	performActualRender(image, occupancyMask, currentSong->xScroll[navSysId], currentSong->xZoom[navSysId],
+	                    kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
 
 	blinkShortcuts();
 
@@ -646,7 +657,7 @@ void AutomationView::blinkShortcuts() {
 }
 
 // determines whether you should render the automation editor, automation overview or just render some love <3
-void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
+void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWidth],
                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
                                          uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
                                          bool drawUndefinedArea) {
@@ -683,34 +694,27 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 		isBipolar = isParamBipolar(kind, modelStackWithParam->paramId);
 	}
 
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		if (onArrangerView
+		    || (outputType != OutputType::CV
+		        && !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum))) {
 
-		if (whichRows & (1 << yDisplay)) {
-			uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
-
-			if (onArrangerView
-			    || (outputType != OutputType::CV
-			        && !(outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
-			             && !((Kit*)output)->selectedDrum))) {
-
-				// if parameter has been selected, show Automation Editor
-				if (!isOnAutomationOverview()) {
-					renderAutomationEditor(modelStackWithParam, clip, image + (yDisplay * imageWidth),
-					                       occupancyMaskOfRow, renderWidth, xScroll, xZoom, effectiveLength, yDisplay,
-					                       drawUndefinedArea, kind, isBipolar);
-				}
-
-				// if not editing a parameter, show Automation Overview
-				else {
-					renderAutomationOverview(modelStackWithTimelineCounter, modelStackWithThreeMainThings, clip,
-					                         outputType, image + (yDisplay * imageWidth), occupancyMaskOfRow, yDisplay);
-				}
+			// if parameter has been selected, show Automation Editor
+			if (!isOnAutomationOverview()) {
+				renderAutomationEditor(modelStackWithParam, clip, image, occupancyMask, renderWidth, xScroll, xZoom,
+				                       effectiveLength, xDisplay, drawUndefinedArea, kind, isBipolar);
 			}
 
+			// if not editing a parameter, show Automation Overview
 			else {
-				if (outputType == OutputType::CV) {
-					renderLove(image + (yDisplay * imageWidth), occupancyMaskOfRow, yDisplay);
-				}
+				renderAutomationOverview(modelStackWithTimelineCounter, modelStackWithThreeMainThings, clip, outputType,
+				                         image, occupancyMask, xDisplay);
+			}
+		}
+
+		else {
+			if (outputType == OutputType::CV) {
+				renderLove(image, occupancyMask, xDisplay);
 			}
 		}
 	}
@@ -719,18 +723,18 @@ void AutomationView::performActualRender(uint32_t whichRows, RGB* image,
 // renders automation overview
 void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                               ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
-                                              OutputType outputType, RGB* image, uint8_t occupancyMask[],
-                                              int32_t yDisplay) {
+                                              OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
+                                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                              int32_t xDisplay) {
 
-	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
-		RGB& pixel = image[xDisplay];
+		RGB& pixel = image[yDisplay][xDisplay];
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 		if (!onArrangerView
-		    && ((outputType == OutputType::SYNTH
-		         || (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()))
+		    && ((outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
 		        && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 		            || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)))) {
 
@@ -754,7 +758,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 		}
 
 		else if ((onArrangerView || (outputType == OutputType::AUDIO)
-		          || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire()))
+		          || (outputType == OutputType::KIT && getAffectEntire()))
 		         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
 			int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 			if (onArrangerView) {
@@ -789,25 +793,26 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				pixel = colours::grey;
 			}
 
-			occupancyMask[xDisplay] = 64;
+			occupancyMask[yDisplay][xDisplay] = 64;
 		}
 	}
 }
 
 // gets the length of the clip, renders the pads corresponding to current parameter values set up to the clip length
 // renders the undefined area of the clip that the user can't interact with
-void AutomationView::renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, RGB* image,
-                                            uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll,
-                                            uint32_t xZoom, int32_t effectiveLength, int32_t yDisplay,
+void AutomationView::renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+                                            RGB image[][kDisplayWidth + kSideBarWidth],
+                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
+                                            int32_t xScroll, uint32_t xZoom, int32_t effectiveLength, int32_t xDisplay,
                                             bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 
-		renderRow(modelStackWithParam, image, occupancyMask, effectiveLength, yDisplay,
-		          modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
+		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
+		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
 
 		if (drawUndefinedArea) {
 			renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
-			                    currentSong->tripletsOn);
+			                    currentSong->tripletsOn, xDisplay);
 		}
 	}
 }
@@ -832,16 +837,18 @@ bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::mod
 	return false;
 }
 
-/// render each square in each row of the automation editor grid
-void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB* image, uint8_t occupancyMask[],
-                               int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll,
-                               int32_t xZoom, params::Kind kind, bool isBipolar) {
+/// render each square in each column of the automation editor grid
+void AutomationView::renderAutomationColumn(ModelStackWithAutoParam* modelStackWithParam,
+                                            RGB image[][kDisplayWidth + kSideBarWidth],
+                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                            int32_t lengthToDisplay, int32_t xDisplay, bool isAutomated,
+                                            int32_t xScroll, int32_t xZoom, params::Kind kind, bool isBipolar) {
+
+	uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
+	int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
 
 	// iterate through each square
-	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
-		int32_t knobPos = getParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
-
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (isBipolar) {
 			renderBipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, kind, knobPos);
 		}
@@ -852,9 +859,10 @@ void AutomationView::renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB
 }
 
 /// render column for bipolar params - e.g. pan, pitch, patch cable
-void AutomationView::renderBipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay,
-                                         bool isAutomated, params::Kind kind, int32_t knobPos) {
-	RGB& pixel = image[xDisplay];
+void AutomationView::renderBipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
+                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
+                                         int32_t yDisplay, bool isAutomated, params::Kind kind, int32_t knobPos) {
+	RGB& pixel = image[yDisplay][xDisplay];
 
 	int32_t middleKnobPos;
 
@@ -915,7 +923,7 @@ void AutomationView::renderBipolarSquare(RGB* image, uint8_t occupancyMask[], in
 				pixel = rowBipolarDownTailColour[yDisplay];
 			}
 		}
-		occupancyMask[xDisplay] = 64;
+		occupancyMask[yDisplay][xDisplay] = 64;
 	}
 
 	// pad selection mode, render cursor
@@ -931,14 +939,15 @@ void AutomationView::renderBipolarSquare(RGB* image, uint8_t occupancyMask[], in
 		else {
 			pixel = colours::grey;
 		}
-		occupancyMask[xDisplay] = 64;
+		occupancyMask[yDisplay][xDisplay] = 64;
 	}
 }
 
 /// render column for unipolar params (e.g. not pan, pitch, or patch cables)
-void AutomationView::renderUnipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay,
-                                          bool isAutomated, int32_t knobPos) {
-	RGB& pixel = image[xDisplay];
+void AutomationView::renderUnipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
+                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
+                                          int32_t yDisplay, bool isAutomated, int32_t knobPos) {
+	RGB& pixel = image[yDisplay][xDisplay];
 
 	// determine whether or not you should render a row based on current value
 	bool doRender = false;
@@ -954,7 +963,7 @@ void AutomationView::renderUnipolarSquare(RGB* image, uint8_t occupancyMask[], i
 		else { // not automated, render less bright tail colour
 			pixel = rowTailColour[yDisplay];
 		}
-		occupancyMask[xDisplay] = 64;
+		occupancyMask[yDisplay][xDisplay] = 64;
 	}
 
 	// pad selection mode, render cursor
@@ -965,14 +974,15 @@ void AutomationView::renderUnipolarSquare(RGB* image, uint8_t occupancyMask[], i
 		else {
 			pixel = colours::grey;
 		}
-		occupancyMask[xDisplay] = 64;
+		occupancyMask[yDisplay][xDisplay] = 64;
 	}
 }
 
 // occupancyMask now optional
-void AutomationView::renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay, RGB* rowImage,
-                                         uint8_t occupancyMask[], int32_t imageWidth, TimelineView* timelineView,
-                                         bool tripletsOnHere) {
+void AutomationView::renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay,
+                                         RGB image[][kDisplayWidth + kSideBarWidth],
+                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
+                                         TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay) {
 	// If the visible pane extends beyond the end of the Clip, draw it as grey
 	int32_t greyStart = timelineView->getSquareFromPos(lengthToDisplay - 1, NULL, xScroll, xZoom) + 1;
 
@@ -980,20 +990,20 @@ void AutomationView::renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_
 		greyStart = 0; // This actually happened in a song of Marek's, due to another bug, but best to check for this
 	}
 
-	if (greyStart < imageWidth) {
-		std::fill(rowImage + greyStart, rowImage + greyStart + (imageWidth - greyStart), colours::grey);
-		if (occupancyMask) {
-			memset(occupancyMask + greyStart, 64, imageWidth - greyStart);
+	if (greyStart <= xDisplay) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			image[yDisplay][xDisplay] = colours::grey;
+			occupancyMask[yDisplay][xDisplay] = 64;
 		}
 	}
 
 	if (tripletsOnHere && timelineView->supportsTriplets()) {
-		for (int32_t xDisplay = 0; xDisplay < imageWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			if (!timelineView->isSquareDefined(xDisplay, xScroll, xZoom)) {
-				rowImage[xDisplay] = colours::grey;
+				image[yDisplay][xDisplay] = colours::grey;
 
 				if (occupancyMask) {
-					occupancyMask[xDisplay] = 64;
+					occupancyMask[yDisplay][xDisplay] = 64;
 				}
 			}
 		}
@@ -1002,16 +1012,17 @@ void AutomationView::renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_
 
 // easter egg lol. it is rendered when you press the CV clip button as you can't use automation view there
 // it draws a cute heart and musical note
-void AutomationView::renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay) {
+void AutomationView::renderLove(RGB image[][kDisplayWidth + kSideBarWidth],
+                                uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay) {
 
-	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
-		RGB& pixel = image[xDisplay];
+		RGB& pixel = image[yDisplay][xDisplay];
 
 		if (love[xDisplay][yDisplay] == 0xFFFFFFFF) {
 
 			pixel = rowColour[yDisplay];
-			occupancyMask[xDisplay] = 64;
+			occupancyMask[yDisplay][xDisplay] = 64;
 		}
 	}
 }
@@ -1104,8 +1115,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 		char const* overviewText;
 		if (onArrangerView || outputType != OutputType::CV) {
 			if (!onArrangerView
-			    && (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
-			        && !((Kit*)clip->output)->selectedDrum)) {
+			    && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)clip->output)->selectedDrum)) {
 				overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 				deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
 			}
@@ -1209,8 +1219,7 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 		char const* overviewText;
 		if (onArrangerView || outputType != OutputType::CV) {
 			if (!onArrangerView
-			    && (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
-			        && !((Kit*)clip->output)->selectedDrum)) {
+			    && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)clip->output)->selectedDrum)) {
 				overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 			}
 			else {
@@ -1681,7 +1690,7 @@ void AutomationView::handleKitButtonAction(OutputType outputType, bool on) {
 			initParameterSelection();
 			resetParameterShortcutBlinking();
 		}
-		if (Buttons::isNewOrShiftButtonPressed()) {
+		if (Buttons::isShiftButtonPressed()) {
 			instrumentClipView.createNewInstrument(OutputType::KIT);
 		}
 		else {
@@ -1699,7 +1708,7 @@ void AutomationView::handleSynthButtonAction(OutputType outputType, bool on) {
 			resetParameterShortcutBlinking();
 		}
 		// this gets triggered when you change an existing clip to synth / create a new synth clip in song mode
-		if (Buttons::isNewOrShiftButtonPressed()) {
+		if (Buttons::isShiftButtonPressed()) {
 			instrumentClipView.createNewInstrument(OutputType::SYNTH);
 		}
 		// this gets triggered when you change clip type to synth from within inside clip view
@@ -1791,7 +1800,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 				ModelStackWithTimelineCounter* modelStack =
 				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
-				clip->clear(action, modelStack);
+				clip->clear(action, modelStack, true);
 			}
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 
@@ -1997,7 +2006,7 @@ ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* 
 				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 					Drum* drum = modelStackWithNoteRow->getNoteRow()->drum;
 					if (((Kit*)output)->selectedDrum != drum) {
-						if (!instrumentClipView.getAffectEntire()) {
+						if (!getAffectEntire()) {
 							initParameterSelection();
 						}
 					}
@@ -2484,7 +2493,7 @@ doSilentAudition:
 
 getOut:
 
-	if (selectedDrumChanged && !instrumentClipView.getAffectEntire()) {
+	if (selectedDrumChanged && !getAffectEntire()) {
 		initParameterSelection();
 		uiNeedsRendering(this); // need to redraw automation grid squares cause selected drum may have changed
 	}
@@ -2852,7 +2861,7 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 						newSelectedDrum = noteRow->drum;
 					}
 					instrumentClipView.setSelectedDrum(newSelectedDrum, true);
-					changedActiveModControllable = !instrumentClipView.getAffectEntire();
+					changedActiveModControllable = !getAffectEntire();
 				}
 
 				if (outputType == OutputType::SYNTH) {
@@ -3307,7 +3316,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	else if (onArrangerView || outputType != OutputType::CV) {
 		// if you're in a audio clip, a kit with affect entire enabled, or in arranger view
 		if (onArrangerView || (outputType == OutputType::AUDIO)
-		    || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire())) {
+		    || (outputType == OutputType::KIT && getAffectEntire())) {
 			selectGlobalParam(offset, clip);
 		}
 		// if you're a synth or a kit (with affect entire off and a drum selected)
@@ -3629,7 +3638,7 @@ void AutomationView::getLastSelectedParamArrayPosition(Clip* clip) {
 	if (onArrangerView || outputType != OutputType::CV) {
 		// if you're in a audio clip, a kit with affect entire enabled, or in arranger view
 		if (onArrangerView || (outputType == OutputType::AUDIO)
-		    || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire())) {
+		    || (outputType == OutputType::KIT && getAffectEntire())) {
 			getLastSelectedGlobalParamArrayPosition(clip);
 		}
 		// if you're a synth or a kit (with affect entire off and a drum selected)
@@ -3748,7 +3757,8 @@ ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStac
 		paramKind = clip->lastSelectedParamKind;
 	}
 
-	modelStackWithParam = clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind);
+	modelStackWithParam = clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(),
+	                                                           getCurrentUI() == &soundEditor);
 
 	return modelStackWithParam;
 }
@@ -3765,7 +3775,7 @@ int32_t AutomationView::getEffectiveLength(ModelStackWithTimelineCounter* modelS
 	if (onArrangerView) {
 		effectiveLength = arrangerView.getMaxLength();
 	}
-	else if (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()) {
+	else if (outputType == OutputType::KIT && !getAffectEntire()) {
 		ModelStackWithNoteRow* modelStackWithNoteRow = ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
 
 		effectiveLength = modelStackWithNoteRow->getLoopLength();
@@ -3991,10 +4001,8 @@ void AutomationView::handleSinglePadPress(ModelStackWithAutoParam* modelStackWit
 
 	// this means you are selecting a parameter
 	if ((shortcutPress || isOnAutomationOverview())
-	    && (onArrangerView
-	        || !(outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()
-	             && !((Kit*)output)->selectedDrum)
-	        || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire()))) {
+	    && (onArrangerView || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)
+	        || (outputType == OutputType::KIT && getAffectEntire()))) {
 
 		if (handleParameterSelection(clip, outputType, xDisplay, yDisplay)) {
 			return;
@@ -4012,8 +4020,7 @@ void AutomationView::handleSinglePadPress(ModelStackWithAutoParam* modelStackWit
 // called by handle single pad press when it is determined that you are selecting a parameter on automation overview
 // or by using a grid shortcut combo
 bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay) {
-	if (!onArrangerView
-	    && (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !instrumentClipView.getAffectEntire()))
+	if (!onArrangerView && (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
 	    && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 	        || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID))) {
 		// don't allow automation of portamento in kit's
@@ -4038,7 +4045,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 
 	// if you are in arranger, an audio clip, or a kit clip with affect entire enabled
 	else if ((onArrangerView || (outputType == OutputType::AUDIO)
-	          || (outputType == OutputType::KIT && instrumentClipView.getAffectEntire()))
+	          || (outputType == OutputType::KIT && getAffectEntire()))
 	         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
 
 		params::Kind paramKind = params::Kind::UNPATCHED_GLOBAL;
@@ -4428,6 +4435,25 @@ bool AutomationView::isOnAutomationOverview() {
 	}
 
 	return false;
+}
+
+// used to determine the affect entire context for a kit clip
+bool AutomationView::getAffectEntire() {
+	// are you in the menu?
+	if (getCurrentUI() == &soundEditor) {
+		// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
+		if (soundEditor.setupKitGlobalFXMenu) {
+			return true;
+		}
+		// otherwise you're in the kit row context which is the same as if affect entire is disabled
+		else {
+			return false;
+		}
+	}
+	// otherwise if you're not in the menu, use the clip affect entire state
+	else {
+		return getCurrentInstrumentClip()->affectEntire;
+	}
 }
 
 void AutomationView::displayCVErrorMessage() {

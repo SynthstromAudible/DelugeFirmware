@@ -93,6 +93,7 @@ The Settings menu contains the following menu hierarchy:
 		- Jump
 		- Pickup (PICK)
 		- Scale (SCAL)
+		- Relative (RELA)
 	- Commands (CMD)
 		- Play
 		- Restart (REST)
@@ -215,6 +216,9 @@ The Settings menu contains the following menu hierarchy:
 		- Once
 		- Loop
 		- Stretch
+	- High CPU Indicator (CPU)
+		- Disabled (OFF)
+		- Enabled (ON)
 </details>
 
 <details><summary>Swing Interval (SWIN)</summary>
@@ -904,15 +908,16 @@ The Sound menu contains the following menu hierarchy:
 </details>
 <details><summary>Voice (VOIC) </summary>
 
-	- Polyphony (POLY)
-		- Auto
-		- Polyphonic
-		- Monophonic
-		- Legato
+	- Polyphony Type (POLY)
+		- Auto (Can play chords, but starting a new note ends any releasing ones)
+		- Polyphonic (Can play up to MAX VOICES notes. Click for MAX VOICES sub menu to set number of voices)
+		- Monophonic (Each note stops all other notes, retriggers envelope)
+		- Legato (Each note stops all other notes, does not retrigger envelope)
 	- Unison (UNIS)
 		- Unison Number (NUM)
 		- Unison Detune (DETU)
 		- Unison Stereo Spread (SPRE)
+    - Max Voices (VCNT)
 	- Portamento (PORT)
 	- Priority (PRIO)
 		- Low

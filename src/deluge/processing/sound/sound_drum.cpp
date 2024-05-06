@@ -159,7 +159,7 @@ void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, P
 	writer.writeOpeningTagBeginning("sound");
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
-	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings);
+	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, NULL);
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile(writer);
@@ -171,8 +171,8 @@ void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, P
 void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("sound");
 	writer.writeAttribute("name", name.get());
-	writer.writeAttribute("path", path.get());
-	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings);
+
+	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.get());
 
 	if (savingSong) {
 		Drum::writeMIDICommandsToFile(writer);

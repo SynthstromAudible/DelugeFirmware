@@ -5,6 +5,16 @@
 Every time a Pull Request improves the community firmware it shall be noted down what it accomplishes and how it is
 used.
 
+Please note that this document describes the state of the very latest
+development work for a future Deluge version at a given time, and many of the
+features are not yet available in released stable versions. Documentation
+about released versions can be found here:
+
+- [1.1.x (Beethoven)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/docs/community_features.md)
+- [1.0.x (Amadeus)](https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/community_features.md)
+
+For more detailed version information, see the [changelog](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/CHANGELOG.md).
+
 Reference the 'Community Features Menu' section at the end of this document to understand what each entry is and their
 7SEG abbreviations.
 
@@ -80,8 +90,7 @@ Here is a list of general improvements that have been made, ordered from newest 
       but any already sounding notes will be stopped.
 
 - ([#889]) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
-  clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active view (e.g. arranger
-  view, song view, audio clip view, instrument clip view).
+  clips, and for Parameters, all MIDI (notes + cc’s) received will be directed to control the active or selected clip).
     - For a detailed description of this feature, please refer to the feature
       documentation: [MIDI Follow Mode Documentation]
     - Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow channel for learned MIDI cc's.
@@ -198,8 +207,9 @@ Here is a list of general improvements that have been made, ordered from newest 
   - Minimum value = Bottom two lights fully lit
     - Between middle and minimum, the bottom two lights will be lit up proportionately to the value in that range
 
-#### 3.16 - Heavy CPU Usage (Culling) Indicator
-- ([#1506]) The play button now blinks when the the CPU Usage of the Deluge is high and synth voices/sample playback are being culled.
+#### 3.16 - High CPU Usage Indicator
+- ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
+  - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 
 #### 3.17 - Select Audio Clip Source from Audio Clip Menu
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
@@ -339,7 +349,7 @@ Here is a list of features that have been added to the firmware as a list, group
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:
-        1. Enter `SETTINGS > DEFAULTS > UI > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
+        1. Enter `SETTINGS > DEFAULTS > UI > SONG > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
         2. Exit Settings menu to save settings
     - The following steps enable you to quickly create and arm new clips for recording:
         1. In Grid view, make sure you are in Green mode.
@@ -444,6 +454,8 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
   of the MIDI encoder/Fader position and the amount of "runway" remaining on the MIDI controller. Once the MIDI
   controller reaches its maximum or minimum position, the MIDI encoder/Fader will move in sync with the Deluge. The
   Deluge value will always decrease/increase in the same direction as the MIDI controller.
+
+  **4. `RELATIVE`:** The Deluge will increase/decrease its internal encoder position/Parameter value using the relative value changes (offset) sent by the controller. The controller must be actually sending relative value changes (127 for down and 1 for up) in order for this to work.
 
 #### 4.2.4 - Alternative Delay Types for Param Encoders (Gold encoders)
 
@@ -621,8 +633,6 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
         - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of
           the Deluge grid (second pad from the top). Toggle interpolation on/off using Shift + Interpolation shortcut
           pad. The Interpolation shortcut pad will blink to indicate that interpolation is enabled.
-        - Updated `AUTOMATION VIEW` to remove select encoder scrolling selection of non-MIDI clip parameters. Select
-          encoder is now used to fine tune non-MIDI parameter values in the `AUTOMATION VIEW EDITOR`.
         - Updated `AUTOMATION VIEW` to provide access to Settings menu (hold shift + press select encoder)
         - Updated `AUTOMATION VIEW` to provide access to the Sound menu (press select encoder)
         - Updated automatable parameter editing menu's (accessed via Sound menu or Shift + parameter shortcut) to

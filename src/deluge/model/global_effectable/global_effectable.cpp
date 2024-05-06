@@ -115,6 +115,13 @@ void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamMan
 	else if (whichModButton == 5) {
 		displayModFXSettings(on);
 	}
+	// Other Mod Buttons
+	else {
+		// Env Attack / Release not relevant for global effectable context
+		if (whichModButton != 2) {
+			displayOtherModKnobSettings(whichModButton, on);
+		}
+	}
 }
 
 void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
@@ -614,6 +621,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 	}
 	return ActionResult::NOT_DEALT_WITH;
 }
+
 // Always check this doesn't return NULL!
 int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 
@@ -785,18 +793,15 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
 }
 
-void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
-
-	ModControllableAudio::writeAttributesToFile(writer);
-
+void GlobalEffectable::writeAttributesToFile(StorageManager& writer, bool writeAutomation) {
 	writer.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
 	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
+	ModControllableAudio::writeAttributesToFile(writer);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	// <--
 }
 
-void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
-
-	ModControllableAudio::writeTagsToFile(writer);
-
+void GlobalEffectable::writeTagsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation) {
 	if (paramManager) {
 		writer.writeOpeningTagBeginning("defaultParams");
 		GlobalEffectable::writeParamAttributesToFile(writer, paramManager, writeAutomation);
@@ -804,6 +809,8 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 		GlobalEffectable::writeParamTagsToFile(writer, paramManager, writeAutomation);
 		writer.writeClosingTag("defaultParams");
 	}
+
+	ModControllableAudio::writeTagsToFile(writer);
 }
 
 void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -836,7 +843,13 @@ void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManag
 	unpatchedParams->writeParamAsAttribute(writer, "modFXRate", params::UNPATCHED_MOD_FX_RATE, writeAutomation, false,
 	                                       valuesForOverride);
 
-	ModControllableAudio::writeParamAttributesToFile(writer, paramManager, writeAutomation, valuesForOverride);
+	ModControllableAudio::writeParamAttributesToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	unpatchedParams->writeParamAsAttribute(writer, "lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(writer, "hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
+	                                       valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -856,16 +869,12 @@ void GlobalEffectable::writeParamTagsToFile(Serializer& writer, ParamManager* pa
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(writer, "resonance", params::UNPATCHED_LPF_RES, writeAutomation, false,
 	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "morph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
-	                                       valuesForOverride);
 	writer.closeTag();
 
 	writer.writeOpeningTagBeginning("hpf");
 	unpatchedParams->writeParamAsAttribute(writer, "frequency", params::UNPATCHED_HPF_FREQ, writeAutomation, false,
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(writer, "resonance", params::UNPATCHED_HPF_RES, writeAutomation, false,
-	                                       valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "morph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
 	writer.closeTag();
 
@@ -918,6 +927,7 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 				                           readAutomationUpToPos);
 				reader.exitTag("resonance");
 			}
+
 			else if (!strcmp(tagName, "morph")) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH,
 				                           readAutomationUpToPos);
@@ -939,6 +949,7 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 				                           readAutomationUpToPos);
 				reader.exitTag("resonance");
 			}
+
 			else if (!strcmp(tagName, "morph")) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH,
 				                           readAutomationUpToPos);
@@ -952,6 +963,16 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_REVERB_SEND_AMOUNT,
 		                           readAutomationUpToPos);
 		reader.exitTag("reverbAmount");
+	}
+
+	else if (!strcmp(tagName, "lpfMorph")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
+		bdsm.exitTag("lpfMorph");
+	}
+
+	else if (!strcmp(tagName, "hpfMorph")) {
+		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
+		bdsm.exitTag("hpfMorph");
 	}
 
 	else if (!strcmp(tagName, "volume")) {

@@ -204,6 +204,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_JUMP, "Jump"},
         {STRING_FOR_PICK_UP, "Pickup"},
         {STRING_FOR_SCALE, "Scale"},
+        {STRING_FOR_RELATIVE, "Relative"},
         {STRING_FOR_FLANGER, "Flanger"},
         {STRING_FOR_CHORUS, "Chorus"},
         {STRING_FOR_PHASER, "Phaser"},
@@ -449,6 +450,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MODE, "MODE"},
         {STRING_FOR_ARPEGGIATOR, "ARPEGGIATOR"},
         {STRING_FOR_POLYPHONY, "POLYPHONY"},
+        {STRING_FOR_MAX_VOICES, "MAX VOICES"},
         {STRING_FOR_PRIORITY, "PRIORITY"},
         {STRING_FOR_VOICE, "VOICE"},
         {STRING_FOR_DESTINATION, "Destination"},
@@ -717,6 +719,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_FOLLOW_FEEDBACK, "Feedback"},
         {STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION, "Automation Feedback"},
         {STRING_FOR_FOLLOW_FEEDBACK_FILTER, "Filter Responses"},
+        {STRING_FOR_FOLLOW_CONTROL_SONG_PARAM, "Control Song Param"},
         {STRING_FOR_FOLLOW_DEVICE_UNASSIGNED, "Device unassigned"},
         {STRING_FOR_FOLLOW_CHANNEL_UNASSIGNED, "Channel unassigned"},
         {STRING_FOR_INPUT_DIFFERENTIATION_ON, "Use learned device:"},
@@ -734,6 +737,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_TRANSPOSE_CHROMATIC, "Chromatic"},
         {STRING_FOR_TRANSPOSE_CHORD, "Chord"},
         {STRING_FOR_CANT_ENTER_SCALE, "Can't enter scale mode, MIDI transpose is chromatic"},
+        {STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, "High CPU Indicator"},
     },
 };
 } // namespace deluge::l10n::built_in

@@ -138,6 +138,7 @@ public:
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 	void setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft, int32_t knobPosRight);
 	void resetInterpolationShortcutBlinking();
+	bool getAffectEntire();
 
 private:
 	// button action functions
@@ -173,26 +174,35 @@ private:
 	                   uint8_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 
 	// Automation View Render Functions
-	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
-	                         bool drawUndefinedArea = true);
+	void performActualRender(RGB image[][kDisplayWidth + kSideBarWidth],
+	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll, uint32_t xZoom,
+	                         int32_t renderWidth, int32_t imageWidth, bool drawUndefinedArea = true);
 	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                              ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
-	                              OutputType outputType, RGB* image, uint8_t occupancyMask[], int32_t yDisplay);
-	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, RGB* image,
-	                            uint8_t occupancyMask[], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
-	                            int32_t effectiveLength, int32_t yDisplay, bool drawUndefinedArea,
+	                              OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
+	                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay);
+	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+	                            RGB image[][kDisplayWidth + kSideBarWidth],
+	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
+	                            int32_t xScroll, uint32_t xZoom, int32_t effectiveLength, int32_t xDisplay,
+	                            bool drawUndefinedArea, deluge::modulation::params::Kind kind, bool isBipolar);
+	void renderAutomationColumn(ModelStackWithAutoParam* modelStackWithParam,
+	                            RGB image[][kDisplayWidth + kSideBarWidth],
+	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t lengthToDisplay,
+	                            int32_t xDisplay, bool isAutomated, int32_t xScroll, int32_t xZoom,
 	                            deluge::modulation::params::Kind kind, bool isBipolar);
-	void renderRow(ModelStackWithAutoParam* modelStackWithParam, RGB* image, uint8_t occupancyMask[],
-	               int32_t lengthToDisplay, int32_t yDisplay, bool isAutomated, int32_t xScroll, int32_t xZoom,
-	               deluge::modulation::params::Kind kind, bool isBipolar);
-	void renderBipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay, bool isAutomated,
-	                         deluge::modulation::params::Kind kind, int32_t knobPos);
-	void renderUnipolarSquare(RGB* image, uint8_t occupancyMask[], int32_t xDisplay, int32_t yDisplay, bool isAutomated,
-	                          int32_t knobPos);
-	void renderUndefinedArea(int32_t localScroll, uint32_t, int32_t lengthToDisplay, RGB* image, uint8_t[],
-	                         int32_t imageWidth, TimelineView* editorScreen, bool tripletsOnHere);
-	void renderLove(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	void renderBipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
+	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay, int32_t yDisplay,
+	                         bool isAutomated, deluge::modulation::params::Kind kind, int32_t knobPos);
+	void renderUnipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
+	                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
+	                          int32_t yDisplay, bool isAutomated, int32_t knobPos);
+	void renderUndefinedArea(int32_t xScroll, uint32_t xZoom, int32_t lengthToDisplay,
+	                         RGB image[][kDisplayWidth + kSideBarWidth],
+	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
+	                         TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay);
+	void renderLove(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	                int32_t xDisplay);
 	void renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
 	void renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,

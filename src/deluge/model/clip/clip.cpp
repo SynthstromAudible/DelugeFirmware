@@ -649,7 +649,13 @@ void Clip::writeToFile(Serializer& writer, Song* song) {
 
 	writer.writeOpeningTagBeginning(xmlTag);
 
-	writeDataToFile(writer, song);
+	bool endedOpeningTag = writeDataToFile(writer, song);
+
+	if (!endedOpeningTag) {
+		writer.writeOpeningTagEnd();
+	}
+
+	Clip::writeMidiCommandsToFile(writer, song);
 
 	writer.writeClosingTag(xmlTag);
 }
@@ -684,8 +690,11 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (launchStyle != LaunchStyle::DEFAULT) {
 		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
-	writer.writeOpeningTagEnd();
 
+	return false;
+}
+
+void Clip::writeMidiCommandsToFile(StorageManager& writer, Song* song) {
 	muteMIDICommand.writeNoteToFile(writer, "muteMidiCommand");
 }
 
@@ -976,7 +985,7 @@ trimFoundParamManager:
 	return Error::NONE;
 }
 
-void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
+void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation) {
 	// New community feature as part of Automation Clip View Implementation
 	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
 	// will only clear the Notes and MPE data (NON MPE automations remain intact).
@@ -1007,7 +1016,7 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 
 			// Normal case
 			else {
-				if (getCurrentUI() == &automationView || !FlashStorage::automationClear) {
+				if (clearAutomation) {
 					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
 			}

@@ -83,7 +83,8 @@ public:
 	bool echoing; // Doesn't get cloned - we wouldn't want that!
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-	                                                int32_t paramID, deluge::modulation::params::Kind paramKind);
+	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
+	                                                bool affectEntire, bool useMenuStack);
 
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);

@@ -74,8 +74,7 @@ jobs:
 
       - name: Genfile check
         run: |
-          find src/ -name 'g_*' | git update-index --verbose --stdin
-          git diff-files --patch --exit-code
+          git diff --exit-code
 
       - name: Publish built firmware (release-bin)
         uses: actions/upload-artifact@v4

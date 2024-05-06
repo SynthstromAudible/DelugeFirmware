@@ -108,7 +108,7 @@ public:
 	virtual Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) = 0;
 	virtual bool getCurrentlyRecordingLinearly() = 0;
 	virtual bool currentlyScrollableAndZoomable() = 0;
-	virtual void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
+	virtual void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation);
 
 	void writeToFile(Serializer& writer, Song* song);
 	virtual void writeDataToFile(Serializer& writer, Song* song);

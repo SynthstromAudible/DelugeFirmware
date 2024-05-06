@@ -280,7 +280,7 @@ bool paramNeedsLPF(ParamType p, bool fromAutomation) {
 	}
 }
 
-char const* paramNameForFile(Kind const kind, ParamType const param) {
+constexpr char const* paramNameForFileConst(Kind const kind, ParamType const param) {
 	using enum Kind;
 	if (kind == UNPATCHED_SOUND && param >= UNPATCHED_START + UNPATCHED_NUM_SHARED) {
 		// Unpatched params just for Sounds
@@ -552,19 +552,46 @@ char const* paramNameForFile(Kind const kind, ParamType const param) {
 
 	return "none";
 }
-
-ParamType fileStringToParam(Kind kind, char const* name) {
-	for (int32_t p = 0; p < kUnpatchedAndPatchedMaximum; ++p) {
-		if (strcmp(name, paramNameForFile(kind, p)) == 0) {
+char const* paramNameForFile(Kind const kind, ParamType const param) {
+	return paramNameForFileConst(kind, param);
+}
+constexpr ParamType fileStringToParamConst(Kind kind, char const* name, bool allowPatched) {
+	int32_t start = allowPatched ? 0 : UNPATCHED_START;
+	for (int32_t p = start; p < kUnpatchedAndPatchedMaximum; ++p) {
+		if (std::string_view(name) == paramNameForFileConst(kind, p)) {
 			return p;
 		}
 	}
 
-	if (strcmp(name, "range") == 0) {
+	if (std::string_view(name) == "range") {
 		return util::to_underlying(PLACEHOLDER_RANGE); // For compatibility reading files from before V3.2.0
 	}
 
 	return util::to_underlying(GLOBAL_NONE);
 }
+ParamType fileStringToParam(Kind kind, char const* name, bool allowPatched) {
+	return fileStringToParamConst(kind, name, allowPatched);
+}
 
+constexpr bool validateParams() {
+	bool m = true;
+	Kind kind = Kind::UNPATCHED_SOUND;
+	for (int32_t p = 0; p < kUnpatchedAndPatchedMaximum; ++p) {
+		auto name = paramNameForFileConst(kind, p);
+		auto paramFromName = fileStringToParamConst(kind, name, true);
+		if (p != paramFromName && std::string_view(name) != "none") {
+			m = false;
+		}
+	}
+	kind = Kind::UNPATCHED_GLOBAL;
+	for (int32_t p = UNPATCHED_START; p < kUnpatchedAndPatchedMaximum; ++p) {
+		auto name = paramNameForFileConst(kind, p);
+		auto paramFromName = fileStringToParamConst(kind, name, false);
+		if (p != paramFromName && std::string_view(name) != "none") {
+			m = false;
+		}
+	}
+	return m;
+}
+static_assert(validateParams());
 } // namespace deluge::modulation::params

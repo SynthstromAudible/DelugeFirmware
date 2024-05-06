@@ -689,15 +689,19 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "mode")
-			         && smDeserializer.firmware_version < FirmwareVersion::community({1, 0, 0})) {
+			else if (!strcmp(tagName, "mode") && smDeserializer.firmware_version < FirmwareVersion::community({1, 2, 0})) {
 				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+				// but only if the new params are not already read and set,
+				// that is, if we detect they have a value other than default
 				if (arpSettings) {
 					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
-					arpSettings->mode = oldModeToArpMode(oldMode);
-					arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
-					arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
-					arpSettings->updatePresetFromCurrentSettings();
+					if (arpSettings->mode == ArpMode::OFF && arpSettings->noteMode == ArpNoteMode::UP
+					    && arpSettings->octaveMode == ArpOctaveMode::UP) {
+						arpSettings->mode = oldModeToArpMode(oldMode);
+						arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
+						arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
+						arpSettings->updatePresetFromCurrentSettings();
+					}
 				}
 				reader.exitTag("mode");
 			}
@@ -1256,6 +1260,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 	else if (!strcmp(tagName, "polyphonic")) {
 		polyphonic = stringToPolyphonyMode(reader.readTagOrAttributeValue());
 		reader.exitTag("polyphonic");
+	}
+
+	else if (!strcmp(tagName, "maxVoices")) {
+		maxVoiceCount = reader.readTagOrAttributeValueInt();
+		reader.exitTag("maxVoices");
 	}
 
 	else if (!strcmp(tagName, "voicePriority")) {
@@ -3828,42 +3837,39 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	unpatchedParams->writeParamAsAttribute(writer, "arpeggiatorGate", params::UNPATCHED_ARP_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
-	                                       writeAutomation);
-
-	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
-	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(writer, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX,
+	unpatchedParams->writeParamAsAttribute(bdsm, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(bdsm, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE, writeAutomation);
+
+	patchedParams->writeParamAsAttribute(bdsm, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX,
 	                                     writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "oscBVolume", params::LOCAL_OSC_B_VOLUME, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX,
+	patchedParams->writeParamAsAttribute(bdsm, "oscBVolume", params::LOCAL_OSC_B_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "oscBPulseWidth", params::LOCAL_OSC_B_PHASE_WIDTH, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "oscBWavetablePosition", params::LOCAL_OSC_B_WAVE_INDEX,
 	                                     writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "noiseVolume", params::LOCAL_NOISE_VOLUME, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "noiseVolume", params::LOCAL_NOISE_VOLUME, writeAutomation);
 
 	patchedParams->writeParamAsAttribute(writer, "volume", params::GLOBAL_VOLUME_POST_FX, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "pan", params::LOCAL_PAN, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "waveFold", params::LOCAL_FOLD, writeAutomation);
-	// Filters
+
 	patchedParams->writeParamAsAttribute(writer, "lpfFrequency", params::LOCAL_LPF_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "lpfResonance", params::LOCAL_LPF_RESONANCE, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "lpfMorph", params::LOCAL_LPF_MORPH, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(writer, "hpfFrequency", params::LOCAL_HPF_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "hpfResonance", params::LOCAL_HPF_RESONANCE, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "hpfFrequency", params::LOCAL_HPF_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "hpfResonance", params::LOCAL_HPF_RESONANCE, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
 
-	patchedParams->writeParamAsAttribute(writer, "lfo1Rate", params::GLOBAL_LFO_FREQ, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "lfo1Rate", params::GLOBAL_LFO_FREQ, writeAutomation);
+	patchedParams->writeParamAsAttribute(bdsm, "lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ, writeAutomation);
 
 	patchedParams->writeParamAsAttribute(writer, "modulator1Amount", params::LOCAL_MODULATOR_0_VOLUME, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "modulator1Feedback", params::LOCAL_MODULATOR_0_FEEDBACK,
@@ -3894,7 +3900,23 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	patchedParams->writeParamAsAttribute(writer, "reverbAmount", params::GLOBAL_REVERB_AMOUNT, writeAutomation);
 
 	patchedParams->writeParamAsAttribute(writer, "arpeggiatorRate", params::GLOBAL_ARP_RATE, writeAutomation);
+
 	ModControllableAudio::writeParamAttributesToFile(writer, paramManager, writeAutomation);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+
+	patchedParams->writeParamAsAttribute(writer, "lpfMorph", params::LOCAL_LPF_MORPH, writeAutomation);
+	patchedParams->writeParamAsAttribute(writer, "hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
+
+	patchedParams->writeParamAsAttribute(writer, "waveFold", params::LOCAL_FOLD, writeAutomation);
+
+	unpatchedParams->writeParamAsAttribute(writer, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
 
 	writer.writeOpeningTagEnd();
 
@@ -3919,7 +3941,7 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,
-                        ArpeggiatorSettings* arpSettings) {
+                        ArpeggiatorSettings* arpSettings, const char* pathAttribute) {
 
 	writer.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
 	writer.writeAttribute("voicePriority", util::to_underlying(voicePriority));
@@ -3935,7 +3957,13 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeAttribute("transpose", transpose);
 	}
 
-	ModControllableAudio::writeAttributesToFile(writer);
+	ModControllableAudio::writeAttributesToFile(bdsm);
+
+	// Community Firmware parameters (always write them after the official ones)
+	if (pathAttribute) {
+		writer.writeAttribute("path", pathAttribute);
+	}
+	writer.writeAttribute("maxVoices", maxVoiceCount);
 
 	writer.writeOpeningTagEnd(); // -------------------------------------------------------------------------
 
@@ -3945,11 +3973,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	// LFOs
 	writer.writeOpeningTagBeginning("lfo1");
 	writer.writeAttribute("type", lfoTypeToString(lfoGlobalWaveType), false);
-
-	writer.writeAttribute("syncType", (int32_t)lfoGlobalSyncType, false);
-	// writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
-	writer.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(lfoGlobalSyncLevel),
-	                      false);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoGlobalSyncLevel, false);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	writer.writeSyncTypeToFile(currentSong, "syncType", lfoGlobalSyncType, false);
 	writer.closeTag();
 
 	writer.writeOpeningTagBeginning("lfo2");
@@ -3975,10 +4001,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writer.writeOpeningTagBeginning("unison");
 	writer.writeAttribute("num", numUnison, false);
 	writer.writeAttribute("detune", unisonDetune, false);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("spread", unisonStereoSpread, false);
 	writer.closeTag();
-
-	ModControllableAudio::writeTagsToFile(writer);
 
 	if (paramManager) {
 		writer.writeOpeningTagBeginning("defaultParams");
@@ -3988,15 +4013,14 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	if (arpSettings) {
 		writer.writeOpeningTagBeginning("arpeggiator");
+		writer.writeAttribute("mode", arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
+		writer.writeAttribute("numOctaves", arpSettings->numOctaves);
+		writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
+		writer.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType);
 		writer.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
 		writer.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
 		writer.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		writer.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
-		writer.writeAttribute("numOctaves", arpSettings->numOctaves);
-		writer.writeAttribute("syncType", (int32_t)arpSettings->syncType);
-		// writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel);
-		writer.writeAttribute("syncLevel",
-		                      currentSong->convertSyncLevelFromInternalValueToFileValue(arpSettings->syncLevel), true);
 		writer.closeTag();
 	}
 
@@ -4023,6 +4047,8 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		}
 	}
 	writer.writeClosingTag("modKnobs");
+
+	ModControllableAudio::writeTagsToFile(writer);
 }
 
 int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
@@ -4114,37 +4140,47 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 
 	int32_t modKnobMode = *getModKnobMode();
 
-	ModKnob* ourModKnob = &modKnobs[modKnobMode][1];
+	ModKnob* ourModKnobTop = &modKnobs[modKnobMode][1];
+	ModKnob* ourModKnobBottom = &modKnobs[modKnobMode][0];
 
-	// LPF/HPF/EQ
-	if (whichModButton == 1) {
-		if (getSynthMode() != SynthMode::FM) {
-			FilterType currentFilterType;
-			if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)) {
-				currentFilterType = FilterType::LPF;
-			}
-			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)) {
-				currentFilterType = FilterType::HPF;
-			}
-			else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
-			                                                              + params::UNPATCHED_TREBLE)) {
-				currentFilterType = FilterType::EQ;
-			}
-			displayFilterSettings(on, currentFilterType);
-		}
+	// mod button popup logic
+	// if top knob == LPF Freq && bottom knob == LPF Reso
+	// if top knob == HPF Freq && bottom knob == HPF Reso
+	// if top knob == Treble && bottom knob == Bass
+	// --> displayFilterSettings(on, currentFilterType);
+
+	// if top knob == Delay Rate && bottom knob == Delay Amount
+	// --> displayDelaySettings(on);
+
+	// if top knob == Sidechain && bottom knob == Reverb Amount
+	// --> displaySidechainAndReverbSettings(on);
+
+	// else --> display param name
+
+	if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)
+	    && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_RESONANCE)) {
+		displayFilterSettings(on, FilterType::LPF);
 	}
-	// Delay
-	else if (whichModButton == 3) {
-		if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_RATE)) {
-			displayDelaySettings(on);
-		}
+	else if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)
+	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_RESONANCE)) {
+		displayFilterSettings(on, FilterType::HPF);
 	}
-	// Sidechain/Reverb
-	else if (whichModButton == 4) {
-		if ((ourModKnob->paramDescriptor.hasJustOneSource()
-		     && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN)) {
-			displaySidechainAndReverbSettings(on);
-		}
+	else if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START + params::UNPATCHED_TREBLE)
+	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
+	                                                                       + params::UNPATCHED_BASS)) {
+		displayFilterSettings(on, FilterType::EQ);
+	}
+	else if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_RATE)
+	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_FEEDBACK)) {
+		displayDelaySettings(on);
+	}
+	else if ((ourModKnobTop->paramDescriptor.hasJustOneSource()
+	          && ourModKnobTop->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN)
+	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_REVERB_AMOUNT)) {
+		displaySidechainAndReverbSettings(on);
+	}
+	else {
+		displayOtherModKnobSettings(whichModButton, on);
 	}
 }
 

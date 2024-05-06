@@ -24,6 +24,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -257,7 +258,8 @@ void PlaybackHandler::recordButtonPressed() {
 				if (currentPlaybackMode == &session) {
 					bool anyClipsRemoved = currentSong->deletePendingOverdubs(NULL, NULL, true);
 					if (anyClipsRemoved) {
-						uiNeedsRendering(&sessionView);
+						// use root UI in case this is called from performance view
+						sessionView.requestRendering(getRootUI());
 					}
 				}
 				else {
@@ -2644,9 +2646,11 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, 
 					switchToSession();
 				}
 
-				session.toggleClipStatus(clip, &c, false,
-				                         kMIDIKeyInputLatency); // Beware - calling this might insert or delete a Clip!
-				uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
+				// Beware - calling this might insert or delete a Clip!
+				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
+
+				// use root UI in case this is called from performance view
+				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 			}
 			foundAnything = true;
 		}
@@ -2984,10 +2988,11 @@ probablyExitRecordMode:
 	}
 
 	// If pending overdubs already exist, then delete those.
-	else if (currentSong->deletePendingOverdubs()) { // TODO: this traverses all Clips. So does further down. This could
-		                                             // be combined
+	else if (currentSong->deletePendingOverdubs()) {
+		// TODO: this traverses all Clips. So does further down. This could be combined
 		session.launchSchedulingMightNeedCancelling();
-		uiNeedsRendering(&sessionView);
+		// use root UI in case this is called from performance view
+		sessionView.requestRendering(getRootUI());
 
 		goto probablyExitRecordMode;
 	}

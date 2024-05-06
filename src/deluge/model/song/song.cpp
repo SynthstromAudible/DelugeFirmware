@@ -24,6 +24,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
@@ -182,6 +183,9 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbSidechainShape = -601295438;
 	reverbSidechainSync = SYNC_LEVEL_8TH;
 	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
+
+	// setup base compressor gain to match 1.0
+	globalEffectable.compressor.setBaseGain(0.85);
 
 	// initialize automation arranger view variables
 	lastSelectedParamID = kNoSelection;
@@ -1326,10 +1330,6 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
 	writer.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
 	writer.writeAttribute("yScrollSongView", songViewYScroll);
-	writer.writeAttribute("songGridScrollX", songGridScrollX);
-	writer.writeAttribute("songGridScrollY", songGridScrollY);
-	writer.writeAttribute("sessionLayout", sessionLayout);
-
 	writer.writeAttribute("yScrollArrangementView", arrangementYScroll);
 	writer.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
@@ -1338,17 +1338,14 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("rootNote", rootNote);
 	writer.writeAttribute("inputTickMagnitude", insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
 	writer.writeAttribute("swingAmount", swingAmount);
-	// writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
-	writer.writeAttribute("swingInterval", convertSyncLevelFromInternalValueToFileValue((SyncLevel)swingInterval),
-	                      true);
+	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
+
 	if (tripletsOn) {
 		writer.writeAttribute("tripletsLevel", tripletsLevel);
 	}
 
 	writer.writeAttribute("affectEntire", affectEntire);
 	writer.writeAttribute("activeModFunction", globalEffectable.modKnobMode);
-
-	writer.writeAttribute("midiLoopback", midiLoopback);
 
 	if (lastSelectedParamID != kNoSelection) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
@@ -1359,6 +1356,12 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	globalEffectable.writeAttributesToFile(writer, false);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	writer.writeAttribute("midiLoopback", midiLoopback);
+	writer.writeAttribute("songGridScrollX", songGridScrollX);
+	writer.writeAttribute("songGridScrollY", songGridScrollY);
+	writer.writeAttribute("sessionLayout", sessionLayout);
 
 	writer.writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
 
@@ -1943,7 +1946,7 @@ loadOutput:
 						if (error != Error::NONE) {
 							goto gotError;
 						}
-
+						((Instrument*)newOutput)->existsOnCard = true;
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
 					}
@@ -5522,7 +5525,8 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 			songViewYScroll++;
 		}
 
-		uiNeedsRendering(&sessionView);
+		// use root UI in case this is called from performance view
+		sessionView.requestRendering(getRootUI());
 	}
 
 	return newClip;

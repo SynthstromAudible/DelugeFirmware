@@ -253,11 +253,13 @@ submenu::Arpeggiator arpMenu{
 
 // Voice menu ----------------------------------------------------------------------------------------------------
 
-voice::Polyphony polyphonyMenu{STRING_FOR_POLYPHONY};
+voice::PolyphonyType polyphonyMenu{STRING_FOR_POLYPHONY};
+voice::VoiceCount voice::polyphonicVoiceCountMenu{STRING_FOR_MAX_VOICES};
 UnpatchedParam portaMenu{STRING_FOR_PORTAMENTO, params::UNPATCHED_PORTAMENTO};
 voice::Priority priorityMenu{STRING_FOR_PRIORITY};
 
-Submenu voiceMenu{STRING_FOR_VOICE, {&polyphonyMenu, &unisonMenu, &portaMenu, &priorityMenu}};
+Submenu voiceMenu{STRING_FOR_VOICE,
+                  {&polyphonyMenu, &unisonMenu, &voice::polyphonicVoiceCountMenu, &portaMenu, &priorityMenu}};
 
 // Modulator menu -----------------------------------------------------------------------
 
@@ -551,6 +553,7 @@ Submenu globalReverbMenu{
         &reverbRoomSizeMenu,
         &reverbDampingMenu,
         &reverbWidthMenu,
+        &reverbHPFMenu,
         &reverbPanMenu,
         &reverbSidechainMenu,
     },
@@ -767,8 +770,6 @@ midi::FollowFeedbackChannelType midiFollowFeedbackChannelMenu{STRING_FOR_CHANNEL
 midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
 ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
                                         midiEngine.midiFollowFeedbackFilter};
-ToggleBool midiFollowControlSongParamMenu{STRING_FOR_FOLLOW_CONTROL_SONG_PARAM, STRING_FOR_FOLLOW_CONTROL_SONG_PARAM,
-                                          midiEngine.midiFollowControlSongParam};
 
 Submenu midiFollowChannelSubmenu{
     STRING_FOR_CHANNEL,
@@ -798,7 +799,6 @@ Submenu midiFollowSubmenu{
         &midiFollowKitRootNoteMenu,
         &midiFollowFeedbackSubmenu,
         &midiFollowDisplayParamMenu,
-        &midiFollowControlSongParamMenu,
     },
 };
 
@@ -1019,6 +1019,9 @@ defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAU
 defaults::PadBrightness defaultPadBrightness{STRING_FOR_DEFAULT_PAD_BRIGHTNESS,
                                              STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE};
 defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE, STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE};
+ToggleBool defaultHighCPUUsageIndicatorMode{STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
+                                            STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
+                                            FlashStorage::highCPUUsageIndicator};
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1035,6 +1038,7 @@ Submenu defaultsSubmenu{
         &defaultStartupSongMenu,
         &defaultPadBrightness,
         &defaultSliceMode,
+        &defaultHighCPUUsageIndicatorMode,
     },
 };
 

@@ -27,12 +27,13 @@ public:
 	RMSFeedbackCompressor();
 
 	/// takes in all values as knob positions in the range 0-ONE_Q31
-	constexpr void setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc) {
+	constexpr void setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc, float baseGain) {
 		setAttack(a);
 		setRelease(r);
 		setThreshold(t);
 		setRatio(rat);
 		setSidechain(fc);
+		baseGain_ = baseGain;
 	}
 
 	/// Reset the state of the compressor so no gain reduction is applied at the start of the next render window.
@@ -151,6 +152,12 @@ public:
 		return fc_hz;
 	}
 
+	/// Configure the base makeup gain. Since reduction is always negative, we only need to worry about the case where
+	/// reduction == 0 to determine the maximum headroom. er can not exceed 2.08, so we have 1.35 neppers of headroom.
+	///
+	/// The song compressor must use 0.8 to maintain compatibility with previous songs.
+	constexpr void setBaseGain(float baseGain) { baseGain_ = baseGain; }
+
 	/// Update the internal envelope and gain reduction tracking.
 	void updateER(float numSamples, q31_t finalVolume);
 
@@ -203,6 +210,10 @@ private:
 	float releaseMS = 0;
 	float ratio = 2;
 	float fc_hz;
+
+	/// How much to bump the envelope follower RMS value and reduction to get approximate iso-volume when the compressor
+	/// is engaged.
+	float baseGain_;
 
 	// raw knob positions
 	q31_t thresholdKnobPos = 0;

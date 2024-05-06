@@ -52,7 +52,7 @@ Includes   <System Includes> , "Project Includes"
 #include "RZA1/system/iobitmasks/gpio_iobitmask.h"
 #include "deluge/drivers/uart/uart.h"
 #include "deluge/deluge.h"
-#include "timers_interrupts.h"
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 
 /******************************************************************************
 Typedef definitions

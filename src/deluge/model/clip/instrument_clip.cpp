@@ -2273,6 +2273,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 }
 
 void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
+bool InstrumentClip::writeDataToFile(StorageManager& writer, Song* song) {
 
 	writer.writeAttribute("inKeyMode", inScaleMode);
 	writer.writeAttribute("yScroll", yScroll);
@@ -2338,6 +2339,18 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	Clip::writeDataToFile(writer, song);
 
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	writer.writeAttribute("keyboardLayout", keyboardState.currentLayout);
+	writer.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
+	writer.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
+	writer.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
+	writer.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
+	writer.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
+
+	writer.writeOpeningTagEnd();
+
+	Clip::writeMidiCommandsToFile(writer, song);
+
 	if (output->type == OutputType::MIDI_OUT) {
 		paramManager.getMIDIParamCollection()->writeToFile(writer);
 	}
@@ -2355,11 +2368,21 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 			writer.writeAttribute("gate", arpeggiatorGate);
 			writer.writeAttribute("rate", arpeggiatorRate);
+			// Community Firmware parameters (always write them after the official ones, just before closing the parent
+			// tag)
 			writer.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
 			writer.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
 			writer.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
 			writer.writeAttribute("rhythm", arpeggiatorRhythm);
 		}
+
+		// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+		writer.writeAttribute("syncType", arpSettings.syncType);
+		writer.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		writer.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+		writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+		writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+
 		writer.closeTag();
 	}
 
@@ -2407,6 +2430,8 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 		writer.writeClosingTag("noteRows");
 	}
+
+	return true;
 }
 
 Error InstrumentClip::readFromFile(Deserializer& reader, Song* song) {
@@ -2658,11 +2683,16 @@ someError:
 				else if (!strcmp(tagName, "mode")
 				         && smDeserializer.firmware_version < FirmwareVersion::community({1, 1, 0})) {
 					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+					// but only if the new params are not already read and set,
+					// that is, if we detect they have a value other than default
 					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
-					arpSettings.mode = oldModeToArpMode(oldMode);
-					arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
-					arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
-					arpSettings.updatePresetFromCurrentSettings();
+					if (arpSettings.mode == ArpMode::OFF && arpSettings.noteMode == ArpNoteMode::UP
+					    && arpSettings.octaveMode == ArpOctaveMode::UP) {
+						arpSettings.mode = oldModeToArpMode(oldMode);
+						arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
+						arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
+						arpSettings.updatePresetFromCurrentSettings();
+					}
 					reader.exitTag("mode");
 				}
 				else if (!strcmp(tagName, "arpMode")) {
@@ -3534,15 +3564,15 @@ void InstrumentClip::sendMIDIPGM() {
 	}
 }
 
-void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
+void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation) {
 	// this clears automations when "affectEntire" is enabled
-	Clip::clear(action, modelStack);
+	Clip::clear(action, modelStack, clearAutomation);
 
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
-		thisNoteRow->clear(action, modelStackWithNoteRow);
+		thisNoteRow->clear(action, modelStackWithNoteRow, clearAutomation);
 	}
 
 	// Paul: Note rows were lingering, delete them immediately instead of relying they get deleted along the way

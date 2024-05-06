@@ -32,16 +32,12 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 enum class MIDIMatchType;
 
-Clip* getSelectedClip();
-Clip* getSelectedClip(ModelStack* modelStack);
-
 class MidiFollow final {
 public:
 	MidiFollow();
 	void readDefaultsFromFile(StorageManager& bdsm);
 
-	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
-	                                                ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
 	                                                bool displayError = true);
 	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,
@@ -55,6 +51,8 @@ public:
 	void aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                        bool* doingMidiThru, ModelStack* modelStack);
 
+	void removeClip(Clip* clip);
+
 	// midi CC mappings
 	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
 
@@ -67,10 +65,16 @@ public:
 	void sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation = false);
 	void sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos);
 
+	void handleReceivedCC(ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber, int32_t value);
+
 private:
 	// initialize
 	void init();
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
+
+	Clip* getSelectedOrActiveClip();
+	Clip* getSelectedClip();
+	Clip* getActiveClip(ModelStack* modelStack);
 
 	// get model stack with auto param for midi follow cc-param control
 	ModelStackWithAutoParam* getModelStackWithParamForSong(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
@@ -88,7 +92,6 @@ private:
 	                                   int32_t xDisplay, int32_t yDisplay);
 	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
 
-	void handleReceivedCC(ModelStack* modelStack, Clip* clip, int32_t ccNumber, int32_t value);
 	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
 	bool isFeedbackEnabled();
 

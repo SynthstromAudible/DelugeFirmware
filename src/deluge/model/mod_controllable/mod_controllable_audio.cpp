@@ -868,9 +868,10 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
-	writer.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
-	writer.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
 	writer.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
+	writer.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	writer.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
 	writer.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
 	if (clippingAmount) {
 		writer.writeAttribute("clippingAmount", clippingAmount);
@@ -882,29 +883,9 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.writeOpeningTagBeginning("delay");
 	writer.writeAttribute("pingPong", delay.pingPong);
 	writer.writeAttribute("analog", delay.analog);
-	writer.writeAttribute("syncType", (int32_t)delay.syncType, true);
-	// writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
-	writer.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(delay.syncLevel),
-	                      true);
-	writer.closeTag();
-
-	// Sidechain
-	writer.writeOpeningTagBeginning("sidechain");
-	writer.writeAttribute("syncType", (int32_t)sidechain.syncType, true);
-	// writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
-	writer.writeAttribute("syncLevel", currentSong->convertSyncLevelFromInternalValueToFileValue(sidechain.syncLevel),
-	                      true);
-	writer.writeAttribute("attack", sidechain.attack);
-	writer.writeAttribute("release", sidechain.release);
-	writer.closeTag();
-
-	// Audio compressor
-	writer.writeOpeningTagBeginning("audioCompressor");
-	writer.writeAttribute("attack", compressor.getAttack());
-	writer.writeAttribute("release", compressor.getRelease());
-	writer.writeAttribute("thresh", compressor.getThreshold());
-	writer.writeAttribute("ratio", compressor.getRatio());
-	writer.writeAttribute("compHPF", compressor.getSidechain());
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	writer.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
 	writer.closeTag();
 
 	// MIDI knobs
@@ -942,6 +923,24 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 		}
 		writer.writeClosingTag("midiKnobs");
 	}
+
+	// Sidechain (renamed from "compressor" from the official firmware)
+	writer.writeOpeningTagBeginning("sidechain");
+	writer.writeAttribute("attack", sidechain.attack);
+	writer.writeAttribute("release", sidechain.release);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+	writer.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
+	writer.closeTag();
+
+	// Audio compressor (this section is all new so we write it at the end)
+	writer.writeOpeningTagBeginning("audioCompressor");
+	writer.writeAttribute("attack", compressor.getAttack());
+	writer.writeAttribute("release", compressor.getRelease());
+	writer.writeAttribute("thresh", compressor.getThreshold());
+	writer.writeAttribute("ratio", compressor.getRatio());
+	writer.writeAttribute("compHPF", compressor.getSidechain());
+	writer.closeTag();
 }
 
 void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,
@@ -956,8 +955,8 @@ void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamM
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(writer, "modFXOffset", params::UNPATCHED_MOD_FX_OFFSET, writeAutomation,
 	                                       false, valuesForOverride);
-	unpatchedParams->writeParamAsAttribute(writer, "modFXFeedback", params::UNPATCHED_MOD_FX_FEEDBACK, writeAutomation,
-	                                       false, valuesForOverride);
+
+	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	unpatchedParams->writeParamAsAttribute(writer, "compressorThreshold", params::UNPATCHED_COMPRESSOR_THRESHOLD,
 	                                       writeAutomation, false, valuesForOverride);
 }
@@ -1224,7 +1223,7 @@ doReadPatchedParam:
 						relative = reader.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "controlsParam")) {
-						p = params::fileStringToParam(unpatchedParamKind_, reader.readTagOrAttributeValue());
+						p = params::fileStringToParam(unpatchedParamKind_, reader.readTagOrAttributeValue(), false);
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
 						s = stringToSource(reader.readTagOrAttributeValue());
@@ -1367,35 +1366,11 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDIDevice* fro
 				int32_t knobPos =
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 
-				if (knob->relative) {
-					int32_t offset = value;
-					if (offset >= 64) {
-						offset -= 128;
-					}
-					int32_t lowerLimit = std::min(-64_i32, knobPos);
-					newKnobPos = knobPos + offset;
-					newKnobPos = std::max(newKnobPos, lowerLimit);
-					newKnobPos = std::min(newKnobPos, 64_i32);
-					if (newKnobPos == knobPos) {
-						continue;
-					}
-				}
-				else {
-					// add 64 to internal knobPos to compare to midi cc value received
-					// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
-					// because midi can only send a max midi value of 127
-					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
-					if (knobPosForMidiValueComparison > kMaxMIDIValue) {
-						knobPosForMidiValueComparison = kMaxMIDIValue;
-					}
-
-					// is the cc being received for the same value as the current knob pos? If so, do nothing
-					if (value != knobPosForMidiValueComparison) {
-						newKnobPos = midiTakeover.calculateKnobPos(modelStackWithParam, knobPos, value, knob);
-					}
-					else {
-						continue;
-					}
+				// calculate new knob position based on value received and deluge current value
+				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob);
+				// is the cc being received for the same value as the current knob pos? If so, do nothing
+				if (newKnobPos == knobPos) {
+					continue;
 				}
 
 				// Convert the New Knob Position to a Parameter Value
@@ -1459,35 +1434,11 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				int32_t knobPos =
 				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
 
-				if (knob->relative) {
-					int32_t offset = value;
-					if (offset >= 64) {
-						offset -= 128;
-					}
-					int32_t lowerLimit = std::min(-64_i32, knobPos);
-					newKnobPos = knobPos + offset;
-					newKnobPos = std::max(newKnobPos, lowerLimit);
-					newKnobPos = std::min(newKnobPos, 64_i32);
-					if (newKnobPos == knobPos) {
-						continue;
-					}
-				}
-				else {
-					// add 64 to internal knobPos to compare to midi cc value received
-					// if internal pos + 64 is greater than 127 (e.g. 128), adjust it to 127
-					// because midi can only send a max midi value of 127
-					int32_t knobPosForMidiValueComparison = knobPos + kKnobPosOffset;
-					if (knobPosForMidiValueComparison > kMaxMIDIValue) {
-						knobPosForMidiValueComparison = kMaxMIDIValue;
-					}
-
-					// is the cc being received for the same value as the current knob pos? If so, do nothing
-					if (value != knobPosForMidiValueComparison) {
-						newKnobPos = midiTakeover.calculateKnobPos(modelStackWithParam, knobPos, value, knob);
-					}
-					else {
-						continue;
-					}
+				// calculate new knob position based on value received and deluge current value
+				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob);
+				// is the cc being received for the same value as the current knob pos? If so, do nothing
+				if (newKnobPos == knobPos) {
+					continue;
 				}
 
 				// Convert the New Knob Position to a Parameter Value
@@ -2050,5 +2001,66 @@ char const* ModControllableAudio::getSidechainDisplayName() {
 	}
 	else {
 		return l10n::get(STRING_FOR_FAST);
+	}
+}
+
+/// displays names of parameters assigned to gold knobs
+void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, bool on) {
+	// the code below handles displaying parameter names on OLED and 7SEG
+
+	/* logic for OLED:
+	- it will display parameter names when you are holding down the mod button
+	- it will display the parameter name assigned to the top and bottom gold knob
+	- e.g. Volume
+	       Pan
+	*/
+
+	/* logic for 7SEG:
+	- while holding down mod button: display parameter assigned to top gold knob
+	- after mod button is released: display parameter assigned to bottom gold knob
+	*/
+
+	DEF_STACK_STRING_BUF(popupMsg, 100);
+	// if we have an OLED display
+	// or a 7SEG display and mod button is pressed
+	// then we will display the top gold knob parameter
+	if (display->haveOLED() || on) {
+		char parameterName[30];
+		view.getParameterNameFromModEncoder(1, parameterName);
+		popupMsg.append(parameterName);
+	}
+	// in the song context,
+	// the bottom knob for modButton 6 (stutter) doesn't have a parameter
+	if (!((whichModButton == 6) && (!view.isClipContext()))) {
+		// if we have an OLED display, we want to add a new line so we can
+		// display the bottom gold knob param below the top gold knob param
+		if (display->haveOLED()) {
+			popupMsg.append("\n");
+		}
+		// if we have an OLED display
+		// or a 7SEG display and mod button is released
+		// then we will display the bottom gold knob parameter
+		// on OLED bottom gold knob param is rendered below the top gold knob param
+		if (display->haveOLED() || !on) {
+
+			char parameterName[30];
+			view.getParameterNameFromModEncoder(0, parameterName);
+			popupMsg.append(parameterName);
+		}
+	}
+	// if we have OLED, a pop up is shown while we are holding down mod button
+	// pop-up is removed after we release the mod button
+	if (display->haveOLED()) {
+		if (on) {
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
+	}
+	// if we have 7SEG, we display a temporary popup whenever mod button is pressed
+	// and when it is released
+	else {
+		display->displayPopup(popupMsg.c_str());
 	}
 }

@@ -399,7 +399,11 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
-			getCurrentInstrumentClip()->clear(action, modelStack);
+			UI* currentUI = getCurrentUI();
+
+			bool clearAutomation = (currentUI == &automationView || !FlashStorage::automationClear);
+
+			getCurrentInstrumentClip()->clear(action, modelStack, clearAutomation);
 
 			// New default as part of Automation Clip View Implementation
 			// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing
@@ -408,32 +412,24 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			// message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
 
 			if (FlashStorage::automationClear) {
-				if (getCurrentUI() == &automationView) {
+				if (currentUI == &automationView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
-					uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
 				}
-				else if (getCurrentUI() == &instrumentClipView) {
+				else if (currentUI == &instrumentClipView) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
-					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
 				}
 			}
 			else {
-				if (getCurrentUI() == &instrumentClipView) {
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_CLEARED));
-					uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
-				}
-				else if (getCurrentUI() == &automationView) {
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CLIP_CLEARED));
-					uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
-				}
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_CLIP_CLEARED));
 			}
+			uiNeedsRendering(currentUI, 0xFFFFFFFF, 0);
 		}
 	}
 
 	// Which-instrument-type buttons
 	else if (b == SYNTH) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (Buttons::isNewOrShiftButtonPressed()) {
+			if (Buttons::isShiftButtonPressed()) {
 				createNewInstrument(OutputType::SYNTH);
 			}
 			else {

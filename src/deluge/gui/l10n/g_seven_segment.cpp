@@ -122,6 +122,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_JUMP, "JUMP"},
         {STRING_FOR_PICK_UP, "PICK"},
         {STRING_FOR_SCALE, "SCAL"},
+        {STRING_FOR_RELATIVE, "RELA"},
         {STRING_FOR_FLANGER, "FLANGER"},
         {STRING_FOR_CHORUS, "CHORUS"},
         {STRING_FOR_PHASER, "PHASER"},
@@ -242,6 +243,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_ENVELOPE_1, "ENV1"},
         {STRING_FOR_ENVELOPE_2, "ENV2"},
         {STRING_FOR_VOLUME_LEVEL, "VOLUME"},
+        {STRING_FOR_MAX_VOICES, "VCNT"},
         {STRING_FOR_REPEAT_MODE, "MODE"},
         {STRING_FOR_PITCH_SPEED, "PISP"},
         {STRING_FOR_OSCILLATOR_SYNC, "SYNC"},
@@ -397,6 +399,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_TRANSPOSE_CHROMATIC, "CHRM"},
         {STRING_FOR_TRANSPOSE_CHORD, "CHRD"},
         {STRING_FOR_CANT_ENTER_SCALE, "CANT"},
+        {STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, "CPU"},
     },
     &built_in::english,
 };

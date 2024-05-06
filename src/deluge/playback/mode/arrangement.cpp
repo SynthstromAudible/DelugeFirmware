@@ -20,6 +20,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -92,11 +93,13 @@ bool Arrangement::endPlayback() {
 
 	// Some Clips might have been reset to "disabled", so need their mute-square redrawn if we're actually viewing the
 	// session view
-	uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
 
-	playbackHandler.playbackState =
-	    0; // Work-around. Our caller, PlaybackHandler::endPlayback(), sets this next anyway, and can't do it earlier,
-	       // but we need it before reassessing sessionView's greyout.
+	// use root UI in case this is called from performance view
+	sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+
+	// Work-around. Our caller, PlaybackHandler::endPlayback(), sets this next anyway, and can't do it earlier,
+	// but we need it before reassessing sessionView's greyout.
+	playbackHandler.playbackState = 0;
 
 	if (getCurrentUI() == &sessionView) {
 		PadLEDs::reassessGreyout();
@@ -305,7 +308,8 @@ justDoArp:
 	}
 
 	if (anyChangeToSessionClipsPlaying) {
-		uiNeedsRendering(&sessionView, 0, 0xFFFFFFFF);
+		// use root UI in case this is called from performance view
+		sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 	}
 
 	// If nothing further in the arrangement, we usually just stop playing

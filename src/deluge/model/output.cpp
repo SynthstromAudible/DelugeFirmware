@@ -223,7 +223,6 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 		}
 		writer.writeAttribute("isArmedForRecording", armedForRecording);
 		writer.writeAttribute("activeModFunction", modKnobMode);
-		writer.writeAttribute("colour", colour);
 
 		if (clipInstances.getNumElements()) {
 			writer.write("\n");
@@ -258,6 +257,8 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 			}
 			writer.write("\"");
 		}
+
+		bdsm.writeAttribute("colour", colour);
 	}
 
 	return false;

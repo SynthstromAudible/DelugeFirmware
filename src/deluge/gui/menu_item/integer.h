@@ -40,6 +40,7 @@ protected:
 class IntegerWithOff : public Integer {
 public:
 	using Integer::Integer;
+	void drawPixelsForOled() override;
 
 	// 7Seg Only
 	void drawValue() override;

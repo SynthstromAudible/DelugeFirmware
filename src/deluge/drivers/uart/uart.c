@@ -26,8 +26,8 @@
 #include "util/cfunctions.h"
 #include <math.h>
 
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RTT/SEGGER_RTT.h"
-#include "timers_interrupts.h"
 
 void uartPrintln(char const* output) {
 #if ENABLE_TEXT_OUTPUT
