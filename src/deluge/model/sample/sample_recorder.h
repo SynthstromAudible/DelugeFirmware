@@ -19,10 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
-
-extern "C" {
-#include "fatfs/ff.h"
-}
+#include "fatfs/fatfs.hpp"
+#include <cstddef>
 
 enum class MonitoringAction {
 	NONE = 0,
@@ -123,11 +121,11 @@ public:
 
 	int32_t* sourcePos;
 
-	FIL file;
+	std::optional<FatFS::File> file;
 
 private:
 	void setExtraBytesOnPreviousCluster(Cluster* currentCluster, int32_t currentClusterIndex);
-	Error writeCluster(int32_t clusterIndex, int32_t numBytes);
+	Error writeCluster(int32_t clusterIndex, size_t numBytes);
 	Error alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
 
 	                uint64_t dataLengthAfterAction);

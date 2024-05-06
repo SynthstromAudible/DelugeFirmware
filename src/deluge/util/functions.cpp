@@ -17,6 +17,7 @@
 
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
+#include "fatfs/fatfs.hpp"
 #include "fatfs/ff.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
@@ -2142,6 +2143,31 @@ Error fresultToDelugeErrorCode(FRESULT result) {
 		return Error::INSUFFICIENT_RAM;
 
 	case FR_EXIST:
+		return Error::FILE_ALREADY_EXISTS;
+
+	default:
+		return Error::SD_CARD;
+	}
+}
+
+Error fatfsErrorToDelugeError(FatFS::Error result) {
+	switch (result) {
+	case FatFS::Error::NO_FILESYSTEM:
+		return Error::SD_CARD_NO_FILESYSTEM;
+
+	case FatFS::Error::NO_FILE:
+		return Error::FILE_NOT_FOUND;
+
+	case FatFS::Error::NO_PATH:
+		return Error::FOLDER_DOESNT_EXIST;
+
+	case FatFS::Error::WRITE_PROTECTED:
+		return Error::WRITE_PROTECTED;
+
+	case FatFS::Error::NOT_ENOUGH_CORE:
+		return Error::INSUFFICIENT_RAM;
+
+	case FatFS::Error::EXIST:
 		return Error::FILE_ALREADY_EXISTS;
 
 	default:
