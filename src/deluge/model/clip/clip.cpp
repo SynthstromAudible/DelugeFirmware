@@ -985,7 +985,7 @@ trimFoundParamManager:
 	return Error::NONE;
 }
 
-void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
+void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation) {
 	// New community feature as part of Automation Clip View Implementation
 	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
 	// will only clear the Notes and MPE data (NON MPE automations remain intact).
@@ -1016,7 +1016,7 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
 
 			// Normal case
 			else {
-				if (getCurrentUI() == &automationView || !FlashStorage::automationClear) {
+				if (clearAutomation) {
 					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
 			}

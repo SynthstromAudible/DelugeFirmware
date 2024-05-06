@@ -67,7 +67,7 @@ public:
 	RGB getColour();
 	bool currentlyScrollableAndZoomable();
 	void getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_t* xScrollSamples, int64_t* xZoomSamples);
-	void clear(Action* action, ModelStackWithTimelineCounter* modelStack);
+	void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation);
 	bool getCurrentlyRecordingLinearly();
 	void abortRecording();
 	void setupPlaybackBounds();
