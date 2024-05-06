@@ -400,6 +400,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_TRANSPOSE_CHORD, "CHRD"},
         {STRING_FOR_CANT_ENTER_SCALE, "CANT"},
         {STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, "CPU"},
+        {STRING_FOR_HOLD_TIME, "HOLD"},
     },
     &built_in::english,
 };

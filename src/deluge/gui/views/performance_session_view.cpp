@@ -979,7 +979,9 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 								// if you released the pink pad and it was held for longer than hold time
 								// switch back to session view (this happens if you enter performance view with a
 								// long press from grid mode - it just peeks performance view)
-								if (!on && ((AudioEngine::audioSampleTimer - timeGridModePress) >= kHoldTime)) {
+								if (!on
+								    && ((AudioEngine::audioSampleTimer - timeGridModePress)
+								        >= FlashStorage::holdTime)) {
 									gridModeActive = false;
 									changeRootUI(&sessionView);
 								}
@@ -1037,9 +1039,9 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		if ((params::isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive
 		     && lastPadPress.yDisplay == yDisplay)
 		    || (fxPress[xDisplay].padPressHeld
-		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime))
+		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < FlashStorage::holdTime))
 		    || ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
-		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) >= kHoldTime))) {
+		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) >= FlashStorage::holdTime))) {
 
 			// if there was a previously held pad in this column and you pressed another pad
 			// but didn't set that pad to held, then when we let go of this pad, we want the
@@ -1053,7 +1055,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 		// if releasing a pad that was quickly pressed, give it held status
 		else if (!params::isParamStutter(lastSelectedParamKind, lastSelectedParamID)
 		         && (fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
-		         && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < kHoldTime)) {
+		         && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < FlashStorage::holdTime)) {
 			fxPress[xDisplay].padPressHeld = true;
 		}
 		// no saving of logs in performance view editing mode

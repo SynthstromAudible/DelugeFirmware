@@ -229,6 +229,11 @@ Here is a list of general improvements that have been made, ordered from newest 
   - the setting is persistent after reboot
   - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
 
+#### 3.20 Default Hold Press Time
+
+- ([#1846]) Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
+  - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1250,6 +1255,8 @@ different firmware
 [#1607]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1607
 
 [#1739]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1739
+
+[#1846]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1846
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 

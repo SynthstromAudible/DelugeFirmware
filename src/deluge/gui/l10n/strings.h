@@ -840,6 +840,8 @@ enum class String : size_t {
 	// string for high CPU usage indicator default setting
 	STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
 
+	STRING_FOR_HOLD_TIME,
+
 	STRING_LAST
 };
 
