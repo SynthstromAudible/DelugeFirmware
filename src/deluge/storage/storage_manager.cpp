@@ -829,6 +829,7 @@ XMLDeserializer::XMLDeserializer()
 }
 
 XMLDeserializer::~XMLDeserializer() {
+		GeneralMemoryAllocator::get().dealloc(fileClusterBuffer);
 }
 
 // Only call this if IN_TAG_NAME

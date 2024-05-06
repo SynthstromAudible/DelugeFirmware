@@ -223,8 +223,6 @@ public:
 
 	// ** Start of public member variables. These are used outside of StorageManager.
 
-
-
 private:
 	// ** End of member variables
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
