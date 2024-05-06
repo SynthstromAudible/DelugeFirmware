@@ -930,6 +930,18 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 #### 4.5.6 - Configure Note Row Play Direction
 - ([#1739]) Added Synth/MIDI/CV clip configuration of note row play direction. Hold audition pad while entering the play direction menu to set the play direction for the selected note row. While in the note row play direction menu, you can select other note rows to quickly set the play directiom for multiple note rows.
 
+#### 4.5.7 - DX7 Synth type
+
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
+  documentation: [DX7 Synth Documentation]
+
+- A new synth type is added fully compatible with DX7 patches, including editing of all DX7 parameters. This is implemented
+as an oscillator type within the subtractive engine, so it can be combined with filters and other features of this engine.
+
+- Patches can be imported from the common 32-patch bank syx-file format, and afterwards saved as SYNTH presets or as part of songs.
+
+- As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1271,3 +1283,5 @@ different firmware
 [MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
 
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
+
+[DX7 Synth Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/dx_synth.md

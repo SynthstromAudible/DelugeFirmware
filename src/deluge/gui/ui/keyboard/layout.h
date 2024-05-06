@@ -78,6 +78,8 @@ public:
 
 	virtual NotesState& getNotesState() { return currentNotesState; }
 
+	virtual void checkNewInstrument(Instrument* newInstrument) {}
+
 protected:
 	inline bool isKit() { return getCurrentOutputType() == OutputType::KIT; }
 	/// Song root note can be in any octave, layouts get the normalized one
