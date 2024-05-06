@@ -3553,15 +3553,15 @@ void InstrumentClip::sendMIDIPGM() {
 	}
 }
 
-void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
+void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation) {
 	// this clears automations when "affectEntire" is enabled
-	Clip::clear(action, modelStack);
+	Clip::clear(action, modelStack, clearAutomation);
 
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
-		thisNoteRow->clear(action, modelStackWithNoteRow);
+		thisNoteRow->clear(action, modelStackWithNoteRow, clearAutomation);
 	}
 
 	// Paul: Note rows were lingering, delete them immediately instead of relying they get deleted along the way

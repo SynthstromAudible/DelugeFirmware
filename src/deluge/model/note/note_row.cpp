@@ -3592,7 +3592,7 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 	}
 }
 
-void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
+void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clearAutomation) {
 	// New default as part of Automation Clip View Implementation
 	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
 	// will only clear the Notes and MPE data (NON MPE automations remain intact).
@@ -3623,8 +3623,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack) {
 
 			// Normal case
 			else {
-				if (getCurrentUI() == &automationView || !FlashStorage::automationClear) {
-
+				if (clearAutomation) {
 					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
 			}
