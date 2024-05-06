@@ -11,8 +11,7 @@
       model used with those songs.
 - Added compressors to synths, kits, audio clips, and kit rows. The compressor can be enabled and edited from their
   respective menus.
-- Fixed a bug in compressor makeup gain that was causing lower volume than official firmware with low compression amounts. For
-  songs made with community release 1.0.x, you can compensate by slightly lowering the song master level. This is done
+- Compressor behavior has been changed to reduce clipping. Songs made with community release 1.0.x may need to have their volume manually adjusted to compensate. This is done
   via affect entire in song/arranger mode, or by entering the `SONG MENU` by pressing `SELECT` in Song View and navigating to  `MASTER > VOLUME`
 - Fixed Stereo Unison Spread + Ringmod Synth Mode + Noise causing excessively loud output.
 - Fixed some bugs around the Waveform Loop Lock feature which allowed setting invalid loop points.

@@ -142,6 +142,10 @@ public:
 	bool displayVUMeter;
 	bool potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]);
 
+	void getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName);
+
+	bool isClipContext();
+
 private:
 	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();
@@ -153,6 +157,8 @@ private:
 	int32_t cachedMaxYDisplayForVUMeterR;
 	void renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]);
 	bool renderedVUMeter;
+
+	ModelStackWithAutoParam* getModelStackWithParam(int32_t whichModEncoder, bool& noteTailsAllowedBefore);
 };
 
 extern View view;

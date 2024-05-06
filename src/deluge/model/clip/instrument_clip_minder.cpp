@@ -433,7 +433,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	// Which-instrument-type buttons
 	else if (b == SYNTH) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (Buttons::isNewOrShiftButtonPressed()) {
+			if (Buttons::isShiftButtonPressed()) {
 				createNewInstrument(OutputType::SYNTH);
 			}
 			else {

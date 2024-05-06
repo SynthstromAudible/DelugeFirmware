@@ -507,7 +507,7 @@ void ArrangerView::repopulateOutputsOnScreen(bool doRender) {
 
 	if (doRender) {
 		// use root UI in case this is called from performance view
-		uiNeedsRendering(getRootUI());
+		requestRendering(getRootUI());
 	}
 }
 
@@ -2291,8 +2291,7 @@ ActionResult ArrangerView::timerCallback() {
 		if (!pressedClipInstanceIsInValidPosition) {
 			blinkOn = !blinkOn;
 
-			// use root UI in case this is called from performance view
-			uiNeedsRendering(getRootUI(), 1 << yPressedEffective, 0);
+			uiNeedsRendering(this, 1 << yPressedEffective, 0);
 
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 		}
@@ -2304,7 +2303,7 @@ ActionResult ArrangerView::timerCallback() {
 			PadLEDs::reassessGreyout(false);
 		case UI_MODE_VIEWING_RECORD_ARMING:
 			// use root UI in case this is called from performance view
-			uiNeedsRendering(getRootUI(), 0, 0xFFFFFFFF);
+			requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 			blinkOn = !blinkOn;
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 		}
@@ -2377,8 +2376,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 		rememberInteractionWithClipInstance(yPressedEffective, clipInstance);
 
-		// use root UI in case this is called from performance view
-		uiNeedsRendering(getRootUI(), 1 << yPressedEffective, 0);
+		uiNeedsRendering(this, 1 << yPressedEffective, 0);
 	}
 
 	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
@@ -3242,4 +3240,14 @@ Clip* ArrangerView::getClipForSelection() {
 		clip = currentSong->getClipWithOutput(output);
 	}
 	return clip;
+}
+
+void ArrangerView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
+	if (ui == &performanceSessionView) {
+		// don't re-render main pads in performance view
+		uiNeedsRendering(ui, 0, whichSideRows);
+	}
+	else if (ui == &arrangerView) {
+		uiNeedsRendering(ui, whichMainRows, whichSideRows);
+	}
 }

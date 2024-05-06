@@ -92,6 +92,7 @@ public:
 	int32_t sideChainSendLevel;
 
 	PolyphonyMode polyphonic;
+	uint8_t maxVoiceCount{8};
 
 	int16_t transpose;
 
@@ -270,7 +271,6 @@ public:
 			*data = getTanHAntialiased(*data, workingValue, 5 + clippingAmount) << (shiftAmount);
 		}
 	}
-
 	int32_t numVoicesAssigned;
 
 private:
