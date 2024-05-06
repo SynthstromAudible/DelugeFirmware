@@ -219,6 +219,7 @@ The Settings menu contains the following menu hierarchy:
 	- High CPU Indicator (CPU)
 		- Disabled (OFF)
 		- Enabled (ON)
+	- Hold Press Time (HOLD)
 </details>
 
 <details><summary>Swing Interval (SWIN)</summary>

@@ -955,10 +955,6 @@ constexpr int32_t kMaxSampleValue = 1 << kBitDepth; // 2 ** kBitDepth
 /// AudioEngine::audioSampleTimer)
 constexpr uint32_t kShortPressTime = kSampleRate / 2;
 
-/// Length of a press that delineates a "hold" press.
-/// Used in Performance View and with Sticky Shift
-constexpr uint32_t kHoldTime = kSampleRate / 10;
-
 /// Rate at which midi follow feedback for automation is sent
 constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    // 500 ms
 constexpr uint32_t kMediumFeedbackAutomationRate = (kSampleRate / 1000) * 150; // 150 ms
