@@ -46,8 +46,8 @@
 - Fixed numerous bugs, including some crash bugs, around the display of `QUANTIZED STUTTER`.
 - Fixed a bug with `SHIFT + SCROLL SELECT ENCODER` on small menus which would allow moving off the end of the menu, causing crashes.
 - Fixed several bugs with pad grid rendering.
-- Added Master Chromatic Transpose of All Scale Mode Instrument Clips from any SONG View (SONG, ARRANGER,
-  ARRANGER AUTOMATION and PERFORMANCE VIEW.) Uses the same shortcut as in a Synth/Midi/CV clip (Press and
+- Added Master Chromatic Transpose of All Scale Mode Instrument Clips from any SONG View (`SONG VIEW`, `ARRANGER VIEW`,
+  `ARRANGER AUTOMATION VIEW` and `PERFORMANCE VIEW`). Uses the same shortcut as in a Synth/Midi/CV clip (Press and
   turn `▼︎▲︎` to transpose all clips by +/- 1 semitone). The number of semitones transposed is customizable (Press `SHIFT`
   + turn `▼︎▲︎`). After transposing, the display shows the new Root Note (and Scale Name on OLED displays).
 - Added `SIDEBAR CONTROLS` in  `KEYBOARD VIEW` for synths. By default the two sidebar columns pertain to `VELOCITY` (red) and `MOD WHEEL` (blue). Holding a pad sets it momentarily to that value, tapping a pad latches it to that value. The functionality can be changed per column by holding the top pad and turning `SELECT` and include 'CHORDS', `CHORD MEMORY`, and `SCALES`.
