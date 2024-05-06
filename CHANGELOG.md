@@ -77,7 +77,7 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Added parameter names (including mod matrix / patch cable mappings) to Mod (Gold) Encoder popups.
 - `ARRANGER VIEW` and `SONG VIEW` now display the name of the current view on the screen.
 - The 12TET note name is now displayed along with the MIDI note number.
-- Added a new community setting which allows emulating the 7SEG style on the OLED display. When set to 'TOGGLE' press `SHIFT`+`LEARN/INPUT`+`AFFECT ENTIRE` to switch to the emulated 7SEG display. 
+- Added a new community setting which allows emulating the 7SEG style on the OLED display. When set to `TOGGLE` press `SHIFT`+`LEARN/INPUT`+`AFFECT ENTIRE` to switch to the emulated 7SEG display. 
 - Fixed several cases where popups could get stuck open.
 - Fixed a number of minor rendering bugs.
 
