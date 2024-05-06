@@ -32,6 +32,7 @@ public:
 		    l10n::getView(STRING_FOR_JUMP),
 		    l10n::getView(STRING_FOR_PICK_UP),
 		    l10n::getView(STRING_FOR_SCALE),
+		    l10n::getView(STRING_FOR_RELATIVE),
 		};
 	}
 };

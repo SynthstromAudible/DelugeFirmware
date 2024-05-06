@@ -122,6 +122,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_JUMP, "JUMP"},
         {STRING_FOR_PICK_UP, "PICK"},
         {STRING_FOR_SCALE, "SCAL"},
+        {STRING_FOR_RELATIVE, "RELA"},
         {STRING_FOR_FLANGER, "FLANGER"},
         {STRING_FOR_CHORUS, "CHORUS"},
         {STRING_FOR_PHASER, "PHASER"},
