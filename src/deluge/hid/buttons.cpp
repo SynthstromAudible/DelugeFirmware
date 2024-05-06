@@ -26,6 +26,7 @@
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/flash_storage.h"
 #include "testing/hardware_testing.h"
 
 namespace Buttons {
@@ -173,7 +174,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 				}
 				// We got a short press, maybe enable sticky keys
 				// 5th of a second
-				if (delta < kHoldTime) {
+				if (delta < FlashStorage::holdTime) {
 					// unstick shift if another button was pressed while shift was held, or we were already stuck and
 					// this short press is to get us unstuck.
 					shiftCurrentlyStuck = considerShiftReleaseForSticky && !shiftCurrentlyStuck;

@@ -104,7 +104,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// Pad was already active
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				freeSlotIdx = -1; // If a free slot was found previously, reset it so we don't write a second entry
-				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > kHoldTime) {
+				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > FlashStorage::holdTime) {
 					pressedPads[idx].padPressHeld = true;
 				}
 				break;
@@ -129,7 +129,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				pressedPads[idx].active = false;
 				markDead = idx;
-				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > kHoldTime) {
+				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > FlashStorage::holdTime) {
 					pressedPads[idx].padPressHeld = true;
 				}
 				break;
