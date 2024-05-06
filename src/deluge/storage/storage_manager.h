@@ -20,8 +20,8 @@
 #include "definitions_cxx.hpp"
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
-#include <cstdint>
 #include "version.h"
+#include <cstdint>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -69,13 +69,17 @@ public:
 	virtual Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                                    char const* endString = nullptr) = 0;
 
-	void writeFirmwareVersion() {
-		writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
-	}
+	void writeFirmwareVersion() { writeAttribute("firmwareVersion", kFirmwareVersionStringShort); }
 
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString) {
 		writeAttribute("earliestCompatibleFirmware", versionString);
 	}
+
+	void writeSyncTypeToFile(Song* song, char const* name, SyncType value, bool onNewLine) {
+		writeAttribute(name, (int32_t)value, onNewLine);
+	}
+
+	void writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue, bool onNewLine);
 };
 
 class XMLSerializer : public Serializer {
@@ -212,7 +216,6 @@ public:
 	Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
 	                             Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
 	Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
-
 
 	Drum* createNewDrum(DrumType drumType);
 	Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,

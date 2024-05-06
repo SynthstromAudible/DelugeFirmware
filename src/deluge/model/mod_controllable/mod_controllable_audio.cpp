@@ -883,9 +883,9 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.writeOpeningTagBeginning("delay");
 	writer.writeAttribute("pingPong", delay.pingPong);
 	writer.writeAttribute("analog", delay.analog);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel, true);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", delay.syncType);
+	writer.writeSyncTypeToFile(currentSong, "syncType", delay.syncType, true);
 	writer.closeTag();
 
 	// MIDI knobs
@@ -928,9 +928,9 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.writeOpeningTagBeginning("sidechain");
 	writer.writeAttribute("attack", sidechain.attack);
 	writer.writeAttribute("release", sidechain.release);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel, true);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType);
+	writer.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType, true);
 	writer.closeTag();
 
 	// Audio compressor (this section is all new so we write it at the end)

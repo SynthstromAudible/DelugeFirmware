@@ -793,7 +793,7 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	filterSet.renderLongStereo(&buffer->l, &(buffer + numSamples)->l);
 }
 
-void GlobalEffectable::writeAttributesToFile(StorageManager& writer, bool writeAutomation) {
+void GlobalEffectable::writeAttributesToFile(Serializer& writer, bool writeAutomation) {
 	writer.writeAttribute("modFXCurrentParam", (char*)modFXParamToString(currentModFXParam));
 	writer.writeAttribute("currentFilterType", (char*)filterTypeToString(currentFilterType));
 	ModControllableAudio::writeAttributesToFile(writer);
@@ -801,7 +801,7 @@ void GlobalEffectable::writeAttributesToFile(StorageManager& writer, bool writeA
 	// <--
 }
 
-void GlobalEffectable::writeTagsToFile(StorageManager& writer, ParamManager* paramManager, bool writeAutomation) {
+void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
 	if (paramManager) {
 		writer.writeOpeningTagBeginning("defaultParams");
 		GlobalEffectable::writeParamAttributesToFile(writer, paramManager, writeAutomation);
@@ -843,7 +843,7 @@ void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManag
 	unpatchedParams->writeParamAsAttribute(writer, "modFXRate", params::UNPATCHED_MOD_FX_RATE, writeAutomation, false,
 	                                       valuesForOverride);
 
-	ModControllableAudio::writeParamAttributesToFile(bdsm, paramManager, writeAutomation, valuesForOverride);
+	ModControllableAudio::writeParamAttributesToFile(writer, paramManager, writeAutomation, valuesForOverride);
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	unpatchedParams->writeParamAsAttribute(writer, "lpfMorph", params::UNPATCHED_LPF_MORPH, writeAutomation, false,
@@ -967,12 +967,12 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 
 	else if (!strcmp(tagName, "lpfMorph")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_MORPH, readAutomationUpToPos);
-		bdsm.exitTag("lpfMorph");
+		reader.exitTag("lpfMorph");
 	}
 
 	else if (!strcmp(tagName, "hpfMorph")) {
-		unpatchedParams->readParam(bdsm, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
-		bdsm.exitTag("hpfMorph");
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
+		reader.exitTag("hpfMorph");
 	}
 
 	else if (!strcmp(tagName, "volume")) {

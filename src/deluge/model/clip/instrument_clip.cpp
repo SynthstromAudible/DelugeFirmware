@@ -2273,7 +2273,6 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 }
 
 void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
-bool InstrumentClip::writeDataToFile(StorageManager& writer, Song* song) {
 
 	writer.writeAttribute("inKeyMode", inScaleMode);
 	writer.writeAttribute("yScroll", yScroll);
@@ -2430,8 +2429,6 @@ bool InstrumentClip::writeDataToFile(StorageManager& writer, Song* song) {
 
 		writer.writeClosingTag("noteRows");
 	}
-
-	return true;
 }
 
 Error InstrumentClip::readFromFile(Deserializer& reader, Song* song) {

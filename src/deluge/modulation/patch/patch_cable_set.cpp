@@ -818,8 +818,8 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 					source = stringToSource(reader.readTagOrAttributeValue());
 				}
 				else if (!strcmp(tagName, "destination")) {
-					destinationParamDescriptor.setToHaveParamOnly(
-					    params::fileStringToParam(params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue(), true));
+					destinationParamDescriptor.setToHaveParamOnly(params::fileStringToParam(
+					    params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue(), true));
 				}
 				else if (!strcmp(tagName, "amount")) {
 					tempParam.readFromFile(reader, readAutomationUpToPos);

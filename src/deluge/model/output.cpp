@@ -258,7 +258,7 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 			writer.write("\"");
 		}
 
-		bdsm.writeAttribute("colour", colour);
+		writer.writeAttribute("colour", colour);
 	}
 
 	return false;

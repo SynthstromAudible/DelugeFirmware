@@ -1338,7 +1338,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("rootNote", rootNote);
 	writer.writeAttribute("inputTickMagnitude", insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
 	writer.writeAttribute("swingAmount", swingAmount);
-	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval);
+	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval, true);
 
 	if (tripletsOn) {
 		writer.writeAttribute("tripletsLevel", tripletsLevel);

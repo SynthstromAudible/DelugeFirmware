@@ -1041,11 +1041,11 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	}
 
 	Clip::writeDataToFile(writer, song);
-	Clip::writeDataToFile(bdsm, song);
+	Clip::writeDataToFile(writer, song);
 
 	writer.writeOpeningTagEnd();
 
-	Clip::writeMidiCommandsToFile(bdsm, song);
+	Clip::writeMidiCommandsToFile(writer, song);
 
 	writer.writeOpeningTagBeginning("params");
 	GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true);

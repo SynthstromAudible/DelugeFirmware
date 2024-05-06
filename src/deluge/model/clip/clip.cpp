@@ -649,11 +649,9 @@ void Clip::writeToFile(Serializer& writer, Song* song) {
 
 	writer.writeOpeningTagBeginning(xmlTag);
 
-	bool endedOpeningTag = writeDataToFile(writer, song);
+	writeDataToFile(writer, song);
 
-	if (!endedOpeningTag) {
-		writer.writeOpeningTagEnd();
-	}
+	writer.writeOpeningTagEnd();
 
 	Clip::writeMidiCommandsToFile(writer, song);
 
@@ -690,11 +688,9 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (launchStyle != LaunchStyle::DEFAULT) {
 		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
-
-	return false;
 }
 
-void Clip::writeMidiCommandsToFile(StorageManager& writer, Song* song) {
+void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
 	muteMIDICommand.writeNoteToFile(writer, "muteMidiCommand");
 }
 

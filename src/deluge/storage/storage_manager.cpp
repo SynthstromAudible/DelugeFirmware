@@ -220,8 +220,6 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 	return true;
 }
 
-
-
 // Returns false if some error, including error while writing
 bool StorageManager::closeFile() {
 	if (smDeserializer.fileAccessFailedDuring) {
@@ -231,7 +229,6 @@ bool StorageManager::closeFile() {
 	FRESULT result = f_close(&fileSystemStuff.currentFile);
 	return (result == FR_OK);
 }
-
 
 // Gets ready to access SD card.
 // You should call this before you're gonna do any accessing - otherwise any errors won't reflect if there's in fact
@@ -367,7 +364,8 @@ deleteInstrumentAndGetOut:
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
-		if (smDeserializer.firmware_version < FirmwareVersion::official({2, 2, 0, "beta"}) && outputType == OutputType::KIT) {
+		if (smDeserializer.firmware_version < FirmwareVersion::official({2, 2, 0, "beta"})
+		    && outputType == OutputType::KIT) {
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupUnpatched();
 			if (error != Error::NONE) {
@@ -580,6 +578,10 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
     XMLSerializer
 
 ********************************************************************************/
+
+void Serializer::writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue, bool onNewLine) {
+	writeAttribute(name, song->convertSyncLevelFromInternalValueToFileValue(internalValue), onNewLine);
+}
 
 XMLSerializer::XMLSerializer() : fileWriteBufferCurrentPos(0), ms(NULL) {
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
@@ -829,7 +831,7 @@ XMLDeserializer::XMLDeserializer()
 }
 
 XMLDeserializer::~XMLDeserializer() {
-		GeneralMemoryAllocator::get().dealloc(fileClusterBuffer);
+	GeneralMemoryAllocator::get().dealloc(fileClusterBuffer);
 }
 
 // Only call this if IN_TAG_NAME
