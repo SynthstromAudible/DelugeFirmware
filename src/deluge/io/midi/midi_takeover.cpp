@@ -17,6 +17,7 @@
 
 #include "io/midi/midi_takeover.h"
 #include "definitions_cxx.hpp"
+#include "hid/display/display.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 
@@ -27,17 +28,18 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-MidiTakeover midiTakeover{};
+void savePreviousKnobPos(int32_t knobPos, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
+                         int32_t ccNumber = MIDI_CC_NONE);
+void saveKnobPos(int32_t knobPos, MIDIKnob* knob);
+void saveKnobPos(int32_t knobPos, int32_t ccNumber);
+int32_t getPreviousKnobPos(int32_t knobPos, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
+                           int32_t ccNumber = MIDI_CC_NONE);
 
-// initialize variables
-MidiTakeover::MidiTakeover() {
-}
-
-/// based on the midi takeover default setting of JUMP, PICKUP, or SCALE
+/// based on the midi takeover default setting of RELATIVE, JUMP, PICKUP, or SCALE
 /// this function will calculate the knob position that the deluge parameter that the midi cc
 /// received is learned to should be set at based on the midi cc value received
-int32_t MidiTakeover::calculateKnobPos(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, int32_t value,
-                                       MIDIKnob* knob, bool doingMidiFollow, int32_t ccNumber) {
+int32_t MidiTakeover::calculateKnobPos(int32_t knobPos, int32_t value, MIDIKnob* knob, bool doingMidiFollow,
+                                       int32_t ccNumber) {
 	/*
 
 	Step #1: Convert Midi Controller's CC Value to Deluge Knob Position Value
@@ -58,138 +60,145 @@ int32_t MidiTakeover::calculateKnobPos(ModelStackWithAutoParam* modelStackWithPa
 		midiKnobPos = value - 64;
 	}
 
-	int32_t newKnobPos = 0;
+	// we'll first set newKnobPos equal to current knobPos
+	// if newKnobPos should be updated it will happen below
+	int32_t newKnobPos = knobPos;
 
-	if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) { // Midi Takeover Mode = Jump
+	// for controller's sending relative values
+	if (((knob != nullptr) && (knob->relative)) || (midiEngine.midiTakeover == MIDITakeoverMode::RELATIVE)) {
+		int32_t offset = value;
+		if (offset >= 64) {
+			offset -= 128;
+		}
+		int32_t lowerLimit = std::min(-64_i32, knobPos);
+		newKnobPos = knobPos + offset;
+		newKnobPos = std::max(newKnobPos, lowerLimit);
+		newKnobPos = std::min(newKnobPos, 64_i32);
+
+		savePreviousKnobPos(newKnobPos, knob, doingMidiFollow, ccNumber);
+	}
+	// deluge value will always jump to the current midi controller value
+	else if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) {
 		newKnobPos = midiKnobPos;
-		if (knob != nullptr) {
-			knob->previousPosition = midiKnobPos;
-		}
-		else if (doingMidiFollow) {
-			midiFollow.previousKnobPos[ccNumber] = midiKnobPos;
-		}
+
+		savePreviousKnobPos(newKnobPos, knob, doingMidiFollow, ccNumber);
 	}
 	else { // Midi Takeover Mode = Pickup or Value Scaling
-		// Save previous knob position for first time
+		// Get or Save previous knob position for first time
 		// The first time a midi knob is turned in a session, no previous midi knob position information exists, so to
-		// start, it will be equal to the current midiKnobPos This code is also executed when takeover mode is changed
-		// to Jump and back to Pickup/Scale because in Jump mode no previousPosition information gets saved
+		// start, it will be equal to the current midiKnobPos.
 
-		if (knob != nullptr) {
-			if (!knob->previousPositionSaved) {
-				knob->previousPosition = midiKnobPos;
+		int32_t previousKnobPosition = getPreviousKnobPos(midiKnobPos, knob, doingMidiFollow, ccNumber);
 
-				knob->previousPositionSaved = true;
-			}
+		// have we met or exceeded the deluge knob position in either direction?
+		// if so, we've "picked up"
+		// note: if previous knob position information becomes invalid (e.g. switching banks / unplugging midi
+		// controller) then the deluge will behave like "jump" and jump to the current midi controller value
+		if (((previousKnobPosition <= knobPos) && (midiKnobPos >= knobPos))
+		    || ((previousKnobPosition >= knobPos) && (midiKnobPos <= knobPos))) {
+			newKnobPos = midiKnobPos;
 		}
-		else if (doingMidiFollow) {
-			if (midiFollow.previousKnobPos[ccNumber] == kNoSelection) {
-				midiFollow.previousKnobPos[ccNumber] = midiKnobPos;
-			}
-		}
+		// if we haven't picked up and scale is enabled, we'll scale deluge value in direction knob is turning
+		// so that the deluge knob position and midi knob position reach the min/max of knob range at same time
+		else if (midiEngine.midiTakeover == MIDITakeoverMode::SCALE) {
+			// Set the max and min of the deluge midi knob position range
+			int32_t knobMaxPos = 64;
+			int32_t knobMinPos = -64;
 
-		// adjust previous knob position saved
+			// position range
+			int32_t delugeKnobMaxPosDelta = knobMaxPos - knobPos; // Positive Runway
+			int32_t delugeKnobMinPosDelta = knobPos - knobMinPos; // Negative Runway
 
-		// Here we check to see if the midi knob position previously saved is greater or less than the current midi knob
-		// position +/- 1 If it's by more than 1, the previous position is adjusted. This could happen for example if
-		// you changed banks and the previous position is no longer valid. By resetting the previous position we ensure
-		// that the there isn't unwanted jumpyness in the calculation of the midi knob position change amount
-		if (knob != nullptr) {
-			if (knob->previousPosition > (midiKnobPos + 1) || knob->previousPosition < (midiKnobPos - 1)) {
+			// calculate amount of midi "knob runway" is remaining from current knob position to max and min of knob
+			// position range
+			int32_t midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; // Positive Runway
+			int32_t midiKnobMinPosDelta = midiKnobPos - knobMinPos; // Negative Runway
 
-				knob->previousPosition = midiKnobPos;
-			}
-		}
-		else if (doingMidiFollow) {
-			int32_t previousPosition = midiFollow.previousKnobPos[ccNumber];
-			if (previousPosition > (midiKnobPos + 1) || previousPosition < (midiKnobPos - 1)) {
+			// calculate change in value from midi controller
+			// used to determine direction of midi controller value change (increase / decrease)
+			int32_t midiKnobPosChange = midiKnobPos - previousKnobPosition;
 
-				midiFollow.previousKnobPos[ccNumber] = midiKnobPos;
-			}
-		}
+			// we can only scale when we have a change in value
+			if (midiKnobPosChange != 0) {
+				float newKnobPosFloat = static_cast<float>(newKnobPos);
+				float midiKnobPosFloat = static_cast<float>(midiKnobPos);
+				float midiKnobPosChangeFloat = static_cast<float>(midiKnobPosChange);
+				float midiKnobPosChangePercentage;
 
-		// Here is where we check if the Knob/Fader on the Midi Controller is out of sync with the Deluge Knob Position
-
-		// First we check if the Midi Knob/Fader is sending a Value that is greater than or less than the current Deluge
-		// Knob Position by a max difference of +/- kMIDITakeoverKnobSyncThreshold If the difference is greater than
-		// kMIDITakeoverKnobSyncThreshold, ignore the CC value change (or scale it if value scaling is on)
-		int32_t midiKnobMinPos = knobPos - kMIDITakeoverKnobSyncThreshold;
-		int32_t midiKnobMaxPos = knobPos + kMIDITakeoverKnobSyncThreshold;
-
-		if ((midiKnobMinPos <= midiKnobPos) && (midiKnobPos <= midiKnobMaxPos)) {
-			newKnobPos = knobPos + (midiKnobPos - knobPos);
-		}
-		else {
-			// if the above conditions fail and pickup mode is enabled, then the Deluge Knob Position (and therefore the
-			// Parameter Value with it) remains unchanged
-			if (midiEngine.midiTakeover == MIDITakeoverMode::PICKUP) { // Midi Pickup Mode On
-				newKnobPos = knobPos;
-			}
-			// if the first two conditions fail and value scaling mode is enabled, then the Deluge Knob Position is
-			// scaled upwards or downwards based on relative positions of Midi Controller Knob and Deluge Knob to
-			// min/max of knob range.
-			else { // Midi Value Scaling Mode On
-				// Set the max and min of the deluge midi knob position range
-				int32_t knobMaxPos = 64;
-				int32_t knobMinPos = -64;
-
-				// calculate amount of deluge "knob runway" is remaining from current knob position to max and min of
-				// knob position range
-				int32_t delugeKnobMaxPosDelta = knobMaxPos - knobPos; // Positive Runway
-				int32_t delugeKnobMinPosDelta = knobPos - knobMinPos; // Negative Runway
-
-				// calculate amount of midi "knob runway" is remaining from current knob position to max and min of knob
-				// position range
-				int32_t midiKnobMaxPosDelta = knobMaxPos - midiKnobPos; // Positive Runway
-				int32_t midiKnobMinPosDelta = midiKnobPos - knobMinPos; // Negative Runway
-
-				// calculate by how much the current midiKnobPos has changed from the previous midiKnobPos recorded
-				int32_t midiKnobPosChange = 0;
-				if (knob != nullptr) {
-					midiKnobPosChange = midiKnobPos - knob->previousPosition;
-				}
-				else if (doingMidiFollow) {
-					midiKnobPosChange = midiKnobPos - midiFollow.previousKnobPos[ccNumber];
-				}
-
-				// Set fixed point variable which will be used calculate the percentage in midi knob position
-				int32_t midiKnobPosChangePercentage;
-
-				// if midi knob position change is greater than 0, then the midi knob position has increased (e.g.
-				// turned knob right)
+				// turning knob right
 				if (midiKnobPosChange > 0) {
-					// fixed point math calculation of new deluge knob position when midi knob position has increased
+					if (midiKnobMaxPosDelta != 0) { // so we don't potentially divide by 0
+						midiKnobPosChangePercentage = midiKnobPosChangeFloat / midiKnobMaxPosDelta;
+						newKnobPosFloat = newKnobPosFloat + (delugeKnobMaxPosDelta * midiKnobPosChangePercentage);
 
-					midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMaxPosDelta;
-
-					newKnobPos = knobPos + ((delugeKnobMaxPosDelta * midiKnobPosChangePercentage) >> 20);
+						// make sure scaled value is not less than current value when we're turning right
+						// (can happen when midi and deluge knob values get close)
+						if (newKnobPosFloat < newKnobPos) {
+							newKnobPosFloat = newKnobPos;
+						}
+					}
 				}
-				// if midi knob position change is less than 0, then the midi knob position has decreased (e.g. turned
-				// knob left)
-				else if (midiKnobPosChange < 0) {
-					// fixed point math calculation of new deluge knob position when midi knob position has decreased
-
-					midiKnobPosChangePercentage = (midiKnobPosChange << 20) / midiKnobMinPosDelta;
-
-					newKnobPos = knobPos + ((delugeKnobMinPosDelta * midiKnobPosChangePercentage) >> 20);
-				}
-				// if midi knob position change is 0, then the midi knob position has not changed and thus no change in
-				// deluge knob position / parameter value is required
+				// turning knob left
 				else {
-					newKnobPos = knobPos;
+					if (midiKnobMinPosDelta != 0) { // so we don't potentially divide by 0
+						midiKnobPosChangePercentage = midiKnobPosChangeFloat / midiKnobMinPosDelta;
+						newKnobPosFloat = newKnobPosFloat + (delugeKnobMinPosDelta * midiKnobPosChangePercentage);
+
+						// make sure scaled value is not greater than current value when we're turning left
+						// (can happen when midi and deluge knob values get close)
+						if (newKnobPosFloat > newKnobPos) {
+							newKnobPosFloat = newKnobPos;
+						}
+					}
 				}
+				newKnobPosFloat = std::round(newKnobPosFloat);
+				newKnobPos = static_cast<int32_t>(newKnobPosFloat);
+				newKnobPos = std::clamp(newKnobPos, -64_i32, 64_i32);
 			}
 		}
 
-		// save the current midi knob position as the previous midi knob position so that it can be used next time the
-		// takeover code is executed
-		if (knob != nullptr) {
-			knob->previousPosition = midiKnobPos;
-		}
-		else if (doingMidiFollow) {
-			midiFollow.previousKnobPos[ccNumber] = midiKnobPos;
-		}
+		savePreviousKnobPos(midiKnobPos, knob, doingMidiFollow, ccNumber);
 	}
 
 	return newKnobPos;
+}
+
+/// save the current midi knob position as the previous midi knob position so that it can be used next time the
+/// takeover code is executed
+void savePreviousKnobPos(int32_t knobPos, MIDIKnob* knob, bool doingMidiFollow, int32_t ccNumber) {
+	if (knob != nullptr) {
+		saveKnobPos(knobPos, knob);
+	}
+	else if (doingMidiFollow) {
+		saveKnobPos(knobPos, ccNumber);
+	}
+}
+
+// save previous knob position if regular midi learn is being used
+void saveKnobPos(int32_t knobPos, MIDIKnob* knob) {
+	knob->previousPosition = knobPos;
+	knob->previousPositionSaved = true;
+}
+
+// save previous knob position if midi follow is being used
+void saveKnobPos(int32_t knobPos, int32_t ccNumber) {
+	midiFollow.previousKnobPos[ccNumber] = knobPos;
+}
+
+// returns previous knob position saved
+// checks if a previous knob position has been saved, if not, it saves current midi knob position
+int32_t getPreviousKnobPos(int32_t knobPos, MIDIKnob* knob, bool doingMidiFollow, int32_t ccNumber) {
+	if (knob != nullptr) {
+		if (!knob->previousPositionSaved) {
+			saveKnobPos(knobPos, knob);
+		}
+		return knob->previousPosition;
+	}
+	else if (doingMidiFollow) {
+		if (midiFollow.previousKnobPos[ccNumber] == kNoSelection) {
+			saveKnobPos(knobPos, ccNumber);
+		}
+		return midiFollow.previousKnobPos[ccNumber];
+	}
+	return knobPos;
 }

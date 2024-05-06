@@ -1228,8 +1228,8 @@ bool AudioClip::currentlyScrollableAndZoomable() {
 	return !shouldLock;
 }
 
-void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack) {
-	Clip::clear(action, modelStack);
+void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation) {
+	Clip::clear(action, modelStack, clearAutomation);
 
 	// If recording, stop that - but only if we're not doing tempoless recording
 	if (recorder) {
