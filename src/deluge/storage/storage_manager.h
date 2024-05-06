@@ -20,7 +20,6 @@
 #include "definitions_cxx.hpp"
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
-#include "version.h"
 #include <cstdint>
 
 extern "C" {
@@ -69,7 +68,7 @@ public:
 	virtual Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                                    char const* endString = nullptr) = 0;
 
-	void writeFirmwareVersion() { writeAttribute("firmwareVersion", kFirmwareVersionStringShort); }
+	void writeFirmwareVersion();
 
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString) {
 		writeAttribute("earliestCompatibleFirmware", versionString);
