@@ -31,9 +31,6 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 enum class MIDIMatchType;
 
-Clip* getSelectedClip();
-Clip* getSelectedClip(ModelStack* modelStack);
-
 class MidiFollow final {
 public:
 	MidiFollow();
@@ -73,6 +70,10 @@ private:
 	// initialize
 	void init();
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
+
+	Clip* getSelectedOrActiveClip();
+	Clip* getSelectedClip();
+	Clip* getActiveClip(ModelStack* modelStack);
 
 	// get model stack with auto param for midi follow cc-param control
 	ModelStackWithAutoParam* getModelStackWithParamForSong(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
