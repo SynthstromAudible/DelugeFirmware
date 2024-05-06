@@ -24,6 +24,7 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/model_stack.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "processing/sound/sound_instrument.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
 #include <limits>
@@ -41,6 +42,7 @@ const char* functionNames[][2] = {
     /* CHORD       */ {"CHRD", "Chords"},
     /* CHORD_MEM   */ {"CMEM", "Chord Memory"},
     /* SCALE_MODE  */ {"SMOD", "Scales"},
+    /* DX          */ {"DX", "DX operators"},
     /* BEAT_REPEAT */ {"BEAT", "Beat Repeat"},
 };
 
@@ -115,25 +117,60 @@ void ColumnControlsKeyboard::handleHorizontalEncoder(int32_t offset, bool shiftE
 }
 
 ColumnControlFunction nextControlFunction(ColumnControlFunction cur, ColumnControlFunction skip) {
-	auto out = static_cast<ColumnControlFunction>((cur + 1) % COL_CTRL_FUNC_MAX);
-	if (out == skip) {
+	bool has_dx = (getCurrentDxPatch() != nullptr);
+	auto out = cur;
+	while (true) {
 		out = static_cast<ColumnControlFunction>((out + 1) % COL_CTRL_FUNC_MAX);
+		if (out != skip && (has_dx || out != DX)) {
+			return out;
+		}
 	}
-	return out;
 }
 
 ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip) {
-	auto out = static_cast<ColumnControlFunction>(cur - 1);
-	if (out < 0) {
-		out = static_cast<ColumnControlFunction>(COL_CTRL_FUNC_MAX - 1);
-	}
-	if (out == skip) {
+	bool has_dx = (getCurrentDxPatch() != nullptr);
+	auto out = cur;
+	while (true) {
 		out = static_cast<ColumnControlFunction>(out - 1);
 		if (out < 0) {
 			out = static_cast<ColumnControlFunction>(COL_CTRL_FUNC_MAX - 1);
 		}
+		if (out != skip && (has_dx || out != DX)) {
+			return out;
+		}
 	}
-	return out;
+}
+
+void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
+	if (newInstrument->type != OutputType::SYNTH) {
+		return;
+	}
+	auto* sound = (SoundInstrument*)newInstrument;
+	bool is_dx = (sound->sources[0].oscType == OscType::DX7);
+	if (!is_dx) {
+		if (rightColFunc == DX) {
+			rightColSetAtRuntime = false;
+			// use rightColPrev if admissable??
+			rightColFunc = nextControlFunction(rightColFunc, leftColFunc);
+			rightCol = getColumnForFunc(rightColFunc);
+		}
+		else if (leftColFunc == DX) {
+			leftColFunc = nextControlFunction(leftColFunc, rightColFunc);
+			leftCol = getColumnForFunc(leftColFunc);
+		}
+	}
+	else {
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
+		    == RuntimeFeatureStateToggle::Off) {
+			return;
+		}
+		// don't change column if already set
+		if (leftColFunc == DX || rightColFunc == DX || rightColSetAtRuntime) {
+			return;
+		}
+		rightColFunc = DX;
+		rightCol = getColumnForFunc(rightColFunc);
+	}
 }
 
 ControlColumn* ColumnControlsKeyboard::getColumnForFunc(ColumnControlFunction func) {
@@ -148,6 +185,8 @@ ControlColumn* ColumnControlsKeyboard::getColumnForFunc(ColumnControlFunction fu
 		return &chordMemColumn;
 	case SCALE_MODE:
 		return &scaleModeColumn;
+	case DX:
+		return &dxColumn;
 	}
 	return nullptr;
 }
@@ -173,6 +212,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		                            : prevControlFunction(rightColFunc, leftColFunc);
 		display->displayPopup(functionNames[rightColFunc]);
 		rightCol = getColumnForFunc(rightColFunc);
+		rightColSetAtRuntime = true;
 		return true;
 	}
 	return false;

@@ -2535,6 +2535,10 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	((Clip*)modelStack->getTimelineCounter())->outputChanged(modelStack, newInstrument);
 	// Do a redraw. Obviously the Clip is the same
 	setActiveModControllableTimelineCounter(modelStack->getTimelineCounter());
+
+	if (newInstrument != nullptr) {
+		keyboardScreen.checkNewInstrument(newInstrument);
+	}
 }
 
 RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool whiteInactivePads, bool allowMIDIFlash) {

@@ -4,6 +4,10 @@
 
 ## c1.2.0 Chopin
 
+### Sound Engine
+
+- Added DX7 compatible synth type with support for importing patches from DX7 patch banks in syx format, as well as editing of patch parameters.
+
 ### User Interface
 
 - Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu

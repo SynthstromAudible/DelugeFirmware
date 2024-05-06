@@ -58,6 +58,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	ShiftIsSticky,
 	LightShiftLed,
 	EnableGrainFX,
+	EnableDxShortcuts,
 	EmulatedDisplay,
 	MaxElement // Keep as boundary
 };

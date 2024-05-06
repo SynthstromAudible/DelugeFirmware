@@ -1,3 +1,4 @@
+#pragma once
 
 // this file exists to cross the arm/thumb boundary - allowing the arm code to see the GMA object leads to multi
 // definitions
