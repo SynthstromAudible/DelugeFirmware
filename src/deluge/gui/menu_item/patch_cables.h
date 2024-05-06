@@ -2,6 +2,8 @@
 #include "gui/menu_item/menu_item.h"
 #include "util/containers.h"
 
+#pragma once
+
 namespace deluge::gui::menu_item {
 class PatchCables : public MenuItem {
 public:

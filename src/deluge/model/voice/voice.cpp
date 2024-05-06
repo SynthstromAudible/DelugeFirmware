@@ -18,6 +18,7 @@
 #include "model/voice/voice.h"
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
+#include "dsp/dx/engine.h"
 #include "dsp/filter/filter_set.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
@@ -309,7 +310,7 @@ activenessDetermined:
 			if (unisonParts[u].sources[s].active) {
 				bool success =
 				    unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate, sound->oscRetriggerPhase[s],
-				                                     resetEnvelopes, sound->synthMode);
+				                                     resetEnvelopes, sound->synthMode, velocity);
 				if (!success) {
 					return false; // This shouldn't really ever happen I don't think really...
 				}
@@ -612,6 +613,13 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 						if (!success) {
 							unisonParts[u].sources[s].unassign(false);
 						}
+					}
+				}
+			}
+			else if (sound->sources[s].oscType == OscType::DX7) {
+				for (int u = 0; u < sound->numUnison; u++) {
+					if (unisonParts[u].sources[s].dxVoice) {
+						unisonParts[u].sources[s].dxVoice->keyup();
 					}
 				}
 			}
@@ -2444,8 +2452,46 @@ dontUseCache: {}
 				}
 			}
 		}
+		else if (sound->sources[s].oscType == OscType::DX7) {
+			static int32_t uniBuf[DX_MAX_N] __attribute__((aligned(CACHE_LINE_SIZE)));
+			memset(uniBuf, 0, sizeof uniBuf);
 
-		// Or regular wave
+			// TODO: 1. use existing int log function?
+			//       2. going from phase to logs (and then let MSFA turn those logs into phase again) is sus af
+			//         rework MSFA to use our phase incerements directly?
+			int logpitch = (int)(log2f(phaseIncrement) * (1 << 24));
+			int adjpitch = logpitch - 278023814;
+
+			DxPatch* patch = sound->sources[s].ensureDxPatch();
+			DxVoiceCtrl ctrl{};
+			ctrl.ampmod = paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s] >> 13;
+			// ctrl.ratemod = paramFinalValues[params::LOCAL_CARRIER_0_FEEDBACK + s] >> 16;
+			if (sound->sources[s].dxPatchChanged) {
+				unisonParts[u].sources[s].dxVoice->update(*patch, noteCodeAfterArpeggiation);
+			}
+			bool active = unisonParts[u].sources[s].dxVoice->compute(uniBuf, numSamples, adjpitch, patch, &ctrl);
+			if (!active) {
+				goto instantUnassign;
+			}
+
+			int32_t sourceAmplitudeNow = sourceAmplitude;
+			if (stereoUnison) {
+				for (int i = 0; i < numSamples; i++) {
+					sourceAmplitudeNow += amplitudeIncrement;
+					int amplified = multiply_32x32_rshift32(uniBuf[i], sourceAmplitudeNow) << 6;
+					oscBuffer[(i << 1)] += multiply_32x32_rshift32(amplified, amplitudeL) << 2;
+					oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, amplitudeR) << 2;
+				}
+			}
+			else {
+				for (int i = 0; i < numSamples; i++) {
+					sourceAmplitudeNow += amplitudeIncrement;
+					oscBuffer[i] += multiply_32x32_rshift32(uniBuf[i], sourceAmplitudeNow) << 6;
+				}
+			}
+
+			// Or regular wave
+		}
 		else {
 			uint32_t oscSyncPosThisUnison;
 			uint32_t oscSyncPhaseIncrementsThisUnison;

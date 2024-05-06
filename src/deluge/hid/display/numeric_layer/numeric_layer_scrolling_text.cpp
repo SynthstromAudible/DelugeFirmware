@@ -30,11 +30,14 @@ NumericLayerScrollingText::~NumericLayerScrollingText() {
 }
 
 void NumericLayerScrollingText::isNowOnTop() {
-	if (length > kNumericDisplayLength) {
+	if (length > kNumericDisplayLength || scrollsCount >= 0) {
 		uiTimerManager.setTimer(TimerName::DISPLAY, initialDelay);
 	}
 
-	if (currentPos + kNumericDisplayLength >= length) {
+	if (length <= kNumericDisplayLength) {
+		currentDirection = 0;
+	}
+	else if (currentPos + kNumericDisplayLength >= length) {
 		currentDirection = -1;
 	}
 }
@@ -52,6 +55,10 @@ void NumericLayerScrollingText::render(uint8_t* returnSegments) {
 
 bool NumericLayerScrollingText::callBack() {
 
+	if (scrollsCount == 0) {
+		return true;
+	}
+
 	currentPos += currentDirection;
 
 	bool reachedEnd = (currentPos == 0 || (currentPos >= length - kNumericDisplayLength && currentDirection == 1));
@@ -62,6 +69,11 @@ bool NumericLayerScrollingText::callBack() {
 
 	int32_t delayTime = reachedEnd ? 600 : ((currentDirection == 1) ? 140 : 50);
 	uiTimerManager.setTimer(TimerName::DISPLAY, delayTime);
+
+	if (reachedEnd && scrollsCount > 0) {
+		// return true after delay
+		scrollsCount--;
+	}
 
 	return false;
 }

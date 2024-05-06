@@ -9,6 +9,7 @@
 #include "gui/menu_item/sample/end.h"
 #include "gui/menu_item/sample/start.h"
 #include "gui/menu_item/sequence/direction.h"
+#include "gui/menu_item/source/patched_param/fm.h"
 #include "gui/menu_item/submenu.h"
 
 extern deluge::gui::menu_item::patched_param::IntegerNonFM noiseMenu;
@@ -21,6 +22,7 @@ extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMar
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
 extern deluge::gui::menu_item::audio_clip::AudioSourceSelector audioSourceSelectorMenu;
 extern DrumName drumNameMenu;
+extern deluge::gui::menu_item::Submenu dxMenu;
 
 extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
 extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
@@ -33,6 +35,7 @@ extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
 extern deluge::gui::menu_item::Submenu settingsRootMenu;
 
 extern deluge::gui::menu_item::PatchCables patchCablesMenu;
+extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
 
 extern MenuItem* midiOrCVParamShortcuts[8];
 extern MenuItem* paramShortcutsForSounds[15][8];
