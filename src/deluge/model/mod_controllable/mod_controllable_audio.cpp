@@ -814,6 +814,13 @@ int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
 	// Add diff "lastQuantizedKnobDiff" (this value will be set if Quantized Stutter is On, zero if not so this will be
 	// a no-op)
 	knobPos = knobPos + stutterer.lastQuantizedKnobDiff;
+	// Avoid the param to go beyond limits
+	if (knobPos < -64) {
+		knobPos = -64;
+	}
+	else if (knobPos > 64) {
+		knobPos = 64;
+	}
 	// Convert back to value range
 	paramValue = unpatchedParams->knobPosToParamValue(knobPos, nullptr);
 
