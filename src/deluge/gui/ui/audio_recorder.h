@@ -27,12 +27,6 @@ extern "C" {
 
 class SampleRecorder;
 
-struct RecorderFileSystemStuff {
-	FIL currentFile; /* File object */
-};
-
-extern RecorderFileSystemStuff recorderFileSystemStuff;
-
 class AudioRecorder final : public UI {
 public:
 	AudioRecorder();

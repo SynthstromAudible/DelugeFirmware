@@ -3,6 +3,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/strings.h"
+#include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
@@ -240,6 +241,13 @@ void SoundEditor::setLedStates() {
 	}
 }
 
+void SoundEditor::enterSubmenu(MenuItem* newItem) {
+	navigationDepth++;
+	menuItemNavigationRecord[navigationDepth] = newItem;
+	display->setNextTransitionDirection(1);
+	beginScreen();
+}
+
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
@@ -281,10 +289,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 									newItem = &menu_item::multiRangeMenu;
 								}
 
-								navigationDepth++;
-								menuItemNavigationRecord[navigationDepth] = newItem;
-								display->setNextTransitionDirection(1);
-								beginScreen();
+								enterSubmenu(newItem);
 							}
 						}
 					}
@@ -946,6 +951,14 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		else {
+
+			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
+			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
+			           == RuntimeFeatureStateToggle::On) {
+				if (dxParam.potentialShortcutPadAction(x, y, on)) {
+					return ActionResult::DEALT_WITH;
+				}
+			}
 			// Shortcut to edit a parameter
 			if (x < 14 || (x == 14 && y < 5)) {
 
@@ -1008,33 +1021,16 @@ doSetup:
 
 					bool setupSuccess = setup(getCurrentClip(), item, thingIndex);
 
+					if (!setupSuccess && item == &modulatorVolume && currentSource->oscType == OscType::DX7) {
+						item = &dxParam;
+						setupSuccess = setup(getCurrentClip(), item, thingIndex);
+					}
+
 					if (!setupSuccess) {
 						return ActionResult::DEALT_WITH;
 					}
 
-					// If not in SoundEditor yet
-					if (getCurrentUI() != &soundEditor) {
-						if (getCurrentUI() == &sampleMarkerEditor) {
-							display->setNextTransitionDirection(0);
-							changeUIAtLevel(&soundEditor, 1);
-							renderingNeededRegardlessOfUI(); // Not sure if this is 100% needed... some of it is.
-						}
-						else {
-							openUI(&soundEditor);
-						}
-					}
-
-					// Or if already in SoundEditor
-					else {
-						display->setNextTransitionDirection(0);
-						beginScreen();
-
-						if (getRootUI() == &automationView) {
-							// if automation view is open in the background
-							// potentially refresh grid if opening a new parameter menu
-							getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
-						}
-					}
+					enterOrUpdateSoundEditor(on);
 				}
 			}
 
@@ -1115,6 +1111,32 @@ getOut:
 		}
 	}
 	return ActionResult::DEALT_WITH;
+}
+
+void SoundEditor::enterOrUpdateSoundEditor(bool on) {
+	// If not in SoundEditor yet
+	if (getCurrentUI() != &soundEditor) {
+		if (getCurrentUI() == &sampleMarkerEditor) {
+			display->setNextTransitionDirection(0);
+			changeUIAtLevel(&soundEditor, 1);
+			renderingNeededRegardlessOfUI(); // Not sure if this is 100% needed... some of it is.
+		}
+		else {
+			openUI(&soundEditor);
+		}
+	}
+
+	// Or if already in SoundEditor
+	else {
+		display->setNextTransitionDirection(0);
+		beginScreen();
+
+		if (getRootUI() == &automationView) {
+			// if automation view is open in the background
+			// potentially refresh grid if opening a new parameter menu
+			getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
+		}
+	}
 }
 
 extern uint16_t batteryMV;

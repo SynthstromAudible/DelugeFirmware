@@ -14,6 +14,7 @@
       "servertype": "jlink",
       "device": "R7S721020",
       "interface": "swd",
+      "showDevDebugOutput": "raw",
       //"runToEntryPoint": "main",
       "svdFile": "${workspaceRoot}/contrib/rza1.svd",
       "overrideLaunchCommands": [

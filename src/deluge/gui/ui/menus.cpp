@@ -30,6 +30,7 @@
 #include "gui/menu_item/cv/volts.h"
 #include "gui/menu_item/defaults/bend_range.h"
 #include "gui/menu_item/defaults/grid_default_active_mode.h"
+#include "gui/menu_item/defaults/hold_time.h"
 #include "gui/menu_item/defaults/keyboard_layout.h"
 #include "gui/menu_item/defaults/magnitude.h"
 #include "gui/menu_item/defaults/metronome_volume.h"
@@ -43,6 +44,10 @@
 #include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
 #include "gui/menu_item/drum_name.h"
+#include "gui/menu_item/dx/browse.h"
+#include "gui/menu_item/dx/engine_select.h"
+#include "gui/menu_item/dx/global_params.h"
+#include "gui/menu_item/dx/param.h"
 #include "gui/menu_item/envelope/segment.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/filter/hpf_freq.h"
@@ -1022,6 +1027,8 @@ defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE, STRING_FOR_D
 ToggleBool defaultHighCPUUsageIndicatorMode{STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
                                             STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
                                             FlashStorage::highCPUUsageIndicator};
+defaults::HoldTime defaultHoldTimeMenu{STRING_FOR_HOLD_TIME, STRING_FOR_HOLD_TIME};
+
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1039,6 +1046,7 @@ Submenu defaultsSubmenu{
         &defaultPadBrightness,
         &defaultSliceMode,
         &defaultHighCPUUsageIndicatorMode,
+        &defaultHoldTimeMenu,
     },
 };
 
@@ -1051,6 +1059,14 @@ std::array<MenuItem*, 5> modulatorMenuItems = {
 
 submenu::Modulator modulator0Menu{STRING_FOR_FM_MODULATOR_1, modulatorMenuItems, 0};
 submenu::Modulator modulator1Menu{STRING_FOR_FM_MODULATOR_2, modulatorMenuItems, 1};
+
+// Submenu::SubmenuReferringToOneThing if we need to address osc1 and osc2 directly
+std::array<MenuItem*, 3> dxMenuItems = {
+    &dxBrowseMenu,
+    &dxGlobalParams,
+    &dxEngineSelect,
+};
+menu_item::Submenu dxMenu{STRING_FOR_DX_1, dxMenuItems};
 
 // Not FM
 patched_param::IntegerNonFM noiseMenu{STRING_FOR_NOISE_LEVEL, params::LOCAL_NOISE_VOLUME};

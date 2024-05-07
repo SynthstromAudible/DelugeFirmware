@@ -460,7 +460,12 @@ doOther:
 			}
 
 			if (currentUIMode == UI_MODE_NONE) {
-				if (Buttons::isShiftButtonPressed()) {
+				if (Buttons::isButtonPressed(MOD7)
+				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
+				           == RuntimeFeatureStateToggle::On) {
+					createNewInstrument(OutputType::SYNTH, true);
+				}
+				else if (Buttons::isShiftButtonPressed()) {
 					createNewInstrument(OutputType::SYNTH);
 				}
 				else {
@@ -1238,9 +1243,9 @@ void InstrumentClipView::doubleClipLengthAction() {
 	}
 }
 
-void InstrumentClipView::createNewInstrument(OutputType newOutputType) {
+void InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_dx) {
 
-	if (InstrumentClipMinder::createNewInstrument(newOutputType)) {
+	if (InstrumentClipMinder::createNewInstrument(newOutputType, is_dx)) {
 		recalculateColours();
 		uiNeedsRendering(this);
 

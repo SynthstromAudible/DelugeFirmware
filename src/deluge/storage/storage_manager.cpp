@@ -18,6 +18,7 @@
 #include "storage/storage_manager.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
+#include "fatfs/fatfs.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
@@ -37,6 +38,8 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/firmware_version.h"
+#include "util/functions.h"
+#include "util/try.h"
 #include "version.h"
 #include <string.h>
 
@@ -65,7 +68,7 @@ extern void songLoaded(Song* song);
 
 // Because FATFS and FIL objects store buffers for SD read data to be read to via DMA, we have to space them apart from
 // any other data so that invalidation and stuff works
-struct FileSystemStuff fileSystemStuff;
+struct FileSystemStuff fileSystemStuff {};
 
 StorageManager::StorageManager() {
 }
@@ -1425,6 +1428,74 @@ int32_t XMLDeserializer::readTagOrAttributeValueHex(int32_t errorValue) {
 		return errorValue;
 	}
 	return hexToInt(&string[2]);
+}
+
+int StorageManager::readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) {
+	switch (xmlArea) {
+
+	case BETWEEN_TAGS:
+		xmlArea = IN_TAG_NAME; // How it'll be after this call
+		return readHexBytesUntil(bytes, maxLen, '<');
+
+	case PAST_ATTRIBUTE_NAME:
+	case PAST_EQUALS_SIGN:
+		if (!getIntoAttributeValue())
+			return 0;
+		xmlArea = IN_TAG_PAST_NAME; // How it'll be after this next call
+		return readHexBytesUntil(bytes, maxLen, charAtEndOfValue);
+
+	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more
+	                       // contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
+		return 0;
+
+	default:
+		FREEZE_WITH_ERROR("BBBB");
+		__builtin_unreachable();
+	}
+}
+
+bool getNibble(char ch, int* nibble) {
+	if ('0' <= ch and ch <= '9') {
+		*nibble = ch - '0';
+	}
+	else if ('a' <= ch and ch <= 'f') {
+		*nibble = ch - 'a' + 10;
+	}
+	else if ('A' <= ch and ch <= 'F') {
+		*nibble = ch - 'A' + 10;
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+int StorageManager::readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endChar) {
+	int read;
+	char thisChar;
+
+	for (read = 0; read < maxLen; read++) {
+		int highNibble, lowNibble;
+
+		if (!readCharXML(&thisChar))
+			return 0;
+		if (!getNibble(thisChar, &highNibble)) {
+			goto getOut;
+		}
+
+		if (!readCharXML(&thisChar))
+			return 0;
+		if (!getNibble(thisChar, &lowNibble)) {
+			goto getOut;
+		}
+
+		bytes[read] = (highNibble << 4) + lowNibble;
+	}
+getOut:
+	if (thisChar != endChar) {
+		skipUntilChar(endChar);
+	}
+	return read;
 }
 
 // Returns memory error

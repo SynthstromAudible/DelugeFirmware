@@ -3,6 +3,7 @@ file (GLOB_RECURSE deluge_dsp_SOURCES
   CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.c
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/*.s
 )
 
 add_library(deluge_dsp STATIC ${deluge_dsp_SOURCES})

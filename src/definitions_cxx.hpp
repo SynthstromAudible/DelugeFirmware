@@ -367,6 +367,7 @@ enum class OscType : uint8_t {
 	ANALOG_SAW_2,
 	WAVETABLE,
 	SAMPLE,
+	DX7,
 	INPUT_L,
 	INPUT_R,
 	INPUT_STEREO,
@@ -956,10 +957,6 @@ constexpr int32_t kMaxSampleValue = 1 << kBitDepth; // 2 ** kBitDepth
 /// Length of press that delineates a "short" press. Set to half a second (in units of samples, to work with
 /// AudioEngine::audioSampleTimer)
 constexpr uint32_t kShortPressTime = kSampleRate / 2;
-
-/// Length of a press that delineates a "hold" press.
-/// Used in Performance View and with Sticky Shift
-constexpr uint32_t kHoldTime = kSampleRate / 10;
 
 /// Rate at which midi follow feedback for automation is sent
 constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    // 500 ms

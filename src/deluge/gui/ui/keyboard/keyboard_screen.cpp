@@ -104,7 +104,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// Pad was already active
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				freeSlotIdx = -1; // If a free slot was found previously, reset it so we don't write a second entry
-				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > kHoldTime) {
+				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > FlashStorage::holdTime) {
 					pressedPads[idx].padPressHeld = true;
 				}
 				break;
@@ -129,7 +129,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				pressedPads[idx].active = false;
 				markDead = idx;
-				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > kHoldTime) {
+				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > FlashStorage::holdTime) {
 					pressedPads[idx].padPressHeld = true;
 				}
 				break;
@@ -508,7 +508,10 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
 		if (on) {
 			bool result;
-			if (Buttons::isShiftButtonPressed()) {
+			if (Buttons::isButtonPressed(MOD7)) { // FM
+				result = createNewInstrument(OutputType::SYNTH, true);
+			}
+			else if (Buttons::isShiftButtonPressed()) {
 				result = createNewInstrument(OutputType::SYNTH);
 			}
 			else {
@@ -724,6 +727,10 @@ void KeyboardScreen::openedInBackground() {
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
+}
+
+void KeyboardScreen::checkNewInstrument(Instrument* newInstrument) {
+	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->checkNewInstrument(newInstrument);
 }
 
 bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],

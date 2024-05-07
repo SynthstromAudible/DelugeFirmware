@@ -229,6 +229,11 @@ Here is a list of general improvements that have been made, ordered from newest 
   - the setting is persistent after reboot
   - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
 
+#### 3.20 Default Hold Press Time
+
+- ([#1846]) Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
+  - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -404,12 +409,14 @@ Here is a list of features that have been added to the firmware as a list, group
           - note: the `Volume mod button` will blink when the VU meter is on and displayed
     - The VU meter will stop rendering if you switch mod button selections, turn affect entire off, select a clip, or
       exit Song/Arranger views.
-    - The VU meter will render the decibels below clipping on the grid with the colours green, orange and red.
-        - Red indicates clipping and is rendered on the top row of the grid.
+    - The VU meter will render the decibels below clipping on the grid with the colours green, yellow and red.
+        - Red indicates DAC clipping and is rendered on the top row of the grid.
+        - The Yellow pad below Red (second from top) indicates soft clipping.
+        - If you do not want any clipping, you should target levels not exceeding -4.5 dB (e.g. not exceeding the 3rd pad from top)
         - Each row on the grid corresponds to the following decibels below clipping values:
-            - y7 = clipping (-0.2 or higher)
-            - y6 = -4.4 to -0.3
-            - y5 = -8.8 to -4.5
+            - y7 = hard clipping (-0.2 or higher)
+            - y6 = soft clipping (-4.4 to -0.3)
+            - y5 = -8.8 to -4.5 (target -4.5 or lower to avoid any clipping)
             - y4 = -13.2 to -8.9
             - y3 = -17.6 to -13.3
             - y2 = -22.0 to -17.7
@@ -923,6 +930,18 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
 #### 4.5.6 - Configure Note Row Play Direction
 - ([#1739]) Added Synth/MIDI/CV clip configuration of note row play direction. Hold audition pad while entering the play direction menu to set the play direction for the selected note row. While in the note row play direction menu, you can select other note rows to quickly set the play directiom for multiple note rows.
 
+#### 4.5.7 - DX7 Synth type
+
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
+  documentation: [DX7 Synth Documentation]
+
+- A new synth type is added fully compatible with DX7 patches, including editing of all DX7 parameters. This is implemented
+as an oscillator type within the subtractive engine, so it can be combined with filters and other features of this engine.
+
+- Patches can be imported from the common 32-patch bank syx-file format, and afterwards saved as SYNTH presets or as part of songs.
+
+- As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1253,6 +1272,8 @@ different firmware
 
 [#1739]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1739
 
+[#1846]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1846
+
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
@@ -1262,3 +1283,5 @@ different firmware
 [MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/loopy_pro
 
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
+
+[DX7 Synth Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/dx_synth.md
