@@ -84,16 +84,16 @@ Error StorageManager::checkSpaceOnCard() {
 }
 
 // Creates folders and subfolders as needed!
-Error StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwrite) {
+std::expected<FatFS::File, Error> StorageManager::createFile(char const* filePath, bool mayOverwrite) {
 
 	Error error = initSD();
 	if (error != Error::NONE) {
-		return error;
+		return std::unexpected(error);
 	}
 
 	error = checkSpaceOnCard();
 	if (error != Error::NONE) {
-		return error;
+		return std::unexpected(error);
 	}
 
 	bool triedCreatingFolder = false;
@@ -107,22 +107,21 @@ Error StorageManager::createFile(FIL* file, char const* filePath, bool mayOverwr
 	}
 
 tryAgain:
-	FRESULT result = f_open(file, filePath, mode);
-
-	if (result != FR_OK) {
+	auto opened = FatFS::File::open(filePath, mode);
+	if (!opened) {
 
 processError:
 		// If folder doesn't exist, try creating it - once only
-		if (result == FR_NO_PATH) {
+		if (opened.error() == FatFS::Error::NO_PATH) {
 			if (triedCreatingFolder) {
-				return Error::FOLDER_DOESNT_EXIST;
+				return std::unexpected(Error::FOLDER_DOESNT_EXIST);
 			}
 			triedCreatingFolder = true;
 
 			String folderPath;
 			error = folderPath.set(filePath);
 			if (error != Error::NONE) {
-				return error;
+				return std::unexpected(error);
 			}
 
 			// Get just the folder path
@@ -130,22 +129,22 @@ cutFolderPathAndTryCreating:
 			char const* folderPathChars = folderPath.get();
 			char const* slashAddr = strrchr(folderPathChars, '/');
 			if (!slashAddr) {
-				return Error::UNSPECIFIED; // Shouldn't happen
+				return std::unexpected(Error::UNSPECIFIED); // Shouldn't happen
 			}
 			int32_t slashPos = (uint32_t)slashAddr - (uint32_t)folderPathChars;
 
 			error = folderPath.shorten(slashPos);
 			if (error != Error::NONE) {
-				return error;
+				return std::unexpected(error);
 			}
 
 			// Try making the folder
-			result = f_mkdir(folderPath.get());
-			if (result == FR_OK) {
+			auto made_dir = FatFS::mkdir(folderPath.get());
+			if (made_dir) {
 				goto tryAgain;
 			}
-			else if (result
-			         == FR_NO_PATH) { // If that folder couldn't be created because its parent folder didn't exist...
+			// If that folder couldn't be created because its parent folder didn't exist...
+			else if (made_dir.error() == FatFS::Error::NO_PATH) {
 				triedCreatingFolder = false;      // Let it do multiple tries again
 				goto cutFolderPathAndTryCreating; // Go and try creating the parent folder
 			}
@@ -156,43 +155,42 @@ cutFolderPathAndTryCreating:
 
 		// Otherwise, just return the appropriate error.
 		else {
-			error = fresultToDelugeErrorCode(result);
+
+			error = fatfsErrorToDelugeError(opened.error());
 			if (error == Error::SD_CARD) {
 				error = Error::WRITE_FAIL; // Get a bit more specific if we only got the most general error.
 			}
-			return error;
+			return std::unexpected(error);
 		}
 	}
 
-	return Error::NONE;
+	return opened.value();
 }
 
 Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer, bool mayOverwrite,
                                     bool displayErrors) {
 
-	Error error = createFile(&fileSystemStuff.currentFile, filePath, mayOverwrite);
+	auto created = createFile(filePath, mayOverwrite);
 	writer.ms = this;
-	if (error != Error::NONE) {
+	if (!created) {
 		if (displayErrors) {
 			display->removeWorkingAnimation();
-			display->displayError(error);
+			display->displayError(created.error());
 		}
-		return error;
+		return created.error();
 	}
+	fileSystemStuff.currentFile = created.value().inner();
 
 	writer.fileWriteBufferCurrentPos = 0;
 	writer.fileTotalBytesWritten = 0;
 	writer.fileAccessFailedDuringWrite = false;
-	char* fillB = smDeserializer.fileClusterBuffer;
-	for (int i = 0; i < 32768; ++i)
-		*fillB++ = 0;
-
 	writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
 
 	writer.indentAmount = 0;
 
 	return Error::NONE;
 }
+
 
 bool StorageManager::fileExists(char const* pathName) {
 	Error error = initSD();
@@ -675,6 +673,28 @@ void XMLSerializer::writeAttributeHex(char const* name, int32_t number, int32_t 
 	writeAttribute(name, buffer, onNewLine);
 }
 
+
+// numChars may be up to 8
+void XMLSerializer::writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine) {
+
+	if (onNewLine) {
+		write("\n");
+		printIndents();
+	}
+	else {
+		write(" ");
+	}
+	write(name);
+	write("=\"");
+
+	char buffer[3];
+	for (int i = 0; i < numBytes; i++) {
+		intToHex(data[i], &buffer[0], 2);
+		write(buffer);
+	}
+	write("\"");
+}
+
 void XMLSerializer::writeAttribute(char const* name, char const* value, bool onNewLine) {
 
 	if (onNewLine) {
@@ -690,6 +710,7 @@ void XMLSerializer::writeAttribute(char const* name, char const* value, bool onN
 	write(value);
 	write("\"");
 }
+
 
 void XMLSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter) {
 	writeOpeningTagBeginning(tag);
@@ -1430,7 +1451,7 @@ int32_t XMLDeserializer::readTagOrAttributeValueHex(int32_t errorValue) {
 	return hexToInt(&string[2]);
 }
 
-int StorageManager::readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) {
+int XMLDeserializer::readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) {
 	switch (xmlArea) {
 
 	case BETWEEN_TAGS:
@@ -1470,7 +1491,7 @@ bool getNibble(char ch, int* nibble) {
 	return true;
 }
 
-int StorageManager::readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endChar) {
+int XMLDeserializer::readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endChar) {
 	int read;
 	char thisChar;
 

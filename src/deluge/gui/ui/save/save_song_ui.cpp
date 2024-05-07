@@ -364,7 +364,7 @@ fail3:
 							break; // Stop, on rare case where file ended right at end of last cluster
 						}
 
-						auto written = created.value().write({(std::byte*)bdsm.fileClusterBuffer, bytesRead});
+						auto written = created.value().write({(std::byte*)smSerializer.writeClusterBuffer, bytesRead});
 						if (!written || written.value() != bytesRead) {
 							D_PRINTLN("write fail %d", result);
 							goto fail3;

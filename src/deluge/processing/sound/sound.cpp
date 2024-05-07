@@ -3266,18 +3266,18 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 		}
 		else if (!strcmp(tagName, "dx7patch")) {
 			DxPatch* patch = source->ensureDxPatch();
-			int len = storageManager.readTagOrAttributeValueHexBytes(patch->params, 156);
-			storageManager.exitTag("dx7patch");
+			int len = reader.readTagOrAttributeValueHexBytes(patch->params, 156);
+			reader.exitTag("dx7patch");
 		}
 		else if (!strcmp(tagName, "dx7randomdetune")) {
 			DxPatch* patch = source->ensureDxPatch();
-			patch->random_detune = storageManager.readTagOrAttributeValueInt();
-			storageManager.exitTag("dx7randomdetune");
+			patch->random_detune = reader.readTagOrAttributeValueInt();
+			reader.exitTag("dx7randomdetune");
 		}
 		else if (!strcmp(tagName, "dx7enginemode")) {
 			DxPatch* patch = source->ensureDxPatch();
-			patch->setEngineMode(storageManager.readTagOrAttributeValueInt());
-			storageManager.exitTag("dx7enginemode");
+			patch->setEngineMode(reader.readTagOrAttributeValueInt());
+			reader.exitTag("dx7enginemode");
 		}
 		/*
 		else if (!strcmp(tagName, "sampleSync")) {
@@ -3611,15 +3611,15 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		         && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
 			if (source->dxPatch) {
 				DxPatch* patch = source->dxPatch;
-				storageManager.writeAttributeHexBytes("dx7patch", patch->params, 156);
+				writer.writeAttributeHexBytes("dx7patch", patch->params, 156);
 
 				if (patch->engineMode != 0) {
-					storageManager.writeAttribute("dx7enginemode", patch->engineMode);
+					writer.writeAttribute("dx7enginemode", patch->engineMode);
 				}
 
 				// real extension:
 				if (patch->random_detune != 0) {
-					storageManager.writeAttribute("dx7randomdetune", patch->random_detune);
+					writer.writeAttribute("dx7randomdetune", patch->random_detune);
 				}
 			}
 			goto justCloseTag;

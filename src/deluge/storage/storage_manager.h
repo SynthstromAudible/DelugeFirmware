@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "storage/storage_manager.h"
+#include "fatfs/fatfs.hpp"
 #include "util/firmware_version.h"
 #include <cstdint>
 #include <optional>
@@ -57,6 +57,8 @@ public:
 	virtual void writeAttribute(char const* name, int32_t number, bool onNewLine = true) = 0;
 	virtual void writeAttribute(char const* name, char const* value, bool onNewLine = true) = 0;
 	virtual void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true) = 0;
+	virtual void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true) = 0;
+
 	virtual void writeTag(char const* tag, int32_t number) = 0;
 	virtual void writeTag(char const* tag, char const* contents) = 0;
 	virtual void writeOpeningTag(char const* tag, bool startNewLineAfter = true) = 0;
@@ -90,6 +92,8 @@ public:
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
 	void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true) override;
+	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
+
 	void writeTag(char const* tag, int32_t number) override;
 	void writeTag(char const* tag, char const* contents) override;
 	void writeOpeningTag(char const* tag, bool startNewLineAfter = true) override;
@@ -121,10 +125,13 @@ public:
 	virtual char readNextCharOfTagOrAttributeValue() = 0;
 	virtual int32_t getNumCharsRemainingInValue() = 0;
 
+	virtual int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos) = 0;
 	virtual char const* readNextTagOrAttributeName() = 0;
 	virtual char const* readTagOrAttributeValue() = 0;
 	virtual int32_t readTagOrAttributeValueInt() = 0;
 	virtual int32_t readTagOrAttributeValueHex(int32_t errorValue) = 0;
+	virtual	int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) = 0;
+
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
 	virtual void exitTag(char const* exitTagName = NULL) = 0;
@@ -142,6 +149,9 @@ public:
 
 	int32_t readTagOrAttributeValueInt() override;
 	int32_t readTagOrAttributeValueHex(int32_t errorValue) override;
+	int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) override;
+
+	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos) override;
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) override;
 	Error readTagOrAttributeValueString(String* string) override;
 	char const* readTagOrAttributeValue() override;
@@ -197,7 +207,7 @@ public:
 	StorageManager();
 	virtual ~StorageManager();
 
-	Error createFile(FIL* file, char const* filePath, bool mayOverwrite);
+	std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
 	Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false,
 	                    bool displayErrors = true);
 	Error openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const* firstTagName,
