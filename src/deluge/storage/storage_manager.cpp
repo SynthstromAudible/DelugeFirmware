@@ -191,7 +191,6 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	return Error::NONE;
 }
 
-
 bool StorageManager::fileExists(char const* pathName) {
 	Error error = initSD();
 	if (error != Error::NONE) {
@@ -673,7 +672,6 @@ void XMLSerializer::writeAttributeHex(char const* name, int32_t number, int32_t 
 	writeAttribute(name, buffer, onNewLine);
 }
 
-
 // numChars may be up to 8
 void XMLSerializer::writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine) {
 
@@ -710,7 +708,6 @@ void XMLSerializer::writeAttribute(char const* name, char const* value, bool onN
 	write(value);
 	write("\"");
 }
-
 
 void XMLSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter) {
 	writeOpeningTagBeginning(tag);

@@ -130,7 +130,7 @@ public:
 	virtual char const* readTagOrAttributeValue() = 0;
 	virtual int32_t readTagOrAttributeValueInt() = 0;
 	virtual int32_t readTagOrAttributeValueHex(int32_t errorValue) = 0;
-	virtual	int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) = 0;
+	virtual int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) = 0;
 
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
