@@ -40,9 +40,9 @@ public:
 
 	virtual void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) {}
 
-	bool writeMelodicInstrumentAttributesToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
-	void writeMelodicInstrumentTagsToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
-	bool readTagFromFile(StorageManager& bdsm, char const* tagName);
+	bool writeMelodicInstrumentAttributesToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
+	void writeMelodicInstrumentTagsToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
+	bool readTagFromFile(Deserializer& reader, char const* tagName);
 
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,

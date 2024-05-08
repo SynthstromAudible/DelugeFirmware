@@ -738,26 +738,26 @@ bool MidiFollow::isFeedbackEnabled() {
 /// I should check if file exists before creating one
 void MidiFollow::writeDefaultsToFile(StorageManager& bdsm) {
 	// MidiFollow.xml
-	Error error = bdsm.createXMLFile(MIDI_DEFAULTS_XML, true);
+	Error error = bdsm.createXMLFile(MIDI_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
-
+	Serializer& writer = smSerializer;
 	//<defaults>
-	bdsm.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
-	bdsm.writeOpeningTagEnd();
+	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
+	writer.writeOpeningTagEnd();
 
 	//<defaultCCMappings>
-	bdsm.writeOpeningTagBeginning(MIDI_DEFAULTS_CC_TAG);
-	bdsm.writeOpeningTagEnd();
+	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_CC_TAG);
+	writer.writeOpeningTagEnd();
 
 	writeDefaultMappingsToFile();
 
-	bdsm.writeClosingTag(MIDI_DEFAULTS_CC_TAG);
+	writer.writeClosingTag(MIDI_DEFAULTS_CC_TAG);
 
-	bdsm.writeClosingTag(MIDI_DEFAULTS_TAG);
+	writer.writeClosingTag(MIDI_DEFAULTS_TAG);
 
-	bdsm.closeFileAfterWriting();
+	writer.closeFileAfterWriting();
 }
 
 /// convert paramID to a paramName to write to XML
@@ -787,7 +787,8 @@ void MidiFollow::writeDefaultMappingsToFile() {
 			if (writeTag) {
 				char buffer[10];
 				intToString(paramToCC[xDisplay][yDisplay], buffer);
-				storageManager.writeTag(paramName, buffer);
+				Serializer& writer = smSerializer;
+				writer.writeTag(paramName, buffer);
 			}
 		}
 	}
@@ -813,20 +814,20 @@ void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 	}
 
 	//<defaults>
-	Error error = bdsm.openXMLFile(&fp, MIDI_DEFAULTS_TAG);
+	Error error = bdsm.openXMLFile(&fp, smDeserializer, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		writeDefaultsToFile(bdsm);
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
-
+	Deserializer& reader = smDeserializer;
 	char const* tagName;
 	// step into the <defaultCCMappings> tag
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, MIDI_DEFAULTS_CC_TAG)) {
-			readDefaultMappingsFromFile(bdsm);
+			readDefaultMappingsFromFile(reader);
 		}
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 
 	bdsm.closeFile();
@@ -836,10 +837,10 @@ void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 
 /// compares param name tag to the list of params available are midi controllable
 /// if param is found, it loads the CC mapping info for that param into the view
-void MidiFollow::readDefaultMappingsFromFile(StorageManager& bdsm) {
+void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 	char const* tagName;
 	bool foundParam;
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		foundParam = false;
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -860,7 +861,7 @@ void MidiFollow::readDefaultMappingsFromFile(StorageManager& bdsm) {
 				                       params::UNPATCHED_START + unpatchedGlobalParamShortcuts[xDisplay][yDisplay])))) {
 					// tag name matches the param shortcut, so we can load the cc mapping for that param
 					// into the paramToCC grid shortcut array which holds the cc value for each param
-					paramToCC[xDisplay][yDisplay] = bdsm.readTagOrAttributeValueInt();
+					paramToCC[xDisplay][yDisplay] = reader.readTagOrAttributeValueInt();
 					// now that we've handled this tag, we need to break out of these for loops
 					// as you can only read from a tag once (otherwise next read will result in a crash "BBBB")
 					foundParam = true;
@@ -873,6 +874,6 @@ void MidiFollow::readDefaultMappingsFromFile(StorageManager& bdsm) {
 			}
 		}
 		// exit out of this tag so you can check the next tag
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 }

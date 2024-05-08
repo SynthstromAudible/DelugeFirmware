@@ -279,39 +279,39 @@ void MIDIInstrument::sendMIDIPGM() {
 	}
 }
 
-bool MIDIInstrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
-	// NonAudioInstrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song); // Nope, this gets called within the
+bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
+	// NonAudioInstrument::writeDataToFile(writer, clipForSavingOutputOnly, song); // Nope, this gets called within the
 	// below call
-	writeMelodicInstrumentAttributesToFile(bdsm, clipForSavingOutputOnly, song);
+	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
 
 	if (editedByUser || clipForSavingOutputOnly) { // Otherwise, there'll be nothing in here
-		bdsm.writeOpeningTagEnd();
-		bdsm.writeOpeningTag("modKnobs");
+		writer.writeOpeningTagEnd();
+		writer.writeOpeningTag("modKnobs");
 		for (int32_t m = 0; m < kNumModButtons * kNumPhysicalModKnobs; m++) {
 
 			int32_t cc = modKnobCCAssignments[m];
 
-			bdsm.writeOpeningTagBeginning("modKnob");
+			writer.writeOpeningTagBeginning("modKnob");
 			if (cc == CC_NUMBER_NONE) {
-				bdsm.writeAttribute("cc", "none");
+				writer.writeAttribute("cc", "none");
 			}
 			else if (cc == CC_NUMBER_PITCH_BEND) {
-				bdsm.writeAttribute("cc", "bend");
+				writer.writeAttribute("cc", "bend");
 			}
 			else if (cc == CC_NUMBER_AFTERTOUCH) {
-				bdsm.writeAttribute("cc", "aftertouch");
+				writer.writeAttribute("cc", "aftertouch");
 			}
 			else {
-				bdsm.writeAttribute("cc", cc);
+				writer.writeAttribute("cc", cc);
 			}
-			bdsm.closeTag();
+			writer.closeTag();
 		}
-		bdsm.writeClosingTag("modKnobs");
+		writer.writeClosingTag("modKnobs");
 
-		bdsm.writeOpeningTagBeginning("polyToMonoConversion");
-		bdsm.writeAttribute("aftertouch", (int32_t)collapseAftertouch);
-		bdsm.writeAttribute("mpe", (int32_t)collapseMPE);
-		bdsm.closeTag();
+		writer.writeOpeningTagBeginning("polyToMonoConversion");
+		writer.writeAttribute("aftertouch", (int32_t)collapseAftertouch);
+		writer.writeAttribute("mpe", (int32_t)collapseMPE);
+		writer.closeTag();
 	}
 	else {
 		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
@@ -320,30 +320,30 @@ bool MIDIInstrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOu
 			return false;
 		}
 
-		bdsm.writeOpeningTagEnd();
+		writer.writeOpeningTagEnd();
 	}
 
-	MelodicInstrument::writeMelodicInstrumentTagsToFile(bdsm, clipForSavingOutputOnly, song);
+	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
 	return true;
 }
 
-bool MIDIInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
+bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	char const* subSlotXMLTag = getSubSlotXMLTag();
 
 	if (!strcmp(tagName, "modKnobs")) {
 		readModKnobAssignmentsFromFile(
-		    bdsm, kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get it. I
-		                               // think it'd only be relevant for pre-V2.0 song file... maybe?
+		    storageManager, kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get
+		                                         // it. I think it'd only be relevant for pre-V2.0 song file... maybe?
 	}
 	else if (!strcmp(tagName, "polyToMonoConversion")) {
-		while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "aftertouch")) {
-				collapseAftertouch = (bool)bdsm.readTagOrAttributeValueInt();
+				collapseAftertouch = (bool)reader.readTagOrAttributeValueInt();
 				editedByUser = true;
 			}
 			else if (!strcmp(tagName, "mpe")) {
-				collapseMPE = (bool)bdsm.readTagOrAttributeValueInt();
+				collapseMPE = (bool)reader.readTagOrAttributeValueInt();
 				editedByUser = true;
 			}
 			else
@@ -351,17 +351,17 @@ bool MIDIInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) 
 		}
 	}
 	else if (!strcmp(tagName, "internalDest")) {
-		char const* text = bdsm.readTagOrAttributeValue();
+		char const* text = reader.readTagOrAttributeValue();
 		if (!strcmp(text, "transpose")) {
 			channel = MIDI_CHANNEL_TRANSPOSE;
 		}
 	}
 	else if (!strcmp(tagName, "midiChannel")) {
 		// fix for incorrect save files created on nightlies between 18/02/24 and 08/04/24
-		channel = bdsm.readTagOrAttributeValueInt();
+		channel = reader.readTagOrAttributeValueInt();
 	}
 	else if (!strcmp(tagName, "zone")) {
-		char const* text = bdsm.readTagOrAttributeValue();
+		char const* text = reader.readTagOrAttributeValue();
 		if (!strcmp(text, "lower")) {
 			channel = MIDI_CHANNEL_MPE_LOWER_ZONE;
 		}
@@ -370,16 +370,16 @@ bool MIDIInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) 
 		}
 	}
 	else if (!strcmp(tagName, subSlotXMLTag)) {
-		channelSuffix = bdsm.readTagOrAttributeValueInt();
+		channelSuffix = reader.readTagOrAttributeValueInt();
 	}
-	else if (NonAudioInstrument::readTagFromFile(bdsm, tagName)) {
+	else if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
 		return true;
 	}
 	else {
 		return false;
 	}
 
-	bdsm.exitTag();
+	reader.exitTag();
 	return true;
 }
 
@@ -389,28 +389,87 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& bdsm, int32
                                                      ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
-
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	Deserializer& reader = smDeserializer;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
 			MIDIParamCollection* midiParamCollection = NULL;
 			if (paramManager) {
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
 			Error error =
-			    bdsm.readMIDIParamFromFile(readAutomationUpToPos, midiParamCollection, &modKnobCCAssignments[m]);
+			    readMIDIParamFromFile(reader, readAutomationUpToPos, midiParamCollection, &modKnobCCAssignments[m]);
 			if (error != Error::NONE) {
 				return error;
 			}
 			m++;
 		}
 
-		bdsm.exitTag();
+		reader.exitTag();
 		if (m >= kNumModButtons * kNumPhysicalModKnobs) {
 			break;
 		}
 	}
 
 	editedByUser = true;
+	return Error::NONE;
+}
+
+// This has now mostly been replaced by an equivalent-ish function in InstrumentClip.
+// Now, this will only ever be called in two scenarios:
+// -- Pre-V2.0 files, so we know there's no mention of bend or aftertouch in this case where we have a ParamManager.
+// -- When reading a MIDIInstrument, so we know there's no ParamManager (I checked), so no need to actually read the
+// param.
+Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
+                                            MIDIParamCollection* midiParamCollection, int8_t* getCC) {
+
+	char const* tagName;
+	int32_t cc = CC_NUMBER_NONE;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "cc")) {
+			char const* contents = reader.readTagOrAttributeValue();
+			if (!strcasecmp(contents, "bend")) {
+				cc = CC_NUMBER_PITCH_BEND;
+			}
+			else if (!strcasecmp(contents, "aftertouch")) {
+				cc = CC_NUMBER_AFTERTOUCH;
+			}
+			else if (!strcasecmp(contents, "none")) {
+				cc = CC_NUMBER_NONE;
+			}
+			else {
+				cc = stringToInt(contents);
+			}
+			// will be sent as mod wheel and also map to internal mono expression
+			if (cc == CC_NUMBER_MOD_WHEEL) {
+				cc = CC_NUMBER_Y_AXIS;
+			}
+
+			reader.exitTag("cc");
+		}
+		else if (!strcmp(tagName, "value")) {
+			if (cc != CC_NUMBER_NONE && midiParamCollection) {
+
+				MIDIParam* midiParam = midiParamCollection->params.getOrCreateParamFromCC(cc, 0);
+				if (!midiParam) {
+					return Error::INSUFFICIENT_RAM;
+				}
+
+				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
+				if (error != Error::NONE) {
+					return error;
+				}
+			}
+			reader.exitTag("value");
+		}
+		else {
+			reader.exitTag(tagName);
+		}
+	}
+
+	if (getCC) {
+		*getCC = cc;
+	}
+
 	return Error::NONE;
 }
 

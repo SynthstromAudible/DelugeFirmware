@@ -156,10 +156,10 @@ private:
 
 	/// write/load default values
 	void writeDefaultsToFile(StorageManager& bdsm);
-	void writeDefaultFXValuesToFile(StorageManager& bdsm);
-	void writeDefaultFXParamToFile(StorageManager& bdsm, int32_t xDisplay);
-	void writeDefaultFXRowValuesToFile(StorageManager& bdsm, int32_t xDisplay);
-	void writeDefaultFXHoldStatusToFile(StorageManager& bdsm, int32_t xDisplay);
+	void writeDefaultFXValuesToFile(Serializer& writer);
+	void writeDefaultFXParamToFile(Serializer& writer, int32_t xDisplay);
+	void writeDefaultFXRowValuesToFile(Serializer& writer, int32_t xDisplay);
+	void writeDefaultFXHoldStatusToFile(Serializer& writer, int32_t xDisplay);
 	void loadDefaultLayout();
 	void readDefaultsFromBackedUpFile();
 	void readDefaultsFromFile(StorageManager& bdsm);

@@ -21,6 +21,7 @@
 #include "dsp/filter/filter_set.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 using namespace deluge;
+class Serializer;
 class GlobalEffectable : public ModControllableAudio {
 public:
 	GlobalEffectable();
@@ -39,17 +40,17 @@ public:
 	                                  ParamManager* paramManager, const Delay::State& delayWorkingState,
 	                                  bool grainHadInput = true);
 
-	void writeAttributesToFile(StorageManager& bdsm, bool writeToFile);
-	void writeTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeToFile);
-	Error readTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	void writeAttributesToFile(Serializer& writer, bool writeToFile);
+	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);
+	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                      int32_t readAutomationUpToPos, Song* song);
-	static void writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
+	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
-	static void writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
+	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                 int32_t* valuesForOverride = NULL);
-	static void readParamsFromFile(StorageManager& bdsm, ParamManagerForTimeline* paramManager,
+	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);
-	static bool readParamTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	Delay::State createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback = false,
 	                                     bool soundComingIn = true);
