@@ -28,6 +28,8 @@
 #define SQUARE_NOTE_TAIL_UNMODIFIED 3
 #define SQUARE_NOTE_TAIL_MODIFIED 4
 #define SQUARE_BLURRED 5
+#define SQUARE_NO_NOTE 6
+#define SQUARE_NOTE_TAIL 7
 
 #define CORRESPONDING_NOTES_ADJUST_VELOCITY 0
 #define CORRESPONDING_NOTES_SET_PROBABILITY 1
@@ -151,6 +153,8 @@ public:
 	                            bool allowNoteTails, Action* action);
 	int32_t processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ticksSinceLast,
 	                          PendingNoteOnList* pendingNoteOnList);
+	uint8_t getSquareTypeWithoutAction(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
+	                                   ModelStackWithNoteRow* modelStack);
 	uint8_t getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
 	                      ModelStackWithNoteRow* modelStack, bool allowNoteTails, int32_t desiredNoteLength,
 	                      Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible);

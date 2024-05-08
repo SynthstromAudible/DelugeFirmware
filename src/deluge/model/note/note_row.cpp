@@ -194,6 +194,77 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 	return error;
 }
 
+/// returns whether a note square on the grid is:
+/// 1) empty (SQUARE_NO_NOTE)
+///	2) has one note which is aligned to the very first position in the square (SQUARE_NOTE_HEAD)
+/// 3) has multiple notes or one note which is not aligned to the very first position (SQUARE_BLURRED)
+/// 4) the square is part of a tail of a previous note (SQUARE_NOTE_TAIL)
+/// Note: no action required here because we are not creating any notes if they do not exist
+uint8_t NoteRow::getSquareTypeWithoutAction(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
+                                            ModelStackWithNoteRow* modelStack) {
+
+	int32_t effectiveLength = modelStack->getLoopLength();
+
+	if (!notes.getNumElements()) {
+		return SQUARE_NO_NOTE;
+	}
+
+	// Start by finding the last note to begin *before the right-edge* of this square
+
+	int32_t squareEndPos = squareStart + squareWidth;
+	int32_t i = notes.search(squareEndPos, LESS);
+
+	Note* note = notes.getElement(i);
+
+	// If Note starts somewhere within this square...
+	if (note && note->pos >= squareStart) {
+		*firstNote = *lastNote = note;
+
+		// See if there were any other previous notes in that square
+		while (true) {
+			i--;
+			if (i < 0) {
+				break;
+			}
+			Note* thisNote = notes.getElement(i);
+			if (thisNote->pos >= squareStart) {
+				*firstNote = thisNote;
+			}
+			else {
+				break;
+			}
+		}
+
+		// And return whether it was multiple notes or just one
+		return (((*firstNote)->pos == squareStart) && (*firstNote == *lastNote)) ? SQUARE_NOTE_HEAD : SQUARE_BLURRED;
+	}
+
+	// Or if the note starts left of this square, or there's no note there which means we'll look at the final one
+	// wrapping around...
+	else {
+		bool wrapping = (i == -1);
+		if (wrapping) {
+			note = notes.getLast();
+		}
+		int32_t noteEnd = note->pos + note->getLength();
+		if (wrapping) {
+			noteEnd -= effectiveLength;
+		}
+
+		*firstNote = *lastNote = note;
+
+		// If that note's tail does overlap into this square...
+		if (noteEnd > squareStart) {
+			return SQUARE_NOTE_TAIL;
+		}
+
+		// Or if note's tail does not overlap this square, making this square completely empty...
+		else {
+			return SQUARE_NO_NOTE;
+		}
+	}
+}
+
 uint8_t NoteRow::getSquareType(int32_t squareStart, int32_t squareWidth, Note** firstNote, Note** lastNote,
                                ModelStackWithNoteRow* modelStack, bool allowNoteTails, int32_t desiredNoteLength,
                                Action* action, bool clipCurrentlyPlaying, bool extendPreviousNoteIfPossible) {
