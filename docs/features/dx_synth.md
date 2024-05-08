@@ -46,16 +46,14 @@ Likewise, shift+press the seventh pad will open up the editor for global paramet
 starting with algorithm and feedback.
 
 Inside the editor view (when the sidebar is flashing), the LEFT-RIGHT encoder can be used
-to browse between parameters. Some parameters have a shortcut in a layer which is only
-active when editing any DX7 parameter (otherwise the regular synth shortcuts apply)
+to browse between parameters. 
 
-For the first 6 rows these are the operators (the bold row in the table repeated six times).
+Some parameters have a shortcut in a layer which is only active when editing any DX7 parameter (otherwise the regular synth shortcuts apply)
+
+For the first 6 rows these are the operators.
 The seventh and eight row contains some of the global parameters
 
-| rate1 | 2 | 3 | 4| level1 | 2 | 3 | 4 | level | mode | coarse | fine | detune | velo |
-| -- | -- | -- | --| -- | --  | --  | --  | -- | -- | -- | -- | -- | -- |
-| rate1 | 2 | 3 | 4| level1 | 2 | 3 | 4 | algo | feedback | sync | | | |
-| LFO rate | delay | pitch | amp | sync | shape | sens | detune |  | |  |  |  |  |
+![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/b57f9a8a-79c0-4621-a97e-045dc352d0eb)
 
 If OLED screen is available a group of related parameters is displayed at a time, like all the envelope levels and rates
 for a specific envelope. With 7SEG the parameter name will be shown briefly before the value
