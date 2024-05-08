@@ -110,13 +110,13 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 	}
 }
 
-bool NonAudioDrum::readDrumTagFromFile(StorageManager& bdsm, char const* tagName) {
+bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 
 	if (!strcmp(tagName, "channel")) {
-		channel = bdsm.readTagOrAttributeValueInt();
-		bdsm.exitTag("channel");
+		channel = reader.readTagOrAttributeValueInt();
+		reader.exitTag("channel");
 	}
-	else if (Drum::readDrumTagFromFile(bdsm, tagName)) {}
+	else if (Drum::readDrumTagFromFile(reader, tagName)) {}
 	else {
 		return false;
 	}

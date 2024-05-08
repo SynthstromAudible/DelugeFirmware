@@ -39,9 +39,9 @@
 #include "storage/storage_manager.h"
 #include <cstring>
 
-bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly,
+bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
                                                                Song* song) {
-	Instrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song);
+	Instrument::writeDataToFile(writer, clipForSavingOutputOnly, song);
 	if (!clipForSavingOutputOnly) {
 
 		// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
@@ -49,10 +49,10 @@ bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(StorageManager& b
 		if (midiInput.containsSomething()) {
 			if (midiInput.isForMPEZone()) {
 				char const* zoneText = (midiInput.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper";
-				bdsm.writeAttribute("inputMPEZone", zoneText);
+				writer.writeAttribute("inputMPEZone", zoneText);
 			}
 			else {
-				bdsm.writeAttribute("inputMidiChannel", midiInput.channelOrZone);
+				writer.writeAttribute("inputMidiChannel", midiInput.channelOrZone);
 			}
 		}
 	}
@@ -60,7 +60,7 @@ bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(StorageManager& b
 	return false;
 }
 
-void MelodicInstrument::writeMelodicInstrumentTagsToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly,
+void MelodicInstrument::writeMelodicInstrumentTagsToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
                                                          Song* song) {
 
 	if (!clipForSavingOutputOnly) {
@@ -68,28 +68,28 @@ void MelodicInstrument::writeMelodicInstrumentTagsToFile(StorageManager& bdsm, C
 		if (midiInput.containsSomething()) {
 			// Device gets written here as a tag. Channel got written above, as an attribute.
 			if (midiInput.device) {
-				midiInput.device->writeReferenceToFile(bdsm, "inputMidiDevice");
+				midiInput.device->writeReferenceToFile(writer, "inputMidiDevice");
 			}
 		}
 	}
 }
 
-bool MelodicInstrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
+bool MelodicInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
 	if (!strcmp(tagName, "inputMidiChannel")) {
-		midiInput.channelOrZone = bdsm.readTagOrAttributeValueInt();
-		bdsm.exitTag();
+		midiInput.channelOrZone = reader.readTagOrAttributeValueInt();
+		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "inputMPEZone")) {
-		midiInput.readMPEZone(bdsm);
-		bdsm.exitTag();
+		midiInput.readMPEZone(reader);
+		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "inputMidiDevice")) {
-		midiInput.device = MIDIDeviceManager::readDeviceReferenceFromFile(bdsm);
-		bdsm.exitTag();
+		midiInput.device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+		reader.exitTag();
 	}
-	else if (Instrument::readTagFromFile(bdsm, tagName)) {}
+	else if (Instrument::readTagFromFile(reader, tagName)) {}
 	else {
 		return false;
 	}

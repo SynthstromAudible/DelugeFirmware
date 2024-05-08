@@ -34,9 +34,9 @@ public:
 	Kit();
 	Drum* getNextDrum(Drum* fromSoundSource);
 	Drum* getPrevDrum(Drum* fromSoundSource);
-	bool writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
 	void addDrum(Drum* newDrum);
-	Error readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
+	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	Drum* getFirstUnassignedDrum(InstrumentClip* clip);
 	~Kit();
 	int32_t getDrumIndex(Drum* drum);
@@ -159,7 +159,7 @@ protected:
 private:
 	Error readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumType drumType,
 	                       int32_t readAutomationUpToPos);
-	void writeDrumToFile(StorageManager& bdsm, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
+	void writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
 	                     int32_t* selectedDrumIndex, int32_t* drumIndex, Song* song);
 	void removeDrumFromLinkedList(Drum* drum);
 	void drumRemoved(Drum* drum);

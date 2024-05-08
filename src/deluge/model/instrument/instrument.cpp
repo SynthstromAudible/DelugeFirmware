@@ -61,57 +61,57 @@ void Instrument::deleteAnyInstancesOfClip(InstrumentClip* clip) {
 	}
 }
 
-bool Instrument::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 	// midi channels are always saved, either to the midi preset or the song
 	if (type == OutputType::MIDI_OUT) {
 		char const* slotXMLTag = getSlotXMLTag();
 		if (((MIDIInstrument*)this)->sendsToMPE()) {
-			bdsm.writeAttribute(
+			writer.writeAttribute(
 			    slotXMLTag, (((NonAudioInstrument*)this)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
 		}
 		else if (((MIDIInstrument*)this)->sendsToInternal()) {
 			switch (((NonAudioInstrument*)this)->channel) {
 			case MIDI_CHANNEL_TRANSPOSE:
-				bdsm.writeAttribute(slotXMLTag, "transpose");
+				writer.writeAttribute(slotXMLTag, "transpose");
 				break;
 			default:
-				bdsm.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
+				writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
 			}
 		}
 		else {
-			bdsm.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
+			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
 		}
 		char const* subSlotTag = getSubSlotXMLTag();
 		if (subSlotTag) {
-			bdsm.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
+			writer.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
 		}
 	}
 	// saving song
 	if (!clipForSavingOutputOnly) {
 		if (!name.isEmpty()) {
-			bdsm.writeAttribute("presetName", name.get());
+			writer.writeAttribute("presetName", name.get());
 		}
 		else if (type == OutputType::CV) {
 			char const* slotXMLTag = getSlotXMLTag();
 
-			bdsm.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
+			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
 		}
 		if (!dirPath.isEmpty() && (type == OutputType::SYNTH || type == OutputType::KIT)) {
-			bdsm.writeAttribute("presetFolder", dirPath.get());
+			writer.writeAttribute("presetFolder", dirPath.get());
 		}
-		bdsm.writeAttribute("defaultVelocity", defaultVelocity);
+		writer.writeAttribute("defaultVelocity", defaultVelocity);
 	}
 
-	return Output::writeDataToFile(bdsm, clipForSavingOutputOnly, song);
+	return Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
 }
 
-bool Instrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
+bool Instrument::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	char const* slotXMLTag = getSlotXMLTag();
 	char const* subSlotXMLTag = getSubSlotXMLTag();
 
 	if (!strcmp(tagName, slotXMLTag)) {
-		int32_t slotHere = bdsm.readTagOrAttributeValueInt();
+		int32_t slotHere = reader.readTagOrAttributeValueInt();
 		String slotChars;
 		slotChars.setInt(slotHere, 3);
 		slotChars.concatenate(&name);
@@ -119,7 +119,7 @@ bool Instrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 	}
 
 	else if (!strcmp(tagName, subSlotXMLTag)) {
-		int32_t subSlotHere = bdsm.readTagOrAttributeValueInt();
+		int32_t subSlotHere = reader.readTagOrAttributeValueInt();
 		if (subSlotHere >= 0 && subSlotHere < 26) {
 			char buffer[2];
 			buffer[0] = 'A' + subSlotHere;
@@ -129,21 +129,21 @@ bool Instrument::readTagFromFile(StorageManager& bdsm, char const* tagName) {
 	}
 
 	else if (!strcmp(tagName, "defaultVelocity")) {
-		defaultVelocity = bdsm.readTagOrAttributeValueInt();
+		defaultVelocity = reader.readTagOrAttributeValueInt();
 		if (defaultVelocity == 0 || defaultVelocity >= 128) {
 			defaultVelocity = FlashStorage::defaultVelocity;
 		}
 	}
 
 	else if (!strcmp(tagName, "presetFolder")) {
-		bdsm.readTagOrAttributeValueString(&dirPath);
+		reader.readTagOrAttributeValueString(&dirPath);
 	}
 
 	else {
-		return Output::readTagFromFile(bdsm, tagName);
+		return Output::readTagFromFile(reader, tagName);
 	}
 
-	bdsm.exitTag();
+	reader.exitTag();
 	return true;
 }
 

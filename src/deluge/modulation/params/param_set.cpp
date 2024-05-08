@@ -165,7 +165,7 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 	ParamCollection::setPlayPos(pos, modelStack, reversed);
 }
 
-void ParamSet::writeParamAsAttribute(StorageManager& bdsm, char const* name, int32_t p, bool writeAutomation,
+void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
                                      bool onlyIfContainsSomething, int32_t* valuesForOverride) {
 	if (onlyIfContainsSomething && !params[p].containsSomething()) {
 		return;
@@ -173,17 +173,17 @@ void ParamSet::writeParamAsAttribute(StorageManager& bdsm, char const* name, int
 
 	int32_t* valueForOverride = valuesForOverride ? &valuesForOverride[p] : NULL;
 
-	bdsm.write("\n");
-	bdsm.printIndents();
-	bdsm.write(name);
-	bdsm.write("=\"");
-	params[p].writeToFile(bdsm, writeAutomation, valueForOverride);
-	bdsm.write("\"");
+	writer.write("\n");
+	writer.printIndents();
+	writer.write(name);
+	writer.write("=\"");
+	params[p].writeToFile(writer, writeAutomation, valueForOverride);
+	writer.write("\"");
 }
 
-void ParamSet::readParam(StorageManager& bdsm, ParamCollectionSummary* summary, int32_t p,
+void ParamSet::readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p,
                          int32_t readAutomationUpToPos) {
-	params[p].readFromFile(bdsm, readAutomationUpToPos);
+	params[p].readFromFile(reader, readAutomationUpToPos);
 	if (params[p].isAutomated()) {
 		paramHasAutomationNow(summary, p);
 	}
@@ -609,7 +609,7 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 
 char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 
-bool ExpressionParamSet::writeToFile(StorageManager& bdsm, bool mustWriteOpeningTagEndFirst) {
+bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTagEndFirst) {
 
 	bool writtenAnyYet = false;
 
@@ -618,34 +618,34 @@ bool ExpressionParamSet::writeToFile(StorageManager& bdsm, bool mustWriteOpening
 			if (!writtenAnyYet) {
 				writtenAnyYet = true;
 				if (mustWriteOpeningTagEndFirst) {
-					bdsm.writeOpeningTagEnd();
+					writer.writeOpeningTagEnd();
 				}
 
-				bdsm.writeOpeningTagBeginning("expressionData");
+				writer.writeOpeningTagBeginning("expressionData");
 			}
 
-			writeParamAsAttribute(bdsm, expressionParamNames[p], p, true);
+			writeParamAsAttribute(writer, expressionParamNames[p], p, true);
 		}
 	}
 
 	if (writtenAnyYet) {
-		bdsm.closeTag();
+		writer.closeTag();
 	}
 
 	return writtenAnyYet;
 }
 
-void ExpressionParamSet::readFromFile(StorageManager& bdsm, ParamCollectionSummary* summary,
+void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSummary* summary,
                                       int32_t readAutomationUpToPos) {
 
 	char const* tagName;
 
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		int32_t p;
 		for (p = 0; p < kNumExpressionDimensions; p++) {
 			if (!strcmp(tagName, expressionParamNames[p])) {
 doReadParam:
-				readParam(bdsm, summary, p, readAutomationUpToPos);
+				readParam(reader, summary, p, readAutomationUpToPos);
 				goto finishedTag;
 			}
 		}
@@ -658,7 +658,7 @@ doReadParam:
 		}
 
 finishedTag:
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 }
 

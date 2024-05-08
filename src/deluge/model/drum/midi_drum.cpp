@@ -45,33 +45,33 @@ void MIDIDrum::unassignAllVoices() {
 	}
 }
 
-void MIDIDrum::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
-	bdsm.writeOpeningTagBeginning("midiOutput");
+void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
+	writer.writeOpeningTagBeginning("midiOutput");
 
-	bdsm.writeAttribute("channel", channel, false);
-	bdsm.writeAttribute("note", note, false);
+	writer.writeAttribute("channel", channel, false);
+	writer.writeAttribute("note", note, false);
 
 	if (savingSong) {
-		bdsm.writeOpeningTagEnd();
-		Drum::writeMIDICommandsToFile(bdsm);
-		bdsm.writeClosingTag("midiOutput");
+		writer.writeOpeningTagEnd();
+		Drum::writeMIDICommandsToFile(writer);
+		writer.writeClosingTag("midiOutput");
 	}
 	else {
-		bdsm.closeTag();
+		writer.closeTag();
 	}
 }
 
-Error MIDIDrum::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char const* tagName;
 
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "note")) {
-			note = bdsm.readTagOrAttributeValueInt();
-			bdsm.exitTag("note");
+			note = reader.readTagOrAttributeValueInt();
+			reader.exitTag("note");
 		}
-		else if (NonAudioDrum::readDrumTagFromFile(bdsm, tagName)) {}
+		else if (NonAudioDrum::readDrumTagFromFile(reader, tagName)) {}
 		else {
-			bdsm.exitTag(tagName);
+			reader.exitTag(tagName);
 		}
 	}
 

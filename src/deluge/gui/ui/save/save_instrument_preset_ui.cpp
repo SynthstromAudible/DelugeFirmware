@@ -146,7 +146,7 @@ fail:
 		return false;
 	}
 
-	error = bdsm.createXMLFile(filePath.get(), mayOverwrite, false);
+	error = bdsm.createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
@@ -187,7 +187,7 @@ fail:
 	}
 
 	error =
-	    storageManager.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
+	    smSerializer.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
 		goto fail;

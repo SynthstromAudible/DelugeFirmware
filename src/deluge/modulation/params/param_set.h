@@ -49,9 +49,9 @@ public:
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) final;
-	void writeParamAsAttribute(StorageManager& bdsm, char const* name, int32_t p, bool writeAutomation,
+	void writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
 	                           bool onlyIfContainsSomething = false, int32_t* valuesForOverride = NULL);
-	void readParam(StorageManager& bdsm, ParamCollectionSummary* summary, int32_t p, int32_t readAutomationUpToPos);
+	void readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p, int32_t readAutomationUpToPos);
 	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) final;
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) final;
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) final;
@@ -137,8 +137,8 @@ public:
 	bool mayParamInterpolate(int32_t paramId) override { return false; }
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
-	bool writeToFile(StorageManager& bdsm, bool mustWriteOpeningTagEndFirst = false);
-	void readFromFile(StorageManager& bdsm, ParamCollectionSummary* summary, int32_t readAutomationUpToPos);
+	bool writeToFile(Serializer& writer, bool mustWriteOpeningTagEndFirst = false);
+	void readFromFile(Deserializer& reader, ParamCollectionSummary* summary, int32_t readAutomationUpToPos);
 	void moveRegionHorizontally(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t length, int32_t offset,
 	                            int32_t lengthBeforeLoop, Action* action);
 	void clearValues(ModelStackWithParamCollection const* modelStack);
