@@ -33,6 +33,7 @@ public:
 	void drawPixelsForOled() override;
 	void readValueAgain() final;
 	void selectEncoderAction(int32_t offset) final;
+	MenuItem* selectButtonPress() final;
 	void drawValue();
 
 	// this thing is big. allocate external mem on demand
