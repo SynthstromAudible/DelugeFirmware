@@ -16,7 +16,7 @@ It is possible to use the filters on a DX7 patch (though this increase CPU usage
 
 Optional: place DX7 compatible patch banks in .syx format in a "DX7/" folder in the sdcard.
 
-Enable the "DX SHORTUCTS" community setting for full access to the relevant UI behaviors.
+Enable the "DX SHORTCUTS" community setting for full access to the relevant UI behaviors.
 
 To create a new synth in DX7 mode, use the new shortcut "CUSTOM 1" + "SYNTH".
 This shortcut has to be used to create a new DX7 synth
