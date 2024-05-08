@@ -3890,15 +3890,6 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
 	                                       writeAutomation);
 
-	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
-	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "portamento", params::UNPATCHED_PORTAMENTO, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "compressorShape", params::UNPATCHED_SIDECHAIN_SHAPE,
-	                                       writeAutomation);
-
 	patchedParams->writeParamAsAttribute(writer, "oscAVolume", params::LOCAL_OSC_A_VOLUME, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "oscAPulseWidth", params::LOCAL_OSC_A_PHASE_WIDTH, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "oscAWavetablePosition", params::LOCAL_OSC_A_WAVE_INDEX,
@@ -3917,7 +3908,6 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 
 	patchedParams->writeParamAsAttribute(writer, "hpfFrequency", params::LOCAL_HPF_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "hpfResonance", params::LOCAL_HPF_RESONANCE, writeAutomation);
-	patchedParams->writeParamAsAttribute(writer, "hpfMorph", params::LOCAL_HPF_MORPH, writeAutomation);
 
 	patchedParams->writeParamAsAttribute(writer, "lfo1Rate", params::GLOBAL_LFO_FREQ, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "lfo2Rate", params::LOCAL_LFO_LOCAL_FREQ, writeAutomation);

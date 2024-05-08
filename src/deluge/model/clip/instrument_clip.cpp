@@ -2276,13 +2276,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	writer.writeAttribute("inKeyMode", inScaleMode);
 	writer.writeAttribute("yScroll", yScroll);
-	writer.writeAttribute("keyboardLayout", keyboardState.currentLayout);
 	writer.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
-	writer.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
-	writer.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
-	writer.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
-	writer.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
-	writer.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
 
 	if (onKeyboardScreen) {
 		writer.writeAttribute("onKeyboardScreen", (char*)"1");
@@ -2356,13 +2350,9 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	if (output->type != OutputType::KIT) {
 		writer.writeOpeningTagBeginning("arpeggiator");
-		writer.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-		writer.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-		writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-		writer.writeAttribute("numOctaves", arpSettings.numOctaves);
-		writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+		writer.writeAttribute("mode", (char*)arpModeToString(arpSettings.mode));
 		writer.writeAttribute("syncLevel", arpSettings.syncLevel);
-		writer.writeAttribute("syncType", arpSettings.syncType);
+		writer.writeAttribute("numOctaves", arpSettings.numOctaves);
 
 		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 			writer.writeAttribute("gate", arpeggiatorGate);

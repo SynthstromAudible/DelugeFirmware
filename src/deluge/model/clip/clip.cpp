@@ -651,8 +651,6 @@ void Clip::writeToFile(Serializer& writer, Song* song) {
 
 	writeDataToFile(writer, song);
 
-	writer.writeOpeningTagEnd();
-
 	Clip::writeMidiCommandsToFile(writer, song);
 
 	writer.writeClosingTag(xmlTag);
