@@ -115,6 +115,7 @@ public:
 
 	void tellMatrixDriverWhichRowsContainSomethingZoomable();
 	void drawDrumName(Drum* drum, bool justPopUp = false);
+	void getDrumName(Drum* drum, char* drumName);
 	void notifyPlaybackBegun();
 	void openedInBackground();
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
