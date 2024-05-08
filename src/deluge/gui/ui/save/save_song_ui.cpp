@@ -352,7 +352,7 @@ failAfterOpeningSourceFile:
 					// Copy
 					while (true) {
 						UINT bytesRead;
-						result = f_read(&fileSystemStuff.currentFile, bdsm.fileClusterBuffer,
+						result = f_read(&fileSystemStuff.currentFile, smDeserializer.fileClusterBuffer,
 						                audioFileManager.clusterSize, &bytesRead);
 						if (result) {
 							D_PRINTLN("read fail");
@@ -364,7 +364,7 @@ fail3:
 							break; // Stop, on rare case where file ended right at end of last cluster
 						}
 
-						auto written = created.value().write({(std::byte*)bdsm.fileClusterBuffer, bytesRead});
+						auto written = created.value().write({(std::byte*)smSerializer.writeClusterBuffer, bytesRead});
 						if (!written || written.value() != bytesRead) {
 							D_PRINTLN("write fail %d", result);
 							goto fail3;
@@ -423,7 +423,7 @@ fail3:
 	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
 
 	// Write the actual song file
-	error = bdsm.createXMLFile(filePathDuringWrite.get(), false, false);
+	error = bdsm.createXMLFile(filePathDuringWrite.get(), smSerializer, false, false);
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -433,8 +433,8 @@ fail3:
 
 	currentSong->writeToFile(bdsm);
 
-	error = bdsm.closeFileAfterWriting(filePathDuringWrite.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
-	                                   "\n</song>\n");
+	error = smSerializer.closeFileAfterWriting(filePathDuringWrite.get(),
+	                                           "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
 	if (error != Error::NONE) {
 		goto gotError;
 	}

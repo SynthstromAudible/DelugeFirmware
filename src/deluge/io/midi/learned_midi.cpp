@@ -65,65 +65,65 @@ char const* getTagNameFromMIDIMessageType(int32_t midiMessageType) {
 // If you're calling this direcly instead of calling writeToFile(), you'll need to check and possibly write a new tag
 // for device - that can't be just an attribute. You should be sure that containsSomething() == true before calling
 // this.
-void LearnedMIDI::writeAttributesToFile(StorageManager& bdsm, int32_t midiMessageType) {
+void LearnedMIDI::writeAttributesToFile(Serializer& writer, int32_t midiMessageType) {
 
 	if (isForMPEZone()) {
 		char const* zoneText = (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper";
-		bdsm.writeAttribute("mpeZone", zoneText, false);
+		writer.writeAttribute("mpeZone", zoneText, false);
 	}
 	else {
-		bdsm.writeAttribute("channel", channelOrZone, false);
+		writer.writeAttribute("channel", channelOrZone, false);
 	}
 
 	if (midiMessageType != MIDI_MESSAGE_NONE) {
 		char const* messageTypeName = getTagNameFromMIDIMessageType(midiMessageType);
 
-		bdsm.writeAttribute(messageTypeName, noteOrCC, false);
+		writer.writeAttribute(messageTypeName, noteOrCC, false);
 	}
 }
 
-void LearnedMIDI::writeToFile(StorageManager& bdsm, char const* commandName, int32_t midiMessageType) {
+void LearnedMIDI::writeToFile(Serializer& writer, char const* commandName, int32_t midiMessageType) {
 	if (!containsSomething()) {
 		return;
 	}
 
-	bdsm.writeOpeningTagBeginning(commandName);
-	writeAttributesToFile(bdsm, midiMessageType);
+	writer.writeOpeningTagBeginning(commandName);
+	writeAttributesToFile(writer, midiMessageType);
 
 	if (device) {
-		bdsm.writeOpeningTagEnd();
-		device->writeReferenceToFile(bdsm);
-		bdsm.writeClosingTag(commandName);
+		writer.writeOpeningTagEnd();
+		device->writeReferenceToFile(writer);
+		writer.writeClosingTag(commandName);
 	}
 	else {
-		bdsm.closeTag();
+		writer.closeTag();
 	}
 }
 
-void LearnedMIDI::readFromFile(StorageManager& bdsm, int32_t midiMessageType) {
+void LearnedMIDI::readFromFile(Deserializer& reader, int32_t midiMessageType) {
 
 	char const* tagName;
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "channel")) {
-			channelOrZone = bdsm.readTagOrAttributeValueInt();
+			channelOrZone = reader.readTagOrAttributeValueInt();
 		}
 		else if (!strcmp(tagName, "mpeZone")) {
-			readMPEZone(bdsm);
+			readMPEZone(reader);
 		}
 		else if (!strcmp(tagName, "device")) {
-			device = MIDIDeviceManager::readDeviceReferenceFromFile(bdsm);
+			device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 		}
 		else if (midiMessageType != MIDI_MESSAGE_NONE
 		         && !strcmp(tagName, getTagNameFromMIDIMessageType(midiMessageType))) {
-			noteOrCC = bdsm.readTagOrAttributeValueInt();
+			noteOrCC = reader.readTagOrAttributeValueInt();
 			noteOrCC = std::min<int32_t>(noteOrCC, 127);
 		}
-		bdsm.exitTag();
+		reader.exitTag();
 	}
 }
 
-void LearnedMIDI::readMPEZone(StorageManager& bdsm) {
-	char const* text = bdsm.readTagOrAttributeValue();
+void LearnedMIDI::readMPEZone(Deserializer& reader) {
+	char const* text = reader.readTagOrAttributeValue();
 	if (!strcmp(text, "lower")) {
 		channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
 	}

@@ -59,7 +59,10 @@ class MIDIDevice;
 class ModelStack;
 class ModelStackWithTimelineCounter;
 class ParamManager;
+class Serializer;
 class StorageManager;
+class Serializer;
+class Deserializer;
 
 class ModControllableAudio : public ModControllable {
 public:
@@ -71,17 +74,17 @@ public:
 	void processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
 	                                int32_t postFXVolume, int32_t postReverbVolume, int32_t reverbSendAmount,
 	                                int32_t pan = 0, bool doAmplitudeIncrement = false);
-	void writeAttributesToFile(StorageManager& bdsm);
-	void writeTagsToFile(StorageManager& bdsm);
-	Error readTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	void writeAttributesToFile(Serializer& writer);
+	void writeTagsToFile(Serializer& writer);
+	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                      int32_t readAutomationUpToPos, Song* song);
 	void processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
 	                              ParamManager* paramManager);
-	static void writeParamAttributesToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
+	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
-	static void writeParamTagsToFile(StorageManager& bdsm, ParamManager* paramManager, bool writeAutomation,
+	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                 int32_t* valuesForOverride = NULL);
-	static bool readParamTagFromFile(StorageManager& bdsm, char const* tagName, ParamManagerForTimeline* paramManager,
+	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
 	virtual void wontBeRenderedForAWhile();

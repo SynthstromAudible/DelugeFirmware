@@ -86,9 +86,9 @@ Drum* Kit::getPrevDrum(Drum* fromDrum) {
 	return thisDrum;
 }
 
-bool Kit::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
+bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
-	Instrument::writeDataToFile(bdsm, clipForSavingOutputOnly, song);
+	Instrument::writeDataToFile(writer, clipForSavingOutputOnly, song);
 
 	ParamManager* paramManager;
 	// saving preset
@@ -107,19 +107,19 @@ bool Kit::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, S
 		}
 	}
 
-	GlobalEffectableForClip::writeAttributesToFile(bdsm, clipForSavingOutputOnly == NULL);
+	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == NULL);
 
-	bdsm.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
-	                           // Attributes end
+	writer.writeOpeningTagEnd(); // ---------------------------------------------------------------------------
+	                             // Attributes end
 	// saving song
 	if (!clipForSavingOutputOnly) {
 		if (midiInput.containsSomething()) {
-			midiInput.writeNoteToFile(bdsm, "MIDIInput");
+			midiInput.writeNoteToFile(writer, "MIDIInput");
 		}
 	}
-	GlobalEffectableForClip::writeTagsToFile(bdsm, paramManager, clipForSavingOutputOnly == NULL);
+	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, clipForSavingOutputOnly == NULL);
 
-	bdsm.writeOpeningTag("soundSources"); // TODO: change this?
+	writer.writeOpeningTag("soundSources"); // TODO: change this?
 	int32_t selectedDrumIndex = -1;
 	int32_t drumIndex = 0;
 
@@ -148,8 +148,8 @@ bool Kit::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, S
 				}
 				// Or if saving Song, we know there's a NoteRow, so no need to save the ParamManager
 
-				writeDrumToFile(bdsm, drum, paramManagerForDrum, (clipForSavingOutputOnly == NULL), &selectedDrumIndex,
-				                &drumIndex, song);
+				writeDrumToFile(writer, drum, paramManagerForDrum, (clipForSavingOutputOnly == NULL),
+				                &selectedDrumIndex, &drumIndex, song);
 
 				removeDrumFromLinkedList(drum);
 				drum->next = NULL;
@@ -221,56 +221,56 @@ bool Kit::writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, S
 			}
 		}
 
-		writeDrumToFile(bdsm, thisDrum, paramManagerForDrum, clipForSavingOutputOnly == NULL, &selectedDrumIndex,
+		writeDrumToFile(writer, thisDrum, paramManagerForDrum, clipForSavingOutputOnly == NULL, &selectedDrumIndex,
 		                &drumIndex, song);
 
 moveOn:
 		prevPointer = &thisDrum->next;
 	}
 
-	bdsm.writeClosingTag("soundSources");
+	writer.writeClosingTag("soundSources");
 
 	*newLastDrum = firstDrum;
 	firstDrum = newFirstDrum;
 
 	if (selectedDrumIndex != -1) {
-		bdsm.writeTag((char*)"selectedDrumIndex", selectedDrumIndex);
+		writer.writeTag((char*)"selectedDrumIndex", selectedDrumIndex);
 	}
 
 	return true;
 }
 
-void Kit::writeDrumToFile(StorageManager& bdsm, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
+void Kit::writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
                           int32_t* selectedDrumIndex, int32_t* drumIndex, Song* song) {
 	if (thisDrum == selectedDrum) {
 		*selectedDrumIndex = *drumIndex;
 	}
 
-	thisDrum->writeToFile(bdsm, savingSong, paramManagerForDrum);
+	thisDrum->writeToFile(writer, savingSong, paramManagerForDrum);
 	(*drumIndex)++;
 }
 
-Error Kit::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error Kit::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 
 	int32_t selectedDrumIndex = -1;
 
 	ParamManagerForTimeline paramManager;
 
 	char const* tagName;
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "soundSources")) {
-			while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				DrumType drumType;
 
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
 					drumType = DrumType::SOUND;
 doReadDrum:
-					Error error = readDrumFromFile(bdsm, song, clip, drumType, readAutomationUpToPos);
+					Error error = readDrumFromFile(storageManager, song, clip, drumType, readAutomationUpToPos);
 					if (error != Error::NONE) {
 						return error;
 					}
-					bdsm.exitTag();
+					reader.exitTag();
 				}
 				else if (!strcmp(tagName, "midiOutput")) {
 					drumType = DrumType::MIDI;
@@ -281,34 +281,34 @@ doReadDrum:
 					goto doReadDrum;
 				}
 				else {
-					bdsm.exitTag(tagName);
+					reader.exitTag(tagName);
 				}
 			}
-			bdsm.exitTag("soundSources");
+			reader.exitTag("soundSources");
 		}
 		else if (!strcmp(tagName, "selectedDrumIndex")) {
-			selectedDrumIndex = bdsm.readTagOrAttributeValueInt();
-			bdsm.exitTag("selectedDrumIndex");
+			selectedDrumIndex = reader.readTagOrAttributeValueInt();
+			reader.exitTag("selectedDrumIndex");
 		}
 		else if (!strcmp(tagName, "MIDIInput")) {
-			midiInput.readNoteFromFile(bdsm);
-			storageManager.exitTag();
+			midiInput.readNoteFromFile(reader);
+			reader.exitTag();
 		}
 		else {
 			Error result =
-			    GlobalEffectableForClip::readTagFromFile(bdsm, tagName, &paramManager, readAutomationUpToPos, song);
+			    GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, readAutomationUpToPos, song);
 			if (result == Error::NONE) {}
 			else if (result != Error::RESULT_TAG_UNUSED) {
 				return result;
 			}
 			else {
-				if (Instrument::readTagFromFile(bdsm, tagName)) {}
+				if (Instrument::readTagFromFile(reader, tagName)) {}
 				else {
-					Error result = bdsm.tryReadingFirmwareTagFromFile(tagName);
+					Error result = smDeserializer.tryReadingFirmwareTagFromFile(tagName);
 					if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 						return result;
 					}
-					bdsm.exitTag(tagName);
+					reader.exitTag(tagName);
 				}
 			}
 		}
@@ -334,8 +334,9 @@ Error Kit::readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumTy
 		return Error::INSUFFICIENT_RAM;
 	}
 
+	Deserializer& reader = smDeserializer;
 	Error error = newDrum->readFromFile(
-	    bdsm, song, clip,
+	    reader, song, clip,
 	    readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
 	if (error != Error::NONE) {
 		void* toDealloc = dynamic_cast<void*>(newDrum);
@@ -907,7 +908,7 @@ void Kit::prepareForHibernationOrDeletion() {
 void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song) {
 
 	// If it was a pre-V1.2.0 firmware file, we need to compensate for resonance
-	if (storageManager.firmware_version < FirmwareVersion::official({1, 2, 0})
+	if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0})
 	    && !paramManager->resonanceBackwardsCompatibilityProcessed) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
