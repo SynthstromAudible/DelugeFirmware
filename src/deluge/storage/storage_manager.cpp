@@ -222,7 +222,7 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 
 // Returns false if some error, including error while writing
 bool StorageManager::closeFile() {
-	if (smDeserializer.fileAccessFailedDuring) {
+	if (smSerializer.fileAccessFailedDuringWrite) {
 		return false; // Calling f_close if this is false might be dangerous - if access has failed, we don't want it to
 		              // flush any data to the card or anything
 	}
@@ -249,8 +249,9 @@ Error StorageManager::initSD() {
 	}
 
 	// Otherwise, we can mount the filesystem...
-	result = f_mount(&fileSystemStuff.fileSystem, "", 1);
-
+	D_TRY_CATCH(fileSystemStuff.fileSystem.mount(1).transform_error(fatfsErrorToDelugeError), error, {
+		return error; //<
+	});
 	return fresultToDelugeErrorCode(result);
 }
 
