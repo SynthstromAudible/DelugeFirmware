@@ -79,6 +79,8 @@ struct RuntimeFeatureSetting {
 };
 
 class StorageManager;
+class Serializer;
+class Deserializer;
 
 /// Encapsulating class
 class RuntimeFeatureSettings {

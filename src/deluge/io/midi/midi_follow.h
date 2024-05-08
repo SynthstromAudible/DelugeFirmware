@@ -101,7 +101,7 @@ private:
 
 	// loading
 	bool successfullyReadDefaultsFromFile;
-	void readDefaultMappingsFromFile(StorageManager& bdsm);
+	void readDefaultMappingsFromFile(Deserializer& reader);
 };
 
 extern MidiFollow midiFollow;

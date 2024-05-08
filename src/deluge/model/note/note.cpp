@@ -24,13 +24,13 @@ Note::Note() {
 
 /*
 
-void Note::writeToFile(StorageManager &bdsm) {
-    bdsm.writeOpeningTag((char*)"note");
+void Note::writeToFile(Serializer &writer) {
+    writer.writeOpeningTag((char*)"note");
 
-    bdsm.writeTag((char*)"length", length);
-    bdsm.writeTag((char*)"velocity", velocity);
-    bdsm.writeTag((char*)"pos", pos);
+    writer.writeTag((char*)"length", length);
+    writer.writeTag((char*)"velocity", velocity);
+    writer.writeTag((char*)"pos", pos);
 
-    bdsm.writeClosingTag((char*)"note");
+    writer.writeClosingTag((char*)"note");
 }
 */

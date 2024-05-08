@@ -245,7 +245,7 @@ void LoadSongUI::performLoad(StorageManager& bdsm) {
 		playbackHandler.switchToSession();
 	}
 
-	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, "song");
+	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song");
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return;
@@ -318,7 +318,7 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = preLoadedSong->readFromFile(bdsm);
+	error = preLoadedSong->readFromFile(smDeserializer);
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
@@ -716,21 +716,21 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, "song", "", true);
+	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song", "", true);
 	if (error != Error::NONE) {
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return;
 		}
 	}
-
+	Deserializer& reader = smDeserializer;
 	char const* tagName;
 	int32_t previewNumPads = 40;
-	while (*(tagName = bdsm.readNextTagOrAttributeName())) {
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "previewNumPads")) {
-			previewNumPads = bdsm.readTagOrAttributeValueInt();
-			bdsm.exitTag("previewNumPads");
+			previewNumPads = reader.readTagOrAttributeValueInt();
+			reader.exitTag("previewNumPads");
 		}
 		else if (!strcmp(tagName, "preview")) {
 			int32_t skipNumCharsAfterRow = 0;
@@ -743,12 +743,12 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 			int32_t width = endX - startX;
 			int32_t numCharsToRead = width * 3 * 2;
 
-			if (!bdsm.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+			if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 				goto stopLoadingPreview;
 			}
 
 			for (int32_t y = startY; y < endY; y++) {
-				char const* hexChars = bdsm.readNextCharsOfTagOrAttributeValue(numCharsToRead);
+				char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(numCharsToRead);
 				if (!hexChars) {
 					goto stopLoadingPreview;
 				}
@@ -764,7 +764,7 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 			goto stopLoadingPreview;
 		}
 		else {
-			bdsm.exitTag(tagName);
+			reader.exitTag(tagName);
 		}
 	}
 stopLoadingPreview:

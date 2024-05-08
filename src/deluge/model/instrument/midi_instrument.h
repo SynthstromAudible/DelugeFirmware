@@ -42,8 +42,8 @@ public:
 	void allNotesOff();
 
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
-	bool writeDataToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
-	bool readTagFromFile(StorageManager& bdsm, char const* tagName);
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
+	bool readTagFromFile(Deserializer& reader, char const* tagName);
 	Error readModKnobAssignmentsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
 	void sendMIDIPGM();
@@ -113,4 +113,6 @@ private:
 	void sendMonophonicExpressionEvent(int32_t whichExpressionDimension);
 	void combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
+	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
+	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = NULL);
 };

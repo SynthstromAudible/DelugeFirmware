@@ -49,17 +49,17 @@ Drum* SoundDrum::clone() {
 }
 */
 
-bool SoundDrum::readTagFromFile(StorageManager& bdsm, char const* tagName) {
+bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 	if (!strcmp(tagName, "name")) {
-		bdsm.readTagOrAttributeValueString(&name);
-		bdsm.exitTag("name");
+		reader.readTagOrAttributeValueString(&name);
+		reader.exitTag("name");
 	}
 	else if (!strcmp(tagName, "path")) {
-		bdsm.readTagOrAttributeValueString(&path);
-		bdsm.exitTag("path");
+		reader.readTagOrAttributeValueString(&path);
+		reader.exitTag("path");
 	}
 
-	else if (readDrumTagFromFile(bdsm, tagName)) {}
+	else if (readDrumTagFromFile(reader, tagName)) {}
 	else {
 		return false;
 	}
@@ -155,40 +155,41 @@ void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
 void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
-	bdsm.writeOpeningTagBeginning("sound");
-	bdsm.writeFirmwareVersion();
-	bdsm.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
-	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings, NULL);
+	Serializer& writer = smSerializer;
+	writer.writeOpeningTagBeginning("sound");
+	writer.writeFirmwareVersion();
+	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
+	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, NULL);
 
 	if (savingSong) {
-		Drum::writeMIDICommandsToFile(bdsm);
+		Drum::writeMIDICommandsToFile(writer);
 	}
 
-	bdsm.writeClosingTag("sound");
+	writer.writeClosingTag("sound");
 }
 
-void SoundDrum::writeToFile(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
-	bdsm.writeOpeningTagBeginning("sound");
-	bdsm.writeAttribute("name", name.get());
+void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
+	writer.writeOpeningTagBeginning("sound");
+	writer.writeAttribute("name", name.get());
 
-	Sound::writeToFile(bdsm, savingSong, paramManager, &arpSettings, path.get());
+	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.get());
 
 	if (savingSong) {
-		Drum::writeMIDICommandsToFile(bdsm);
+		Drum::writeMIDICommandsToFile(writer);
 	}
 
-	bdsm.writeClosingTag("sound");
+	writer.writeClosingTag("sound");
 }
 
 void SoundDrum::getName(char* buffer) {
 }
 
-Error SoundDrum::readFromFile(StorageManager& bdsm, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
+Error SoundDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack =
 	    setupModelStackWithSong(modelStackMemory, song)->addTimelineCounter(clip)->addModControllableButNoNoteRow(this);
 
-	return Sound::readFromFile(bdsm, modelStack, readAutomationUpToPos, &arpSettings);
+	return Sound::readFromFile(reader, modelStack, readAutomationUpToPos, &arpSettings);
 }
 
 // modelStack may be NULL
