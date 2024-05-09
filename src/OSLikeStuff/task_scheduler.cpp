@@ -62,7 +62,7 @@ void TaskManager::createSortedList() {
 	for (TaskID i = 0; i <= index; i++) {
 		sortedList[i] = (SortedTask{list[i].priority, i});
 	}
-	std::sort(sortedList.begin(), &sortedList[index + 1]);
+	std::sort(&sortedList[0], &sortedList[index + 1]);
 }
 
 TaskID TaskManager::chooseBestTask(double deadline) {
