@@ -3844,84 +3844,82 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 }
 
 void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
+	DEF_STACK_STRING_BUF(drumName, 50);
 
-	char const* newText;
+	getDrumName(drum, drumName);
 
 	if (display->haveOLED()) {
-		char buffer[50];
-
-		if (!drum) {
-			newText = "No sound";
-		}
-		else if (drum->type == DrumType::SOUND) {
-			newText = ((SoundDrum*)drum)->name.get();
-		}
-		else {
-			newText = buffer;
-
-			if (drum->type == DrumType::GATE) {
-
-				strcpy(buffer, "Gate channel ");
-				intToString(((GateDrum*)drum)->channel + 1, &buffer[13]);
-				indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
-			}
-			else { // MIDI
-				char topLine[30];
-				char noteLabel[5];
-
-				sprintf(topLine, "CH: %d  N#: %d", ((MIDIDrum*)drum)->channel + 1, ((MIDIDrum*)drum)->note);
-				noteCodeToString(((MIDIDrum*)drum)->note, noteLabel);
-
-				const char* lines[] = {topLine, noteLabel};
-
-				char bufferLines[50];
-				concatenateLines(lines, sizeof(lines) / sizeof(lines[0]), buffer);
-				indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
-			}
-		}
-
-		display->popupText(newText);
+		display->popupText(drumName.c_str());
 	}
 	else {
-
-		char buffer[7];
-
-		if (!drum) {
-			newText = "NONE";
-
-basicDisplay:
+		bool andAHalf;
+		if (drum && (drum->type == DrumType::SOUND)
+		    && (display->getEncodedPosFromLeft(99999, drumName.c_str(), &andAHalf) > kNumericDisplayLength)) {
+			display->setScrollingText(drumName.c_str(), 0, kInitialFlashTime + kFlashTime);
+		}
+		else {
 			if (justPopUp && currentUIMode != UI_MODE_AUDITIONING) {
-				display->displayPopup(newText);
+				display->displayPopup(drumName.c_str());
 			}
 			else {
-				display->setText(newText, false, 255, true);
+				display->setText(drumName.c_str(), false, 255, true);
 			}
+		}
+	}
+
+	if (drum && drum->type != DrumType::SOUND) {
+		if (drum->type == DrumType::MIDI) {
+			indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
+		}
+		else if (drum->type == DrumType::GATE) {
+			indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
+		}
+	}
+}
+
+void InstrumentClipView::getDrumName(Drum* drum, StringBuf& drumName) {
+	if (display->haveOLED()) {
+		if (!drum) {
+			drumName.append("No sound");
+		}
+		else if (drum->type == DrumType::SOUND) {
+			drumName.append(((SoundDrum*)drum)->name.get());
+		}
+		else {
+			if (drum->type == DrumType::GATE) {
+				drumName.append("Gate channel ");
+				drumName.appendInt(((GateDrum*)drum)->channel + 1);
+			}
+			else { // MIDI
+				drumName.append("CH: ");
+				drumName.appendInt(((MIDIDrum*)drum)->channel + 1);
+				drumName.append(" N#: ");
+				drumName.appendInt(((MIDIDrum*)drum)->note);
+				drumName.append("\n");
+
+				char noteLabel[5];
+				noteCodeToString(((MIDIDrum*)drum)->note, noteLabel);
+
+				drumName.append(noteLabel);
+			}
+		}
+	}
+	else {
+		if (!drum) {
+			drumName.append("NONE");
 		}
 		else {
 			if (drum->type != DrumType::SOUND) {
+				char buffer[7];
 				drum->getName(buffer);
-				newText = buffer;
-
-				if (drum->type == DrumType::MIDI) {
-					indicator_leds::blinkLed(IndicatorLED::MIDI, 1, 1);
-				}
-				else if (drum->type == DrumType::GATE) {
-					indicator_leds::blinkLed(IndicatorLED::CV, 1, 1);
-				}
-
-				goto basicDisplay;
+				drumName.append(buffer);
 			}
+			else {
+				// If we're here, it's a SoundDrum
+				SoundDrum* soundDrum = (SoundDrum*)drum;
 
-			// If we're here, it's a SoundDrum
-			SoundDrum* soundDrum = (SoundDrum*)drum;
-
-			newText = soundDrum->name.get();
-			bool andAHalf;
-
-			if (display->getEncodedPosFromLeft(99999, newText, &andAHalf) <= kNumericDisplayLength) {
-				goto basicDisplay;
+				drumName.append(soundDrum->name.get());
 			}
-			display->setScrollingText(newText, 0, kInitialFlashTime + kFlashTime);
 		}
 	}
 }
