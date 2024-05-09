@@ -194,6 +194,7 @@ uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double minTimeBetwee
 uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait) {
 	return taskManager.addOnceTask(task, priority, timeToWait);
 }
-void removeTask(uint8_t id) {
+
+void removeTask(TaskID id) {
 	return taskManager.removeTask(id);
 }
