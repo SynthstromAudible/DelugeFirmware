@@ -921,7 +921,7 @@ extern "C" void logAudioAction(char const* string) {
 
 /// this function is used as a busy wait loop for long SD reads, and while swapping songs
 extern "C" void routineForSD(void) {
-	
+
 	if (intc_func_active != 0) {
 		return;
 	}
