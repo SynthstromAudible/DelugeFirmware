@@ -55,6 +55,17 @@ TEST(Scheduler, schedule) {
 	mock().checkExpectations();
 };
 
+TEST(Scheduler, scheduleOnce) {
+	mock().clear();
+	// will be called one less time due to the time the sleep takes not being zero
+	mock().expectNCalls(1, "sleep_50ns");
+	testTaskManager.addOnceTask(sleep_50ns, 0, 0.001);
+	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
+	testTaskManager.start(0.0095);
+	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
+	mock().checkExpectations();
+};
+
 TEST(Scheduler, scheduleMultiple) {
 	mock().clear();
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
