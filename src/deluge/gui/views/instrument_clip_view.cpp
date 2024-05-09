@@ -3844,25 +3844,25 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 }
 
 void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
-	char drumName[50];
+	DEF_STACK_STRING_BUF(drumName, 50);
 
 	getDrumName(drum, drumName);
 
 	if (display->haveOLED()) {
-		display->popupText(drumName);
+		display->popupText(drumName.c_str());
 	}
 	else {
 		bool andAHalf;
 		if (drum && (drum->type == DrumType::SOUND)
-		    && (display->getEncodedPosFromLeft(99999, drumName, &andAHalf) > kNumericDisplayLength)) {
-			display->setScrollingText(drumName, 0, kInitialFlashTime + kFlashTime);
+		    && (display->getEncodedPosFromLeft(99999, drumName.c_str(), &andAHalf) > kNumericDisplayLength)) {
+			display->setScrollingText(drumName.c_str(), 0, kInitialFlashTime + kFlashTime);
 		}
 		else {
 			if (justPopUp && currentUIMode != UI_MODE_AUDITIONING) {
-				display->displayPopup(drumName);
+				display->displayPopup(drumName.c_str());
 			}
 			else {
-				display->setText(drumName, false, 255, true);
+				display->setText(drumName.c_str(), false, 255, true);
 			}
 		}
 	}
@@ -3877,45 +3877,48 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 	}
 }
 
-void InstrumentClipView::getDrumName(Drum* drum, char* drumName) {
+void InstrumentClipView::getDrumName(Drum* drum, StringBuf& drumName) {
 	if (display->haveOLED()) {
 		if (!drum) {
-			strncpy(drumName, "No sound", 49);
+			drumName.append("No sound");
 		}
 		else if (drum->type == DrumType::SOUND) {
-			strncpy(drumName, ((SoundDrum*)drum)->name.get(), 49);
+			drumName.append(((SoundDrum*)drum)->name.get());
 		}
 		else {
 			if (drum->type == DrumType::GATE) {
-				strncpy(drumName, "Gate channel ", 49);
-				intToString(((GateDrum*)drum)->channel + 1, &drumName[13]);
+				drumName.append("Gate channel ");
+				drumName.appendInt(((GateDrum*)drum)->channel + 1);
 			}
 			else { // MIDI
-				char topLine[30];
-				char noteLabel[5];
+				drumName.append("CH: ");
+				drumName.appendInt(((MIDIDrum*)drum)->channel + 1);
+				drumName.append(" N#: ");
+				drumName.appendInt(((MIDIDrum*)drum)->note);
+				drumName.append("\n");
 
-				sprintf(topLine, "CH: %d  N#: %d", ((MIDIDrum*)drum)->channel + 1, ((MIDIDrum*)drum)->note);
+				char noteLabel[5];
 				noteCodeToString(((MIDIDrum*)drum)->note, noteLabel);
 
-				const char* lines[] = {topLine, noteLabel};
-
-				concatenateLines(lines, sizeof(lines) / sizeof(lines[0]), drumName);
+				drumName.append(noteLabel);
 			}
 		}
 	}
 	else {
 		if (!drum) {
-			strncpy(drumName, "NONE", 49);
+			drumName.append("NONE");
 		}
 		else {
 			if (drum->type != DrumType::SOUND) {
-				drum->getName(drumName);
+				char buffer[7];
+				drum->getName(buffer);
+				drumName.append(buffer);
 			}
 			else {
 				// If we're here, it's a SoundDrum
 				SoundDrum* soundDrum = (SoundDrum*)drum;
 
-				strncpy(drumName, soundDrum->name.get(), 49);
+				drumName.append(soundDrum->name.get());
 			}
 		}
 	}
