@@ -21,6 +21,7 @@
 #ifndef PLUGINDATA_H_INCLUDED
 #define PLUGINDATA_H_INCLUDED
 
+#include "gui/l10n/strings.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -30,8 +31,8 @@ void exportSysexPgm(uint8_t* dest, uint8_t* src);
 #define SYSEX_HEADER                                                                                                   \
 	{ 0xF0, 0x43, 0x00, 0x09, 0x20, 0x00 }
 #define SYSEX_SIZE 4104
-
-#define TRACE(fmt, ...)
+// single patch
+#define SMALL_SYSEX_SIZE 163
 
 class DX7Cartridge {
 	uint8_t voiceData[SYSEX_SIZE];
@@ -72,71 +73,69 @@ public:
 			buffer[j] = c;
 		}
 		buffer[10] = 0;
+
+		// trim spaces at the end
+		for (int j = 9; j >= 0; j--) {
+			if (buffer[j] != 32) {
+				break;
+			}
+			buffer[j] = 0;
+		}
 	}
 	/**
 	 * Loads sysex buffer
-	 * Returns 0 if it was parsed successfully
-	 * Returns 1 if sysex checksum didn't match
-	 * Returns 2 if no sysex data found, probably random data
+	 * Returns EMPTY_STRING if it was parsed successfully
+	 * otherwise a string describing the error.
 	 */
-	int load(const uint8_t* stream, size_t size) {
+	deluge::l10n::String load(const uint8_t* stream, size_t size) {
+		using deluge::l10n::String;
 		const uint8_t* pos = stream;
 
-		if (size < 4096) {
+		size_t minMsgSize = 163;
+
+		if (size < minMsgSize) {
 			memcpy(voiceData + 6, pos, size);
-			TRACE("too small sysex rc=2");
-			return 2;
+			return String::STRING_FOR_DX_ERROR_FILE_TOO_SMALL;
 		}
 
 		if (pos[0] != 0xF0) {
 			// it is not, just copy the first 4096 bytes
 			memcpy(voiceData + 6, pos, 4096);
-			TRACE("stream is not a sysex rc=2");
-			return 2;
+			return String::STRING_FOR_DX_ERROR_NO_SYSEX_START;
 		}
 
-		// limit the size of the sysex scan
-		if (size > 65535)
-			size = 65535;
-
-		// we loop until we find something that looks like a DX7 cartridge (based on size)
-		while (size >= 4104) {
-			// it was a sysex first, now random data; return random
-			if (pos[0] != 0xF0) {
-				memcpy(voiceData + 6, stream, 4096);
-				TRACE("stream was a sysex, but not anymore rc=2");
-				return 2;
+		int i;
+		// check if this is the size of a DX7 sysex cartridge
+		for (i = 0; i < size; i++) {
+			if (pos[i] == 0xF7) {
+				break;
 			}
-
-			// check if this is the size of a DX7 sysex cartridge
-			for (int i = 0; i < size; i++) {
-				if (pos[i] == 0xF7) {
-					if (i == SYSEX_SIZE - 1) {
-						memcpy(voiceData, pos, SYSEX_SIZE);
-						if (sysexChecksum(voiceData + 6, 4096) == pos[4102]) {
-							TRACE("valid sysex found!");
-							return 0;
-						}
-						else {
-							TRACE("sysex found, but checksum doesn't match rc=1");
-							return 1;
-						}
-					}
-					size -= i;
-					pos += i;
-					TRACE("end of sysex with wrong DX size... still scanning stream: size=%d", i);
-					break;
-				}
-			}
-			TRACE("sysex stream parsed without any end message, skipping...");
-			break;
+		}
+		if (i == size) {
+			return String::STRING_FOR_DX_ERROR_NO_SYSEX_END;
 		}
 
-		// it is a sysex, but doesn't seems to be related to any DX series ...
-		memcpy(voiceData + 6, stream, 4096);
-		TRACE("nothing in the sysex stream was DX related rc=2");
-		return 2;
+		int msgSize = i + 1;
+
+		if (msgSize != SYSEX_SIZE && msgSize != SMALL_SYSEX_SIZE) {
+			return String::STRING_FOR_DX_ERROR_INVALID_LEN;
+		}
+
+		memcpy(voiceData, pos, msgSize);
+		int dataSize = (msgSize == SYSEX_SIZE) ? 4096 : 155;
+		if (sysexChecksum(voiceData + 6, dataSize) != pos[msgSize - 2]) {
+			return String::STRING_FOR_DX_ERROR_CHECKSUM_FAIL;
+		}
+
+		if (voiceData[1] != 67 || (voiceData[3] != 9 && voiceData[3] != 0)) {
+			return String::STRING_FOR_DX_ERROR_SYSEX_ID;
+		}
+
+		return String::EMPTY_STRING;
 	}
+
+	bool isCartridge() { return voiceData[3] == 9; }
+	int numPatches() { return isCartridge() ? 32 : 1; }
 
 	void saveVoice(uint8_t* sysex) {
 		setHeader();
@@ -146,9 +145,13 @@ public:
 	char* getRawVoice() { return (char*)voiceData + 6; }
 
 	void getProgramNames(char dest[32][11]) { // 10 chars + NUL
-		for (int i = 0; i < 32; i++) {
-			normalizePgmName(dest[i], getRawVoice() + ((i * 128) + 118));
+		for (int i = 0; i < numPatches(); i++) {
+			getProgramName(i, dest[i]);
 		}
+	}
+
+	void getProgramName(int32_t i, char dest[11]) {
+		normalizePgmName(dest, getRawVoice() + ((i * 128) + (isCartridge() ? 118 : 145)));
 	}
 
 	void unpackProgram(uint8_t* unpackPgm, int idx);
