@@ -17,22 +17,22 @@ void sleep_50ns() {
 	mock().actualCall("sleep_50ns");
 	uint32_t now = getTimerValue(0);
 	while (getTimerValue(0) < now + 0.00005 * DELUGE_CLOCKS_PER) {
-		;
+		__asm__ __volatile__("nop");
 	}
 }
-void sleep_10ns() {
+void sleep_20ns() {
 	mock().actualCall("sleep_10ns");
 	uint32_t now = getTimerValue(0);
 
-	while (getTimerValue(0) < now + 0.00001 * DELUGE_CLOCKS_PER) {
-		;
+	while (getTimerValue(0) < now + 0.00002 * DELUGE_CLOCKS_PER) {
+		__asm__ __volatile__("nop");
 	}
 }
 void sleep_2ms() {
 	mock().actualCall("sleep_2ms");
 	uint32_t now = getTimerValue(0);
 	while (getTimerValue(0) < now + 0.002 * DELUGE_CLOCKS_PER) {
-		;
+		__asm__ __volatile__("nop");
 	}
 }
 
@@ -62,7 +62,7 @@ TEST(Scheduler, scheduleMultiple) {
 
 	// every 1ms sleep for 50ns and 10ns
 	testTaskManager.addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001);
-	testTaskManager.addRepeatingTask(sleep_10ns, 0, 0.001, 0.001, 0.001);
+	testTaskManager.addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001);
 	// run the scheduler for 10ms
 	testTaskManager.start(0.0095);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -79,10 +79,10 @@ TEST(Scheduler, overSchedule) {
 
 	// every 1ms sleep for 50ns and 10ns
 	auto fiftynshandle = testTaskManager.addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001);
-	auto tennshandle = testTaskManager.addRepeatingTask(sleep_10ns, 0, 0.001, 0.001, 0.001);
+	auto tennshandle = testTaskManager.addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001);
 	auto twomsHandle = testTaskManager.addRepeatingTask(sleep_2ms, 100, 0.001, 0.002, 0.005);
 	// run the scheduler for 10ms
-	testTaskManager.start(0.0098);
+	testTaskManager.start(0.0099);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 
 	mock().checkExpectations();
