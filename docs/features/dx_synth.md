@@ -53,7 +53,7 @@ Some parameters have a shortcut in a layer which is only active when editing any
 For the first 6 rows these are the operators.
 The seventh and eight row contains some of the global parameters
 
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/b57f9a8a-79c0-4621-a97e-045dc352d0eb)
+![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/7e0d160f-8b1d-4b2c-9534-2a3b0ec31cb8)
 
 If OLED screen is available a group of related parameters is displayed at a time, like all the envelope levels and rates
 for a specific envelope. With 7SEG the parameter name will be shown briefly before the value
