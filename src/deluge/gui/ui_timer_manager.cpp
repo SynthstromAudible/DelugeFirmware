@@ -133,7 +133,7 @@ void UITimerManager::routine() {
 
 				case TimerName::DISPLAY_AUTOMATION:
 					if (((getCurrentUI() == &automationView) || (getRootUI() == &automationView))
-					    && !automationView.isOnAutomationOverview()) {
+					    && automationView.inAutomationEditor()) {
 
 						automationView.displayAutomation();
 

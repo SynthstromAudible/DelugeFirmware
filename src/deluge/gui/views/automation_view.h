@@ -113,7 +113,8 @@ public:
 	// used to identify the UI as a clip UI or not.
 	ClipMinder* toClipMinder() { return getAutomationSubType() == AutomationSubType::ARRANGER ? NULL : this; }
 
-	bool isOnAutomationOverview();
+	bool onAutomationOverview();
+	bool inAutomationEditor();
 
 	bool interpolation;
 	bool interpolationBefore;

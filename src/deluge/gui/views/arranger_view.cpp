@@ -875,7 +875,7 @@ void ArrangerView::auditionEnded() {
 	setLedStates();
 
 	if (getRootUI() == &automationView) {
-		if (!automationView.isOnAutomationOverview()) {
+		if (automationView.inAutomationEditor()) {
 			automationView.displayAutomation(true, !display->have7SEG());
 		}
 		else {
