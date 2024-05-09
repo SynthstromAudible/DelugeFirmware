@@ -46,7 +46,7 @@ Likewise, shift+press the seventh pad will open up the editor for global paramet
 starting with algorithm and feedback.
 
 Inside the editor view (when the sidebar is flashing), the LEFT-RIGHT encoder can be used
-to browse between parameters. 
+to browse between parameters. R
 
 Some parameters have a shortcut in a layer which is only active when editing any DX7 parameter (otherwise the regular synth shortcuts apply)
 
@@ -77,6 +77,8 @@ Need some DX7 patches? Check out the following:
  - [Bobby Blue's "All The Web"](http://bobbyblues.recup.ch/yamaha_dx7/dx7_patches.html) patch collection.
  - [This DX7 Cart Does Not Exist](https://www.thisdx7cartdoesnotexist.com/), a random patch bank generator.
  - [patches.fm](https://patches.fm/patches/) has over 20,000 individual patches.
+ - [The Dexed home page](https://asb2m10.github.io/dexed/) links to "Dexed Cart 1.0" which is a collection of ~5000 DX7 patches. Reddit user [Finetales on /r/synthesizers](https://www.reddit.com/r/synthesizers/comments/e4jkt7/my_curated_dexeddx7_patches_3_banks/)  narrowed this down to just 3 carefully curated banks.
+
 
 ## Missing features:
 
