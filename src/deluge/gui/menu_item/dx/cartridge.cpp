@@ -22,46 +22,49 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/DX7Cartridge.h"
 #include "util/container/static_vector.hpp"
 
 static bool openFile(const char* path, DX7Cartridge* data) {
+	using deluge::l10n::String;
 	bool didLoad = false;
-	const int xx = 4104;
+	const int minSize = SMALL_SYSEX_SIZE;
 
 	FILINFO fno;
 	int result = f_stat(path, &fno);
 	FSIZE_t fileSize = fno.fsize;
-	if (fileSize < xx) {
-		display->displayPopup("too small!", 3);
+	if (fileSize < minSize) {
+		display->displayPopup(get(String::STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
 	}
 
 	FIL file;
 	// Open the file
 	result = f_open(&file, path, FA_READ);
 	if (result != FR_OK) {
-		display->displayPopup("read error 1", 3);
+		display->displayPopup(get(String::STRING_FOR_DX_ERROR_READ_ERROR));
 		return false;
 	}
 
-	int status;
+	String error = String::EMPTY_STRING;
 	UINT numBytesRead;
 	int readsize = std::min((int)fileSize, 8192);
 	auto buffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(readsize);
 	if (!buffer) {
-		display->displayPopup("out of memory", 3);
+		display->displayPopup(get(String::STRING_FOR_DX_ERROR_READ_ERROR));
 		goto close;
 	}
 	result = f_read(&file, buffer, fileSize, &numBytesRead);
-	if (numBytesRead < xx) {
-		display->displayPopup("read error 2", 3);
+	if (numBytesRead < minSize) {
+		display->displayPopup(get(String::STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
 		goto free;
 	}
 
-	status = data->load(buffer, numBytesRead);
-	if (status) { // TODO: return error string :P
-		display->displayPopup("load error", 3);
+	error = data->load(buffer, numBytesRead);
+	if (error != String::EMPTY_STRING) {
+		display->displayPopup(get(error), 3);
 	}
 	else {
 		didLoad = true;
@@ -94,6 +97,14 @@ void DxCartridge::readValueAgain() {
 
 	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
 	pd->unpackProgram(patch->params, currentValue);
+	Instrument* instrument = getCurrentInstrument();
+	if (instrument->type == OutputType::SYNTH && !instrument->existsOnCard) {
+		char name[11];
+		pd->getProgramName(currentValue, name);
+		if (name[0] != 0) {
+			instrument->name.set(name);
+		}
+	}
 }
 
 void DxCartridge::drawPixelsForOled() {
@@ -104,7 +115,7 @@ void DxCartridge::drawPixelsForOled() {
 	pd->getProgramNames(names);
 
 	static_vector<std::string_view, 32> itemNames = {};
-	for (int i = 0; i < 32; i++) {
+	for (int i = 0; i < pd->numPatches(); i++) {
 		itemNames.push_back(names[i]);
 	}
 	drawItemsForOled(itemNames, currentValue - scrollPos, scrollPos);
@@ -121,13 +132,15 @@ bool DxCartridge::tryLoad(const char* path) {
 	if (pd == nullptr) {
 		pd = new DX7Cartridge();
 	}
+	currentValue = 0;
+	scrollPos = 0;
 
 	return openFile(path, pd);
 }
 
 void DxCartridge::selectEncoderAction(int32_t offset) {
 	int32_t newValue = currentValue + offset;
-	int32_t numValues = 32;
+	int32_t numValues = pd->numPatches();
 
 	if (display->haveOLED()) {
 		if (newValue >= numValues || newValue < 0) {
@@ -156,4 +169,10 @@ void DxCartridge::selectEncoderAction(int32_t offset) {
 
 	readValueAgain();
 }
+
+MenuItem* DxCartridge::selectButtonPress() {
+	soundEditor.exitCompletely();
+	return nullptr;
+}
+
 } // namespace deluge::gui::menu_item

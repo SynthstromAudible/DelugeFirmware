@@ -114,6 +114,11 @@ char normparm(char value, char max, int id) {
 }
 
 void DX7Cartridge::unpackProgram(uint8_t* unpackPgm, int idx) {
+	if (!isCartridge()) {
+		memcpy(unpackPgm, voiceData + 6, 155);
+		return;
+	}
+
 	// TODO put this in uint8_t :D
 	char* bulk = (char*)voiceData + 6 + (idx * 128);
 
