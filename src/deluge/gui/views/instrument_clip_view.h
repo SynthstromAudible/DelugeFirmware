@@ -23,6 +23,7 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
+#include "util/d_string.h"
 
 class InstrumentClip;
 class NoteRow;
@@ -115,6 +116,7 @@ public:
 
 	void tellMatrixDriverWhichRowsContainSomethingZoomable();
 	void drawDrumName(Drum* drum, bool justPopUp = false);
+	void getDrumName(Drum* drum, StringBuf& drumName);
 	void notifyPlaybackBegun();
 	void openedInBackground();
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
