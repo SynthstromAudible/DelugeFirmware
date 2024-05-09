@@ -76,10 +76,9 @@ Need some DX7 patches? Check out the following:
  - [DX7 factory banks](https://yamahablackboxes.com/collection/yamaha-dx7-synthesizer/patches/) from Yamaha Black Boxes.
  - [Bobby Blue's "All The Web"](http://bobbyblues.recup.ch/yamaha_dx7/dx7_patches.html) patch collection.
  - [This DX7 Cart Does Not Exist](https://www.thisdx7cartdoesnotexist.com/), a random patch bank generator.
- - [patches.fm](https://patches.fm/patches/) (single patches only, you'll need to assemble them in to a bank yourself for now).
+ - [patches.fm](https://patches.fm/patches/) has over 20,000 individual patches.
 
 ## Missing features:
 
 - [ ] midi implementation
 - [ ] modulating/automating individual operators
-- [ ] single-preset `syx` loading support
