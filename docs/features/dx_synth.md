@@ -14,16 +14,27 @@ It is possible to use the filters on a DX7 patch (though this increase CPU usage
 
 ## Usage:
 
+### Presets
+
 Optional: place DX7 compatible patch banks in .syx format in a "DX7/" folder in the sdcard.
+
+### Community Feature Setting
 
 Enable the "DX SHORTCUTS" community setting for full access to the relevant UI behaviors.
 
+### Create New Synth
+
+#### Shortcut
+
 To create a new synth in DX7 mode, use the new shortcut "CUSTOM 1" + "SYNTH".
+
 This shortcut has to be used to create a new DX7 synth
 rather than changing the osc type of a existing patch (or the default init patch)
 as it sets up better defaults, like opening the map ENV1, so the
 DX7 envelopes can be heard, and no default VELOCITY->global volume
 modulation, as velocity sensitivity is set per operator anyway.
+
+#### DX7 Menu
 
 This shortcut will show up a menu. The first option in this menu lets you load patches.
 First you browse for .syx files in the folder (nested subdirs are allowed).
@@ -31,34 +42,45 @@ After selecting a file, you will get a list with the 32 patches in the back.
 Make sure to enable "KEYBOARD", to be able to audition different patches while browsing through.
 
 If you want to create a patch from scratch, you can use the second "DX7 PARAMETERS" option,
-or just exit the menu to use the shortcuts for editing.
+or just exit the menu to use the shortcuts for editing (see Community Feature Setting above for access to all shortcuts).
 
 To re-enter this menu later, use the shift+osc1 type shortcut and press SELECT when DX7 value is active.
-However for interactive editing you likely want to use the DX7 sidebar to quickly jump to relevant operator parameters.
+
+#### Community Feature UI
+
+##### Keyboard View Sidebar
+
+For interactive editing you likely want to use the DX7 sidebar in Keyboard View to quickly jump to relevant operator parameters.
 
 With the community setting active, this column will automatically appear as the right column,
-unless it was manually set to something else, when KEYBOARD screen is active.
-The first 6 rows shows the operators as green for a carrier and blue for a modulator, respectively
-taping a single pad in isolation lets you switch an operator on or off. Shift+colored pad
-opens the editor for that operator. First, the level parameter is selected, and shift+pad again
-gives you the COARSE tuning parameter.
-Likewise, shift+press the seventh pad will open up the editor for global parameters,
-starting with algorithm and feedback.
+unless it was manually set to something else.
+
+When the Keyboard view is active, the first 6 rows of the sidebar shows the operators as green for a carrier and blue for a modulator.
+
+1. Taping a single pad in isolation lets you switch an operator on or off. 
+
+2. Pressing Shift+coloured pad opens the editor for that operator. 
+- The first press of Shift+colored pad selects the level parameter.
+- Pressing Shift+coloured pad again select the COARSE tuning parameter.
+
+3. Pressing shift+the seventh pad will open up the editor for global parameters, starting with algorithm and feedback.
+
+##### Editor View
 
 Inside the editor view (when the sidebar is flashing), the LEFT-RIGHT encoder can be used
-to browse between parameters. R
+to browse between parameters.
 
-Some parameters have a shortcut in a layer which is only active when editing any DX7 parameter (otherwise the regular synth shortcuts apply)
+1. Some parameters have a shortcut in a layer which is only active when editing any DX7 parameter (otherwise the regular synth shortcuts apply). This shortcut layer is outlined as follows:
 
-For the first 6 rows these are the operators.
-The seventh and eight row contains some of the global parameters
+- The first 6 rows correspond to the operators.
+- The seventh and eight row contain some of the global parameters
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/7e0d160f-8b1d-4b2c-9534-2a3b0ec31cb8)
 
-If OLED screen is available a group of related parameters is displayed at a time, like all the envelope levels and rates
+2. If OLED screen is available a group of related parameters is displayed at a time, like all the envelope levels and rates
 for a specific envelope. With 7SEG the parameter name will be shown briefly before the value
 
-Press back/undo to exit the dx layer, and access the standard synth shortcuts again.
+3. Press back/undo to exit the Editor View, and access the standard synth shortcuts again.
 
 ## Engine versions
 
