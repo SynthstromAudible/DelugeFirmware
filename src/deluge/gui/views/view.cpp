@@ -1242,7 +1242,7 @@ void View::setKnobIndicatorLevels() {
 	}
 
 	// don't update knob indicator levels when you're in automation editor
-	if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+	if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
 		automationView.displayAutomation();
 		return;
 	}
@@ -1357,7 +1357,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	RootUI* rootUI = getRootUI();
 
 	// ignore modButtonAction when in the Automation View Automation Editor
-	if ((rootUI == &automationView) && !automationView.isOnAutomationOverview()) {
+	if ((rootUI == &automationView) && automationView.inAutomationEditor()) {
 		// exception for arranger view and pressing mod button 0 so you can toggle VU meter
 		if (!(automationView.onArrangerView && whichButton == 0)) {
 			return;
@@ -1576,7 +1576,7 @@ void View::setModLedStates() {
 			indicator_leds::blinkLed(indicator_leds::modLed[i]);
 		}
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		else if ((getRootUI() == &automationView) && !automationView.isOnAutomationOverview()) {
+		else if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		// otherwise update mod led's to reflect current mod led selection
@@ -1963,7 +1963,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 
 	// hook to render display for OLED and 7SEG when in Automation Clip View
 	if (getCurrentUI() == &automationView && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-		if (!automationView.isOnAutomationOverview()) {
+		if (automationView.inAutomationEditor()) {
 			automationView.displayAutomation(true, !display->have7SEG());
 		}
 		else {
