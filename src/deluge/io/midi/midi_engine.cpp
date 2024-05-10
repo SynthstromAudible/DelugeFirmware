@@ -521,6 +521,25 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 	--eventStackTop_;
 }
 
+void MidiEngine::sendSysex(int32_t channel, uint8_t* data, int32_t len) {
+	// TODO: use optional channel for filter
+	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
+		int32_t potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
+
+		for (int32_t d = 0; d < potentialNumDevices; d++) {
+			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
+			if (!connectedDevice->canHaveMIDISent) {
+				continue;
+			}
+			int32_t maxPort = connectedDevice->maxPortConnected;
+			// when working as a periphal, this sends sysex messages on port "DELUGE MIDI 3"
+			connectedDevice->cable[maxPort]->sendSysex(data, len);
+		}
+	}
+
+	MIDIDeviceManager::dinMIDIPorts.sendSysex(data, len);
+}
+
 uint32_t setupUSBMessage(MIDIMessage message) {
 	// format message per USB midi spec on virtual cable 0
 	uint8_t cin;
@@ -776,6 +795,10 @@ void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len)
 			cable.sendSysex(reply, sizeof(reply));
 		}
 		return;
+	}
+
+	if (data[1] == SysEx::SYSEX_YAMAHA) {
+		playbackHandler.yamahaSysexReceived(cable, data, len);
 	}
 
 	if (data[1] == SysEx::DELUGE_SYSEX_ID_BYTE0 && data[2] == SysEx::DELUGE_SYSEX_ID_BYTE1

@@ -3107,6 +3107,18 @@ void PlaybackHandler::aftertouchReceived(MIDICable& cable, int32_t channel, int3
 	}
 }
 
+void PlaybackHandler::yamahaSysexReceived(MIDICable& fromDevice, uint8_t* data, int32_t len) {
+	int32_t substatus = data[2] >> 4;
+	int32_t channel = data[2] & 0x0f;
+
+	midiFollow.yamahaSysexReceived(fromDevice, channel, data, len);
+
+	// Go through all Instruments...
+	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		thisOutput->offerReceivedYamahaSysex(fromDevice, channel, data, len);
+	}
+}
+
 int32_t PlaybackHandler::getActualArrangementRecordPos() {
 	return getActualSwungTickCount() + arrangement.playbackStartedAtPos;
 }

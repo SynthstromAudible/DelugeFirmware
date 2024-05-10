@@ -17,6 +17,7 @@
 
 #include "processing/sound/sound_instrument.h"
 #include "definitions_cxx.hpp"
+#include "dsp/dx/dx7note.h"
 #include "gui/views/view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -530,4 +531,41 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 		}
 	}
 	return false;
+}
+
+void SoundInstrument::offerReceivedYamahaSysex(MIDICable& fromDevice, int32_t channel, uint8_t* data, int32_t len) {
+	MIDIMatchType match = midiInput.checkMatch(&fromDevice, channel);
+
+	if (match != MIDIMatchType::NO_MATCH) {
+		receivedYamahaSysex(fromDevice, match, channel, data, len);
+	}
+}
+
+void SoundInstrument::receivedYamahaSysex(MIDICable& fromDevice, MIDIMatchType match, int32_t channel, uint8_t* data,
+                                          int32_t len) {
+	if (sources[0].oscType != OscType::DX7 || sources[0].dxPatch == nullptr) {
+		return;
+	}
+
+	int32_t substatus = data[2] >> 4;
+
+	if (substatus == 1) {
+		if (data[3] >> 2 == 0) { // g=0: voice parameter
+			int32_t param = (data[3] << 7) + data[4];
+			uint8_t value = data[5];
+
+			if (param > 155) {
+				return;
+			}
+
+			sources[0].dxPatch->params[param] = value;
+			sources[0].dxPatchChanged = true;
+		}
+	}
+	else if (substatus == 0) {
+		if (data[3] == 0 && len >= 156) { // single voice dump
+			memcpy(sources[0].dxPatch->params, data + 6, 155);
+			sources[0].dxPatchChanged = true;
+		}
+	}
 }

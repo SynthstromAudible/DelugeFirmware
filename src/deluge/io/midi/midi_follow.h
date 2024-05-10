@@ -67,6 +67,7 @@ public:
 	void sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos);
 
 	void handleReceivedCC(ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber, int32_t ccValue);
+	void yamahaSysexReceived(MIDICable& fromDevice, int32_t channel, uint8_t* data, int32_t len);
 
 private:
 	// initialize

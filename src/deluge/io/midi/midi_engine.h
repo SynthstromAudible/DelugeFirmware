@@ -75,6 +75,7 @@ public:
 	void sendStop(MIDISource source);
 	void sendPositionPointer(MIDISource source, uint16_t positionPointer);
 	void sendContinue(MIDISource source);
+	void sendSysex(int32_t channel, uint8_t* data, int32_t len);
 
 	void flushMIDI();
 	void sendUsbMidi(MIDIMessage message, int32_t filter);

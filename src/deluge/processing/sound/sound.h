@@ -289,6 +289,9 @@ public:
 	int32_t numVoicesAssigned;
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
+	int32_t dxSendChannel = -1;
+	bool dxNeedSend = false;
+
 private:
 	uint32_t getGlobalLFOPhaseIncrement();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);

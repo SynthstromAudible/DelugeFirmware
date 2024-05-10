@@ -375,6 +375,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 			if (currentUIMode == UI_MODE_MIDI_LEARN) {
 				currentUIMode = UI_MODE_NONE;
+				getCurrentMenuItem()->exitLearnMode();
 			}
 		}
 	}

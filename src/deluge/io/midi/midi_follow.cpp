@@ -39,6 +39,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 
@@ -774,6 +775,21 @@ void MidiFollow::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t v
 					                                      noteCode, doingMidiThru);
 				}
 			}
+		}
+	}
+}
+
+void MidiFollow::yamahaSysexReceived(MIDICable& fromDevice, int32_t channel, uint8_t* data, int32_t len) {
+	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel);
+	if (match != MIDIMatchType::NO_MATCH) {
+		Clip* clip = getCurrentClip();
+		if (!clip) {
+			return;
+		}
+		Output* output = clip->output;
+		if (output->type == OutputType::SYNTH) {
+			auto* sound = (SoundInstrument*)output;
+			sound->receivedYamahaSysex(fromDevice, match, channel, data, len);
 		}
 	}
 }

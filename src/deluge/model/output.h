@@ -183,6 +183,7 @@ public:
 	                             uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {}
 	virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                                     int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {}
+	virtual void offerReceivedYamahaSysex(MIDICable& fromDevice, int32_t channel, uint8_t* data, int32_t len) {}
 
 	virtual void stopAnyAuditioning(ModelStack* modelStack) {}
 	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
