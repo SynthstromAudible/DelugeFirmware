@@ -30,6 +30,9 @@ typedef int8_t TaskID;
 /// until it returns. returns the index of the task in the global table
 uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double minTimeBetweenCalls, double targetTimeBetweenCalls,
                          double maxTimeBetweenCalls);
+
+/// Add a task to run once, aiming to run at current time + timeToWait and worst case run at timeToWait*10
+uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait);
 void removeTask(TaskID id);
 /// start the task scheduler
 void startTaskManager();
