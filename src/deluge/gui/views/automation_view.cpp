@@ -1977,50 +1977,6 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	return ActionResult::DEALT_WITH;
 }
 
-// called by pad action when pressing a pad in the mute column (x = kDisplayWidth)
-ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType,
-                                                 int32_t y, int32_t velocity) {
-	if (onArrangerView) {
-		return arrangerView.handleStatusPadAction(y, velocity, this);
-	}
-	else {
-		if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			if (outputType != OutputType::KIT) {
-				return ActionResult::DEALT_WITH;
-			}
-			NoteRow* noteRow = instrumentClip->getNoteRowOnScreen(y, currentSong);
-			if (!noteRow || !noteRow->drum) {
-				return ActionResult::DEALT_WITH;
-			}
-			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
-		}
-		else if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    instrumentClip->getNoteRowOnScreen(y, modelStackWithTimelineCounter);
-
-			// if we're in a kit, and you press a mute pad
-			// check if it's a mute pad corresponding to the current selected drum
-			// if not, change the drum selection, refresh parameter selection and go back to automation overview
-			if (outputType == OutputType::KIT) {
-				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-					Drum* drum = modelStackWithNoteRow->getNoteRow()->drum;
-					if (((Kit*)output)->selectedDrum != drum) {
-						if (!getAffectEntire()) {
-							initParameterSelection();
-						}
-					}
-				}
-			}
-
-			instrumentClipView.mutePadPress(y);
-
-			uiNeedsRendering(this); // re-render mute pads
-		}
-	}
-	return ActionResult::DEALT_WITH;
-}
-
 // called by pad action when pressing a pad in the main grid (x < kDisplayWidth)
 ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
                                                  Output* output, OutputType outputType, int32_t effectiveLength,
@@ -2111,6 +2067,86 @@ bool AutomationView::toggleAutomationInterpolation() {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
 	}
 	return true;
+}
+
+// called by shortcutPadAction when it is determined that you are selecting a parameter on automation
+// overview or by using a grid shortcut combo
+bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay) {
+	if (!onArrangerView && (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
+	    && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+	        || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID))) {
+		// don't allow automation of portamento in kit's
+		if ((outputType == OutputType::KIT)
+		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
+			return false; // no parameter selected, don't re-render grid;
+		}
+
+		// if you are in a synth or a kit instrumentClip and the shortcut is valid, set current selected
+		// ParamID
+		if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+			clip->lastSelectedParamKind = params::Kind::PATCHED;
+			clip->lastSelectedParamID = patchedParamShortcuts[xDisplay][yDisplay];
+		}
+
+		else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+			clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
+			clip->lastSelectedParamID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
+		}
+
+		getLastSelectedNonGlobalParamArrayPosition(clip);
+	}
+
+	// if you are in arranger, an audio clip, or a kit clip with affect entire enabled
+	else if ((onArrangerView || (outputType == OutputType::AUDIO)
+	          || (outputType == OutputType::KIT && getAffectEntire()))
+	         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
+
+		params::Kind paramKind = params::Kind::UNPATCHED_GLOBAL;
+		int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
+
+		// don't allow automation of pitch adjust, or sidechain in arranger
+		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
+		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+			return false; // no parameter selected, don't re-render grid;
+		}
+
+		if (onArrangerView) {
+			currentSong->lastSelectedParamKind = paramKind;
+			currentSong->lastSelectedParamID = paramID;
+		}
+		else {
+			clip->lastSelectedParamKind = paramKind;
+			clip->lastSelectedParamID = paramID;
+		}
+
+		getLastSelectedGlobalParamArrayPosition(clip);
+	}
+
+	else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+
+		// if you are in a midi clip and the shortcut is valid, set the current selected ParamID
+		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
+	}
+
+	else {
+		return false; // no parameter selected, don't re-render grid;
+	}
+
+	// save the selected parameter ID's shortcut pad x,y coords so that you can setup the shortcut blink
+	if (onArrangerView) {
+		currentSong->lastSelectedParamShortcutX = xDisplay;
+		currentSong->lastSelectedParamShortcutY = yDisplay;
+	}
+	else {
+		clip->lastSelectedParamShortcutX = xDisplay;
+		clip->lastSelectedParamShortcutY = yDisplay;
+	}
+
+	displayAutomation(true);
+	resetParameterShortcutBlinking();
+	view.setModLedStates();
+
+	return true; // parameter has been selected, re-render grid;
 }
 
 // automation edit pad action
@@ -2270,6 +2306,50 @@ bool AutomationView::recordSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 		return true;
 	}
 	return false;
+}
+
+// called by pad action when pressing a pad in the mute column (x = kDisplayWidth)
+ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType,
+                                                 int32_t y, int32_t velocity) {
+	if (onArrangerView) {
+		return arrangerView.handleStatusPadAction(y, velocity, this);
+	}
+	else {
+		if (currentUIMode == UI_MODE_MIDI_LEARN) {
+			if (outputType != OutputType::KIT) {
+				return ActionResult::DEALT_WITH;
+			}
+			NoteRow* noteRow = instrumentClip->getNoteRowOnScreen(y, currentSong);
+			if (!noteRow || !noteRow->drum) {
+				return ActionResult::DEALT_WITH;
+			}
+			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
+		}
+		else if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    instrumentClip->getNoteRowOnScreen(y, modelStackWithTimelineCounter);
+
+			// if we're in a kit, and you press a mute pad
+			// check if it's a mute pad corresponding to the current selected drum
+			// if not, change the drum selection, refresh parameter selection and go back to automation overview
+			if (outputType == OutputType::KIT) {
+				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+					Drum* drum = modelStackWithNoteRow->getNoteRow()->drum;
+					if (((Kit*)output)->selectedDrum != drum) {
+						if (!getAffectEntire()) {
+							initParameterSelection();
+						}
+					}
+				}
+			}
+
+			instrumentClipView.mutePadPress(y);
+
+			uiNeedsRendering(this); // re-render mute pads
+		}
+	}
+	return ActionResult::DEALT_WITH;
 }
 
 // called by pad action when pressing a pad in the audition column (x = kDisplayWidth + 1)
@@ -4045,86 +4125,6 @@ void AutomationView::handleSinglePadPress(ModelStackWithAutoParam* modelStackWit
 	}
 
 	uiNeedsRendering(this);
-}
-
-// called by shortcutPadAction when it is determined that you are selecting a parameter on automation
-// overview or by using a grid shortcut combo
-bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay) {
-	if (!onArrangerView && (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
-	    && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-	        || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID))) {
-		// don't allow automation of portamento in kit's
-		if ((outputType == OutputType::KIT)
-		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
-			return false; // no parameter selected, don't re-render grid;
-		}
-
-		// if you are in a synth or a kit instrumentClip and the shortcut is valid, set current selected
-		// ParamID
-		if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			clip->lastSelectedParamKind = params::Kind::PATCHED;
-			clip->lastSelectedParamID = patchedParamShortcuts[xDisplay][yDisplay];
-		}
-
-		else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
-			clip->lastSelectedParamID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
-		}
-
-		getLastSelectedNonGlobalParamArrayPosition(clip);
-	}
-
-	// if you are in arranger, an audio clip, or a kit clip with affect entire enabled
-	else if ((onArrangerView || (outputType == OutputType::AUDIO)
-	          || (outputType == OutputType::KIT && getAffectEntire()))
-	         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
-
-		params::Kind paramKind = params::Kind::UNPATCHED_GLOBAL;
-		int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
-
-		// don't allow automation of pitch adjust, or sidechain in arranger
-		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
-		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
-			return false; // no parameter selected, don't re-render grid;
-		}
-
-		if (onArrangerView) {
-			currentSong->lastSelectedParamKind = paramKind;
-			currentSong->lastSelectedParamID = paramID;
-		}
-		else {
-			clip->lastSelectedParamKind = paramKind;
-			clip->lastSelectedParamID = paramID;
-		}
-
-		getLastSelectedGlobalParamArrayPosition(clip);
-	}
-
-	else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
-
-		// if you are in a midi clip and the shortcut is valid, set the current selected ParamID
-		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
-	}
-
-	else {
-		return false; // no parameter selected, don't re-render grid;
-	}
-
-	// save the selected parameter ID's shortcut pad x,y coords so that you can setup the shortcut blink
-	if (onArrangerView) {
-		currentSong->lastSelectedParamShortcutX = xDisplay;
-		currentSong->lastSelectedParamShortcutY = yDisplay;
-	}
-	else {
-		clip->lastSelectedParamShortcutX = xDisplay;
-		clip->lastSelectedParamShortcutY = yDisplay;
-	}
-
-	displayAutomation(true);
-	resetParameterShortcutBlinking();
-	view.setModLedStates();
-
-	return true; // parameter has been selected, re-render grid;
 }
 
 // called by handle single pad press when it is determined that you are editing parameter automation using the grid
