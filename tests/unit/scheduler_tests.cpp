@@ -2,6 +2,7 @@
 #include "CppUTestExt/MockSupport.h"
 #include "OSLikeStuff/task_scheduler.cpp"
 #include "cstdint"
+#include "mocks/timer_mocks.h"
 #include <iostream>
 #include <stdlib.h>
 
@@ -19,6 +20,7 @@ struct SelfRemoving {
 	void runFiveTimes() {
 		mock().actualCall("runFiveTimes");
 		timesCalled += 1;
+		passMockTime(0.001);
 		if (timesCalled >= 5) {
 			removeTask(id);
 		}
@@ -28,24 +30,17 @@ struct SelfRemoving {
 void sleep_50ns() {
 	mock().actualCall("sleep_50ns");
 	uint32_t now = getTimerValue(0);
-	while (getTimerValue(0) < now + 0.00005 * DELUGE_CLOCKS_PER) {
-		__asm__ __volatile__("nop");
-	}
+	passMockTime(0.00005);
 }
 void sleep_20ns() {
 	mock().actualCall("sleep_20ns");
 	uint32_t now = getTimerValue(0);
-
-	while (getTimerValue(0) < now + 0.00002 * DELUGE_CLOCKS_PER) {
-		__asm__ __volatile__("nop");
-	}
+	passMockTime(0.00002);
 }
 void sleep_2ms() {
 	mock().actualCall("sleep_2ms");
 	uint32_t now = getTimerValue(0);
-	while (getTimerValue(0) < now + 0.002 * DELUGE_CLOCKS_PER) {
-		__asm__ __volatile__("nop");
-	}
+	passMockTime(0.002);
 }
 
 TEST_GROUP(Scheduler){
