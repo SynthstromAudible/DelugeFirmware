@@ -21,10 +21,14 @@ extern "C" {
 /* clock_t, clock, CLOCKS_PER_SEC */
 #define clockConversion DELUGE_CLOCKS_PER / CLOCKS_PER_SEC;
 
-std::chrono::time_point<std::chrono::high_resolution_clock> timers[2];
+std::chrono::time_point<std::chrono::steady_clock> timers[2];
+uint32_t mockTimers[2]{0};
+// variable in case some tests need to use the system clock in the future
+bool mockTimeIntervals = true;
 
 void enableTimer(int timerNo) {
-	auto begin = std::chrono::high_resolution_clock::now();
+	auto begin = std::chrono::steady_clock::now();
+	mockTimers[timerNo] = 0;
 	timers[timerNo] = begin;
 }
 
@@ -39,13 +43,25 @@ void setOperatingMode(int timerNo, enum OSTimerOperatingMode mode, bool enable_i
 }
 
 void setTimerValue(int timerNo, uint32_t timerValue) {
-	auto begin = std::chrono::high_resolution_clock::now();
+	auto begin = std::chrono::steady_clock::now();
 	timers[timerNo] = begin;
+	mockTimers[timerNo] = timerValue;
+}
+
+void passMockTime(double seconds) {
+	uint32_t ticks = seconds * DELUGE_CLOCKS_PER;
+	mockTimers[0] += ticks;
+	mockTimers[1] += ticks;
 }
 
 // returns ticks at the rate the deluge clock would generate them
 uint32_t getTimerValue(int timerNo) {
-	auto now = std::chrono::high_resolution_clock::now();
+	/// this ensures that the mocked time keeps advancing
+	passMockTime(0.0000001);
+	auto now = std::chrono::steady_clock::now();
+	if (mockTimeIntervals) {
+		return mockTimers[timerNo];
+	}
 	return DELUGE_CLOCKS_PER * ((std::chrono::duration<double>(now - timers[0]).count()));
 }
 
