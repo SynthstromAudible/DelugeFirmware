@@ -1472,10 +1472,7 @@ int32_t InstrumentClip::getYNoteFromYVisual(int32_t yVisual, Song* song) {
 }
 
 int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
-	bool notesPresent[12];
-	for (int32_t i = 0; i < 12; i++) {
-		notesPresent[i] = false;
-	}
+	bool notesPresent[12] = {0};
 
 	seeWhatNotesWithinOctaveArePresent(
 	    notesPresent, 0, song,
