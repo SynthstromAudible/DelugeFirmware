@@ -1960,7 +1960,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// Edit pad action...
 	if (x < kDisplayWidth) {
-		return handleEditPadAction(modelStackWithParam, clip, outputType, effectiveLength, x, y, velocity);
+		return handleEditPadAction(modelStackWithParam, clip, output, outputType, effectiveLength, x, y, velocity);
 	}
 	// mute / status pad action
 	else if (x == kDisplayWidth) {
@@ -2023,8 +2023,8 @@ ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* 
 
 // called by pad action when pressing a pad in the main grid (x < kDisplayWidth)
 ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-                                                 OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y,
-                                                 int32_t velocity) {
+                                                 Output* output, OutputType outputType, int32_t effectiveLength,
+                                                 int32_t x, int32_t y, int32_t velocity) {
 	if (outputType == OutputType::CV) {
 		displayCVErrorMessage();
 		return ActionResult::DEALT_WITH;
@@ -2038,49 +2038,89 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	int32_t xZoom = currentSong->xZoom[navSysId];
 
 	// if the user wants to change the parameter they are editing using Shift + Pad shortcut
-	if (velocity) {
-		if (Buttons::isShiftButtonPressed()
-		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
-			if (x == interpolationShortcutX && y == interpolationShortcutY) {
-				if (!interpolation) {
-
-					interpolation = true;
-					blinkInterpolationShortcut();
-
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
-				}
-				else {
-					interpolation = false;
-					initInterpolation();
-					resetInterpolationShortcutBlinking();
-
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
-				}
-			}
-			// don't change parameters this way if we're in the menu
-			else if (getCurrentUI() == &automationView) {
-				initPadSelection();
-				handleSinglePadPress(modelStackWithParam, clip, x, y, effectiveLength, xScroll, xZoom, true);
-			}
-
-			return ActionResult::DEALT_WITH;
-		}
+	// or change the parameter they are editing by press on a shortcut pad on automation overview
+	// or they want to enable/disable interpolation
+	if (shortcutPadAction(modelStackWithParam, clip, output, outputType, effectiveLength, x, y, velocity, xScroll,
+	                      xZoom)) {
+		return ActionResult::DEALT_WITH;
 	}
+
 	// regular automation step editing action
 	if (isUIModeWithinRange(editPadActionUIModes)) {
-		editPadAction(modelStackWithParam, clip, velocity, y, x, effectiveLength, xScroll, xZoom);
+		automationEditPadAction(modelStackWithParam, clip, x, y, velocity, effectiveLength, xScroll, xZoom);
 	}
 	return ActionResult::DEALT_WITH;
 }
 
-// edit pad action
-// handles single and multi pad presses for automation editing and for parameter selection on the automation overview
+/// handles shortcut pad actions, including:
+/// 1) toggle interpolation on / off
+/// 2) select parameter on automation overview
+/// 3) select parameter using shift + shortcut pad
+/// 4) select parameter using audition + shortcut pad
+bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, Output* output,
+                                       OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y,
+                                       int32_t velocity, int32_t xScroll, int32_t xZoom) {
+	if (velocity) {
+		bool shortcutPress = false;
+		if (Buttons::isShiftButtonPressed()
+		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
+
+			// toggle interpolation on / off
+			if (x == interpolationShortcutX && y == interpolationShortcutY) {
+				return toggleAutomationInterpolation();
+			}
+
+			shortcutPress = true;
+		}
+		// this means you are selecting a parameter
+		if (shortcutPress || onAutomationOverview()) {
+			// don't change parameters this way if we're in the menu
+			if (getCurrentUI() == &automationView) {
+				// make sure the context is valid for selecting a parameter
+				// can't select a parameter in a kit if you haven't selected a drum
+				if (onArrangerView
+				    || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)
+				    || (outputType == OutputType::KIT && getAffectEntire())) {
+
+					if (handleParameterSelection(clip, outputType, x, y)) {
+						uiNeedsRendering(this);
+					}
+				}
+			}
+
+			return true;
+		}
+	}
+	return false;
+}
+
+/// toggle automation interpolation on / off
+bool AutomationView::toggleAutomationInterpolation() {
+	if (!interpolation) {
+
+		interpolation = true;
+		blinkInterpolationShortcut();
+
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
+	}
+	else {
+		interpolation = false;
+		initInterpolation();
+		resetInterpolationShortcutBlinking();
+
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
+	}
+	return true;
+}
+
+// automation edit pad action
+// handles single and multi pad presses for automation editing
 // stores pad presses in the EditPadPresses struct of the instrument clip view
-void AutomationView::editPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, bool state,
-                                   uint8_t yDisplay, uint8_t xDisplay, int32_t effectiveLength, int32_t xScroll,
-                                   int32_t xZoom) {
+void AutomationView::automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
+                                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength,
+                                             int32_t xScroll, int32_t xZoom) {
 	// If button down
-	if (state) {
+	if (velocity) {
 		if (!isSquareDefined(xDisplay, xScroll, xZoom)) {
 
 			return;
@@ -3993,23 +4033,13 @@ void AutomationView::updateModPosition(ModelStackWithAutoParam* modelStack, uint
 
 // takes care of setting the automation value for the single pad that was pressed
 void AutomationView::handleSinglePadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
-                                          int32_t yDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
-                                          bool shortcutPress) {
+                                          int32_t yDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 
 	Output* output = clip->output;
 	OutputType outputType = output->type;
 
-	// this means you are selecting a parameter
-	if ((shortcutPress || onAutomationOverview())
-	    && (onArrangerView || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)
-	        || (outputType == OutputType::KIT && getAffectEntire()))) {
-
-		if (handleParameterSelection(clip, outputType, xDisplay, yDisplay)) {
-			return;
-		}
-	}
 	// this means you are editing a parameter's value
-	else if (inAutomationEditor()) {
+	if (inAutomationEditor()) {
 		handleParameterAutomationChange(modelStackWithParam, clip, outputType, xDisplay, yDisplay, effectiveLength,
 		                                xScroll, xZoom);
 	}
@@ -4017,8 +4047,8 @@ void AutomationView::handleSinglePadPress(ModelStackWithAutoParam* modelStackWit
 	uiNeedsRendering(this);
 }
 
-// called by handle single pad press when it is determined that you are selecting a parameter on automation overview
-// or by using a grid shortcut combo
+// called by shortcutPadAction when it is determined that you are selecting a parameter on automation
+// overview or by using a grid shortcut combo
 bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay) {
 	if (!onArrangerView && (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
 	    && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
@@ -4026,10 +4056,11 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 		// don't allow automation of portamento in kit's
 		if ((outputType == OutputType::KIT)
 		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
-			return true;
+			return false; // no parameter selected, don't re-render grid;
 		}
 
-		// if you are in a synth or a kit instrumentClip and the shortcut is valid, set current selected ParamID
+		// if you are in a synth or a kit instrumentClip and the shortcut is valid, set current selected
+		// ParamID
 		if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 			clip->lastSelectedParamKind = params::Kind::PATCHED;
 			clip->lastSelectedParamID = patchedParamShortcuts[xDisplay][yDisplay];
@@ -4054,7 +4085,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 		// don't allow automation of pitch adjust, or sidechain in arranger
 		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
 		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
-			return true;
+			return false; // no parameter selected, don't re-render grid;
 		}
 
 		if (onArrangerView) {
@@ -4076,7 +4107,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 	}
 
 	else {
-		return true;
+		return false; // no parameter selected, don't re-render grid;
 	}
 
 	// save the selected parameter ID's shortcut pad x,y coords so that you can setup the shortcut blink
@@ -4093,7 +4124,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 	resetParameterShortcutBlinking();
 	view.setModLedStates();
 
-	return false;
+	return true; // parameter has been selected, re-render grid;
 }
 
 // called by handle single pad press when it is determined that you are editing parameter automation using the grid

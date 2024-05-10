@@ -169,10 +169,16 @@ private:
 	                                 int32_t velocity);
 
 	// edit pad action
-	ActionResult handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, OutputType outputType,
-	                                 int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity);
-	void editPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, bool state, uint8_t yDisplay,
-	                   uint8_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
+	ActionResult handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, Output* output,
+	                                 OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y,
+	                                 int32_t velocity);
+	bool shortcutPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, Output* output,
+	                       OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
+	                       int32_t xScroll, int32_t xZoom);
+	bool toggleAutomationInterpolation();
+	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
+	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
+	                             int32_t xZoom);
 
 	// Automation View Render Functions
 	void performActualRender(RGB image[][kDisplayWidth + kSideBarWidth],
@@ -258,8 +264,7 @@ private:
 
 	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	void handleSinglePadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
-	                          int32_t yDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom,
-	                          bool shortcutPress = false);
+	                          int32_t yDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 	bool handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay);
 	void handleParameterAutomationChange(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
 	                                     OutputType outputType, int32_t xDisplay, int32_t yDisplay,
