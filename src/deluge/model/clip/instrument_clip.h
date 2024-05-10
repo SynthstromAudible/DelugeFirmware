@@ -22,6 +22,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/clip.h"
 #include "model/note/note_row_vector.h"
+#include "model/scale/note_set.h"
 #include "model/timeline_counter.h"
 #include "modulation/arpeggiator.h"
 #include "util/d_string.h"
@@ -74,7 +75,7 @@ public:
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true);
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers = true);
 	void replaceMusicalMode(uint8_t numModeNotes, int8_t changes[], ModelStackWithTimelineCounter* modelStack);
-	void seeWhatNotesWithinOctaveArePresent(bool[], int32_t, Song* song, bool deleteEmptyNoteRows = true);
+	void seeWhatNotesWithinOctaveArePresent(NoteSet&, int32_t, Song* song, bool deleteEmptyNoteRows = true);
 	void transpose(int32_t, ModelStackWithTimelineCounter* modelStack);
 	void nudgeNotesVertically(int32_t, ModelStackWithTimelineCounter* modelStack);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true);

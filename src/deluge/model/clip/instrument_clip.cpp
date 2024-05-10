@@ -1280,7 +1280,7 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 	}
 }
 
-void InstrumentClip::seeWhatNotesWithinOctaveArePresent(bool notesWithinOctavePresent[], int32_t newRootNote,
+void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOctavePresent, int32_t newRootNote,
                                                         Song* song, bool deleteEmptyNoteRows) {
 	song->rootNote = newRootNote; // Not ideal to be setting the global root note here... but as it happens, there's no
 	                              // scenario (currently) where this would cause problems
@@ -1289,7 +1289,7 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(bool notesWithinOctavePr
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!thisNoteRow->hasNoNotes()) {
-			notesWithinOctavePresent[song->getYNoteWithinOctaveFromYNote(thisNoteRow->getNoteCode())] = true;
+			notesWithinOctavePresent.add(song->getYNoteWithinOctaveFromYNote(thisNoteRow->getNoteCode()));
 			i++;
 		}
 
@@ -1472,7 +1472,7 @@ int32_t InstrumentClip::getYNoteFromYVisual(int32_t yVisual, Song* song) {
 }
 
 int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
-	bool notesPresent[12] = {0};
+	NoteSet notesPresent;
 
 	seeWhatNotesWithinOctaveArePresent(
 	    notesPresent, 0, song,
@@ -1500,39 +1500,39 @@ int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
 	for (int32_t root = 0; root < 12; root++) {
 		uint8_t incompatibility = 255;
 
-		if (notesPresent[root]) { // || root == previousRoot) {
+		if (notesPresent.has(root)) { // || root == previousRoot) {
 			// Assess viability of this being the root note
 			uint8_t majorIncompatibility = 0;
-			if (notesPresent[(root + 1) % 12]) {
+			if (notesPresent.has((root + 1) % 12)) {
 				majorIncompatibility++;
 			}
-			if (notesPresent[(root + 3) % 12]) {
+			if (notesPresent.has((root + 3) % 12)) {
 				majorIncompatibility += 2;
 			}
-			if (notesPresent[(root + 6) % 12]) {
+			if (notesPresent.has((root + 6) % 12)) {
 				majorIncompatibility++;
 			}
-			if (notesPresent[(root + 8) % 12]) {
+			if (notesPresent.has((root + 8) % 12)) {
 				majorIncompatibility++;
 			}
-			if (notesPresent[(root + 10) % 12]) {
+			if (notesPresent.has((root + 10) % 12)) {
 				majorIncompatibility++;
 			}
 
 			uint8_t minorIncompatibility = 0;
-			if (notesPresent[(root + 1) % 12]) {
+			if (notesPresent.has((root + 1) % 12)) {
 				minorIncompatibility++;
 			}
-			if (notesPresent[(root + 4) % 12]) {
+			if (notesPresent.has((root + 4) % 12)) {
 				minorIncompatibility += 2;
 			}
-			if (notesPresent[(root + 6) % 12]) {
+			if (notesPresent.has((root + 6) % 12)) {
 				minorIncompatibility++;
 			}
-			if (notesPresent[(root + 9) % 12]) {
+			if (notesPresent.has((root + 9) % 12)) {
 				minorIncompatibility++;
 			}
-			if (notesPresent[(root + 11) % 12]) {
+			if (notesPresent.has((root + 11) % 12)) {
 				minorIncompatibility++;
 			}
 
