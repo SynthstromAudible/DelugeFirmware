@@ -34,6 +34,8 @@ public:
 	void selectEncoderAction(int32_t offset) final;
 	void drawValue();
 	void horizontalEncoderAction(int32_t offset) override;
+	bool allowsLearnMode() override { return true; }
+	void exitLearnMode() final;
 	ActionResult timerCallback() override;
 	[[nodiscard]] std::string_view getTitle() const override;
 

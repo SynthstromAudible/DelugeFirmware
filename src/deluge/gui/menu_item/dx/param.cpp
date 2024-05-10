@@ -22,10 +22,13 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
+#include "io/midi/midi_engine.h"
+#include "lib/printf.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
+#include "storage/DX7Cartridge.h"
 #include <algorithm>
 #include <cstring>
 
@@ -51,9 +54,29 @@ int DxParam::getValue() {
 	}
 }
 
+static void sendYamahaSysexParam(int32_t channel, int32_t param, int32_t value) {
+	uint8_t msg[7] = {0xF0,           0x43, (uint8_t)(0x10 | channel), param > 127, (uint8_t)(param & 0x7F),
+	                  (uint8_t)value, 0xF7};
+	midiEngine.sendSysex(channel, msg, sizeof(msg));
+}
+
+static void sendYamahaSysexVoice(int32_t channel, DxPatch* patch) {
+	uint8_t header[6] = {0xF0, 0x43, (uint8_t)(0x00 | channel), 0x00, 0x01, 0x1B};
+	uint8_t msg[163];
+	memcpy(msg, header, sizeof(header));
+	memcpy(msg + 6, patch->params, 155);
+	msg[161] = sysexChecksum(patch->params, 155);
+	msg[162] = 0xF7;
+	midiEngine.sendSysex(channel, msg, sizeof(msg));
+}
 void DxParam::setValue(int val) {
 	if (param >= 0 && param <= MAX_PARAM_IDX) {
 		patch->params[param] = val;
+
+		int channel = 0;
+		if (soundEditor.currentSound->dxSendChannel > -1) {
+			sendYamahaSysexParam(channel, param, val);
+		}
 	}
 	else if (param == -1) {
 		patch->random_detune = val;
@@ -175,6 +198,33 @@ void DxParam::selectEncoderAction(int32_t offset) {
 }
 
 void DxParam::horizontalEncoderAction(int32_t offset) {
+	if (isUIModeActive(UI_MODE_MIDI_LEARN)) {
+		int32_t val = soundEditor.currentSound->dxSendChannel + offset;
+		if (val < -1) {
+			val = 15;
+		}
+		else if (val >= 16) {
+			val = -1;
+		}
+		soundEditor.currentSound->dxSendChannel = val;
+
+		if (val >= 0) {
+			soundEditor.currentSound->dxNeedSend = true;
+			if (display->haveOLED()) {
+				char text[32];
+				snprintf(text, sizeof(text), "DX send chan %d", val + 1);
+				display->displayPopup(text);
+			}
+			else {
+				display->displayPopup(val + 1);
+			}
+		}
+		else {
+			display->displayPopup("OFF");
+		}
+		return;
+	}
+
 	if (Buttons::isShiftButtonPressed()) {
 		if (param < 0 || param > 6 * 21 || !patch)
 			return; // TODO: remember last OP param?
@@ -206,6 +256,15 @@ void DxParam::horizontalEncoderAction(int32_t offset) {
 
 	if (display->have7SEG()) {
 		flashParamName();
+	}
+}
+
+void DxParam::exitLearnMode() {
+	int channel = soundEditor.currentSound->dxSendChannel;
+	if (soundEditor.currentSound->dxNeedSend && channel >= 0) {
+
+		sendYamahaSysexVoice(channel, soundEditor.currentSound->sources[0].dxPatch);
+		soundEditor.currentSound->dxNeedSend = false;
 	}
 }
 

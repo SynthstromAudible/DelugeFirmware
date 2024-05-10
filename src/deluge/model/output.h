@@ -181,6 +181,7 @@ public:
 	virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                     MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                                     bool* doingMidiThru) {}
+	virtual void offerReceivedYamahaSysex(MIDIDevice* fromDevice, int32_t channel, uint8_t* data, int32_t len) {}
 
 	virtual void stopAnyAuditioning(ModelStack* modelStack) {}
 	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,

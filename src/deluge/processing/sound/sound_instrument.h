@@ -49,6 +49,9 @@ public:
 		return Sound::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack);
 	}
 
+	void offerReceivedYamahaSysex(MIDIDevice* fromDevice, int32_t channel, uint8_t* data, int32_t len) final;
+	void receivedYamahaSysex(MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel, uint8_t* data, int32_t len);
+
 	Error loadAllAudioFiles(bool mayActuallyReadFiles);
 	void resyncLFOs();
 	ModControllable* toModControllable();

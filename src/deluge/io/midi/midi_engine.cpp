@@ -526,6 +526,28 @@ void MidiEngine::sendMidi(MIDISource source, uint8_t statusType, uint8_t channel
 	--eventStackTop_;
 }
 
+void MidiEngine::sendSysex(int32_t channel, uint8_t* data, int32_t len) {
+	// TODO: use optional channel for filter
+	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
+		int32_t potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
+
+		for (int32_t d = 0; d < potentialNumDevices; d++) {
+			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
+			if (!connectedDevice->canHaveMIDISent) {
+				continue;
+			}
+			int32_t maxPort = connectedDevice->maxPortConnected;
+			if (maxPort == 0) {
+				continue;
+			}
+
+			connectedDevice->device[0]->sendSysex(data, len);
+		}
+	}
+
+	MIDIDeviceManager::dinMIDIPorts.sendSysex(data, len);
+}
+
 uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
 	// format message per USB midi spec on virtual cable 0
 	uint8_t cin;
@@ -795,6 +817,10 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 			device->sendSysex(reply, sizeof(reply));
 		}
 		return;
+	}
+
+	if (data[1] == SysEx::SYSEX_YAMAHA) {
+		playbackHandler.yamahaSysexReceived(device, data, len);
 	}
 
 	if (data[1] == SysEx::DELUGE_SYSEX_ID_BYTE0 && data[2] == SysEx::DELUGE_SYSEX_ID_BYTE1
