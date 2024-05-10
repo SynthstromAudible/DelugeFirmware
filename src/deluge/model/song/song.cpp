@@ -2962,10 +2962,7 @@ int32_t Song::setPresetScale(int32_t newScale) {
 		numNotesInNewScale = 6;
 	}
 
-	bool notesWithinOctavePresent[12];
-	for (int32_t i = 0; i < 12; i++) {
-		notesWithinOctavePresent[i] = false;
-	}
+	bool notesWithinOctavePresent[12] = {0};
 
 	if (numNotesInCurrentScale > numNotesInNewScale) {
 		// We are trying to pass from source scale with more notes than the target scale.
