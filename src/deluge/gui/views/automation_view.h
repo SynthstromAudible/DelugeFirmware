@@ -158,16 +158,6 @@ private:
 	void handleSelectEncoderButtonAction(bool on);
 	void handleAffectEntireButtonAction(bool on);
 
-	// audition pad action
-	ActionResult handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output, OutputType outputType,
-	                                     int32_t y, int32_t velocity);
-	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
-
-	// mute pad action
-	ActionResult handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType, int32_t y,
-	                                 int32_t velocity);
-
 	// edit pad action
 	ActionResult handleEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, Output* output,
 	                                 OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y,
@@ -176,9 +166,21 @@ private:
 	                       OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
 	                       int32_t xScroll, int32_t xZoom);
 	bool toggleAutomationInterpolation();
+	bool handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay);
 	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
 	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
 	                             int32_t xZoom);
+	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
+
+	// mute pad action
+	ActionResult handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType, int32_t y,
+	                                 int32_t velocity);
+
+	// audition pad action
+	ActionResult handleAuditionPadAction(InstrumentClip* instrumentClip, Output* output, OutputType outputType,
+	                                     int32_t y, int32_t velocity);
+	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
 
 	// Automation View Render Functions
 	void performActualRender(RGB image[][kDisplayWidth + kSideBarWidth],
@@ -262,10 +264,8 @@ private:
 	void updateModPosition(ModelStackWithAutoParam* modelStack, uint32_t squareStart, bool updateDisplay = true,
 	                       bool updateIndicatorLevels = true);
 
-	bool recordSinglePadPress(int32_t xDisplay, int32_t yDisplay);
 	void handleSinglePadPress(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
 	                          int32_t yDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
-	bool handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay);
 	void handleParameterAutomationChange(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
 	                                     OutputType outputType, int32_t xDisplay, int32_t yDisplay,
 	                                     int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
