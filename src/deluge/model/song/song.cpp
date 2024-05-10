@@ -603,10 +603,7 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	rootNote = newRootNote;
 
 	int32_t oldNumModeNotes = numModeNotes;
-	bool notesWithinOctavePresent[12];
-	for (int32_t i = 0; i < 12; i++) {
-		notesWithinOctavePresent[i] = false;
-	}
+	bool notesWithinOctavePresent[12] = {0};
 
 	// All InstrumentClips in session and arranger
 	ClipArray* clipArray = &sessionClips;
