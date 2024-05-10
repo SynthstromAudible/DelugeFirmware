@@ -131,7 +131,10 @@ void TaskManager::removeTask(TaskID id) {
 void TaskManager::runTask(TaskID id) {
 	list[id].lastCallTime = getTimerValueSeconds(0);
 	list[id].handle();
-	if (!list[id].removeAfterUse) {
+	if (list[id].removeAfterUse) {
+		removeTask(id);
+	}
+	else {
 		double runtime = (getTimerValueSeconds(0) - list[id].lastCallTime);
 		if (runtime < 0) {
 			runtime += rollTime;
@@ -142,9 +145,6 @@ void TaskManager::runTask(TaskID id) {
 		else {
 			list[id].averageDuration = (list[id].averageDuration + runtime) / 2;
 		}
-	}
-	else {
-		removeTask(id);
 	}
 }
 void TaskManager::clockRolledOver() {

@@ -17,11 +17,9 @@ struct SelfRemoving {
 	int timesCalled{0};
 	TaskID id{-1};
 	void runFiveTimes() {
-		std::cout << "running!/n" << std::endl;
 		mock().actualCall("runFiveTimes");
 		timesCalled += 1;
 		if (timesCalled >= 5) {
-			std::cout << "removing!/n" << std::endl;
 			removeTask(id);
 		}
 	}
