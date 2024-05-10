@@ -38,7 +38,7 @@ set_target_properties(UnitTests
         CXX_EXTENSIONS ON
 )
 
-target_link_libraries(UnitTests CppUTest CppUTestExt)
+target_link_libraries(UnitTests CppUTestExt)
 
 # strchr is seemingly different in x86
 target_compile_options(UnitTests PUBLIC
