@@ -30,6 +30,7 @@
 #include "storage/flash_storage.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/d_string.h"
+#include <sys/_stdint.h>
 
 class MidiCommand;
 class Clip;
@@ -390,6 +391,8 @@ public:
 	int32_t countAudioClips() const;
 
 private:
+	int8_t indexLastUnusedScaleDegreeFrom7To6 = -1;
+	int8_t indexLastUnusedScaleDegreeFrom6To5 = -1;
 	bool fillModeActive;
 	Clip* currentClip = nullptr;
 	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
