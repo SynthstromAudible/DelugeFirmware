@@ -3359,9 +3359,9 @@ int32_t InstrumentClipView::getYVisualFromYDisplay(int32_t yDisplay) {
 int32_t InstrumentClipView::getYVisualWithinOctaveFromYDisplay(int32_t yDisplay) {
 	int32_t yVisual = getYVisualFromYDisplay(yDisplay);
 	int32_t yVisualRelativeToRoot = yVisual - currentSong->rootNote;
-	int32_t yVisualWithinOctave = yVisualRelativeToRoot % currentSong->numModeNotes;
+	int32_t yVisualWithinOctave = yVisualRelativeToRoot % currentSong->modeNotes.count();
 	if (yVisualWithinOctave < 0) {
-		yVisualWithinOctave += currentSong->numModeNotes;
+		yVisualWithinOctave += currentSong->modeNotes.count();
 	}
 	return yVisualWithinOctave;
 }

@@ -20,6 +20,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "model/scale/note_set.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 
@@ -103,7 +104,7 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 	// Precreate list of all scale notes per octave
 	NoteSet octaveScaleNotes;
 	if (getScaleModeEnabled()) {
-		ModesArray& scaleNotes = getScaleNotes();
+		NoteSet& scaleNotes = getScaleNotes();
 		for (uint8_t idx = 0; idx < getScaleNoteCount(); ++idx) {
 			octaveScaleNotes.add(scaleNotes[idx]);
 		}

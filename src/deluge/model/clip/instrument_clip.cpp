@@ -36,6 +36,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note.h"
+#include "model/scale/note_set.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -1114,8 +1115,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 						action->addConsequence(newConsequence);
 					}
 
-					action->numModeNotes[AFTER] = modelStack->song->numModeNotes;
-					memcpy(action->modeNotes[AFTER], modelStack->song->modeNotes, sizeof(modelStack->song->modeNotes));
+					action->modeNotes[AFTER] = modelStack->song->modeNotes;
 				}
 			}
 
@@ -1334,7 +1334,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 	int32_t change = direction > 0 ? 1 : -1;
 	if (type == VerticalNudgeType::OCTAVE) {
 		if (isScaleModeClip()) {
-			change *= modelStack->song->numModeNotes;
+			change *= modelStack->song->modeNotes.count();
 		}
 		else {
 			change *= 12;
@@ -1356,7 +1356,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		// Scale clip, transpose by scale note jumps
 
 		// wanting to change a full octave
-		if (std::abs(change) == modelStack->song->numModeNotes) {
+		if (std::abs(change) == modelStack->song->modeNotes.count()) {
 			int32_t changeInSemitones = (change > 0) ? 12 : -12;
 			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 				NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -1372,13 +1372,13 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 				int32_t changeInSemitones = 0;
 				int32_t yNoteWithinOctave = modelStack->song->getYNoteWithinOctaveFromYNote(thisNoteRow->getNoteCode());
 				int32_t oldModeNoteIndex = 0;
-				for (; oldModeNoteIndex < modelStack->song->numModeNotes; oldModeNoteIndex++) {
+				for (; oldModeNoteIndex < modelStack->song->modeNotes.count(); oldModeNoteIndex++) {
 					if (modelStack->song->modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
 						break;
 					}
 				}
-				int32_t newModeNoteIndex =
-				    (oldModeNoteIndex + change + modelStack->song->numModeNotes) % modelStack->song->numModeNotes;
+				int32_t newModeNoteIndex = (oldModeNoteIndex + change + modelStack->song->modeNotes.count())
+				                           % modelStack->song->modeNotes.count();
 
 				int32_t s = 0;
 				if ((change > 0 && newModeNoteIndex > oldModeNoteIndex)

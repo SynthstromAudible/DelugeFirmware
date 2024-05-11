@@ -42,7 +42,7 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 				else {
 					octaves = (semitones / 12);
 				}
-				int32_t steps = octaves * currentSong->numModeNotes + indexInMode;
+				int32_t steps = octaves * currentSong->modeNotes.count() + indexInMode;
 
 				currentSong->transposeAllScaleModeClips(steps, false);
 
