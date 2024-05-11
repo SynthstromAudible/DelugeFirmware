@@ -3358,9 +3358,9 @@ int32_t InstrumentClipView::getYVisualFromYDisplay(int32_t yDisplay) {
 int32_t InstrumentClipView::getYVisualWithinOctaveFromYDisplay(int32_t yDisplay) {
 	int32_t yVisual = getYVisualFromYDisplay(yDisplay);
 	int32_t yVisualRelativeToRoot = yVisual - currentSong->rootNote;
-	int32_t yVisualWithinOctave = yVisualRelativeToRoot % currentSong->numModeNotes;
+	int32_t yVisualWithinOctave = yVisualRelativeToRoot % currentSong->modeNotes.count();
 	if (yVisualWithinOctave < 0) {
-		yVisualWithinOctave += currentSong->numModeNotes;
+		yVisualWithinOctave += currentSong->modeNotes.count();
 	}
 	return yVisualWithinOctave;
 }
@@ -4600,9 +4600,10 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 
 			// If shift button not pressed, transpose whole octave
 			if (!Buttons::isShiftButtonPressed()) {
-				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes 12 rows
+				// If in scale mode, an octave takes modeNotes.count() rows while in chromatic mode it takes 12 rows
 				instrumentClip->nudgeNotesVertically(
-				    offset * (instrumentClip->isScaleModeClip() ? modelStack->song->numModeNotes : 12), modelStack);
+				    offset * (instrumentClip->isScaleModeClip() ? modelStack->song->modeNotes.count() : 12),
+				    modelStack);
 			}
 			// Otherwise, transpose single row position
 			else {

@@ -3701,10 +3701,9 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 
 			// If shift button not pressed, transpose whole octave
 			if (!Buttons::isShiftButtonPressed()) {
-				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes
-				// 12 rows
-				clip->nudgeNotesVertically(offset * (clip->isScaleModeClip() ? modelStack->song->numModeNotes : 12),
-				                           modelStack);
+				// If in scale mode, an octave takes modeNotes.count() rows while in chromatic mode it takes 12 rows
+				clip->nudgeNotesVertically(
+				    offset * (clip->isScaleModeClip() ? modelStack->song->modeNotes.count() : 12), modelStack);
 			}
 			// Otherwise, transpose single row position
 			else {
