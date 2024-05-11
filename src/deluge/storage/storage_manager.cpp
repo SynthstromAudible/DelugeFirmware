@@ -235,8 +235,6 @@ bool StorageManager::closeFile() {
 // just no card inserted.
 Error StorageManager::initSD() {
 
-	FRESULT result;
-
 	// If we know the SD card is still initialised, no need to actually initialise
 	DSTATUS status = disk_status(SD_PORT);
 	if ((status & STA_NOINIT) == 0) {
@@ -249,10 +247,13 @@ Error StorageManager::initSD() {
 	}
 
 	// Otherwise, we can mount the filesystem...
-	D_TRY_CATCH(fileSystemStuff.fileSystem.mount(1).transform_error(fatfsErrorToDelugeError), error, {
+	bool success = D_TRY_CATCH(fileSystemStuff.fileSystem.mount(1).transform_error(fatfsErrorToDelugeError), error, {
 		return error; //<
 	});
-	return fresultToDelugeErrorCode(result);
+	if (success) {
+		return Error::NONE;
+	}
+	return Error::SD_CARD;
 }
 
 bool StorageManager::checkSDPresent() {
