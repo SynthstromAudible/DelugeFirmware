@@ -53,6 +53,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "timers_interrupts/timers_interrupts.h"
 #include "util/functions.h"
 #include "util/misc.h"
 #include <cstring>
@@ -685,21 +686,11 @@ startAgain:
 
 	// Render audio for song
 	if (currentSong) {
-		uint8_t enabledInterrupts[DISABLE_INTERRUPTS_COUNT] = {0};
-		for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
-			enabledInterrupts[idx] = R_INTC_Enabled(disableInterrupts[idx]);
-			if (enabledInterrupts[idx]) {
-				R_INTC_Disable(disableInterrupts[idx]);
-			}
-		}
+		DISABLE_ALL_INTERRUPTS();
 
 		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
 
-		for (uint32_t idx = 0; idx < DISABLE_INTERRUPTS_COUNT; ++idx) {
-			if (enabledInterrupts[idx] != 0) {
-				R_INTC_Enable(disableInterrupts[idx]);
-			}
-		}
+		ENABLE_INTERRUPTS();
 	}
 
 #ifdef REPORT_CPU_USAGE

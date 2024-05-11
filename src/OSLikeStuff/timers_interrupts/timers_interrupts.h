@@ -24,6 +24,25 @@
 extern "C" {
 #endif
 
+// DSB/ISB are required due to pipelining
+// DSB ensures that the write has completed before continuing
+// ISB redoes the prefetch, ensuring that older instructions aren't used
+// ref http://www.rdrop.com/users/paulmck/scalability/paper/whymb.2010.07.23a.pdf
+// in future if we start using user mode this won't work from there
+
+/// disable all interrupts - must be in system mode
+static inline __attribute__((no_instrument_function)) void DISABLE_ALL_INTERRUPTS() {
+	__asm volatile("CPSID i" ::: "memory"); // not certain what memory does but it's in the examples from arm - mark
+	__asm volatile("DSB");
+	__asm volatile("ISB");
+}
+
+/// enable all interrupts - must be in system mode
+static inline __attribute__((no_instrument_function)) void ENABLE_INTERRUPTS() {
+	__asm volatile("CPSIE i" ::: "memory");
+	__asm volatile("DSB");
+	__asm volatile("ISB");
+}
 void clearIRQInterrupt(int irqNumber);
 
 /// sets up a timer with an interrupt and handler but does not enable the timer
