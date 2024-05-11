@@ -20,6 +20,7 @@
 #include "chainload.h"
 #include "RZA1/mtu/mtu.h"
 #include "definitions.h"
+#include "timers_interrupts/timers_interrupts.h"
 
 extern uint32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
@@ -35,7 +36,7 @@ void chainload_from_buf(uint8_t* buffer, int buf_size) {
 
 	// Disable interrupts so we don't get interrupted during the chainload
 #if defined(__arm__)
-	asm volatile("CPSID   i");
+	DISABLE_ALL_INTERRUPTS();
 #endif
 	// Disable timers
 	disableTimer(TIMER_MIDI_GATE_OUTPUT);
