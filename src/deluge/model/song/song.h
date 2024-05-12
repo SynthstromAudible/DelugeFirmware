@@ -30,7 +30,6 @@
 #include "storage/flash_storage.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/d_string.h"
-#include <sys/_stdint.h>
 
 class MidiCommand;
 class Clip;
