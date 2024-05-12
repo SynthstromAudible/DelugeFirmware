@@ -32,7 +32,9 @@ extern "C" {
 
 /// disable all interrupts - must be in system mode
 static inline __attribute__((no_instrument_function)) void DISABLE_ALL_INTERRUPTS() {
-	__asm volatile("CPSID i" ::: "memory"); // not certain what memory does but it's in the examples from arm - mark
+	// memory creates a memory barrier in GCC to avoid reordering
+	// http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html#ss5.3
+	__asm volatile("CPSID i" ::: "memory");
 	__asm volatile("DSB");
 	__asm volatile("ISB");
 }
