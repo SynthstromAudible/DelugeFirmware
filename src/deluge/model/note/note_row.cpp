@@ -1910,6 +1910,13 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 	int32_t effectiveForwardPos =
 	    playingReversedNow ? (effectiveLength - effectiveCurrentPos - 1) : effectiveCurrentPos;
 
+	// If we've "arrived" at a note we actually just recorded, reset the ignore state
+	if (effectiveForwardPos >= ignoreNoteOnsBefore_
+	    || (effectiveForwardPos < ticksSinceLast
+	        && (effectiveForwardPos + effectiveLength - ticksSinceLast) >= ignoreNoteOnsBefore_)) {
+		ignoreNoteOnsBefore_ = 0;
+	}
+
 	if (muted) {
 noFurtherNotes:
 		// If this NoteRow has independent length set, make sure we come back at its end. Otherwise, the Clip handles
@@ -2093,7 +2100,6 @@ currentlyOff:
 
 				// Or if no further Notes until end of this NoteRow...
 				if (nextNoteI < 0 || nextNoteI >= notes.getNumElements()) {
-
 					// If playing reversed, we might still want to try again, taking notice of a "wrapping" note at the
 					// right-hand end of this NoteRow.
 					if (playingReversedNow && allowingNoteTailsNow) {
@@ -2132,13 +2138,8 @@ gotValidNoteIndex:
 
 				// If we've arrived at a Note right now...
 				if (newTicksTil <= 0) {
-
-					// If we've "arrived" at a note we actually just recorded...
-					if (effectiveForwardPos >= ignoreNoteOnsBefore_
-					    || effectiveForwardPos < ticksSinceLast
-					           && (effectiveForwardPos + effectiveLength - ticksSinceLast) >= ignoreNoteOnsBefore_) {
+					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
 						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
-						ignoreNoteOnsBefore_ = 0;
 					}
 
 					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're already at the
