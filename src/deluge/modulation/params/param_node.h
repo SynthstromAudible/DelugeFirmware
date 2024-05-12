@@ -29,6 +29,12 @@ public:
 	ParamNode & operator=(ParamNode const & rhs) = default;
 	ParamNode & operator=(ParamNode && rhs) = default;
 
+	/// The value at this node.
+	///
+	/// For patch cables, this is stored in the range [-2^30, 2^30-1] while for all other parameter types the full range
+	/// is used (even for unipolar parameters!). This means when converting automation from patch cables to non-patch
+	/// cables, lshiftAndSaturage<1>() must be used while conversion in the opposite direction (non-patch-cable to
+	/// patch-cable) a right shift by 1 is required.
 	int32_t value;
 	bool interpolated; // From the previous node
 };

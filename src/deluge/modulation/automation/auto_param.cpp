@@ -2162,9 +2162,11 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 	}
 
 	if (copiedParamAutomation->numNodes > 0) {
-
 		// Allocate some memory for the nodes
-		// Paul: Does it make sense these are in SDRAM? Are the other nodes also in SDRAM?
+		if (copiedParamAutomation->nodes != nullptr) {
+			GeneralMemoryAllocator::get().dealloc(copiedParamAutomation->nodes);
+		}
+
 		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().allocLowSpeed(
 		    sizeof(ParamNode) * copiedParamAutomation->numNodes);
 
@@ -2178,7 +2180,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 
 		if (insertingExtraNodeAtStart) {
 			ParamNode* newNode = &copiedParamAutomation->nodes[n];
-			newNode->pos = startPos;
+			newNode->pos = 0;
 			newNode->value = getValueAtPos(startPos, modelStack);
 			newNode->interpolated = false;
 
@@ -2197,6 +2199,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 			ParamNode* newNode = &copiedParamAutomation->nodes[n];
 
 			*newNode = *nodeToCopy;
+			newNode->pos -= startPos;
 
 			if (isPatchCable) {
 				newNode->value = lshiftAndSaturate<1>(newNode->value);

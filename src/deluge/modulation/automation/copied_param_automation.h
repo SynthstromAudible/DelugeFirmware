@@ -21,12 +21,23 @@
 
 class ParamNode;
 
+/// Copied automation nodes. Nodes here are on their own timeline with the length determined by "width" and node
+/// positions relative to node 0 starting at time 0.
+///
+/// numNodes is 0 and nodes is null when there is no copied automation.
 class CopiedParamAutomation {
 public:
 	CopiedParamAutomation() = default;
-	virtual ~CopiedParamAutomation() = default;
+	~CopiedParamAutomation() = default;
 
+	/// Width in sequencer ticks
 	int32_t width;
+
+	/// Copied nodes.
+	///
+	/// Must be sorted by nodes[i]->pos, and the first node must have pos == 0.
 	ParamNode* nodes = nullptr;
+
+	/// Number of nodes allocated at `nodes`.
 	int32_t numNodes = 0;
 };
