@@ -319,6 +319,12 @@ const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1
 // y = 1 ::  17 <  18 <  32
 // y = 0 ::  0  <   0 <  16
 
+// shortcuts for toggling interpolation and pad selection mode
+constexpr uint8_t kInterpolationShortcutX = 0;
+constexpr uint8_t kInterpolationShortcutY = 6;
+constexpr uint8_t kPadSelectionShortcutX = 0;
+constexpr uint8_t kPadSelectionShortcutY = 7;
+
 AutomationView automationView{};
 
 AutomationView::AutomationView() {
@@ -348,8 +354,6 @@ AutomationView::AutomationView() {
 	parameterShortcutBlinking = false;
 	// used to set interpolation shortcut blinking
 	interpolationShortcutBlinking = false;
-	interpolationShortcutX = 0;
-	interpolationShortcutY = 6;
 	// used to enter pad selection mode
 	padSelectionOn = false;
 	multiPadPressSelected = false;
@@ -2022,8 +2026,12 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
 
 			// toggle interpolation on / off
-			if (x == interpolationShortcutX && y == interpolationShortcutY) {
+			if (x == kInterpolationShortcutX && y == kInterpolationShortcutY) {
 				return toggleAutomationInterpolation();
+			}
+			// toggle pad selection on / off
+			else if (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY) {
+				return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
 			}
 
 			shortcutPress = true;
@@ -2065,6 +2073,40 @@ bool AutomationView::toggleAutomationInterpolation() {
 		resetInterpolationShortcutBlinking();
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
+	}
+	return true;
+}
+
+/// toggle automation pad selection mode on / off
+bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam,
+                                                      int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+	// enter/exit pad selection mode
+	if (inAutomationEditor()) {
+		if (padSelectionOn) {
+
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
+
+			initPadSelection();
+			if (!playbackHandler.isEitherClockActive()) {
+				displayAutomation(true, !display->have7SEG());
+			}
+		}
+		else {
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
+
+			padSelectionOn = true;
+			multiPadPressSelected = false;
+			multiPadPressActive = false;
+
+			// display only left cursor initially
+			leftPadSelectedX = 0;
+			rightPadSelectedX = kNoSelection;
+
+			uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
+
+			updateModPosition(modelStackWithParam, squareStart, !display->have7SEG());
+		}
+		uiNeedsRendering(this);
 	}
 	return true;
 }
@@ -3264,36 +3306,10 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		}
 	}
 
-	// enter/exit pad selection mode
-	else if (inAutomationEditor()) {
-		if (on) {
-			if (padSelectionOn) {
-
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
-
-				initPadSelection();
-				if (!playbackHandler.isEitherClockActive()) {
-					displayAutomation(true, !display->have7SEG());
-				}
-			}
-			else {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
-
-				padSelectionOn = true;
-				multiPadPressSelected = false;
-				multiPadPressActive = false;
-
-				// display only left cursor initially
-				leftPadSelectedX = 0;
-				rightPadSelectedX = kNoSelection;
-
-				uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
-
-				updateModPosition(modelStackWithParam, squareStart, !display->have7SEG());
-			}
-		}
-	}
-	else if (onAutomationOverview()) {
+	// if we're in automation overview (or soon to be note editor)
+	// then we want to allow toggling with mod encoder buttons to change
+	// mod encoder selections
+	else if (!inAutomationEditor()) {
 		goto followOnAction;
 	}
 
@@ -4522,7 +4538,7 @@ void AutomationView::resetInterpolationShortcutBlinking() {
 }
 
 void AutomationView::blinkInterpolationShortcut() {
-	PadLEDs::flashMainPad(interpolationShortcutX, interpolationShortcutY);
+	PadLEDs::flashMainPad(kInterpolationShortcutX, kInterpolationShortcutY);
 	uiTimerManager.setTimer(TimerName::INTERPOLATION_SHORTCUT_BLINK, 3000);
 	interpolationShortcutBlinking = true;
 }

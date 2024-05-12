@@ -238,12 +238,10 @@ The Automation Editor **will:**
 
 > **Note 3:** If the parameter selected is not currently automated, turning the Mod Encoders (Gold Knobs) will increase the value of every step in the automation grid in unison (e.g. same value for all steps).
 
-- you can also fine tune automation values by entering **Pad Selection Mode**. You enter this mode by pressing on either of the Mod Encoders.
+- you can also fine tune automation values by entering **Pad Selection Mode**. You enter / exit this mode by pressing the pad selection mode shortcut (Shift + Waveform Pad in first column of grid / the very top left pad)
 
 ![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/1e4b3653-c1a1-4d21-bfa0-826df378b063)
 
-> Pad selection mode is accessed by pressing on either of the mod encoder buttons
-> 
 > In pad selection mode, you cannot edit the automation grid by pressing on the pads. 
 > 
 > With a single or multi pad (long) press you select the pad(s) to edit. 
@@ -471,4 +469,3 @@ These are the main button shortcuts/combos that will be used in the Automation C
 This image shows the default MIDI Follow CC to Grid Parameter Shortcut mappings. You can edit these mappings in MIDIFollow.XML which will update the CC to Grid Parameter Shortcut mappings used in Automation View for MIDI Clips.
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/6ecbb774-deb9-466c-9469-e86e5e904ce3)
-
