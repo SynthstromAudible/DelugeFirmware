@@ -36,8 +36,8 @@ Error ConsequenceNoteRowMute::revert(TimeType time, ModelStack* modelStack) {
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(clip)->addNoteRow(noteRowId, noteRow);
 
 	// Call this instead of Clip::toggleNoteRowMute(), cos that'd go and log another Action
-	noteRow->toggleMute(modelStackWithNoteRow, playbackHandler.isEitherClockActive()
-	                                               && modelStackWithNoteRow->song->isClipActive(clip));
+	noteRow->toggleMute(modelStackWithNoteRow,
+	                    playbackHandler.isEitherClockActive() && modelStackWithNoteRow->song->isClipActive(clip));
 
 	return Error::NONE;
 }

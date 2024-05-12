@@ -197,8 +197,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 			// Otherwise, if internal clock, restart playback
 			else {
 
-				if (isInternalClockActive()
-				    && recording != RecordingMode::ARRANGEMENT) {
+				if (isInternalClockActive() && recording != RecordingMode::ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
 				else {
