@@ -68,6 +68,9 @@ using namespace gui;
 
 using namespace deluge::modulation::params;
 
+// Performance View constants
+constexpr int32_t kNumParamsForPerformance = 18;
+
 // list of parameters available for assignment to FX columns in performance view
 constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsForPerformance = {{
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, colours::red, colours::red.forTail()},
@@ -162,6 +165,11 @@ constexpr uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHei
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
 };
 
+// lookup tables for the values that are set when you press the pads in each row of the grid
+const int32_t nonDelayPadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
+const int32_t delayPadPressValues[kDisplayHeight] = {0, 9, 18, 27, 36, 45, 54, 63};
+const int32_t quantizedStutterPressValues[kDisplayHeight] = {-52, -37, -22, -7, 8, 23, 38, 53};
+
 PerformanceSessionView performanceSessionView{};
 
 // initialize variables
@@ -229,7 +237,7 @@ void PerformanceSessionView::initLayout(ParamsForPerformance& layout) {
 
 void PerformanceSessionView::initDefaultFXValues(int32_t xDisplay) {
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		int32_t defaultFXValue = calculateKnobPosForSinglePadPress(xDisplay, yDisplay);
+		int32_t defaultFXValue = getKnobPosForSinglePadPress(xDisplay, yDisplay);
 		defaultFXValues[xDisplay][yDisplay] = defaultFXValue;
 		backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValue;
 	}
@@ -1395,7 +1403,7 @@ void PerformanceSessionView::getParameterValue(ModelStackWithThreeMainThings* mo
 
 /// converts grid pad press yDisplay into a knobPosition value default
 /// this will likely need to be customized based on the parameter to create some more param appropriate ranges
-int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
+int32_t PerformanceSessionView::getKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
 	params::Kind paramKind = defaultLayoutForPerformance[xDisplay].paramKind;
@@ -1403,18 +1411,11 @@ int32_t PerformanceSessionView::calculateKnobPosForSinglePadPress(int32_t xDispl
 
 	bool isDelayAmount = ((paramKind == params::Kind::UNPATCHED_GLOBAL) && (paramID == UNPATCHED_DELAY_AMOUNT));
 
-	// if you press bottom pad, value is 0, for all other pads except for the top pad, value = row Y * 18
-	// exception: delay amount increment is set to 9 by default
-
-	if (yDisplay < 7) {
-		newKnobPos =
-		    yDisplay
-		    * (isDelayAmount ? kParamValueIncrementForDelayAmount : kParamValueIncrementForAutomationSinglePadPress);
+	if (isDelayAmount) {
+		newKnobPos = delayPadPressValues[yDisplay];
 	}
-	// if you are pressing the top pad, set the value to max (128)
-	// exception: delay amount max value is set to 63 by default
 	else {
-		newKnobPos = isDelayAmount ? kMaxKnobPosForDelayAmount : kMaxKnobPos;
+		newKnobPos = nonDelayPadPressValues[yDisplay];
 	}
 
 	// in the deluge knob positions are stored in the range of -64 to + 64, so need to adjust newKnobPos set above.
@@ -1488,11 +1489,6 @@ int32_t PerformanceSessionView::calculateKnobPosForSelectEncoderTurn(int32_t kno
 	newKnobPos = newKnobPos - kKnobPosOffset;
 
 	return newKnobPos;
-}
-
-int32_t PerformanceSessionView::adjustKnobPosForQuantizedStutter(int32_t yDisplay) {
-	int32_t knobPos = -kMinKnobPosForQuantizedStutter + (yDisplay * kParamValueIncrementForQuantizedStutter);
-	return knobPos;
 }
 
 ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
@@ -1827,7 +1823,7 @@ void PerformanceSessionView::loadDefaultLayout() {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
 			                                    layoutForPerformance[xDisplay].paramID)) {
-				defaultFXValues[xDisplay][yDisplay] = adjustKnobPosForQuantizedStutter(yDisplay);
+				defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 			}
 		}
@@ -1919,7 +1915,7 @@ void PerformanceSessionView::readDefaultFXRowNumberValuesFromFile(StorageManager
 
 				if (params::isParamQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
 				                                    layoutForPerformance[xDisplay].paramID)) {
-					defaultFXValues[xDisplay][yDisplay] = adjustKnobPosForQuantizedStutter(yDisplay);
+					defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 				}
 
 				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
