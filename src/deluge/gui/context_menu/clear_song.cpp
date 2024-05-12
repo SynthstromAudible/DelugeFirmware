@@ -79,7 +79,7 @@ bool ClearSong::acceptCurrentOption() {
 	actionLogger.deleteAllLogs();
 
 	nullifyUIs();
-	if (!(playbackHandler.playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE)) {
+	if (!playbackHandler.isEitherClockActive()) {
 		deleteOldSongBeforeLoadingNew();
 	}
 	else {
@@ -96,7 +96,7 @@ bool ClearSong::acceptCurrentOption() {
 
 	preLoadedSong->ensureAtLeastOneSessionClip(); // Will load a synth preset from SD card
 
-	playbackHandler.doSongSwap((playbackHandler.playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE));
+	playbackHandler.doSongSwap(playbackHandler.isEitherClockActive());
 	if (toDelete) {
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Song();

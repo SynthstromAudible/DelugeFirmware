@@ -4841,7 +4841,7 @@ cantDoIt:
 			oldNonAudioInstrument->channel = oldChannel; // Put it back, before switching notes off etc
 		}
 
-		if (oldNonAudioInstrument->activeClip && (playbackHandler.playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE)) {
+		if (oldNonAudioInstrument->activeClip && playbackHandler.isEitherClockActive()) {
 			oldNonAudioInstrument->activeClip->expectNoFurtherTicks(currentSong);
 		}
 
