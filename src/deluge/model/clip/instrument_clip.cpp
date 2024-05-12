@@ -3538,13 +3538,13 @@ void InstrumentClip::sendMIDIPGM() {
 
 	// Send MIDI PGM if there is one...
 	if (midiBank != 128) {
-		midiEngine.sendBank(masterChannel, midiBank, outputFilter);
+		midiEngine.sendBank(midiInstrument, masterChannel, midiBank, outputFilter);
 	}
 	if (midiSub != 128) {
-		midiEngine.sendSubBank(masterChannel, midiSub, outputFilter);
+		midiEngine.sendSubBank(midiInstrument, masterChannel, midiSub, outputFilter);
 	}
 	if (midiPGM != 128) {
-		midiEngine.sendPGMChange(masterChannel, midiPGM, outputFilter);
+		midiEngine.sendPGMChange(midiInstrument, masterChannel, midiPGM, outputFilter);
 	}
 }
 

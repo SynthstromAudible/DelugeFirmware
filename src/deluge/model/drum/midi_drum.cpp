@@ -30,12 +30,12 @@ MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 	lastVelocity = velocity;
-	midiEngine.sendNote(true, note, velocity, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, true, note, velocity, channel, kMIDIOutputFilterNoMPE);
 	state = true;
 }
 
 void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
-	midiEngine.sendNote(false, note, velocity, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, false, note, velocity, channel, kMIDIOutputFilterNoMPE);
 	state = false;
 }
 
@@ -128,7 +128,7 @@ void MIDIDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimensio
 	// Aftertouch only
 	if (whichExpressionDimension == 2) {
 		int32_t value7 = newValue >> 24;
-		midiEngine.sendPolyphonicAftertouch(channel, value7, note, kMIDIOutputFilterNoMPE);
+		midiEngine.sendPolyphonicAftertouch(this, channel, value7, note, kMIDIOutputFilterNoMPE);
 	}
 }
 
