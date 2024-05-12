@@ -22,38 +22,73 @@
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
 #include "playback/playback_handler.h"
+#include <array>
 
 class MIDIDevice;
+class MIDIInstrument;
+class MidiFollow;
+class PlaybackHandler;
+class MIDIDrum;
+
+/// The source of a MIDI event. Can be one of a few different things, though we only keep track of the memory address of
+/// the source and use that to distinguish between separate sources.
+struct MIDISource {
+	void const* source_{nullptr};
+
+	MIDISource() = default;
+	~MIDISource() = default;
+
+	MIDISource(MIDIDevice const* device) : source_(device){};
+	MIDISource(MIDIInstrument const* instrument) : source_(instrument){};
+	MIDISource(PlaybackHandler const* handler) : source_(handler){};
+	MIDISource(MidiFollow const* follow) : source_(follow){};
+	MIDISource(MIDIDrum const* drum) : source_(drum){};
+
+	MIDISource(MIDIDevice const& device) : source_(&device){};
+	MIDISource(MIDIInstrument const& instrument) : source_(&instrument){};
+	MIDISource(MIDIDrum const& drum) : source_(&drum){};
+	MIDISource(MidiFollow const& follow) : source_(&follow){};
+	MIDISource(PlaybackHandler const& handler) : source_(&handler){};
+
+	MIDISource(MIDISource const& other) = default;
+	MIDISource(MIDISource&& other) = default;
+
+	MIDISource& operator=(MIDISource const& other) = default;
+	MIDISource& operator=(MIDISource&& other) = default;
+
+	bool operator==(MIDISource const& other) const { return source_ == other.source_; }
+};
 
 class MidiEngine {
 public:
 	MidiEngine();
 
-	void sendNote(bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
-	void sendCC(int32_t channel, int32_t cc, int32_t value, int32_t filter);
+	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
+	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter);
 	bool checkIncomingSerialMidi();
 	void checkIncomingUsbMidi();
 
 	void checkIncomingUsbSysex(uint8_t const* message, int32_t ip, int32_t d, int32_t cable);
 
-	void sendMidi(uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0,
+	void sendMidi(MIDISource source, uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0,
 	              int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
-	void sendClock(bool sendUSB = true, int32_t howMany = 1);
-	void sendStart();
-	void sendStop();
-	void sendPositionPointer(uint16_t positionPointer);
-	void sendContinue();
+	void sendClock(MIDISource source, bool sendUSB = true, int32_t howMany = 1);
+	void sendStart(MIDISource source);
+	void sendStop(MIDISource source);
+	void sendPositionPointer(MIDISource source, uint16_t positionPointer);
+	void sendContinue(MIDISource source);
+
 	void flushMIDI();
 	void sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter);
-
 	void sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-	void sendPGMChange(int32_t channel, int32_t pgm, int32_t filter);
-	void sendAllNotesOff(int32_t channel, int32_t filter);
-	void sendBank(int32_t channel, int32_t num, int32_t filter);
-	void sendSubBank(int32_t channel, int32_t num, int32_t filter);
-	void sendPitchBend(int32_t channel, uint8_t lsbs, uint8_t msbs, int32_t filter);
-	void sendChannelAftertouch(int32_t channel, uint8_t value, int32_t filter);
-	void sendPolyphonicAftertouch(int32_t channel, uint8_t value, uint8_t noteCode, int32_t filter);
+
+	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter);
+	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter);
+	void sendBank(MIDISource source, int32_t channel, int32_t num, int32_t filter);
+	void sendSubBank(MIDISource source, int32_t channel, int32_t num, int32_t filter);
+	void sendPitchBend(MIDISource source, int32_t channel, uint8_t lsbs, uint8_t msbs, int32_t filter);
+	void sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter);
+	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
 	void setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum);
 	void flushUSBMIDIOutput();
@@ -81,6 +116,13 @@ private:
 	uint8_t lastStatusByteSent;
 
 	bool currentlyReceivingSysExSerial;
+
+	using EventStackStorage = std::array<MIDISource, 16>;
+	/// Storage for the stack of currently being processed MIDI events. When a new event is received, this is searched
+	/// to make sure it wasn't generated in a loop.
+	EventStackStorage eventStack_;
+	/// Top of the event stack. If this is equal to eventStack_.begin(), the stack is empty.
+	EventStackStorage::iterator eventStackTop_;
 
 	int32_t getMidiMessageLength(uint8_t statusuint8_t);
 	void midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
