@@ -27,12 +27,12 @@ public:
 	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoLocalSyncType,
-		                                            soundEditor.currentSound->lfoLocalSyncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->localLFOConfig.syncType,
+		                                            soundEditor.currentSound->localLFOConfig.syncLevel));
 	}
 	void writeCurrentValue() {
-		soundEditor.currentSound->lfoLocalSyncType = menuOptionToSyncType(this->getValue());
-		soundEditor.currentSound->lfoLocalSyncLevel = menuOptionToSyncLevel(this->getValue());
+		soundEditor.currentSound->localLFOConfig.syncType = menuOptionToSyncType(this->getValue());
+		soundEditor.currentSound->localLFOConfig.syncLevel = menuOptionToSyncLevel(this->getValue());
 		// XXX: Do we need this call for the local LFO?
 		soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 	}

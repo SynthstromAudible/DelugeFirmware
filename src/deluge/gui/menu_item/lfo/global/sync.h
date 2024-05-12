@@ -27,8 +27,8 @@ public:
 	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoGlobalSyncType,
-		                                            soundEditor.currentSound->lfoGlobalSyncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->globalLFOConfig.syncType,
+		                                            soundEditor.currentSound->globalLFOConfig.syncLevel));
 	}
 	void writeCurrentValue() {
 		soundEditor.currentSound->setLFOGlobalSyncType(menuOptionToSyncType(this->getValue()));

@@ -82,12 +82,8 @@ public:
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
 	LFO globalLFO;
-	LFOType lfoGlobalWaveType;
-	LFOType lfoLocalWaveType;
-	SyncType lfoGlobalSyncType;
-	SyncLevel lfoGlobalSyncLevel;
-	SyncType lfoLocalSyncType;
-	SyncLevel lfoLocalSyncLevel;
+	LFOConfig globalLFOConfig;
+	LFOConfig localLFOConfig;
 
 	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 

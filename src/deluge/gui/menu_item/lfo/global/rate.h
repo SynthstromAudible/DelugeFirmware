@@ -25,7 +25,7 @@ public:
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (sound->lfoGlobalSyncLevel == 0);
+		return (sound->globalLFOConfig.syncLevel == 0);
 	}
 };
 } // namespace deluge::gui::menu_item::lfo::global

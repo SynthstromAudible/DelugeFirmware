@@ -156,8 +156,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 
 	// Setup and render local LFO
 	// XXX: Should this match the resync logic for global LFO? If not, why not?
-	lfo.phase = getLFOInitialPhaseForNegativeExtreme(sound->lfoLocalWaveType);
-	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->lfoLocalWaveType, 0);
+	lfo.phase = getLFOInitialPhaseForNegativeExtreme(sound->localLFOConfig.waveType);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->localLFOConfig.waveType, 0);
 
 	// Setup some sources which won't change for the duration of this note
 	sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -693,13 +693,13 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 
 uint32_t Voice::getLocalLFOPhaseIncrement() {
 	uint32_t phaseIncrement;
-	if (assignedToSound->lfoLocalSyncLevel == SYNC_LEVEL_NONE) {
+	if (assignedToSound->localLFOConfig.syncLevel == SYNC_LEVEL_NONE) {
 		phaseIncrement = paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ];
 	}
 	else {
 		phaseIncrement = (playbackHandler.getTimePerInternalTickInverse())
-			 >> (SYNC_LEVEL_256TH - assignedToSound->lfoLocalSyncLevel);
-		switch (assignedToSound->lfoLocalSyncType) {
+		                 >> (SYNC_LEVEL_256TH - assignedToSound->localLFOConfig.syncLevel);
+		switch (assignedToSound->localLFOConfig.syncType) {
 		case SYNC_TYPE_EVEN:
 			// Nothing to do
 			break;
@@ -764,8 +764,8 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
 		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
 		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
-			// XXX: Seems suspect to recompute the increment every time we render?
-		    lfo.render(numSamples, sound->lfoLocalWaveType, getLocalLFOPhaseIncrement());
+		    // XXX: Seems suspect to recompute the increment every time we render?
+		    lfo.render(numSamples, sound->localLFOConfig.waveType, getLocalLFOPhaseIncrement());
 		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
 	}

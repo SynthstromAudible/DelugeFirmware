@@ -23,6 +23,21 @@
 uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType);
 uint32_t getLFOInitialPhaseForZero(LFOType waveType);
 
+class LFOConfig {
+public:
+	LFOConfig() { init(); }
+	void init() {
+		// This may be set without calling the setter function, because we're setting it to 0
+		// FIXME: Setter functions are still in Sound.
+		waveType = LFOType::TRIANGLE;
+		syncType = SYNC_TYPE_EVEN;
+		syncLevel = SYNC_LEVEL_NONE;
+	}
+	LFOType waveType;
+	SyncType syncType;
+	SyncLevel syncLevel;
+};
+
 class LFO {
 public:
 	LFO() = default;
