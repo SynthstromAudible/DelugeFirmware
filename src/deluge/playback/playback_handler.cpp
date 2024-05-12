@@ -132,7 +132,7 @@ void PlaybackHandler::routine() {
 
 	// If we're playing synced to analog clock input, auto-start mode, and there hasn't been a rising edge for a while,
 	// then stop
-	if ((playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) && usingAnalogClockInput && analogClockInputAutoStart
+	if (isExternalClockActive() && usingAnalogClockInput && analogClockInputAutoStart
 	    && (int32_t)(AudioEngine::audioSampleTimer - timeLastAnalogClockInputRisingEdge) > (kSampleRate >> 1)) {
 		endPlayback();
 	}
@@ -212,7 +212,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 
 			// If playing synced to analog clock input and it's on auto-start mode, don't let them stop, because it'd
 			// just auto-start again
-			if (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+			if (isExternalClockActive()) {
 				if (usingAnalogClockInput && analogClockInputAutoStart) {
 					return;
 				}
@@ -530,7 +530,7 @@ void PlaybackHandler::getMIDIClockOutTicksToInternalTicksRatio(uint32_t* interna
 }
 
 uint32_t PlaybackHandler::getTimePerInternalTick() {
-	if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+	if (isExternalClockActive()) {
 		return timePerInternalTickMovingAverage; // lowpassedTimePerInternalTick
 	}
 	else {
@@ -539,7 +539,7 @@ uint32_t PlaybackHandler::getTimePerInternalTick() {
 }
 
 uint64_t PlaybackHandler::getTimePerInternalTickBig() {
-	if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+	if (isExternalClockActive()) {
 		return (uint64_t)timePerInternalTickMovingAverage << 32;
 	}
 	else {
@@ -548,7 +548,7 @@ uint64_t PlaybackHandler::getTimePerInternalTickBig() {
 }
 
 float PlaybackHandler::getTimePerInternalTickFloat() {
-	if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+	if (isExternalClockActive()) {
 		return timePerInternalTickMovingAverage;
 	}
 	else {
@@ -1196,7 +1196,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 		if (isEitherClockActive()) {
 
 			// If we're preserving the tempo (either cos we chose to or because we're following external clock)
-			if ((playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || songSwapShouldPreserveTempo) {
+			if (isExternalClockActive() || songSwapShouldPreserveTempo) {
 
 				// Since we're currentlyPlaying, we know that there still is a currentSong
 
@@ -1392,7 +1392,7 @@ void PlaybackHandler::positionPointerReceived(uint8_t data1, uint8_t data2) {
 
 	// If following external clock right now, jump to the position (actually 1 tick before the position, so the next
 	// "clock" message will play that pos)
-	if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+	if (isExternalClockActive()) {
 
 		// But, to get around a weird "bug" with Ableton and my Mbox, don't do this if pos is 0 and we've only done the
 		// first input tick
@@ -1463,7 +1463,7 @@ void PlaybackHandler::continueMessageReceived() {
 
 		// If already following external clock, there's nothing to do: if we already received a song position pointer,
 		// that will have already taken effect
-		if (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+		if (isExternalClockActive()) {
 			return;
 		}
 
@@ -1479,7 +1479,7 @@ void PlaybackHandler::stopMessageReceived() {
 	if (ignoringMidiClockInput || !midiInClockEnabled) {
 		return;
 	}
-	if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+	if (isExternalClockActive()) {
 		endPlayback();
 	}
 }
@@ -1719,7 +1719,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 }
 
 uint32_t PlaybackHandler::getTimePerInternalTickInverse(bool getStickyValue) {
-	if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+	if (isExternalClockActive()) {
 		if (getStickyValue) {
 			return stickyCurrentTimePerInternalTickInverse;
 		}
@@ -1865,7 +1865,7 @@ displayNudge:
 		}
 
 		// If Deluge is following external clock
-		else if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+		else if (isExternalClockActive()) {
 			if (offset < 0) {
 				inputTick(); // Perform extra tick
 			}
@@ -1891,7 +1891,7 @@ displayNudge:
 	else if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 
 		// If playing synced, double or halve our own playing speed relative to the outside world
-		if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+		if (isExternalClockActive()) {
 			if (offset < 0 || currentSong->mayDoubleTempo()) { // Know when to disallow tempo doubling
 
 				// Get current tempo
@@ -1937,7 +1937,7 @@ displayNudge:
 	// Otherwise, change tempo
 	else {
 
-		if (!(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
+		if (!isExternalClockActive()) {
 
 			// FimeTempoKnob logic
 			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
@@ -2079,7 +2079,7 @@ void PlaybackHandler::setMidiInClockEnabled(bool newValue) {
 	midiInClockEnabled = newValue;
 
 	// If currently playing synced...
-	if (!newValue && (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) && !usingAnalogClockInput) {
+	if (!newValue && isExternalClockActive() && !usingAnalogClockInput) {
 		endPlayback();
 	}
 }
@@ -2178,7 +2178,7 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 
 		// It might get supplied here as a 0, even if it's actually very slightly above that, but we don't want do
 		// display that as an integer
-		if (roundedBigger != 0 && !(playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
+		if (roundedBigger != 0 && !isExternalClockActive()) {
 
 			// Compare to current tempo to see if 100% accurate
 			double roundedSmallerHere = roundedSmallerAgain;
@@ -2220,7 +2220,7 @@ void PlaybackHandler::setLedStates() {
 		indicator_leds::setLedState(IndicatorLED::RECORD, recording == RecordingMode::NORMAL);
 	}
 
-	bool syncedLEDOn = playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE;
+	bool syncedLEDOn = isExternalClockActive();
 	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, syncedLEDOn);
 
 	if (currentUIMode == UI_MODE_TAP_TEMPO) {
@@ -2242,7 +2242,7 @@ void PlaybackHandler::toggleMetronomeStatus() {
 // Called when playing synced and sync scaling or magnitude have been changed - e.g. when user doubles or halves tempo,
 // or sync scaling is activated
 void PlaybackHandler::resyncInternalTicksToInputTicks(Song* song) {
-	if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+	if (isExternalClockActive()) {
 		// This works. Although it doesn't do anything special to account for swing, no long-term out-of-sync-ness
 		// results - I tested.
 		lastSwungTickActioned = getCurrentInternalTickFloatFollowingExternalClock();
@@ -2261,7 +2261,7 @@ void PlaybackHandler::forceResetPlayPos(Song* song) {
 
 		endPlayback();
 
-		if (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+		if (isExternalClockActive()) {
 			setupPlaybackUsingExternalClock();
 		}
 

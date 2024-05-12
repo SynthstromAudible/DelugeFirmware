@@ -768,7 +768,7 @@ void Session::reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSet
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
 
 		// If following external clock...
-		if (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) {
+		if (playbackHandler.isExternalClockActive()) {
 
 			// If this is in fact the sync-scaling Clip, we want to resync all Clips. The song will have already updated
 			// its inputTickMagnitude
@@ -1389,7 +1389,7 @@ LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* curre
 		else {
 
 			// If a clock is coming in or out, or metronome is on, use that to work out the loop point
-			if ((playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || playbackHandler.midiOutClockEnabled
+			if (playbackHandler.isExternalClockActive() || playbackHandler.midiOutClockEnabled
 			    || playbackHandler.metronomeOn
 			    || cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL
 			    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {

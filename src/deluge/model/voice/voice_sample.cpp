@@ -1759,7 +1759,7 @@ bool VoiceSample::possiblySetUpCache(SampleControls* sampleControls, SamplePlayb
 	if (phaseIncrement == kMaxSampleValue) {
 		return true;
 	}
-	if (guide->sequenceSyncLengthTicks && (playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE)) {
+	if (guide->sequenceSyncLengthTicks && (playbackHandler.isExternalClockActive())) {
 		return true; // No syncing to external clock
 	}
 	if (sampleControls->interpolationMode != InterpolationMode::SMOOTH) {
