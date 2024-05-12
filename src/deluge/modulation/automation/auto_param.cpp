@@ -2067,22 +2067,10 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 	// Think about whether we want to insert a "restart node" - one at the endpos (or the endpos wrapped back to 0)
 	int32_t restartPos;
 
-	// If our pasting region reaches the end of the Clip/NoteRow...
-	if (endPos >= effectiveLength) {
-
-		// Well if our pasting region also begins right at the start of the Clip/NoteRow, then we're overwriting
-		// everything, so don't need a restart node.
-		if (startPos == 0) {
-			goto finishedConsideringRestartNode;
-		}
-
-		restartPos = 0;
-	}
-	else {
-		restartPos = endPos;
-	}
-
-	{
+	// We need to insert a "restart node" that sets the value back to what it was before we pasted automation if the
+	// pasted data ends before the end of the clip/noterow, or if the new automation starts after the start of the
+	// sequence.
+	if (endPos < effectiveLength || (endPos >= effectiveLength && startPos != 0)) {
 		int32_t restartNodeI = nodes.search(restartPos, GREATER_OR_EQUAL);
 		if (restartNodeI < nodes.getNumElements()) {
 			ParamNode* restartNode = (ParamNode*)nodes.getElementAddress(restartNodeI);
@@ -2093,7 +2081,6 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 		}
 	}
 
-finishedConsideringRestartNode:
 	int32_t iDeleteBegin = nodes.search(startPos, GREATER_OR_EQUAL);
 	int32_t iDeleteEnd = nodes.search(endPos, GREATER_OR_EQUAL);
 	int32_t numToDelete = iDeleteEnd - iDeleteBegin;
