@@ -31,6 +31,8 @@ file(GLOB_RECURSE deluge_SOURCES
 )
 
 add_executable(32BitTests RunAllTests.cpp memory_tests.cpp)
+add_test(NAME 32BitTests
+         COMMAND 32BitTests)
 target_sources(32BitTests PRIVATE ${deluge_SOURCES})
 target_include_directories(32BitTests PRIVATE
 
