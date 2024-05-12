@@ -2985,19 +2985,26 @@ traverseClips3:
 		}
 	}
 
-	int32_t notesWithinOctavePresentCount = 0;
-	for (int32_t i = 0; i < 12; i++) {
+	// Always the root note is counted as note used (to avoid changing the root note when cycling scales), so count
+	// starts at 1
+	int32_t notesWithinOctavePresentCount = 1;
+	// The root note is always preserved no matter if it has notes or not
+	notesWithinOctavePresent[0] = true;
+	for (int32_t i = 1; i < 12; i++) {
 		if (notesWithinOctavePresent[i]) {
 			notesWithinOctavePresentCount++;
 		}
 	}
 
 	// If the new scale cannot fit the notes from the old one, we can't change scale
-	if ((newScale >= 0 && notesWithinOctavePresentCount > 7)
-	    || (newScale >= FIRST_6_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 6)
-	    || (newScale >= FIRST_5_NOTE_SCALE_INDEX && notesWithinOctavePresentCount > 5)) {
+	if ((newScale >= 0 && notesWithinOctavePresentCount > 7) // More than 7 notes (no scale is possible)
+	    || (newScale >= FIRST_6_NOTE_SCALE_INDEX
+	        && notesWithinOctavePresentCount > 6) // 6-note scale, but more than 6 notes
+	    || (newScale >= FIRST_5_NOTE_SCALE_INDEX
+	        && notesWithinOctavePresentCount > 5)) { // 5-note scale, but more than 5 notes
 		if (notesWithinOctavePresentCount <= 7) {
-			// We can cycle back to Major scale, becasue number of notes allows it
+			// If the total number of notes present is still 7 or less,
+			// we can fall back to Major scale
 			newScale = 0;
 			numNotesInNewScale = 7;
 		}
@@ -3006,33 +3013,130 @@ traverseClips3:
 		}
 	}
 
-	// The new scale can perfectly fit all notes from the old one, so mark all notes to be transposed
+	// If going from scale with more notes to a scale with less notes,
+	// find the highest unused degree indexes and save them in temporary variables
+	uint8_t transitionModeNotes[12] = {0};
+	if (numNotesInCurrentScale == 7 && numNotesInNewScale < 7) {
+		// First find the highest unused degree to jump from 7 to 6
+		indexLastUnusedScaleDegreeFrom7To6 = 0; // Reset
+		for (int32_t n = 6; n >= 1; n--) {
+			if (modeNotes[n] != 0 && !notesWithinOctavePresent[modeNotes[n]]) {
+				indexLastUnusedScaleDegreeFrom7To6 = n;
+				break;
+			}
+		}
+		if (numNotesInNewScale == 5) {
+			// in case the target scale is 5 notes, we are gonna need the transitionModeNotes
+			// because it is going to be a 2-step jump!
+			int32_t offset = 0;
+			for (int32_t n = 1; n < 6; n++) {
+				if (n == indexLastUnusedScaleDegreeFrom7To6) {
+					offset++;
+				}
+				transitionModeNotes[n] = modeNotes[n + offset];
+			}
+		}
+	}
+	if (numNotesInCurrentScale > 5 && numNotesInNewScale == 5) {
+		// See if we use the real modeNotes, or the transition ones (in case we jump directly from 7 to 5)
+		uint8_t modeNotesToCompare[12] = {0};
+		if (numNotesInCurrentScale == 7) {
+			// If the source scale was 7 notes, use the transitionModeNotes (2-steps jump)
+			for (int32_t n = 1; n < 12; n++) {
+				modeNotesToCompare[n] = transitionModeNotes[n];
+			}
+		}
+		else {
+			// If the source scale was 6 notes, use the real modeNotes (1-step jump)
+			for (int32_t n = 1; n < 12; n++) {
+				modeNotesToCompare[n] = modeNotes[n];
+			}
+		}
+
+		// First find the highest unused degree to jump from 6 to 5
+		indexLastUnusedScaleDegreeFrom6To5 = 0; // Reset
+		for (int32_t n = 5; n >= 1; n--) {
+			if (modeNotesToCompare[n] != 0 && !notesWithinOctavePresent[modeNotesToCompare[n]]) {
+				indexLastUnusedScaleDegreeFrom6To5 = n;
+				break;
+			}
+		}
+	}
+
 	if (numNotesInCurrentScale <= numNotesInNewScale) {
+		// The new scale can perfectly fit all notes from the old one, so mark all notes as transposable
 		for (int32_t i = 0; i < 12; i++) {
 			notesWithinOctavePresent[i] = true;
 		}
 		notesWithinOctavePresentCount = 12;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
-
 	bool modeNoteNeedsTransposition;
 	int8_t changes[12] = {0};
 	int32_t noteNumDiff = numNotesInCurrentScale - numNotesInNewScale;
 
-	int32_t offset = 0;
-	for (int32_t n = 1; n < 7; n++) {
-		modeNoteNeedsTransposition = (notesWithinOctavePresent[modeNotes[n]] && modeNotes[n] != 0);
+	if (numNotesInCurrentScale >= numNotesInNewScale) {
+		// If the new scale is smaller or equal to old scale
+		int32_t offset = noteNumDiff;
+		for (int32_t n = numNotesInCurrentScale - 1; n >= 1; n--) {
+			modeNoteNeedsTransposition = notesWithinOctavePresent[modeNotes[n]] && modeNotes[n] != 0;
 
-		if (!modeNoteNeedsTransposition && offset < noteNumDiff) {
-			offset++;
-			continue;
+			if (!modeNoteNeedsTransposition && offset > 0) {
+				offset--;
+				continue;
+			}
+
+			int32_t newNote = presetScaleNotes[newScale][n - offset];
+			int32_t oldNote = modeNotes[n];
+			if (modeNoteNeedsTransposition && oldNote != newNote) {
+				changes[n] = newNote - oldNote;
+			}
 		}
-		int32_t newNote = presetScaleNotes[newScale][n - offset];
-		int32_t oldNote = modeNotes[n];
-		if (modeNoteNeedsTransposition && oldNote != newNote) {
-			changes[n] = newNote - oldNote;
+	}
+	else {
+		// If the new scale is bigger than old scale,
+		// we need to use the indexLastUnusedScaleDegree* variables to know which notes to skip
+		// We now undo the changes that were saved in those flags when going from 7 to 6 notes and from 6 to 5 notes
+		if (numNotesInCurrentScale == 5 && numNotesInNewScale == 7) {
+			// 2-step jump from 5 to 7
+			// We need to use the transition mode notes array to invert the change
+			uint8_t transitionPresetScale[7] = {0};
+			int32_t offset = 0;
+			for (int32_t n = 1; n < 6; n++) {
+				if (n == indexLastUnusedScaleDegreeFrom7To6) {
+					offset++;
+				}
+				transitionPresetScale[n] = presetScaleNotes[newScale][n + offset];
+			}
+			// Move from our 5-note scale to our transitional 6-note scale (after that the notes are already in the
+			// right place!)
+			offset = 0;
+			for (int32_t n = 1; n < 5; n++) {
+				if (n == indexLastUnusedScaleDegreeFrom6To5) {
+					offset++;
+				}
+				int32_t newNote = transitionPresetScale[n + offset];
+				int32_t oldNote = modeNotes[n];
+				if (oldNote != newNote) {
+					changes[n] = newNote - oldNote;
+				}
+			}
+		}
+		else {
+			// From 5 to 6 or from 6 to 7, no need for transitional scale,
+			// directly use the presetScaleNotes and the corresponding indexLastUnusedScaleDegree* variable
+			int32_t offset = 0;
+			for (int32_t n = 1; n < 6; n++) {
+				if ((numNotesInCurrentScale == 5 && n == indexLastUnusedScaleDegreeFrom6To5)
+				    || (numNotesInCurrentScale == 6 && n == indexLastUnusedScaleDegreeFrom7To6)) {
+					offset++;
+				}
+				int32_t newNote = presetScaleNotes[newScale][n + offset];
+				int32_t oldNote = modeNotes[n];
+				if (oldNote != newNote) {
+					changes[n] = newNote - oldNote;
+				}
+			}
 		}
 	}
 
