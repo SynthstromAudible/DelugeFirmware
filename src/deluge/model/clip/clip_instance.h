@@ -18,7 +18,7 @@
 #pragma once
 
 #include "gui/colour/colour.h"
-#include "gui/positionable.h"
+#include "model/positionable.h"
 #include <cstdint>
 
 class InstrumentClip;
