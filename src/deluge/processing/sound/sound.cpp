@@ -2640,27 +2640,24 @@ uint32_t Sound::getGlobalLFOPhaseIncrement() {
 
 void Sound::setLFOGlobalSyncType(SyncType newType) {
 	lfoGlobalSyncType = newType;
-	if (playbackHandler.isEitherClockActive()) {
-		resyncGlobalLFO();
-	}
+	resyncGlobalLFO();
 }
 
 void Sound::setLFOGlobalSyncLevel(SyncLevel newLevel) {
 	lfoGlobalSyncLevel = newLevel;
-	if (playbackHandler.isEitherClockActive()) {
-		resyncGlobalLFO();
-	}
+	resyncGlobalLFO();
 }
 
 void Sound::setLFOGlobalWave(LFOType newWave) {
 	lfoGlobalWaveType = newWave;
-	if (playbackHandler.isEitherClockActive()) {
-		resyncGlobalLFO();
-	}
+	resyncGlobalLFO();
 }
 
-// Only call this if playbackHandler.isEitherClockActive(), please
 void Sound::resyncGlobalLFO() {
+	if (!playbackHandler.isEitherClockActive()) {
+		return;
+	}
+
 	if (lfoGlobalSyncLevel != 0) {
 
 		timeStartedSkippingRenderingLFO =

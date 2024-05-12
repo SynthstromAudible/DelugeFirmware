@@ -3397,7 +3397,7 @@ void Song::addOutput(Output* output, bool atStart) {
 	}
 
 	// Must resync LFOs - these (if synced) will roll even when no activeClip
-	if (playbackHandler.isEitherClockActive() && this == currentSong) {
+	if (this == currentSong) {
 		output->resyncLFOs();
 	}
 }
