@@ -127,7 +127,7 @@ int32_t SamplePlaybackGuide::adjustPitchToCorrectDriftFromSync(VoiceSample* voic
 
 	// Not if not following external clock source, or clusters not set up yet (in the case of a very-late-start),
 	// there's no need
-	if (!(playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) || !voiceSample->clusters[0]) {
+	if (!playbackHandler.isExternalClockActive() || !voiceSample->clusters[0]) {
 		return phaseIncrement;
 	}
 

@@ -27,7 +27,7 @@ public:
 	void readCurrentValue() override { this->setValue(playbackHandler.analogInTicksPPQN); }
 	void writeCurrentValue() override {
 		playbackHandler.analogInTicksPPQN = this->getValue();
-		if ((playbackHandler.playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE) && playbackHandler.usingAnalogClockInput)
+		if (playbackHandler.isExternalClockActive() && playbackHandler.usingAnalogClockInput)
 			playbackHandler.resyncInternalTicksToInputTicks(currentSong);
 	}
 };
