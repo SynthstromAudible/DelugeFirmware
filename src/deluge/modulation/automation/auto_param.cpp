@@ -2092,11 +2092,16 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 			int32_t resetI = nodes.search(resetPos, GREATER_OR_EQUAL);
 			ParamNode* resetNode = nodes.getElement(resetI);
 
-			if (!resetNode || resetNode->pos != resetPos) {
-				nodes.insertAtIndex(resetI);
+			if (resetNode == nullptr || resetNode->pos != resetPos) {
+				bool previousNodeInterpolated = resetNode != nullptr ? resetNode->interpolated : true;
+				auto error = nodes.insertAtIndex(resetI);
+				if (error != Error::NONE) {
+					return;
+				}
+
 				resetNode = nodes.getElement(resetI);
 				resetNode->pos = resetPos;
-				resetNode->interpolated = resetNode != nullptr ? resetNode->interpolated : true;
+				resetNode->interpolated = previousNodeInterpolated;
 			}
 
 			resetNode->value = startValue;
@@ -2120,7 +2125,11 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 			ParamNode* resetNode = nodes.getElement(resetI);
 
 			if (!resetNode || resetNode->pos != resetPos) {
-				nodes.insertAtIndex(resetI);
+				auto error = nodes.insertAtIndex(resetI);
+				if (error != Error::NONE) {
+					return;
+				}
+
 				resetNode = nodes.getElement(resetI);
 				resetNode->pos = resetPos;
 				resetNode->interpolated = finalNode.interpolated;
