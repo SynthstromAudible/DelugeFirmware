@@ -2195,9 +2195,8 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 		for (; n < copiedParamAutomation->numNodes; n++) {
 			ParamNode* nodeToCopy = nodes.getElement(readingNodeI);
 			ParamNode* newNode = &copiedParamAutomation->nodes[n];
-			newNode->pos = nodeToCopy->pos - startPos;
-			newNode->value = nodeToCopy->value;
-			newNode->interpolated = nodeToCopy->interpolated;
+
+			*newNode = *nodeToCopy;
 
 			if (isPatchCable) {
 				newNode->value = lshiftAndSaturate<1>(newNode->value);

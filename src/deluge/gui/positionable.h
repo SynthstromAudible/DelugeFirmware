@@ -21,7 +21,14 @@
 
 class Positionable {
 public:
-	Positionable();
+	Positionable() = default;
+	~Positionable() = default;
+
+	Positionable(Positionable const& other) = default;
+	Positionable(Positionable&& other) = default;
+
+	Positionable& operator=(Positionable const& other) = default;
+	Positionable& operator=(Positionable&& other) = default;
 
 	int32_t pos;
 };

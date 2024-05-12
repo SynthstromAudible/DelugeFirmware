@@ -23,6 +23,11 @@
 class ParamNode : public Positionable {
 public:
 	ParamNode();
+	ParamNode(ParamNode const & other) = default;
+	ParamNode(ParamNode && other) = default;
+
+	ParamNode & operator=(ParamNode const & rhs) = default;
+	ParamNode & operator=(ParamNode && rhs) = default;
 
 	int32_t value;
 	bool interpolated; // From the previous node
