@@ -2058,47 +2058,85 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
                       CopiedParamAutomation* copiedParamAutomation, bool isPatchCable) {
 
 	bool automatedBefore = isAutomated();
-
-	bool insertingRestartNode = false; // Default option
-	int32_t restartValue;
-
 	int32_t effectiveLength = modelStack->getLoopLength();
+	int32_t wrappedEndPos = endPos % effectiveLength;
+	bool overwrittingEntireRegion = startPos == 0 && endPos >= effectiveLength;
 
-	// Think about whether we want to insert a "restart node" - one at the endpos (or the endpos wrapped back to 0)
-	int32_t restartPos;
-
-	// If our pasting region reaches the end of the Clip/NoteRow...
-	if (endPos >= effectiveLength) {
-
-		// Well if our pasting region also begins right at the start of the Clip/NoteRow, then we're overwriting
-		// everything, so don't need a restart node.
-		if (startPos == 0) {
-			goto finishedConsideringRestartNode;
-		}
-
-		restartPos = 0;
+#if defined(ALPHA_OR_BETA_VERSION)
+	if (copiedParamAutomation->nodes == nullptr || copiedParamAutomation->numNodes == 0) {
+		FREEZE_WITH_ERROR("E453");
 	}
-	else {
-		restartPos = endPos;
-	}
+#endif
 
-	{
-		int32_t restartNodeI = nodes.search(restartPos, GREATER_OR_EQUAL);
-		if (restartNodeI < nodes.getNumElements()) {
-			ParamNode* restartNode = (ParamNode*)nodes.getElementAddress(restartNodeI);
-			if (restartNode->pos != restartPos) {
-				insertingRestartNode = true;
-				restartValue = getValueAtPos(restartPos, modelStack);
-			}
-		}
-	}
+	// Save the current value at the start and end of the region w'ere pasting in to, before we start messing with it.
+	int32_t startValue = getValueAtPos(startPos, modelStack);
+	int32_t endValue = getValueAtPos(wrappedEndPos, modelStack);
 
-finishedConsideringRestartNode:
+	// Clear out any nodes that already exiset in the region we're pasting in to
 	int32_t iDeleteBegin = nodes.search(startPos, GREATER_OR_EQUAL);
 	int32_t iDeleteEnd = nodes.search(endPos, GREATER_OR_EQUAL);
 	int32_t numToDelete = iDeleteEnd - iDeleteBegin;
 	if (numToDelete > 0) {
 		nodes.deleteAtIndex(iDeleteBegin, numToDelete);
+	}
+
+	// Make sure that automation data before the paste region starts and after it ends aligns with what we're about to
+	// put there
+	if (!overwrittingEntireRegion) {
+		// The copied parameter automation always has a node at t=0, if that doesn't match the existing content we need
+		// to insert a node right before it to preserve the automation before the paste.
+		if (startValue != copiedParamAutomation->nodes[0].value) {
+			int32_t ticksBeforeStart = 1;
+			int32_t resetPos = (ticksBeforeStart > startPos) ? (effectiveLength + startPos) - ticksBeforeStart
+			                                                 : (startPos - ticksBeforeStart);
+			int32_t resetI = nodes.search(resetPos, GREATER_OR_EQUAL);
+			ParamNode* resetNode = nodes.getElement(resetI);
+
+			if (resetNode == nullptr || resetNode->pos != resetPos) {
+				bool previousNodeInterpolated = resetNode != nullptr ? resetNode->interpolated : true;
+				auto error = nodes.insertAtIndex(resetI);
+				if (error != Error::NONE) {
+					return;
+				}
+
+				resetNode = nodes.getElement(resetI);
+				resetNode->pos = resetPos;
+				resetNode->interpolated = previousNodeInterpolated;
+			}
+
+			resetNode->value = startValue;
+		}
+
+		// If the final node does not match the value at the end position, we need to insert a node.
+		ParamNode const& finalNode = copiedParamAutomation->nodes[copiedParamAutomation->numNodes - 1];
+		if (endValue != finalNode.value) {
+			int32_t resetPos = 0;
+			// The copied automation has a node that will overlap, need to insert 1-past-the-end
+			if (finalNode.pos == endPos - startPos) {
+				// wrappedEndPos+1 is always within the sequence length since a sequence length of 0 or 1 is probably
+				// super broken in other places.
+				resetPos = wrappedEndPos + 1;
+			}
+			else {
+				resetPos = wrappedEndPos;
+			}
+
+			int32_t resetI = nodes.search(resetPos, GREATER_OR_EQUAL);
+			ParamNode* resetNode = nodes.getElement(resetI);
+
+			if (!resetNode || resetNode->pos != resetPos) {
+				auto error = nodes.insertAtIndex(resetI);
+				if (error != Error::NONE) {
+					return;
+				}
+
+				resetNode = nodes.getElement(resetI);
+				resetNode->pos = resetPos;
+				resetNode->interpolated = finalNode.interpolated;
+			}
+
+			resetNode->value = endValue;
+		}
 	}
 
 	// Ok now paste the stuff
@@ -2134,17 +2172,6 @@ finishedConsideringRestartNode:
 		minPos = newPos + 1;
 	}
 
-	if (insertingRestartNode) {
-		int32_t newRestartNodeI = nodes.insertAtKey(restartPos);
-		ParamNode* newRestartNode = nodes.getElement(newRestartNodeI);
-		if (!newRestartNode) {
-			return;
-		}
-
-		newRestartNode->value = restartValue;
-		newRestartNode->interpolated = false;
-	}
-
 	// TODO: should currentValue instantly change if we're playing?
 
 	nodes.testSequentiality("E440");
@@ -2175,9 +2202,11 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 	}
 
 	if (copiedParamAutomation->numNodes > 0) {
-
 		// Allocate some memory for the nodes
-		// Paul: Does it make sense these are in SDRAM? Are the other nodes also in SDRAM?
+		if (copiedParamAutomation->nodes != nullptr) {
+			GeneralMemoryAllocator::get().dealloc(copiedParamAutomation->nodes);
+		}
+
 		copiedParamAutomation->nodes = (ParamNode*)GeneralMemoryAllocator::get().allocLowSpeed(
 		    sizeof(ParamNode) * copiedParamAutomation->numNodes);
 
@@ -2191,7 +2220,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 
 		if (insertingExtraNodeAtStart) {
 			ParamNode* newNode = &copiedParamAutomation->nodes[n];
-			newNode->pos = startPos;
+			newNode->pos = 0;
 			newNode->value = getValueAtPos(startPos, modelStack);
 			newNode->interpolated = false;
 
@@ -2208,9 +2237,9 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 		for (; n < copiedParamAutomation->numNodes; n++) {
 			ParamNode* nodeToCopy = nodes.getElement(readingNodeI);
 			ParamNode* newNode = &copiedParamAutomation->nodes[n];
-			newNode->pos = nodeToCopy->pos - startPos;
-			newNode->value = nodeToCopy->value;
-			newNode->interpolated = nodeToCopy->interpolated;
+
+			*newNode = *nodeToCopy;
+			newNode->pos -= startPos;
 
 			if (isPatchCable) {
 				newNode->value = lshiftAndSaturate<1>(newNode->value);
