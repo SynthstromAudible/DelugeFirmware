@@ -216,7 +216,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
 		                                  lastMonoExpression[whichExpressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
-		midiEngine.sendPitchBend(masterChannel, valueSmall & 127, valueSmall >> 7, channel);
+		midiEngine.sendPitchBend(this, masterChannel, valueSmall & 127, valueSmall >> 7, channel);
 		break;
 	}
 
@@ -230,14 +230,14 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
 
-		midiEngine.sendCC(masterChannel, CC_NUMBER_MOD_WHEEL, newValue, channel);
+		midiEngine.sendCC(this, masterChannel, CC_NUMBER_MOD_WHEEL, newValue, channel);
 		break;
 	}
 	case Z_PRESSURE: {
 		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
 		                                  lastMonoExpression[whichExpressionDimension])
 		                   >> 24;
-		midiEngine.sendChannelAftertouch(masterChannel, newValue, channel);
+		midiEngine.sendChannelAftertouch(this, masterChannel, newValue, channel);
 		break;
 	}
 	default:
@@ -810,7 +810,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 		sendNoteToInternal(true, noteCodePostArp, arpNote->velocity, outputMemberChannel);
 	}
 	else {
-		midiEngine.sendNote(true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
+		midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
 	}
 }
 
@@ -821,19 +821,20 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 		int32_t outputValue14 = mpeValuesToUse[0] >> 2;
 		mpeOutputMemberChannels[outputMemberChannel].lastXValueSent = outputValue14;
 		int32_t outputValue14Unsigned = outputValue14 + 8192;
-		midiEngine.sendPitchBend(outputMemberChannel, outputValue14Unsigned & 127, outputValue14Unsigned >> 7, channel);
+		midiEngine.sendPitchBend(this, outputMemberChannel, outputValue14Unsigned & 127, outputValue14Unsigned >> 7,
+		                         channel);
 	}
 
 	{ // Y
 		int32_t outputValue7 = mpeValuesToUse[1] >> 9;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[0] = outputValue7;
-		midiEngine.sendCC(outputMemberChannel, 74, outputValue7 + 64, channel);
+		midiEngine.sendCC(this, outputMemberChannel, 74, outputValue7 + 64, channel);
 	}
 
 	{ // Z
 		int32_t outputValue7 = mpeValuesToUse[2] >> 8;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[1] = outputValue7;
-		midiEngine.sendChannelAftertouch(outputMemberChannel, outputValue7, channel);
+		midiEngine.sendChannelAftertouch(this, outputMemberChannel, outputValue7, channel);
 	}
 }
 
@@ -844,7 +845,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 	}
 	// If no MPE, nice and simple
 	else if (!sendsToMPE()) {
-		midiEngine.sendNote(false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
+		midiEngine.sendNote(this, false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
 
 		if (collapseAftertouch) {
 
@@ -865,7 +866,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		mpeOutputMemberChannels[oldOutputMemberChannel].lastNoteCode = noteCodePostArp;
 		mpeOutputMemberChannels[oldOutputMemberChannel].noteOffOrder = lastNoteOffOrder++;
 
-		midiEngine.sendNote(false, noteCodePostArp, velocity, oldOutputMemberChannel, channel);
+		midiEngine.sendNote(this, false, noteCodePostArp, velocity, oldOutputMemberChannel, channel);
 
 		// And now, if this note was sharing a member channel with any others, we want to send MPE values for those new
 		// averages
@@ -901,7 +902,7 @@ void MIDIInstrument::allNotesOff() {
 
 	// If no MPE, nice and simple
 	if (!sendsToMPE()) {
-		midiEngine.sendAllNotesOff(channel, kMIDIOutputFilterNoMPE);
+		midiEngine.sendAllNotesOff(this, channel, kMIDIOutputFilterNoMPE);
 	}
 
 	// Otherwise, got to send message on all MPE member channels. At least I think that's right. The MPE spec talks
@@ -916,7 +917,7 @@ void MIDIInstrument::allNotesOff() {
 		                                   : 15;
 
 		for (int32_t c = lowestMemberChannel; c <= highestMemberChannel; c++) {
-			midiEngine.sendAllNotesOff(c, channel);
+			midiEngine.sendAllNotesOff(this, c, channel);
 		}
 	}
 }
@@ -937,7 +938,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 		if (whichExpressionDimension == 2) {
 			if (!collapseAftertouch) {
 				// We can only send Z - and that's as polyphonic aftertouch
-				midiEngine.sendPolyphonicAftertouch(channel, value32 >> 24, noteCodeAfterArpeggiation,
+				midiEngine.sendPolyphonicAftertouch(this, channel, value32 >> 24, noteCodeAfterArpeggiation,
 				                                    kMIDIOutputFilterNoMPE);
 				return;
 			}
@@ -994,21 +995,21 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			int32_t value14 = (value32 >> 18);
 			mpeOutputMemberChannels[memberChannel].lastXValueSent = value14;
 			int32_t value14Unsigned = value14 + 8192;
-			midiEngine.sendPitchBend(memberChannel, value14Unsigned & 127, value14Unsigned >> 7, channel);
+			midiEngine.sendPitchBend(this, memberChannel, value14Unsigned & 127, value14Unsigned >> 7, channel);
 			break;
 		}
 
 		case 1: { // Y
 			int32_t value7 = value32 >> 25;
 			mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[0] = value7;
-			midiEngine.sendCC(memberChannel, 74, value7 + 64, channel);
+			midiEngine.sendCC(this, memberChannel, 74, value7 + 64, channel);
 			break;
 		}
 
 		case 2: { // Z
 			int32_t value7 = value32 >> 24;
 			mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[1] = value7;
-			midiEngine.sendChannelAftertouch(memberChannel, value7, channel);
+			midiEngine.sendChannelAftertouch(this, memberChannel, value7, channel);
 			break;
 		}
 		default:
