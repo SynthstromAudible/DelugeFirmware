@@ -166,6 +166,8 @@ private:
 	                       OutputType outputType, int32_t effectiveLength, int32_t x, int32_t y, int32_t velocity,
 	                       int32_t xScroll, int32_t xZoom);
 	bool toggleAutomationInterpolation();
+	bool toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
+	                                      int32_t xScroll, int32_t xZoom);
 	bool handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay);
 	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
 	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
@@ -296,6 +298,8 @@ private:
 	uint8_t interpolationShortcutY;
 
 	bool padSelectionOn;
+	uint8_t padSelectionShortcutX;
+	uint8_t padSelectionShortcutY;
 	bool multiPadPressActive;
 	bool middlePadPressSelected;
 	int32_t leftPadSelectedX;

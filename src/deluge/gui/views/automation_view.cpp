@@ -352,6 +352,8 @@ AutomationView::AutomationView() {
 	interpolationShortcutY = 6;
 	// used to enter pad selection mode
 	padSelectionOn = false;
+	padSelectionShortcutX = 0;
+	padSelectionShortcutY = 7;
 	multiPadPressSelected = false;
 	multiPadPressActive = false;
 	leftPadSelectedX = kNoSelection;
@@ -2025,6 +2027,10 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 			if (x == interpolationShortcutX && y == interpolationShortcutY) {
 				return toggleAutomationInterpolation();
 			}
+			// toggle pad selection on / off
+			else if (x == padSelectionShortcutX && y == padSelectionShortcutY) {
+				return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
+			}
 
 			shortcutPress = true;
 		}
@@ -2065,6 +2071,40 @@ bool AutomationView::toggleAutomationInterpolation() {
 		resetInterpolationShortcutBlinking();
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_DISABLED));
+	}
+	return true;
+}
+
+/// toggle automation pad selection mode on / off
+bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam,
+                                                      int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
+	// enter/exit pad selection mode
+	if (inAutomationEditor()) {
+		if (padSelectionOn) {
+
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
+
+			initPadSelection();
+			if (!playbackHandler.isEitherClockActive()) {
+				displayAutomation(true, !display->have7SEG());
+			}
+		}
+		else {
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
+
+			padSelectionOn = true;
+			multiPadPressSelected = false;
+			multiPadPressActive = false;
+
+			// display only left cursor initially
+			leftPadSelectedX = 0;
+			rightPadSelectedX = kNoSelection;
+
+			uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
+
+			updateModPosition(modelStackWithParam, squareStart, !display->have7SEG());
+		}
+		uiNeedsRendering(this);
 	}
 	return true;
 }
@@ -3264,36 +3304,10 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		}
 	}
 
-	// enter/exit pad selection mode
-	else if (inAutomationEditor()) {
-		if (on) {
-			if (padSelectionOn) {
-
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
-
-				initPadSelection();
-				if (!playbackHandler.isEitherClockActive()) {
-					displayAutomation(true, !display->have7SEG());
-				}
-			}
-			else {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
-
-				padSelectionOn = true;
-				multiPadPressSelected = false;
-				multiPadPressActive = false;
-
-				// display only left cursor initially
-				leftPadSelectedX = 0;
-				rightPadSelectedX = kNoSelection;
-
-				uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
-
-				updateModPosition(modelStackWithParam, squareStart, !display->have7SEG());
-			}
-		}
-	}
-	else if (onAutomationOverview()) {
+	// if we're in automation overview (or soon to be note editor)
+	// then we want to allow toggling with mod encoder buttons to change
+	// mod encoder selections
+	else if (!inAutomationEditor()) {
 		goto followOnAction;
 	}
 
