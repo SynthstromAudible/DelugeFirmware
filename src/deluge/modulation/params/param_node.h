@@ -18,11 +18,11 @@
 #pragma once
 #include <cstdint>
 
-#include "gui/positionable.h"
+#include "model/positionable.h"
 
 class ParamNode : public Positionable {
 public:
-	ParamNode();
+	ParamNode() = default;
 	ParamNode(ParamNode const& other) = default;
 	ParamNode(ParamNode&& other) = default;
 
@@ -35,11 +35,11 @@ public:
 	/// is used (even for unipolar parameters!). This means when converting automation from patch cables to non-patch
 	/// cables, lshiftAndSaturate<1>() must be used while conversion in the opposite direction (non-patch-cable to
 	/// patch-cable) a right shift by 1 is required.
-	int32_t value;
+	int32_t value{0};
 	/// Whether the value should be interpolated from the previous node to this one.
 	///
 	/// When false, the value should change only when this node is actually reached.
-	bool interpolated;
+	bool interpolated{false};
 };
 
 struct StolenParamNodes {

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2023 Synthstrom Audible Limited
+ * Copyright © 2018-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,7 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "modulation/params/param_node.h"
+#pragma once
 
-ParamNode::ParamNode() {
-}
+#include <cstdint>
+
+class Positionable {
+public:
+	Positionable() = default;
+	~Positionable() = default;
+
+	Positionable(Positionable const& other) = default;
+	Positionable(Positionable&& other) = default;
+
+	Positionable& operator=(Positionable const& other) = default;
+	Positionable& operator=(Positionable&& other) = default;
+
+	int32_t pos{0};
+};
