@@ -2232,7 +2232,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 	}
 
 	/*
-	if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
+	if (playbackHandler.isInternalClockActive())
 	    timeAgo += (((uint64_t)ticksAgo * currentSong->timePerTimerTickFraction + 4294967296 -
 	playbackHandler.lastTimerTickDoneFraction) >> 32); // This sometimes ends up 1 sample off, I think - not quite sure
 	why

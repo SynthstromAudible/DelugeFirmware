@@ -597,7 +597,7 @@ startAgain:
 		int32_t nextTickType = 0;
 		uint32_t timeNextTick = audioSampleTimer + 9999;
 
-		if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+		if (playbackHandler.isInternalClockActive()) {
 			timeNextTick = playbackHandler.timeNextTimerTickBig >> 32;
 			nextTickType = TICK_TYPE_TIMER;
 		}

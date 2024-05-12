@@ -278,7 +278,7 @@ void CVEngine::setGateType(uint8_t channel, GateType value) {
 
 		// Clock
 		if (channel == WHICH_GATE_OUTPUT_IS_CLOCK) {
-			if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+			if (playbackHandler.isInternalClockActive()) {
 				playbackHandler.resyncAnalogOutTicksToInternalTicks();
 			}
 			updateClockOutput();

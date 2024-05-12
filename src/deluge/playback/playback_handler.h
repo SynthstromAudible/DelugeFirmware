@@ -209,6 +209,8 @@ public:
 	void scheduleSwungTickFromInternalClock();
 	bool currentlySendingMIDIOutputClocks();
 
+	inline bool isExternalClockActive() { return (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE); }
+	inline bool isInternalClockActive() { return (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE); }
 	inline bool isEitherClockActive() { return (playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE); }
 
 private:

@@ -314,7 +314,7 @@ justDoArp:
 
 	// If nothing further in the arrangement, we usually just stop playing
 	if (playbackHandler.swungTicksTilNextEvent == 2147483647
-	    && (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
+	    && playbackHandler.isInternalClockActive()
 	    // Only do this if not recording MIDI - but override that and do do it if we're "resampling"
 	    && (playbackHandler.recording == RecordingMode::OFF
 	        || audioRecorder.recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION)) {

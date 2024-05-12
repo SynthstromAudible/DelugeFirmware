@@ -2479,7 +2479,7 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 	}
 
 	// Alter timing of next and last timer ticks
-	if (currentSong == this && (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)) {
+	if (currentSong == this && playbackHandler.isInternalClockActive()) {
 		uint32_t timeSinceLastTimerTick =
 		    AudioEngine::audioSampleTimer - (uint32_t)(playbackHandler.timeLastTimerTickBig >> 32);
 
@@ -2505,7 +2505,7 @@ void Song::setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction) {
 	divideByTimePerTimerTick = ((uint64_t)1 << 63) / ((newTimeBig * 3) >> 1);
 
 	// Reschedule upcoming swung, MIDI and trigger clock out ticks
-	if (currentSong == this && (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)) {
+	if (currentSong == this && playbackHandler.isInternalClockActive()) {
 		playbackHandler.scheduleSwungTickFromInternalClock();
 		if (cvEngine.isTriggerClockOutputEnabled()) {
 			playbackHandler.scheduleTriggerClockOutTick();
@@ -4841,7 +4841,7 @@ cantDoIt:
 			oldNonAudioInstrument->channel = oldChannel; // Put it back, before switching notes off etc
 		}
 
-		if (oldNonAudioInstrument->activeClip && (playbackHandler.playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE)) {
+		if (oldNonAudioInstrument->activeClip && playbackHandler.isEitherClockActive()) {
 			oldNonAudioInstrument->activeClip->expectNoFurtherTicks(currentSong);
 		}
 
@@ -5655,7 +5655,7 @@ void Song::changeSwingInterval(int32_t newValue) {
 
 	swingInterval = newValue;
 
-	if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+	if (playbackHandler.isInternalClockActive()) {
 
 		int32_t leftShift = 10 - swingInterval;
 		leftShift = std::max(leftShift, 0_i32);

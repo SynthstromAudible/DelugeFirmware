@@ -24,7 +24,7 @@ ConsequenceBeginPlayback::ConsequenceBeginPlayback() {
 
 Error ConsequenceBeginPlayback::revert(TimeType time, ModelStack* modelStack) {
 	if (time == BEFORE) {
-		if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+		if (playbackHandler.isInternalClockActive()) {
 			playbackHandler.endPlayback();
 		}
 	}
