@@ -15,6 +15,7 @@
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
 - Added new `YELLOW GRID MODE` which allows you configure the clip type between `DEFAULT`, `FILL`, and `ONCE` by holding on a clip pad and pressing `SELECT`. In this mode, while clips are inactive, the clip pads are highlighted different colours to indicate the current clip type.
+- Updated `AUTOMATION VIEW` shortcut to enter/exit `PAD SELECTION MODE` to `SHIFT` + `WAVEFORM` (the very top left pad in first column of grid).
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
