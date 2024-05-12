@@ -390,8 +390,8 @@ public:
 	int32_t countAudioClips() const;
 
 private:
-	int8_t indexLastUnusedScaleDegreeFrom7To6 = -1;
-	int8_t indexLastUnusedScaleDegreeFrom6To5 = -1;
+	uint8_t indexLastUnusedScaleDegreeFrom7To6 = 0;
+	uint8_t indexLastUnusedScaleDegreeFrom6To5 = 0;
 	bool fillModeActive;
 	Clip* currentClip = nullptr;
 	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
