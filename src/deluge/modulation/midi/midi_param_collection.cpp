@@ -186,7 +186,8 @@ ModelStackWithAutoParam* MIDIParamCollection::getAutoParamFromId(ModelStackWithP
 	return modelStack->addAutoParam(param);
 }
 
-void MIDIParamCollection::sendMIDI(int32_t masterChannel, int32_t cc, int32_t newValue, int32_t midiOutputFilter) {
+void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
+                                   int32_t midiOutputFilter) {
 	int32_t rShift = 25;
 	int32_t roundingAmountToAdd = 1 << (rShift - 1);
 	int32_t maxValue = 2147483647 - roundingAmountToAdd;
@@ -196,7 +197,7 @@ void MIDIParamCollection::sendMIDI(int32_t masterChannel, int32_t cc, int32_t ne
 	}
 	int32_t newValueSmall = (newValue + roundingAmountToAdd) >> rShift;
 
-	midiEngine.sendCC(masterChannel, cc, newValueSmall + 64, midiOutputFilter); // TODO: get master channel
+	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64, midiOutputFilter); // TODO: get master channel
 }
 
 // For MIDI CCs, which prior to V2.0 did interpolation
@@ -264,7 +265,8 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 			MIDIInstrument* instrument = (MIDIInstrument*)modelStack->modControllable;
 			int32_t midiOutputFilter = instrument->channel;
 			int32_t masterChannel = instrument->getOutputMasterChannel();
-			sendMIDI(masterChannel, modelStack->paramId, modelStack->autoParam->getCurrentValue(), midiOutputFilter);
+			sendMIDI(instrument, masterChannel, modelStack->paramId, modelStack->autoParam->getCurrentValue(),
+			         midiOutputFilter);
 		}
 	}
 }
