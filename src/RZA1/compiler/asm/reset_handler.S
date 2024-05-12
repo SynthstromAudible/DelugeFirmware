@@ -243,10 +243,8 @@ reserved_handler:
     CPSID   i                   /* Disable interrupt handling to preserve stack */
     MOV     r0, LR              /* Store SYS LR value as first function parameter */
     MOV     r1, SP              /* Store SYS SP value as second function parameter */
-    CPS  #USR_MODE              /* Switch into user mode to get those register values */
-    MOV     r2, LR              /* Store USR LR value as third function parameter */
-    MOV     r3, SP              /* Store USR SP value as fourth function parameter */
-    CPS  #SYS_MODE              /* Go back to SYS mode */
+    MOV     r2, #0              /* USR LR - 0 since we don't currently use user mode */
+    MOV     r3, #0              /* USR SP - 0 since we don't use user mode */
     LDR  r12,=handle_cpu_fault  /* Load address of handle_cpu_fault */
     BX   r12                    /* Jump to handle_cpu_fault without link */
 .end

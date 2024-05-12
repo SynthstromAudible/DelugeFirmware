@@ -131,7 +131,7 @@ int main(void) {
 	INTC.ICR1 = 0b0101010101010101;
 	// this is the same priority as the midi/gate interrupt despite the comment saying they need to be different
 	setupAndEnableInterrupt(triggerClockInputHandler, IRQ_INTERRUPT_0 + 6, 5);
-
+	ENABLE_INTERRUPTS();
 	deluge_main();
 
 	while (1) {
