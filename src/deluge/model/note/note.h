@@ -19,7 +19,7 @@
 
 #include <cstdint>
 
-#include "gui/positionable.h"
+#include "model/positionable.h"
 
 class Note : public Positionable {
 public:

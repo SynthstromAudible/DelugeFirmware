@@ -621,7 +621,7 @@ void SevenSegment::setTextVeryBasicA1(char const* text) {
 	PIC::update7SEG(segments);
 }
 
-// Highest error code used, main branch: E452
+// Highest error code used, main branch: E453
 // Highest error code used, fix branch: i041
 
 void SevenSegment::freezeWithError(char const* text) {
