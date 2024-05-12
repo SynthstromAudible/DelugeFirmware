@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "io/midi/midi_engine.h"
 #include "modulation/midi/midi_param_vector.h"
 #include "modulation/params/param_collection.h"
 
@@ -55,7 +56,7 @@ public:
 
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
-	void sendMIDI(int32_t channel, int32_t cc, int32_t newValue, int32_t midiOutputFilter);
+	void sendMIDI(MIDISource source, int32_t channel, int32_t cc, int32_t newValue, int32_t midiOutputFilter);
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow);
 	bool mayParamInterpolate(int32_t paramId);

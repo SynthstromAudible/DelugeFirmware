@@ -331,7 +331,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 		}
 		else { // "start"
 			if (!doingTempolessRecord && !ticksLeftInCountIn) {
-				midiEngine.sendStart();
+				midiEngine.sendStart(this);
 			}
 		}
 	}
@@ -466,7 +466,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 
 void PlaybackHandler::endPlayback() {
 	if ((playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) && currentlySendingMIDIOutputClocks()) {
-		midiEngine.sendStop();
+		midiEngine.sendStop(this);
 	}
 
 	ignoringMidiClockInput = false;
@@ -716,7 +716,7 @@ void PlaybackHandler::scheduleMIDIClockOutTickParamsKnown(uint32_t midiClockOutT
 void PlaybackHandler::doMIDIClockOutTick() {
 	midiClockOutTickScheduled = false;
 	lastMIDIClockOutTickDone++;
-	midiEngine.sendClock(true);
+	midiEngine.sendClock(this, true);
 }
 
 void PlaybackHandler::actionSwungTick() {
@@ -754,10 +754,10 @@ void PlaybackHandler::actionSwungTick() {
 
 			if (currentlySendingMIDIOutputClocks()) {
 				if (posToNextContinuePlaybackFrom) {
-					midiEngine.sendContinue(); // Position pointer was already sent when "play" pressed
+					midiEngine.sendContinue(this); // Position pointer was already sent when "play" pressed
 				}
 				else {
-					midiEngine.sendStart();
+					midiEngine.sendStart(this);
 				}
 			}
 
@@ -1854,7 +1854,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 			if (currentlySendingMIDIOutputClocks()) {
 				// TODO: these should also affect trigger clock output. Currently they don't
 				if (offset < 0) {
-					midiEngine.sendClock(); // Send one extra clock
+					midiEngine.sendClock(this); // Send one extra clock
 				}
 				else {
 					numOutputClocksWaitingToBeSent--; // Send one less clock
@@ -2034,17 +2034,17 @@ void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessa
 	surplusOutputTicks++; // Need one extra one to make the follower "play" the position the pointer points to, right
 	                      // now.
 
-	midiEngine.sendPositionPointer(positionPointer);
+	midiEngine.sendPositionPointer(this, positionPointer);
 
 	// If we've just switched output clocks back on and they were off, we'd better send a continue message
 	// BUT this didn't work in Ableton! In Live 8, you could instead put a "start" message *before* sending the position
 	// pointer. But this doesn't work anymore in Live 9, so let's just do it the "proper" MIDI way always.
 	if (sendContinueMessageToo) {
-		midiEngine.sendContinue();
+		midiEngine.sendContinue(this);
 	}
 
 	for (int32_t i = 0; i < surplusOutputTicks; i++) {
-		midiEngine.sendClock(i != 0);
+		midiEngine.sendClock(this, i != 0);
 	}
 }
 
@@ -2067,7 +2067,7 @@ void PlaybackHandler::setMidiOutClockMode(bool newValue) {
 		// Or if we just disabled it...
 		else if (!newValue) {
 			midiClockOutTickScheduled = false;
-			midiEngine.sendStop();
+			midiEngine.sendStop(this);
 		}
 	}
 }
