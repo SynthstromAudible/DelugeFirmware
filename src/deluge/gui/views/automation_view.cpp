@@ -319,6 +319,12 @@ const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1
 // y = 1 ::  17 <  18 <  32
 // y = 0 ::  0  <   0 <  16
 
+// shortcuts for toggling interpolation and pad selection mode
+constexpr uint8_t kInterpolationShortcutX = 0;
+constexpr uint8_t kInterpolationShortcutY = 6;
+constexpr uint8_t kPadSelectionShortcutX = 0;
+constexpr uint8_t kPadSelectionShortcutY = 7;
+
 AutomationView automationView{};
 
 AutomationView::AutomationView() {
@@ -348,12 +354,8 @@ AutomationView::AutomationView() {
 	parameterShortcutBlinking = false;
 	// used to set interpolation shortcut blinking
 	interpolationShortcutBlinking = false;
-	interpolationShortcutX = 0;
-	interpolationShortcutY = 6;
 	// used to enter pad selection mode
 	padSelectionOn = false;
-	padSelectionShortcutX = 0;
-	padSelectionShortcutY = 7;
 	multiPadPressSelected = false;
 	multiPadPressActive = false;
 	leftPadSelectedX = kNoSelection;
@@ -2024,11 +2026,11 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
 
 			// toggle interpolation on / off
-			if (x == interpolationShortcutX && y == interpolationShortcutY) {
+			if (x == kInterpolationShortcutX && y == kInterpolationShortcutY) {
 				return toggleAutomationInterpolation();
 			}
 			// toggle pad selection on / off
-			else if (x == padSelectionShortcutX && y == padSelectionShortcutY) {
+			else if (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY) {
 				return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
 			}
 
@@ -4536,7 +4538,7 @@ void AutomationView::resetInterpolationShortcutBlinking() {
 }
 
 void AutomationView::blinkInterpolationShortcut() {
-	PadLEDs::flashMainPad(interpolationShortcutX, interpolationShortcutY);
+	PadLEDs::flashMainPad(kInterpolationShortcutX, kInterpolationShortcutY);
 	uiTimerManager.setTimer(TimerName::INTERPOLATION_SHORTCUT_BLINK, 3000);
 	interpolationShortcutBlinking = true;
 }

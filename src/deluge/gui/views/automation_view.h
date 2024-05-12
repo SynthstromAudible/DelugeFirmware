@@ -294,12 +294,8 @@ private:
 	bool parameterShortcutBlinking;
 
 	bool interpolationShortcutBlinking;
-	uint8_t interpolationShortcutX;
-	uint8_t interpolationShortcutY;
 
 	bool padSelectionOn;
-	uint8_t padSelectionShortcutX;
-	uint8_t padSelectionShortcutY;
 	bool multiPadPressActive;
 	bool middlePadPressSelected;
 	int32_t leftPadSelectedX;
