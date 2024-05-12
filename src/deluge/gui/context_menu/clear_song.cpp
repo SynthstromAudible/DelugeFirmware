@@ -71,7 +71,7 @@ void ClearSong::focusRegained() {
 
 bool ClearSong::acceptCurrentOption() {
 	if (playbackHandler.playbackState
-	    && ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) || currentPlaybackMode == &arrangement)) {
+	    && (playbackHandler.isInternalClockActive() || currentPlaybackMode == &arrangement)) {
 
 		playbackHandler.endPlayback();
 	}

@@ -599,7 +599,7 @@ doNormalLaunch:
 			if (!anyClipsStillActiveAfter) {
 
 				// If we're using the internal clock, we have the power to stop playback entirely
-				if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+				if (playbackHandler.isInternalClockActive()) {
 
 					// If user is stopping resampling...
 					if (playbackHandler.stopOutputRecordingAtLoopEnd) {
@@ -1398,7 +1398,7 @@ LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* curre
 
 				// If using internal clock (meaning metronome or clock output is on), just quantize to one bar. This is
 				// potentially imperfect.
-				if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+				if (playbackHandler.isInternalClockActive()) {
 					*quantization = oneBar;
 				}
 

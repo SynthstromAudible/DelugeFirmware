@@ -197,7 +197,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 			// Otherwise, if internal clock, restart playback
 			else {
 
-				if ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
+				if (isInternalClockActive()
 				    && recording != RecordingMode::ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
@@ -465,7 +465,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 }
 
 void PlaybackHandler::endPlayback() {
-	if ((playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) && currentlySendingMIDIOutputClocks()) {
+	if (isInternalClockActive() && currentlySendingMIDIOutputClocks()) {
 		midiEngine.sendStop(this);
 	}
 
@@ -798,7 +798,7 @@ void PlaybackHandler::actionSwungTick() {
 
 			// If we swapped song on just a swung tick that wasn't concurrent with a timer tick (unusual), we need to go
 			// do some stuff that would normally happen as part of the timer tick
-			if (swappedSong && (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) && !currentlyActioningTimerTick) {
+			if (swappedSong && isInternalClockActive() && !currentlyActioningTimerTick) {
 				actionTimerTickPart2();
 			}
 
@@ -830,7 +830,7 @@ doMetronome:
 }
 
 void PlaybackHandler::scheduleSwungTick() {
-	if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+	if (isInternalClockActive()) {
 		scheduleSwungTickFromInternalClock();
 	}
 	else {
@@ -947,7 +947,7 @@ int64_t PlaybackHandler::getActualSwungTickCount(uint32_t* timeRemainder) {
 	int64_t actualSwungTick;
 
 	// Internal clock
-	if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+	if (isInternalClockActive()) {
 
 		// If first timer tick not actioned yet (not sure if we ever get called in this case, though)...
 		if (!nextTimerTickScheduled) {
@@ -1033,7 +1033,7 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 	int64_t internalTickCount;
 
 	// Internal clock
-	if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+	if (isInternalClockActive()) {
 
 		// If no timer ticks have occurred yet, the answer is a resounding zero, and we have to have this as a special
 		// case because timeLastTimerTickBig won't have been set yet. This will happen all the time during playback
@@ -1156,7 +1156,7 @@ gotCurrentInputTick:
 int32_t PlaybackHandler::getInternalTickTime(int64_t internalTickCount) {
 
 	// Internal clock
-	if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+	if (isInternalClockActive()) {
 
 		// If first timer tick hasn't even occurred yet, various values will not yet be valid. The time of the first
 		// tick will not even have been decided. So, use audioDriver.audioSampleTimer in its place, since that is what
@@ -1434,7 +1434,7 @@ void PlaybackHandler::startMessageReceived() {
 
 bool PlaybackHandler::startIgnoringMidiClockInputIfNecessary() {
 
-	if ((playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE)
+	if (isInternalClockActive()
 	    && (int32_t)(AudioEngine::audioSampleTimer - timeLastMIDIStartOrContinueMessageSent) < 50 * 44) {
 		D_PRINTLN("ignoring midi clock input");
 		ignoringMidiClockInput = true;
@@ -1569,7 +1569,7 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	}
 
 	// If we were using the internal clock, we want to start again using the external clock, kinda
-	if (playbackHandler.playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+	if (isInternalClockActive()) {
 
 		// If we're in our count-in, that's incompatible with following external clock, so we'll just have to ignore the
 		// incoming clock for now. This has the slightly weird effect that after the count-in is over, we'll switch to
@@ -1850,7 +1850,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 
 		// If Deluge is using internal clock
-		if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+		if (isInternalClockActive()) {
 			if (currentlySendingMIDIOutputClocks()) {
 				// TODO: these should also affect trigger clock output. Currently they don't
 				if (offset < 0) {
@@ -1918,7 +1918,7 @@ displayNudge:
 
 			currentSong->insideWorldTickMagnitude -= offset;
 
-			if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+			if (isInternalClockActive()) {
 
 				// Fix MIDI beat clock output
 				if (currentlySendingMIDIOutputClocks()) {
@@ -2056,7 +2056,7 @@ void PlaybackHandler::setMidiOutClockMode(bool newValue) {
 	midiOutClockEnabled = newValue;
 
 	// If currently playing on internal clock...
-	if (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE) {
+	if (isInternalClockActive()) {
 
 		// If we just enabled the output clock...
 		if (!oldValue) {
