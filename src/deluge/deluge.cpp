@@ -551,29 +551,29 @@ void registerTasks() {
 	// needs to be called very frequently,
 	// handles animations and checks on the timers for any infrequent actions
 	// long term this should probably be made into an idle task
-	addRepeatingTask([]() { uiTimerManager.routine(); }, 101, 0.0001, 0.0005, 0.005);
+	addRepeatingTask([]() { uiTimerManager.routine(); }, 101, 0.0001, 0.0007, 0.01);
 	if (hid::display::have_oled_screen) {
-		addRepeatingTask(&(oledRoutine), 100, 0.01, 0.01, 0.2);
+		addRepeatingTask(&(oledRoutine), 100, 0.01, 0.01, 0.02);
 	}
 	addRepeatingTask(&(PIC::flush), 99, 0.001, 0.001, 0.02);
-	addRepeatingTask(&(readButtonsAndPadsOnce), 20, 0.005, 0.005, 0.1);
+	addRepeatingTask(&(readButtonsAndPadsOnce), 20, 0.005, 0.005, 0.01);
 	// 30 Hz update desired?
-	addRepeatingTask(&doAnyPendingUIRendering, 50, 0.01, 0.01, 0.05);
+	addRepeatingTask(&doAnyPendingUIRendering, 50, 0.01, 0.01, 0.03);
 
 	// this one runs quickly and frequently to check for encoder changes
-	addRepeatingTask([]() { encoders::readEncoders(); }, 49, 0.001, 0.001, 0.005);
+	addRepeatingTask([]() { encoders::readEncoders(); }, 49, 0.0005, 0.001, 0.001);
 	addRepeatingTask([]() { encoders::interpretEncoders(true); }, 10, 0.001, 0.001, 0.01);
 	// this one actually actions them
-	addRepeatingTask([]() { encoders::interpretEncoders(false); }, 48, 0.005, 0.005, 0.02);
+	addRepeatingTask([]() { encoders::interpretEncoders(false); }, 48, 0.005, 0.005, 0.01);
 
 	// addRepeatingTask([]() { AudioEngine::routineWithClusterLoading(true); }, 0, 1 / 44100., 16 / 44100., 32 / 44100.,
 	// true);
 	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(8, false); }, 5, 0.00001, 0.00001, 0.00002);
-	addRepeatingTask(&(AudioEngine::routine), 0, 4 / 44100., 16 / 44100., 32 / 44100.);
+	addRepeatingTask(&(AudioEngine::routine), 0, 8 / 44100., 16 / 44100., 32 / 44100.);
 	// addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
 
 	// formerly part of audio routine, updates midi and clock
-	addRepeatingTask([]() { playbackHandler.routine(); }, 3, 4 / 44100., 16 / 44100, 32 / 44100.);
+	addRepeatingTask([]() { playbackHandler.routine(); }, 3, 8 / 44100., 16 / 44100, 32 / 44100.);
 	// these ones are actually "slow" -> file manager just checks if an sd card has been inserted, audio recorder checks
 	// if recordings are finished
 	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, 60, 0.1, 0.1, 0.2);
