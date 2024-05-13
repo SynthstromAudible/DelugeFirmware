@@ -573,10 +573,14 @@ void registerTasks() {
 	// addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
 
 	// formerly part of audio routine, updates midi and clock
-	addRepeatingTask([]() { playbackHandler.routine(); }, 10, 1 / 44100., 16 / 44100, 32 / 44100.);
+	addRepeatingTask([]() { playbackHandler.routine(); }, 3, 1 / 44100., 16 / 44100, 32 / 44100.);
+	// these ones are actually "slow" -> file manager just checks if an sd card has been inserted, audio recorder checks
+	// if recordings are finished
 	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, 60, 0.1, 0.1, 0.2);
 	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, 61, 0.01, 0.1, 0.1);
-	addRepeatingTask(&AudioEngine::slowRoutine, 70, 0.01, 0.05, 0.1);
+	// handles sd card recorders
+	// named "slow" but isn't actually, it handles audio recording setup
+	addRepeatingTask(&AudioEngine::slowRoutine, 11, 0.001, 0.005, 0.05);
 }
 void mainLoop() {
 	while (1) {
