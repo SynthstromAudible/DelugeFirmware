@@ -53,7 +53,7 @@ void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numS
 	// I couldn't extract correct volume levels from it.
 	render(buffer, numSamples, 1 << 27, 1 << 27, finalVolume >> 3);
 }
-constexpr uint8_t saturationAmount = 4;
+constexpr uint8_t saturationAmount = 3;
 void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,
                                    q31_t finalVolume) {
 	if (!onLastTime) {
