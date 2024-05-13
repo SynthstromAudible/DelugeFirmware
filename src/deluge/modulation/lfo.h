@@ -48,12 +48,9 @@ public:
 			break;
 
 		case LFOType::SAMPLE_AND_HOLD:
-			if (phase == 0) {
+			if ((phase == 0) || (phase + phaseIncrement * numSamples < phase)) {
 				value = CONG;
 				holdValue = value;
-			}
-			else if (phase + phaseIncrement * numSamples < phase) {
-				holdValue = CONG;
 			}
 			else {
 				value = holdValue;
@@ -78,6 +75,7 @@ public:
 				// holdValue == -8 * range => (holdValue / -16) + (range / 2) ==
 				// range => next holdValue >= current holdValuie
 				holdValue += (holdValue / -16) + (range / 2) - CONG % range;
+				value = holdValue;
 			}
 			else {
 				value = holdValue;
@@ -89,5 +87,9 @@ public:
 		return value;
 	}
 
-	void tick(int32_t numSamples, uint32_t phaseIncrement) { phase += phaseIncrement * numSamples; }
+	void tick(int32_t numSamples, uint32_t phaseIncrement) {
+		// Note: if this overflows and we're using S&H or RANDOM_WALK, the
+		// next render() won't know it has overflown. Probably not an issue.
+		phase += phaseIncrement * numSamples;
+	}
 };
