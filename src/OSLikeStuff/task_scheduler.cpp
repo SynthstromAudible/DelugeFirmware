@@ -99,17 +99,28 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 				if (t.priority < bestPriority && t.handle) {
 					if (timeSinceCall > t.minTimeBetweenCalls) {
 						bestTask = sortedList[i].task;
+						nextFinishTime = currentTime + t.averageDuration;
 					}
 					else {
 						bestTask = -1;
+						nextFinishTime = maxTimeToCall;
 					}
 					bestPriority = t.priority;
-					nextFinishTime = currentTime + t.averageDuration;
 				}
 			}
 		}
 	}
-
+	// if we didn't find a task because something high priority needs to wait to run, find the next task we can do
+	// before it needs to start
+	if (bestTask == -1) {
+		for (int i = (index - 1); i >= 0; i--) {
+			struct Task t = list[sortedList[i].task];
+			if (currentTime + t.averageDuration < nextFinishTime
+			    && currentTime - t.lastCallTime > t.minTimeBetweenCalls) {
+				return sortedList[i].task;
+			}
+		}
+	}
 	return bestTask;
 }
 
