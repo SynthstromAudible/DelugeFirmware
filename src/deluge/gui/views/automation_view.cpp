@@ -1617,21 +1617,7 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 		}
 		else {
 doOther:
-			// Transition to session view
-			// code taken from the keyboard screen instead of calling the transition to session view function
-			currentUIMode = UI_MODE_INSTRUMENT_CLIP_COLLAPSING;
-			int32_t transitioningToRow = sessionView.getClipPlaceOnScreen(clip);
-			memcpy(&PadLEDs::imageStore, PadLEDs::image, sizeof(PadLEDs::image));
-			memcpy(&PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, sizeof(PadLEDs::occupancyMask));
-			PadLEDs::numAnimatedRows = kDisplayHeight;
-			for (int32_t y = 0; y < kDisplayHeight; y++) {
-				PadLEDs::animatedRowGoingTo[y] = transitioningToRow;
-				PadLEDs::animatedRowGoingFrom[y] = y;
-			}
-
-			PadLEDs::setupInstrumentClipCollapseAnimation(true);
-			PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
-			PadLEDs::renderClipExpandOrCollapse();
+			sessionView.transitionToSessionView();
 		}
 		resetShortcutBlinking();
 	}

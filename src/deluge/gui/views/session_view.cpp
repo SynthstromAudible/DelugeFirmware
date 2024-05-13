@@ -3722,35 +3722,44 @@ void SessionView::gridTransitionToSessionView() {
 }
 
 void SessionView::gridTransitionToViewForClip(Clip* clip) {
-	if (clip->type == ClipType::AUDIO) {
-		// If no sample, just skip directly there
-		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
-			currentUIMode = UI_MODE_NONE;
-			changeRootUI(&audioClipView);
-			return;
-		}
-	}
-
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
 	auto clipX = std::clamp<int32_t>(gridXFromTrack(gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
-	if (clip->type == ClipType::AUDIO) {
-		waveformRenderer.collapseAnimationToWhichRow = clipY;
+	// If going to automationView...
+	if (clip->onAutomationClipView) {
+		PadLEDs::explodeAnimationYOriginBig = clipY << 16;
 
-		int64_t xScrollSamples;
-		int64_t xZoomSamples;
+		if (clip->type == ClipType::INSTRUMENT) {
+			instrumentClipView.recalculateColours();
+		}
 
-		((AudioClip*)clip)
-		    ->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
-		                                &xScrollSamples, &xZoomSamples);
+		automationView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
+	}
+	else if (clip->type == ClipType::AUDIO) {
+		// If no sample, just skip directly there
+		if (!((AudioClip*)clip)->sampleHolder.audioFile) {
+			currentUIMode = UI_MODE_NONE;
+			changeRootUI(&audioClipView);
+			return;
+		}
+		else {
+			waveformRenderer.collapseAnimationToWhichRow = clipY;
 
-		waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
-		                                 xZoomSamples, &((AudioClip*)clip)->renderData);
+			int64_t xScrollSamples;
+			int64_t xZoomSamples;
 
-		PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
+			((AudioClip*)clip)
+			    ->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
+			                                &xScrollSamples, &xZoomSamples);
+
+			waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
+			                                 xZoomSamples, &((AudioClip*)clip)->renderData);
+
+			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
+		}
 	}
 
 	else {
@@ -3766,7 +3775,8 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 		// Or if just regular old InstrumentClipView
 		else {
 			instrumentClipView.recalculateColours();
-			instrumentClipView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
+			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
+			                                  false);
 			instrumentClipView.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
 			instrumentClipView.fillOffScreenImageStores();
