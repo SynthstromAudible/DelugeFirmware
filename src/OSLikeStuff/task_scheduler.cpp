@@ -59,6 +59,7 @@ struct TaskManager {
 	void createSortedList();
 	void clockRolledOver();
 	bool running{false};
+	TaskID insertTaskToList(Task task);
 };
 
 TaskManager taskManager;
@@ -112,16 +113,30 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 	return bestTask;
 }
 
+/// insert task into the first empty spot in the list
+TaskID TaskManager::insertTaskToList(Task task) {
+	int index = 0;
+	while (list[index].handle && index < kMaxTasks) {
+		index += 1;
+	}
+	if (index < kMaxTasks) {
+		list[index] = task;
+		numActiveTasks++;
+	}
+
+	return index;
+};
+
 TaskID TaskManager::addRepeatingTask(TaskHandle task, uint8_t priority, double minTimeBetweenCalls,
                                      double targetTimeBetweenCalls, double maxTimeBetweenCalls) {
 	if (numActiveTasks >= (kMaxTasks)) {
 		return -1;
 	}
-	list[numActiveTasks++] =
-	    (Task{task, priority, 0, 0, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls, false});
+	int index = insertTaskToList(
+	    Task{task, priority, 0, 0, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls, false});
 
 	createSortedList();
-	return numActiveTasks - 1;
+	return index;
 }
 
 TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeToWait) {
@@ -129,10 +144,9 @@ TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeTo
 		return -1;
 	}
 	double timeToStart = running ? getTimerValueSeconds(0) : 0;
-	list[numActiveTasks++] = (Task{task, priority, timeToStart, 0, timeToWait, timeToWait, 10 * timeToWait, true});
-
+	int index = insertTaskToList(Task{task, priority, timeToStart, 0, timeToWait, timeToWait, 10 * timeToWait, true});
 	createSortedList();
-	return numActiveTasks - 1;
+	return index;
 }
 
 void TaskManager::removeTask(TaskID id) {
