@@ -37,6 +37,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
+#include "task_scheduler.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/try.h"
@@ -252,6 +253,16 @@ Error StorageManager::initSD() {
 	});
 	if (success) {
 		return Error::NONE;
+	}
+	else {
+		// no error but not ready yet - try again in a moment
+		D_PRINTLN("card not ready, trying again soon");
+		addOnceTask(
+		    []() {
+			    D_PRINTLN("checking if card is ready yet");
+			    storageManager.initSD();
+		    },
+		    100, 0.1);
 	}
 	return Error::SD_CARD;
 }
