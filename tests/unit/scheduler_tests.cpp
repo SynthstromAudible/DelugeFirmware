@@ -117,6 +117,22 @@ TEST(Scheduler, removeWithPriZero) {
 	mock().checkExpectations();
 };
 
+TEST(Scheduler, tooManyTasks) {
+	mock().clear();
+	// will be called one less time due to the time the sleep takes not being zero
+
+	mock().expectNCalls(kMaxTasks, "sleep_50ns");
+	// one more than allowed
+	for (int i = 0; i <= kMaxTasks + 10; i++) {
+		addOnceTask(sleep_50ns, 0, 0.001);
+	}
+
+	// run the scheduler for 10ms
+	taskManager.start(0.01);
+
+	mock().checkExpectations();
+};
+
 TEST(Scheduler, scheduleMultiple) {
 	mock().clear();
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
