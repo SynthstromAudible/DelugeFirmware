@@ -113,7 +113,7 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 	// before it needs to start
 	if (bestTask == -1) {
 		// first look based on target time
-		for (int i = (index - 1); i >= 0; i--) {
+		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task t = list[sortedList[i].task];
 			if (currentTime + t.averageDuration < nextFinishTime
 			    && currentTime - t.lastCallTime > t.targetTimeBetweenCalls) {
@@ -121,7 +121,7 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 			}
 		}
 		// then look based on min time just to avoid busy waiting
-		for (int i = (index - 1); i >= 0; i--) {
+		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task t = list[sortedList[i].task];
 			if (currentTime + t.averageDuration < nextFinishTime
 			    && currentTime - t.lastCallTime > t.minTimeBetweenCalls) {
