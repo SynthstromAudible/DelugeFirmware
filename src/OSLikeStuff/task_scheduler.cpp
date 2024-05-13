@@ -42,8 +42,10 @@ struct SortedTask {
 
 /// internal only to the task scheduler, hence all public. External interaction to use the api
 struct TaskManager {
-
+	// All current tasks
+	// Not all entries are filled - removed entries have a null task handle
 	std::array<Task, kMaxTasks> list{nullptr};
+	// Sorted list of the current numActiveTasks, lowest priority first
 	std::array<SortedTask, kMaxTasks> sortedList;
 	uint8_t numActiveTasks = 0;
 	double mustEndBefore = 128;
