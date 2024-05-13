@@ -19,7 +19,6 @@
 #include "RZA1/ostm/ostm.h"
 #include "util/container/static_vector.hpp"
 #include <algorithm>
-#include <iostream>
 // currently 14 are in use
 constexpr int kMaxTasks = 20;
 constexpr double rollTime = ((double)(UINT32_MAX) / DELUGE_CLOCKS_PERf);
@@ -43,10 +42,12 @@ struct SortedTask {
 
 /// internal only to the task scheduler, hence all public. External interaction to use the api
 struct TaskManager {
-
+	// All current tasks
+	// Not all entries are filled - removed entries have a null task handle
 	std::array<Task, kMaxTasks> list{nullptr};
+	// Sorted list of the current numActiveTasks, lowest priority first
 	std::array<SortedTask, kMaxTasks> sortedList;
-	TaskID index = 0;
+	uint8_t numActiveTasks = 0;
 	double mustEndBefore = 128;
 	void start(double duration = 0);
 	void removeTask(TaskID id);
@@ -58,19 +59,20 @@ struct TaskManager {
 	void createSortedList();
 	void clockRolledOver();
 	bool running{false};
+	TaskID insertTaskToList(Task task);
 };
 
 TaskManager taskManager;
 
 void TaskManager::createSortedList() {
 	int j = 0;
-	for (TaskID i = 0; i <= kMaxTasks; i++) {
+	for (TaskID i = 0; i < kMaxTasks; i++) {
 		if (list[i].handle != nullptr) {
 			sortedList[j] = (SortedTask{list[i].priority, i});
 			j++;
 		}
 	}
-	std::sort(&sortedList[0], &sortedList[index + 1]);
+	std::sort(&sortedList[0], &sortedList[numActiveTasks]);
 }
 
 TaskID TaskManager::chooseBestTask(double deadline) {
@@ -81,7 +83,7 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 	/// Go through all tasks. If a task needs to be called before the current best task finishes, and has a higher
 	/// priority than the current best task, it becomes the best task
 
-	for (int i = 0; i < index; i++) {
+	for (int i = 0; i < numActiveTasks; i++) {
 		struct Task t = list[sortedList[i].task];
 		double timeToCall = t.lastCallTime + t.targetTimeBetweenCalls - t.averageDuration;
 		double maxTimeToCall = t.lastCallTime + t.maxTimeBetweenCalls - t.averageDuration;
@@ -111,24 +113,46 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 	return bestTask;
 }
 
+/// insert task into the first empty spot in the list
+TaskID TaskManager::insertTaskToList(Task task) {
+	int index = 0;
+	while (list[index].handle && index < kMaxTasks) {
+		index += 1;
+	}
+	if (index < kMaxTasks) {
+		list[index] = task;
+		numActiveTasks++;
+	}
+
+	return index;
+};
+
 TaskID TaskManager::addRepeatingTask(TaskHandle task, uint8_t priority, double minTimeBetweenCalls,
                                      double targetTimeBetweenCalls, double maxTimeBetweenCalls) {
-	list[index] = (Task{task, priority, 0, 0, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls, false});
+	if (numActiveTasks >= (kMaxTasks)) {
+		return -1;
+	}
+	int index = insertTaskToList(
+	    Task{task, priority, 0, 0, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls, false});
+
 	createSortedList();
-	return index++;
+	return index;
 }
 
 TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeToWait) {
+	if (numActiveTasks >= (kMaxTasks)) {
+		return -1;
+	}
 	double timeToStart = running ? getTimerValueSeconds(0) : 0;
-	list[index] = (Task{task, priority, timeToStart, 0, timeToWait, timeToWait, 10 * timeToWait, true});
+	int index = insertTaskToList(Task{task, priority, timeToStart, 0, timeToWait, timeToWait, 10 * timeToWait, true});
 	createSortedList();
-	return index++;
+	return index;
 }
 
 void TaskManager::removeTask(TaskID id) {
 	list[id] = Task{0, 0, 0, 0, 0, 0, false};
+	numActiveTasks--;
 	createSortedList();
-	index--;
 	return;
 }
 
@@ -152,8 +176,11 @@ void TaskManager::runTask(TaskID id) {
 	}
 }
 void TaskManager::clockRolledOver() {
-	for (int i = 0; i < index; i++) {
-		list[i].lastCallTime -= rollTime;
+	for (int i = 0; i < kMaxTasks; i++) {
+		// just check it exists, otherwise tasks that never run will overflow
+		if (list[i].handle != nullptr) {
+			list[i].lastCallTime -= rollTime;
+		}
 	}
 }
 
