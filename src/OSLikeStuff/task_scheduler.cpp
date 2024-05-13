@@ -90,8 +90,7 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 		double timeSinceCall = currentTime - t.lastCallTime;
 		// ensure every routine is within its target
 		if (timeSinceCall > t.maxTimeBetweenCalls) {
-			uint8_t next = sortedList[i].task;
-			return next;
+			return sortedList[i].task;
 		}
 		if (timeToCall < currentTime || maxTimeToCall < nextFinishTime) {
 			if (currentTime + t.averageDuration < deadline) {
@@ -113,6 +112,15 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 	// if we didn't find a task because something high priority needs to wait to run, find the next task we can do
 	// before it needs to start
 	if (bestTask == -1) {
+		// first look based on target time
+		for (int i = (index - 1); i >= 0; i--) {
+			struct Task t = list[sortedList[i].task];
+			if (currentTime + t.averageDuration < nextFinishTime
+			    && currentTime - t.lastCallTime > t.targetTimeBetweenCalls) {
+				return sortedList[i].task;
+			}
+		}
+		// then look based on min time just to avoid busy waiting
 		for (int i = (index - 1); i >= 0; i--) {
 			struct Task t = list[sortedList[i].task];
 			if (currentTime + t.averageDuration < nextFinishTime
