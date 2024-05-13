@@ -104,7 +104,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 		return true;
 	}
 
-	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
+	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 		return true;
 	}
 
@@ -196,7 +196,7 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth 
 		return true;
 	}
 
-	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
+	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 		return true;
 	}
 
@@ -220,7 +220,8 @@ void AudioClipView::graphicsRoutine() {
 	int32_t newTickSquare;
 
 	if (!playbackHandler.playbackState || !currentSong->isClipActive(getCurrentClip())
-	    || currentUIMode == UI_MODE_EXPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn) {
+	    || currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION
+	    || playbackHandler.ticksLeftInCountIn) {
 		newTickSquare = 255;
 	}
 
