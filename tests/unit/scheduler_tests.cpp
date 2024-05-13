@@ -101,6 +101,22 @@ TEST(Scheduler, scheduleOnceWithRepeating) {
 	mock().checkExpectations();
 };
 
+TEST(Scheduler, removeWithPriZero) {
+	mock().clear();
+	mock().expectNCalls((0.01 - 0.002) / 0.001 - 1, "sleep_50ns");
+	mock().expectNCalls(2, "sleep_2ms");
+	// every 1ms sleep for 50ns and 10ns
+	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001);
+	addRepeatingTask([]() { passMockTime(0.00001); }, 0, 0.001, 0.001, 0.001);
+	addOnceTask(sleep_2ms, 11, 0.002);
+	addRepeatingTask([]() { passMockTime(0.00003); }, 0, 0.001, 0.001, 0.001);
+	addOnceTask(sleep_2ms, 11, 0.009);
+	// run the scheduler for 10ms
+	taskManager.start(0.01);
+	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
+	mock().checkExpectations();
+};
+
 TEST(Scheduler, scheduleMultiple) {
 	mock().clear();
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
