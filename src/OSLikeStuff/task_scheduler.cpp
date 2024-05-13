@@ -44,7 +44,7 @@ struct SortedTask {
 /// internal only to the task scheduler, hence all public. External interaction to use the api
 struct TaskManager {
 
-	std::array<Task, kMaxTasks> list;
+	std::array<Task, kMaxTasks> list{nullptr};
 	std::array<SortedTask, kMaxTasks> sortedList;
 	TaskID index = 0;
 	double mustEndBefore = 128;
@@ -63,8 +63,12 @@ struct TaskManager {
 TaskManager taskManager;
 
 void TaskManager::createSortedList() {
-	for (TaskID i = 0; i <= index; i++) {
-		sortedList[i] = (SortedTask{list[i].priority, i});
+	int j = 0;
+	for (TaskID i = 0; i <= kMaxTasks; i++) {
+		if (list[i].handle != nullptr) {
+			sortedList[j] = (SortedTask{list[i].priority, i});
+			j++;
+		}
 	}
 	std::sort(&sortedList[0], &sortedList[index + 1]);
 }
