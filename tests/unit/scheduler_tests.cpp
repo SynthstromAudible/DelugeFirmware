@@ -117,12 +117,12 @@ TEST(Scheduler, removeWithPriZero) {
 	mock().checkExpectations();
 };
 
+/// Schedules more than kMaxTask tasks, checks on kMaxTask tasks run
 TEST(Scheduler, tooManyTasks) {
 	mock().clear();
-	// will be called one less time due to the time the sleep takes not being zero
-
+	// will actually register kMaxTasks tasks, after that they're ignored
 	mock().expectNCalls(kMaxTasks, "sleep_50ns");
-	// one more than allowed
+	// more than allowed
 	for (int i = 0; i <= kMaxTasks + 10; i++) {
 		addOnceTask(sleep_50ns, 0, 0.001);
 	}
@@ -132,6 +132,25 @@ TEST(Scheduler, tooManyTasks) {
 
 	mock().checkExpectations();
 };
+int numCalls = 0;
+void reAdd50() {
+	mock().actualCall("reAdd50");
+
+	passMockTime(0.00002);
+	numCalls += 1;
+	if (numCalls < 50) {
+		TaskID id = addOnceTask(reAdd50, 0, 0);
+	}
+};
+/// dynamically schedules more than kMaxTask tasks while remaining under kMaxTasks at all times
+TEST(Scheduler, moreThanMaxTotal) {
+	numCalls = 0;
+	mock().clear();
+	mock().expectNCalls(50, "reAdd50");
+	addOnceTask(reAdd50, 0, 0);
+	taskManager.start(0.01);
+	mock().checkExpectations();
+}
 
 TEST(Scheduler, scheduleMultiple) {
 	mock().clear();

@@ -47,7 +47,7 @@ struct TaskManager {
 
 	std::array<Task, kMaxTasks> list{nullptr};
 	std::array<SortedTask, kMaxTasks> sortedList;
-	TaskID index = 0;
+	uint8_t numActiveTasks = 0;
 	double mustEndBefore = 128;
 	void start(double duration = 0);
 	void removeTask(TaskID id);
@@ -71,7 +71,7 @@ void TaskManager::createSortedList() {
 			j++;
 		}
 	}
-	std::sort(&sortedList[0], &sortedList[index]);
+	std::sort(&sortedList[0], &sortedList[numActiveTasks]);
 }
 
 TaskID TaskManager::chooseBestTask(double deadline) {
@@ -82,7 +82,7 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 	/// Go through all tasks. If a task needs to be called before the current best task finishes, and has a higher
 	/// priority than the current best task, it becomes the best task
 
-	for (int i = 0; i < index; i++) {
+	for (int i = 0; i < numActiveTasks; i++) {
 		struct Task t = list[sortedList[i].task];
 		double timeToCall = t.lastCallTime + t.targetTimeBetweenCalls - t.averageDuration;
 		double maxTimeToCall = t.lastCallTime + t.maxTimeBetweenCalls - t.averageDuration;
@@ -114,30 +114,30 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 
 TaskID TaskManager::addRepeatingTask(TaskHandle task, uint8_t priority, double minTimeBetweenCalls,
                                      double targetTimeBetweenCalls, double maxTimeBetweenCalls) {
-	if (index >= (kMaxTasks)) {
+	if (numActiveTasks >= (kMaxTasks)) {
 		return -1;
 	}
-	list[index++] =
+	list[numActiveTasks++] =
 	    (Task{task, priority, 0, 0, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls, false});
 
 	createSortedList();
-	return index - 1;
+	return numActiveTasks - 1;
 }
 
 TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeToWait) {
-	if (index >= (kMaxTasks)) {
+	if (numActiveTasks >= (kMaxTasks)) {
 		return -1;
 	}
 	double timeToStart = running ? getTimerValueSeconds(0) : 0;
-	list[index++] = (Task{task, priority, timeToStart, 0, timeToWait, timeToWait, 10 * timeToWait, true});
+	list[numActiveTasks++] = (Task{task, priority, timeToStart, 0, timeToWait, timeToWait, 10 * timeToWait, true});
 
 	createSortedList();
-	return index - 1;
+	return numActiveTasks - 1;
 }
 
 void TaskManager::removeTask(TaskID id) {
 	list[id] = Task{0, 0, 0, 0, 0, 0, false};
-	index--;
+	numActiveTasks--;
 	createSortedList();
 	return;
 }
@@ -162,7 +162,7 @@ void TaskManager::runTask(TaskID id) {
 	}
 }
 void TaskManager::clockRolledOver() {
-	for (int i = 0; i < index; i++) {
+	for (int i = 0; i < numActiveTasks; i++) {
 		list[i].lastCallTime -= rollTime;
 	}
 }
