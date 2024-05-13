@@ -95,6 +95,19 @@ TEST(LFOTest, renderSampleAndHold) {
 	value = lfo.render(10, type, 10);
 	CHECK_EQUAL(-28442955, value);
 	CHECK_EQUAL(100, lfo.phase);
+
+	value = lfo.render(10, type, 10); // no change
+	CHECK_EQUAL(-28442955, value);
+	CHECK_EQUAL(200, lfo.phase);
+
+	lfo.phase = UINT32_MAX; // phase to max, so next will overflow
+	value = lfo.render(10, type, 10);
+	CHECK_EQUAL(-1725170056, value);
+	CHECK_EQUAL(99, lfo.phase);
+
+	value = lfo.render(10, type, 10); // no change
+	CHECK_EQUAL(-1725170056, value);
+	CHECK_EQUAL(199, lfo.phase);
 }
 
 TEST(LFOTest, renderRandomWalk) {
@@ -116,4 +129,17 @@ TEST(LFOTest, renderRandomWalk) {
 	value = lfo.render(10, type, 10);
 	CHECK_EQUAL(-78931243, value);
 	CHECK_EQUAL(100, lfo.phase);
+
+	value = lfo.render(10, type, 10); // no change
+	CHECK_EQUAL(-78931243, value);
+	CHECK_EQUAL(200, lfo.phase);
+
+	lfo.phase = UINT32_MAX; // overflow
+	value = lfo.render(10, type, 10);
+	CHECK_EQUAL(-174189095, value);
+	CHECK_EQUAL(99, lfo.phase);
+
+	value = lfo.render(10, type, 10); // no change
+	CHECK_EQUAL(-174189095, value);
+	CHECK_EQUAL(199, lfo.phase);
 }
