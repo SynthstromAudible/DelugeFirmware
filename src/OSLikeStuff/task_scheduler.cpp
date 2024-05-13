@@ -167,12 +167,8 @@ void TaskManager::runTask(TaskID id) {
 		if (runtime < 0) {
 			runtime += rollTime;
 		}
-		if (list[id].averageDuration < 0.000001 || list[id].averageDuration > 0.01) {
-			list[id].averageDuration = runtime;
-		}
-		else {
-			list[id].averageDuration = (list[id].averageDuration + runtime) / 2;
-		}
+
+		list[id].averageDuration = (list[id].averageDuration + runtime) / 2;
 	}
 }
 void TaskManager::clockRolledOver() {
