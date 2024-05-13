@@ -19,8 +19,6 @@
 #include "RZA1/ostm/ostm.h"
 #include "util/container/static_vector.hpp"
 #include <algorithm>
-#include <format>
-#include <iostream>
 // currently 14 are in use
 constexpr int kMaxTasks = 20;
 constexpr double rollTime = ((double)(UINT32_MAX) / DELUGE_CLOCKS_PERf);
