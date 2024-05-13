@@ -176,8 +176,11 @@ void TaskManager::runTask(TaskID id) {
 	}
 }
 void TaskManager::clockRolledOver() {
-	for (int i = 0; i < numActiveTasks; i++) {
-		list[i].lastCallTime -= rollTime;
+	for (int i = 0; i < kMaxTasks; i++) {
+		// just check it exists, otherwise tasks that never run will overflow
+		if (list[i].handle != nullptr) {
+			list[i].lastCallTime -= rollTime;
+		}
 	}
 }
 
