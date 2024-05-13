@@ -19,6 +19,7 @@
 #include "RZA1/ostm/ostm.h"
 #include "util/container/static_vector.hpp"
 #include <algorithm>
+#include <format>
 #include <iostream>
 // currently 14 are in use
 constexpr int kMaxTasks = 20;
@@ -64,13 +65,13 @@ TaskManager taskManager;
 
 void TaskManager::createSortedList() {
 	int j = 0;
-	for (TaskID i = 0; i <= kMaxTasks; i++) {
+	for (TaskID i = 0; i < kMaxTasks; i++) {
 		if (list[i].handle != nullptr) {
 			sortedList[j] = (SortedTask{list[i].priority, i});
 			j++;
 		}
 	}
-	std::sort(&sortedList[0], &sortedList[index + 1]);
+	std::sort(&sortedList[0], &sortedList[index]);
 }
 
 TaskID TaskManager::chooseBestTask(double deadline) {
@@ -113,22 +114,31 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 
 TaskID TaskManager::addRepeatingTask(TaskHandle task, uint8_t priority, double minTimeBetweenCalls,
                                      double targetTimeBetweenCalls, double maxTimeBetweenCalls) {
-	list[index] = (Task{task, priority, 0, 0, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls, false});
+	if (index >= (kMaxTasks)) {
+		return -1;
+	}
+	list[index++] =
+	    (Task{task, priority, 0, 0, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls, false});
+
 	createSortedList();
-	return index++;
+	return index - 1;
 }
 
 TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeToWait) {
+	if (index >= (kMaxTasks)) {
+		return -1;
+	}
 	double timeToStart = running ? getTimerValueSeconds(0) : 0;
-	list[index] = (Task{task, priority, timeToStart, 0, timeToWait, timeToWait, 10 * timeToWait, true});
+	list[index++] = (Task{task, priority, timeToStart, 0, timeToWait, timeToWait, 10 * timeToWait, true});
+
 	createSortedList();
-	return index++;
+	return index - 1;
 }
 
 void TaskManager::removeTask(TaskID id) {
 	list[id] = Task{0, 0, 0, 0, 0, 0, false};
-	createSortedList();
 	index--;
+	createSortedList();
 	return;
 }
 
