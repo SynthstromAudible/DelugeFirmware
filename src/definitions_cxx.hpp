@@ -323,26 +323,12 @@ constexpr int32_t kMinMenuPatchCableValue = -1 * kMaxMenuPatchCableValue;
 constexpr int32_t kMaxMenuMetronomeVolumeValue = 50;
 constexpr int32_t kMinMenuMetronomeVolumeValue = 1;
 
-// Automation View constants
-constexpr int32_t kNumNonGlobalParamsForAutomation = 61;
-constexpr int32_t kNumGlobalParamsForAutomation = 26;
+// Param constants
 constexpr int32_t kNoSelection = 255;
 constexpr int32_t kKnobPosOffset = 64;
 constexpr int32_t kMaxKnobPos = 128;
-constexpr float kParamValueIncrementForAutomationSinglePadPress = 18.2857142857143; // 128 / 7
-constexpr int32_t kParamValueIncrementForAutomationDisplay = 16;
-constexpr int32_t kParamValueIncrementForAutomationPatchCableSinglePadPress = 30;
-constexpr int32_t kParamValueIncrementForAutomationPatchCableDisplay = 32;
-constexpr int32_t kParamNodeWidth = 3;
-//
 
-// Performance View constant
-constexpr int32_t kNumParamsForPerformance = 18;
-constexpr int32_t kParamValueIncrementForDelayAmount = kParamValueIncrementForAutomationSinglePadPress / 2;
-constexpr int32_t kMaxKnobPosForDelayAmount = (kMaxKnobPos / 2) - 1;
-constexpr int32_t kParamValueIncrementForQuantizedStutter = 15;
-constexpr int32_t kMinKnobPosForQuantizedStutter = 52;
-
+// Performance View Modes
 enum class PerformanceEditingMode : uint8_t {
 	DISABLED,
 	VALUE,
