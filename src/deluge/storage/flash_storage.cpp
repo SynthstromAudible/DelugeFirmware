@@ -901,7 +901,7 @@ void writeSettings() {
 	buffer[167] = util::to_underlying(defaultSliceMode);
 
 	buffer[169] = highCPUUsageIndicator;
-	
+
 	buffer[170] = defaultHoldTime;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
