@@ -151,6 +151,8 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_PICK_UP, "PICK"},
         {STRING_FOR_SCALE, "SCAL"},
         {STRING_FOR_RELATIVE, "RELA"},
+
+        // gui/menu_item/mod_fx/type.h
         {STRING_FOR_FLANGER, "FLANGER"},
         {STRING_FOR_CHORUS, "CHORUS"},
         {STRING_FOR_PHASER, "PHASER"},
