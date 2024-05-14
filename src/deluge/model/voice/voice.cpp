@@ -155,6 +155,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	// Setup and render local LFO
+	// XXX: Should this match the resync logic for global LFO? If not, why not?
 	lfo.phase = getLFOInitialPhaseForNegativeExtreme(sound->lfoLocalWaveType);
 	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->lfoLocalWaveType, 0);
 
@@ -690,6 +691,31 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	return true;
 }
 
+uint32_t Voice::getLocalLFOPhaseIncrement() {
+	uint32_t phaseIncrement;
+	if (assignedToSound->lfoLocalSyncLevel == SYNC_LEVEL_NONE) {
+		phaseIncrement = paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ];
+	}
+	else {
+		phaseIncrement = (playbackHandler.getTimePerInternalTickInverse())
+			 >> (SYNC_LEVEL_256TH - assignedToSound->lfoLocalSyncLevel);
+		switch (assignedToSound->lfoLocalSyncType) {
+		case SYNC_TYPE_EVEN:
+			// Nothing to do
+			break;
+		case SYNC_TYPE_TRIPLET:
+			phaseIncrement = phaseIncrement * 3 / 2;
+			break;
+		case SYNC_TYPE_DOTTED:
+			phaseIncrement = phaseIncrement * 2 / 3;
+			break;
+		}
+	}
+	// Uart::print("LFO phaseIncrement: ");
+	// Uart::println(phaseIncrement);
+	return phaseIncrement;
+}
+
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
 
 // Returns false if became inactive and needs unassigning
@@ -738,7 +764,8 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
 		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
 		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
-		    lfo.render(numSamples, sound->lfoLocalWaveType, paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ]);
+			// XXX: Seems suspect to recompute the increment every time we render?
+		    lfo.render(numSamples, sound->lfoLocalWaveType, getLocalLFOPhaseIncrement());
 		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
 	}

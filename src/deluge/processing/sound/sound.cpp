@@ -2195,6 +2195,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL);
 
 		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
+		// XXX: Seems suspect to recompute phase increment every time we render?
 		globalSourceValues[patchSourceLFOGlobalUnderlying] =
 		    globalLFO.render(numSamples, lfoGlobalWaveType, getGlobalLFOPhaseIncrement());
 		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
