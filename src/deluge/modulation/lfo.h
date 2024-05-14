@@ -18,7 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "util/functions.h"
+#include "util/waves.h"
+
+uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType);
+uint32_t getLFOInitialPhaseForZero(LFOType waveType);
 
 class LFO {
 public:
