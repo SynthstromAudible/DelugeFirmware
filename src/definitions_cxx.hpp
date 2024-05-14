@@ -365,6 +365,15 @@ constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
 constexpr int32_t kNumOscTypes = util::to_underlying(OscType::INPUT_STEREO) + 1;
 
+// LFO_ID is used exlusively is as an array index, so an enum class would
+// only add extra noise to get the underlying value in all places where this
+// is used.
+enum LFO_ID {
+	LFO1_ID = 0,
+	LFO2_ID = 1,
+	LFO_COUNT = 2,
+};
+
 enum class LFOType : uint8_t {
 	SINE,
 	TRIANGLE,
