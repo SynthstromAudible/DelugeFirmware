@@ -910,9 +910,9 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_TRANSPOSE_CHROMATIC, "Chromatic"},
         {STRING_FOR_TRANSPOSE_CHORD, "Chord"},
         {STRING_FOR_CANT_ENTER_SCALE, "Can't enter scale mode, MIDI transpose is chromatic"},
-       
+
         {STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, "High CPU Indicator"},
-        
+
         {STRING_FOR_HOLD_TIME, "Hold Press Time"},
     },
 };
