@@ -311,6 +311,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PICK_UP, "Pickup"},
         {STRING_FOR_SCALE, "Scale"},
         {STRING_FOR_RELATIVE, "Relative"},
+
+        // gui/menu_item/mod_fx/type.h
         {STRING_FOR_FLANGER, "Flanger"},
         {STRING_FOR_CHORUS, "Chorus"},
         {STRING_FOR_PHASER, "Phaser"},
