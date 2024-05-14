@@ -19,7 +19,6 @@
 
 #include "util/lookuptables/lookuptables.h"
 #include "gui/l10n/l10n.h"
-#include "util/functions.h"
 #include "definitions_cxx.hpp"
 
 const uint16_t centAdjustTableSmall[257] = {
