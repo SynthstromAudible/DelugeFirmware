@@ -86,6 +86,8 @@ public:
 	LFOType lfoLocalWaveType;
 	SyncType lfoGlobalSyncType;
 	SyncLevel lfoGlobalSyncLevel;
+	SyncType lfoLocalSyncType;
+	SyncLevel lfoLocalSyncLevel;
 
 	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
