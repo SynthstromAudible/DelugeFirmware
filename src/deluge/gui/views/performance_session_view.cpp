@@ -337,10 +337,6 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDis
 
 	PadLEDs::renderingLock = true;
 
-	// erase current image (excluding sidebar) as it will be refreshed
-	// (don't assume sidebar is always rendered after main pads)
-	memset(image, 0, sizeof(RGB) * kDisplayHeight * kDisplayWidth);
-
 	// We assume the whole screen is occupied
 	memset(occupancyMask, 64, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
