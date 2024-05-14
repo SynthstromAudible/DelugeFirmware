@@ -28,9 +28,13 @@ FetchContent_MakeAvailable(CppUTest)
 file(GLOB_RECURSE deluge_SOURCES
         # Mock implementations
         mocks/*
+        # For LFO
+        ../../src/deluge/util/lookuptables.cpp
+        ../../src/deluge/util/waves.cpp
+        ../../src/deluge/modulation/lfo.cpp
 )
 
-add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp)
+add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp lfo_tests.cpp)
 add_test(NAME UnitTests
         COMMAND UnitTests)
 target_sources(UnitTests PRIVATE ${deluge_SOURCES})

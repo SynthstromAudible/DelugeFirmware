@@ -1392,7 +1392,7 @@ int32_t combineHitStrengths(int32_t strength1, int32_t strength2) {
 	return (maxOne >> 1) + (sum >> 1);
 }
 
-uint32_t z = 362436069, w = 521288629, jcong = 380116160;
+uint32_t z = 362436069, w = 521288629;
 
 int32_t random(int32_t upperLimit) {
 	return (uint16_t)(CONG >> 16) % (upperLimit + 1);
@@ -1409,29 +1409,6 @@ bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR
 	*amplitudeR = (panAmount >= 0) ? 1073741823 : (1073741824 + panOffset);
 	*amplitudeL = (panAmount <= 0) ? 1073741823 : (1073741824 - panOffset);
 	return true;
-}
-
-uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType) {
-	switch (waveType) {
-	case LFOType::SAW:
-		return 2147483648u;
-
-	case LFOType::SINE:
-		return 3221225472u;
-
-	default:
-		return 0;
-	}
-}
-
-uint32_t getLFOInitialPhaseForZero(LFOType waveType) {
-	switch (waveType) {
-	case LFOType::TRIANGLE:
-		return 1073741824;
-
-	default:
-		return 0;
-	}
 }
 
 uint32_t getOscInitialPhaseForZero(OscType waveType) {
