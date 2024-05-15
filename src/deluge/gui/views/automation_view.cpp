@@ -605,9 +605,6 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 		instrumentClipView.recalculateColours();
 	}
 
-	// erase current image as it will be refreshed
-	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
-
 	// erase current occupancy mask as it will be refreshed
 	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
@@ -756,6 +753,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				// don't make portamento available for automation in kit rows
 				if ((outputType == OutputType::KIT)
 				    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
+					pixel = colours::black; // erase pad
 					continue;
 				}
 
@@ -773,6 +771,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				// don't make pitch adjust or sidechain available for automation in arranger
 				if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
 				    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+					pixel = colours::black; // erase pad
 					continue;
 				}
 				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
@@ -802,6 +801,9 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			}
 
 			occupancyMask[yDisplay][xDisplay] = 64;
+		}
+		else {
+			pixel = colours::black; // erase pad
 		}
 	}
 }
@@ -884,10 +886,8 @@ void AutomationView::renderBipolarSquare(RGB image[][kDisplayWidth + kSideBarWid
 	}
 
 	// if it's bipolar, only render grid rows above or below middle value
-	if ((knobPos > middleKnobPos) && (yDisplay < 4)) {
-		return;
-	}
-	else if ((knobPos < middleKnobPos) && (yDisplay > 3)) {
+	if (((knobPos > middleKnobPos) && (yDisplay < 4)) || ((knobPos < middleKnobPos) && (yDisplay > 3))) {
+		pixel = colours::black; // erase pad
 		return;
 	}
 
@@ -933,6 +933,9 @@ void AutomationView::renderBipolarSquare(RGB image[][kDisplayWidth + kSideBarWid
 		}
 		occupancyMask[yDisplay][xDisplay] = 64;
 	}
+	else {
+		pixel = colours::black; // erase pad
+	}
 
 	// pad selection mode, render cursor
 	if (padSelectionOn && ((xDisplay == leftPadSelectedX) || (xDisplay == rightPadSelectedX))) {
@@ -972,6 +975,9 @@ void AutomationView::renderUnipolarSquare(RGB image[][kDisplayWidth + kSideBarWi
 			pixel = rowTailColour[yDisplay];
 		}
 		occupancyMask[yDisplay][xDisplay] = 64;
+	}
+	else {
+		pixel = colours::black; // erase pad
 	}
 
 	// pad selection mode, render cursor
@@ -4480,10 +4486,14 @@ bool AutomationView::inAutomationEditor() {
 	return true;
 }
 
-// used to determine the affect entire context for a kit clip
+// used to determine the affect entire context
 bool AutomationView::getAffectEntire() {
+	// arranger view always uses affect entire
+	if (onArrangerView) {
+		return true;
+	}
 	// are you in the menu?
-	if (getCurrentUI() == &soundEditor) {
+	else if (getCurrentUI() == &soundEditor) {
 		// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
 		if (soundEditor.setupKitGlobalFXMenu) {
 			return true;

@@ -67,7 +67,7 @@ public:
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 			performanceSessionView.resetPerformanceView(modelStack);
 		}
-		uiNeedsRendering(&performanceSessionView);
+		uiNeedsRendering(&performanceSessionView, 0xFFFFFFFF, 0); // refresh main pads only);
 	}
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
