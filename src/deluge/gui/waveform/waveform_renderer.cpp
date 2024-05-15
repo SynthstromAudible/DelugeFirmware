@@ -91,7 +91,7 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 
 		// If no data here (e.g. if Sample not recorded this far yet...)
 		if (data->colStatus[xDisplaySource] != COL_STATUS_INVESTIGATED) {
-			memset(&thisImage[xDisplayOutput * 3], 0, 3);
+			thisImage[xDisplayOutput] = deluge::gui::colours::black;
 			continue;
 		}
 
