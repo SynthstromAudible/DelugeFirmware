@@ -798,18 +798,19 @@ void timerRoutine() {
 				memcpy(PadLEDs::imageStore, PadLEDs::image,
 				       (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 
+				bool anyZoomingDone = false;
 				currentUIMode = UI_MODE_ANIMATION_FADE;
 				if (explodeAnimationDirection == 1) {
 					if (getCurrentClip()->onAutomationClipView) {
 						changeRootUI(&automationView); // We want to fade the sidebar in
-						bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+						anyZoomingDone = instrumentClipView.zoomToMax(true);
 						if (anyZoomingDone) {
 							uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
 						}
 					}
 					else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 						changeRootUI(&instrumentClipView); // We want to fade the sidebar in
-						bool anyZoomingDone = instrumentClipView.zoomToMax(true);
+						anyZoomingDone = instrumentClipView.zoomToMax(true);
 						if (anyZoomingDone) {
 							uiNeedsRendering(&instrumentClipView, 0, 0xFFFFFFFF);
 						}
@@ -837,8 +838,17 @@ void timerRoutine() {
 					}
 				}
 
-				recordTransitionBegin(130);
-				renderFade(0);
+				// if you zoomed in and re-rendered the sidebar, pause the animation
+				// we'll continue the transition and render the fade after the next refresh
+				// this ensures that the sidebar doesn't get rendered empty
+				if (anyZoomingDone) {
+					uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
+				}
+				// continue transition and render the fade
+				else {
+					recordTransitionBegin(130);
+					renderFade(0);
+				}
 			}
 		}
 		else {
