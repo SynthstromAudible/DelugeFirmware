@@ -988,13 +988,18 @@ void renderAudioClipExpandOrCollapse() {
 }
 
 void renderClipExpandOrCollapse() {
-
 	int32_t progress = getTransitionProgress();
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING)) {
 		if (progress >= 65536) {
 			currentUIMode = UI_MODE_NONE;
 
-			if (getCurrentClip()->onAutomationClipView) {
+			Clip* clip = getCurrentClip();
+
+			bool onKeyboardScreen = ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->onKeyboardScreen);
+
+			// when transitioning back to clip, if keyboard view is enabled, it takes precedent
+			// over automation and instrument clip views.
+			if (clip->onAutomationClipView && !onKeyboardScreen) {
 				changeRootUI(&automationView);
 				// If we need to zoom in horizontally because the Clip's too short...
 				bool anyZoomingDone = instrumentClipView.zoomToMax(true);
@@ -1003,7 +1008,7 @@ void renderClipExpandOrCollapse() {
 				}
 			}
 			else {
-				if (getCurrentInstrumentClip()->onKeyboardScreen) {
+				if (onKeyboardScreen) {
 					changeRootUI(&keyboardScreen);
 				}
 				else {

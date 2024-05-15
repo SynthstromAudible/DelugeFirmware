@@ -2388,7 +2388,11 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 
-	if (clip->onAutomationClipView) {
+	bool onKeyboardScreen = ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->onKeyboardScreen);
+
+	// when transitioning back to clip, if keyboard view is enabled, it takes precedent
+	// over automation and instrument clip views.
+	if (clip->onAutomationClipView && !onKeyboardScreen) {
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
 		automationView.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore, false);
@@ -2415,7 +2419,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
-		if (((InstrumentClip*)clip)->onKeyboardScreen) {
+		if (onKeyboardScreen) {
 
 			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
@@ -3728,8 +3732,11 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	                                 kDisplayWidth);
 	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
 
-	// If going to automationView...
-	if (clip->onAutomationClipView) {
+	bool onKeyboardScreen = ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->onKeyboardScreen);
+
+	// when transitioning back to clip, if keyboard view is enabled, it takes precedent
+	// over automation and instrument clip views.
+	if (clip->onAutomationClipView && !onKeyboardScreen) {
 		PadLEDs::explodeAnimationYOriginBig = clipY << 16;
 
 		if (clip->type == ClipType::INSTRUMENT) {
@@ -3761,12 +3768,11 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
 		}
 	}
-
 	else {
 		PadLEDs::explodeAnimationYOriginBig = clipY << 16;
 
 		// If going to KeyboardView...
-		if (((InstrumentClip*)clip)->onKeyboardScreen) {
+		if (onKeyboardScreen) {
 			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 			memset(PadLEDs::occupancyMaskStore[0], 0, kDisplayWidth + kSideBarWidth);
 			memset(PadLEDs::occupancyMaskStore[kDisplayHeight], 0, kDisplayWidth + kSideBarWidth);
