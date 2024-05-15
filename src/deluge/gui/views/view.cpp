@@ -1792,11 +1792,9 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	setKnobIndicatorLevels();
 
 	// refresh sidebar if VU meter previously rendered is still showing and we're in session / arranger / performance
-	// view this could happen when you're turning affect entire off or selecting a clip
-	UI* currentUI = getCurrentUI();
-	if (renderedVUMeter
-	    && (currentUI == &sessionView || currentUI == &arrangerView || currentUI == &performanceSessionView)) {
-		uiNeedsRendering(currentUI, 0);
+	// view / arranger automation view this could happen when you're turning affect entire off or selecting a clip
+	if (renderedVUMeter && !rootUIIsClipMinderScreen()) {
+		uiNeedsRendering(getRootUI(), 0);
 	}
 
 	// midi follow and midi feedback enabled
@@ -1816,11 +1814,10 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 	setModLedStates();
 	setKnobIndicatorLevels();
 
-	// refresh sidebar if VU meter previously rendered is still showing and we're in arranger / arranger performance
-	// view this happens when selecting a clip that is not playing back (e.g. white clip with no notes)
-	UI* currentUI = getCurrentUI();
-	if (renderedVUMeter && (currentUI == &arrangerView || currentUI == &performanceSessionView)) {
-		uiNeedsRendering(currentUI, 0);
+	// refresh sidebar if VU meter previously rendered is still showing and we're in session / arranger / performance
+	// view / arranger automation view this could happen when you're turning affect entire off or selecting a clip
+	if (renderedVUMeter && !rootUIIsClipMinderScreen()) {
+		uiNeedsRendering(getRootUI(), 0);
 	}
 
 	// midi follow and midi feedback enabled
