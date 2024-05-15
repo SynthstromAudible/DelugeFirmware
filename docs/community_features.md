@@ -381,10 +381,11 @@ Here is a list of features that have been added to the firmware as a list, group
               pressed) upon pad release
             - Short press pads in a column to the change value until you press the pad again (resetting it to the value
               before the pad was pressed)
+            - Quickly clear all held values using `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
         - Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
         - Save defaults as PerformanceView.xml file
-            - Adjustable default Values assigned to each FX column via "Value" editing mode or PerformanceView.xml
-            - Adjustable default Param assigned to each FX column via "Param" editing mode or PerformanceView.xml
+            - Adjustable default Values assigned to each FX column via `VALUE` editing mode or PerformanceView.xml
+            - Adjustable default Param assigned to each FX column via `PARAM` editing mode or PerformanceView.xml
             - Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (
               simply change a held pad in Performance View and save the layout to save the layout with the held pads).
         - Load defaults from PerformanceView.xml file
