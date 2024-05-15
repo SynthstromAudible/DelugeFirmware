@@ -134,7 +134,7 @@ private:
 	void initDefaultFXValues(int32_t xDisplay);
 
 	// rendering
-	void renderRow(RGB* image, uint8_t occupancyMask[], int32_t yDisplay = 0);
+	void renderRow(RGB* image, int32_t yDisplay);
 	bool isParamAssignedToFXColumn(deluge::modulation::params::Kind paramKind, int32_t paramID);
 	void setCentralLEDStates();
 
