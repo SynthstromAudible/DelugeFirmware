@@ -3556,12 +3556,14 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 			performActionOnPadRelease = true;
 			selectedClipTimePressed = AudioEngine::audioSampleTimer;
-			view.setActiveModControllableTimelineCounter(clip);
 			currentSong->setCurrentClip(clip);
 			view.displayOutputName(clip->output, true, clip);
 			if (display->haveOLED()) {
 				deluge::hid::display::OLED::sendMainImage();
 			}
+			// this needs to be called after the current clip is set in order to ensure that
+			// if midi follow feedback is enabled, it sends feedback for the right clip
+			view.setActiveModControllableTimelineCounter(clip);
 		}
 		// Special case, if there are already selected pads we allow immediate arming all others
 		else {

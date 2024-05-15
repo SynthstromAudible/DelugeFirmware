@@ -48,9 +48,9 @@ void Arrangement::setupPlayback() {
 
 	currentSong->setParamsInAutomationMode(true);
 
-	playbackHandler.swungTicksTilNextEvent =
-	    0; // It seems strange that I ever put this here. It's now also in PlaybackHandler::setupPlayback,
-	       // so maybe extra unneeded here - but that's not the only place that calls us, so have left it in for now
+	// It seems strange that I ever put this here. It's now also in PlaybackHandler::setupPlayback,
+	// so maybe extra unneeded here - but that's not the only place that calls us, so have left it in for now
+	playbackHandler.swungTicksTilNextEvent = 0;
 
 	for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
@@ -263,11 +263,17 @@ notRecording:
 							                // in which case this has just been set up already. But otherwise...
 							thisClip->activeIfNoSolo = true;
 							thisClip->setPos(modelStackWithTimelineCounter, 0);
-							output->setActiveClip(
-							    modelStackWithTimelineCounter); // Used to call assertActiveness(), but that's actually
-							                                    // unnecessary - be because we're playing in
-							                                    // arrangement, setActiveClip() is actually the only
-							                                    // relevant bit
+							// Used to call assertActiveness(), but that's actually
+							// unnecessary - be because we're playing in
+							// arrangement, setActiveClip() is actually the only
+							// relevant bit
+							bool activeClipChanged = output->setActiveClip(modelStackWithTimelineCounter);
+							if (activeClipChanged) {
+								// the play cursor has selected a new active clip for the current output
+								// send updated feedback so that midi controller has the latest values for
+								// the current clip selected for midi follow control
+								view.sendMidiFollowFeedback();
+							}
 						}
 
 						thisClip->processCurrentPos(modelStackWithTimelineCounter, 0);
@@ -390,8 +396,8 @@ void Arrangement::resumeClipInstancePlayback(ClipInstance* clipInstance, bool do
 		int32_t clipPos = lastProcessedPos - clipInstance->pos; // Use just the currentPos, not the "actual" pos,
 		                                                        // because a multi-tick-forward is probably coming
 
-		thisClip->activeIfNoSolo =
-		    true; // Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
+		// Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
+		thisClip->activeIfNoSolo = true;
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
@@ -400,11 +406,11 @@ void Arrangement::resumeClipInstancePlayback(ClipInstance* clipInstance, bool do
 		thisClip->setPos(modelStack, clipPos, true);
 		currentSong->assertActiveness(modelStack); // Why exactly did I do this rather than just setActiveClip()?
 
-		if (doingComplete
-		    && mayActuallyResumeClip) { // Use thisClip->currentPos, not clipPos, cos it's got wrapped in setPos()
-			thisClip->resumePlayback(
-			    modelStack); // Do this even if the current pos is 0, otherwise AudioClips can fail to sound because
-			                 // that non-"actual" pos can remain 0 for the whole thing
+		if (doingComplete && mayActuallyResumeClip) {
+			// Use thisClip->currentPos, not clipPos, cos it's got wrapped in setPos()
+			// Do this even if the current pos is 0, otherwise AudioClips can fail to sound because
+			// that non-"actual" pos can remain 0 for the whole thing
+			thisClip->resumePlayback(modelStack);
 		}
 	}
 }
