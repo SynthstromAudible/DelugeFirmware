@@ -329,19 +329,14 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDis
 
 	PadLEDs::renderingLock = true;
 
-	// erase current image as it will be refreshed
-	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
-
-	// erase current occupancy mask as it will be refreshed
-	memset(occupancyMask, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+	// We assume the whole screen is occupied
+	memset(occupancyMask, 64, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	// render performance view
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-
-		uint8_t* occupancyMaskOfRow = occupancyMask[yDisplay];
 		int32_t imageWidth = kDisplayWidth + kSideBarWidth;
 
-		renderRow(&image[0][0] + (yDisplay * imageWidth), occupancyMaskOfRow, yDisplay);
+		renderRow(&image[0][0] + (yDisplay * imageWidth), yDisplay);
 	}
 
 	PadLEDs::renderingLock = false;
@@ -350,7 +345,7 @@ bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDis
 }
 
 /// render every column, one row at a time
-void PerformanceSessionView::renderRow(RGB* image, uint8_t occupancyMask[], int32_t yDisplay) {
+void PerformanceSessionView::renderRow(RGB* image, int32_t yDisplay) {
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		RGB& pixel = image[xDisplay];
@@ -408,8 +403,6 @@ void PerformanceSessionView::renderRow(RGB* image, uint8_t occupancyMask[], int3
 				}
 			}
 		}
-
-		occupancyMask[xDisplay] = 64;
 	}
 }
 
@@ -862,7 +855,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				}
 				updateLayoutChangeStatus();
 				renderViewDisplay();
-				uiNeedsRendering(this);
+				uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 			}
 			else {
 				gridModeActive = false;
@@ -901,7 +894,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					renderViewDisplay();
 				}
 			}
-			uiNeedsRendering(this);
+			uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 		}
 		return buttonActionResult;
 	}
@@ -935,7 +928,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			else {
 				paramEditorPadAction(modelStack, xDisplay, yDisplay, on);
 			}
-			uiNeedsRendering(this); // re-render pads
+			uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 		}
 		else if (xDisplay >= kDisplayWidth) {
 			// don't interact with sidebar if VU Meter is displayed
@@ -1275,7 +1268,7 @@ void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings*
 	}
 	updateLayoutChangeStatus();
 	renderViewDisplay();
-	uiNeedsRendering(this);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 }
 
 /// resets a single FX column to remove held status
@@ -1557,7 +1550,7 @@ void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, boo
 
 					releaseStutter(modelStack);
 
-					uiNeedsRendering(this);
+					uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 
 					if (onFXDisplay) {
 						renderViewDisplay();
@@ -1764,7 +1757,7 @@ void PerformanceSessionView::loadPerformanceViewLayout() {
 	actionLogger.deleteAllLogs();
 	backupPerformanceLayout();
 	updateLayoutChangeStatus();
-	uiNeedsRendering(this);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 }
 
 /// re-read defaults from backed up XML in memory in order to reduce SD Card IO
