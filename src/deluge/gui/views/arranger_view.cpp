@@ -1700,8 +1700,11 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
 
-	// If going to automationView...
-	if (clip->onAutomationClipView) {
+	bool onKeyboardScreen = ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->onKeyboardScreen);
+
+	// when transitioning back to clip, if keyboard view is enabled, it takes precedent
+	// over automation and instrument clip views.
+	if (clip->onAutomationClipView && !onKeyboardScreen) {
 		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
 
 		if (clip->type == ClipType::INSTRUMENT) {
@@ -1738,10 +1741,10 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
 
 		// If going to KeyboardView...
-		if (((InstrumentClip*)clip)->onKeyboardScreen) {
-			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
-			memset(PadLEDs::occupancyMaskStore, 0, kDisplayWidth + kSideBarWidth);
-			memset(PadLEDs::occupancyMaskStore[kDisplayHeight], 0, kDisplayWidth + kSideBarWidth);
+		if (onKeyboardScreen) {
+			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
+			memset(PadLEDs::occupancyMaskStore[0], 0, kDisplayWidth + kSideBarWidth);
+			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
 		}
 
 		// Or if just regular old InstrumentClipView
@@ -1812,10 +1815,10 @@ bool ArrangerView::transitionToArrangementEditor() {
 	int32_t start = instrumentClipView.getPosFromSquare(0);
 	int32_t end = instrumentClipView.getPosFromSquare(kDisplayWidth);
 
-	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
+	currentUIMode = UI_MODE_IMPLODE_ANIMATION;
 
-	memcpy(PadLEDs::imageStore, PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
-	memcpy(PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
+	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
+	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
 	if (getCurrentUI() == &instrumentClipView) {
 		instrumentClipView.fillOffScreenImageStores();
 	}
@@ -1878,7 +1881,8 @@ bool ArrangerView::transitionToArrangementEditor() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
+	// clear sidebar for instrumentClipView, automationClipView, and keyboardScreen
+	if (getCurrentUI() != &audioClipView) {
 		PadLEDs::clearSideBar();
 	}
 
@@ -2967,7 +2971,7 @@ void ArrangerView::graphicsRoutine() {
 		int32_t newTickSquare;
 
 		if (!arrangement.hasPlaybackActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
-		    || playbackHandler.ticksLeftInCountIn) {
+		    || currentUIMode == UI_MODE_IMPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn) {
 			newTickSquare = 255;
 		}
 		else {
@@ -3025,7 +3029,8 @@ void ArrangerView::graphicsRoutine() {
 				colours[yDisplay] =
 				    (output && output->recordingInArrangement) ? 2 : (output && output->mutedInArrangementMode ? 1 : 0);
 
-				if (arrangement.hasPlaybackActive() && currentUIMode != UI_MODE_EXPLODE_ANIMATION) {
+				if (arrangement.hasPlaybackActive() && currentUIMode != UI_MODE_EXPLODE_ANIMATION
+				    && currentUIMode != UI_MODE_IMPLODE_ANIMATION) {
 
 					// If linear recording to this Output, re-render it
 					if (output->recordingInArrangement) {

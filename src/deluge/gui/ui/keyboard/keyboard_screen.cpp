@@ -88,7 +88,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// Pad pressed down, add to list if not full
 	if (velocity) {
 		// TODO: Logic should be inverted as part of a bigger rewrite
-		if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_ANIMATION_FADE
+		if (currentUIMode == UI_MODE_IMPLODE_ANIMATION || currentUIMode == UI_MODE_ANIMATION_FADE
 		    || currentUIMode == UI_MODE_INSTRUMENT_CLIP_COLLAPSING) {
 			return ActionResult::DEALT_WITH;
 		}
@@ -739,12 +739,18 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 		return true;
 	}
 
-	memset(image, 0, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth) * 3);
-	memset(occupancyMask, 64,
-	       sizeof(uint8_t) * kDisplayHeight
-	           * (kDisplayWidth + kSideBarWidth)); // We assume the whole screen is occupied
+	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
+		return true;
+	}
+
+	PadLEDs::renderingLock = true;
+
+	// We assume the whole screen is occupied
+	memset(occupancyMask, 64, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->renderPads(image);
+
+	PadLEDs::renderingLock = false;
 
 	return true;
 }
@@ -752,6 +758,10 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
+		return true;
+	}
+
+	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 		return true;
 	}
 
@@ -840,7 +850,7 @@ void KeyboardScreen::graphicsRoutine() {
 
 	if (!playbackHandler.isEitherClockActive() || !playbackHandler.isCurrentlyRecording()
 	    || !currentSong->isClipActive(getCurrentClip()) || currentUIMode == UI_MODE_EXPLODE_ANIMATION
-	    || playbackHandler.ticksLeftInCountIn) {
+	    || currentUIMode == UI_MODE_IMPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn) {
 		newTickSquare = 255;
 	}
 	else {
