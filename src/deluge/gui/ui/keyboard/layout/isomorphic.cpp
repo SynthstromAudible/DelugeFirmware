@@ -132,6 +132,11 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 				image[y][x] = noteColours[normalizedPadOffset].forTail();
 			}
 
+			// turn off other pads
+			else {
+				image[y][x] = colours::black;
+			}
+
 			// TODO: In a future revision it would be nice to add this to the API
 			//  Dim note pad if a browser is open with the note highlighted
 			if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &audioRecorder
