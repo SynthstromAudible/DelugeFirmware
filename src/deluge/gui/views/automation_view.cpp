@@ -586,7 +586,7 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 		return true;
 	}
 
-	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
+	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 		return true;
 	}
 
