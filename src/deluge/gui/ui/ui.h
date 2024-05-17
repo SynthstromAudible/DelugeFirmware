@@ -72,6 +72,7 @@ extern bool pendingUIRenderingLock;
 #define UI_MODE_MACRO_SETTING_UP 60
 #define UI_MODE_DRAGGING_KIT_NOTEROW 61
 #define UI_MODE_HOLDING_STATUS_PAD 62
+#define UI_MODE_IMPLODE_ANIMATION 63
 
 #define EXCLUSIVE_UI_MODES_MASK ((uint32_t)255)
 

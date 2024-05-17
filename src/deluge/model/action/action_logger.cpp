@@ -18,6 +18,7 @@
 #include "model/action/action_logger.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
@@ -718,7 +719,8 @@ currentClipSwitchedOver:
 		// rather than the whichAnimation variable we've been using in this function, because under some circumstances
 		// that'll bypass the actual animation / UI-mode. We would also put the "explode" animation for transitioning
 		// *to* arranger here, but it just doesn't get used during reversion.
-		if (!isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING) && !isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)) {
+		if (!isUIModeActive(UI_MODE_AUDIO_CLIP_COLLAPSING) && !isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)
+		    && !isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 			view.setKnobIndicatorLevels();
 			view.setModLedStates();
 		}

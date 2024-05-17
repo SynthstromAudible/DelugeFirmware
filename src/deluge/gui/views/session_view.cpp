@@ -2098,6 +2098,7 @@ void SessionView::rowNeedsRenderingDependingOnSubMode(int32_t yDisplay) {
 	case UI_MODE_INSTRUMENT_CLIP_COLLAPSING:
 	case UI_MODE_ANIMATION_FADE:
 	case UI_MODE_EXPLODE_ANIMATION:
+	case UI_MODE_IMPLODE_ANIMATION:
 		break;
 
 	default:
@@ -2219,7 +2220,7 @@ void SessionView::flashPlayRoutine() {
 
 		// view.clipArmFlashOn needs to be off so the pad is finally rendered after flashing
 		if (renderFlashing || view.clipArmFlashOn) {
-			if (currentUIMode != UI_MODE_EXPLODE_ANIMATION) {
+			if (currentUIMode != UI_MODE_EXPLODE_ANIMATION && currentUIMode != UI_MODE_IMPLODE_ANIMATION) {
 				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 				view.flashPlayEnable();
 			}
@@ -2417,6 +2418,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		if (onKeyboardScreen) {
 
 			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+			keyboardScreen.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
 
 			PadLEDs::numAnimatedRows = kDisplayHeight;
 			for (int32_t y = 0; y < PadLEDs::numAnimatedRows; y++) {
@@ -3219,7 +3221,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION) {
+	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -3281,7 +3283,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
-	if (currentUIMode != UI_MODE_EXPLODE_ANIMATION) {
+	if (currentUIMode != UI_MODE_EXPLODE_ANIMATION && currentUIMode != UI_MODE_IMPLODE_ANIMATION) {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		view.flashPlayEnable();
 	}
@@ -3638,10 +3640,10 @@ void SessionView::gridTransitionToSessionView() {
 		}
 	}
 
-	currentUIMode = UI_MODE_EXPLODE_ANIMATION;
+	currentUIMode = UI_MODE_IMPLODE_ANIMATION;
 
-	memcpy(PadLEDs::imageStore, PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
-	memcpy(PadLEDs::occupancyMaskStore, PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
+	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
+	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
 	if (getCurrentUI() == &instrumentClipView) {
 		instrumentClipView.fillOffScreenImageStores();
 	}
@@ -3665,7 +3667,8 @@ void SessionView::gridTransitionToSessionView() {
 	PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
 	PadLEDs::explodeAnimationDirection = -1;
 
-	if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
+	// clear sidebar for instrumentClipView, automationClipView, and keyboardScreen
+	if (getCurrentUI() != &audioClipView) {
 		PadLEDs::clearSideBar();
 	}
 
@@ -3724,9 +3727,9 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 
 		// If going to KeyboardView...
 		if (onKeyboardScreen) {
-			keyboardScreen.renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
+			keyboardScreen.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1]);
 			memset(PadLEDs::occupancyMaskStore[0], 0, kDisplayWidth + kSideBarWidth);
-			memset(PadLEDs::occupancyMaskStore[kDisplayHeight], 0, kDisplayWidth + kSideBarWidth);
+			memset(PadLEDs::occupancyMaskStore[kDisplayHeight + 1], 0, kDisplayWidth + kSideBarWidth);
 		}
 
 		// Or if just regular old InstrumentClipView
@@ -3734,8 +3737,6 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 			instrumentClipView.recalculateColours();
 			instrumentClipView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1],
 			                                  false);
-			instrumentClipView.renderSidebar(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
-
 			instrumentClipView.fillOffScreenImageStores();
 		}
 	}
