@@ -348,9 +348,8 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	setupPlayback(newPlaybackState, newPos, true, true, buttonPressLatency);
 
-	timeNextTimerTickBig =
-	    (uint64_t)AudioEngine::audioSampleTimer
-	    << 32; // Set this *after* calling setupPlayback, which will call the audio routine before we do the first tick
+	// Set this *after* calling setupPlayback, which will call the audio routine before we do the first tick
+	timeNextTimerTickBig = (uint64_t)AudioEngine::audioSampleTimer << 32;
 
 	swungTicksTilNextEvent = 0; // Need to ensure this, here, otherwise, it'll be set to some weird thing by some recent
 	                            // call to expectEvent()
@@ -450,9 +449,8 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	bool oldState = AudioEngine::audioRoutineLocked;
 	AudioEngine::audioRoutineLocked = true;
 	currentlyActioningSwungTickOrResettingPlayPos = true;
-	currentPlaybackMode->resetPlayPos(
-	    playFromPos, !ticksLeftInCountIn,
-	    buttonPressLatencyForTempolessRecord); // Have to do this after calling AudioEngine::routine()
+	// Have to do this after calling AudioEngine::routine()
+	currentPlaybackMode->resetPlayPos(playFromPos, !ticksLeftInCountIn, buttonPressLatencyForTempolessRecord);
 	currentlyActioningSwungTickOrResettingPlayPos = false;
 	AudioEngine::audioRoutineLocked = oldState;
 
@@ -462,6 +460,10 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 
 	// We can only set these to -1 after calling the stuff above
 	// lastSwungTickDone = -1;
+
+	// when starting playback send updated feedback values for the current clip
+	// or active clip selected for midi follow control
+	view.sendMidiFollowFeedback();
 }
 
 void PlaybackHandler::endPlayback() {
@@ -476,15 +478,15 @@ void PlaybackHandler::endPlayback() {
 
 	bool wasRecordingArrangement = (recording == RecordingMode::ARRANGEMENT);
 
-	bool shouldDoInstantSongSwap =
-	    currentPlaybackMode
-	        ->endPlayback(); // Must happen after currentSong->endInstancesOfActiveClips() is called (ok I can't
-	                         // remember why I wrote that, and now it needs to happen before so that
-	                         // Clip::beingRecordedFrom is still set when playback ends, so notes stop)
+	// Rohan: Must happen after currentSong->endInstancesOfActiveClips() is called (ok I can't
+	// remember why I wrote that, and now it needs to happen before so that
+	// Clip::beingRecordedFrom is still set when playback ends, so notes stop)
+	bool shouldDoInstantSongSwap = currentPlaybackMode->endPlayback();
 
-	playbackState =
-	    0; // Do this after calling currentPlaybackMode->endPlayback(), cos for arrangement that has to get the current
-	       // tick, which needs to refer to which clock is active, which is stored in playbackState.
+	// Do this after calling currentPlaybackMode->endPlayback(), cos for arrangement that has to get the current
+	// tick, which needs to refer to which clock is active, which is stored in playbackState.
+	playbackState = 0;
+
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
 	PadLEDs::clearTickSquares();
 
@@ -1268,8 +1270,8 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 			lastTriggerClockOutTickDone = -1;
 			lastMIDIClockOutTickDone = -1;
 
-			swungTicksTilNextEvent =
-			    0; // Set it so the tick which we're gonna do right now, at the start of the new song, has 0 increment
+			// Set it so the tick which we're gonna do right now, at the start of the new song, has 0 increment
+			swungTicksTilNextEvent = 0;
 		}
 
 		// And now, if switching to arranger (in which case, remember, we definitely didn't preserve play position), do
