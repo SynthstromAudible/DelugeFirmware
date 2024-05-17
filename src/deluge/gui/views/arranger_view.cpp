@@ -1393,7 +1393,6 @@ getItFromSection:
 				pressedClipInstanceXScrollWhenLastInValidPosition = xScroll;
 				pressedClipInstanceIsInValidPosition = true;
 				pressedClipInstanceOutput = output;
-				view.setActiveModControllableTimelineCounter(clipInstance->clip);
 
 				if (clipInstance->clip) {
 					originallyPressedClipActualLength = clipInstance->clip->loopLength;
@@ -1405,6 +1404,11 @@ getItFromSection:
 				}
 
 				rememberInteractionWithClipInstance(y, clipInstance);
+
+				// this needs to be called after the current clip is set and after
+				// the interaction with clip instance is remembered in order to ensure that
+				// if midi follow feedback is enabled, it sends feedback for the right clip instance
+				view.setActiveModControllableTimelineCounter(clipInstance->clip);
 			}
 
 			// Already pressing - length edit

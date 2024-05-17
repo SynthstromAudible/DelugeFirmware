@@ -118,6 +118,8 @@ Clip* MidiFollow::getSelectedOrActiveClip() {
 
 	clip = getSelectedClip();
 
+	// if the clip is null, it means you're in a song view and you aren't holding a clip
+	// in that case, we want to control the active clip
 	if (!clip) {
 		clip = getCurrentClip();
 		if (clip) {
@@ -134,6 +136,7 @@ Clip* MidiFollow::getSelectedOrActiveClip() {
 /// see if you are pressing and holding a clip in arranger view, song row view, song grid view
 /// see if you are pressing and holding audition pad in arranger view, arranger perf view, or
 /// arranger automation view
+/// if you're in a clip, this will return that clip
 Clip* MidiFollow::getSelectedClip() {
 	Clip* clip = nullptr;
 
@@ -161,8 +164,11 @@ Clip* MidiFollow::getSelectedClip() {
 		// if you're in the arranger automation view, check if you're holding audition pad
 		if (automationView.onArrangerView) {
 			clip = arrangerView.getClipForSelection();
+			break;
 		}
-		break;
+		[[fallthrough]]; // you're in automation clip view
+	default:             // if you're in a clip view, then return the current clip
+		clip = getCurrentClip();
 	}
 
 	return clip;
@@ -452,8 +458,6 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context (for params that's only for the active mod controllable stack)
 		Clip* clip = getSelectedOrActiveClip();
-		// clip is allowed to be null here because there may not be an active clip
-		// e.g. you want to control the song level parameters
 
 		bool isMIDIClip = false;
 		bool isCVClip = false;

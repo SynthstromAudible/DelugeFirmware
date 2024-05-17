@@ -351,9 +351,8 @@ void Session::doLaunch(bool isFillLaunch) {
 
 				// If wanting to stop recording linearly at the same time as that...
 				if (clip->getCurrentlyRecordingLinearly()) {
-					clip->finishLinearRecording(
-					    modelStackWithTimelineCounter,
-					    NULL); // Won't be a pending overdub - those aren't allowed if we're gonna be soloing
+					// Won't be a pending overdub - those aren't allowed if we're gonna be soloing
+					clip->finishLinearRecording(modelStackWithTimelineCounter, NULL);
 					stoppedLinearRecording = true;
 				}
 			}
@@ -373,8 +372,8 @@ void Session::doLaunch(bool isFillLaunch) {
 doFinishLinearRecording:
 					Clip* nextPendingOverdub = currentSong->getPendingOverdubWithOutput(clip->output);
 					if (nextPendingOverdub) {
-						nextPendingOverdub->copyBasicsFrom(
-						    clip); // Copy this again, in case it's changed since it was created
+						// Copy this again, in case it's changed since it was created
+						nextPendingOverdub->copyBasicsFrom(clip);
 					}
 
 					clip->finishLinearRecording(modelStackWithTimelineCounter, nextPendingOverdub);
@@ -509,9 +508,8 @@ stopOnlyIfOutputTaken:
 
 probablyBecomeActive:
 				// If the Output already got its new Clip, then this Clip has missed out and can't become active on it
-				if (output->alreadyGotItsNewClip
-				    || (output->isGettingSoloingClip && !wasArmedToStartSoloing) // This clip is not the solo clip
-				) {
+				if (output->alreadyGotItsNewClip || (output->isGettingSoloingClip && !wasArmedToStartSoloing)) {
+					// This clip is not the solo clip
 
 					// But, if we're a pending overdub that's going to clone its Output...
 					if (clip->isPendingOverdub && clip->willCloneOutputForOverdub()) {
@@ -549,9 +547,16 @@ doNormalLaunch:
 						clip->armState = ArmState::ON_NORMAL;
 					}
 
-					output->setActiveClip(
-					    modelStackWithTimelineCounter); // Must be after giveClipOpportunityToBeginLinearRecording(),
-					                                    // cos this call clears any recorded-early notes
+					// Must be after giveClipOpportunityToBeginLinearRecording(),
+					// cos this call clears any recorded-early notes
+					bool activeClipChanged = output->setActiveClip(modelStackWithTimelineCounter);
+					if (activeClipChanged) {
+						// a new clip has been launched in song view for the current output selected
+						// that new clip is now the active clip for that output
+						// send updated feedback so that midi controller has the latest values for
+						// the current clip selected for midi follow control
+						view.sendMidiFollowFeedback();
+					}
 
 					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 						clip->beginInstance(currentSong, playbackHandler.getActualArrangementRecordPos());
@@ -2051,9 +2056,9 @@ void Session::resetPlayPos(int32_t newPos, bool doingComplete, int32_t buttonPre
 
 	AudioEngine::bypassCulling = true;
 
-	currentSong
-	    ->deactivateAnyArrangementOnlyClips(); // In case any still playing after switch from arrangement. Remember,
-	                                           // this function will be called on playback begin, song swap, and more
+	// In case any still playing after switch from arrangement. Remember,
+	// this function will be called on playback begin, song swap, and more
+	currentSong->deactivateAnyArrangementOnlyClips();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -2097,15 +2102,15 @@ yeahNahItsOn:
 
 					giveClipOpportunityToBeginLinearRecording(clip, c, buttonPressLatency);
 
-					if (clip->armState == ArmState::ON_NORMAL) { // What's this for again? Auto arming of sections? I
-						                                         // think not linear recording...
+					if (clip->armState == ArmState::ON_NORMAL) { // Rohan: What's this for again? Auto arming of
+						                                         // sections? I think not linear recording...
 						distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
 					}
 				}
 			}
 
-			clip->output->setActiveClip(
-			    modelStackWithTimelineCounter); // Not sure quite why we needed to set this here?
+			// Rohan: Not quite sure why we needed to set this here?
+			clip->output->setActiveClip(modelStackWithTimelineCounter);
 		}
 	}
 
@@ -2329,9 +2334,8 @@ void Session::doTickForward(int32_t posIncrement) {
 			// No need to do the actual incrementing - that's been done for all Clips (except ones which have only just
 			// launched), up in considerLaunchEvent()
 
-			clip->processCurrentPos(
-			    modelStackWithTimelineCounter,
-			    posIncrement); // May create new Clip and put it in the ModelStack - we'll check below.
+			// May create new Clip and put it in the ModelStack - we'll check below.
+			clip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
 
 			// NOTE: posIncrement is the number of ticks which we incremented by in considerLaunchEvent(). But for Clips
 			// which were only just launched in there, well the won't have been incremented, so it would be more correct
