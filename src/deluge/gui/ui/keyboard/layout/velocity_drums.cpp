@@ -112,6 +112,7 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			uint8_t note = noteFromCoords(x, y);
 			if (note > highestClipNote) {
+				image[y][x] = colours::black;
 				continue;
 			}
 

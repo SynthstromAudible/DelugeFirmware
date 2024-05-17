@@ -51,6 +51,9 @@ void KeyboardLayoutNorns::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			if (getNornsNotes()[note] != 0) {
 				image[y][x] = colours::white_full.adjust(getNornsNotes()[note], 1);
 			}
+			else {
+				image[y][x] = colours::black;
+			}
 		}
 	}
 }
