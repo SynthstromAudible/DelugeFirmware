@@ -551,7 +551,7 @@ void registerTasks() {
 	// needs to be called very frequently,
 	// handles animations and checks on the timers for any infrequent actions
 	// long term this should probably be made into an idle task
-	addRepeatingTask([]() { uiTimerManager.routine(); }, 101, 0.0001, 0.0007, 0.005);
+	addRepeatingTask([]() { uiTimerManager.routine(); }, 101, 0.0001, 0.0005, 0.005);
 	if (hid::display::have_oled_screen) {
 		addRepeatingTask(&(oledRoutine), 100, 0.01, 0.01, 0.02);
 	}
