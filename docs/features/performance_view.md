@@ -9,18 +9,19 @@ Polyend Play inspired Performance View for the Deluge.
 Each column represents a different "FX" and each pad/row in the column corresponds to a different FX value.
 
 Specifications:
+  - Perform FX menu to edit Song level parameters and enable/disable editing mode.
   - 16 FX columns
     - 1 Param assigned to each column
   - 8 FX values per column
     - Long press pads in a column to change value momentarily and reset it (to the value before the pad was pressed) upon pad release
     - Short press pads in a column to the change value until you press the pad again (resetting it to the value before the pad was pressed)
+    - Quickly clear all held values using `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
   - Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
   - Save defaults as PerformanceView.xml file
-    - Adjustable default Values assigned to each FX column via "Value" editing mode or PerformanceView.xml
-    - Adjustable default Param assigned to each FX column via "Param" editing mode or PerformanceView.xml
+    - Adjustable default Values assigned to each FX column via `VALUE` editing mode or PerformanceView.xml
+    - Adjustable default Param assigned to each FX column via `PARAM` editing mode or PerformanceView.xml
     - Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (simply change a held pad in Performance View and save the layout to save the layout with the held pads).
   - Load defaults from PerformanceView.xml file
-  - Perform FX menu
 
 ## Usage:
 
@@ -32,17 +33,19 @@ Specifications:
 
 #### 3) Long press a pad in the columns to play the FX but not hold it (when you let go of the pad it will snap back to previous value). 
 
-#### 4) You can edit the default values for each pad in the Performance View by entering a "Value Editing Mode." Here are the instructions for Value Editing mode:
+#### 4) Press `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` to clear all "held" FX values.
 
-> Enter using Shift + Keyboard button
+#### 5) You can edit the default values for each pad in the Performance View by entering a `VALUE EDITING MODE`. Here are the instructions for Value Editing mode:
+
+> Enter using `SHIFT` + `KEYBOARD` button
 
 or 
 
 > Enter using the menu
 > 
-> - Enter/Exit Editing Mode by pressing down on the Select Encoder to open up the Perform FX Menu
-> - In the Perform FX menu, select the "Editing Mode" sub menu and press down on Select Encoder to enter the menu
-> - Change Editing Mode to "Value"
+> - Enter/Exit Editing Mode by pressing down on the `SELECT` Encoder to open up the Perform FX Menu
+> - In the Perform FX menu, select the `EDITING MODE` sub menu and press down on Select Encoder to enter the menu
+> - Change Editing Mode to `VALUE`
 
 Value Editing Mode:
 - While in the Value Editor, pressing any pad on the grid will open up the menu corresponding to the parameter for that pad. It will display the current value assigned to that pad when you pressed it.
@@ -52,28 +55,28 @@ Value Editing Mode:
 - Defaults are saved in an XML file on your SD card called "PerformanceView.XML" - deleting this file will cause the PerformanceView to revert back to its regular default values for each pad.
 - Once you are done with editing mode, repeat the steps above to set editing mode back to "Disabled" and exit out of the menu to use Performance View in its regular state
 
-#### 5) You can edit the Parameter assigned to each FX column by entering a "Param Editing Mode." Here are the instructions for Param Editing mode:
+#### 6) You can edit the Parameter assigned to each FX column by entering a `PARAM` Editing Mode. Here are the instructions for Param Editing mode:
 
-> Enter using Shift + Keyboard button. You will need to cycle passed the Value Editing Mode to enter the Param Editing Mode.
+> Enter using `SHIFT` + `KEYBOARD` button. You will need to cycle passed the Value Editing Mode to enter the Param Editing Mode.
 
 or 
 
 > Enter using the menu
 > 
-> - Enter/Exit Editing Mode by pressing down on the Select Encoder to open up the Perform FX Menu
-> - In the Perform FX menu, select the "Editing Mode" sub menu and press down on Select Encoder to enter the menu
-> - Change Editing Mode to "Param"
+> - Enter/Exit Editing Mode by pressing down on the `SELECT` Encoder to open up the Perform FX Menu
+> - In the Perform FX menu, select the `EDITING MODE` sub menu and press down on Select Encoder to enter the menu
+> - Change Editing Mode to `PARAM`
 
 Param Editing Mode:
 - Param Editing will show you an overview of the parameters that are assignable to the FX columns in Performance View by lighting dimly the shortcut pads for these parameters.
 - Parameters that have been assigned to one or more columns will have their shortcut pads lit up bright white.
 - Press on a shortcut pad to illuminate the FX columns that that parameter has been assigned to.
 - While holding a shortcut pad, press on the FX columns to assign or unassign a parameter to/from a column.
-- Press <> + back to clear all existing Parameter assignments.
+- Press `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` to clear all existing Parameter assignments.
 - When a Parameter has not been assigned to a column, that column will be lit grey and be unusable in Performance View until you assign a Parameter. This applies to editing the values for that FX column as well (assign a Parameter first, then you can edit the values).
 - Parameters are saved to PerformanceView.xml. You can manually edit the Parameters in the xml as well, but you must use the exact Parameter names. It is recommended to save a fresh PerformanceView.xml and back it up so you have a record of the Parameter Names.
 
-#### 6) You can Undo/Redo your changes in Performance View
+#### 7) You can Undo/Redo your changes in Performance View
 
 ## Default FX and Colour Assignments
 * The default Param and Colour Assignments for each FX column in Performance View are as follows
