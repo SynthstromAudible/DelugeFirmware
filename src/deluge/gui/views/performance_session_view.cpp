@@ -903,6 +903,10 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
 	if (!justExitedSoundEditor) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+
 		// if pad was pressed in main deluge grid (not sidebar)
 		if (xDisplay < kDisplayWidth) {
 			if (on) {
@@ -911,10 +915,6 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 					return soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
 				}
 			}
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStack =
-			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
 			// if not in param editor (so, regular performance view or value editor)
 			if (!editingParam) {
 				bool ignorePadAction =
@@ -930,6 +930,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			}
 			uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 		}
+		// if pad was pressed in sidebar
 		else if (xDisplay >= kDisplayWidth) {
 			// don't interact with sidebar if VU Meter is displayed
 			// and you're in the volume/pan mod knob mode (0)
@@ -976,12 +977,14 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 								    && ((AudioEngine::audioSampleTimer - timeGridModePress)
 								        >= FlashStorage::holdTime)) {
 									gridModeActive = false;
+									releaseStutter(modelStack);
 									changeRootUI(&sessionView);
 								}
 							}
 							// if you pressed the green or blue mode pads, go back to grid view and change mode
 							else if ((yDisplay == 7) || (yDisplay == 6)) {
 								gridModeActive = false;
+								releaseStutter(modelStack);
 								changeRootUI(&sessionView);
 								sessionView.gridHandlePads(xDisplay, yDisplay, on);
 							}
