@@ -18,6 +18,7 @@
 #include "model/clip/audio_clip.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
+#include "gui/views/automation_view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -1231,28 +1232,31 @@ bool AudioClip::currentlyScrollableAndZoomable() {
 void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation) {
 	Clip::clear(action, modelStack, clearAutomation);
 
-	// If recording, stop that - but only if we're not doing tempoless recording
-	if (recorder) {
-		if (!playbackHandler.isEitherClockActive()) {
-			abortRecording();
-		}
-	}
-
-	else if (sampleHolder.audioFile) {
-		// we're not actually deleting the song, but we don't want to keep this sample cached since we can't get it back
-		// anyway
-		unassignVoiceSample(true);
-
-		if (action) {
-			// Must happen first
-			action->recordAudioClipSampleChange(this);
+	// do not clear sample when you are in automation view
+	if (getRootUI() != &automationView) {
+		// If recording, stop that - but only if we're not doing tempoless recording
+		if (recorder) {
+			if (!playbackHandler.isEitherClockActive()) {
+				abortRecording();
+			}
 		}
 
-		sampleHolder.filePath.clear();
-		sampleHolder.setAudioFile(NULL);
-	}
+		else if (sampleHolder.audioFile) {
+			// we're not actually deleting the song, but we don't want to keep this sample cached since we can't get it
+			// back anyway
+			unassignVoiceSample(true);
 
-	renderData.xScroll = -1;
+			if (action) {
+				// Must happen first
+				action->recordAudioClipSampleChange(this);
+			}
+
+			sampleHolder.filePath.clear();
+			sampleHolder.setAudioFile(NULL);
+		}
+
+		renderData.xScroll = -1;
+	}
 }
 
 bool AudioClip::getCurrentlyRecordingLinearly() {
