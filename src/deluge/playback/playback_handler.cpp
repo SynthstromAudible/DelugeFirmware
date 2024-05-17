@@ -477,7 +477,7 @@ void PlaybackHandler::endPlayback() {
 
 	bool wasRecordingArrangement = (recording == RecordingMode::ARRANGEMENT);
 
-	// Must happen after currentSong->endInstancesOfActiveClips() is called (ok I can't
+	// Rohan: Must happen after currentSong->endInstancesOfActiveClips() is called (ok I can't
 	// remember why I wrote that, and now it needs to happen before so that
 	// Clip::beingRecordedFrom is still set when playback ends, so notes stop)
 	bool shouldDoInstantSongSwap = currentPlaybackMode->endPlayback();

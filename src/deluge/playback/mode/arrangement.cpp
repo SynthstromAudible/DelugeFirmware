@@ -48,7 +48,7 @@ void Arrangement::setupPlayback() {
 
 	currentSong->setParamsInAutomationMode(true);
 
-	// It seems strange that I ever put this here. It's now also in PlaybackHandler::setupPlayback,
+	// Rohan: It seems strange that I ever put this here. It's now also in PlaybackHandler::setupPlayback,
 	// so maybe extra unneeded here - but that's not the only place that calls us, so have left it in for now
 	playbackHandler.swungTicksTilNextEvent = 0;
 
@@ -263,10 +263,9 @@ notRecording:
 							                // in which case this has just been set up already. But otherwise...
 							thisClip->activeIfNoSolo = true;
 							thisClip->setPos(modelStackWithTimelineCounter, 0);
-							// Used to call assertActiveness(), but that's actually
-							// unnecessary - be because we're playing in
-							// arrangement, setActiveClip() is actually the only
-							// relevant bit
+							// Rohan: used to call assertActiveness(), but that's actually
+							// unnecessary - because we're playing in arrangement,
+							// setActiveClip() is actually the only relevant bit
 							bool activeClipChanged = output->setActiveClip(modelStackWithTimelineCounter);
 							if (activeClipChanged) {
 								// the play cursor has selected a new active clip for the current output

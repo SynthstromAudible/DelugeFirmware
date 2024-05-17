@@ -2102,14 +2102,14 @@ yeahNahItsOn:
 
 					giveClipOpportunityToBeginLinearRecording(clip, c, buttonPressLatency);
 
-					if (clip->armState == ArmState::ON_NORMAL) { // What's this for again? Auto arming of sections? I
-						                                         // think not linear recording...
+					if (clip->armState == ArmState::ON_NORMAL) { // Rohan: What's this for again? Auto arming of
+						                                         // sections? I think not linear recording...
 						distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
 					}
 				}
 			}
 
-			// Not sure quite why we needed to set this here?
+			// Rohan: Not quite sure why we needed to set this here?
 			clip->output->setActiveClip(modelStackWithTimelineCounter);
 		}
 	}
