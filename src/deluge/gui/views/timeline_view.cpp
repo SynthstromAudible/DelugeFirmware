@@ -28,9 +28,6 @@
 #include "string.h"
 #include <algorithm>
 
-uint32_t timeHorizontalZoomLastHitClipMax;
-int8_t delayedHorizontalScrollDirection;
-
 void TimelineView::scrollFinished() {
 	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
 	// Needed because sometimes we initiate a scroll before reverting an Action, so we need to
@@ -157,8 +154,8 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
 			// When this timer is set, we may need to wait a bit before allowing zooming
 			if (timeHorizontalZoomLastHitClipMax != 0) {
-				bool isWithinZoomDelay =
-				    AudioEngine::audioSampleTimer - timeHorizontalZoomLastHitClipMax < kShortPressTime;
+				bool isWithinZoomDelay = util::infinite_a_lt_b(
+				    AudioEngine::audioSampleTimer - timeHorizontalZoomLastHitClipMax, kShortPressTime);
 
 				// Prevent further zooming in the delayed direction (see below)
 				if (isWithinZoomDelay && (delayedHorizontalScrollDirection == zoomMagnitude)) {

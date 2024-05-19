@@ -70,4 +70,8 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::TIMELINE_VIEW; }
+
+private:
+	uint32_t timeHorizontalZoomLastHitClipMax = 0;
+	int8_t delayedHorizontalScrollDirection;
 };
