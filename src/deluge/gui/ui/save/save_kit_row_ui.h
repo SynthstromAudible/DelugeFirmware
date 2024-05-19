@@ -27,6 +27,7 @@ public:
 	void setup(SoundDrum* drum, ParamManagerForTimeline* paramManager) {
 		soundDrumToSave = drum;
 		paramManagerToSave = paramManager;
+		outputTypeToLoad = OutputType::SYNTH;
 	}
 	bool opened();
 	// void selectEncoderAction(int8_t offset);
