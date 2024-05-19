@@ -153,22 +153,21 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 			uint32_t clipLengthMaxZoom = getMaxZoom();
 
 			// When this timer is set, we may need to wait a bit before allowing zooming
-			if (timeHorizontalZoomLastHitClipMax != 0) {
-				bool isWithinZoomDelay = util::infinite_a_lt_b(
-				    AudioEngine::audioSampleTimer - timeHorizontalZoomLastHitClipMax, kShortPressTime);
+			if (delayHorizontalZoomUntil != 0) {
+				bool isWithinZoomDelay = util::infinite_a_lt_b(AudioEngine::audioSampleTimer, delayHorizontalZoomUntil);
 
 				// Prevent further zooming in the delayed direction (see below)
-				if (isWithinZoomDelay && (delayedHorizontalScrollDirection == zoomMagnitude)) {
+				if (isWithinZoomDelay && (delayHorizontalZoomMagnitude == zoomMagnitude)) {
 					goto getOut;
 				}
 
-				timeHorizontalZoomLastHitClipMax = 0;
+				delayHorizontalZoomUntil = 0;
 			}
 
 			// Prevent quickly scrolling past the clip's max zoom level
-			if (newZoom == clipLengthMaxZoom && timeHorizontalZoomLastHitClipMax == 0) {
-				timeHorizontalZoomLastHitClipMax = AudioEngine::audioSampleTimer;
-				delayedHorizontalScrollDirection = zoomMagnitude;
+			if (newZoom == clipLengthMaxZoom && delayHorizontalZoomUntil == 0) {
+				delayHorizontalZoomUntil = AudioEngine::audioSampleTimer + kShortPressTime;
+				delayHorizontalZoomMagnitude = zoomMagnitude;
 			}
 
 			// Constrain to zoom limits
