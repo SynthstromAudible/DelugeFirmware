@@ -258,7 +258,7 @@ char const* paramNameForFile(Kind kind, ParamType param);
 /// Given a string and the expected Kind, attempts to find the ParamType value for that param.
 ///
 /// As with paramNameForFile, the returned ParamType is offset by UNPATCHED_START for unpatched params.
-ParamType fileStringToParam(Kind kind, char const* name);
+ParamType fileStringToParam(Kind kind, char const* name, bool allowPatched);
 
 /// Magic number which represents an invalid or missing param type
 constexpr uint32_t kNoParamID = 0xFFFFFFFF;

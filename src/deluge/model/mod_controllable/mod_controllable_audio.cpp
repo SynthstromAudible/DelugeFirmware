@@ -1221,7 +1221,8 @@ doReadPatchedParam:
 						relative = storageManager.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "controlsParam")) {
-						p = params::fileStringToParam(unpatchedParamKind_, storageManager.readTagOrAttributeValue());
+						p = params::fileStringToParam(unpatchedParamKind_, storageManager.readTagOrAttributeValue(),
+						                              false);
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
 						s = stringToSource(storageManager.readTagOrAttributeValue());
