@@ -44,7 +44,6 @@ Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
 Setting menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
 Setting menuEnableDxShortcuts(RuntimeFeatureSettingType::EnableDxShortcuts);
 EmulatedDisplay menuEmulatedDisplay{};
-Setting menuUnrestrictedZoom(RuntimeFeatureSettingType::UnrestrictedZoom);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -63,8 +62,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuLightShiftLed,
     &menuEnableGrainFX,
     &menuEnableDxShortcuts,
-    &menuEmulatedDisplay,
-    &menuUnrestrictedZoom};
+    &menuEmulatedDisplay};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }

@@ -60,7 +60,6 @@ enum RuntimeFeatureSettingType : uint32_t {
 	EnableGrainFX,
 	EnableDxShortcuts,
 	EmulatedDisplay,
-	UnrestrictedZoom,
 	MaxElement // Keep as boundary
 };
 

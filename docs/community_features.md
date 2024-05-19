@@ -234,10 +234,11 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#1846]) Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
 
-#### 3.21 Unrestricted Zoom Level
+#### 3.21 Eased Timeline Zoom Level Restrictions
 
-- ([#1962]) Added new feature to allow unrestricted zoom level in clip and song views.
-  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+- ([#1962]) The maximum zoom level has been increased. Now, the maximum zoom is the point the point where the entire sequence is represented by a single grid cell.
+- This allows for more flexibility when entering long notes and chord progressions.
+- While changing the zoom level, the horizontal encoder will briefly pause while passing the zoom level which represents the entire sequence. This is to prevent frustration from users who are used to the prior limitations.
 
 ## 4. New Features Added
 
@@ -1061,8 +1062,6 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * With the "7SEG" mode, the deluge will boot with the emulated display.
     * This option is technically available also on deluge with 7SEG hardware. But as you need an external display to
       render the OLED screen, it is of more limited use.
-* `Unrestricted Zoom (ZOOM)`
-    * When On, the maximum zoom level is increased to the point where the entire sequence is represented by a single grid cell.
 
 ## 6. Sysex Handling
 
