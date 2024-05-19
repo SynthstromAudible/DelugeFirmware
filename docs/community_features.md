@@ -236,7 +236,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 #### 3.21 Eased Timeline Zoom Level Restrictions
 
-- ([#1962]) The maximum zoom level has been increased. Now, the maximum zoom is the point the point where the entire sequence is represented by a single grid cell.
+- ([#1962]) The maximum zoom level has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - This allows for more flexibility when entering long notes and chord progressions.
 - While changing the zoom level, the horizontal encoder will briefly pause while passing the zoom level which represents the entire sequence. This is to prevent frustration from users who are used to the prior limitations.
 
