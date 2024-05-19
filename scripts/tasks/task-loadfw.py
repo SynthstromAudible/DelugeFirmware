@@ -27,7 +27,11 @@ def argparser():
         "port_number",
         help="MIDI port number (example: 123). Use 'dbt loadfw -h' to list available ports.",
     )
-    parser.add_argument("hex_key", help="8-digit Deluge Hex Key (example 1234abcd)")
+    parser.add_argument(
+        "hex_key",
+        help="8-digit Deluge hex key from SETTINGS > COMMUNITY FEATURES > ALLOW INSECURE "
+             "DEVELOPER SYSEX MESSAGES. The key remains the same as long as the feature "
+             "remains turned on.")
     parser.add_argument(
         "firmware_file",
         help="Path to firmware binary file (example ./build/Debug/deluge.bin)",
