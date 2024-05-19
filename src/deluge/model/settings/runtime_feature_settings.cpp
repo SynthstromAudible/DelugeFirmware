@@ -165,6 +165,10 @@ void RuntimeFeatureSettings::init() {
 	SetupEmulatedDisplaySetting(settings[RuntimeFeatureSettingType::EmulatedDisplay],
 	                            STRING_FOR_COMMUNITY_FEATURE_EMULATED_DISPLAY, "emulatedDisplay",
 	                            RuntimeFeatureStateEmulatedDisplay::Hardware);
+	// UnrestrictedZoom
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::UnrestrictedZoom],
+	                  STRING_FOR_COMMUNITY_FEATURE_UNRESTRICTED_ZOOM, "unrestrictedZoom",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {

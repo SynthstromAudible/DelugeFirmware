@@ -16,12 +16,14 @@
  */
 
 #include "gui/views/timeline_view.h"
+#include "algorithm"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "string.h"
@@ -157,7 +159,14 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 				currentSong->xZoom[navSysId] >>= 1;
 			}
 			else {
-				if (currentSong->xZoom[navSysId] >= getMaxZoom()) {
+				uint32_t maxZoom = getMaxZoom();
+				if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::UnrestrictedZoom)
+				    == RuntimeFeatureStateToggle::On) {
+					// If zoom is unrestricted, we can zoom out until a single grid cell is the entire sequence length
+					// This is limited only by the maximum sequence length.
+					maxZoom = std::min<uint32_t>(maxZoom * 16, kMaxSequenceLength / 16);
+				}
+				if (currentSong->xZoom[navSysId] >= maxZoom) {
 					goto getOut;
 				}
 				currentSong->xZoom[navSysId] <<= 1;
