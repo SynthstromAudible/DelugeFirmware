@@ -234,6 +234,11 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#1846]) Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
 
+#### 3.21 Unrestricted Zoom Level
+
+- ([#1962]) Added new feature to allow unrestricted zoom level in clip and song views.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1056,6 +1061,8 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * With the "7SEG" mode, the deluge will boot with the emulated display.
     * This option is technically available also on deluge with 7SEG hardware. But as you need an external display to
       render the OLED screen, it is of more limited use.
+* `Unrestricted Zoom (ZOOM)`
+    * When On, the maximum zoom level is increased to the point where the entire sequence is represented by a single grid cell.
 
 ## 6. Sysex Handling
 
@@ -1277,6 +1284,8 @@ different firmware
 [#1846]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1846
 
 [#1898]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1898
+
+[#1962]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1962
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
