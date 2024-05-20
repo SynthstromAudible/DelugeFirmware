@@ -368,8 +368,8 @@ template <unsigned saturationAmount>
 }
 
 [[gnu::always_inline]] inline int32_t getTriangle(uint32_t phase) {
-	constexpr int32_t slope = 2;
-	constexpr int32_t offset = 0x80000000u;
+	int32_t slope = 2;
+	int32_t offset = 0x80000000u;
 	if (phase >= 0x80000000u) {
 		slope = -2;
 		offset = 0x80000000u - 1;
