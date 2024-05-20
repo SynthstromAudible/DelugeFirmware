@@ -51,6 +51,11 @@ extern uint32_t z, w, jcong;
 }
 
 [[gnu::always_inline]] inline int32_t getTriangle(uint32_t phase) {
-	return ((phase < 2147483648u) ? 2 : -2) * phase + 2147483648u;
-	// return getTriangleSmall(phase) << 1;
+	int32_t slope = 2;
+	int32_t offset = 0x80000000u;
+	if (phase >= 0x80000000u) {
+		slope = -2;
+		offset = 0x80000000u - 1;
+	}
+	return slope * phase + offset;
 }
