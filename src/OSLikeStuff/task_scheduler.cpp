@@ -72,7 +72,12 @@ void TaskManager::createSortedList() {
 			j++;
 		}
 	}
-	std::sort(&sortedList[0], &sortedList[numActiveTasks]);
+	if (numActiveTasks > 1) {
+		// &array[size] is UB, or at least Clang + MSVC manages to choke
+		// on it. So grab what is at worst size-1, and then increment
+		// the pointer.
+		std::sort(&sortedList[0], (&sortedList[numActiveTasks - 1]) + 1);
+	}
 }
 
 TaskID TaskManager::chooseBestTask(double deadline) {
