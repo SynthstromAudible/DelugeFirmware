@@ -871,6 +871,9 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			}
 			else {
 				gridModeActive = false;
+				// reset press info and stutter when exiting performance view
+				initPadPress(firstPadPress);
+				initPadPress(lastPadPress);
 				releaseStutter(modelStack);
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					changeRootUI(&arrangerView);
@@ -989,6 +992,9 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 								    && ((AudioEngine::audioSampleTimer - timeGridModePress)
 								        >= FlashStorage::holdTime)) {
 									gridModeActive = false;
+									// reset press info and stutter when exiting performance view
+									initPadPress(firstPadPress);
+									initPadPress(lastPadPress);
 									releaseStutter(modelStack);
 									changeRootUI(&sessionView);
 								}
@@ -996,6 +1002,9 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 							// if you pressed the green or blue mode pads, go back to grid view and change mode
 							else if ((yDisplay == 7) || (yDisplay == 6)) {
 								gridModeActive = false;
+								// reset press info and stutter when exiting performance view
+								initPadPress(firstPadPress);
+								initPadPress(lastPadPress);
 								releaseStutter(modelStack);
 								changeRootUI(&sessionView);
 								sessionView.gridHandlePads(xDisplay, yDisplay, on);
