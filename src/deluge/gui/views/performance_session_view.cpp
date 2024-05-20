@@ -707,7 +707,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			releaseStutter(modelStack);
+			releaseViewOnExit(modelStack);
 			sessionView.transitionToViewForClip(); // May fail if no currentClip
 		}
 	}
@@ -871,10 +871,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			}
 			else {
 				gridModeActive = false;
-				// reset press info and stutter when exiting performance view
-				initPadPress(firstPadPress);
-				initPadPress(lastPadPress);
-				releaseStutter(modelStack);
+				releaseViewOnExit(modelStack);
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					changeRootUI(&arrangerView);
 				}
@@ -992,20 +989,14 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 								    && ((AudioEngine::audioSampleTimer - timeGridModePress)
 								        >= FlashStorage::holdTime)) {
 									gridModeActive = false;
-									// reset press info and stutter when exiting performance view
-									initPadPress(firstPadPress);
-									initPadPress(lastPadPress);
-									releaseStutter(modelStack);
+									releaseViewOnExit(modelStack);
 									changeRootUI(&sessionView);
 								}
 							}
 							// if you pressed the green or blue mode pads, go back to grid view and change mode
 							else if ((yDisplay == 7) || (yDisplay == 6)) {
 								gridModeActive = false;
-								// reset press info and stutter when exiting performance view
-								initPadPress(firstPadPress);
-								initPadPress(lastPadPress);
-								releaseStutter(modelStack);
+								releaseViewOnExit(modelStack);
 								changeRootUI(&sessionView);
 								sessionView.gridHandlePads(xDisplay, yDisplay, on);
 							}
@@ -1335,6 +1326,13 @@ void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelS
 		}
 	}
 	updateLayoutChangeStatus();
+}
+
+/// reset press info and stutter when exiting performance view
+void PerformanceSessionView::releaseViewOnExit(ModelStackWithThreeMainThings* modelStack) {
+	initPadPress(firstPadPress);
+	initPadPress(lastPadPress);
+	releaseStutter(modelStack);
 }
 
 /// check if stutter is active and release it if it is
