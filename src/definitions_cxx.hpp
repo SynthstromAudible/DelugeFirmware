@@ -178,6 +178,8 @@ constexpr int32_t kScrollTime = 400;
 constexpr int32_t USE_DEFAULT_VELOCITY = 255;
 
 constexpr int32_t kMaxSequenceLength = 1610612736; // The biggest multiple of 3 which can fit in a signed 32-bit int32_t
+constexpr int32_t kMaxZoom =
+    kMaxSequenceLength / 16; // The zoom level in which the maximum sequence length is displayed on all pads
 constexpr int32_t kAmountNoteOnLatenessAllowed = 2205; // In audio samples. That's 50mS. Multiply mS by 44.1
 
 enum class GateType : uint8_t {

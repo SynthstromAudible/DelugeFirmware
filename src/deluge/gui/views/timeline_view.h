@@ -70,4 +70,11 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::TIMELINE_VIEW; }
+
+private:
+	/// Used when scrolling horizontally to briefly catch on clip's max zoom
+	uint32_t delayHorizontalZoomUntil = 0;
+	/// Horizontal scroll is only delayed in the direction that clip's max zoom was crossed in.
+	/// This is the direction (-1 or +1).
+	int8_t delayHorizontalZoomMagnitude;
 };

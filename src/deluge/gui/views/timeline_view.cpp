@@ -22,9 +22,11 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "string.h"
+#include <algorithm>
 
 void TimelineView::scrollFinished() {
 	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
@@ -146,24 +148,35 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
 		if (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 			int32_t oldXZoom = currentSong->xZoom[navSysId];
-
 			int32_t zoomMagnitude = -offset;
+			uint32_t newZoom = zoomMagnitude == -1 ? oldXZoom >> 1 : oldXZoom << 1;
+			uint32_t clipLengthMaxZoom = getMaxZoom();
+
+			// When this timer is set, we may need to wait a bit before allowing zooming
+			if (delayHorizontalZoomUntil != 0) {
+				bool isWithinZoomDelay = util::infinite_a_lt_b(AudioEngine::audioSampleTimer, delayHorizontalZoomUntil);
+
+				// Prevent further zooming in the delayed direction (see below)
+				if (isWithinZoomDelay && (delayHorizontalZoomMagnitude == zoomMagnitude)) {
+					goto getOut;
+				}
+
+				delayHorizontalZoomUntil = 0;
+			}
+
+			// Prevent quickly scrolling past the clip's max zoom level
+			if (newZoom == clipLengthMaxZoom && delayHorizontalZoomUntil == 0) {
+				delayHorizontalZoomUntil = AudioEngine::audioSampleTimer + kShortPressTime;
+				delayHorizontalZoomMagnitude = zoomMagnitude;
+			}
 
 			// Constrain to zoom limits
-			if (zoomMagnitude == -1) {
-				if (currentSong->xZoom[navSysId] <= 3) {
-					goto getOut;
-				}
-				currentSong->xZoom[navSysId] >>= 1;
-			}
-			else {
-				if (currentSong->xZoom[navSysId] >= getMaxZoom()) {
-					goto getOut;
-				}
-				currentSong->xZoom[navSysId] <<= 1;
+			if ((zoomMagnitude == -1 && oldXZoom <= 3)
+			    || (zoomMagnitude == 1 && oldXZoom >= std::min<uint32_t>(clipLengthMaxZoom * 16, kMaxZoom))) {
+				goto getOut;
 			}
 
-			uint32_t newZoom = currentSong->xZoom[navSysId];
+			currentSong->xZoom[navSysId] = newZoom;
 			int32_t newScroll = currentSong->xScroll[navSysId] / (newZoom * kDisplayWidth) * (newZoom * kDisplayWidth);
 
 			initiateXZoom(zoomMagnitude, newScroll, oldXZoom);
