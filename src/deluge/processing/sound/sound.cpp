@@ -1104,6 +1104,16 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				                         readAutomationUpToPos);
 				reader.exitTag("rate");
 			}
+			else if (!strcmp(tagName, "syncType")) {
+				// XXX: no setter
+				localLFOConfig.syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				reader.exitTag("syncType");
+			}
+			else if (!strcmp(tagName, "syncLevel")) {
+				localLFOConfig.syncLevel =
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
+				reader.exitTag("syncLevel");
+			}
 			else {
 				reader.exitTag(tagName);
 			}
@@ -4016,6 +4026,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	writer.writeOpeningTagBeginning("lfo2");
 	writer.writeAttribute("type", lfoTypeToString(localLFOConfig.waveType), false);
+	// Community Firmware parameters
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", localLFOConfig.syncLevel, false);
+	writer.writeSyncTypeToFile(currentSong, "syncType", localLFOConfig.syncType, false);
 	writer.closeTag();
 
 	if (synthMode == SynthMode::FM) {
