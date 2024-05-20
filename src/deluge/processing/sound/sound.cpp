@@ -123,6 +123,8 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	    SYNC_TYPE_EVEN; // This may be set without calling the setter function, because we're setting it to 0
 	lfoGlobalSyncLevel =
 	    SYNC_LEVEL_NONE; // This may be set without calling the setter function, because we're setting it to 0
+	lfoLocalSyncType = SYNC_TYPE_EVEN;
+	lfoLocalSyncLevel = SYNC_LEVEL_NONE;
 
 	modKnobs[0][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
 	modKnobs[0][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_PAN);
