@@ -191,8 +191,7 @@ PerformanceSessionView::PerformanceSessionView() {
 	gridModeActive = false;
 	timeGridModePress = 0;
 
-	initPadPress(firstPadPress);
-	initPadPress(lastPadPress);
+	resetPadPressInfo();
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		initFXPress(fxPress[xDisplay]);
@@ -900,7 +899,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				releaseStutter(modelStack);
 			}
 			else if (b == BACK) {
-				initPadPress(lastPadPress);
+				resetPadPressInfo();
 				updateLayoutChangeStatus();
 				if (onFXDisplay) {
 					renderViewDisplay();
@@ -1292,8 +1291,7 @@ bool PerformanceSessionView::anyChangesToLog() {
 /// in param editor, it will clear existing param mappings
 /// in regular performance view or value editor, it will clear held pads and reset param values to pre-held state
 void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings* modelStack) {
-	initPadPress(firstPadPress);
-	initPadPress(lastPadPress);
+	resetPadPressInfo();
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (editingParam) {
 			initLayout(layoutForPerformance[xDisplay]);
@@ -1330,9 +1328,14 @@ void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelS
 
 /// reset press info and stutter when exiting performance view
 void PerformanceSessionView::releaseViewOnExit(ModelStackWithThreeMainThings* modelStack) {
+	resetPadPressInfo();
+	releaseStutter(modelStack);
+}
+
+/// initialize pad press info structs
+void PerformanceSessionView::resetPadPressInfo() {
 	initPadPress(firstPadPress);
 	initPadPress(lastPadPress);
-	releaseStutter(modelStack);
 }
 
 /// check if stutter is active and release it if it is
