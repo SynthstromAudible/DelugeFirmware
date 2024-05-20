@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "modulation/lfo.h"
 #include "definitions_cxx.hpp"
+#include "util/waves.h"
 
 TEST_GROUP(LFOTest) {
 	void setup() {
@@ -142,4 +143,26 @@ TEST(LFOTest, renderRandomWalk) {
 	value = lfo.render(10, type, 10); // no change
 	CHECK_EQUAL(-174189095, value);
 	CHECK_EQUAL(199, lfo.phase);
+}
+
+TEST_GROUP(WaveTest) {
+	void setup() {}
+};
+
+TEST(WaveTest, triangle) {
+	// low turnover
+	CHECK_EQUAL(-2147483647, getTriangle(UINT32_MAX));
+	CHECK_EQUAL(-2147483648, getTriangle(0));
+	CHECK_EQUAL(-2147483646, getTriangle(1));
+	// passing zero up
+	CHECK_EQUAL(-2, getTriangle(1073741823));
+	CHECK_EQUAL( 0, getTriangle(1073741824));
+	CHECK_EQUAL( 2, getTriangle(1073741825));
+	// thigh turnover
+	CHECK_EQUAL( 2147483646, getTriangle(2147483647u));
+	CHECK_EQUAL( 2147483647, getTriangle(2147483648u));
+	CHECK_EQUAL( 2147483645, getTriangle(2147483649u));
+	// passing zero down
+	CHECK_EQUAL( 1, getTriangle(3221225471u));
+	CHECK_EQUAL(-1, getTriangle(3221225472u));
 }
