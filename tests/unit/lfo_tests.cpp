@@ -151,49 +151,18 @@ TEST_GROUP(WaveTest) {
 
 TEST(WaveTest, triangle) {
 	// low turnover
-	CHECK_EQUAL(-2147483646, getTriangle(UINT32_MAX));
+	CHECK_EQUAL(-2147483647, getTriangle(UINT32_MAX));
 	CHECK_EQUAL(-2147483648, getTriangle(0));
 	CHECK_EQUAL(-2147483646, getTriangle(1));
 	// passing zero up
 	CHECK_EQUAL(-2, getTriangle(1073741823));
 	CHECK_EQUAL( 0, getTriangle(1073741824));
 	CHECK_EQUAL( 2, getTriangle(1073741825));
-	// high turnover
-	CHECK_EQUAL( 2147483646, getTriangle(2147483647u));
-	CHECK_EQUAL(-2147483648, getTriangle(2147483648u)); // XXX: overflow to sign bit
-	CHECK_EQUAL( 2147483646, getTriangle(2147483649u));
-	// passing zero down
-	CHECK_EQUAL( 2, getTriangle(3221225471u));
-	CHECK_EQUAL( 0, getTriangle(3221225472u));
-	CHECK_EQUAL(-2, getTriangle(3221225473u));
-}
-
-// Alternative, continuous implementatio for getTriangle()
-// performance not compared.
-int32_t getTriangle2(uint32_t phase) {
-	int32_t slope = 2;
-	int32_t offset = 0x80000000u;
-	if (phase >= 0x80000000u) {
-		slope = -2;
-		offset = 0x80000000u - 1;
-	}
-	return slope * phase + offset;
-}
-
-TEST(WaveTest, triangle2) {
-	// low turnover
-	CHECK_EQUAL(-2147483647, getTriangle2(UINT32_MAX));
-	CHECK_EQUAL(-2147483648, getTriangle2(0));
-	CHECK_EQUAL(-2147483646, getTriangle2(1));
-	// passing zero up
-	CHECK_EQUAL(-2, getTriangle2(1073741823));
-	CHECK_EQUAL( 0, getTriangle2(1073741824));
-	CHECK_EQUAL( 2, getTriangle2(1073741825));
 	// thigh turnover
-	CHECK_EQUAL( 2147483646, getTriangle2(2147483647u));
-	CHECK_EQUAL( 2147483647, getTriangle2(2147483648u));
-	CHECK_EQUAL( 2147483645, getTriangle2(2147483649u));
+	CHECK_EQUAL( 2147483646, getTriangle(2147483647u));
+	CHECK_EQUAL( 2147483647, getTriangle(2147483648u));
+	CHECK_EQUAL( 2147483645, getTriangle(2147483649u));
 	// passing zero down
-	CHECK_EQUAL( 1, getTriangle2(3221225471u));
-	CHECK_EQUAL(-1, getTriangle2(3221225472u));
+	CHECK_EQUAL( 1, getTriangle(3221225471u));
+	CHECK_EQUAL(-1, getTriangle(3221225472u));
 }
