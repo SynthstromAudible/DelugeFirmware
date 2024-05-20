@@ -853,13 +853,17 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				}
 				else {
 					if (!defaultEditingMode) {
-						resetPerformanceView(modelStack);
 						indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 					}
 					else {
 						editingParam = true;
 					}
 					defaultEditingMode = true;
+				}
+				if (!editingParam) {
+					// reset performance view when you switch modes
+					// but not when in param editing mode cause that would reset param assignments to FX columns
+					resetPerformanceView(modelStack);
 				}
 				updateLayoutChangeStatus();
 				renderViewDisplay();
@@ -1288,6 +1292,8 @@ bool PerformanceSessionView::anyChangesToLog() {
 /// in param editor, it will clear existing param mappings
 /// in regular performance view or value editor, it will clear held pads and reset param values to pre-held state
 void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings* modelStack) {
+	initPadPress(firstPadPress);
+	initPadPress(lastPadPress);
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (editingParam) {
 			initLayout(layoutForPerformance[xDisplay]);
