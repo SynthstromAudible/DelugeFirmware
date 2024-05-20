@@ -6,26 +6,30 @@ import rtmidi
 import sys
 
 
-def argparser():
-    midiout = rtmidi.MidiOut()
-    available_ports = midiout.get_ports()
-    s = "\nusage example: dbt sysex-logging 123"
-    s += "\n\nstart listening to console logs on MIDI port # 123"
-    s += "\n\nAvailable MIDI ports:\n\n"
-    for i, p in enumerate(available_ports):
-        s += "Port # " + str(i) + " : " + str(p) + "\n"
+def note(message):
+    # Let's assume stdout is piped to a file, and put all
+    # interactive notices to stderr.
+    print(message, file=sys.stderr)
 
+
+def argparser():
     parser = argparse.ArgumentParser(
         prog="sysex-logging",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Listen to console logs via MIDI",
-        epilog=s,
-        exit_on_error=True,
+        epilog="""\nusage example: dbt sysex-logging 123
+                  start listening to console logs on MIDI port # 123""",
+        exit_on_error=False,
     )
     parser.group = "Development"
     parser.add_argument(
-        "port_number",
-        help="MIDI port number (example: 123) use 'dbt sysex-logging -h' to list available ports",
+        "ports",
+        nargs="*",
+        help="""MIDI output and input port numbers. Example: 123 312. If only one port
+                number is given, same number is used for both. If no port numbers are
+                given, first output and input ports whose names start with "Deluge",
+                if any, are automatically used. Use 'dbt sysex-logging -h' to list
+                available ports""",
         type=int,
     )
     return parser
@@ -51,9 +55,8 @@ def unpack_7bit_to_8bit(bytes):
         return bytearray(result)
 
 
-def sysex_console(port):
-    midiout = rtmidi.MidiOut()
-    midiout.open_port(port)
+def sysex_console(midiout, midiin):
+    midiin.ignore_types(False, True, True)
 
     with midiout:
         data = bytearray(9)
@@ -70,10 +73,6 @@ def sysex_console(port):
         data[8] = 0xF7
         midiout.send_message(data)
     del midiout
-
-    midiin = rtmidi.MidiIn()
-    midiin.open_port(port)
-    midiin.ignore_types(False, True, True)
 
     while True:
         msg_and_dt = midiin.get_message()
@@ -106,10 +105,55 @@ def sysex_console(port):
             time.sleep(0.01)
 
 
+def ensure_port(type, midi, port):
+    if port is None:
+        for i, p in enumerate(midi.get_ports()):
+            if str(p).startswith("Deluge"):
+                port = i
+                break
+    if port is None:
+        note(
+            f"Could not identify {type.strip()} port for Deluge. Aborting.",
+        )
+        exit(1)
+    else:
+        # Report ports to stderr so the logs remain separate.
+        note(f"# MIDI {type} {port}: {midi.get_port_name(port)}")
+    return port
+
+
 def main():
+    midiout = rtmidi.MidiOut()
+    midiin = rtmidi.MidiIn()
+
     parser = argparser()
-    args = parser.parse_args()
-    sysex_console(args.port_number)
+    ok = False
+    try:
+        args = parser.parse_args()
+        outport, inport, *_ = args.ports + [None, None]
+
+        if outport and not inport:
+            inport = outport
+
+        outport = ensure_port("output", midiout, outport)
+        inport = ensure_port("input ", midiin, inport)
+
+        midiout.open_port(outport)
+        midiin.open_port(inport)
+        ok = True
+    except Exception as e:
+        note(f"ERROR: {e}")
+    finally:
+        if not ok:
+            note("\nAvailable MIDI output ports:")
+            for i, p in enumerate(midiout.get_ports()):
+                note(f"  {i}. {p}")
+            note("\nAvailable MIDI input ports:")
+            for i, p in enumerate(midiin.get_ports()):
+                note(f"  {i}. {p}")
+            exit(1)
+
+    sysex_console(midiout, midiin)
 
 
 if __name__ == "__main__":
