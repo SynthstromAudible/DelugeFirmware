@@ -234,6 +234,12 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#1846]) Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
 
+#### 3.21 Eased Timeline Zoom Level Restrictions
+
+- ([#1962]) The maximum zoom level has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
+- This allows for more flexibility when entering long notes and chord progressions.
+- While changing the zoom level, the horizontal encoder will briefly pause while passing the zoom level which represents the entire sequence. This is to prevent frustration from users who are used to the prior limitations.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1277,6 +1283,8 @@ different firmware
 [#1846]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1846
 
 [#1898]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1898
+
+[#1962]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1962
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
