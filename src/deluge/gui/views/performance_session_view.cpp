@@ -1026,9 +1026,13 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 				if (i != xDisplay) {
 					if ((layoutForPerformance[i].paramKind == lastSelectedParamKind)
 					    && (layoutForPerformance[i].paramID == lastSelectedParamID)) {
-						fxPress[xDisplay].previousKnobPosition = fxPress[i].previousKnobPosition;
-						initFXPress(fxPress[i]);
-						logPerformanceViewPress(i, false);
+						// check if you're holding a pad for the same param in another column
+						// check if you're not holding a pad, but a pad is in held state for the same param in another column
+						if ((lastPadPress.isActive && lastPadPress.xDisplay == i) || fxPress[i].padPressHeld) {
+							fxPress[xDisplay].previousKnobPosition = fxPress[i].previousKnobPosition;
+							initFXPress(fxPress[i]);
+							logPerformanceViewPress(i, false);
+						}
 					}
 				}
 			}
