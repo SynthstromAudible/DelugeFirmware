@@ -153,7 +153,7 @@ public:
 		return fc_hz;
 	}
 	/// update the blend level, where blend is the wet level (i.e. ONE_Q31 is full wet)
-	void setBlend(q31_t blend) {
+	constexpr void setBlend(q31_t blend) {
 		dry = ONE_Q31 - blend;
 		wet = blend;
 	}
