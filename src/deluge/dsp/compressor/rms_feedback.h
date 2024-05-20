@@ -27,12 +27,13 @@ public:
 	RMSFeedbackCompressor();
 
 	/// takes in all values as knob positions in the range 0-ONE_Q31
-	constexpr void setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc, float baseGain) {
+	constexpr void setup(q31_t a, q31_t r, q31_t t, q31_t rat, q31_t fc, q31_t blend, float baseGain) {
 		setAttack(a);
 		setRelease(r);
 		setThreshold(t);
 		setRatio(rat);
 		setSidechain(fc);
+		setBlend(blend);
 		baseGain_ = baseGain;
 	}
 
@@ -151,7 +152,11 @@ public:
 		hpfA_ = wc * ONE_Q31;
 		return fc_hz;
 	}
-
+	/// update the blend level, where blend is the wet level (i.e. ONE_Q31 is full wet)
+	void setBlend(q31_t blend) {
+		dry = ONE_Q31 - blend;
+		wet = blend;
+	}
 	/// Configure the base makeup gain. Since reduction is always negative, we only need to worry about the case where
 	/// reduction == 0 to determine the maximum headroom. er can not exceed 2.08, so we have 1.35 neppers of headroom.
 	///
@@ -221,4 +226,6 @@ private:
 	q31_t attackKnobPos = 0;
 	q31_t releaseKnobPos = 0;
 	q31_t sideChainKnobPos = 0;
+	q31_t dry;
+	q31_t wet;
 };
