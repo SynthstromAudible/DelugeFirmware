@@ -629,7 +629,7 @@ void readSettings() {
 		defaultStartupSongMode = static_cast<StartupSongMode>(buffer[163]);
 	}
 
-	defaultPadBrightness = buffer[164] == false ? kMaxLedBrightness : buffer[164];
+	defaultPadBrightness = buffer[164] == 0 ? kMaxLedBrightness : buffer[164];
 
 	if (buffer[167] >= kNumRepeatModes) {
 		defaultSliceMode = SampleRepeatMode::CUT;
@@ -670,7 +670,7 @@ static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
 		return false;
 	}
 	// midiEngine.midiFollowDisplayParam
-	else if (buffer[130] != false && buffer[130] != true) {
+	else if (buffer[130] != 0 && buffer[130] != 1) {
 		return false;
 	}
 	// midiEngine.midiFollowFeedbackChannelType
@@ -682,7 +682,7 @@ static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
 		return false;
 	}
 	// midiEngine.midiFollowFeedbackFilter
-	else if (buffer[133] != false && buffer[133] != true) {
+	else if (buffer[133] != 0 && buffer[133] != 1) {
 		return false;
 	}
 	// place holder for checking if midi follow devices are valid
@@ -691,23 +691,23 @@ static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
 
 static bool areAutomationSettingsValid(std::span<uint8_t> buffer) {
 	// automationInterpolate
-	if (buffer[149] != false && buffer[149] != true) {
+	if (buffer[149] != 0 && buffer[149] != 1) {
 		return false;
 	}
 	// automationClear
-	else if (buffer[150] != false && buffer[150] != true) {
+	else if (buffer[150] != 0 && buffer[150] != 1) {
 		return false;
 	}
 	// automationShift
-	else if (buffer[151] != false && buffer[151] != true) {
+	else if (buffer[151] != 0 && buffer[151] != 1) {
 		return false;
 	}
 	// automationNudgeNote
-	else if (buffer[152] != false && buffer[152] != true) {
+	else if (buffer[152] != 0 && buffer[152] != 1) {
 		return false;
 	}
 	// automationDisableAuditionPadShortcuts
-	else if (buffer[153] != false && buffer[153] != true) {
+	else if (buffer[153] != 0 && buffer[153] != 1) {
 		return false;
 	}
 
