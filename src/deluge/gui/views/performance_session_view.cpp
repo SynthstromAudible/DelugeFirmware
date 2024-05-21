@@ -183,8 +183,7 @@ PerformanceSessionView::PerformanceSessionView() {
 	gridModeActive = false;
 	timeGridModePress = 0;
 
-	initPadPress(firstPadPress);
-	initPadPress(lastPadPress);
+	resetPadPressInfo();
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		initFXPress(fxPress[xDisplay]);
@@ -699,7 +698,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			releaseStutter(modelStack);
+			releaseViewOnExit(modelStack);
 			sessionView.transitionToViewForClip(); // May fail if no currentClip
 		}
 	}
@@ -845,7 +844,6 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				}
 				else {
 					if (!defaultEditingMode) {
-						resetPerformanceView(modelStack);
 						indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
 					}
 					else {
@@ -853,13 +851,18 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					}
 					defaultEditingMode = true;
 				}
+				if (!editingParam) {
+					// reset performance view when you switch modes
+					// but not when in param editing mode cause that would reset param assignments to FX columns
+					resetPerformanceView(modelStack);
+				}
 				updateLayoutChangeStatus();
 				renderViewDisplay();
 				uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 			}
 			else {
 				gridModeActive = false;
-				releaseStutter(modelStack);
+				releaseViewOnExit(modelStack);
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					changeRootUI(&arrangerView);
 				}
@@ -888,7 +891,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				releaseStutter(modelStack);
 			}
 			else if (b == BACK) {
-				initPadPress(lastPadPress);
+				resetPadPressInfo();
 				updateLayoutChangeStatus();
 				if (onFXDisplay) {
 					renderViewDisplay();
@@ -977,14 +980,14 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 								    && ((AudioEngine::audioSampleTimer - timeGridModePress)
 								        >= FlashStorage::holdTime)) {
 									gridModeActive = false;
-									releaseStutter(modelStack);
+									releaseViewOnExit(modelStack);
 									changeRootUI(&sessionView);
 								}
 							}
 							// if you pressed the green or blue mode pads, go back to grid view and change mode
 							else if ((yDisplay == 7) || (yDisplay == 6)) {
 								gridModeActive = false;
-								releaseStutter(modelStack);
+								releaseViewOnExit(modelStack);
 								changeRootUI(&sessionView);
 								sessionView.gridHandlePads(xDisplay, yDisplay, on);
 							}
@@ -1018,9 +1021,19 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 				if (i != xDisplay) {
 					if ((layoutForPerformance[i].paramKind == lastSelectedParamKind)
 					    && (layoutForPerformance[i].paramID == lastSelectedParamID)) {
-						fxPress[xDisplay].previousKnobPosition = fxPress[i].previousKnobPosition;
-						initFXPress(fxPress[i]);
-						logPerformanceViewPress(i, false);
+						// check if you're holding a pad for the same param in another column
+						// check if you're not holding a pad, but a pad is in held state for the same param in another
+						// column
+						if ((lastPadPress.isActive && lastPadPress.xDisplay == i) || fxPress[i].padPressHeld) {
+							// backup the xDisplay for the previously held pad so that it can be restored if the current
+							// press is a long one
+							if (fxPress[i].padPressHeld) {
+								firstPadPress.xDisplay = i;
+							}
+							fxPress[xDisplay].previousKnobPosition = fxPress[i].previousKnobPosition;
+							initFXPress(fxPress[i]);
+							logPerformanceViewPress(i, false);
+						}
 					}
 				}
 			}
@@ -1044,6 +1057,13 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 			// the value to be set back to the value of the previously held pad
 			if (shouldRestorePreviousHoldPress(xDisplay)) {
 				fxPress[xDisplay].previousKnobPosition = backupFXPress[xDisplay].currentKnobPosition;
+			}
+			// if there was a previous held pad for this same FX in another column and you pressed a pad
+			// for that same FX in another column but didn't set that pad to held, then when we let go of this pad,
+			// we want to restore the pad press info back to the previous held pad state
+			else if ((firstPadPress.xDisplay != kNoSelection)
+			         && shouldRestorePreviousHoldPress(firstPadPress.xDisplay)) {
+				fxPress[xDisplay].previousKnobPosition = backupFXPress[firstPadPress.xDisplay].currentKnobPosition;
 			}
 
 			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, !defaultEditingMode);
@@ -1114,6 +1134,14 @@ void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* mod
 		// restore the pad press info back to the previous held pad state
 		if (shouldRestorePreviousHoldPress(xDisplay)) {
 			restorePreviousHoldPress(xDisplay);
+		}
+		// if there was a previous held pad for this same FX in another column and you pressed a pad
+		// for that same FX in another column but didn't set that pad to held, then when we let go of this pad,
+		// we want to restore the pad press info back to the previous held pad state
+		else if ((firstPadPress.xDisplay != kNoSelection) && shouldRestorePreviousHoldPress(firstPadPress.xDisplay)) {
+			initFXPress(fxPress[xDisplay]);
+			restorePreviousHoldPress(firstPadPress.xDisplay);
+			firstPadPress.xDisplay = kNoSelection;
 		}
 		// otherwise there isn't anymore active presses in this FX column, so we'll
 		// initialize all press info
@@ -1255,6 +1283,7 @@ bool PerformanceSessionView::anyChangesToLog() {
 /// in param editor, it will clear existing param mappings
 /// in regular performance view or value editor, it will clear held pads and reset param values to pre-held state
 void PerformanceSessionView::resetPerformanceView(ModelStackWithThreeMainThings* modelStack) {
+	resetPadPressInfo();
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		if (editingParam) {
 			initLayout(layoutForPerformance[xDisplay]);
@@ -1287,6 +1316,18 @@ void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelS
 		}
 	}
 	updateLayoutChangeStatus();
+}
+
+/// reset press info and stutter when exiting performance view
+void PerformanceSessionView::releaseViewOnExit(ModelStackWithThreeMainThings* modelStack) {
+	resetPadPressInfo();
+	releaseStutter(modelStack);
+}
+
+/// initialize pad press info structs
+void PerformanceSessionView::resetPadPressInfo() {
+	initPadPress(firstPadPress);
+	initPadPress(lastPadPress);
 }
 
 /// check if stutter is active and release it if it is
