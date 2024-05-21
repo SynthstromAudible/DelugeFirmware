@@ -349,6 +349,30 @@ void PerformanceSessionView::renderRow(RGB* image, int32_t yDisplay) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		RGB& pixel = image[xDisplay];
 
+		// if an FX column has not been assigned a param, erase pad
+		if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
+			pixel = colours::black;
+		}
+		else {
+			// if you're currently pressing an FX column, highlight it a bright colour
+			if ((fxPress[xDisplay].currentKnobPosition != kNoSelection) && (fxPress[xDisplay].padPressHeld == false)) {
+				pixel = layoutForPerformance[xDisplay].rowColour;
+			}
+			// if you're not currently pressing an FX column, highlight it a dimmer colour
+			else {
+				pixel = layoutForPerformance[xDisplay].rowTailColour;
+			}
+
+			// if you're currently pressing an FX column, highlight the pad you're pressing white
+			if ((fxPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
+			    && (fxPress[xDisplay].yDisplay == yDisplay)) {
+				pixel = {
+				    .r = 130,
+				    .g = 120,
+				    .b = 130,
+				};
+			}
+		}
 		if (editingParam) {
 			// if you're in param editing mode, highlight shortcuts for performance view params
 			// if param has been assigned to an FX column, highlight it white, otherwise highlight it grey
@@ -370,35 +394,7 @@ void PerformanceSessionView::renderRow(RGB* image, int32_t yDisplay) {
 			if (firstPadPress.isActive) {
 				if ((layoutForPerformance[xDisplay].paramKind == firstPadPress.paramKind)
 				    && (layoutForPerformance[xDisplay].paramID == firstPadPress.paramID)) {
-					pixel = layoutForPerformance[xDisplay].rowTailColour;
-				}
-			}
-		}
-		else {
-			// elsewhere in performance view, if an FX column has not been assigned a param,
-			// highlight the column grey
-			if (layoutForPerformance[xDisplay].paramID == kNoSelection) {
-				pixel = colours::grey;
-			}
-			else {
-				// if you're currently pressing an FX column, highlight it a bright colour
-				if ((fxPress[xDisplay].currentKnobPosition != kNoSelection)
-				    && (fxPress[xDisplay].padPressHeld == false)) {
 					pixel = layoutForPerformance[xDisplay].rowColour;
-				}
-				// if you're not currently pressing an FX column, highlight it a dimmer colour
-				else {
-					pixel = layoutForPerformance[xDisplay].rowTailColour;
-				}
-
-				// if you're currently pressing an FX column, highlight the pad you're pressing white
-				if ((fxPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
-				    && (fxPress[xDisplay].yDisplay == yDisplay)) {
-					pixel = {
-					    .r = 130,
-					    .g = 120,
-					    .b = 130,
-					};
 				}
 			}
 		}
