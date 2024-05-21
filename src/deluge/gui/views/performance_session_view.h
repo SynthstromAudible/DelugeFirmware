@@ -152,6 +152,8 @@ private:
 	void padReleaseAction(ModelStackWithThreeMainThings* modelStack, deluge::modulation::params::Kind paramKind,
 	                      int32_t paramID, int32_t xDisplay, bool renderDisplay = true);
 	void resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay);
+	void releaseViewOnExit(ModelStackWithThreeMainThings* modelStack);
+	void resetPadPressInfo();
 	void releaseStutter(ModelStackWithThreeMainThings* modelStack);
 
 	/// write/load default values

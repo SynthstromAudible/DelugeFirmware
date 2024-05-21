@@ -61,12 +61,15 @@ public:
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 		}
 
-		if (performanceSessionView.defaultEditingMode && !performanceSessionView.editingParam) {
+		if (!performanceSessionView.editingParam) {
+			// reset performance view when you switch modes
+			// but not when in param editing mode cause that would reset param assignments to FX columns
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStack =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 			performanceSessionView.resetPerformanceView(modelStack);
 		}
+
 		uiNeedsRendering(&performanceSessionView, 0xFFFFFFFF, 0); // refresh main pads only);
 	}
 	deluge::vector<std::string_view> getOptions() override {
