@@ -638,7 +638,7 @@ void readSettings() {
 		defaultSliceMode = static_cast<SampleRepeatMode>(buffer[167]);
 	}
 
-	if (buffer[169] != false && buffer[169] != true) {
+	if (buffer[169] != 0 && buffer[169] != 1) {
 		highCPUUsageIndicator = false;
 	}
 	else {
