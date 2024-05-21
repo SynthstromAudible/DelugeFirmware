@@ -2623,27 +2623,29 @@ void Sound::confirmNumVoices(char const* error) {
 }
 
 uint32_t Sound::getGlobalLFOPhaseIncrement() {
-	uint32_t phaseIncrement;
-	if (lfoConfig[LFO1_ID].syncLevel == SYNC_LEVEL_NONE) {
-		phaseIncrement = paramFinalValues[params::GLOBAL_LFO_FREQ - params::FIRST_GLOBAL];
+	LFOConfig& config = lfoConfig[LFO1_ID];
+	if (config.syncLevel == SYNC_LEVEL_NONE) {
+		return paramFinalValues[params::GLOBAL_LFO_FREQ - params::FIRST_GLOBAL];
 	}
 	else {
-		phaseIncrement =
-		    (playbackHandler.getTimePerInternalTickInverse()) >> (SYNC_LEVEL_256TH - lfoConfig[LFO1_ID].syncLevel);
-		switch (lfoConfig[LFO1_ID].syncType) {
-		case SYNC_TYPE_EVEN:
-			// Nothing to do
-			break;
-		case SYNC_TYPE_TRIPLET:
-			phaseIncrement = phaseIncrement * 3 / 2;
-			break;
-		case SYNC_TYPE_DOTTED:
-			phaseIncrement = phaseIncrement * 2 / 3;
-			break;
-		}
+		return getSyncedLFOPhaseIncrement(config);
 	}
-	// Uart::print("LFO phaseIncrement: ");
-	// Uart::println(phaseIncrement);
+}
+
+uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
+	uint32_t phaseIncrement =
+	    (playbackHandler.getTimePerInternalTickInverse()) >> (SYNC_LEVEL_256TH - config.syncLevel);
+	switch (config.syncType) {
+	case SYNC_TYPE_EVEN:
+		// Nothing to do
+		break;
+	case SYNC_TYPE_TRIPLET:
+		phaseIncrement = phaseIncrement * 3 / 2;
+		break;
+	case SYNC_TYPE_DOTTED:
+		phaseIncrement = phaseIncrement * 2 / 3;
+		break;
+	}
 	return phaseIncrement;
 }
 

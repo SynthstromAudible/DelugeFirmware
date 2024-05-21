@@ -691,28 +691,13 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 }
 
 uint32_t Voice::getLocalLFOPhaseIncrement() {
-	uint32_t phaseIncrement;
-	if (assignedToSound->lfoConfig[LFO2_ID].syncLevel == SYNC_LEVEL_NONE) {
-		phaseIncrement = paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ];
+	LFOConfig& config = assignedToSound->lfoConfig[LFO2_ID];
+	if (config.syncLevel == SYNC_LEVEL_NONE) {
+		return paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ];
 	}
 	else {
-		phaseIncrement = (playbackHandler.getTimePerInternalTickInverse())
-		                 >> (SYNC_LEVEL_256TH - assignedToSound->lfoConfig[LFO2_ID].syncLevel);
-		switch (assignedToSound->lfoConfig[LFO2_ID].syncType) {
-		case SYNC_TYPE_EVEN:
-			// Nothing to do
-			break;
-		case SYNC_TYPE_TRIPLET:
-			phaseIncrement = phaseIncrement * 3 / 2;
-			break;
-		case SYNC_TYPE_DOTTED:
-			phaseIncrement = phaseIncrement * 2 / 3;
-			break;
-		}
+		return assignedToSound->getSyncedLFOPhaseIncrement(config);
 	}
-	// Uart::print("LFO phaseIncrement: ");
-	// Uart::println(phaseIncrement);
-	return phaseIncrement;
 }
 
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
