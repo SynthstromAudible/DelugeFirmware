@@ -2429,9 +2429,11 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 		output->renderOutput(modelStack, outputBuffer, outputBuffer + numSamples, numSamples, reverbBuffer,
 		                     volumePostFX >> 1, sideChainHitPending, !isClipActiveNow, isClipActiveNow);
+#if DO_AUDIO_LOG
 		char buf[64];
 		snprintf(buf, sizeof(buf), "complete: %s", output->name.get());
 		AudioEngine::logAction(buf);
+#endif
 	}
 
 	// If recording the "MIX", this is the place where we want to grab it - before any master FX or volume applied
