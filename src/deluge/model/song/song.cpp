@@ -2520,7 +2520,7 @@ bool Song::hasAnySwing() {
 	return (swingAmount != 0);
 }
 
-void Song::resyncLFOsAndArpeggiators() {
+void Song::resyncLFOs() {
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->activeClip) {

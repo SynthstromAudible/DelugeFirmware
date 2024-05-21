@@ -155,9 +155,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	// Setup and render local LFO
-	// XXX: Should this match the resync logic for global LFO? If not, why not?
-	lfo.phase = getLFOInitialPhaseForNegativeExtreme(sound->localLFOConfig.waveType);
-	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->localLFOConfig.waveType, 0);
+	lfo.setInitialPhase(sound->localLFOConfig);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->localLFOConfig, 0);
 
 	// Setup some sources which won't change for the duration of this note
 	sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -765,7 +764,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
 		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
 		    // XXX: Seems suspect to recompute the increment every time we render?
-		    lfo.render(numSamples, sound->localLFOConfig.waveType, getLocalLFOPhaseIncrement());
+		    lfo.render(numSamples, sound->localLFOConfig, getLocalLFOPhaseIncrement());
 		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
 	}

@@ -614,8 +614,8 @@ void PlaybackHandler::actionTimerTickPart2() {
 	// If not in count-in...
 	if (!ticksLeftInCountIn) {
 
-		// Resync LFOs and arpeggiators
-		currentSong->resyncLFOsAndArpeggiators();
+		// Resync LFOs
+		currentSong->resyncLFOs();
 
 		// Trigger clock output ticks
 		if (cvEngine.isTriggerClockOutputEnabled()) {

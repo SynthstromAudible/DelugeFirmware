@@ -117,9 +117,6 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	postReverbVolumeLastTime = -1; // Special state to make it grab the actual value the first time it's rendered
 
 	// LFO
-	globalLFOConfig.init();
-	localLFOConfig.init();
-
 	modKnobs[0][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
 	modKnobs[0][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_PAN);
 
@@ -2203,7 +2200,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
 		// XXX: Seems suspect to recompute phase increment every time we render?
 		globalSourceValues[patchSourceLFOGlobalUnderlying] =
-		    globalLFO.render(numSamples, globalLFOConfig.waveType, getGlobalLFOPhaseIncrement());
+		    globalLFO.render(numSamples, globalLFOConfig, getGlobalLFOPhaseIncrement());
 		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
@@ -2669,12 +2666,7 @@ void Sound::resyncGlobalLFO() {
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		if (globalLFOConfig.waveType == LFOType::SINE || globalLFOConfig.waveType == LFOType::TRIANGLE) {
-			globalLFO.phase = getLFOInitialPhaseForZero(globalLFOConfig.waveType);
-		}
-		else {
-			globalLFO.phase = getLFOInitialPhaseForNegativeExtreme(globalLFOConfig.waveType);
-		}
+		globalLFO.setInitialPhase(globalLFOConfig);
 
 		uint32_t timeSinceLastTick;
 

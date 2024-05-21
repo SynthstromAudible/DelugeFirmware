@@ -20,19 +20,11 @@
 #include "definitions_cxx.hpp"
 #include "util/waves.h"
 
-uint32_t getLFOInitialPhaseForNegativeExtreme(LFOType waveType);
-uint32_t getLFOInitialPhaseForZero(LFOType waveType);
-
 class LFOConfig {
 public:
-	LFOConfig() { init(); }
-	void init() {
-		// This may be set without calling the setter function, because we're setting it to 0
-		// FIXME: Setter functions are still in Sound.
-		waveType = LFOType::TRIANGLE;
-		syncType = SYNC_TYPE_EVEN;
-		syncLevel = SYNC_LEVEL_NONE;
-	}
+	LFOConfig() : waveType(LFOType::TRIANGLE), syncType(SYNC_TYPE_EVEN), syncLevel(SYNC_LEVEL_NONE) {}
+	LFOConfig(LFOType type, SyncLevel level) : waveType(type), syncType(SYNC_TYPE_EVEN), syncLevel(level) {}
+	// FIXME: Setter functions in sound: should they be here with a resync callback?
 	LFOType waveType;
 	SyncType syncType;
 	SyncLevel syncLevel;
@@ -43,9 +35,10 @@ public:
 	LFO() = default;
 	uint32_t phase;
 	int32_t holdValue;
-	[[gnu::always_inline]] int32_t render(int32_t numSamples, LFOType waveType, uint32_t phaseIncrement) {
+	void setInitialPhase(const LFOConfig& config);
+	[[gnu::always_inline]] int32_t render(int32_t numSamples, LFOConfig& conf, uint32_t phaseIncrement) {
 		int32_t value;
-		switch (waveType) {
+		switch (conf.waveType) {
 		case LFOType::SAW:
 			value = phase;
 			break;
