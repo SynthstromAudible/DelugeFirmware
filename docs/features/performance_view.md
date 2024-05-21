@@ -73,7 +73,7 @@ Param Editing Mode:
 - Press on a shortcut pad to illuminate the FX columns that that parameter has been assigned to.
 - While holding a shortcut pad, press on the FX columns to assign or unassign a parameter to/from a column.
 - Press `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` to clear all existing Parameter assignments.
-- When a Parameter has not been assigned to a column, that column will be lit grey and be unusable in Performance View until you assign a Parameter. This applies to editing the values for that FX column as well (assign a Parameter first, then you can edit the values).
+- When a Parameter has not been assigned to a column, that column will not be lit and will be unusable in Performance View until you assign a Parameter. This applies to editing the values for that FX column as well (assign a Parameter first, then you can edit the values).
 - Parameters are saved to PerformanceView.xml. You can manually edit the Parameters in the xml as well, but you must use the exact Parameter names. It is recommended to save a fresh PerformanceView.xml and back it up so you have a record of the Parameter Names.
 
 #### 7) You can Undo/Redo your changes in Performance View
