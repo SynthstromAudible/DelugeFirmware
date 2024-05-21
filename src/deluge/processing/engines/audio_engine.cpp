@@ -270,7 +270,6 @@ void songSwapAboutToHappen() {
 
 enum CullType { HARD, FORCE, SOFT_ALWAYS, SOFT };
 
-#define DO_AUDIO_LOG 0 // For advanced debugging printouts.
 #define AUDIO_LOG_SIZE 64
 bool definitelyLog = false;
 #if DO_AUDIO_LOG
@@ -327,7 +326,9 @@ Voice* cullVoice(bool saveVoice, CullType type, size_t numSamples, Sound* stopFr
 #if ALPHA_OR_BETA_VERSION
 				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
 				          getNumVoices(), getNumAudio());
+#if DO_AUDIO_LOG
 				dumpAudioLog();
+#endif
 #endif
 			}
 			break;
@@ -921,7 +922,9 @@ startAgain:
 		enableTimer(TIMER_MIDI_GATE_OUTPUT);
 	}
 
+#if DO_AUDIO_LOG
 	dumpAudioLog();
+#endif
 
 	sideChainHitPending = 0;
 	audioSampleTimer += numSamples;
