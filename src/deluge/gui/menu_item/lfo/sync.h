@@ -20,22 +20,28 @@
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::lfo::local {
+namespace deluge::gui::menu_item::lfo {
 
 class Sync final : public SyncLevel {
 public:
-	using SyncLevel::SyncLevel;
+	Sync(uint8_t lfoId, deluge::l10n::String name, deluge::l10n::String type) : SyncLevel(name, type), lfoID(lfoId) {}
 
 	void readCurrentValue() {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->localLFOConfig.syncType,
-		                                            soundEditor.currentSound->localLFOConfig.syncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoConfig[lfoID].syncType,
+		                                            soundEditor.currentSound->lfoConfig[lfoID].syncLevel));
 	}
 	void writeCurrentValue() {
-		soundEditor.currentSound->localLFOConfig.syncType = menuOptionToSyncType(this->getValue());
-		soundEditor.currentSound->localLFOConfig.syncLevel = menuOptionToSyncLevel(this->getValue());
-		// XXX: Do we need this call for the local LFO?
+		soundEditor.currentSound->lfoConfig[lfoID].syncType = menuOptionToSyncType(this->getValue());
+		soundEditor.currentSound->lfoConfig[lfoID].syncLevel, menuOptionToSyncLevel(this->getValue());
+		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
+		// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
+		// would be enough?
+		soundEditor.currentSound->resyncGlobalLFO();
 		soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 	}
+
+private:
+	uint8_t lfoID;
 };
 
-} // namespace deluge::gui::menu_item::lfo::local
+} // namespace deluge::gui::menu_item::lfo

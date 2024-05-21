@@ -18,14 +18,18 @@
 #include "gui/menu_item/patched_param/integer.h"
 #include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::lfo::local {
+namespace deluge::gui::menu_item::lfo {
 class Rate final : public patched_param::Integer {
 public:
-	using Integer::Integer;
+	Rate(uint8_t lfoId, deluge::l10n::String name, deluge::l10n::String type, int32_t newP = 0)
+	    : Integer(name, type, newP), lfoID(lfoId) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (sound->localLFOConfig.syncLevel == 0);
+		return (sound->lfoConfig[lfoID].syncLevel == 0);
 	}
+
+private:
+	uint8_t lfoID;
 };
-} // namespace deluge::gui::menu_item::lfo::local
+} // namespace deluge::gui::menu_item::lfo

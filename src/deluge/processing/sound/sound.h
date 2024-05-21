@@ -82,8 +82,7 @@ public:
 	uint32_t sourcesChanged; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
 	LFO globalLFO;
-	LFOConfig globalLFOConfig;
-	LFOConfig localLFOConfig;
+	LFOConfig lfoConfig[LFO_COUNT];
 
 	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
@@ -157,10 +156,7 @@ public:
 
 	PatchCableAcceptance maySourcePatchToParam(PatchSource s, uint8_t p, ParamManager* paramManager);
 
-	void setLFOGlobalSyncType(SyncType newType);
-	void setLFOGlobalSyncLevel(SyncLevel newLevel);
 	void resyncGlobalLFO();
-	void setLFOGlobalWave(LFOType newWave);
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);

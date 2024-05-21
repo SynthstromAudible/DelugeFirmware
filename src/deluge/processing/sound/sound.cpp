@@ -1060,12 +1060,13 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 
 	else if (!strcmp(tagName, "lfo1")) {
 		// Set default values in case they are not configured.
-		// setLFOGlobalSyncLevel will also set type based on value. XXX: no it doesn't?
-		setLFOGlobalSyncLevel(SYNC_LEVEL_NONE);
+		lfoConfig[LFO1_ID].syncLevel = SYNC_LEVEL_NONE;
+		lfoConfig[LFO1_ID].syncType = SYNC_TYPE_EVEN;
+		lfoConfig[LFO1_ID].waveType = LFOType::TRIANGLE;
 
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
-				setLFOGlobalWave(stringToLFOType(reader.readTagOrAttributeValue()));
+				lfoConfig[LFO1_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
 				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "rate")) {
@@ -1074,12 +1075,12 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				setLFOGlobalSyncType((SyncType)reader.readTagOrAttributeValueInt());
+				lfoConfig[LFO1_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				setLFOGlobalSyncLevel(
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt()));
+				lfoConfig[LFO1_ID].syncLevel =
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
 				reader.exitTag("syncLevel");
 			}
 			else {
@@ -1087,12 +1088,18 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 		}
 		reader.exitTag("lfo1");
+		resyncGlobalLFO();
 	}
 
 	else if (!strcmp(tagName, "lfo2")) {
+		// Set default values in case they are not configured.
+		lfoConfig[LFO2_ID].syncLevel = SYNC_LEVEL_NONE;
+		lfoConfig[LFO2_ID].syncType = SYNC_TYPE_EVEN;
+		lfoConfig[LFO2_ID].waveType = LFOType::TRIANGLE;
+
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
-				localLFOConfig.waveType = stringToLFOType(reader.readTagOrAttributeValue());
+				lfoConfig[LFO2_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
 				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "rate")) {
@@ -1102,12 +1109,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				// XXX: no setter
-				localLFOConfig.syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				lfoConfig[LFO2_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
 				reader.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				localLFOConfig.syncLevel =
+				lfoConfig[LFO2_ID].syncLevel =
 				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
 				reader.exitTag("syncLevel");
 			}
@@ -1116,6 +1122,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 		}
 		reader.exitTag("lfo2");
+		// No resync for LFO2
 	}
 
 	else if (!strcmp(tagName, "sideChainSend")) {
@@ -1476,8 +1483,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           : PatchCableAcceptance::EDITABLE;
 
 	case params::GLOBAL_LFO_FREQ:
-		return (globalLFOConfig.syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
-		                                                      : PatchCableAcceptance::DISALLOWED;
+		return (lfoConfig[LFO1_ID].syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                                         : PatchCableAcceptance::DISALLOWED;
 
 		// Nothing may patch to post-fx volume. This is for manual control only. The sidechain patches to post-reverb
 		// volume, and everything else patches to per-voice, "local" volume
@@ -2200,7 +2207,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
 		// XXX: Seems suspect to recompute phase increment every time we render?
 		globalSourceValues[patchSourceLFOGlobalUnderlying] =
-		    globalLFO.render(numSamples, globalLFOConfig, getGlobalLFOPhaseIncrement());
+		    globalLFO.render(numSamples, lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement());
 		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
@@ -2617,13 +2624,13 @@ void Sound::confirmNumVoices(char const* error) {
 
 uint32_t Sound::getGlobalLFOPhaseIncrement() {
 	uint32_t phaseIncrement;
-	if (globalLFOConfig.syncLevel == SYNC_LEVEL_NONE) {
+	if (lfoConfig[LFO1_ID].syncLevel == SYNC_LEVEL_NONE) {
 		phaseIncrement = paramFinalValues[params::GLOBAL_LFO_FREQ - params::FIRST_GLOBAL];
 	}
 	else {
 		phaseIncrement =
-		    (playbackHandler.getTimePerInternalTickInverse()) >> (SYNC_LEVEL_256TH - globalLFOConfig.syncLevel);
-		switch (globalLFOConfig.syncType) {
+		    (playbackHandler.getTimePerInternalTickInverse()) >> (SYNC_LEVEL_256TH - lfoConfig[LFO1_ID].syncLevel);
+		switch (lfoConfig[LFO1_ID].syncType) {
 		case SYNC_TYPE_EVEN:
 			// Nothing to do
 			break;
@@ -2640,33 +2647,18 @@ uint32_t Sound::getGlobalLFOPhaseIncrement() {
 	return phaseIncrement;
 }
 
-void Sound::setLFOGlobalSyncType(SyncType newType) {
-	globalLFOConfig.syncType = newType;
-	resyncGlobalLFO();
-}
-
-void Sound::setLFOGlobalSyncLevel(SyncLevel newLevel) {
-	globalLFOConfig.syncLevel = newLevel;
-	resyncGlobalLFO();
-}
-
-void Sound::setLFOGlobalWave(LFOType newWave) {
-	globalLFOConfig.waveType = newWave;
-	resyncGlobalLFO();
-}
-
 void Sound::resyncGlobalLFO() {
 	if (!playbackHandler.isEitherClockActive()) {
 		return;
 	}
 
-	if (globalLFOConfig.syncLevel != 0) {
+	if (lfoConfig[LFO1_ID].syncLevel != 0) {
 
 		timeStartedSkippingRenderingLFO =
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO.setInitialPhase(globalLFOConfig);
+		globalLFO.setInitialPhase(lfoConfig[LFO1_ID]);
 
 		uint32_t timeSinceLastTick;
 
@@ -2677,8 +2669,8 @@ void Sound::resyncGlobalLFO() {
 			return;
 		}
 
-		uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - globalLFOConfig.syncLevel);
-		switch (globalLFOConfig.syncType) {
+		uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - lfoConfig[LFO1_ID].syncLevel);
+		switch (lfoConfig[LFO1_ID].syncType) {
 		case SYNC_TYPE_EVEN:
 			// Nothing to do
 			break;
@@ -4010,17 +4002,17 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	// LFOs
 	writer.writeOpeningTagBeginning("lfo1");
-	writer.writeAttribute("type", lfoTypeToString(globalLFOConfig.waveType), false);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", globalLFOConfig.syncLevel, false);
+	writer.writeAttribute("type", lfoTypeToString(lfoConfig[LFO1_ID].waveType), false);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoConfig[LFO1_ID].syncLevel, false);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", globalLFOConfig.syncType, false);
+	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO1_ID].syncType, false);
 	writer.closeTag();
 
 	writer.writeOpeningTagBeginning("lfo2");
-	writer.writeAttribute("type", lfoTypeToString(localLFOConfig.waveType), false);
+	writer.writeAttribute("type", lfoTypeToString(lfoConfig[LFO2_ID].waveType), false);
 	// Community Firmware parameters
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", localLFOConfig.syncLevel, false);
-	writer.writeSyncTypeToFile(currentSong, "syncType", localLFOConfig.syncType, false);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoConfig[LFO2_ID].syncLevel, false);
+	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO2_ID].syncType, false);
 	writer.closeTag();
 
 	if (synthMode == SynthMode::FM) {

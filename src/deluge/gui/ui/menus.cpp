@@ -65,12 +65,9 @@
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "gui/menu_item/keyboard/layout.h"
-#include "gui/menu_item/lfo/global/rate.h"
-#include "gui/menu_item/lfo/global/sync.h"
-#include "gui/menu_item/lfo/global/type.h"
-#include "gui/menu_item/lfo/local/rate.h"
-#include "gui/menu_item/lfo/local/sync.h"
-#include "gui/menu_item/lfo/local/type.h"
+#include "gui/menu_item/lfo/rate.h"
+#include "gui/menu_item/lfo/sync.h"
+#include "gui/menu_item/lfo/type.h"
 #include "gui/menu_item/master_transpose.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/midi/after_touch_to_mono.h"
@@ -281,16 +278,16 @@ osc::RetriggerPhase modulatorPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_FM
 
 // LFO1 menu ---------------------------------------------------------------------------------
 
-lfo::global::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE};
-lfo::global::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ};
-lfo::global::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC};
+lfo::Type lfo1TypeMenu{LFO1_ID, STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE};
+lfo::Rate lfo1RateMenu{LFO1_ID, STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ};
+lfo::Sync lfo1SyncMenu{LFO1_ID, STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC};
 
 Submenu lfo0Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu}};
 
 // LFO2 menu ---------------------------------------------------------------------------------
-lfo::local::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE};
-lfo::local::Rate lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ};
-lfo::local::Sync lfo2SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO2_SYNC};
+lfo::Type lfo2TypeMenu{LFO2_ID, STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE};
+lfo::Rate lfo2RateMenu{LFO2_ID, STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ};
+lfo::Sync lfo2SyncMenu{LFO2_ID, STRING_FOR_SYNC, STRING_FOR_LFO2_SYNC};
 
 Submenu lfo1Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2RateMenu, &lfo2SyncMenu}};
 

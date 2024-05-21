@@ -365,6 +365,11 @@ constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
 constexpr int32_t kNumOscTypes = util::to_underlying(OscType::INPUT_STEREO) + 1;
 
+// FIXME: replace with an enum class.
+#define LFO1_ID 0
+#define LFO2_ID 1
+#define LFO_COUNT 2
+
 enum class LFOType : uint8_t {
 	SINE,
 	TRIANGLE,

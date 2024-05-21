@@ -20,14 +20,22 @@
 #include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::lfo::global {
+namespace deluge::gui::menu_item::lfo {
 
 class Type final : public Shape {
 public:
-	using Shape::Shape;
+	Type(uint8_t lfoId, deluge::l10n::String name, deluge::l10n::String type) : Shape(name, type), lfoID(lfoId) {}
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoID].waveType); }
+	void writeCurrentValue() override {
+		soundEditor.currentSound->lfoConfig[lfoID].waveType = this->getValue<LFOType>();
+		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
+		// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
+		// would be enough?
+		soundEditor.currentSound->resyncGlobalLFO();
+	}
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->globalLFOConfig.waveType); }
-	void writeCurrentValue() override { soundEditor.currentSound->setLFOGlobalWave(this->getValue<LFOType>()); }
+private:
+	uint8_t lfoID;
 };
 
-} // namespace deluge::gui::menu_item::lfo::global
+} // namespace deluge::gui::menu_item::lfo
