@@ -2419,6 +2419,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
+	AudioEngine::logAction("Start output render");
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (!output->inValidState) {
 			continue;
@@ -2426,10 +2427,11 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 		bool isClipActiveNow = (output->activeClip && isClipActive(output->activeClip->getClipBeingRecordedFrom()));
 
-		// AudioEngine::logAction("outp->render");
 		output->renderOutput(modelStack, outputBuffer, outputBuffer + numSamples, numSamples, reverbBuffer,
 		                     volumePostFX >> 1, sideChainHitPending, !isClipActiveNow, isClipActiveNow);
-		// AudioEngine::logAction("/outp->render");
+		char buf[64];
+		snprintf(buf, sizeof(buf), "complete: %s", output->name.get());
+		AudioEngine::logAction(buf);
 	}
 
 	// If recording the "MIX", this is the place where we want to grab it - before any master FX or volume applied

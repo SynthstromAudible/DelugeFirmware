@@ -270,6 +270,16 @@ void songSwapAboutToHappen() {
 
 enum CullType { HARD, FORCE, SOFT_ALWAYS, SOFT };
 
+#define DO_AUDIO_LOG 0 // For advanced debugging printouts.
+#define AUDIO_LOG_SIZE 64
+bool definitelyLog = false;
+#if DO_AUDIO_LOG
+
+uint16_t audioLogTimes[AUDIO_LOG_SIZE];
+char audioLogStrings[AUDIO_LOG_SIZE][64];
+int32_t numAudioLogItems = 0;
+#endif
+
 // To be called when CPU is overloaded and we need to free it up. This stops the voice which has been
 // releasing longest, or if none, the voice playing longest.
 Voice* cullVoice(bool saveVoice, CullType type, size_t numSamples, Sound* stopFrom) {
@@ -317,6 +327,7 @@ Voice* cullVoice(bool saveVoice, CullType type, size_t numSamples, Sound* stopFr
 #if ALPHA_OR_BETA_VERSION
 				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
 				          getNumVoices(), getNumAudio());
+				dumpAudioLog();
 #endif
 			}
 			break;
@@ -367,16 +378,6 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 		routine(); // -----------------------------------
 	}
 }
-
-#define DO_AUDIO_LOG 0 // For advanced debugging printouts.
-#define AUDIO_LOG_SIZE 64
-bool definitelyLog = false;
-#if DO_AUDIO_LOG
-
-uint16_t audioLogTimes[AUDIO_LOG_SIZE];
-char audioLogStrings[AUDIO_LOG_SIZE][64];
-int32_t numAudioLogItems = 0;
-#endif
 
 #define TICK_TYPE_SWUNG 1
 #define TICK_TYPE_TIMER 2
@@ -766,6 +767,7 @@ startAgain:
 		// Mix reverb into main render
 		reverb.setPanLevels(reverbAmplitudeL, reverbAmplitudeR);
 		reverb.process(reverb_buffer_slice, render_buffer_slice);
+		logAction("Reverb complete");
 	}
 
 	// Previewing sample
@@ -919,25 +921,7 @@ startAgain:
 		enableTimer(TIMER_MIDI_GATE_OUTPUT);
 	}
 
-#if DO_AUDIO_LOG
-	uint16_t currentTime = *TCNT[TIMER_SYSTEM_FAST];
-	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
-	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
-	if (definitelyLog || timePassedUSA > (storageManager.devVarA * 10)) {
-
-		D_PRINTLN("");
-		for (int32_t i = 0; i < numAudioLogItems; i++) {
-			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
-			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
-			D_PRINTLN("%d:  %s", timePassedUS, audioLogStrings[i]);
-		}
-
-		D_PRINTLN("%d: end", timePassedUSA);
-	}
-	definitelyLog = false;
-	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
-	numAudioLogItems = 0;
-#endif
+	dumpAudioLog();
 
 	sideChainHitPending = 0;
 	audioSampleTimer += numSamples;
@@ -1154,6 +1138,28 @@ void logAction(int32_t number) {
 	char buffer[12];
 	intToString(number, buffer);
 	logAction(buffer);
+#endif
+}
+
+void dumpAudioLog() {
+#if DO_AUDIO_LOG
+	uint16_t currentTime = *TCNT[TIMER_SYSTEM_FAST];
+	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
+	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
+	if (definitelyLog || timePassedUSA > (storageManager.devVarA * 10)) {
+
+		D_PRINTLN("");
+		for (int32_t i = 0; i < numAudioLogItems; i++) {
+			uint16_t timePassed = (uint16_t)audioLogTimes[i] - lastRoutineTime;
+			uint32_t timePassedUS = fastTimerCountToUS(timePassed);
+			D_PRINTLN("%d:  %s", timePassedUS, audioLogStrings[i]);
+		}
+
+		D_PRINTLN("%d: end", timePassedUSA);
+	}
+	definitelyLog = false;
+	lastRoutineTime = *TCNT[TIMER_SYSTEM_FAST];
+	numAudioLogItems = 0;
 #endif
 }
 
