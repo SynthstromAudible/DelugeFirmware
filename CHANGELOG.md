@@ -15,6 +15,7 @@
   via affect entire in song/arranger mode, or by entering the `SONG MENU` by pressing `SELECT` in Song View and navigating to  `MASTER > VOLUME`
 - Fixed Stereo Unison Spread + Ringmod Synth Mode + Noise causing excessively loud output.
 - Fixed some bugs around the Waveform Loop Lock feature which allowed setting invalid loop points.
+- Fixed a bug in triangle LFO that could cause audible artefacts with some modulation targets, particularly when synced.
 
 ### User Interface
 
