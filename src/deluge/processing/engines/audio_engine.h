@@ -122,6 +122,9 @@ class Reverb;
  * any that improve overall performance.
  */
 
+/// For advanced debugging printouts.
+#define DO_AUDIO_LOG 0
+
 namespace AudioEngine {
 void routine();
 void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
