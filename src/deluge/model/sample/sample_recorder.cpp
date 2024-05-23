@@ -1458,6 +1458,7 @@ writeFailed:
 			if (!opened) {
 				return Error::SD_CARD;
 			}
+			this->file = opened.value();
 
 			Error error = truncateFileDownToSize(dataLengthAfterAction + sample->audioDataStartPosBytes);
 			if (error != Error::NONE) {
