@@ -94,13 +94,6 @@ Here is a list of general improvements that have been made, ordered from newest 
     - ([#1053]) For users of Touch OSC, you will find a MIDI Follow template in this
       folder: [MIDI Follow Mode Touch OSC Template]
 
-- ([#865]) `MIDI Loopback` - All notes and CCs from MIDI clips are sent back to Deluge, available to be learned to other
-  clips. The behavior is as if there were a physical loopback cable, connecting Deluge's MIDI out to MIDI in. Turn
-  on/off in Song View Sound Menu. This may be used for things like additive synthesis (one MIDI clip controls several
-  synth instrument clips), generative melodies / polymeter rhythms (two or more MIDI clips of different lengths control
-  the same instrument or kit clip), or macro control of sounds (have CC modulation in a separate MIDI clip that is
-  turned on or off)..
-
 - ([#963]) `MIDI Select Kit Row` - Added new Select Kit Row setting to the MIDI Defaults menu, which can be found
   in `SETTINGS > MIDI > SELECT KIT ROW`. When this setting is enabled, midi notes received for learned kit row's will
   update the kit row selection in the learned kit clip. This also works with midi follow. This is useful because by
