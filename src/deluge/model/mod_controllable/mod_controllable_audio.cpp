@@ -1221,8 +1221,12 @@ doReadPatchedParam:
 						relative = storageManager.readTagOrAttributeValueInt();
 					}
 					else if (!strcmp(tagName, "controlsParam")) {
+						// if the unpatched kind for the current mod controllable is sound then we also want to check
+						// against patched params. Otherwise skip them to avoid a bug from patched volume params having
+						// the same name in files as unpatched global volumes
 						p = params::fileStringToParam(unpatchedParamKind_, storageManager.readTagOrAttributeValue(),
-						                              false);
+						                              unpatchedParamKind_
+						                                  == deluge::modulation::params::Kind::UNPATCHED_SOUND);
 					}
 					else if (!strcmp(tagName, "patchAmountFromSource")) {
 						s = stringToSource(storageManager.readTagOrAttributeValue());
