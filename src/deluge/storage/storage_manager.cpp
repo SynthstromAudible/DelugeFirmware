@@ -70,11 +70,6 @@ extern void songLoaded(Song* song);
 // any other data so that invalidation and stuff works
 struct FileSystemStuff fileSystemStuff {};
 
-StorageManager::StorageManager() {
-}
-
-StorageManager::~StorageManager() {
-}
 
 Error StorageManager::checkSpaceOnCard() {
 	D_PRINTLN("free clusters:  %d", fileSystemStuff.fileSystem.free_clst);
@@ -171,7 +166,7 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
                                     bool displayErrors) {
 
 	auto created = createFile(filePath, mayOverwrite);
-	writer.ms = this;
+	writer.reset();
 	if (!created) {
 		if (displayErrors) {
 			display->removeWorkingAnimation();
@@ -283,11 +278,6 @@ void StorageManager::openFilePointer(FilePointer* fp) {
 	fileSystemStuff.currentFile.err = 0;        /* Clear error flag */
 	fileSystemStuff.currentFile.sect = 0;       /* Invalidate current data sector */
 	fileSystemStuff.currentFile.fptr = 0;       /* Set file pointer top of the file */
-
-	XMLSerializer& writer = (XMLSerializer&)smSerializer;
-
-	smDeserializer.fileAccessFailedDuring = false;
-	writer.fileAccessFailedDuringWrite = false;
 }
 
 Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* filePointer) {
@@ -589,13 +579,21 @@ void Serializer::writeFirmwareVersion() {
 	writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
 }
 
-XMLSerializer::XMLSerializer() : fileWriteBufferCurrentPos(0), ms(NULL) {
+XMLSerializer::XMLSerializer() {
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
 	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	reset();
 }
 
 XMLSerializer::~XMLSerializer() {
 	GeneralMemoryAllocator::get().dealloc(writeClusterBuffer);
+}
+
+void XMLSerializer::reset() {
+	fileWriteBufferCurrentPos = 0;
+	fileTotalBytesWritten = 0;
+	fileAccessFailedDuringWrite = false;
+
 }
 
 // TODO: this is really inefficient
@@ -850,15 +848,30 @@ Error XMLSerializer::closeFileAfterWriting(char const* path, char const* beginni
 #define PAST_EQUALS_SIGN 5
 #define IN_ATTRIBUTE_VALUE 6
 
-XMLDeserializer::XMLDeserializer()
-    : xmlArea(BETWEEN_TAGS), xmlReachedEnd(false), tagDepthCaller(0), tagDepthFile(0), xmlReadCount(0), msd(NULL) {
+XMLDeserializer::XMLDeserializer() {
 
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
 	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	reset();
 }
 
 XMLDeserializer::~XMLDeserializer() {
 	GeneralMemoryAllocator::get().dealloc(fileClusterBuffer);
+}
+
+void XMLDeserializer::reset() {
+
+	xmlReadCount = 0;
+	// Prep to read first Cluster shortly
+	fileReadBufferCurrentPos = audioFileManager.clusterSize;
+	currentReadBufferEndPos = audioFileManager.clusterSize;
+
+	firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
+
+	tagDepthFile = 0;
+	tagDepthCaller = 0;
+	xmlReachedEnd = false;
+	xmlArea = BETWEEN_TAGS;
 }
 
 // Only call this if IN_TAG_NAME
@@ -1686,9 +1699,9 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer& rea
                                   char const* altTagName, bool ignoreIncorrectFirmware) {
 
 	AudioEngine::logAction("openXMLFile");
-
+	reader.reset();
 	// Prep to read first Cluster shortly
-	reader.msd = this;
+	openFilePointer(filePointer);
 	Error err = reader.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
 	if (err == Error::NONE)
 		return Error::NONE;
@@ -1702,18 +1715,7 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 
 	AudioEngine::logAction("openXMLFile");
 
-	msd->openFilePointer(filePointer);
-
-	// Prep to read first Cluster shortly
-	fileReadBufferCurrentPos = audioFileManager.clusterSize;
-	currentReadBufferEndPos = audioFileManager.clusterSize;
-
-	firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
-
-	tagDepthFile = 0;
-	tagDepthCaller = 0;
-	xmlReachedEnd = false;
-	xmlArea = BETWEEN_TAGS;
+	reset();
 
 	char const* tagName;
 

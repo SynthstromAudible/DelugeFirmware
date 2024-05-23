@@ -73,6 +73,7 @@ public:
 	virtual Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                                    char const* endString = nullptr) = 0;
 
+	virtual void reset()= 0;
 	void writeFirmwareVersion();
 
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString) {
@@ -105,8 +106,7 @@ public:
 	void writeClosingTag(char const* tag, bool shouldPrintIndents = true) override;
 	void printIndents() override;
 	void write(char const* output) override;
-
-	StorageManager* ms;
+	void reset() override;
 
 	// Private member variables for XML display and parsing:
 public:
@@ -137,6 +137,7 @@ public:
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
 	virtual void exitTag(char const* exitTagName = NULL) = 0;
+	virtual void reset()= 0;
 };
 
 class XMLDeserializer : public Deserializer {
@@ -161,9 +162,7 @@ public:
 
 	Error openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                  bool ignoreIncorrectFirmware = false);
-
-	StorageManager* msd;
-
+	void reset() override;
 public:
 	UINT currentReadBufferEndPos;
 	int32_t fileReadBufferCurrentPos;
@@ -206,8 +205,8 @@ extern XMLDeserializer smDeserializer;
 
 class StorageManager {
 public:
-	StorageManager();
-	virtual ~StorageManager();
+	StorageManager() = default;
+	~StorageManager() = default;
 
 	std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
 	Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false,
@@ -235,11 +234,7 @@ public:
 	void openFilePointer(FilePointer* fp);
 
 	Error checkSpaceOnCard();
-
-	// ** Start of public member variables. These are used outside of StorageManager.
-
 private:
-	// ** End of member variables
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 };
 
