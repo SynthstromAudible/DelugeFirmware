@@ -1279,17 +1279,15 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
 bool* getSongMidiLoopback() {
 	return &(currentSong->midiLoopback);
 }
-
-ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};
+// weird interaction with playback clock, removed from 1.1
+// ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};
 
 // Root menu for Song View
 menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
     {
-        &songMasterMenu,
-        &globalFiltersMenu,
-        &globalFXMenu,
-        &midiLoopbackMenu,
+        &songMasterMenu, &globalFiltersMenu, &globalFXMenu,
+        //&midiLoopbackMenu,
     },
 };
 
