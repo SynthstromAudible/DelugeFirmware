@@ -99,7 +99,7 @@ def sysex_console(midiout, midiin):
             ):
                 target_bytes = unpack_7bit_to_8bit(msg[5:-1])
                 decoded = target_bytes.decode("ascii").replace("\n", "")
-                print(decoded)
+                print(decoded, flush=True)
         else:
             # add a short sleep so the while loop doesn't hammer your cpu
             time.sleep(0.01)
