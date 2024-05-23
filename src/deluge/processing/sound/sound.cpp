@@ -1092,6 +1092,9 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 	}
 
 	else if (!strcmp(tagName, "lfo2")) {
+		// Set default values in case they are not configured.
+		lfoConfig[LFO2_ID].syncLevel = SYNC_LEVEL_NONE;
+		lfoConfig[LFO2_ID].syncType = SYNC_TYPE_EVEN;
 
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
@@ -1103,6 +1106,15 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_LFO_LOCAL_FREQ,
 				                         readAutomationUpToPos);
 				reader.exitTag("rate");
+			}
+			else if (!strcmp(tagName, "syncType")) {
+				lfoConfig[LFO2_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				reader.exitTag("syncType");
+			}
+			else if (!strcmp(tagName, "syncLevel")) {
+				lfoConfig[LFO2_ID].syncLevel =
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
+				reader.exitTag("syncLevel");
 			}
 			else {
 				reader.exitTag(tagName);
@@ -2194,8 +2206,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
 		// TODO: We don't really need to recompute phase increment unless rate, sync, or
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
-		// already cause a resync. Maybe tmepo changes do too? If so, this could be part of
-		// the resync logic.
+		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
+		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
 		globalSourceValues[patchSourceLFOGlobalUnderlying] =
 		    globalLFO.render(numSamples, lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement());
 		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
@@ -2613,27 +2625,29 @@ void Sound::confirmNumVoices(char const* error) {
 }
 
 uint32_t Sound::getGlobalLFOPhaseIncrement() {
-	uint32_t phaseIncrement;
-	if (lfoConfig[LFO1_ID].syncLevel == SYNC_LEVEL_NONE) {
-		phaseIncrement = paramFinalValues[params::GLOBAL_LFO_FREQ - params::FIRST_GLOBAL];
+	LFOConfig& config = lfoConfig[LFO1_ID];
+	if (config.syncLevel == SYNC_LEVEL_NONE) {
+		return paramFinalValues[params::GLOBAL_LFO_FREQ - params::FIRST_GLOBAL];
 	}
 	else {
-		phaseIncrement =
-		    (playbackHandler.getTimePerInternalTickInverse()) >> (SYNC_LEVEL_256TH - lfoConfig[LFO1_ID].syncLevel);
-		switch (lfoConfig[LFO1_ID].syncType) {
-		case SYNC_TYPE_EVEN:
-			// Nothing to do
-			break;
-		case SYNC_TYPE_TRIPLET:
-			phaseIncrement = phaseIncrement * 3 / 2;
-			break;
-		case SYNC_TYPE_DOTTED:
-			phaseIncrement = phaseIncrement * 2 / 3;
-			break;
-		}
+		return getSyncedLFOPhaseIncrement(config);
 	}
-	// Uart::print("LFO phaseIncrement: ");
-	// Uart::println(phaseIncrement);
+}
+
+uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
+	uint32_t phaseIncrement =
+	    (playbackHandler.getTimePerInternalTickInverse()) >> (SYNC_LEVEL_256TH - config.syncLevel);
+	switch (config.syncType) {
+	case SYNC_TYPE_EVEN:
+		// Nothing to do
+		break;
+	case SYNC_TYPE_TRIPLET:
+		phaseIncrement = phaseIncrement * 3 / 2;
+		break;
+	case SYNC_TYPE_DOTTED:
+		phaseIncrement = phaseIncrement * 2 / 3;
+		break;
+	}
 	return phaseIncrement;
 }
 
@@ -4000,6 +4014,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	writer.writeOpeningTagBeginning("lfo2");
 	writer.writeAttribute("type", lfoTypeToString(lfoConfig[LFO2_ID].waveType), false);
+	// Community Firmware parameters
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoConfig[LFO2_ID].syncLevel, false);
+	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO2_ID].syncType, false);
 	writer.closeTag();
 
 	if (synthMode == SynthMode::FM) {

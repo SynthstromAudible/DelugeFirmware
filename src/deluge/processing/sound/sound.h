@@ -267,6 +267,7 @@ public:
 		}
 	}
 	int32_t numVoicesAssigned;
+	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
 private:
 	uint32_t getGlobalLFOPhaseIncrement();
