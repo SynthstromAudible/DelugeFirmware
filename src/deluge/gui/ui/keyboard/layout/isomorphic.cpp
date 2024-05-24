@@ -101,11 +101,11 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 	}
 
 	// Precreate list of all scale notes per octave
-	bool octaveScaleNotes[kModesArraySize] = {0};
+	NoteSet octaveScaleNotes;
 	if (getScaleModeEnabled()) {
 		ModesArray& scaleNotes = getScaleNotes();
 		for (uint8_t idx = 0; idx < getScaleNoteCount(); ++idx) {
-			octaveScaleNotes[scaleNotes[idx]] = true;
+			octaveScaleNotes.add(scaleNotes[idx]);
 		}
 	}
 
@@ -128,7 +128,7 @@ void KeyboardLayoutIsomorphic::renderPads(RGB image[][kDisplayWidth + kSideBarWi
 			}
 
 			// Or, if this note is just within the current scale, show it dim
-			else if (octaveScaleNotes[noteWithinOctave]) {
+			else if (octaveScaleNotes.has(noteWithinOctave)) {
 				image[y][x] = noteColours[normalizedPadOffset].forTail();
 			}
 

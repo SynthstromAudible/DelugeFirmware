@@ -24,6 +24,7 @@
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "model/instrument/instrument.h"
 #include "model/output.h"
+#include "model/scale/note_set.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
@@ -88,7 +89,7 @@ public:
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
 	void addModeNote(uint8_t modeNote);
-	void addMajorDependentModeNotes(uint8_t i, bool preferHigher, bool notesWithinOctavePresent[]);
+	void addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& notesWithinOctavePresent);
 	bool yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave);
 	uint8_t getYNoteWithinOctaveFromYNote(int32_t yNote);
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
