@@ -24,7 +24,7 @@ namespace deluge::gui::menu_item::lfo {
 
 class Type final : public Shape {
 public:
-	Type(uint8_t lfoId, deluge::l10n::String name, deluge::l10n::String type) : Shape(name, type), lfoId_(lfoId) {}
+	Type(deluge::l10n::String name, deluge::l10n::String type, uint8_t lfoId) : Shape(name, type), lfoId_(lfoId) {}
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType); }
 	void writeCurrentValue() override {
 		soundEditor.currentSound->lfoConfig[lfoId_].waveType = this->getValue<LFOType>();

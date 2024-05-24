@@ -21,7 +21,7 @@
 namespace deluge::gui::menu_item::lfo {
 class Rate final : public patched_param::Integer {
 public:
-	Rate(uint8_t lfoId, deluge::l10n::String name, deluge::l10n::String type, int32_t newP = 0)
+	Rate(deluge::l10n::String name, deluge::l10n::String type, int32_t newP, uint8_t lfoId)
 	    : Integer(name, type, newP), lfoId_(lfoId) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

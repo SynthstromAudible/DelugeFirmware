@@ -24,7 +24,7 @@ namespace deluge::gui::menu_item::lfo {
 
 class Sync final : public SyncLevel {
 public:
-	Sync(uint8_t lfoId, deluge::l10n::String name, deluge::l10n::String type) : SyncLevel(name, type), lfoId_(lfoId) {}
+	Sync(deluge::l10n::String name, deluge::l10n::String type, uint8_t lfoId) : SyncLevel(name, type), lfoId_(lfoId) {}
 
 	void readCurrentValue() {
 		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoConfig[lfoId_].syncType,

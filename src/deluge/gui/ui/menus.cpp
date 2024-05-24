@@ -278,15 +278,15 @@ osc::RetriggerPhase modulatorPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_FM
 
 // LFO1 menu ---------------------------------------------------------------------------------
 
-lfo::Type lfo1TypeMenu{LFO1_ID, STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE};
-lfo::Rate lfo1RateMenu{LFO1_ID, STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ};
-lfo::Sync lfo1SyncMenu{LFO1_ID, STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC};
+lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE, LFO1_ID};
+lfo::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ, LFO1_ID};
+lfo::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC, LFO1_ID};
 
 Submenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu}};
 
 // LFO2 menu ---------------------------------------------------------------------------------
-lfo::Type lfo2TypeMenu{LFO2_ID, STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE};
-lfo::Rate lfo2RateMenu{LFO2_ID, STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ};
+lfo::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE, LFO2_ID};
+lfo::Rate lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ, LFO2_ID};
 
 Submenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2RateMenu}};
 
