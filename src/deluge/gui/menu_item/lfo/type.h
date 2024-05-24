@@ -15,17 +15,27 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/patched_param/integer.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/lfo/shape.h"
+#include "gui/ui/sound_editor.h"
 #include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::lfo::global {
-class Rate final : public patched_param::Integer {
-public:
-	using Integer::Integer;
+namespace deluge::gui::menu_item::lfo {
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		return (sound->lfoGlobalSyncLevel == 0);
+class Type final : public Shape {
+public:
+	Type(deluge::l10n::String name, deluge::l10n::String type, uint8_t lfoId) : Shape(name, type), lfoId_(lfoId) {}
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType); }
+	void writeCurrentValue() override {
+		soundEditor.currentSound->lfoConfig[lfoId_].waveType = this->getValue<LFOType>();
+		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
+		// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
+		// would be enough?
+		soundEditor.currentSound->resyncGlobalLFO();
 	}
+
+private:
+	uint8_t lfoId_;
 };
-} // namespace deluge::gui::menu_item::lfo::global
+
+} // namespace deluge::gui::menu_item::lfo

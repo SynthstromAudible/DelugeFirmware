@@ -65,10 +65,9 @@
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "gui/menu_item/keyboard/layout.h"
-#include "gui/menu_item/lfo/global/rate.h"
-#include "gui/menu_item/lfo/global/sync.h"
-#include "gui/menu_item/lfo/global/type.h"
-#include "gui/menu_item/lfo/local/type.h"
+#include "gui/menu_item/lfo/rate.h"
+#include "gui/menu_item/lfo/sync.h"
+#include "gui/menu_item/lfo/type.h"
 #include "gui/menu_item/master_transpose.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/midi/after_touch_to_mono.h"
@@ -279,17 +278,17 @@ osc::RetriggerPhase modulatorPhaseMenu{STRING_FOR_RETRIGGER_PHASE, STRING_FOR_FM
 
 // LFO1 menu ---------------------------------------------------------------------------------
 
-lfo::global::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE};
-lfo::global::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ};
-lfo::global::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC};
+lfo::Type lfo1TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO1_TYPE, LFO1_ID};
+lfo::Rate lfo1RateMenu{STRING_FOR_RATE, STRING_FOR_LFO1_RATE, params::GLOBAL_LFO_FREQ, LFO1_ID};
+lfo::Sync lfo1SyncMenu{STRING_FOR_SYNC, STRING_FOR_LFO1_SYNC, LFO1_ID};
 
-Submenu lfo0Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu}};
+Submenu lfo1Menu{STRING_FOR_LFO1, {&lfo1TypeMenu, &lfo1RateMenu, &lfo1SyncMenu}};
 
 // LFO2 menu ---------------------------------------------------------------------------------
-lfo::local::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE};
-patched_param::Integer lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ};
+lfo::Type lfo2TypeMenu{STRING_FOR_SHAPE, STRING_FOR_LFO2_TYPE, LFO2_ID};
+lfo::Rate lfo2RateMenu{STRING_FOR_RATE, STRING_FOR_LFO2_RATE, params::LOCAL_LFO_LOCAL_FREQ, LFO2_ID};
 
-Submenu lfo1Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2RateMenu}};
+Submenu lfo2Menu{STRING_FOR_LFO2, {&lfo2TypeMenu, &lfo2RateMenu}};
 
 // Mod FX ----------------------------------------------------------------------------------
 mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
@@ -1125,8 +1124,8 @@ menu_item::Submenu soundEditorRootMenu{
         &modulator1Menu,
         &env0Menu,
         &env1Menu,
-        &lfo0Menu,
         &lfo1Menu,
+        &lfo2Menu,
         &voiceMenu,
         &bendMenu,
         &drumBendRangeMenu,
