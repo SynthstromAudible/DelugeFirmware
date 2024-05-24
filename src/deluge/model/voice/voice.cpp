@@ -690,6 +690,16 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	return true;
 }
 
+uint32_t Voice::getLocalLFOPhaseIncrement() {
+	LFOConfig& config = assignedToSound->lfoConfig[LFO2_ID];
+	if (config.syncLevel == SYNC_LEVEL_NONE) {
+		return paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ];
+	}
+	else {
+		return assignedToSound->getSyncedLFOPhaseIncrement(config);
+	}
+}
+
 // Before calling this, you must set the filterSetConfig's doLPF and doHPF to default values
 
 // Returns false if became inactive and needs unassigning
@@ -737,8 +747,10 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
 	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
 		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
+		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
+		// for every sample.
 		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
-		    lfo.render(numSamples, sound->lfoConfig[LFO2_ID], paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ]);
+		    lfo.render(numSamples, sound->lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement());
 		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
 	}
