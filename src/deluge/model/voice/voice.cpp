@@ -155,7 +155,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	// Setup and render local LFO
-	lfo.setInitialPhase(sound->lfoConfig[LFO2_ID]);
+	lfo.setLocalInitialPhase(sound->lfoConfig[LFO2_ID]);
 	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->lfoConfig[LFO2_ID], 0);
 
 	// Setup some sources which won't change for the duration of this note

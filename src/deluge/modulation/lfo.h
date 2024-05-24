@@ -23,7 +23,7 @@
 class LFOConfig {
 public:
 	LFOConfig() : waveType(LFOType::TRIANGLE), syncType(SYNC_TYPE_EVEN), syncLevel(SYNC_LEVEL_NONE) {}
-	LFOConfig(LFOType type, SyncLevel level) : waveType(type), syncType(SYNC_TYPE_EVEN), syncLevel(level) {}
+	LFOConfig(LFOType type) : waveType(type), syncType(SYNC_TYPE_EVEN), syncLevel(SYNC_LEVEL_NONE) {}
 	LFOType waveType;
 	SyncType syncType;
 	SyncLevel syncLevel;
@@ -34,7 +34,8 @@ public:
 	LFO() = default;
 	uint32_t phase;
 	int32_t holdValue;
-	void setInitialPhase(const LFOConfig& config);
+	void setLocalInitialPhase(const LFOConfig& config);
+	void setGlobalInitialPhase(const LFOConfig& config);
 	[[gnu::always_inline]] int32_t render(int32_t numSamples, LFOConfig& config, uint32_t phaseIncrement) {
 		return render(numSamples, config.waveType, phaseIncrement);
 	}

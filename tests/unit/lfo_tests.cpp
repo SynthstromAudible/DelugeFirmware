@@ -10,30 +10,27 @@ TEST_GROUP(LFOTest) {
 	}
 };
 
-TEST(LFOTest, renderSyncedTriangle) {
+TEST(LFOTest, renderGlobalTriangle) {
 	LFO lfo;
-	LFOConfig conf(LFOType::TRIANGLE, SYNC_LEVEL_8TH);
-	// as in resyncGlobalLFO() & Voide::noteOn()
-	lfo.setInitialPhase(conf);
+	LFOConfig conf(LFOType::TRIANGLE);
+	lfo.setGlobalInitialPhase(conf);
 	int32_t numSamples = 10, phaseIncrement = 100;
 	CHECK_EQUAL(0, lfo.render(10, conf, 100));
 	CHECK_EQUAL(numSamples*phaseIncrement*2, lfo.render(0, conf, 0));
 }
 
-TEST(LFOTest, renderUnsyncedTriangle_noSync) {
+TEST(LFOTest, renderLocalTriangle) {
 	LFO lfo;
-	LFOConfig conf(LFOType::TRIANGLE, SYNC_LEVEL_NONE);
-	// as per Voice::noteOn()
-	lfo.setInitialPhase(conf);
+	LFOConfig conf(LFOType::TRIANGLE);
+	lfo.setLocalInitialPhase(conf);
 	CHECK_EQUAL(INT32_MIN, lfo.render(10, conf, 100));
 	CHECK_EQUAL(INT32_MIN+2000, lfo.render(0, conf, 0));
 }
 
-TEST(LFOTest, renderSyncedSine) {
+TEST(LFOTest, renderGlobalSine) {
 	LFO lfo;
-	LFOConfig conf(LFOType::SINE, SYNC_LEVEL_8TH);
-	// as in resyncGlobalLFO() & Voide::noteOn()
-	lfo.setInitialPhase(conf);
+	LFOConfig conf(LFOType::SINE);
+	lfo.setGlobalInitialPhase(conf);
 	// sin(0) == 0
 	CHECK_EQUAL(0, lfo.phase);
 	lfo.phase = 1024;
@@ -41,11 +38,10 @@ TEST(LFOTest, renderSyncedSine) {
 	CHECK_EQUAL(3216, lfo.render(0, conf, 0));
 }
 
-TEST(LFOTest, renderUnsyncedSine) {
+TEST(LFOTest, renderLocalSine) {
 	LFO lfo;
-	LFOConfig conf(LFOType::SINE, SYNC_LEVEL_NONE);
-	// as per Voice::noteOn()
-	lfo.setInitialPhase(conf);
+	LFOConfig conf(LFOType::SINE);
+	lfo.setLocalInitialPhase(conf);
 	CHECK_EQUAL(3221225472, lfo.phase);
 	// These are nasty numbers, but the first one represents the
 	// initial value for a local sine LFO, and a second one is a
@@ -56,15 +52,14 @@ TEST(LFOTest, renderUnsyncedSine) {
 	CHECK_EQUAL(-2147418082, lfo.render(0, conf, 0));
 }
 
-TEST(LFOTest, renderSaw) {
+TEST(LFOTest, renderGSaw) {
 	LFO lfo;
-	LFOConfig conf(LFOType::SAW, SYNC_LEVEL_NONE);
-	lfo.setInitialPhase(conf);
-	// Same initial phase for synced and unsynced.
-	uint32_t unsyncedPhase = lfo.phase;
-	conf.syncLevel = SYNC_LEVEL_8TH;
-	lfo.setInitialPhase(conf);
-	CHECK_EQUAL(unsyncedPhase, lfo.phase);
+	LFOConfig conf(LFOType::SAW);
+	lfo.setLocalInitialPhase(conf);
+	// Same initial phase for Global and Local.
+	uint32_t localPhase = lfo.phase;
+	lfo.setGlobalInitialPhase(conf);
+	CHECK_EQUAL(localPhase, lfo.phase);
 	// Check the values as well.
 	CHECK_EQUAL(INT32_MIN, lfo.render(10, conf, 100));
 	CHECK_EQUAL(INT32_MIN+1000, lfo.render(0, conf, 0));
@@ -72,13 +67,12 @@ TEST(LFOTest, renderSaw) {
 
 TEST(LFOTest, renderSquare) {
 	LFO lfo;
-	LFOConfig conf(LFOType::SQUARE, SYNC_LEVEL_NONE);
-	lfo.setInitialPhase(conf);
-	// Same initial phase for synced and unsynced.
-	uint32_t unsyncedPhase = lfo.phase;
-	conf.syncLevel = SYNC_LEVEL_8TH;
-	lfo.setInitialPhase(conf);
-	CHECK_EQUAL(unsyncedPhase, lfo.phase);
+	LFOConfig conf(LFOType::SQUARE);
+	lfo.setLocalInitialPhase(conf);
+	// Same initial phase for Global and Local.
+	uint32_t localPhase = lfo.phase;
+	lfo.setGlobalInitialPhase(conf);
+	CHECK_EQUAL(localPhase, lfo.phase);
 	// If you check the implementation, this is supposed to be "negative extreme",
 	// but clearly is the positive instead. Oops? Should we change that?
 	CHECK_EQUAL(INT32_MAX, lfo.render(0, conf, 0));
@@ -88,13 +82,13 @@ TEST(LFOTest, renderSquare) {
 
 TEST(LFOTest, renderSampleAndHold) {
 	LFO lfo;
-	LFOConfig conf(LFOType::SAMPLE_AND_HOLD, SYNC_LEVEL_NONE);
-	lfo.setInitialPhase(conf);
-	// Same initial phase for synced and unsynced.
-	uint32_t unsyncedPhase = lfo.phase;
+	LFOConfig conf(LFOType::SAMPLE_AND_HOLD);
+	lfo.setLocalInitialPhase(conf);
+	// Same initial phase for Global and Local.
+	uint32_t localPhase = lfo.phase;
 	conf.syncLevel = SYNC_LEVEL_8TH;
-	lfo.setInitialPhase(conf);
-	CHECK_EQUAL(unsyncedPhase, lfo.phase);
+	lfo.setGlobalInitialPhase(conf);
+	CHECK_EQUAL(localPhase, lfo.phase);
 	CHECK_EQUAL(0, lfo.phase);
 	// CHECK_EQUAL evaluates multiple times: get the value just once.
 	int32_t value = lfo.render(10, conf, 10);
@@ -126,13 +120,13 @@ TEST(LFOTest, renderSampleAndHold) {
 
 TEST(LFOTest, renderRandomWalk) {
 	LFO lfo;
-	LFOConfig conf(LFOType::RANDOM_WALK, SYNC_LEVEL_NONE);
-	lfo.setInitialPhase(conf);
-	// Same initial phase for synced and unsynced.
-	uint32_t unsyncedPhase = lfo.phase;
+	LFOConfig conf(LFOType::RANDOM_WALK);
+	lfo.setLocalInitialPhase(conf);
+	// Same initial phase for Global and Local.
+	uint32_t localPhase = lfo.phase;
 	conf.syncLevel = SYNC_LEVEL_8TH;
-	lfo.setInitialPhase(conf);
-	CHECK_EQUAL(unsyncedPhase, lfo.phase);
+	lfo.setGlobalInitialPhase(conf);
+	CHECK_EQUAL(localPhase, lfo.phase);
 	CHECK_EQUAL(0, lfo.phase);
 	// CHECK_EQUAL evaluates multiple times: get the value just once.
 	int32_t value = lfo.render(10, conf, 10);
