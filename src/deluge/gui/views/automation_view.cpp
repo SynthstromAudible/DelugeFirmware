@@ -692,9 +692,17 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	}
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		// only render if:
+		// you're on arranger view
+		// you're not in a CV clip type
+		// you're not in a kit where you haven't selected a drum and you haven't selected affect entire either
+		// you're not in a kit where no sound drum has been selected
 		if (onArrangerView
 		    || (outputType != OutputType::CV
-		        && !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum))) {
+		        && !(outputType == OutputType::KIT && !getAffectEntire()
+		             && (!((Kit*)clip->output)->selectedDrum
+		                 || ((Kit*)clip->output)->selectedDrum
+		                        && ((Kit*)clip->output)->selectedDrum->type != DrumType::SOUND)))) {
 
 			// if parameter has been selected, show Automation Editor
 			if (!isOnAutomationOverview()) {
@@ -1121,7 +1129,12 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 		char const* overviewText;
 		if (onArrangerView || outputType != OutputType::CV) {
 			if (!onArrangerView
-			    && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)clip->output)->selectedDrum)) {
+			    && (outputType == OutputType::KIT && !getAffectEntire()
+			        && (!((Kit*)clip->output)->selectedDrum
+			            || ((Kit*)clip->output)->selectedDrum
+			                   && ((Kit*)clip->output)->selectedDrum->type != DrumType::SOUND))) {
+				// display error message to select kit row or affect entire when:
+				// you're in a kit clip and you haven't selected a sound drum or enabled affect entire
 				overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 				deluge::hid::display::OLED::drawPermanentPopupLookingText(overviewText);
 			}
@@ -1225,7 +1238,12 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 		char const* overviewText;
 		if (onArrangerView || outputType != OutputType::CV) {
 			if (!onArrangerView
-			    && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)clip->output)->selectedDrum)) {
+			    && (outputType == OutputType::KIT && !getAffectEntire()
+			        && (!((Kit*)clip->output)->selectedDrum
+			            || ((Kit*)clip->output)->selectedDrum
+			                   && ((Kit*)clip->output)->selectedDrum->type != DrumType::SOUND))) {
+				// display error message to select kit row or affect entire when:
+				// you're in a kit clip and you haven't selected a sound drum or enabled affect entire
 				overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
 			}
 			else {
