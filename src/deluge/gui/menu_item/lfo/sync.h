@@ -24,15 +24,15 @@ namespace deluge::gui::menu_item::lfo {
 
 class Sync final : public SyncLevel {
 public:
-	Sync(uint8_t lfoId, deluge::l10n::String name, deluge::l10n::String type) : SyncLevel(name, type), lfoID(lfoId) {}
+	Sync(uint8_t lfoId, deluge::l10n::String name, deluge::l10n::String type) : SyncLevel(name, type), lfoId_(lfoId) {}
 
 	void readCurrentValue() {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoConfig[lfoID].syncType,
-		                                            soundEditor.currentSound->lfoConfig[lfoID].syncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoConfig[lfoId_].syncType,
+		                                            soundEditor.currentSound->lfoConfig[lfoId_].syncLevel));
 	}
 	void writeCurrentValue() {
-		soundEditor.currentSound->lfoConfig[lfoID].syncType = menuOptionToSyncType(this->getValue());
-		soundEditor.currentSound->lfoConfig[lfoID].syncLevel = menuOptionToSyncLevel(this->getValue());
+		soundEditor.currentSound->lfoConfig[lfoId_].syncType = menuOptionToSyncType(this->getValue());
+		soundEditor.currentSound->lfoConfig[lfoId_].syncLevel = menuOptionToSyncLevel(this->getValue());
 		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
 		// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
 		// would be enough?
@@ -41,7 +41,7 @@ public:
 	}
 
 private:
-	uint8_t lfoID;
+	uint8_t lfoId_;
 };
 
 } // namespace deluge::gui::menu_item::lfo

@@ -24,10 +24,10 @@ namespace deluge::gui::menu_item::lfo {
 
 class Type final : public Shape {
 public:
-	Type(uint8_t lfoId, deluge::l10n::String name, deluge::l10n::String type) : Shape(name, type), lfoID(lfoId) {}
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoID].waveType); }
+	Type(uint8_t lfoId, deluge::l10n::String name, deluge::l10n::String type) : Shape(name, type), lfoId_(lfoId) {}
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType); }
 	void writeCurrentValue() override {
-		soundEditor.currentSound->lfoConfig[lfoID].waveType = this->getValue<LFOType>();
+		soundEditor.currentSound->lfoConfig[lfoId_].waveType = this->getValue<LFOType>();
 		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
 		// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
 		// would be enough?
@@ -35,7 +35,7 @@ public:
 	}
 
 private:
-	uint8_t lfoID;
+	uint8_t lfoId_;
 };
 
 } // namespace deluge::gui::menu_item::lfo
