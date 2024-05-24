@@ -92,29 +92,6 @@ void Encoder::read() {
 	pinBLastRead = pinBNewVal;
 }
 
-void Encoder::interrupt(int32_t which) {
-
-	valuesNow[which] = !valuesNow[which];
-
-	// If they've both changed...
-	if (valuesNow[0] != pinALastSwitch && valuesNow[1] != pinBLastSwitch) {
-
-		// Had pin A changed first?
-		if (pinALastRead != pinALastSwitch) {
-			encPos += (pinALastSwitch == pinBLastSwitch) ? -1 : 1;
-			pinALastSwitch = valuesNow[0];
-		}
-
-		// Or had pin B changed first?
-		else {
-			encPos += (pinALastSwitch == pinBLastSwitch) ? 1 : -1;
-			pinBLastSwitch = valuesNow[1];
-		}
-	}
-
-	pinALastRead = valuesNow[0];
-}
-
 void Encoder::setPins(uint8_t pinA1New, uint8_t pinA2New, uint8_t pinB1New, uint8_t pinB2New) {
 	portA = pinA1New;
 	pinA = pinA2New;

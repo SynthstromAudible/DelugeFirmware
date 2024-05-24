@@ -64,10 +64,6 @@ void readEncoders() {
 	}
 }
 
-extern "C" void readEncoder(int32_t e, int32_t whichPin) {
-	encoders[e].interrupt(whichPin);
-}
-
 bool interpretEncoders(bool inCardRoutine) {
 
 	bool anything = false;
