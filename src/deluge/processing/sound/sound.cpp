@@ -77,6 +77,7 @@ const PatchableInfo patchableInfoForSound = {
     GLOBALITY_GLOBAL};
 
 Sound::Sound() : patcher(&patchableInfoForSound) {
+	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		oscRetriggerPhase[s] = 0xFFFFFFFF;
