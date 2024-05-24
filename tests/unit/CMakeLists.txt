@@ -34,7 +34,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/modulation/lfo.cpp
 )
 
-add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp lfo_tests.cpp)
+add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp lfo_tests.cpp scale_tests.cpp)
 add_test(NAME UnitTests
         COMMAND UnitTests)
 target_sources(UnitTests PRIVATE ${deluge_SOURCES})
