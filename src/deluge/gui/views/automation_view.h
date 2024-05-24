@@ -214,6 +214,7 @@ private:
 	                         TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay);
 	void renderLove(RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                int32_t xDisplay);
+	void clearColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t xDisplay);
 	void renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
 	void renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
