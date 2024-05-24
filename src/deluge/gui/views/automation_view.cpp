@@ -729,6 +729,9 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 			if (outputType == OutputType::CV) {
 				renderLove(image, occupancyMask, xDisplay);
 			}
+			else {
+				PadLEDs::clearColumnWithoutSending(xDisplay);
+			}
 		}
 	}
 }
@@ -1045,6 +1048,9 @@ void AutomationView::renderLove(RGB image[][kDisplayWidth + kSideBarWidth],
 
 			pixel = rowColour[yDisplay];
 			occupancyMask[yDisplay][xDisplay] = 64;
+		}
+		else {
+			pixel = colours::black; // clear pads
 		}
 	}
 }

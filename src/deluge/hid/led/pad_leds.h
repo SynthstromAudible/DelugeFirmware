@@ -65,6 +65,7 @@ void renderClipExpandOrCollapse();
 void renderNoteRowExpandOrCollapse();
 void clearAllPadsWithoutSending();
 void clearMainPadsWithoutSending();
+void clearColumnWithoutSending(int32_t x);
 
 void sendOutMainPadColours();
 void sendOutMainPadColoursSoon();
