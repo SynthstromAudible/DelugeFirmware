@@ -1049,6 +1049,9 @@ void AutomationView::renderLove(RGB image[][kDisplayWidth + kSideBarWidth],
 			pixel = rowColour[yDisplay];
 			occupancyMask[yDisplay][xDisplay] = 64;
 		}
+		else {
+			pixel = colours::black; // clear pads
+		}
 	}
 }
 
