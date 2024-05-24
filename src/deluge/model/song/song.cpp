@@ -2524,7 +2524,7 @@ bool Song::hasAnySwing() {
 	return (swingAmount != 0);
 }
 
-void Song::resyncLFOsAndArpeggiators() {
+void Song::resyncLFOs() {
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->activeClip) {
@@ -3392,7 +3392,7 @@ void Song::addOutput(Output* output, bool atStart) {
 	}
 
 	// Must resync LFOs - these (if synced) will roll even when no activeClip
-	if (playbackHandler.isEitherClockActive() && this == currentSong) {
+	if (this == currentSong) {
 		output->resyncLFOs();
 	}
 }

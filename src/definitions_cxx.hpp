@@ -365,6 +365,24 @@ constexpr OscType kLastRingmoddableOscType = OscType::WAVETABLE;
 constexpr int32_t kNumOscTypesRingModdable = util::to_underlying(kLastRingmoddableOscType) + 1;
 constexpr int32_t kNumOscTypes = util::to_underlying(OscType::INPUT_STEREO) + 1;
 
+/** Integer index into Sound::lfoConfig[].
+ *
+ * LFO1 is global to the clip (Sound): it is running continuously, and shared by all voices
+ * in the clip use it. Despite not being shared between clips, when synchronized using
+ * identical values it should have identical timing regardless of the clip. When synchronized
+ * it is relative to the global grid: 1-bar sync matches natual bar boundaries, etc.
+ *
+ * LFO2 is local to each voice: it triggers on note-on.
+ */
+enum LFO_ID {
+	// LFO_ID is used exlusively is as an array index, so an enum class would
+	// only add extra noise to get the underlying value in all places where this
+	// is used.
+	LFO1_ID = 0,
+	LFO2_ID = 1,
+	LFO_COUNT = 2,
+};
+
 enum class LFOType : uint8_t {
 	SINE,
 	TRIANGLE,

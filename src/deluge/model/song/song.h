@@ -249,7 +249,7 @@ public:
 	Clip* syncScalingClip;
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
 	bool hasAnySwing();
-	void resyncLFOsAndArpeggiators();
+	void resyncLFOs();
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* sound);
 	bool areAllClipsInSectionPlaying(int32_t section);
 	void removeYNoteFromMode(int32_t yNoteWithinOctave);
