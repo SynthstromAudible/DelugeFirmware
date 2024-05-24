@@ -422,17 +422,16 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			// automations, you will enter Automation Clip View and clear the clip there. If this is enabled, the
 			// message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
 
-			if (FlashStorage::automationClear) {
-				if (currentUI == &automationView) {
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
-				}
-				else if (currentUI == &instrumentClipView) {
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
-				}
+			if (currentUI == &automationView) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
+			}
+			else if (FlashStorage::automationClear) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
 			}
 			else {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_CLIP_CLEARED));
 			}
+
 			uiNeedsRendering(currentUI, 0xFFFFFFFF, 0);
 		}
 	}
