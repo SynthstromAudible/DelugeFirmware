@@ -155,8 +155,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	// Setup and render local LFO
-	lfo.phase = getLFOInitialPhaseForNegativeExtreme(sound->lfoLocalWaveType);
-	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->lfoLocalWaveType, 0);
+	lfo.setLocalInitialPhase(sound->lfoConfig[LFO2_ID]);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->lfoConfig[LFO2_ID], 0);
 
 	// Setup some sources which won't change for the duration of this note
 	sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -738,7 +738,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
 		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
 		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
-		    lfo.render(numSamples, sound->lfoLocalWaveType, paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ]);
+		    lfo.render(numSamples, sound->lfoConfig[LFO2_ID], paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ]);
 		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
 		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
 	}

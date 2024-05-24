@@ -15,26 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/sync_level.h"
-#include "gui/ui/sound_editor.h"
-#include "model/song/song.h"
+#include "gui/menu_item/patched_param/integer.h"
 #include "processing/sound/sound.h"
 
-namespace deluge::gui::menu_item::lfo::global {
-
-class Sync final : public SyncLevel {
+namespace deluge::gui::menu_item::lfo {
+class Rate final : public patched_param::Integer {
 public:
-	using SyncLevel::SyncLevel;
+	Rate(deluge::l10n::String name, deluge::l10n::String type, int32_t newP, uint8_t lfoId)
+	    : Integer(name, type, newP), lfoId_(lfoId) {}
 
-	void readCurrentValue() {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoGlobalSyncType,
-		                                            soundEditor.currentSound->lfoGlobalSyncLevel));
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		Sound* sound = static_cast<Sound*>(modControllable);
+		return sound->lfoConfig[lfoId_].syncLevel == SYNC_LEVEL_NONE;
 	}
-	void writeCurrentValue() {
-		soundEditor.currentSound->setLFOGlobalSyncType(menuOptionToSyncType(this->getValue()));
-		soundEditor.currentSound->setLFOGlobalSyncLevel(menuOptionToSyncLevel(this->getValue()));
-		soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
-	}
+
+private:
+	uint8_t lfoId_;
 };
-
-} // namespace deluge::gui::menu_item::lfo::global
+} // namespace deluge::gui::menu_item::lfo
