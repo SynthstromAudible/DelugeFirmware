@@ -535,12 +535,15 @@ LFO types added to the "LFO SHAPE" shortcut.
 - ([#32]) **`RANDOM WALK`:** Starts at zero and walks up or down by small increments when triggered.
 - ([#32]) **`SAMPLE&HOLD`:** Picks a new random value every time it is triggered.
 
-#### 4.3.2 - New LFO Synchronization Modes
+#### 4.3.2 - New LFO Synchronization Options
 
-Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DELAY`.
+Additional synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `LFO2`, and `DELAY`:
 
 - ([#32]) **`TPLTS`:** Synchronizes the LFO to triplet (3/2) divisions.
 - ([#32]) **`DTTED`:** Synchronizes the LFO to dotted (2/3) divisions.
+
+LFO2 can be synchronized as well, using the labelled LFO2 sync pad. Where LFO2 synchronization is relative
+to each individual note onset. ([#1978])
 
 #### 4.3.3 - Quantize & Humanize
 
