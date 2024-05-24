@@ -478,6 +478,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_LFO1, "LFO1"},
         {STRING_FOR_LFO2_TYPE, "LFO2 type"},
         {STRING_FOR_LFO2_RATE, "LFO2 rate"},
+        {STRING_FOR_LFO2_SYNC, "LFO2 sync"},
         {STRING_FOR_LFO2, "LFO2"},
         {STRING_FOR_MODFX_TYPE, "MOD-FX type"},
         {STRING_FOR_FEEDBACK, "FEEDBACK"},
