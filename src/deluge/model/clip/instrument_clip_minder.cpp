@@ -431,7 +431,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			else {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_CLIP_CLEARED));
 			}
-			
+
 			uiNeedsRendering(currentUI, 0xFFFFFFFF, 0);
 		}
 	}
