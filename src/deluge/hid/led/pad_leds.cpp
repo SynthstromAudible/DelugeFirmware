@@ -243,6 +243,12 @@ void clearSideBar() {
 	sendOutSidebarColours();
 }
 
+void clearColumnWithoutSending(int32_t x) {
+	for (auto& y : image) {
+		y[x] = gui::colours::black;
+	}
+}
+
 RGB prepareColour(int32_t x, int32_t y, RGB colourSource);
 
 // You'll want to call uartFlushToPICIfNotSending() after this

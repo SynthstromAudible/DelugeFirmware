@@ -722,17 +722,9 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 				renderLove(image, occupancyMask, xDisplay);
 			}
 			else {
-				clearColumn(image, xDisplay);
+				PadLEDs::clearColumnWithoutSending(xDisplay);
 			}
 		}
-	}
-}
-
-// erase all pads in a column of the grid
-void AutomationView::clearColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t xDisplay) {
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		RGB& pixel = image[yDisplay][xDisplay];
-		pixel = colours::black;
 	}
 }
 
