@@ -51,7 +51,8 @@ public:
 	                                 char const* tooLongText);
 
 	/// Render indication of where the view is given the current playback state.
-	void renderMainImage(TimelineCounter const& counter, uint32_t totalTicks) const;
+	void renderTickIndicator(deluge::hid::display::oled_canvas::Canvas& canvas, TimelineCounter const& counter,
+	                         uint32_t totalTicks) const;
 
 	void initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScroll = kDisplayWidth);
 	bool zoomToMax(bool inOnly = false);

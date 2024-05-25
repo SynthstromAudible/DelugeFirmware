@@ -210,6 +210,10 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 	}
 
 getOut:
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+
 	horizontalEncoderActionLock = false;
 	return ActionResult::DEALT_WITH;
 }
@@ -300,31 +304,27 @@ putBeatCountOnFarRight:
 	}
 }
 
-void TimelineView::renderMainImage(TimelineCounter const& counter, uint32_t totalTicks) const {
-	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
-
-	using deluge::hid::display::OLED;
-
-	if (!display->haveOLED()) {
-		return;
-	}
+void TimelineView::renderTickIndicator(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                       TimelineCounter const& counter, uint32_t totalTicks) const {
+	auto ticksPerBar = currentSong->getBarLength();
+	auto totalBars = (totalTicks + ticksPerBar - 1) / ticksPerBar;
+	// round total ticks up to the number of bars we're going to render
+	totalTicks = totalBars * ticksPerBar;
 
 	int32_t const navSysId = getNavSysId();
 	int32_t const xScroll = currentSong->xScroll[navSysId];
 	int32_t const xZoom = currentSong->xZoom[navSysId];
-
 	auto viewStartPos = xScroll;
 	uint32_t viewEndPos = xScroll + kDisplayWidth * xZoom;
 
 	if (viewEndPos > totalTicks) {
-		std::swap(viewEndPos, totalTicks);
+		viewEndPos = totalTicks;
 	}
 
 	auto livePos = counter.getLivePos();
-	auto ticksPerBar = currentSong->getBarLength();
-	auto totalBars = totalTicks / ticksPerBar;
 
-	constexpr int32_t kBarRenderTop = OLED_MAIN_HEIGHT_PIXELS - 4;
+	constexpr int32_t kBarRenderTop = OLED_MAIN_TOPMOST_PIXEL - 1;
+	constexpr int32_t kBarRenderHeight = 2;
 
 	canvas.clearAreaExact(0, kBarRenderTop - 1, OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_HEIGHT_PIXELS - 1);
 
@@ -337,9 +337,6 @@ void TimelineView::renderMainImage(TimelineCounter const& counter, uint32_t tota
 
 	auto lineStart = static_cast<int32_t>((viewStartPos * OLED_MAIN_WIDTH_PIXELS) / totalTicks);
 	auto lineEnd = static_cast<int32_t>(((viewEndPos - 1) * OLED_MAIN_WIDTH_PIXELS) / totalTicks);
-
-	D_PRINTLN("visible region: %d %d %d|%d %d/%d %d/%d", navSysId, xScroll, xZoom, totalTicks, viewStartPos, lineStart,
-	          viewEndPos, lineEnd);
 
 	canvas.drawHorizontalLine(kBarRenderTop, lineStart, lineEnd);
 }

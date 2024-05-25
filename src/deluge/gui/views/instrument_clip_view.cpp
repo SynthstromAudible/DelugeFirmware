@@ -689,6 +689,7 @@ doOther:
 					else {
 						displayZoomLevel();
 					}
+					renderUIsForOled();
 				}
 			}
 			// Whether or not we did the "multiply" action above, we need to be in this UI mode, e.g. for rotating
@@ -5265,6 +5266,12 @@ void InstrumentClipView::notifyPlaybackBegun() {
 	reassessAllAuditionStatus();
 }
 
+void InstrumentClipView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	InstrumentClipMinder::renderOLED(canvas);
+	TimelineView::renderTickIndicator(canvas, *clip, clip->getLoopLength());
+}
+
 bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                         bool drawUndefinedArea) {
@@ -5334,8 +5341,6 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 
 		image += imageWidth;
 	}
-
-	renderMainImage(*clip, clip->getLoopLength());
 }
 
 void InstrumentClipView::playbackEnded() {

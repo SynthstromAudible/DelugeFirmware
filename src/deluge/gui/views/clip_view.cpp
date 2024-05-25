@@ -150,6 +150,10 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		// If we're not scrolled all the way to the right, go there now
 		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
+
+			if (display->haveOLED()) {
+				renderUIsForOled();
+			}
 			return ActionResult::DEALT_WITH;
 		}
 
@@ -167,6 +171,10 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		if (action) {
 			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+		}
+
+		if (display->haveOLED()) {
+			renderUIsForOled();
 		}
 		return ActionResult::DEALT_WITH;
 	}
