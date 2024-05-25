@@ -763,7 +763,7 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 		String newPresetName;
 		result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
 		result.error =
-		    storageManager.loadInstrumentFromFile(currentSong, NULL, newOutputType, false, &newInstrument,
+		    storageManager.loadInstrumentFromFile(currentSong, NULL, newOutputType, false, &newInstrument, nullptr,
 		                                          &result.fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
 

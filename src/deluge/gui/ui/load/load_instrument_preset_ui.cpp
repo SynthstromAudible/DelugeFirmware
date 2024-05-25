@@ -613,9 +613,9 @@ void LoadInstrumentPresetUI::revertToInitialPreset(StorageManager& bdsm) {
 					return;
 				}
 
-				error =
-				    bdsm.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType, false,
-				                                &initialInstrument, &tempFilePointer, &initialName, &initialDirPath);
+				error = bdsm.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType, false,
+				                                    &initialInstrument, instrumentToReplace, &tempFilePointer,
+				                                    &initialName, &initialDirPath);
 				if (error != Error::NONE) {
 					return;
 				}
@@ -918,8 +918,9 @@ giveUsedError:
 		// Browser::checkFP();
 
 		// synth or kit
-		error = bdsm.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
-		                                    &newInstrument, &currentFileItem->filePointer, &enteredText, &currentDir);
+		error =
+		    bdsm.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false, &newInstrument,
+		                                instrumentToReplace, &currentFileItem->filePointer, &enteredText, &currentDir);
 
 		if (error != Error::NONE) {
 			return error;
@@ -1564,9 +1565,9 @@ doPendingPresetNavigation:
 	// TODO: This isn't true, it's an argument so that must have changed at some point. This logic will create a clone
 	// if anything other than unused is passed in
 	if (!toReturn.fileItem->instrument) {
-		toReturn.error =
-		    storageManager.loadInstrumentFromFile(currentSong, NULL, outputType, false, &toReturn.fileItem->instrument,
-		                                          &toReturn.fileItem->filePointer, &newName, &Browser::currentDir);
+		toReturn.error = storageManager.loadInstrumentFromFile(
+		    currentSong, NULL, outputType, false, &toReturn.fileItem->instrument, oldInstrument,
+		    &toReturn.fileItem->filePointer, &newName, &Browser::currentDir);
 		if (toReturn.error != Error::NONE) {
 			goto emptyFileItemsAndReturn;
 		}

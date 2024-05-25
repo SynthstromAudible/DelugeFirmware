@@ -432,3 +432,7 @@ ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimel
 
 	return modelStackWithParam;
 }
+
+MidiKnobArray* AudioOutput::getMidiKnobs() {
+	return &midiKnobArray;
+}

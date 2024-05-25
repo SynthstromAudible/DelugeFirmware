@@ -317,7 +317,7 @@ Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* fil
 // Returns error status
 // clip may be NULL
 Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
-                                             bool mayReadSamplesFromFiles, Instrument** getInstrument,
+                                             bool mayReadSamplesFromFiles, Instrument** getInstrument, Output* output,
                                              FilePointer* filePointer, String* name, String* dirPath) {
 
 	AudioEngine::logAction("loadInstrumentFromFile");
@@ -332,6 +332,15 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 	Instrument* newInstrument = createNewInstrument(outputType);
+	if (output) {
+		// If we have an output, copy learned controls from it:
+		// otherwise loading a new instrument would reset controls.
+		MidiKnobArray* newKnobs = newInstrument->getMidiKnobs();
+		MidiKnobArray* oldKnobs = output->getMidiKnobs();
+		if (newKnobs && oldKnobs) {
+			newKnobs->cloneFrom(oldKnobs);
+		}
+	}
 
 	if (!newInstrument) {
 		closeFile();

@@ -152,6 +152,7 @@ public:
 	                                                         int32_t paramID,
 	                                                         deluge::modulation::params::Kind paramKind,
 	                                                         bool useMenuStack);
+	MidiKnobArray* getMidiKnobs() override;
 
 protected:
 	bool isKit() { return true; }

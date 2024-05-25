@@ -1689,3 +1689,7 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 
 	return modelStackWithParam;
 }
+
+MidiKnobArray* Kit::getMidiKnobs() {
+	return &midiKnobArray;
+}

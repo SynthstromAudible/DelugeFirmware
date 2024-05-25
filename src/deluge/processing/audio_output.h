@@ -85,6 +85,7 @@ public:
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                bool affectEntire, bool useMenuStack);
+	MidiKnobArray* getMidiKnobs() override;
 
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);

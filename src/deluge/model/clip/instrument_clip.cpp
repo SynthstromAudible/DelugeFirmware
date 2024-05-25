@@ -3805,7 +3805,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
 			result.error = storageManager.loadInstrumentFromFile(modelStack->song, NULL, newOutputType, false,
-			                                                     &newInstrument, &result.fileItem->filePointer,
+			                                                     &newInstrument, output, &result.fileItem->filePointer,
 			                                                     &newPresetName, &Browser::currentDir);
 		}
 

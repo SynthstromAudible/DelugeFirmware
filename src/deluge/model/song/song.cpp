@@ -404,7 +404,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
 			result.error = storageManager.loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false,
-			                                                     &newInstrument, &result.fileItem->filePointer,
+			                                                     &newInstrument, nullptr, &result.fileItem->filePointer,
 			                                                     &newPresetName, &Browser::currentDir);
 
 			Browser::emptyFileItems();
@@ -5117,7 +5117,7 @@ gotAnInstrument: {}
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
 			result.error = storageManager.loadInstrumentFromFile(this, NULL, newOutputType, false, &newInstrument,
-			                                                     &result.fileItem->filePointer, &newPresetName,
+			                                                     nullptr, &result.fileItem->filePointer, &newPresetName,
 			                                                     &Browser::currentDir);
 		}
 

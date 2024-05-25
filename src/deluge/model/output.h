@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/clip/clip_instance_vector.h"
+#include "modulation/midi/midi_knob_array.h"
 #include "modulation/params/param.h"
 #include "util/d_string.h"
 #include <cstdint>
@@ -158,6 +159,7 @@ public:
 	                                                        int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                        bool affectEntire, bool useMenuStack) = 0;
 	virtual bool needsEarlyPlayback() const { return false; }
+	virtual MidiKnobArray* getMidiKnobs() { return nullptr; }
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;

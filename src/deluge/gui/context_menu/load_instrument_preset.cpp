@@ -36,21 +36,13 @@ Sized<char const**> LoadInstrumentPreset::getOptions() {
 }
 
 bool LoadInstrumentPreset::acceptCurrentOption() {
-	Error error;
-
-	switch (currentOption) {
-	/*
-	case 0: // Refresh
-		return true;
-		*/
-	default: // Clone
-		error = loadInstrumentPresetUI.performLoad(storageManager, true);
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return true;
-		}
-		loadInstrumentPresetUI.close();
-		return true;
+	Error error = loadInstrumentPresetUI.performLoad(storageManager, true);
+	if (error != Error::NONE) {
+		display->displayError(error);
 	}
+	else {
+		loadInstrumentPresetUI.close();
+	}
+	return true;
 }
 } // namespace deluge::gui::context_menu

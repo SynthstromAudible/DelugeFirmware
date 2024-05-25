@@ -37,6 +37,7 @@ struct FileSystemStuff {
 extern struct FileSystemStuff fileSystemStuff;
 
 class Instrument;
+class Output;
 class PlaybackMode;
 class ParamManagerForTimeline;
 class ArpeggiatorSettings;
@@ -224,7 +225,8 @@ public:
 
 	Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = NULL);
 	Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
-	                             Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
+	                             Instrument** getInstrument, Output* output, FilePointer* filePointer, String* name,
+	                             String* dirPath);
 	Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
 	Drum* createNewDrum(DrumType drumType);
