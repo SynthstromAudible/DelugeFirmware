@@ -503,6 +503,7 @@ void AutomationView::focusRegained() {
 	if (getCurrentUI() == this) {
 		// blink timer got reset by view.focusRegained() above
 		parameterShortcutBlinking = false;
+		interpolationShortcutBlinking = false;
 		// remove patch cable blink frequencies
 		memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
@@ -544,6 +545,11 @@ void AutomationView::openedInBackground() {
 	}
 	else {
 		uiNeedsRendering(this);
+	}
+
+	// setup interpolation shortcut blinking when entering automation view from menu
+	if (onMenuView && interpolation) {
+		blinkInterpolationShortcut();
 	}
 }
 
@@ -610,8 +616,6 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 
 	performActualRender(image, occupancyMask, currentSong->xScroll[navSysId], currentSong->xZoom[navSysId],
 	                    kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
-
-	blinkShortcuts();
 
 	PadLEDs::renderingLock = false;
 
@@ -1672,6 +1676,7 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	if (on && currentUIMode == UI_MODE_NONE) {
 		if (Buttons::isShiftButtonPressed()) {
 			initParameterSelection();
+			resetParameterShortcutBlinking();
 			uiNeedsRendering(this);
 		}
 		else {
@@ -1681,8 +1686,8 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 			else {
 				changeRootUI(&instrumentClipView);
 			}
+			resetShortcutBlinking();
 		}
-		resetShortcutBlinking();
 	}
 	else if (on && currentUIMode == UI_MODE_AUDITIONING) {
 		initParameterSelection();
@@ -2066,9 +2071,7 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 				    || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)
 				    || (outputType == OutputType::KIT && getAffectEntire())) {
 
-					if (handleParameterSelection(clip, outputType, x, y)) {
-						uiNeedsRendering(this);
-					}
+					handleParameterSelection(clip, outputType, x, y);
 				}
 			}
 
@@ -2133,14 +2136,14 @@ bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* m
 
 // called by shortcutPadAction when it is determined that you are selecting a parameter on automation
 // overview or by using a grid shortcut combo
-bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay) {
+void AutomationView::handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay) {
 	if (!onArrangerView && (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
 	    && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
 	        || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID))) {
 		// don't allow automation of portamento in kit's
 		if ((outputType == OutputType::KIT)
 		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
-			return false; // no parameter selected, don't re-render grid;
+			return; // no parameter selected, don't re-render grid;
 		}
 
 		// if you are in a synth or a kit instrumentClip and the shortcut is valid, set current selected
@@ -2169,7 +2172,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 		// don't allow automation of pitch adjust, or sidechain in arranger
 		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
 		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
-			return false; // no parameter selected, don't re-render grid;
+			return; // no parameter selected, don't re-render grid;
 		}
 
 		if (onArrangerView) {
@@ -2191,7 +2194,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 	}
 
 	else {
-		return false; // no parameter selected, don't re-render grid;
+		return; // no parameter selected, don't re-render grid;
 	}
 
 	// save the selected parameter ID's shortcut pad x,y coords so that you can setup the shortcut blink
@@ -2206,9 +2209,9 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 
 	displayAutomation(true);
 	resetParameterShortcutBlinking();
+	blinkShortcuts();
 	view.setModLedStates();
-
-	return true; // parameter has been selected, re-render grid;
+	uiNeedsRendering(this);
 }
 
 // automation edit pad action
@@ -3519,6 +3522,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		displayAutomation(true, !display->have7SEG());
 	}
 	resetParameterShortcutBlinking();
+	blinkShortcuts();
 	view.setModLedStates();
 	uiNeedsRendering(this);
 }
