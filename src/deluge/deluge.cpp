@@ -967,7 +967,7 @@ extern "C" void routineForSD(void) {
 
 	AudioEngine::logAction("from routineForSD()");
 	AudioEngine::routine();
-	playbackHandler.routine();
+
 	uiTimerManager.routine();
 
 	if (display->haveOLED()) {
