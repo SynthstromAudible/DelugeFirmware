@@ -227,7 +227,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	return ActionResult::DEALT_WITH;
 }
 
-enum class LoadStatus { start, loadingSamples, waitingToEnd, newSongPlaying, finished };
+enum class LoadStatus { START, BEGIN_LOADING_SAMPLES, WAIT_FOR_SAMPLES, NEW_SONG_PLAYING, COMPLETE };
 StorageManager* bdsm{};
 // Before calling this, you must set loadButtonReleased.
 void LoadSongUI::performLoad(StorageManager& _bdsm) {
@@ -237,11 +237,11 @@ void LoadSongUI::performLoad(StorageManager& _bdsm) {
 void LoadSongUI::performLoadFixedSM() {
 	static int32_t count = 0;
 	Song* toDelete = nullptr;
-	static LoadStatus status = LoadStatus::start;
-	if (status == LoadStatus::finished)
-		status = LoadStatus::start;
+	static LoadStatus status = LoadStatus::START;
+	if (status == LoadStatus::COMPLETE)
+		status = LoadStatus::START;
 	switch (status) {
-	case LoadStatus::start: {
+	case LoadStatus::START: {
 		FileItem* currentFileItem = getCurrentFileItem();
 
 		if (!currentFileItem) {
@@ -371,11 +371,11 @@ gotErrorAfterCreatingSong:
 		else {
 			preLoadedSong->loadAllSamples(true);
 		}
-		status = LoadStatus::loadingSamples;
+		status = LoadStatus::BEGIN_LOADING_SAMPLES;
 		addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05);
 		break;
 	}
-	case LoadStatus::loadingSamples: {
+	case LoadStatus::BEGIN_LOADING_SAMPLES: {
 		// Ensure all AudioFile Clusters needed for new song are loaded
 		// Prevent any unforeseen loop. Not sure if that actually could happen
 		if (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 50) {
@@ -386,7 +386,7 @@ gotErrorAfterCreatingSong:
 		preLoadedSong->name.set(&enteredText);
 
 		toDelete = currentSong;
-		status = LoadStatus::waitingToEnd;
+		status = LoadStatus::WAIT_FOR_SAMPLES;
 		if (playbackHandler.isEitherClockActive()) {
 
 			// If load button was already released while that loading was happening, arm for song-swap now
@@ -434,19 +434,19 @@ gotErrorAfterCreatingSong:
 		}
 
 		else {
-			status = LoadStatus::newSongPlaying;
+			status = LoadStatus::NEW_SONG_PLAYING;
 			playbackHandler.doSongSwap();
 		}
 	}
-	case LoadStatus::waitingToEnd: {
+	case LoadStatus::WAIT_FOR_SAMPLES: {
 		if (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
 			addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05);
 			return;
 		}
-		status = LoadStatus::newSongPlaying;
+		status = LoadStatus::NEW_SONG_PLAYING;
 	}
 swapDone:
-	case LoadStatus::newSongPlaying:
+	case LoadStatus::NEW_SONG_PLAYING:
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::displayWorkingAnimation(
 			    "Loading"); // To override our popup if we did one. (Still necessary?)
@@ -477,7 +477,7 @@ swapDone:
 		currentUIMode = UI_MODE_NONE;
 
 		display->removeWorkingAnimation();
-		status = LoadStatus::finished;
+		status = LoadStatus::COMPLETE;
 	}
 }
 
