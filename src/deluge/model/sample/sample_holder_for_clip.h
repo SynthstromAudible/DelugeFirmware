@@ -22,12 +22,12 @@
 class SampleHolderForClip final : public SampleHolder {
 public:
 	SampleHolderForClip();
-	virtual ~SampleHolderForClip();
+	~SampleHolderForClip() override;
 
 	void setAudioFile(AudioFile* newAudioFile, bool reversed = false, bool manuallySelected = false,
 	                  int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 	void recalculateNeutralPhaseIncrement();
-	void beenClonedFrom(SampleHolderForClip* other, bool reversed);
+	void beenClonedFrom(SampleHolderForClip const* other, bool reversed);
 
 	int16_t transpose;
 	int8_t cents;

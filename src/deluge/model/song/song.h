@@ -81,7 +81,7 @@ struct BackedUpParamManager {
 class Song final : public TimelineCounter {
 public:
 	Song();
-	~Song();
+	~Song() override;
 	bool mayDoubleTempo();
 	bool ensureAtLeastOneSessionClip();
 	void transposeAllScaleModeClips(int32_t interval);
@@ -136,8 +136,6 @@ public:
 	void stopAllMIDIAndGateNotesPlaying();
 	void stopAllAuditioning();
 	void deleteOrHibernateOutput(Output* output);
-	uint32_t getLivePos();
-	int32_t getLoopLength();
 	Instrument* getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
 	                                            int16_t newSlot, int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
 	void removeSessionClipLowLevel(Clip* clip, int32_t clipIndex);
@@ -283,7 +281,7 @@ public:
 	void deleteOrAddToHibernationListOutput(Output* output);
 	int32_t getLowestSectionWithNoSessionClipForOutput(Output* output);
 	void assertActiveness(ModelStackWithTimelineCounter* modelStack, int32_t endInstanceAtTime = -1);
-	bool isClipActive(Clip* clip) const;
+	[[nodiscard]] bool isClipActive(Clip const* clip) const;
 	void sendAllMIDIPGMs();
 	void sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack, int32_t playbackWillStartInArrangerAtPos);
 	void deactivateAnyArrangementOnlyClips();
@@ -309,13 +307,6 @@ public:
 	void deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip);
 	bool arrangementHasAnyClipInstances();
 	void resumeClipsClonedForArrangementRecording();
-	bool isPlayingAutomationNow();
-	bool backtrackingCouldLoopBackToEnd();
-	int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack);
-	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack);
-	void expectEvent();
-	TimelineCounter* getTimelineCounterToRecordTo();
-	int32_t getLastProcessedPos();
 	void setParamsInAutomationMode(bool newState);
 	bool shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = NULL);
 	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset);
@@ -354,6 +345,17 @@ public:
 	/// Gets a modelstack with the song-global unpatched param paramID.
 	/// used in performance view and in automation arranger view
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID);
+
+	// TimelineCounter implementation
+	[[nodiscard]] int32_t getLastProcessedPos() const override;
+	[[nodiscard]] uint32_t getLivePos() const override;
+	[[nodiscard]] int32_t getLoopLength() const override;
+	[[nodiscard]] bool isPlayingAutomationNow() const override;
+	[[nodiscard]] bool backtrackingCouldLoopBackToEnd() const override;
+	[[nodiscard]] int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) const override;
+	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) override;
+	void expectEvent() override;
+	TimelineCounter* getTimelineCounterToRecordTo() override;
 
 	// Whether this song wants notes/cc/etc from delly midi clips looped back
 	bool midiLoopback = false;

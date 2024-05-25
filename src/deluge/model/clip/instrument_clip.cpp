@@ -113,10 +113,10 @@ void InstrumentClip::deleteBackedUpParamManagerMIDI() {
 	}
 }
 
-void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
+void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	Clip::copyBasicsFrom(otherClip);
 
-	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherClip;
+	auto otherInstrumentClip = static_cast<InstrumentClip const*>(otherClip);
 
 	midiBank = otherInstrumentClip->midiBank;
 	midiSub = otherInstrumentClip->midiSub;
@@ -152,15 +152,14 @@ void InstrumentClip::copyBasicsFrom(Clip* otherClip) {
 }
 
 // Will replace the Clip in the modelStack, if success.
-Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
+Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	InstrumentClip* newClip =
-	    new (clipMemory) InstrumentClip(); // Don't supply Song. yScroll will get set in copyBasicsFrom()
+	auto newClip = new (clipMemory) InstrumentClip(); // Don't supply Song. yScroll will get set in copyBasicsFrom()
 
 	newClip->copyBasicsFrom(this);
 

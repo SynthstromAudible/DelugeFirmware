@@ -161,8 +161,8 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	other->expressionParamSetOffset = 0;
 }
 
-Error ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams,
-                                              int32_t reverseDirectionWithLength) {
+Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation,
+                                              bool cloneExpressionParams, int32_t reverseDirectionWithLength) {
 
 	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
 	// Paul: Prevent MPE data from not getting exchanged with a newly allocated pointer if we allocate the same params
@@ -179,7 +179,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager* other, bool copyAuto
 	                                                 // function is called from beenCloned()).
 
 	ParamCollectionSummary* __restrict__ newSummary = newSummaries;
-	ParamCollectionSummary* otherSummary =
+	ParamCollectionSummary const* otherSummary =
 	    other->summaries; // Not __restrict__, because other might be the same as this!
 	ParamCollectionSummary const* otherStopAt = &other->summaries[other->expressionParamSetOffset];
 

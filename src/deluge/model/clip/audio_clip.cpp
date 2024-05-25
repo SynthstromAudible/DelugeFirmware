@@ -74,14 +74,14 @@ AudioClip::~AudioClip() {
 }
 
 // Will replace the Clip in the modelStack, if success.
-Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) {
+Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing) const {
 
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	AudioClip* newClip = new (clipMemory) AudioClip();
+	auto newClip = new (clipMemory) AudioClip();
 
 	newClip->copyBasicsFrom(this);
 	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
@@ -107,7 +107,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	return Error::NONE;
 }
 
-void AudioClip::copyBasicsFrom(Clip* otherClip) {
+void AudioClip::copyBasicsFrom(Clip const* otherClip) {
 	Clip::copyBasicsFrom(otherClip);
 	overdubsShouldCloneOutput = ((AudioClip*)otherClip)->overdubsShouldCloneOutput;
 }

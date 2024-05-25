@@ -67,11 +67,11 @@ struct EditPadPress {
 class InstrumentClipView final : public ClipView, public InstrumentClipMinder {
 public:
 	InstrumentClipView();
-	bool opened();
-	void focusRegained();
+	bool opened() override;
+	void focusRegained() override;
 	void displayOrLanguageChanged() final;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
 	void adjustVelocity(int32_t velocityChange);
@@ -95,16 +95,16 @@ public:
 	void changeRootNote(uint8_t yDisplay);
 	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	ActionResult horizontalEncoderAction(int32_t offset);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void fillOffScreenImageStores();
-	void graphicsRoutine();
+	void graphicsRoutine() override;
 
 	void drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]);
 	void flashDefaultRootNote();
-	void selectEncoderAction(int8_t offset);
+	void selectEncoderAction(int8_t offset) override;
 	void doubleClipLengthAction();
-	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
+	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
 	void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true, Kit* selectedKit = nullptr);
 	bool isDrumAuditioned(Drum* drum);
 	int32_t setupForEnteringScaleMode(int32_t newRootNote = 2147483647, int32_t yDisplay = (kDisplayHeight / 2));
@@ -112,26 +112,26 @@ public:
 	void setupChangingOfRootNote(int32_t newRootNote, int32_t yDisplay = (kDisplayHeight / 2));
 	void deleteDrum(SoundDrum* drum);
 	void cancelAllAuditioning();
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 
-	void tellMatrixDriverWhichRowsContainSomethingZoomable();
+	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
 	void drawDrumName(Drum* drum, bool justPopUp = false);
 	void getDrumName(Drum* drum, StringBuf& drumName);
-	void notifyPlaybackBegun();
+	void notifyPlaybackBegun() override;
 	void openedInBackground();
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 
-	void playbackEnded();
-	void scrollFinished();
-	void clipNeedsReRendering(Clip* clip);
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
-	ClipMinder* toClipMinder() { return this; }
+	void playbackEnded() override;
+	void scrollFinished() override;
+	void clipNeedsReRendering(Clip* clip) override;
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	ClipMinder* toClipMinder() override { return this; }
 	void reportMPEInitialValuesForNoteEditing(ModelStackWithNoteRow* modelStack, int16_t const* mpeValues);
 	void reportMPEValueForNoteEditing(int32_t whichExpressionDimension, int32_t value);
 	void reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack);
@@ -151,14 +151,14 @@ public:
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
 	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
-	bool getAffectEntire();
+	bool getAffectEntire() override;
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	void endEditPadPress(uint8_t i);
 	void copyAutomation(int32_t whichModEncoder, int32_t navSysId = NAVIGATION_CLIP);
 	void pasteAutomation(int32_t whichModEncoder, int32_t navSysId = NAVIGATION_CLIP);
 	// made these public so they can be accessed by the automation clip view
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override { InstrumentClipMinder::renderOLED(image); }
 
 	CopiedNoteRow* firstCopiedNoteRow;
 	int32_t copiedScreenWidth;
@@ -192,7 +192,7 @@ public:
 	// made these public so they can be accessed by the automation clip view
 
 	// ui
-	UIType getUIType() { return UIType::INSTRUMENT_CLIP_VIEW; }
+	UIType getUIType() override { return UIType::INSTRUMENT_CLIP_VIEW; }
 
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;

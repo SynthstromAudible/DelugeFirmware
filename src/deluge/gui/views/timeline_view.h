@@ -35,7 +35,7 @@ public:
 	                                     uint32_t oldZoom); // Returns false if no animation needed
 	virtual uint32_t getMaxLength() = 0;
 	virtual bool setupScroll(uint32_t oldScroll); // Returns false if no animation needed
-	virtual int32_t getNavSysId() { return NAVIGATION_CLIP; }
+	[[nodiscard]] virtual int32_t getNavSysId() const { return NAVIGATION_CLIP; }
 
 	virtual void tellMatrixDriverWhichRowsContainSomethingZoomable() {
 	} // SessionView doesn't have this because it does this a different way. Sorry, confusing I know
@@ -58,15 +58,15 @@ public:
 
 	void tripletsButtonPressed();
 
-	int32_t getPosFromSquare(int32_t square, int32_t localScroll = -1);
-	int32_t getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom);
+	[[nodiscard]] int32_t getPosFromSquare(int32_t square, int32_t localScroll = -1) const;
+	[[nodiscard]] int32_t getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) const;
 	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare = NULL, int32_t localScroll = -1);
 	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll, uint32_t xZoom);
 	int32_t getSquareEndFromPos(int32_t pos, int32_t localScroll = -1);
 	bool isSquareDefined(int32_t square, int32_t xScroll = -1);
 	bool isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZoom);
 
-	bool inTripletsView();
+	[[nodiscard]] bool inTripletsView() const;
 
 	// ui
 	UIType getUIType() { return UIType::TIMELINE_VIEW; }
