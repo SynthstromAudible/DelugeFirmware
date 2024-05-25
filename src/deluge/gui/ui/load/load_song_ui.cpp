@@ -227,19 +227,25 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	return ActionResult::DEALT_WITH;
 }
 
-enum class LoadStatus { START, BEGIN_LOADING_SAMPLES, WAIT_FOR_SAMPLES, NEW_SONG_PLAYING, COMPLETE };
+enum class LoadStatus { START, BEGIN_LOADING_SAMPLES, WAIT_FOR_SAMPLES, COMPLETE };
 StorageManager* bdsm{};
+LoadStatus status = LoadStatus::COMPLETE;
 // Before calling this, you must set loadButtonReleased.
 void LoadSongUI::performLoad(StorageManager& _bdsm) {
+	if (status == LoadStatus::COMPLETE) {
+		status = LoadStatus::START;
+	}
+	else {
+		FREEZE_WITH_ERROR("L000");
+	}
 	bdsm = &_bdsm;
 	performLoadFixedSM();
 }
 void LoadSongUI::performLoadFixedSM() {
 	static int32_t count = 0;
 	Song* toDelete = nullptr;
-	static LoadStatus status = LoadStatus::START;
-	if (status == LoadStatus::COMPLETE)
-		status = LoadStatus::START;
+	// static LoadStatus status = LoadStatus::START;
+
 	switch (status) {
 	case LoadStatus::START: {
 		FileItem* currentFileItem = getCurrentFileItem();
@@ -434,7 +440,6 @@ gotErrorAfterCreatingSong:
 		}
 
 		else {
-			status = LoadStatus::NEW_SONG_PLAYING;
 			playbackHandler.doSongSwap();
 		}
 	}
@@ -443,10 +448,8 @@ gotErrorAfterCreatingSong:
 			addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05);
 			return;
 		}
-		status = LoadStatus::NEW_SONG_PLAYING;
-	}
 swapDone:
-	case LoadStatus::NEW_SONG_PLAYING:
+		// we're done so load the rest of the song
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::displayWorkingAnimation(
 			    "Loading"); // To override our popup if we did one. (Still necessary?)
@@ -479,6 +482,7 @@ swapDone:
 		display->removeWorkingAnimation();
 		status = LoadStatus::COMPLETE;
 	}
+	}
 }
 
 ActionResult LoadSongUI::timerCallback() {
@@ -490,8 +494,8 @@ ActionResult LoadSongUI::timerCallback() {
 		if (PadLEDs::vertical::squaresScrolled >= kDisplayHeight) {
 			// If exiting this UI...
 			if (PadLEDs::vertical::scrollDirection == -1) {
-				exitThisUI(); // Ideally I don't think this should be allowed to be happen while in the card routine,
-				              // which we're in right now...
+				exitThisUI(); // Ideally I don't think this should be allowed to be happen while in the card
+				              // routine, which we're in right now...
 			}
 
 			// Or if just coming into this UI...
@@ -522,7 +526,8 @@ getOut: {}
 }
 
 void LoadSongUI::scrollFinished() {
-	// If we were scrolling out of one song and we got here, we just need to sit back and wait for the next song to load
+	// If we were scrolling out of one song and we got here, we just need to sit back and wait for the next song to
+	// load
 	if (!scrollingIntoSlot) {
 		currentUIMode = UI_MODE_WAITING_FOR_NEXT_FILE_TO_LOAD;
 	}
@@ -616,7 +621,8 @@ void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 		}
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 		scrollingIntoSlot = false;
-		PadLEDs::horizontal::renderScroll(); // The scrolling animation will begin while file is being found and loaded
+		PadLEDs::horizontal::renderScroll(); // The scrolling animation will begin while file is being found and
+		                                     // loaded
 
 		drawSongPreview(storageManager); // Scrolling continues as the file is read by this function
 
