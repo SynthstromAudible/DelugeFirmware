@@ -337,8 +337,11 @@ public:
 	                                          int32_t whichBendRange, int32_t bendSemitones);
 	Error addInstrumentsToFileItems(OutputType outputType);
 
+	/// Get the number of sequencer ticks for a quarter note
 	uint32_t getQuarterNoteLength();
+	/// Get the number of sequencer ticks in a bar
 	uint32_t getBarLength();
+
 	ModelStackWithThreeMainThings* setupModelStackWithSongAsTimelineCounter(void* memory);
 	ModelStackWithTimelineCounter* setupModelStackWithCurrentClip(void* memory);
 	ModelStackWithThreeMainThings* addToModelStack(ModelStack* modelStack);

@@ -21,9 +21,12 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
+#include "io/debug/log.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/timeline_counter.h"
 #include "processing/engines/audio_engine.h"
 #include "string.h"
 #include <algorithm>
@@ -295,6 +298,50 @@ putBeatCountOnFarRight:
 
 		display->displayPopup(text, 3, false, dotMask);
 	}
+}
+
+void TimelineView::renderMainImage(TimelineCounter const& counter, uint32_t totalTicks) const {
+	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+
+	using deluge::hid::display::OLED;
+
+	if (!display->haveOLED()) {
+		return;
+	}
+
+	int32_t const navSysId = getNavSysId();
+	int32_t const xScroll = currentSong->xScroll[navSysId];
+	int32_t const xZoom = currentSong->xZoom[navSysId];
+
+	auto viewStartPos = xScroll;
+	uint32_t viewEndPos = xScroll + kDisplayWidth * xZoom;
+
+	if (viewEndPos > totalTicks) {
+		std::swap(viewEndPos, totalTicks);
+	}
+
+	auto livePos = counter.getLivePos();
+	auto ticksPerBar = currentSong->getBarLength();
+	auto totalBars = totalTicks / ticksPerBar;
+
+	constexpr int32_t kBarRenderTop = OLED_MAIN_HEIGHT_PIXELS - 4;
+
+	canvas.clearAreaExact(0, kBarRenderTop - 1, OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_HEIGHT_PIXELS - 1);
+
+	canvas.drawPixel(0, kBarRenderTop);
+	for (auto i = 1; i <= totalBars; ++i) {
+		auto tick = i * ticksPerBar;
+		auto x = ((tick * OLED_MAIN_WIDTH_PIXELS) / totalTicks) - 1;
+		canvas.drawPixel(x, kBarRenderTop);
+	}
+
+	auto lineStart = static_cast<int32_t>((viewStartPos * OLED_MAIN_WIDTH_PIXELS) / totalTicks);
+	auto lineEnd = static_cast<int32_t>(((viewEndPos - 1) * OLED_MAIN_WIDTH_PIXELS) / totalTicks);
+
+	D_PRINTLN("visible region: %d %d %d|%d %d/%d %d/%d", navSysId, xScroll, xZoom, totalTicks, viewStartPos, lineStart,
+	          viewEndPos, lineEnd);
+
+	canvas.drawHorizontalLine(kBarRenderTop, lineStart, lineEnd);
 }
 
 // Changes the actual xScroll.

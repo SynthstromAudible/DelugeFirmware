@@ -23,6 +23,7 @@
 
 class InstrumentClip;
 class NoteRow;
+class TimelineCounter;
 
 class TimelineView : public RootUI {
 public:
@@ -44,9 +45,14 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void displayZoomLevel(bool justPopup = false);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
+
 	void displayScrollPos();
 	void displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantization, bool countFromOne,
 	                                 char const* tooLongText);
+
+	/// Render indication of where the view is given the current playback state.
+	void renderMainImage(TimelineCounter const& counter, uint32_t totalTicks) const;
+
 	void initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScroll = kDisplayWidth);
 	bool zoomToMax(bool inOnly = false);
 	void initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint32_t oldZoom);

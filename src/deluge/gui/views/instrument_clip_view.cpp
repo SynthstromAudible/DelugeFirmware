@@ -5334,6 +5334,8 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 
 		image += imageWidth;
 	}
+
+	renderMainImage(*clip, clip->getLoopLength());
 }
 
 void InstrumentClipView::playbackEnded() {
