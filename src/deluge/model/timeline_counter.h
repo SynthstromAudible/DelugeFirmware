@@ -30,7 +30,9 @@ public:
 	TimelineCounter();
 	virtual ~TimelineCounter();
 
+	/// Get the tick at which this timeline counter last did anything
 	virtual int32_t getLastProcessedPos() = 0;
+	/// Get the current tick of this timeline counter relative to the playback handler
 	virtual uint32_t getLivePos() = 0;
 	virtual int32_t getLoopLength() = 0;
 	virtual bool isPlayingAutomationNow() = 0;

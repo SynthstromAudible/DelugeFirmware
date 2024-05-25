@@ -40,7 +40,7 @@ class Deserializer;
 class Clip : public TimelineCounter {
 public:
 	Clip(ClipType newType);
-	virtual ~Clip();
+	~Clip() override;
 	bool cancelAnyArming();
 	int32_t getMaxZoom();
 	virtual int32_t getMaxLength();
@@ -57,9 +57,9 @@ public:
 	virtual void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast);
 	void prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
 	                           InstrumentRemoval instrumentRemovalInstruction);
-	uint32_t getLivePos();
+	uint32_t getLivePos() override;
 	uint32_t getActualCurrentPosAsIfPlayingInForwardDirection();
-	int32_t getLastProcessedPos();
+	int32_t getLastProcessedPos() override;
 	int32_t getCurrentPosAsIfPlayingInForwardDirection();
 	Clip* getClipBeingRecordedFrom();
 	Clip* getClipToRecordTo();
@@ -129,19 +129,19 @@ public:
 	virtual void stopAllNotesPlaying(Song* song, bool actuallySoundChange = true) {}
 	virtual bool willCloneOutputForOverdub() { return false; }
 	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newSequenceDirection);
-	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack);
+	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack) override;
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
 	/// Return true if successfully shifted
 	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) = 0;
 
 	// ----- PlayPositionCounter implementation -------
-	int32_t getLoopLength();
-	bool isPlayingAutomationNow();
-	bool backtrackingCouldLoopBackToEnd();
-	int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack);
-	TimelineCounter* getTimelineCounterToRecordTo();
-	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack);
-	void expectEvent();
+	int32_t getLoopLength() override;
+	bool isPlayingAutomationNow() override;
+	bool backtrackingCouldLoopBackToEnd() override;
+	int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) override;
+	TimelineCounter* getTimelineCounterToRecordTo() override;
+	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) override;
+	void expectEvent() override;
 
 	Output* output;
 

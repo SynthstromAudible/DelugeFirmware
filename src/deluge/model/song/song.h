@@ -136,8 +136,8 @@ public:
 	void stopAllMIDIAndGateNotesPlaying();
 	void stopAllAuditioning();
 	void deleteOrHibernateOutput(Output* output);
-	uint32_t getLivePos();
-	int32_t getLoopLength();
+	uint32_t getLivePos() override;
+	int32_t getLoopLength() override;
 	Instrument* getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
 	                                            int16_t newSlot, int8_t newSubSlot, bool* instrumentWasAlreadyInSong);
 	void removeSessionClipLowLevel(Clip* clip, int32_t clipIndex);
@@ -309,12 +309,12 @@ public:
 	void deletingClipInstanceForClip(Output* output, Clip* clip, Action* action, bool shouldPickNewActiveClip);
 	bool arrangementHasAnyClipInstances();
 	void resumeClipsClonedForArrangementRecording();
-	bool isPlayingAutomationNow();
-	bool backtrackingCouldLoopBackToEnd();
-	int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack);
-	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack);
-	void expectEvent();
-	TimelineCounter* getTimelineCounterToRecordTo();
+	bool isPlayingAutomationNow() override;
+	bool backtrackingCouldLoopBackToEnd() override;
+	int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) override;
+	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) override;
+	void expectEvent() override;
+	TimelineCounter* getTimelineCounterToRecordTo() override;
 	int32_t getLastProcessedPos();
 	void setParamsInAutomationMode(bool newState);
 	bool shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = NULL);
