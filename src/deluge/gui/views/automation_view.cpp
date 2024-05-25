@@ -495,6 +495,7 @@ void AutomationView::focusRegained() {
 	if (getCurrentUI() == this) {
 		// blink timer got reset by view.focusRegained() above
 		parameterShortcutBlinking = false;
+		interpolationShortcutBlinking = false;
 		// remove patch cable blink frequencies
 		memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
@@ -536,6 +537,11 @@ void AutomationView::openedInBackground() {
 	}
 	else {
 		uiNeedsRendering(this);
+	}
+
+	// setup interpolation shortcut blinking when entering automation view from menu
+	if (onMenuView && interpolation) {
+		blinkInterpolationShortcut();
 	}
 }
 
@@ -602,8 +608,6 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 
 	performActualRender(image, occupancyMask, currentSong->xScroll[navSysId], currentSong->xZoom[navSysId],
 	                    kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
-
-	blinkShortcuts();
 
 	PadLEDs::renderingLock = false;
 
@@ -1664,6 +1668,7 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	if (on && currentUIMode == UI_MODE_NONE) {
 		if (Buttons::isShiftButtonPressed()) {
 			initParameterSelection();
+			resetParameterShortcutBlinking();
 			uiNeedsRendering(this);
 		}
 		else {
@@ -1673,8 +1678,8 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 			else {
 				changeRootUI(&instrumentClipView);
 			}
+			resetShortcutBlinking();
 		}
-		resetShortcutBlinking();
 	}
 	else if (on && currentUIMode == UI_MODE_AUDITIONING) {
 		initParameterSelection();
@@ -2063,7 +2068,19 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 					interpolation = true;
 					blinkInterpolationShortcut();
 
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_INTERPOLATION_ENABLED));
+			shortcutPress = true;
+		}
+		// this means you are selecting a parameter
+		if (shortcutPress || onAutomationOverview()) {
+			// don't change parameters this way if we're in the menu
+			if (getCurrentUI() == &automationView) {
+				// make sure the context is valid for selecting a parameter
+				// can't select a parameter in a kit if you haven't selected a drum
+				if (onArrangerView
+				    || !(outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)
+				    || (outputType == OutputType::KIT && getAffectEntire())) {
+
+					handleParameterSelection(clip, outputType, x, y);
 				}
 				else {
 					interpolation = false;
@@ -2078,15 +2095,99 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 				initPadSelection();
 				handleSinglePadPress(modelStackWithParam, clip, x, y, effectiveLength, xScroll, xZoom, true);
 			}
+		}
+		else {
+			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
+
+			padSelectionOn = true;
+			multiPadPressSelected = false;
+			multiPadPressActive = false;
+
+			// display only left cursor initially
+			leftPadSelectedX = 0;
+			rightPadSelectedX = kNoSelection;
+
+			uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
+
+			updateModPosition(modelStackWithParam, squareStart, !display->have7SEG());
+		}
+		uiNeedsRendering(this);
+	}
+	return true;
+}
+
+// called by shortcutPadAction when it is determined that you are selecting a parameter on automation
+// overview or by using a grid shortcut combo
+void AutomationView::handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay) {
+	if (!onArrangerView && (outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
+	    && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+	        || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID))) {
+		// don't allow automation of portamento in kit's
+		if ((outputType == OutputType::KIT)
+		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
+			return; // no parameter selected, don't re-render grid;
+		}
+
+		// if you are in a synth or a kit instrumentClip and the shortcut is valid, set current selected
+		// ParamID
+		if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+			clip->lastSelectedParamKind = params::Kind::PATCHED;
+			clip->lastSelectedParamID = patchedParamShortcuts[xDisplay][yDisplay];
+		}
+
+		else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+			clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
+			clip->lastSelectedParamID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
+		}
+
+		getLastSelectedNonGlobalParamArrayPosition(clip);
+	}
+
+	// if you are in arranger, an audio clip, or a kit clip with affect entire enabled
+	else if ((onArrangerView || (outputType == OutputType::AUDIO)
+	          || (outputType == OutputType::KIT && getAffectEntire()))
+	         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
+
+		params::Kind paramKind = params::Kind::UNPATCHED_GLOBAL;
+		int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
+
+		// don't allow automation of pitch adjust, or sidechain in arranger
+		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
+		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+			return; // no parameter selected, don't re-render grid;
+		}
 
 			return ActionResult::DEALT_WITH;
 		}
+
+		getLastSelectedGlobalParamArrayPosition(clip);
+	}
+
+	else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+
+		// if you are in a midi clip and the shortcut is valid, set the current selected ParamID
+		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
+	}
+
+	else {
+		return; // no parameter selected, don't re-render grid;
+	}
+
+	// save the selected parameter ID's shortcut pad x,y coords so that you can setup the shortcut blink
+	if (onArrangerView) {
+		currentSong->lastSelectedParamShortcutX = xDisplay;
+		currentSong->lastSelectedParamShortcutY = yDisplay;
 	}
 	// regular automation step editing action
 	if (isUIModeWithinRange(editPadActionUIModes)) {
 		editPadAction(modelStackWithParam, clip, velocity, y, x, effectiveLength, xScroll, xZoom);
 	}
-	return ActionResult::DEALT_WITH;
+
+	displayAutomation(true);
+	resetParameterShortcutBlinking();
+	blinkShortcuts();
+	view.setModLedStates();
+	uiNeedsRendering(this);
 }
 
 // edit pad action
@@ -3379,6 +3480,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		displayAutomation(true, !display->have7SEG());
 	}
 	resetParameterShortcutBlinking();
+	blinkShortcuts();
 	view.setModLedStates();
 	uiNeedsRendering(this);
 }
