@@ -33,10 +33,10 @@ class ModelStackWithTimelineCounter;
 class AudioClip final : public Clip {
 public:
 	AudioClip();
-	~AudioClip();
+	~AudioClip() override;
 	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) override;
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;
-	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) override;
+	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) const override;
 	void render(ModelStackWithTimelineCounter* modelStack, int32_t* outputBuffer, int32_t numSamples, int32_t amplitude,
 	            int32_t amplitudeIncrement, int32_t pitchAdjust);
 	void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
@@ -73,7 +73,7 @@ public:
 	void setupPlaybackBounds();
 	uint64_t getCullImmunity();
 	void posReachedEnd(ModelStackWithTimelineCounter* modelStack) override;
-	void copyBasicsFrom(Clip* otherClip) override;
+	void copyBasicsFrom(Clip const* otherClip) override;
 	bool willCloneOutputForOverdub() override { return overdubsShouldCloneOutput; }
 	void sampleZoneChanged(ModelStackWithTimelineCounter const* modelStack);
 	int64_t getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack);

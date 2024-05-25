@@ -31,13 +31,14 @@ public:
 	virtual ~TimelineCounter();
 
 	/// Get the tick at which this timeline counter last did anything
-	virtual int32_t getLastProcessedPos() = 0;
+	[[nodiscard]] virtual int32_t getLastProcessedPos() const = 0;
 	/// Get the current tick of this timeline counter relative to the playback handler
-	virtual uint32_t getLivePos() = 0;
-	virtual int32_t getLoopLength() = 0;
-	virtual bool isPlayingAutomationNow() = 0;
-	virtual bool backtrackingCouldLoopBackToEnd() = 0;
-	virtual int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) = 0;
+	[[nodiscard]] virtual uint32_t getLivePos() const = 0;
+	[[nodiscard]] virtual int32_t getLoopLength() const = 0;
+	[[nodiscard]] virtual bool isPlayingAutomationNow() const = 0;
+	[[nodiscard]] virtual bool backtrackingCouldLoopBackToEnd() const = 0;
+	[[nodiscard]] virtual int32_t
+	getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) const = 0;
 	virtual bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack) {
 		return false;
 	} // Returns whether any change.

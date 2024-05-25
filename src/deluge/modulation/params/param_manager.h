@@ -57,7 +57,7 @@ public:
 	Error setupMIDI();
 
 	void stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams = false);
-	Error cloneParamCollectionsFrom(ParamManager* other, bool copyAutomation, bool cloneExpressionParams = false,
+	Error cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation, bool cloneExpressionParams = false,
 	                                int32_t reverseDirectionWithLength = 0);
 	Error beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
 	void forgetParamCollections();

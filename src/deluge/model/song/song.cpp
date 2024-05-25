@@ -4272,7 +4272,7 @@ traverseClips:
 	output->setActiveClip(modelStack);
 }
 
-bool Song::isClipActive(Clip* clip) const {
+bool Song::isClipActive(Clip const* clip) const {
 	return clip->soloingInSessionMode || (clip->activeIfNoSolo && !getAnyClipsSoloing());
 }
 
@@ -5800,15 +5800,15 @@ uint32_t Song::getBarLength() {
 
 // ----- PlayPositionCounter implementation -------
 
-bool Song::isPlayingAutomationNow() {
+bool Song::isPlayingAutomationNow() const {
 	return (currentPlaybackMode == &arrangement || playbackHandler.recording == RecordingMode::ARRANGEMENT);
 }
 
-bool Song::backtrackingCouldLoopBackToEnd() {
+bool Song::backtrackingCouldLoopBackToEnd() const {
 	return false;
 }
 
-int32_t Song::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) {
+int32_t Song::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) const {
 	return 2147483647;
 }
 
@@ -5827,7 +5827,7 @@ void Song::expectEvent() {
 	playbackHandler.expectEvent();
 }
 
-uint32_t Song::getLivePos() {
+uint32_t Song::getLivePos() const {
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return playbackHandler.getActualArrangementRecordPos();
@@ -5839,7 +5839,7 @@ uint32_t Song::getLivePos() {
 
 // I think I created this function to be called during the actioning of a swung tick, when we know that no further
 // swung ticks have passed since the last actioned one
-int32_t Song::getLastProcessedPos() {
+int32_t Song::getLastProcessedPos() const {
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 		return playbackHandler.getArrangementRecordPosAtLastActionedSwungTick();
@@ -5849,7 +5849,7 @@ int32_t Song::getLastProcessedPos() {
 	}
 }
 
-int32_t Song::getLoopLength() {
+int32_t Song::getLoopLength() const {
 	return 2147483647;
 }
 

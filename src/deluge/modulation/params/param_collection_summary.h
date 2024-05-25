@@ -44,7 +44,7 @@ public:
 		}
 	}
 
-	void cloneFlagsFrom(ParamCollectionSummary* other) {
+	void cloneFlagsFrom(ParamCollectionSummary const* other) {
 		for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) {
 			whichParamsAreAutomated[i] = other->whichParamsAreAutomated[i];
 		}

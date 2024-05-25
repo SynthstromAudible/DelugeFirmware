@@ -176,7 +176,7 @@ class ArpeggiatorSettings {
 public:
 	ArpeggiatorSettings();
 
-	void cloneFrom(ArpeggiatorSettings* other) {
+	void cloneFrom(ArpeggiatorSettings const* other) {
 		preset = other->preset;
 		mode = other->mode;
 		octaveMode = other->octaveMode;

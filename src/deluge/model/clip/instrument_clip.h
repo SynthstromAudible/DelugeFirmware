@@ -56,7 +56,7 @@ extern uint8_t undefinedColour[];
 class InstrumentClip final : public Clip {
 public:
 	InstrumentClip(Song* song = NULL);
-	~InstrumentClip();
+	~InstrumentClip() override;
 	void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                               IndependentNoteRowLengthIncrease independentNoteRowInstruction,
 	                               bool completelyRenderOutIterationDependence = false, Action* action = NULL) override;
@@ -80,7 +80,7 @@ public:
 	void transpose(int32_t, ModelStackWithTimelineCounter* modelStack);
 	void nudgeNotesVertically(int32_t, ModelStackWithTimelineCounter* modelStack);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;
-	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) override;
+	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) const override;
 	NoteRow* createNewNoteRowForYVisual(int32_t, Song* song);
 	void changeNoteOffsetAndCounteract(int32_t newNoteOffset);
 	int32_t getYVisualFromYNote(int32_t, Song* song);
@@ -107,7 +107,7 @@ public:
 	                  int16_t const* mpeValuesOrNull = NULL, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
 	void recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t velocity = kDefaultLiftValue);
 
-	void copyBasicsFrom(Clip* otherClip) override;
+	void copyBasicsFrom(Clip const* otherClip) override;
 
 	ArpeggiatorSettings arpSettings; // Not valid for Kits
 

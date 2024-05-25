@@ -50,7 +50,7 @@ public:
 	~String();
 	void clear(bool destructing = false);
 	Error set(char const* newChars, int32_t newLength = -1);
-	void set(String* otherString);
+	void set(String const* otherString);
 	void beenCloned();
 	size_t getLength();
 	Error shorten(int32_t newLength);

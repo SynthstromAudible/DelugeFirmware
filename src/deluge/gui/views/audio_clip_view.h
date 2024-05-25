@@ -36,7 +36,7 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	bool setupScroll(uint32_t oldScroll) override;
 	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
-	bool supportsTriplets() override { return false; }
+	[[nodiscard]] bool supportsTriplets() const override { return false; }
 	ClipMinder* toClipMinder() override { return this; }
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;

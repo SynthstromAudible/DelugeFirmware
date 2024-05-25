@@ -3962,7 +3962,7 @@ uint32_t AutomationView::getMaxZoom() {
 	}
 }
 
-int32_t AutomationView::getNavSysId() {
+int32_t AutomationView::getNavSysId() const {
 	if (onArrangerView) {
 		return NAVIGATION_ARRANGEMENT;
 	}
