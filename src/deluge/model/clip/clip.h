@@ -40,12 +40,12 @@ class Deserializer;
 class Clip : public TimelineCounter {
 public:
 	Clip(ClipType newType);
-	virtual ~Clip();
+	~Clip() override;
 	bool cancelAnyArming();
 	int32_t getMaxZoom();
 	virtual int32_t getMaxLength();
-	virtual Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) = 0;
-	void cloneFrom(Clip* other);
+	virtual Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) const = 0;
+	void cloneFrom(Clip const* other);
 	void beginInstance(Song* song, int32_t arrangementRecordPos);
 	void endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip = false);
 	virtual void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos,
@@ -57,13 +57,11 @@ public:
 	virtual void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast);
 	void prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
 	                           InstrumentRemoval instrumentRemovalInstruction);
-	uint32_t getLivePos();
 	uint32_t getActualCurrentPosAsIfPlayingInForwardDirection();
-	int32_t getLastProcessedPos();
 	int32_t getCurrentPosAsIfPlayingInForwardDirection();
 	Clip* getClipBeingRecordedFrom();
 	Clip* getClipToRecordTo();
-	bool isArrangementOnlyClip();
+	[[nodiscard]] bool isArrangementOnlyClip() const;
 	bool isActiveOnOutput();
 	virtual bool deleteSoundsWhichWontSound(Song* song);
 	virtual Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
@@ -117,7 +115,7 @@ public:
 	virtual Error readFromFile(Deserializer& reader, Song* song) = 0;
 	void readTagFromFile(Deserializer& reader, char const* tagName, Song* song, int32_t* readAutomationUpToPos);
 
-	virtual void copyBasicsFrom(Clip* otherClip);
+	virtual void copyBasicsFrom(Clip const* otherClip);
 	void setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature);
 	void outputChanged(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
 	virtual bool isAbandonedOverdub() = 0;
@@ -129,19 +127,21 @@ public:
 	virtual void stopAllNotesPlaying(Song* song, bool actuallySoundChange = true) {}
 	virtual bool willCloneOutputForOverdub() { return false; }
 	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newSequenceDirection);
-	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack);
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
 	/// Return true if successfully shifted
 	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) = 0;
 
-	// ----- PlayPositionCounter implementation -------
-	int32_t getLoopLength();
-	bool isPlayingAutomationNow();
-	bool backtrackingCouldLoopBackToEnd();
-	int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack);
-	TimelineCounter* getTimelineCounterToRecordTo();
-	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack);
-	void expectEvent();
+	// ----- TimelineCounter implementation -------
+	[[nodiscard]] uint32_t getLivePos() const override;
+	[[nodiscard]] int32_t getLoopLength() const override;
+	[[nodiscard]] bool isPlayingAutomationNow() const override;
+	[[nodiscard]] bool backtrackingCouldLoopBackToEnd() const override;
+	[[nodiscard]] int32_t getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) const override;
+	[[nodiscard]] int32_t getLastProcessedPos() const override;
+	bool possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* modelStack) override;
+	TimelineCounter* getTimelineCounterToRecordTo() override;
+	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) override;
+	void expectEvent() override;
 
 	Output* output;
 

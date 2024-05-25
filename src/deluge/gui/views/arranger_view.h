@@ -63,14 +63,14 @@ public:
 	uint32_t getMaxLength() override;
 	uint32_t getMaxZoom() override;
 	void graphicsRoutine() override;
-	int32_t getNavSysId() override { return NAVIGATION_ARRANGEMENT; }
+	[[nodiscard]] int32_t getNavSysId() const override { return NAVIGATION_ARRANGEMENT; }
 	void navigateThroughPresets(int32_t offset);
 	void notifyActiveClipChangedOnOutput(Output* output);
 	ActionResult timerCallback() override;
 	void reassessWhetherDoingAutoScroll(int32_t pos = -1);
 	void autoScrollOnPlaybackEnd();
 	bool initiateXScroll(int32_t newScrollPos);
-	bool supportsTriplets() override { return false; }
+	[[nodiscard]] bool supportsTriplets() const override { return false; }
 	bool putDraggedClipInstanceInNewPosition(Output* output);
 	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
 	void scrollFinished() override;

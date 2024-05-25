@@ -123,7 +123,7 @@ Error ResizeableArray::beenCloned() {
 	return error;
 }
 
-bool ResizeableArray::cloneFrom(ResizeableArray* other) {
+bool ResizeableArray::cloneFrom(ResizeableArray const* other) {
 
 	LOCK_ENTRY
 

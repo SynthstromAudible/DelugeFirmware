@@ -31,7 +31,7 @@ public:
 	                int32_t newNumExtrarSpacesToAllocate = 15);
 	~ResizeableArray();
 	void init();
-	bool cloneFrom(ResizeableArray* other);
+	bool cloneFrom(ResizeableArray const* other);
 	void empty();
 	void swapStateWith(ResizeableArray* other);
 	void deleteAtIndex(int32_t i, int32_t numToDelete = 1, bool mayShortenMemoryAfter = true);

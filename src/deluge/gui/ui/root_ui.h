@@ -29,7 +29,7 @@ public:
 	RootUI();
 	virtual bool getAffectEntire();
 	bool canSeeViewUnderneath() final { return true; }
-	virtual bool supportsTriplets() { return true; }
+	[[nodiscard]] virtual bool supportsTriplets() const { return true; }
 	virtual void notifyPlaybackBegun() {}
 	virtual uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) { return 0; }
 	virtual void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {}

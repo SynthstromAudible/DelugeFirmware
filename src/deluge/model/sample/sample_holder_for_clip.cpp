@@ -55,7 +55,7 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 	}
 }
 
-void SampleHolderForClip::beenClonedFrom(SampleHolderForClip* other, bool reversed) {
+void SampleHolderForClip::beenClonedFrom(SampleHolderForClip const* other, bool reversed) {
 	transpose = other->transpose;
 	cents = other->cents;
 	SampleHolder::beenClonedFrom(other, reversed);

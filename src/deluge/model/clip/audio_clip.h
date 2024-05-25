@@ -33,57 +33,57 @@ class ModelStackWithTimelineCounter;
 class AudioClip final : public Clip {
 public:
 	AudioClip();
-	~AudioClip();
-	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast);
-	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true);
-	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) override;
+	~AudioClip() override;
+	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) override;
+	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;
+	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) const override;
 	void render(ModelStackWithTimelineCounter* modelStack, int32_t* outputBuffer, int32_t numSamples, int32_t amplitude,
 	            int32_t amplitudeIncrement, int32_t pitchAdjust);
 	void detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool shouldRememberDrumName,
 	                      bool shouldDeleteEmptyNoteRowsAtEndOfList = false, bool shouldRetainLinksToSounds = false,
 	                      bool keepNoteRowsWithMIDIInput = true, bool shouldGrabMidiCommands = false,
-	                      bool shouldBackUpExpressionParamsToo = true);
+	                      bool shouldBackUpExpressionParamsToo = true) override;
 	bool renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, TimelineView* editorScreen, int32_t xScroll,
 	                       uint32_t xZoom, RGB* image, uint8_t occupancyMask[], bool addUndefinedArea,
 	                       int32_t noteRowIndexStart = 0, int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
-	                       int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false);
+	                       int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false) override;
 	Error claimOutput(ModelStackWithTimelineCounter* modelStack) override;
 	void loadSample(bool mayActuallyReadFile);
-	bool wantsToBeginLinearRecording(Song* song);
-	bool isAbandonedOverdub();
+	bool wantsToBeginLinearRecording(Song* song) override;
+	bool isAbandonedOverdub() override;
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
-	                           int32_t buttonLatencyForTempolessRecord);
+	                           int32_t buttonLatencyForTempolessRecord) override;
 	Error beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) override;
 	void quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack, int32_t lengthSoFar,
 	                                           uint32_t timeRemainder, int32_t suggestedLength,
-	                                           int32_t alternativeLongerLength);
-	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature);
+	                                           int32_t alternativeLongerLength) override;
+	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) override;
 	int64_t getSamplesFromTicks(int32_t ticks);
 	void unassignVoiceSample(bool wontBeUsedAgain);
-	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true);
+	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true) override;
 	Error changeOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput);
 	Error setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
 	                AudioClip* favourClipForCloningParamManager = NULL);
 	RGB getColour();
-	bool currentlyScrollableAndZoomable();
+	bool currentlyScrollableAndZoomable() override;
 	void getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_t* xScrollSamples, int64_t* xZoomSamples);
-	void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation);
-	bool getCurrentlyRecordingLinearly();
-	void abortRecording();
+	void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation) override;
+	bool getCurrentlyRecordingLinearly() override;
+	void abortRecording() override;
 	void setupPlaybackBounds();
 	uint64_t getCullImmunity();
-	void posReachedEnd(ModelStackWithTimelineCounter* modelStack);
-	void copyBasicsFrom(Clip* otherClip);
-	bool willCloneOutputForOverdub() { return overdubsShouldCloneOutput; }
+	void posReachedEnd(ModelStackWithTimelineCounter* modelStack) override;
+	void copyBasicsFrom(Clip const* otherClip) override;
+	bool willCloneOutputForOverdub() override { return overdubsShouldCloneOutput; }
 	void sampleZoneChanged(ModelStackWithTimelineCounter const* modelStack);
 	int64_t getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack);
-	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers);
+	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers) override;
 	/// Return true if successfully shifted, as clip cannot be shifted past beginning
-	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount);
+	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) override;
 
-	Error readFromFile(Deserializer& reader, Song* song);
-	void writeDataToFile(Serializer& writer, Song* song);
-	char const* getXMLTag() { return "audioClip"; }
+	Error readFromFile(Deserializer& reader, Song* song) override;
+	void writeDataToFile(Serializer& writer, Song* song) override;
+	char const* getXMLTag() override { return "audioClip"; }
 
 	SampleControls sampleControls;
 
@@ -112,10 +112,10 @@ public:
 		return audioClipView.renderSidebar(whichRows, image, occupancyMask);
 	};
 
-	ParamManagerForTimeline* getCurrentParamManager();
+	ParamManagerForTimeline* getCurrentParamManager() override;
 
 protected:
-	bool cloneOutput(ModelStackWithTimelineCounter* modelStack);
+	bool cloneOutput(ModelStackWithTimelineCounter* modelStack) override;
 
 private:
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
