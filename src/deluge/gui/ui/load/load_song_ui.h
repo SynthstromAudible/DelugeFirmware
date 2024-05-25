@@ -54,6 +54,7 @@ private:
 	// int32_t findNextFile(int32_t offset);
 	void exitThisUI();
 	void exitActionWithError();
+	void performLoadFixedSM();
 };
 extern LoadSongUI loadSongUI;
 
