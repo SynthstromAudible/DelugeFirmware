@@ -495,6 +495,7 @@ void AutomationView::focusRegained() {
 	if (getCurrentUI() == this) {
 		// blink timer got reset by view.focusRegained() above
 		parameterShortcutBlinking = false;
+		interpolationShortcutBlinking = false;
 		// remove patch cable blink frequencies
 		memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
@@ -536,6 +537,11 @@ void AutomationView::openedInBackground() {
 	}
 	else {
 		uiNeedsRendering(this);
+	}
+
+	// setup interpolation shortcut blinking when entering automation view from menu
+	if (onMenuView && interpolation) {
+		blinkInterpolationShortcut();
 	}
 }
 
@@ -602,8 +608,6 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 
 	performActualRender(image, occupancyMask, currentSong->xScroll[navSysId], currentSong->xZoom[navSysId],
 	                    kDisplayWidth, kDisplayWidth + kSideBarWidth, drawUndefinedArea);
-
-	blinkShortcuts();
 
 	PadLEDs::renderingLock = false;
 
@@ -1563,6 +1567,8 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// when you press affect entire in a kit, the parameter selection needs to reset
 	else if (b == AFFECT_ENTIRE) {
 		initParameterSelection();
+		resetParameterShortcutBlinking();
+		blinkShortcuts();
 		goto passToOthers;
 	}
 
@@ -1664,6 +1670,8 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 	if (on && currentUIMode == UI_MODE_NONE) {
 		if (Buttons::isShiftButtonPressed()) {
 			initParameterSelection();
+			resetParameterShortcutBlinking();
+			blinkShortcuts();
 			uiNeedsRendering(this);
 		}
 		else {
@@ -1673,12 +1681,13 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 			else {
 				changeRootUI(&instrumentClipView);
 			}
+			resetShortcutBlinking();
 		}
-		resetShortcutBlinking();
 	}
 	else if (on && currentUIMode == UI_MODE_AUDITIONING) {
 		initParameterSelection();
 		resetParameterShortcutBlinking();
+		blinkShortcuts();
 		uiNeedsRendering(this);
 	}
 }
@@ -1705,6 +1714,7 @@ void AutomationView::handleKitButtonAction(OutputType outputType, bool on) {
 		if (outputType != OutputType::KIT) {
 			initParameterSelection();
 			resetParameterShortcutBlinking();
+			blinkShortcuts();
 		}
 		if (Buttons::isShiftButtonPressed()) {
 			instrumentClipView.createNewInstrument(OutputType::KIT);
@@ -1722,6 +1732,7 @@ void AutomationView::handleSynthButtonAction(OutputType outputType, bool on) {
 		if (outputType != OutputType::SYNTH) {
 			initParameterSelection();
 			resetParameterShortcutBlinking();
+			blinkShortcuts();
 		}
 		// this gets triggered when you change an existing clip to synth / create a new synth clip in song mode
 		if (Buttons::isShiftButtonPressed()) {
@@ -1741,6 +1752,7 @@ void AutomationView::handleMidiButtonAction(OutputType outputType, bool on) {
 		if (outputType != OutputType::MIDI_OUT) {
 			initParameterSelection();
 			resetParameterShortcutBlinking();
+			blinkShortcuts();
 		}
 		instrumentClipView.changeOutputType(OutputType::MIDI_OUT);
 	}
@@ -1753,6 +1765,7 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 		if (outputType != OutputType::CV) {
 			initParameterSelection();
 			resetParameterShortcutBlinking();
+			blinkShortcuts();
 			displayCVErrorMessage();
 		}
 		instrumentClipView.changeOutputType(OutputType::CV);
@@ -3379,6 +3392,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		displayAutomation(true, !display->have7SEG());
 	}
 	resetParameterShortcutBlinking();
+	blinkShortcuts();
 	view.setModLedStates();
 	uiNeedsRendering(this);
 }
@@ -4107,6 +4121,7 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 
 	displayAutomation(true);
 	resetParameterShortcutBlinking();
+	blinkShortcuts();
 	view.setModLedStates();
 
 	return false;
