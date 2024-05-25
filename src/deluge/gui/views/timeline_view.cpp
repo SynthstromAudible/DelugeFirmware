@@ -394,7 +394,7 @@ void TimelineView::tripletsButtonPressed() {
 	view.setTripletsLedState();
 }
 
-int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) {
+int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) const {
 
 	if (inTripletsView()) {
 		// If zoomed in just a normal amount...
@@ -425,7 +425,7 @@ int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t
 	return xScroll + square * xZoom;
 }
 
-int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll) {
+int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll) const {
 
 	int32_t navSys = getNavSysId();
 
@@ -532,7 +532,7 @@ bool TimelineView::isSquareDefined(int32_t square, int32_t xScroll) {
 	}
 }
 
-bool TimelineView::inTripletsView() {
+bool TimelineView::inTripletsView() const {
 	return (supportsTriplets() && currentSong->tripletsOn);
 }
 

@@ -52,7 +52,7 @@ SampleHolder::~SampleHolder() {
 	}
 }
 
-void SampleHolder::beenClonedFrom(SampleHolder* other, bool reversed) {
+void SampleHolder::beenClonedFrom(SampleHolder const* other, bool reversed) {
 	filePath.set(&other->filePath);
 	if (other->audioFile) {
 		setAudioFile(other->audioFile, reversed);

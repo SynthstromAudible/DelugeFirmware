@@ -32,11 +32,11 @@ class Cluster;
 class SampleHolder : public AudioFileHolder {
 public:
 	SampleHolder();
-	virtual ~SampleHolder();
+	~SampleHolder() override;
 	void unassignAllClusterReasons(bool beingDestructed = false);
 	int64_t getEndPos(bool forTimeStretching = false);
 	int64_t getDurationInSamples(bool forTimeStretching = false);
-	void beenClonedFrom(SampleHolder* other, bool reversed);
+	void beenClonedFrom(SampleHolder const* other, bool reversed);
 	virtual void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 	int32_t getLengthInSamplesAtSystemSampleRate(bool forTimeStretching = false);
 	int32_t getLoopLengthAtSystemSampleRate(bool forTimeStretching = false);

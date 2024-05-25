@@ -122,7 +122,7 @@ doCopy:
 }
 
 // This one can't fail!
-void String::set(String* otherString) {
+void String::set(String const* otherString) {
 	char* sm = otherString->stringMemory;
 #if ALPHA_OR_BETA_VERSION
 	// if the other string has memory and it's not in the non audio region

@@ -28,37 +28,37 @@ class AudioClipView final : public ClipView, public ClipMinder {
 public:
 	AudioClipView();
 
-	bool opened();
-	void focusRegained();
+	bool opened() override;
+	void focusRegained() override;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	bool setupScroll(uint32_t oldScroll);
-	void tellMatrixDriverWhichRowsContainSomethingZoomable();
-	bool supportsTriplets() { return false; }
-	ClipMinder* toClipMinder() { return this; }
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
+	bool setupScroll(uint32_t oldScroll) override;
+	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
+	[[nodiscard]] bool supportsTriplets() const override { return false; }
+	ClipMinder* toClipMinder() override { return this; }
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
-	void graphicsRoutine();
-	void playbackEnded();
+	void graphicsRoutine() override;
+	void playbackEnded() override;
 
-	void clipNeedsReRendering(Clip* clip);
-	void sampleNeedsReRendering(Sample* sample);
-	void selectEncoderAction(int8_t offset);
+	void clipNeedsReRendering(Clip* clip) override;
+	void sampleNeedsReRendering(Sample* sample) override;
+	void selectEncoderAction(int8_t offset) override;
 	void adjustLoopLength(int32_t newLength);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	ActionResult timerCallback();
-	uint32_t getMaxLength();
-	uint32_t getMaxZoom();
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult timerCallback() override;
+	uint32_t getMaxLength() override;
+	uint32_t getMaxZoom() override;
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
 
 	// ui
-	UIType getUIType() { return UIType::AUDIO_CLIP_VIEW; }
+	UIType getUIType() override { return UIType::AUDIO_CLIP_VIEW; }
 
 private:
 	void needsRenderingDependingOnSubMode();

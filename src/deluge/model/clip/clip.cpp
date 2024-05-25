@@ -81,7 +81,7 @@ Clip::~Clip() {
 
 // This is more exhaustive than copyBasicsFrom(), and is designed to be used *between* different Clip types, just for
 // the things which Clips have in common
-void Clip::cloneFrom(Clip* otherClip) {
+void Clip::cloneFrom(Clip const* otherClip) {
 	Clip::copyBasicsFrom(otherClip);
 	soloingInSessionMode = otherClip->soloingInSessionMode;
 	armState = otherClip->armState;
@@ -94,7 +94,7 @@ void Clip::cloneFrom(Clip* otherClip) {
 	launchStyle = otherClip->launchStyle;
 }
 
-void Clip::copyBasicsFrom(Clip* otherClip) {
+void Clip::copyBasicsFrom(Clip const* otherClip) {
 	loopLength = otherClip->loopLength;
 	colourOffset = otherClip->colourOffset;
 	// modKnobMode = otherClip->modKnobMode;
@@ -144,7 +144,7 @@ int32_t Clip::getMaxZoom() {
 	return thisLength >> kDisplayWidthMagnitude;
 }
 
-uint32_t Clip::getLivePos() {
+uint32_t Clip::getLivePos() const {
 	int32_t currentPosHere = lastProcessedPos;
 
 	int32_t numSwungTicksInSinceLastActioned = playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
@@ -187,7 +187,7 @@ int32_t Clip::getCurrentPosAsIfPlayingInForwardDirection() {
 	return posToReturn;
 }
 
-int32_t Clip::getLastProcessedPos() {
+int32_t Clip::getLastProcessedPos() const {
 	return lastProcessedPos;
 }
 
@@ -200,7 +200,7 @@ Clip* Clip::getClipBeingRecordedFrom() {
 	}
 }
 
-bool Clip::isArrangementOnlyClip() {
+bool Clip::isArrangementOnlyClip() const {
 	return (section == 255);
 }
 
@@ -587,7 +587,7 @@ Error Clip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* modelStack) 
 
 // ----- TimelineCounter implementation -------
 
-int32_t Clip::getLoopLength() {
+int32_t Clip::getLoopLength() const {
 	// If being recorded, it's auto extending, so won't loop
 	if (false && beingRecordedFromClip) {
 		return 2147483647;
@@ -599,16 +599,16 @@ int32_t Clip::getLoopLength() {
 	}
 }
 
-bool Clip::isPlayingAutomationNow() {
+bool Clip::isPlayingAutomationNow() const {
 	return (currentSong->isClipActive(this)
 	        || (beingRecordedFromClip && currentSong->isClipActive(beingRecordedFromClip)));
 }
 
-bool Clip::backtrackingCouldLoopBackToEnd() {
+bool Clip::backtrackingCouldLoopBackToEnd() const {
 	return (repeatCount > 0);
 }
 
-int32_t Clip::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) {
+int32_t Clip::getPosAtWhichPlaybackWillCut(ModelStackWithTimelineCounter const* modelStack) const {
 	return currentPlaybackMode->getPosAtWhichClipWillCut(modelStack);
 }
 
