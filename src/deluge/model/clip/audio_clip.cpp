@@ -1228,8 +1228,9 @@ bool AudioClip::currentlyScrollableAndZoomable() {
 	return !shouldLock;
 }
 
-void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation) {
-	Clip::clear(action, modelStack, clearAutomation);
+void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
+                      bool clearNotesAndMPE) {
+	Clip::clear(action, modelStack, clearAutomation, clearNotesAndMPE);
 
 	// do not clear sample when you are in automation view
 	if (getRootUI() != &automationView) {

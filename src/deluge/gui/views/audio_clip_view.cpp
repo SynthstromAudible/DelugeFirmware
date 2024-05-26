@@ -379,7 +379,7 @@ dontDeactivateMarker:
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
-			getCurrentAudioClip()->clear(action, modelStack, !FlashStorage::automationClear);
+			getCurrentAudioClip()->clear(action, modelStack, !FlashStorage::automationClear, true);
 
 			// New default as part of Automation Clip View Implementation
 			// If this is enabled, then when you are in Audio Clip View, clearing

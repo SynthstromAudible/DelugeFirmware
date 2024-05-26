@@ -414,7 +414,10 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 
 			bool clearAutomation = (currentUI == &automationView || !FlashStorage::automationClear);
 
-			getCurrentInstrumentClip()->clear(action, modelStack, clearAutomation);
+			// if you're not in automation view, always clear notes and MPE
+			bool clearNotesAndMPE = (currentUI != &automationView);
+
+			getCurrentInstrumentClip()->clear(action, modelStack, clearAutomation, clearNotesAndMPE);
 
 			// New default as part of Automation Clip View Implementation
 			// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing
