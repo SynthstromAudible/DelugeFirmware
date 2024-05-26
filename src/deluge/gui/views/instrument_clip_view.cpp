@@ -4554,6 +4554,7 @@ wantToEditNoteRowLength:
 
 			editNoteRowLength(modelStackWithNoteRow, offset, lastAuditionedYDisplay);
 			editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+			renderUIsForOled();
 		}
 
 		// Unlike for all other cases where we protect against the user accidentally turning the encoder more after
@@ -5269,7 +5270,7 @@ void InstrumentClipView::notifyPlaybackBegun() {
 void InstrumentClipView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	InstrumentClipMinder::renderOLED(canvas);
-	TimelineView::renderTickIndicator(canvas, *clip, clip->getLoopLength());
+	TimelineView::renderTickIndicator(canvas, *clip, clip->getMaxLength());
 }
 
 bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
