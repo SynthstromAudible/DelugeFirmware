@@ -700,6 +700,10 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kScrollTime);
 }
 
+bool OLED::isScrollerRunning(int32_t index) {
+	return sideScrollers[index].text != nullptr;
+}
+
 void OLED::stopScrollingAnimation() {
 	if (sideScrollerDirection) {
 		sideScrollerDirection = 0;

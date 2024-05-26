@@ -210,10 +210,6 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 	}
 
 getOut:
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-
 	horizontalEncoderActionLock = false;
 	return ActionResult::DEALT_WITH;
 }
@@ -326,7 +322,7 @@ void TimelineView::renderTickIndicator(deluge::hid::display::oled_canvas::Canvas
 	constexpr int32_t kBarRenderTop = OLED_MAIN_TOPMOST_PIXEL - 1;
 	constexpr int32_t kBarRenderHeight = 2;
 
-	canvas.clearAreaExact(0, kBarRenderTop - 1, OLED_MAIN_WIDTH_PIXELS - 1, OLED_MAIN_HEIGHT_PIXELS - 1);
+	canvas.clearAreaExact(0, kBarRenderTop, OLED_MAIN_WIDTH_PIXELS - 1, kBarRenderTop + kBarRenderHeight);
 
 	canvas.drawPixel(0, kBarRenderTop);
 	for (auto i = 1; i <= totalBars; ++i) {
@@ -339,6 +335,10 @@ void TimelineView::renderTickIndicator(deluge::hid::display::oled_canvas::Canvas
 	auto lineEnd = static_cast<int32_t>(((viewEndPos - 1) * OLED_MAIN_WIDTH_PIXELS) / totalTicks);
 
 	canvas.drawHorizontalLine(kBarRenderTop, lineStart, lineEnd);
+	canvas.drawPixel((livePos * OLED_MAIN_WIDTH_PIXELS) / totalTicks, kBarRenderTop + 1);
+
+	// TODO: only mark dirty if we actually changed some pixels.
+	hid::display::OLED::markDirty();
 }
 
 // Changes the actual xScroll.

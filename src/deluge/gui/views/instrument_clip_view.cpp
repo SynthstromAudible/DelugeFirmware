@@ -689,7 +689,6 @@ doOther:
 					else {
 						displayZoomLevel();
 					}
-					renderUIsForOled();
 				}
 			}
 			// Whether or not we did the "multiply" action above, we need to be in this UI mode, e.g. for rotating
@@ -4554,7 +4553,6 @@ wantToEditNoteRowLength:
 
 			editNoteRowLength(modelStackWithNoteRow, offset, lastAuditionedYDisplay);
 			editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-			renderUIsForOled();
 		}
 
 		// Unlike for all other cases where we protect against the user accidentally turning the encoder more after
@@ -5118,6 +5116,9 @@ void InstrumentClipView::graphicsRoutine() {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
+
+	TimelineView::renderTickIndicator(deluge::hid::display::OLED::main, *clip, clip->getMaxLength());
+	deluge::hid::display::OLED::sendMainImage();
 
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 		return;

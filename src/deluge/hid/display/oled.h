@@ -23,11 +23,13 @@
 #include "display.h"
 #include "oled_canvas/canvas.h"
 
-#define OLED_LOG_TIMING (0 && ENABLE_TEXT_OUTPUT)
+#define OLED_LOG_TIMING (1 && ENABLE_TEXT_OUTPUT)
 
 #if OLED_LOG_TIMING
 #include "io/debug/log.h"
 #endif
+
+constexpr int32_t kScrollerIndexPrimary = 0;
 
 namespace deluge::hid::display {
 class OLED : public Display {
@@ -62,6 +64,7 @@ public:
 	static void stopScrollingAnimation();
 	static void setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
 	                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight);
+	static bool isScrollerRunning(int32_t index);
 	static void drawPermanentPopupLookingText(char const* text);
 
 	/// Call this after doing any rendering work so the next trip through the UI rendering loop actually sends the image
