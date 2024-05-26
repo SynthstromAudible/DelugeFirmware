@@ -257,20 +257,10 @@ void nullifyUIs() {
 	numUIsOpen = 0;
 }
 
+bool doesOLEDNeedRendering = false;
+
 void renderUIsForOled() {
-	int32_t u = numUIsOpen - 1;
-	while ((u > 0) && uiNavigationHierarchy[u]->oledShowsUIUnderneath) {
-		u--;
-	}
-
-	deluge::hid::display::OLED::clearMainImage();
-
-	for (; u < numUIsOpen; u++) {
-		deluge::hid::display::OLED::stopScrollingAnimation();
-		uiNavigationHierarchy[u]->renderOLED(deluge::hid::display::OLED::oledMainImage);
-	}
-
-	deluge::hid::display::OLED::sendMainImage();
+	doesOLEDNeedRendering = true;
 }
 
 uint32_t whichMainRowsNeedRendering = 0;
@@ -367,6 +357,22 @@ void doAnyPendingUIRendering() {
 				sideRowsNow = 0;
 			}
 		}
+	}
+
+	if (doesOLEDNeedRendering) {
+		int32_t u = numUIsOpen - 1;
+		while ((u > 0) && uiNavigationHierarchy[u]->oledShowsUIUnderneath) {
+			u--;
+		}
+
+		deluge::hid::display::OLED::clearMainImage();
+
+		for (; u < numUIsOpen; u++) {
+			deluge::hid::display::OLED::stopScrollingAnimation();
+			uiNavigationHierarchy[u]->renderOLED(deluge::hid::display::OLED::oledMainImage);
+		}
+
+		deluge::hid::display::OLED::sendMainImage();
 	}
 
 	pendingUIRenderingLock = false;
