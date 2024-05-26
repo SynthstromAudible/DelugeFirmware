@@ -1714,7 +1714,7 @@ void SessionView::setLedStates() {
 
 extern char loopsRemainingText[];
 
-void SessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	UI* currentUI = getCurrentUI();
 	if (currentUI != &performanceSessionView) {
 		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
@@ -1818,7 +1818,9 @@ nothingToDisplay:
 /// render session view display on opening
 void SessionView::renderViewDisplay(char const* viewString) {
 	if (display->haveOLED()) {
-		deluge::hid::display::OLED::clearMainImage();
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+
+		canvas.clear();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -1828,8 +1830,7 @@ void SessionView::renderViewDisplay(char const* viewString) {
 
 		yPos = yPos + 12;
 
-		deluge::hid::display::OLED::drawStringCentred(viewString, yPos, deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		canvas.drawStringCentred(viewString, yPos, kTextSpacingX, kTextSpacingY);
 		if (!display->hasPopup()) {
 			deluge::hid::display::OLED::markChanged();
 		}

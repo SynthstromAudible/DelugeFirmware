@@ -356,11 +356,11 @@ void doAnyPendingOLEDRendering() {
 			u--;
 		}
 
-		OLED::clearMainImage();
+		OLED::main.clear();
 
 		for (; u < numUIsOpen; u++) {
 			OLED::stopScrollingAnimation();
-			uiNavigationHierarchy[u]->renderOLED(deluge::hid::display::OLED::oledMainImage);
+			uiNavigationHierarchy[u]->renderOLED(deluge::hid::display::OLED::main);
 		}
 
 		// Don't need to mark dirty because clearMainImage has already done that for us

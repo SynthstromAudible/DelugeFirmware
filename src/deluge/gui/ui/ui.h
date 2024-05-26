@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "hid/button.h"
+#include "hid/display/oled_canvas/canvas.h"
 
 class RootUI;
 class ClipMinder;
@@ -140,7 +141,7 @@ public:
 
 	void close();
 
-	virtual void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) = 0;
+	virtual void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) = 0;
 	bool oledShowsUIUnderneath;
 
 	virtual UIType getUIType() = 0;

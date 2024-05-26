@@ -1661,7 +1661,7 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 	}
 }
 
-void SoundEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();

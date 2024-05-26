@@ -908,8 +908,12 @@ constexpr int32_t kMIDIOutputFilterNoMPE = 0;
 constexpr int32_t kOLEDWidthChars = 16;
 constexpr int32_t kOLEDMenuNumOptionsVisible = (OLED_HEIGHT_CHARS - 1);
 
-constexpr int32_t kConsoleImageHeight = (OLED_MAIN_HEIGHT_PIXELS + 16);
-constexpr int32_t kConsoleImageNumRows = (kConsoleImageHeight >> 3);
+/// XXX: THIS MUST ALWAYS MATCH THE CONSTANTS IN Canvas
+///
+/// They used to be decoupled but that would force us to either make the height a dynamic variable or double up the code
+/// size.
+constexpr int32_t kConsoleImageHeight = (OLED_MAIN_HEIGHT_PIXELS);
+constexpr int32_t kConsoleImageNumRows = (OLED_MAIN_HEIGHT_PIXELS >> 3);
 
 constexpr int32_t kTextSpacingX = 6;
 constexpr int32_t kTextSpacingY = 9;

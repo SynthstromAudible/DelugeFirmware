@@ -49,7 +49,7 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override;
 
 	// OLED
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	// 7SEG
 	void displayText();

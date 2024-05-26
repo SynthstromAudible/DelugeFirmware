@@ -73,7 +73,7 @@ void Slicer::focusRegained() {
 	}
 }
 
-void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void Slicer::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	int32_t windowWidth = 100;
 	int32_t windowHeight = 31;
@@ -87,17 +87,16 @@ void Slicer::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 	windowMinY += 2;
 	int32_t windowMaxY = windowMinY + windowHeight;
 
-	deluge::hid::display::OLED::clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1, image);
+	canvas.clearAreaExact(windowMinX + 1, windowMinY + 1, windowMaxX - 1, windowMaxY - 1);
 
-	deluge::hid::display::OLED::drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY, image);
-	deluge::hid::display::OLED::drawHorizontalLine(windowMinY + 15, 26, OLED_MAIN_WIDTH_PIXELS - 22, &image[0]);
-	deluge::hid::display::OLED::drawString("Num. slices", 30, windowMinY + 6, image[0], OLED_MAIN_WIDTH_PIXELS,
-	                                       kTextSpacingX, kTextSpacingY);
+	canvas.drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY);
+	canvas.drawHorizontalLine(windowMinY + 15, 26, OLED_MAIN_WIDTH_PIXELS - 22);
+	canvas.drawString("Num. slices", 30, windowMinY + 6, kTextSpacingX, kTextSpacingY);
+
 	char buffer[12];
 	intToString(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, buffer);
-	deluge::hid::display::OLED::drawStringCentred(buffer, windowMinY + 18, image[0], OLED_MAIN_WIDTH_PIXELS,
-	                                              kTextSpacingX, kTextSpacingY,
-	                                              (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
+	canvas.drawStringCentred(buffer, windowMinY + 18, kTextSpacingX, kTextSpacingY,
+	                         (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift);
 }
 
 void Slicer::redraw() {

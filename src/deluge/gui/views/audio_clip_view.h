@@ -55,7 +55,7 @@ public:
 	uint32_t getMaxLength() override;
 	uint32_t getMaxZoom() override;
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	// ui
 	UIType getUIType() override { return UIType::AUDIO_CLIP_VIEW; }

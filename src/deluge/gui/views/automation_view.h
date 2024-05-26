@@ -71,7 +71,9 @@ public:
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override {
+		InstrumentClipMinder::renderOLED(canvas);
+	}
 
 	// button action
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);

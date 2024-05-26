@@ -90,7 +90,7 @@ public:
 	void cullSomeFileItems();
 	bool checkFP();
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	static String currentDir;
 	static CStringArray fileItems;
