@@ -653,7 +653,7 @@ startAgain:
 		memoryStart += extraElementsLeft;
 
 		minNumToExtend -= extraElementsLeft;
-		if (!minNumToExtend) {
+		if (minNumToExtend <= 0) {
 			return true;
 		}
 		idealNumToExtendIfExtendingAllocation -= extraElementsLeft;
@@ -676,7 +676,7 @@ startAgain:
 		memorySize += extraElementsRight;
 
 		minNumToExtend -= extraElementsRight;
-		if (!minNumToExtend) {
+		if (minNumToExtend <= 0) {
 			return true;
 		}
 		idealNumToExtendIfExtendingAllocation -= extraElementsRight;
