@@ -20,14 +20,15 @@
 #include "util/container/static_vector.hpp"
 #include <algorithm>
 // currently 14 are in use
-constexpr int kMaxTasks = 20;
+constexpr int kMaxTasks = 25;
 constexpr double rollTime = ((double)(UINT32_MAX) / DELUGE_CLOCKS_PERf);
 struct Task {
 	TaskHandle handle;
 	uint8_t priority;
 	double lastCallTime;
+	double lastFinishTime;
 	double averageDuration;
-	double minTimeBetweenCalls;
+	double backOffTime;
 	double targetTimeBetweenCalls;
 	double maxTimeBetweenCalls;
 	bool removeAfterUse;
@@ -53,8 +54,8 @@ struct TaskManager {
 	void removeTask(TaskID id);
 	void runTask(TaskID id);
 	TaskID chooseBestTask(double deadline);
-	TaskID addRepeatingTask(TaskHandle task, uint8_t priority, double minTimeBetweenCalls,
-	                        double targetTimeBetweenCalls, double maxTimeBetweenCalls);
+	TaskID addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
+	                        double maxTimeBetweenCalls);
 	TaskID addOnceTask(TaskHandle task, uint8_t priority, double timeToWait);
 	void createSortedList();
 	void clockRolledOver();
@@ -92,16 +93,16 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 		struct Task t = list[sortedList[i].task];
 		double timeToCall = t.lastCallTime + t.targetTimeBetweenCalls - t.averageDuration;
 		double maxTimeToCall = t.lastCallTime + t.maxTimeBetweenCalls - t.averageDuration;
-		double timeSinceCall = currentTime - t.lastCallTime;
+		double timeSinceFinish = currentTime - t.lastFinishTime;
 		// ensure every routine is within its target
-		if (timeSinceCall > t.maxTimeBetweenCalls) {
+		if (currentTime - t.lastCallTime > t.maxTimeBetweenCalls) {
 			return sortedList[i].task;
 		}
 		if (timeToCall < currentTime || maxTimeToCall < nextFinishTime) {
 			if (currentTime + t.averageDuration < deadline) {
 
 				if (t.priority < bestPriority && t.handle) {
-					if (timeSinceCall > t.minTimeBetweenCalls) {
+					if (timeSinceFinish > t.backOffTime) {
 						bestTask = sortedList[i].task;
 						nextFinishTime = currentTime + t.averageDuration;
 					}
@@ -121,15 +122,15 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task t = list[sortedList[i].task];
 			if (currentTime + t.averageDuration < nextFinishTime
-			    && currentTime - t.lastCallTime > t.targetTimeBetweenCalls) {
+			    && currentTime - t.lastFinishTime > t.targetTimeBetweenCalls
+			    && currentTime - t.lastFinishTime > t.backOffTime) {
 				return sortedList[i].task;
 			}
 		}
 		// then look based on min time just to avoid busy waiting
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task t = list[sortedList[i].task];
-			if (currentTime + t.averageDuration < nextFinishTime
-			    && currentTime - t.lastCallTime > t.minTimeBetweenCalls) {
+			if (currentTime + t.averageDuration < nextFinishTime && currentTime - t.lastFinishTime > t.backOffTime) {
 				return sortedList[i].task;
 			}
 		}
@@ -151,13 +152,13 @@ TaskID TaskManager::insertTaskToList(Task task) {
 	return index;
 };
 
-TaskID TaskManager::addRepeatingTask(TaskHandle task, uint8_t priority, double minTimeBetweenCalls,
+TaskID TaskManager::addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime,
                                      double targetTimeBetweenCalls, double maxTimeBetweenCalls) {
 	if (numActiveTasks >= (kMaxTasks)) {
 		return -1;
 	}
 	int index = insertTaskToList(
-	    Task{task, priority, 0, 0, minTimeBetweenCalls, targetTimeBetweenCalls, maxTimeBetweenCalls, false});
+	    Task{task, priority, 0, 0, 0, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls, false});
 
 	createSortedList();
 	return index;
@@ -168,13 +169,14 @@ TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeTo
 		return -1;
 	}
 	double timeToStart = running ? getTimerValueSeconds(0) : 0;
-	int index = insertTaskToList(Task{task, priority, timeToStart, 0, timeToWait, timeToWait, 10 * timeToWait, true});
+	int index =
+	    insertTaskToList(Task{task, priority, timeToStart, 0, 0, timeToWait, timeToWait, 10 * timeToWait, true});
 	createSortedList();
 	return index;
 }
 
 void TaskManager::removeTask(TaskID id) {
-	list[id] = Task{0, 0, 0, 0, 0, 0, false};
+	list[id] = Task{0, 0, 0, 0, 0, 0, 0, 0, false};
 	numActiveTasks--;
 	createSortedList();
 	return;
@@ -187,7 +189,8 @@ void TaskManager::runTask(TaskID id) {
 		removeTask(id);
 	}
 	else {
-		double runtime = (getTimerValueSeconds(0) - list[id].lastCallTime);
+		list[id].lastFinishTime = getTimerValueSeconds(0);
+		double runtime = (list[id].lastFinishTime - list[id].lastCallTime);
 		if (runtime < 0) {
 			runtime += rollTime;
 		}
@@ -237,10 +240,9 @@ void startTaskManager() {
 	taskManager.start();
 }
 
-uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double minTimeBetweenCalls, double targetTimeBetweenCalls,
+uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
                          double maxTimeBetweenCalls) {
-	return taskManager.addRepeatingTask(task, priority, minTimeBetweenCalls, targetTimeBetweenCalls,
-	                                    maxTimeBetweenCalls);
+	return taskManager.addRepeatingTask(task, priority, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls);
 }
 uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait) {
 	return taskManager.addOnceTask(task, priority, timeToWait);
