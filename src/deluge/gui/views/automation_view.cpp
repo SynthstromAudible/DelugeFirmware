@@ -3917,6 +3917,8 @@ ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStac
 		paramKind = clip->lastSelectedParamKind;
 	}
 
+	// check if we're in the sound menu and not the settings menu
+	// because in the settings menu, the menu mod controllable's aren't setup, so we don't want to use those
 	bool inSoundMenu = getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu();
 
 	modelStackWithParam =
