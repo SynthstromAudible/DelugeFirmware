@@ -49,13 +49,13 @@ void setTimerValue(int timerNo, uint32_t timerValue)
     OSTimers[timerNo]->OSTMnCMP = timerValue;
 }
 
-volatile uint32_t getTimerValue(int timerNo)
+uint32_t getTimerValue(int timerNo)
 {
     return OSTimers[timerNo]->OSTMnCNT;
 }
 
-volatile double getTimerValueSeconds(int timerNo)
+double getTimerValueSeconds(int timerNo)
 {
-    double seconds = ((double)getTimerValue(timerNo) / DELUGE_CLOCKS_PERf);
+    double seconds = getTimerValue(timerNo) * ONE_OVER_CLOCK;
     return seconds;
 }
