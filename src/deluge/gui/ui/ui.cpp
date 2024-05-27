@@ -23,6 +23,8 @@
 #include "hid/led/pad_leds.h"
 #include <utility>
 
+using deluge::hid::display::OLED;
+
 UI::UI() {
 	oledShowsUIUnderneath = false;
 }
@@ -301,13 +303,7 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 	}
 }
 
-bool pendingUIRenderingLock = false;
-
-void doAnyPendingUIRendering() {
-
-	if (pendingUIRenderingLock) {
-		return; // There's no point going in here multiple times inside each other
-	}
+void doAnyPendingGridRendering() {
 
 	if (!whichMainRowsNeedRendering && !whichSideRowsNeedRendering) {
 		return;
@@ -316,13 +312,6 @@ void doAnyPendingUIRendering() {
 	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL || currentUIMode == UI_MODE_HORIZONTAL_ZOOM) {
 		return;
 	}
-
-	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
-		return; // Trialling the *2 to fix flickering when flicking through presets very fast
-	}
-
-	pendingUIRenderingLock = true;
-
 	// Make a local copy of our instructions
 	uint32_t mainRowsNow = whichMainRowsNeedRendering;
 	uint32_t sideRowsNow = whichSideRowsNeedRendering;
@@ -358,22 +347,45 @@ void doAnyPendingUIRendering() {
 			}
 		}
 	}
+}
 
+void doAnyPendingOLEDRendering() {
 	if (doesOLEDNeedRendering) {
 		int32_t u = numUIsOpen - 1;
 		while ((u > 0) && uiNavigationHierarchy[u]->oledShowsUIUnderneath) {
 			u--;
 		}
 
-		deluge::hid::display::OLED::clearMainImage();
+		OLED::clearMainImage();
 
 		for (; u < numUIsOpen; u++) {
-			deluge::hid::display::OLED::stopScrollingAnimation();
+			OLED::stopScrollingAnimation();
 			uiNavigationHierarchy[u]->renderOLED(deluge::hid::display::OLED::oledMainImage);
 		}
 
-		deluge::hid::display::OLED::sendMainImage();
+		// Don't need to mark dirty because clearMainImage has already done that for us
+
+		doesOLEDNeedRendering = false;
 	}
+
+	OLED::sendMainImage();
+}
+
+bool pendingUIRenderingLock = false;
+
+void doAnyPendingUIRendering() {
+	if (pendingUIRenderingLock) {
+		return; // There's no point going in here multiple times inside each other
+	}
+
+	if (uartGetTxBufferSpace(UART_ITEM_PIC_PADS) <= (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
+		return; // Trialling the *2 to fix flickering when flicking through presets very fast
+	}
+
+	pendingUIRenderingLock = true;
+
+	doAnyPendingGridRendering();
+	doAnyPendingOLEDRendering();
 
 	pendingUIRenderingLock = false;
 }

@@ -21,7 +21,12 @@
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "display.h"
-#include <string>
+
+#define OLED_LOG_TIMING (0 && ENABLE_TEXT_OUTPUT)
+
+#if OLED_LOG_TIMING
+#include "io/debug/log.h"
+#endif
 
 namespace deluge::hid::display {
 class OLED : public Display {
@@ -33,6 +38,9 @@ public:
 	}
 
 	static void drawOnePixel(int32_t x, int32_t y);
+	/// Clear the canvas currently being used as the main image.
+	///
+	/// Marks the OLED as dirty, so you don't need to do that later yourself.
 	static void clearMainImage();
 	static void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY,
 	                           uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
@@ -84,6 +92,17 @@ public:
 	static void setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
 	                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight);
 	static void drawPermanentPopupLookingText(char const* text);
+
+	/// Call this after doing any rendering work so the next trip through the UI rendering loop actually sends the image
+	/// via \ref sendMainImage.
+	static void markChanged() {
+#if OLED_LOG_TIMING
+		if (!needsSending) {
+			D_PRINTLN("Fresh dirty mark");
+		}
+#endif
+		needsSending = true;
+	}
 
 	void consoleTimerEvent();
 	static void scrollingAndBlinkingTimerEvent();
@@ -139,6 +158,9 @@ public:
 
 	bool hasPopup() override { return isPopupPresent(); }
 	bool hasPopupOfType(DisplayPopupType type) override { return isPopupPresentOfType(type); }
+
+private:
+	static bool needsSending;
 };
 
 } // namespace deluge::hid::display

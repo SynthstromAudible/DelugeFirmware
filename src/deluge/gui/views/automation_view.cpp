@@ -1247,7 +1247,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 		}
 	}
 
-	deluge::hid::display::OLED::sendMainImage();
+	deluge::hid::display::OLED::markChanged();
 }
 
 void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft, bool modEncoderAction) {

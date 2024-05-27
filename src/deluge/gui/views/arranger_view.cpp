@@ -844,9 +844,6 @@ doNewPress:
 			currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
 
 			view.displayOutputName(output);
-			if (display->haveOLED()) {
-				deluge::hid::display::OLED::sendMainImage();
-			}
 
 			beginAudition(output);
 
@@ -2466,9 +2463,6 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newInstrument);
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::sendMainImage();
-	}
 	view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
 
 	beginAudition(newInstrument);
@@ -2549,9 +2543,6 @@ cant:
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newOutput);
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::sendMainImage();
-	}
 	view.setActiveModControllableTimelineCounter(newClip);
 }
 
