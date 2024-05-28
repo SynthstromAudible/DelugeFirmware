@@ -117,7 +117,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	bool canRenderDirectlyIntoSongBuffer =
 	    !isKit() && !filterSet.isOn() && compThreshold == 0 && !delayWorkingState.doDelay
 	    && (!pan || !AudioEngine::renderInStereo) && !clippingAmount && !hasBassAdjusted(paramManagerForClip)
-	    && !hasTrebleAdjusted(paramManagerForClip) && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip)
+	    && !hasTrebleAdjusted(paramManagerForClip) && !reverbSendAmount && !bitcrushingAmount(paramManagerForClip)
 	    && !isSRREnabled(paramManagerForClip) && getActiveModFXType(paramManagerForClip) == ModFXType::NONE
 	    && stutterer.status == STUTTERER_STATUS_OFF;
 

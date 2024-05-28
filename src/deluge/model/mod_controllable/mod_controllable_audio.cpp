@@ -20,6 +20,7 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/stereo_sample.h"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
@@ -602,9 +603,10 @@ void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int3
 	postReverbVolumeLastTime = postReverbVolume;
 }
 
-bool ModControllableAudio::isBitcrushingEnabled(ParamManager* paramManager) {
+int32_t ModControllableAudio::bitcrushingAmount(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	return (unpatchedParams->getValue(params::UNPATCHED_BITCRUSHING) >= -2113929216);
+	int32_t value = unpatchedParams->getValue(params::UNPATCHED_BITCRUSHING);
+	return computeCurrentValueForStandardMenuItem(value);
 }
 
 bool ModControllableAudio::isSRREnabled(ParamManager* paramManager) {
@@ -616,30 +618,40 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
                                                     ParamManager* paramManager) {
 	StereoSample const* const bufferEnd = buffer + numSamples;
 
-	uint32_t bitCrushMaskForSRR = 0xFFFFFFFF;
+	uint32_t bitCrushMask = 0xFFFFFFFF;
 
 	bool srrEnabled = isSRREnabled(paramManager);
+	int32_t crushAmount = bitcrushingAmount(paramManager);
 
 	// Bitcrushing ------------------------------------------------------------------------------
-	if (isBitcrushingEnabled(paramManager)) {
-		uint32_t positivePreset =
-		    (paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_BITCRUSHING) + 2147483648) >> 29;
-		if (positivePreset > 4) {
-			*postFXVolume >>= (positivePreset - 4);
+	if (crushAmount) {
+		// Clamp to 15: displayed value is number of bits crushed. Kinda.
+		if (crushAmount > 15) {
+			crushAmount = 15;
 		}
+		// TODO: There used to be volume compensation here, but it didn't really make a whole
+		// lot of sense. It needs to be added back for legacy-style bitcrushing, though.
 
-		// If not also doing SRR
+		// When mask is 21 low bits, a sine wave is reduced to a square, and low 1 bit
+		// seems to be always empty. Presumably the intial waveform is 16 bits, shifted by 6,
+		// and we dither to low bits. Maybe. Anyhow, add 6 to crush amount because of assumed
+		// shift.
+		//
+		// TODO: However! With song/kit bitcrushers we should be getting a bigger range.
+		// ...so it's not 100 obvious that this is the best way to do things. Still, we
+		// get 15 values with audible differences if you listen carefully, and _mostly_
+		// keep at least 1 bit of output instead of crushing things to silence?
+		//
+		// TODO: figure out presumed 5-bit shift
+		bitCrushMask = 0xFFFFFFFF << (crushAmount + 6);
+
 		if (!srrEnabled) {
-			uint32_t mask = 0xFFFFFFFF << (19 + (positivePreset));
+			// If SRR is on, we're masking while doing it.
 			StereoSample* __restrict__ currentSample = buffer;
 			do {
-				currentSample->l &= mask;
-				currentSample->r &= mask;
+				currentSample->l &= bitCrushMask;
+				currentSample->r &= bitCrushMask;
 			} while (++currentSample != bufferEnd);
-		}
-
-		else {
-			bitCrushMaskForSRR = 0xFFFFFFFF << (18 + (positivePreset));
 		}
 	}
 
@@ -664,6 +676,9 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
 		// int32_t highSampleRateIncrement = getExp(4194304, -(int32_t)(positivePreset >> 3)); // This would work too
 
 		StereoSample* currentSample = buffer;
+
+		// Reduce bitcrush by one bit: the multiplication below loses one bit of precision already.
+		bitCrushMask = bitCrushMask | (bitCrushMask >> 1);
 		do {
 
 			// Convert down.
@@ -677,8 +692,8 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
 				                  + multiply_32x32_rshift32_rounded(currentSample->l, strength2 << 9);
 				grabbedSample.r = multiply_32x32_rshift32_rounded(lastSample.r, strength1 << 9)
 				                  + multiply_32x32_rshift32_rounded(currentSample->r, strength2 << 9);
-				grabbedSample.l &= bitCrushMaskForSRR;
-				grabbedSample.r &= bitCrushMaskForSRR;
+				grabbedSample.l &= bitCrushMask;
+				grabbedSample.r &= bitCrushMask;
 
 				// Set the "time" at which we want to "grab" our next sample for down-conversion.
 				lowSampleRatePos += lowSampleRateIncrement;

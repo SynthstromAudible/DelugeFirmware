@@ -102,7 +102,7 @@ public:
 	                       uint8_t modKnobMode, uint8_t midiChannel, Song* song);
 	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
-	bool isBitcrushingEnabled(ParamManager* paramManager);
+	int32_t bitcrushingAmount(ParamManager* paramManager);
 	bool isSRREnabled(ParamManager* paramManager);
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
