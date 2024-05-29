@@ -35,6 +35,7 @@ void MenuItem::learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber
 
 void MenuItem::renderOLED() {
 	deluge::hid::display::OLED::main.drawScreenTitle(getTitle());
+	deluge::hid::display::OLED::markChanged();
 	drawPixelsForOled();
 }
 
@@ -46,6 +47,7 @@ void MenuItem::drawName() {
 void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32_t selectedOption,
                                 const int32_t offset) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
