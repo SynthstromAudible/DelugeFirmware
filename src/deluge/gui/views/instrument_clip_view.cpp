@@ -5963,7 +5963,8 @@ tryScrollingLeft:
 
 	// Render it
 	if (!didScroll && yDisplay >= 0 && yDisplay < kDisplayHeight) {
-		uiNeedsRendering(this, 1 << yDisplay, 0);
+		// use current UI as this function is shared between Automation and Instrument Clip View
+		uiNeedsRendering(getCurrentUI(), 1 << yDisplay, 0);
 	}
 }
 

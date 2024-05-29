@@ -3286,28 +3286,8 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	}
 
 	// Auditioning but not holding down <> encoder - edit length of just one row
-	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-		if (!instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
-wantToEditNoteRowLength:
-			ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClipView.getOrCreateNoteRowForYDisplay(
-			    modelStackWithTimelineCounter, instrumentClipView.lastAuditionedYDisplay);
-
-			instrumentClipView.editNoteRowLength(modelStackWithNoteRow, offset,
-			                                     instrumentClipView.lastAuditionedYDisplay);
-			instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-			uiNeedsRendering(this);
-		}
-
-		// Unlike for all other cases where we protect against the user accidentally turning the encoder
-		// more after releasing their press on it, for this edit-NoteRow-length action, because it's a
-		// related action, it's quite likely that the user actually will want to do it after the
-		// yes-pressed-encoder-down action, which is "rotate/shift notes in row". So, we have a 250ms
-		// timeout for this one.
-		else if ((uint32_t)(AudioEngine::audioSampleTimer - instrumentClipView.timeHorizontalKnobLastReleased)
-		         >= 250 * 44) {
-			instrumentClipView.shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-			goto wantToEditNoteRowLength;
-		}
+	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING) || (inNoteEditor() && Buttons::isShiftButtonPressed())) {
+		instrumentClipView.editNoteRowLength(offset);
 		return ActionResult::DEALT_WITH;
 	}
 
