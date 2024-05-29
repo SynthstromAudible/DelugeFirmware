@@ -2974,7 +2974,7 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR);
-	newClip->clear(action, modelStack, true);
+	newClip->clear(action, modelStack, true, true);
 	actionLogger.deleteAllLogs();
 
 	// For safety we set it up exactly as we want it

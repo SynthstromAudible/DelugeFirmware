@@ -1829,7 +1829,8 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 				ModelStackWithTimelineCounter* modelStack =
 				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
-				clip->clear(action, modelStack, true);
+				// clear automation, don't clear notes and mpe
+				clip->clear(action, modelStack, true, false);
 			}
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 

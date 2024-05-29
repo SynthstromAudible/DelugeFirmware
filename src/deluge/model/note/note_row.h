@@ -162,7 +162,7 @@ public:
 	int8_t getColourOffset(InstrumentClip* clip);
 	void rememberDrumName();
 	void shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStack);
-	void clear(Action* action, ModelStackWithNoteRow* modelStack, bool clearAutomation);
+	void clear(Action* action, ModelStackWithNoteRow* modelStack, bool clearAutomation, bool clearNotesAndMPE);
 	bool doesProbabilityExist(int32_t apartFromPos, int32_t probability, int32_t secondProbability = -1);
 	bool paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNoteRow, float scaleFactor, int32_t screenEndPos,
 	           Action* action);
