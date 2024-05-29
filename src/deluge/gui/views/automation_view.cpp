@@ -592,6 +592,25 @@ AutomationSubType AutomationView::getAutomationSubType() {
 }
 
 // rendering
+bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
+                                                         int32_t paramID) {
+	bool doRefreshGrid = false;
+	if (clip && !automationView.onArrangerView) {
+		if ((clip->lastSelectedParamID == paramID) && (clip->lastSelectedParamKind == paramKind)) {
+			doRefreshGrid = true;
+		}
+	}
+	else if (automationView.onArrangerView) {
+		if ((currentSong->lastSelectedParamID == paramID) && (currentSong->lastSelectedParamKind == paramKind)) {
+			doRefreshGrid = true;
+		}
+	}
+	if (doRefreshGrid) {
+		uiNeedsRendering(this);
+		return true;
+	}
+	return false;
+}
 
 // called whenever you call uiNeedsRendering(this) somewhere else
 // used to render automation overview, automation editor
@@ -808,26 +827,6 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			}
 		}
 	}
-}
-
-bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
-                                                         int32_t paramID) {
-	bool doRefreshGrid = false;
-	if (clip && !automationView.onArrangerView) {
-		if ((clip->lastSelectedParamID == paramID) && (clip->lastSelectedParamKind == paramKind)) {
-			doRefreshGrid = true;
-		}
-	}
-	else if (automationView.onArrangerView) {
-		if ((currentSong->lastSelectedParamID == paramID) && (currentSong->lastSelectedParamKind == paramKind)) {
-			doRefreshGrid = true;
-		}
-	}
-	if (doRefreshGrid) {
-		uiNeedsRendering(this);
-		return true;
-	}
-	return false;
 }
 
 // gets the length of the clip, renders the pads corresponding to current parameter values set up to the
