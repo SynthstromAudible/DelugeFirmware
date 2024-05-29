@@ -74,12 +74,12 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 			// flag automation view as onMenuView so we know that we're dealing with the background
 			// automation view used exclusively with the menu
 			if (rootUI != &automationView) {
+				automationView.onMenuView = true;
 				automationView.previousUI = rootUI;
 				selectAutomationViewParameter(clipMinder);
 				swapOutRootUILowLevel(&automationView);
 				automationView.initializeView();
 				automationView.openedInBackground();
-				automationView.onMenuView = true;
 			}
 			// if we're in automation view and it's the menu view
 			// swap out background UI from automation view to the previous UI
