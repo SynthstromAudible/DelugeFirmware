@@ -3595,7 +3595,7 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 	}
 }
 
-void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clearAutomation) {
+void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clearAutomation, bool clearNotesAndMPE) {
 	// New default as part of Automation Clip View Implementation
 	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
 	// will only clear the Notes and MPE data (NON MPE automations remain intact).
@@ -3618,7 +3618,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clea
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (getCurrentUI() != &automationView) { // don't clear MPE if you're in the automation view
+				if (clearNotesAndMPE) {
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
@@ -3637,7 +3637,7 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clea
 
 	// New addition as part of Automation Clip View Implementation
 	// If you are in Automation Clip View, clearing a kit note row will not clear notes, only NON MPE automations.
-	if (getCurrentUI() != &automationView) {
+	if (clearNotesAndMPE) {
 
 		stopCurrentlyPlayingNote(modelStack);
 

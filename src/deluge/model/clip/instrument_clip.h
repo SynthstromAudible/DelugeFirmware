@@ -199,7 +199,8 @@ public:
 	void stopAllNotesForMIDIOrCV(ModelStackWithTimelineCounter* modelStack);
 	void sendMIDIPGM();
 	void noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song);
-	void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation) override;
+	void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
+	           bool clearNotesAndMPE) override;
 	bool doesProbabilityExist(int32_t apartFromPos, int32_t probability, int32_t secondProbability = -1);
 	void clearArea(ModelStackWithTimelineCounter* modelStack, int32_t startPos, int32_t endPos, Action* action);
 	ScaleType getScaleType();
