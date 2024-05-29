@@ -25,10 +25,21 @@ extern "C" {
 /// void function with no arguments
 typedef void (*TaskHandle)();
 typedef int8_t TaskID;
-/// highest priority is 0. Attempt to schedule the task every maxTime after minTime has passed, in priority order
-/// if runToCompletion is false the task will be interrupted by higher priority requirements, otherwise it will run
-/// until it returns. returns the index of the task in the global table
-uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double minTimeBetweenCalls, double targetTimeBetweenCalls,
+/// Schedule a task that will be called at a regular interval.
+///
+/// The scheduler will try to run the task at a regular cadence such that the time between start of calls to the
+/// task is approximately targetTimeBetweenCalls. It will never call the task sooner than backOffTime seconds after it
+/// last completed.
+///
+/// Tasks are selected to run based on priority and expected duration (computed via a running average of previous
+/// invocations of the task). The task with the lowest priority that can complete before a task with higher
+/// priority needs to start will run, without violation of the backOffTime.
+///
+/// @param task The task to call
+/// @param priority Priority of the task. Tasks with lower numbers are given preference over tasks with higher numbers.
+/// @param backOffTime Minimum time from completing the task to calling it again in seconds.
+/// @param targetTimeBetweenCalls Desired time between calls to the task, including the runtime for the task itself.
+uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
                          double maxTimeBetweenCalls);
 
 /// Add a task to run once, aiming to run at current time + timeToWait and worst case run at timeToWait*10
