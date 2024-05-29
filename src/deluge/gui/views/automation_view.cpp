@@ -1305,7 +1305,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 			else {
 				intToString(getCurrentInstrument()->defaultVelocity, buffer);
 			}
-			canvas.drawStringAlignRight(buffer, yPos, kTextSpacingX, kTextSpacingY);
+			canvas.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
 		}
 		else {
 			if ((multiPadPressSelected) && (knobPosRight != kNoSelection)) {
