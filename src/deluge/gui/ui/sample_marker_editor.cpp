@@ -1119,7 +1119,7 @@ void SampleMarkerEditor::renderMarkerInCol(int32_t xDisplay,
 	}
 }
 
-void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void SampleMarkerEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	using deluge::hid::display::OLED;
 
 	MarkerColumn cols[kNumMarkerTypes];
@@ -1149,13 +1149,11 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 		__builtin_unreachable();
 	}
 
-	OLED::drawScreenTitle(markerTypeText);
+	canvas.drawScreenTitle(markerTypeText);
 
 	if (isLoopLocked()) {
-		OLED::drawGraphicMultiLine(OLED::lockIcon, OLED_MAIN_WIDTH_PIXELS - 10, OLED_MAIN_TOPMOST_PIXEL + 1, 7,
-		                           OLED::oledMainImage[0]);
-		OLED::invertArea(OLED_MAIN_WIDTH_PIXELS - 10, 7, OLED_MAIN_TOPMOST_PIXEL + 9, OLED_MAIN_TOPMOST_PIXEL + 9,
-		                 &OLED::oledMainImage[0]);
+		canvas.drawGraphicMultiLine(OLED::lockIcon, OLED_MAIN_WIDTH_PIXELS - 10, OLED_MAIN_TOPMOST_PIXEL + 1, 7);
+		canvas.invertArea(OLED_MAIN_WIDTH_PIXELS - 10, 7, OLED_MAIN_TOPMOST_PIXEL + 9, OLED_MAIN_TOPMOST_PIXEL + 9);
 	}
 
 	int32_t smallTextSpacingX = kTextSpacingX;
@@ -1178,22 +1176,19 @@ void SampleMarkerEditor::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 
 			char buffer[12];
 			intToString(hours, buffer);
-			OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-			                 smallTextSizeY);
+			canvas.drawString(buffer, xPixel, yPixel, smallTextSpacingX, smallTextSizeY);
 			xPixel += strlen(buffer) * smallTextSpacingX;
 
-			OLED::drawChar('h', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-			               smallTextSizeY);
+			canvas.drawChar('h', smallTextSpacingX, yPixel, smallTextSpacingX, smallTextSizeY);
 			xPixel += smallTextSpacingX * 2;
 		}
 
 		char buffer[12];
 		intToString(minutes, buffer);
-		OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
+		canvas.drawString(buffer, xPixel, yPixel, smallTextSpacingX, smallTextSizeY);
 		xPixel += strlen(buffer) * smallTextSpacingX;
 
-		OLED::drawChar('m', smallTextSpacingX, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-		               smallTextSizeY);
+		canvas.drawChar('m', smallTextSpacingX, yPixel, smallTextSpacingX, smallTextSizeY);
 		xPixel += smallTextSpacingX * 2;
 	}
 	else {
@@ -1221,17 +1216,16 @@ printSeconds:
 		memmove(&buffer[length - numDecimalPlaces + 1], &buffer[length - numDecimalPlaces], numDecimalPlaces + 1);
 		buffer[length - numDecimalPlaces] = '.';
 
-		OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
+		canvas.drawString(buffer, xPixel, yPixel, smallTextSpacingX, smallTextSizeY);
 		xPixel += (length + 1) * smallTextSpacingX;
 
 		if (hours || minutes) {
-			OLED::drawChar('s', xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
+			canvas.drawChar('s', xPixel, yPixel, smallTextSpacingX, smallTextSizeY);
 		}
 		else {
 			xPixel += smallTextSpacingX;
 			char const* secString = (numDecimalPlaces == 2) ? "msec" : "sec";
-			OLED::drawString(secString, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-			                 smallTextSizeY);
+			canvas.drawString(secString, xPixel, yPixel, smallTextSpacingX, smallTextSizeY);
 		}
 	}
 
@@ -1240,17 +1234,15 @@ printSeconds:
 	// Sample count
 	xPixel = 1;
 
-	OLED::drawChar('(', xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX, smallTextSizeY);
+	canvas.drawChar('(', xPixel, yPixel, smallTextSpacingX, smallTextSizeY);
 	xPixel += smallTextSpacingX;
 
 	char buffer[12];
 	intToString(markerPosSamples, buffer);
-	deluge::hid::display::OLED::drawString(buffer, xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-	                                       smallTextSizeY);
+	canvas.drawString(buffer, xPixel, yPixel, smallTextSpacingX, smallTextSizeY);
 	xPixel += smallTextSpacingX * (strlen(buffer) + 1);
 
-	deluge::hid::display::OLED::drawString("smpl)", xPixel, yPixel, image[0], OLED_MAIN_WIDTH_PIXELS, smallTextSpacingX,
-	                                       smallTextSizeY);
+	canvas.drawString("smpl)", xPixel, yPixel, smallTextSpacingX, smallTextSizeY);
 	xPixel += smallTextSpacingX * 6;
 }
 

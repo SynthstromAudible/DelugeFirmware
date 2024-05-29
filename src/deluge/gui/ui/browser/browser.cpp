@@ -1307,8 +1307,8 @@ void Browser::currentFileDeleted() {
 
 int32_t textStartX = 14;
 
-void Browser::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	deluge::hid::display::OLED::drawScreenTitle(title);
+void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	canvas.drawScreenTitle(title);
 
 	int32_t yPixel = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	yPixel += OLED_MAIN_TOPMOST_PIXEL;
@@ -1344,8 +1344,7 @@ void Browser::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
 drawAFile:
 			// Draw graphic
 			uint8_t const* graphic = isFolder ? deluge::hid::display::OLED::folderIcon : fileIcon;
-			deluge::hid::display::OLED::drawGraphicMultiLine(graphic, 1, yPixel + 0, 8,
-			                                                 deluge::hid::display::OLED::oledMainImage[0]);
+			canvas.drawGraphicMultiLine(graphic, 1, yPixel + 0, 8);
 
 			// Draw filename
 			char finalChar = isFolder ? 0 : '.';
@@ -1359,8 +1358,7 @@ searchForChar:
 			int32_t displayStringLength = (uint32_t)finalCharAddress - (uint32_t)displayName;
 
 			if (isSelectedIndex) {
-				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars,
-				                       deluge::hid::display::OLED::oledMainImage);
+				drawTextForOLEDEditing(textStartX, OLED_MAIN_WIDTH_PIXELS, yPixel, maxChars, canvas);
 				if (!enteredTextEditPos) {
 					deluge::hid::display::OLED::setupSideScroller(0, enteredText.get(), textStartX,
 					                                              OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8,
@@ -1368,9 +1366,8 @@ searchForChar:
 				}
 			}
 			else {
-				deluge::hid::display::OLED::drawStringFixedLength(displayName, displayStringLength, textStartX, yPixel,
-				                                                  deluge::hid::display::OLED::oledMainImage[0],
-				                                                  OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+				canvas.drawString(std::string_view{displayName, static_cast<size_t>(displayStringLength)}, textStartX,
+				                  yPixel, kTextSpacingX, kTextSpacingY);
 			}
 
 			yPixel += kTextSpacingY;

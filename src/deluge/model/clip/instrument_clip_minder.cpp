@@ -105,7 +105,7 @@ void InstrumentClipMinder::redrawNumericDisplay() {
 	}
 }
 
-void InstrumentClipMinder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	view.displayOutputName(getCurrentOutput(), false);
 }
 

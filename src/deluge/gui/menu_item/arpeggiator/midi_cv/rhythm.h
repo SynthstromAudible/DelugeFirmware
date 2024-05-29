@@ -44,9 +44,10 @@ public:
 	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
-		deluge::hid::display::OLED::drawStringCentred(
-		    arpRhythmPatternNames[this->getValue()], yPixel + OLED_MAIN_TOPMOST_PIXEL,
-		    deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+
+		canvas.drawStringCentred(arpRhythmPatternNames[this->getValue()], yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth,
+		                         textHeight);
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

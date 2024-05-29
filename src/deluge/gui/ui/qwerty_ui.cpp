@@ -102,7 +102,7 @@ void QwertyUI::drawKeys() {
 }
 
 void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t yPixel, int32_t maxNumChars,
-                                      uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+                                      deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	char const* displayName = enteredText.get();
 	int32_t displayStringLength = enteredText.getLength();
@@ -122,9 +122,8 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	maxXScroll = std::max(maxXScroll, 0_i32);
 	scrollPosHorizontal = std::min(scrollPosHorizontal, maxXScroll);
 
-	deluge::hid::display::OLED::drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, image[0],
-	                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY, 0,
-	                                       xPixel + maxNumChars * kTextSpacingX);
+	canvas.drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, kTextSpacingX, kTextSpacingY, 0,
+	                  xPixel + maxNumChars * kTextSpacingX);
 
 	int32_t highlightStartX = xPixel + kTextSpacingX * (enteredTextEditPos - scrollPosHorizontal);
 	// int32_t highlightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
@@ -139,8 +138,7 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 		}
 	}
 	else {
-		deluge::hid::display::OLED::invertArea(highlightStartX, highlightWidth, yPixel, yPixel + kTextSpacingY - 1,
-		                                       image);
+		canvas.invertArea(highlightStartX, highlightWidth, yPixel, yPixel + kTextSpacingY - 1);
 	}
 }
 

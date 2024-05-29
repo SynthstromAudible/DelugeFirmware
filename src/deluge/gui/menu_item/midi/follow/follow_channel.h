@@ -36,7 +36,9 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return NUM_CHANNELS; }
 	bool allowsLearnMode() override { return true; }
 
-	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
+	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+
 		yPixel = 20;
 
 		char const* differentiationString;
@@ -46,9 +48,7 @@ public:
 		else {
 			differentiationString = l10n::get(l10n::String::STRING_FOR_INPUT_DIFFERENTIATION_OFF);
 		}
-		deluge::hid::display::OLED::drawString(differentiationString, 0, yPixel,
-		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                                       kTextSpacingX, kTextSizeYUpdated);
+		canvas.drawString(differentiationString, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 
 		yPixel += kTextSpacingY;
 
@@ -56,8 +56,7 @@ public:
 		if (midiInput.device) {
 			deviceString = midiInput.device->getDisplayName();
 		}
-		deluge::hid::display::OLED::drawString(deviceString, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
-		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		canvas.drawString(deviceString, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		deluge::hid::display::OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
 		                                              yPixel + 8, kTextSpacingX, kTextSpacingY, false);
 
@@ -78,12 +77,9 @@ public:
 			char buffer[12];
 			int32_t channelmod = (midiInput.channelOrZone >= IS_A_CC) * IS_A_CC;
 			intToString(midiInput.channelOrZone + 1 - channelmod, buffer, 1);
-			deluge::hid::display::OLED::drawString(buffer, kTextSpacingX * 8, yPixel,
-			                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-			                                       kTextSpacingX, kTextSizeYUpdated);
+			canvas.drawString(buffer, kTextSpacingX * 8, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		}
-		deluge::hid::display::OLED::drawString(channelText, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
-		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		canvas.drawString(channelText, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 	}
 
 	void drawValue() override {

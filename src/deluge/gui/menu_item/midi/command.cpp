@@ -34,20 +34,19 @@ void Command::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Command::drawPixelsForOled() {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 	LearnedMIDI* command = &midiEngine.globalMIDICommands[util::to_underlying(commandNumber)];
 	int32_t yPixel = 20;
 	if (!command->containsSomething()) {
-		deluge::hid::display::OLED::drawString(l10n::get(l10n::String::STRING_FOR_COMMAND_UNASSIGNED), 0, yPixel,
-		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                                       kTextSpacingX, kTextSizeYUpdated);
+		image.drawString(l10n::get(l10n::String::STRING_FOR_COMMAND_UNASSIGNED), 0, yPixel, kTextSpacingX,
+		                 kTextSizeYUpdated);
 	}
 	else {
 		char const* deviceString = l10n::get(l10n::String::STRING_FOR_ANY_MIDI_DEVICE);
 		if (command->device) {
 			deviceString = command->device->getDisplayName();
 		}
-		deluge::hid::display::OLED::drawString(deviceString, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
-		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		image.drawString(deviceString, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		deluge::hid::display::OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
 		                                              yPixel + 8, kTextSpacingX, kTextSpacingY, false);
 
@@ -71,32 +70,24 @@ void Command::drawPixelsForOled() {
 				channelmod = IS_A_CC;
 			}
 			intToString(command->channelOrZone + 1 - channelmod, buffer, 1);
-			deluge::hid::display::OLED::drawString(buffer, kTextSpacingX * 8, yPixel,
-			                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-			                                       kTextSpacingX, kTextSizeYUpdated);
+			image.drawString(buffer, kTextSpacingX * 8, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		}
-		deluge::hid::display::OLED::drawString(channelText, 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
-		                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+		image.drawString(channelText, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 
 		yPixel += kTextSpacingY;
 		if (command->channelOrZone < IS_A_CC) {
-			deluge::hid::display::OLED::drawString("Note", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
-			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+			image.drawString("Note", 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		}
 		else if (command->channelOrZone < IS_A_PC) {
-			deluge::hid::display::OLED::drawString("CC", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
-			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+			image.drawString("CC", 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		}
 		else {
-			deluge::hid::display::OLED::drawString("PC", 0, yPixel, deluge::hid::display::OLED::oledMainImage[0],
-			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+			image.drawString("PC", 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		}
 
 		char buffer[12];
 		intToString(command->noteOrCC, buffer, 1);
-		deluge::hid::display::OLED::drawString(buffer, kTextSpacingX * 5, yPixel,
-		                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-		                                       kTextSpacingX, kTextSizeYUpdated);
+		image.drawString(buffer, kTextSpacingX * 5, yPixel, kTextSpacingX, kTextSizeYUpdated);
 	}
 }
 

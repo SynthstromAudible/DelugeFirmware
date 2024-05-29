@@ -78,7 +78,9 @@ private:
 
 	void unscrolledPadAudition(int32_t velocity, int32_t note, bool shiftButtonDown);
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) { InstrumentClipMinder::renderOLED(image); }
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override {
+		InstrumentClipMinder::renderOLED(canvas);
+	}
 
 	void selectLayout(int8_t offset);
 	void enterScaleMode(int32_t selectedRootNote = kDefaultCalculateRootNote);

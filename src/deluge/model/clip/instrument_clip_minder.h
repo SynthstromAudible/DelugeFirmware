@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "hid/button.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "model/clip/clip_minder.h"
 #include <cstdint>
 
@@ -50,7 +51,7 @@ public:
 	bool changeOutputType(OutputType newOutputType);
 	void opened();
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas);
 
 	static int16_t defaultRootNote; // Stores the calculated "default" root note between the user pressing the
 	                                // scale-mode button and releasing it
