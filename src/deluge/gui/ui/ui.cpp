@@ -356,7 +356,7 @@ void doAnyPendingOLEDRendering() {
 			u--;
 		}
 
-		OLED::main.clear();
+		OLED::clearMainImage();
 
 		for (; u < numUIsOpen; u++) {
 			OLED::stopScrollingAnimation();
