@@ -431,12 +431,11 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			// message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
 
 			// if you're in automation view but not in the note editor, you're clearing non-MPE automation
-			if (currentUI == &automationView && !automationView.inNoteEditor()) {
+			if (currentUI == &automationView) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 			}
-			// if you're in automation view and in the note editor, you're clearing Notes and MPE
 			// if you're not in automation view and automationClear default is on, you're only clearing Notes and MPE
-			else if ((currentUI == &automationView && automationView.inNoteEditor()) || FlashStorage::automationClear) {
+			else if (FlashStorage::automationClear) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
 			}
 			// if you're not in automation view and automationClear default is off, you're clearing everything
