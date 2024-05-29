@@ -158,7 +158,9 @@ public:
 	void pasteAutomation(int32_t whichModEncoder, int32_t navSysId = NAVIGATION_CLIP);
 	// made these public so they can be accessed by the automation clip view
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override { InstrumentClipMinder::renderOLED(image); }
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override {
+		InstrumentClipMinder::renderOLED(canvas);
+	}
 
 	CopiedNoteRow* firstCopiedNoteRow;
 	int32_t copiedScreenWidth;

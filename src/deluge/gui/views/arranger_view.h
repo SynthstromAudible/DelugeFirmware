@@ -85,7 +85,7 @@ public:
 	ActionResult verticalScrollOneSquare(int32_t direction);
 	ActionResult horizontalScrollOneSquare(int32_t direction);
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	Output* outputsOnScreen[kDisplayHeight];
 	int8_t yPressedEffective;

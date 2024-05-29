@@ -466,8 +466,7 @@ void MultiRange::drawPixelsForOled() {
 		baseY += OLED_MAIN_TOPMOST_PIXEL;
 		baseY += (this->getValue() - soundEditor.menuCurrentScroll) * kTextSpacingY;
 		// -1 adjustment to invert the area 1px around the digits being rendered
-		deluge::hid::display::OLED::invertArea(highlightStartX, highlightWidth, baseY, baseY + kTextSpacingY - 1,
-		                                       deluge::hid::display::OLED::oledMainImage);
+		deluge::hid::display::OLED::main.invertArea(highlightStartX, highlightWidth, baseY, baseY + kTextSpacingY - 1);
 	}
 }
 } // namespace deluge::gui::menu_item

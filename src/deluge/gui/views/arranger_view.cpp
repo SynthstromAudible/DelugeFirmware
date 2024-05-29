@@ -97,8 +97,8 @@ ArrangerView::ArrangerView() {
 	lastInteractedClipInstance = nullptr;
 }
 
-void ArrangerView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	sessionView.renderOLED(image);
+void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	sessionView.renderOLED(canvas);
 }
 
 void ArrangerView::moveClipToSession() {

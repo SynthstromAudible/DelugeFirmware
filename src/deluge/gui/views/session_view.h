@@ -95,7 +95,7 @@ public:
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	ActionResult verticalScrollOneSquare(int32_t direction);
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	// 7SEG only
 	void redrawNumericDisplay();

@@ -53,7 +53,7 @@ public:
 	int32_t slicerMode;
 	SliceItem manualSlicePoints[MAX_MANUAL_SLICES];
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	int16_t numClips;
 

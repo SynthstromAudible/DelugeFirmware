@@ -45,7 +45,7 @@ public:
 
 	void endRecordingSoon(int32_t buttonLatency = 0);
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	// ui
 	UIType getUIType() { return UIType::AUDIO_RECORDER; }

@@ -355,11 +355,10 @@ using deluge::hid::display::OLED;
 static void show(const char* text, int r, int c, bool inv = false) {
 	int ybel = 7 + (2 + r) * (kTextSizeYUpdated + 2);
 	int xpos = 5 + c * kTextSpacingX;
-	OLED::drawString(text, xpos, ybel, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-	                 kTextSizeYUpdated);
+	OLED::main.drawString(text, xpos, ybel, kTextSpacingX, kTextSizeYUpdated);
 	if (inv) {
 		int width = strlen(text);
-		OLED::invertArea(xpos - 1, kTextSpacingX * width + 1, ybel - 1, ybel + kTextSizeYUpdated, OLED::oledMainImage);
+		OLED::main.invertArea(xpos - 1, kTextSpacingX * width + 1, ybel - 1, ybel + kTextSizeYUpdated);
 	}
 }
 
@@ -395,11 +394,9 @@ static void renderScaling(uint8_t* params, int op, int idx) {
 	int val = params[op * 21 + 8];
 	intToString(val, buffer, 2);
 	int xpos = 14 + 6 * kTextSpacingX;
-	OLED::drawString(buffer, xpos, ybelmid, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-	                 kTextSizeYUpdated);
+	OLED::main.drawString(buffer, xpos, ybelmid, kTextSpacingX, kTextSizeYUpdated);
 	if (8 == idx) {
-		OLED::invertArea(xpos - 1, kTextSpacingX * 2 + 1, ybelmid - 1, ybelmid + kTextSizeYUpdated,
-		                 OLED::oledMainImage);
+		OLED::main.invertArea(xpos - 1, kTextSpacingX * 2 + 1, ybelmid - 1, ybelmid + kTextSizeYUpdated);
 	}
 
 	int noteCode = val + 17;
@@ -491,7 +488,7 @@ static void renderAlgorithm(uint8_t* params) {
 
 	char buffer[12];
 	intToString(params[134] + 1, buffer, 2);
-	OLED::drawString(buffer, 113, 7, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSizeYUpdated);
+	OLED::main.drawString(buffer, 113, 7, kTextSpacingX, kTextSizeYUpdated);
 
 	FmAlgorithm a = FmCore::algorithms[params[134]];
 	for (int i = 0; i < 6; i++) {
@@ -521,8 +518,7 @@ void DxParam::drawPixelsForOled() {
 	if (param < 0 || param == 135 || param == 136) {
 		int val = getValue();
 		intToString(val, buffer, param < 0 ? 2 : 1);
-		OLED::drawString(buffer, 50, y0, OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX,
-		                 kTextHugeSizeY);
+		OLED::main.drawString(buffer, 50, y0, kTextHugeSpacingX, kTextHugeSizeY);
 		return;
 	}
 

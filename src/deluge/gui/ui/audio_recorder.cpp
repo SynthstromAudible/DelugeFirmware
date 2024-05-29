@@ -123,9 +123,8 @@ gotError:
 	return success;
 }
 
-void AudioRecorder::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
-	deluge::hid::display::OLED::drawStringCentred("Recording", 19, image[0], OLED_MAIN_WIDTH_PIXELS, kTextBigSpacingX,
-	                                              kTextBigSizeY);
+void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	canvas.drawStringCentred("Recording", 19, kTextBigSpacingX, kTextBigSizeY);
 }
 
 bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,

@@ -171,6 +171,7 @@ void Range::drawValueForEditingRange(bool blinkImmediately) {
 }
 
 void Range::drawPixelsForOled() {
+	deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
 	int32_t leftLength, rightLength;
 	char* buffer = shortStringBuffer;
 
@@ -185,9 +186,7 @@ void Range::drawPixelsForOled() {
 	int32_t stringWidth = digitWidth * textLength;
 	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 
-	deluge::hid::display::OLED::drawString(buffer, stringStartX, baseY + OLED_MAIN_TOPMOST_PIXEL,
-	                                       deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS,
-	                                       digitWidth, digitHeight);
+	canvas.drawString(buffer, stringStartX, baseY + OLED_MAIN_TOPMOST_PIXEL, digitWidth, digitHeight);
 
 	int32_t highlightStartX, highlightWidth;
 
@@ -197,8 +196,7 @@ void Range::drawPixelsForOled() {
 doHighlightJustOneEdge:
 		// Invert the area 1px around the digits being rendered
 		baseY += OLED_MAIN_TOPMOST_PIXEL - 1;
-		deluge::hid::display::OLED::invertArea(highlightStartX, highlightWidth, baseY, baseY + digitHeight + 1,
-		                                       deluge::hid::display::OLED::oledMainImage);
+		canvas.invertArea(highlightStartX, highlightWidth, baseY, baseY + digitHeight + 1);
 	}
 	else if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
 		int32_t stringEndX = (OLED_MAIN_WIDTH_PIXELS + stringWidth) >> 1;

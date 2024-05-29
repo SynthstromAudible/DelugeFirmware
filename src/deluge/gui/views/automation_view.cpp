@@ -1089,7 +1089,8 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 }
 
 void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft, int32_t knobPosRight) {
-	deluge::hid::display::OLED::clearMainImage();
+	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+	canvas.clear();
 
 	if (onAutomationOverview() || (outputType == OutputType::CV)) {
 
@@ -1115,9 +1116,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 			}
 			else {
 				overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OVERVIEW);
-				deluge::hid::display::OLED::drawStringCentred(overviewText, yPos,
-				                                              deluge::hid::display::OLED::oledMainImage[0],
-				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+				canvas.drawStringCentred(overviewText, yPos, kTextSpacingX, kTextSpacingY);
 			}
 		}
 		else {
@@ -1135,9 +1134,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 #else
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-		deluge::hid::display::OLED::drawStringCentredShrinkIfNecessary(
-		    parameterName, yPos, deluge::hid::display::OLED::oledMainImage[0], OLED_MAIN_WIDTH_PIXELS, kTextSpacingX,
-		    kTextSpacingY);
+		canvas.drawStringCentredShrinkIfNecessary(parameterName, yPos, kTextSpacingX, kTextSpacingY);
 
 		// display automation status
 		yPos = yPos + 12;
@@ -1172,8 +1169,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 			}
 		}
 
-		deluge::hid::display::OLED::drawStringCentred(isAutomated, yPos, deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		canvas.drawStringCentred(isAutomated, yPos, kTextSpacingX, kTextSpacingY);
 
 		// display parameter value
 		yPos = yPos + 12;
@@ -1184,23 +1180,19 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 			bufferLeft[1] = ':';
 			bufferLeft[2] = ' ';
 			intToString(knobPosLeft, &bufferLeft[3]);
-			deluge::hid::display::OLED::drawString(bufferLeft, 0, yPos, deluge::hid::display::OLED::oledMainImage[0],
-			                                       OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			canvas.drawString(bufferLeft, 0, yPos, kTextSpacingX, kTextSpacingY);
 
 			char bufferRight[10];
 			bufferRight[0] = 'R';
 			bufferRight[1] = ':';
 			bufferRight[2] = ' ';
 			intToString(knobPosRight, &bufferRight[3]);
-			deluge::hid::display::OLED::drawStringAlignRight(bufferRight, yPos,
-			                                                 deluge::hid::display::OLED::oledMainImage[0],
-			                                                 OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			canvas.drawStringAlignRight(bufferRight, yPos, kTextSpacingX, kTextSpacingY);
 		}
 		else {
 			char buffer[5];
 			intToString(knobPosLeft, buffer);
-			deluge::hid::display::OLED::drawStringCentred(buffer, yPos, deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			canvas.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
 		}
 	}
 

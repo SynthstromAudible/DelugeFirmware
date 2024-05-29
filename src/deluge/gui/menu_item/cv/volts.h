@@ -40,9 +40,9 @@ public:
 		cvEngine.setCVVoltsPerOctave(soundEditor.currentSourceIndex, this->getValue());
 	}
 	void drawPixelsForOled() override {
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		if (this->getValue() == 0) {
-			deluge::hid::display::OLED::drawStringCentred("Hz/V", 20, deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX, kTextHugeSizeY);
+			canvas.drawStringCentred("Hz/V", 20, kTextHugeSpacingX, kTextHugeSizeY);
 		}
 		else {
 			Decimal::drawPixelsForOled();
