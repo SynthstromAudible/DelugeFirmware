@@ -3787,8 +3787,12 @@ ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStac
 		paramKind = clip->lastSelectedParamKind;
 	}
 
-	modelStackWithParam = clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(),
-	                                                           getCurrentUI() == &soundEditor);
+	// check if we're in the sound menu and not the settings menu
+	// because in the settings menu, the menu mod controllable's aren't setup, so we don't want to use those
+	bool inSoundMenu = getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu();
+
+	modelStackWithParam =
+	    clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(), inSoundMenu);
 
 	return modelStackWithParam;
 }
@@ -4474,8 +4478,9 @@ bool AutomationView::getAffectEntire() {
 	if (onArrangerView) {
 		return true;
 	}
-	// are you in the menu?
-	else if (getCurrentUI() == &soundEditor) {
+	// are you in the sound menu for a kit?
+	else if (getCurrentOutputType() == OutputType::KIT && getCurrentUI() == &soundEditor
+	         && !soundEditor.inSettingsMenu()) {
 		// if you're in the kit global FX menu, the menu context is the same as if affect entire is enabled
 		if (soundEditor.setupKitGlobalFXMenu) {
 			return true;
@@ -4485,10 +4490,8 @@ bool AutomationView::getAffectEntire() {
 			return false;
 		}
 	}
-	// otherwise if you're not in the menu, use the clip affect entire state
-	else {
-		return getCurrentInstrumentClip()->affectEntire;
-	}
+	// otherwise if you're not in the kit sound menu, use the clip affect entire state
+	return getCurrentInstrumentClip()->affectEntire;
 }
 
 void AutomationView::displayCVErrorMessage() {
