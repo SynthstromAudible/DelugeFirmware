@@ -2551,18 +2551,20 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 	else {
 		// no existing notes in square pressed
 		// add note and set velocity
-		if (y != 0 && squareInfo.numNotes == 0) {
+		if (squareInfo.numNotes == 0) {
 			addNoteWithNewVelocity(x, velocity, newVelocity);
 			refreshVelocityEditor = true;
 		}
-		// note(s) exists, adjust velocity of existing notes
-		else if (y != 0 && squareInfo.numNotes != 0) {
-			adjustNoteVelocity(modelStackWithNoteRow, noteRow, x, velocity, newVelocity, squareInfo.squareType);
+		// pressing pad corresponding to note's current averageVelocity, remove note
+		else if (velocity
+		         && (nonPatchCableMinPadDisplayValues[y] <= squareInfo.averageVelocity
+		             && squareInfo.averageVelocity <= nonPatchCableMaxPadDisplayValues[y])) {
+			removeNote(x);
 			refreshVelocityEditor = true;
 		}
-		// if y == 0 and note(s) exist, remove note(s) immediately
-		else if (velocity && y == 0 && squareInfo.numNotes != 0) {
-			removeNote(x);
+		// note(s) exists, adjust velocity of existing notes
+		else {
+			adjustNoteVelocity(modelStackWithNoteRow, noteRow, x, velocity, newVelocity, squareInfo.squareType);
 			refreshVelocityEditor = true;
 		}
 	}
@@ -3286,7 +3288,9 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	}
 
 	// Auditioning but not holding down <> encoder - edit length of just one row
-	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING) || (inNoteEditor() && Buttons::isShiftButtonPressed())) {
+	// Also do this if you're holding shift while in the note editor and you're not in pad selection mode
+	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)
+	         || (inNoteEditor() && !padSelectionOn && Buttons::isShiftButtonPressed())) {
 		instrumentClipView.editNoteRowLength(offset);
 		return ActionResult::DEALT_WITH;
 	}
