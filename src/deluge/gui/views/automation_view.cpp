@@ -810,23 +810,6 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 	}
 }
 
-// gets the length of the clip, renders the pads corresponding to current parameter values set up to the
-// clip length renders the undefined area of the clip that the user can't interact with
-void AutomationView::renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
-                                            RGB image[][kDisplayWidth + kSideBarWidth],
-                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
-                                            int32_t xScroll, uint32_t xZoom, int32_t effectiveLength, int32_t xDisplay,
-                                            bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
-	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
-		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
-	}
-	if (drawUndefinedArea) {
-		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
-		                    currentSong->tripletsOn, xDisplay);
-	}
-}
-
 bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
                                                          int32_t paramID) {
 	bool doRefreshGrid = false;
@@ -845,6 +828,23 @@ bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::mod
 		return true;
 	}
 	return false;
+}
+
+// gets the length of the clip, renders the pads corresponding to current parameter values set up to the
+// clip length renders the undefined area of the clip that the user can't interact with
+void AutomationView::renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
+                                            RGB image[][kDisplayWidth + kSideBarWidth],
+                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
+                                            int32_t xScroll, uint32_t xZoom, int32_t effectiveLength, int32_t xDisplay,
+                                            bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
+	if (modelStackWithParam && modelStackWithParam->autoParam) {
+		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
+		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
+	}
+	if (drawUndefinedArea) {
+		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth, this,
+		                    currentSong->tripletsOn, xDisplay);
+	}
 }
 
 /// render each square in each column of the automation editor grid
