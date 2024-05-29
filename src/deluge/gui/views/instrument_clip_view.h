@@ -205,7 +205,7 @@ public:
 	// ui
 	UIType getUIType() override { return UIType::INSTRUMENT_CLIP_VIEW; }
 
-	// public so the ycan be accessed by the velocity note editor in automation view
+	// public so they can be accessed by the velocity note editor in automation view
 	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void adjustProbability(int32_t offset);
 	void setRowProbability(int32_t offset);
