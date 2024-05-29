@@ -54,6 +54,8 @@ uint8_t OLED::oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_P
 
 uint8_t (*OLED::oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS] __attribute__((aligned(CACHE_LINE_SIZE))) = oledMainImage;
 
+bool OLED::needsSending;
+
 int32_t workingAnimationCount;
 char const* workingAnimationText; // NULL means animation not active
 
@@ -114,6 +116,7 @@ void OLED::clearMainImage() {
 	memset(oledMainImage, 0,
 	       sizeof(oledMainImage)); // Takes about 1 fast-timer tick (whereas entire rendering takes around 8 to 15).
 	                               // So, not worth trying to use DMA here or anything.
+	markChanged();
 }
 
 // Clears area *inclusive* of maxX, but not maxY? Stupid.
@@ -650,7 +653,7 @@ void OLED::removePopup() {
 	popupType = DisplayPopupType::NONE;
 	workingAnimationText = NULL;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
-	sendMainImage();
+	markChanged();
 }
 
 bool OLED::isPopupPresent() {
@@ -712,6 +715,9 @@ void copyBackgroundAroundForeground(uint8_t backgroundImage[][OLED_MAIN_WIDTH_PI
 }
 
 void OLED::sendMainImage() {
+	if (!needsSending) {
+		return;
+	}
 
 	oledCurrentImage = oledMainImage;
 
@@ -727,7 +733,7 @@ void OLED::sendMainImage() {
 		oledCurrentImage = oledMainPopupImage;
 	}
 
-#if 0 && ENABLE_TEXT_OUTPUT
+#if OLED_LOG_TIMING
 	uint16_t renderStopTime = *TCNT[TIMER_SYSTEM_FAST];
 	uartPrint("oled render time: ");
 	uartPrintNumber((uint16_t)(renderStopTime - renderStartTime));
@@ -735,6 +741,7 @@ void OLED::sendMainImage() {
 
 	enqueueSPITransfer(0, oledCurrentImage[0]);
 	HIDSysex::sendDisplayIfChanged();
+	needsSending = false;
 }
 
 #define TEXT_MAX_NUM_LINES 8
@@ -873,7 +880,7 @@ void OLED::popupText(char const* text, bool persistent, DisplayPopupType type) {
 		textPixelY += kTextSpacingY;
 	}
 
-	sendMainImage();
+	markChanged();
 	if (!persistent) {
 		uiTimerManager.setTimer(TimerName::DISPLAY, 800);
 	}
@@ -952,7 +959,7 @@ void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& 
 			OLED::invertArea(ix + 22, 2, 42, 43, OLED::oledMainImage);
 		}
 	}
-	sendMainImage();
+	markChanged();
 }
 
 #define CONSOLE_ANIMATION_FRAME_TIME_SAMPLES (6 * 44) // 6
@@ -977,7 +984,7 @@ void OLED::consoleText(char const* text) {
 		textPixelY += charHeight;
 	}
 
-	sendMainImage();
+	markChanged();
 
 	uiTimerManager.setTimerSamples(TimerName::OLED_CONSOLE, CONSOLE_ANIMATION_FRAME_TIME_SAMPLES);
 }
@@ -994,7 +1001,7 @@ union {
 
 void performBlink() {
 	OLED::invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY, OLED::oledMainImage);
-	OLED::sendMainImage();
+	OLED::markChanged();
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kFlashTime);
 }
 
@@ -1007,7 +1014,7 @@ void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, b
 		invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY, oledMainImage);
 	}
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kFlashTime);
-	// Caller must do a sendMainImage() at some point after calling this.
+	markChanged();
 }
 
 void OLED::stopBlink() {
@@ -1129,7 +1136,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		}
 	}
 
-	sendMainImage();
+	markChanged();
 
 	int32_t timeInterval;
 	if (!finished) {
@@ -1261,7 +1268,7 @@ checkTimeTilTimeout:
 		uiTimerManager.setTimerSamples(TimerName::OLED_CONSOLE, timeTilNext);
 	}
 
-	sendMainImage();
+	markChanged();
 }
 
 void OLED::freezeWithError(char const* text) {

@@ -481,7 +481,7 @@ void PerformanceSessionView::renderViewDisplay() {
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-			deluge::hid::display::OLED::sendMainImage();
+			deluge::hid::display::OLED::markChanged();
 		}
 		else {
 			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR));
@@ -504,7 +504,7 @@ void PerformanceSessionView::renderViewDisplay() {
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-			deluge::hid::display::OLED::sendMainImage();
+			deluge::hid::display::OLED::markChanged();
 		}
 		else {
 			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW));
@@ -533,7 +533,7 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 			                                              deluge::hid::display::OLED::oledMainImage[0],
 			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 
-			deluge::hid::display::OLED::sendMainImage();
+			deluge::hid::display::OLED::markChanged();
 		}
 		else {
 			display->setScrollingText(parameterName);
@@ -588,7 +588,7 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 			}
 
-			deluge::hid::display::OLED::sendMainImage();
+			deluge::hid::display::OLED::markChanged();
 		}
 		// 7Seg Display
 		else {
