@@ -25,6 +25,16 @@ extern "C" {
 /// void function with no arguments
 typedef void (*TaskHandle)();
 typedef int8_t TaskID;
+struct TaskSchedule {
+	// 0 is highest priority
+	uint8_t priority;
+	// time to wait between return and calling the function again
+	double backOffPeriod;
+	// target time between function calls
+	double targetInterval;
+	// maximum time between function calls
+	double maxInterval;
+};
 /// Schedule a task that will be called at a regular interval.
 ///
 /// The scheduler will try to run the task at a regular cadence such that the time between start of calls to the
