@@ -142,7 +142,7 @@ public:
 	AudioFileHolder* getCurrentAudioFileHolder();
 	void mpeZonesPotentiallyUpdated();
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas);
 
 	// ui
 	UIType getUIType() { return UIType::SOUND_EDITOR; }

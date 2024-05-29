@@ -73,7 +73,7 @@ public:
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	void renderViewDisplay();
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	// 7SEG only
 	void redrawNumericDisplay();
 	void setLedStates();

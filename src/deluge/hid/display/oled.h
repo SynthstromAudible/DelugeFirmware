@@ -21,6 +21,7 @@
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "display.h"
+#include "oled_canvas/canvas.h"
 
 #define OLED_LOG_TIMING (0 && ENABLE_TEXT_OUTPUT)
 
@@ -37,43 +38,13 @@ public:
 		}
 	}
 
-	static void drawOnePixel(int32_t x, int32_t y);
 	/// Clear the canvas currently being used as the main image.
 	///
 	/// Marks the OLED as dirty, so you don't need to do that later yourself.
 	static void clearMainImage();
-	static void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY,
-	                           uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-
-	static void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY,
-	                          uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-	static void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY, uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-	static void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX,
-	                               uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
-	static void drawString(std::string_view, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
-	                       int32_t textWidth, int32_t textHeight, int32_t scrollPos = 0,
-	                       int32_t endX = OLED_MAIN_WIDTH_PIXELS);
-	static void drawStringFixedLength(char const* string, int32_t length, int32_t pixelX, int32_t pixelY,
-	                                  uint8_t* image, int32_t imageWidth, int32_t textWidth, int32_t textHeight);
-	static void drawStringCentred(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth,
-	                              int32_t textWidth, int32_t textHeight,
-	                              int32_t centrePos = (OLED_MAIN_WIDTH_PIXELS >> 1));
-	static void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, uint8_t* image,
-	                                               int32_t imageWidth, int32_t textWidth, int32_t textHeight);
-	static void drawStringAlignRight(char const* string, int32_t pixelY, uint8_t* image, int32_t imageWidth,
-	                                 int32_t textWidth, int32_t textHeight, int32_t rightPos = OLED_MAIN_WIDTH_PIXELS);
-	static void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, uint8_t* image, int32_t imageWidth,
-	                     int32_t textWidth, int32_t textHeight, int32_t scrollPos = 0,
-	                     int32_t endX = OLED_MAIN_WIDTH_PIXELS);
-	static void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width,
-	                                 uint8_t* image, int32_t height = 8, int32_t numBytesTall = 1);
-	static void drawScreenTitle(std::string_view text);
 
 	static void setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately);
 	static void stopBlink();
-
-	static void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY,
-	                       uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
 
 	static void sendMainImage();
 
@@ -109,9 +80,9 @@ public:
 
 	static void renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display);
 
-	static uint8_t oledMainImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
-	static uint8_t oledMainPopupImage[OLED_MAIN_HEIGHT_PIXELS >> 3][OLED_MAIN_WIDTH_PIXELS];
-	static uint8_t oledMainConsoleImage[kConsoleImageNumRows][OLED_MAIN_WIDTH_PIXELS];
+	static oled_canvas::Canvas main;
+	static oled_canvas::Canvas popup;
+	static oled_canvas::Canvas console;
 
 	// pointer to one of the three above (the one currently displayed)
 	static uint8_t (*oledCurrentImage)[OLED_MAIN_WIDTH_PIXELS];

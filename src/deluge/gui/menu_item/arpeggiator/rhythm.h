@@ -34,11 +34,11 @@ public:
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		char name[12];
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+
 		// Index: Name
 		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
-		deluge::hid::display::OLED::drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL,
-		                                              deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
+		canvas.drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

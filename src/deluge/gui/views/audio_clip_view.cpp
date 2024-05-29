@@ -94,7 +94,7 @@ void AudioClipView::focusRegained() {
 #endif
 }
 
-void AudioClipView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void AudioClipView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	view.displayOutputName(getCurrentOutput(), false);
 }
 

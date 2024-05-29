@@ -1965,7 +1965,9 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 	}
 
 	if (display->haveOLED()) {
-		deluge::hid::display::OLED::clearMainImage();
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+		canvas.clear();
+
 		char const* outputTypeText;
 		switch (outputType) {
 		case OutputType::SYNTH:
@@ -2000,9 +2002,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 #else
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-		deluge::hid::display::OLED::drawStringCentred(outputTypeText, yPos,
-		                                              deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+		canvas.drawStringCentred(outputTypeText, yPos, kTextSpacingX, kTextSpacingY);
 	}
 
 	char buffer[12];
@@ -2012,6 +2012,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		if (display->haveOLED()) {
 			nameToDraw = name;
 oledDrawString:
+			deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 #else
@@ -2024,14 +2025,10 @@ oledDrawString:
 			int32_t textLength = strlen(name);
 			int32_t stringLengthPixels = textLength * textSpacingX;
 			if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
-				deluge::hid::display::OLED::drawStringCentred(nameToDraw, yPos,
-				                                              deluge::hid::display::OLED::oledMainImage[0],
-				                                              OLED_MAIN_WIDTH_PIXELS, textSpacingX, textSpacingY);
+				canvas.drawStringCentred(nameToDraw, yPos, textSpacingX, textSpacingY);
 			}
 			else {
-				deluge::hid::display::OLED::drawString(nameToDraw, 0, yPos,
-				                                       deluge::hid::display::OLED::oledMainImage[0],
-				                                       OLED_MAIN_WIDTH_PIXELS, textSpacingX, textSpacingY);
+				canvas.drawString(nameToDraw, 0, yPos, textSpacingX, textSpacingY);
 				deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
 				                                              yPos + textSpacingY, textSpacingX, textSpacingY, false);
 			}

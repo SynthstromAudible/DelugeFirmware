@@ -21,6 +21,7 @@
 namespace deluge::gui::menu_item {
 
 void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
+	deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
 	if (marginR == -1) {
 		marginR = marginL;
 	}
@@ -51,16 +52,13 @@ void Number::drawBar(int32_t yTop, int32_t marginL, int32_t marginR) {
 
 	if (posHorizontal <= zeroPosHorizontal) {
 		int32_t xMin = leftMost + posHorizontal;
-		deluge::hid::display::OLED::invertArea(xMin, zeroPosHorizontal - posHorizontal + 1, yTop, yTop + height,
-		                                       deluge::hid::display::OLED::oledMainImage);
+		canvas.invertArea(xMin, zeroPosHorizontal - posHorizontal + 1, yTop, yTop + height);
 	}
 	else {
 		int32_t xMin = leftMost + zeroPosHorizontal;
-		deluge::hid::display::OLED::invertArea(xMin, posHorizontal - zeroPosHorizontal, yTop, yTop + height,
-		                                       deluge::hid::display::OLED::oledMainImage);
+		canvas.invertArea(xMin, posHorizontal - zeroPosHorizontal, yTop, yTop + height);
 	}
-	deluge::hid::display::OLED::drawRectangle(leftMost, yTop, rightMost, yTop + height,
-	                                          deluge::hid::display::OLED::oledMainImage);
+	canvas.drawRectangle(leftMost, yTop, rightMost, yTop + height);
 }
 
 } // namespace deluge::gui::menu_item

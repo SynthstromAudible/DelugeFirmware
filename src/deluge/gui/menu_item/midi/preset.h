@@ -31,6 +31,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 128; } // Probably not needed cos we override below...
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		char buffer[12];
 		char const* text;
 		if (this->getValue() == 128) {
@@ -40,9 +41,7 @@ public:
 			intToString(this->getValue() + 1, buffer, 1);
 			text = buffer;
 		}
-		deluge::hid::display::OLED::drawStringCentred(text, yPixel + OLED_MAIN_TOPMOST_PIXEL,
-		                                              deluge::hid::display::OLED::oledMainImage[0],
-		                                              OLED_MAIN_WIDTH_PIXELS, textWidth, textHeight);
+		canvas.drawStringCentred(text, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
 	}
 
 	void drawValue() override {

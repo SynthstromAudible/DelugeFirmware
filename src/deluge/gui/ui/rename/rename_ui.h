@@ -24,5 +24,5 @@ public:
 	RenameUI();
 
 	void displayText(bool blinkImmediately = false);
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]);
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 };

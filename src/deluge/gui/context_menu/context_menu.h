@@ -47,7 +47,7 @@ public:
 
 	int32_t currentOption = 0; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 
-	void renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) override;
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	int32_t scrollPos = 0; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 	virtual char const* getTitle() = 0;
 

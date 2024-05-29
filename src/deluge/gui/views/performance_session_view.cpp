@@ -442,10 +442,13 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisp
 }
 
 /// render performance view display on opening
+///
+/// XXX: This should take a canvas and render to it rather than pulling the main image all the time.
 void PerformanceSessionView::renderViewDisplay() {
 	if (defaultEditingMode) {
 		if (display->haveOLED()) {
-			deluge::hid::display::OLED::clearMainImage();
+			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+			image.clear();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -454,9 +457,8 @@ void PerformanceSessionView::renderViewDisplay() {
 #endif
 
 			// render "Performance View" at top of OLED screen
-			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos, kTextSpacingX,
+			                        kTextSpacingY);
 
 			yPos = yPos + 12;
 
@@ -470,16 +472,13 @@ void PerformanceSessionView::renderViewDisplay() {
 				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
 			}
 
-			deluge::hid::display::OLED::drawStringCentred(editingModeType, yPos,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			image.drawStringCentred(editingModeType, yPos, kTextSpacingX, kTextSpacingY);
 
 			yPos = yPos + 12;
 
 			// render "Editing Mode" at the bottom of the OLED screen
-			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR), yPos,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR), yPos, kTextSpacingX,
+			                        kTextSpacingY);
 
 			deluge::hid::display::OLED::markChanged();
 		}
@@ -489,7 +488,8 @@ void PerformanceSessionView::renderViewDisplay() {
 	}
 	else {
 		if (display->haveOLED()) {
-			deluge::hid::display::OLED::clearMainImage();
+			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+			image.clear();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -500,9 +500,8 @@ void PerformanceSessionView::renderViewDisplay() {
 			yPos = yPos + 12;
 
 			// Render "Performance View" in the middle of the OLED screen
-			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos, kTextSpacingX,
+			                        kTextSpacingY);
 
 			deluge::hid::display::OLED::markChanged();
 		}
@@ -520,7 +519,8 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 		char parameterName[30];
 		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
 		if (display->haveOLED()) {
-			deluge::hid::display::OLED::clearMainImage();
+			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+			image.clear();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -529,9 +529,7 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 #endif
 			yPos = yPos + 12;
 
-			deluge::hid::display::OLED::drawStringCentred(parameterName, yPos,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			image.drawStringCentred(parameterName, yPos, kTextSpacingX, kTextSpacingY);
 
 			deluge::hid::display::OLED::markChanged();
 		}
@@ -541,7 +539,8 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 	}
 	else {
 		if (display->haveOLED()) {
-			deluge::hid::display::OLED::clearMainImage();
+			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+			image.clear();
 
 			// display parameter name
 			char parameterName[30];
@@ -552,9 +551,7 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 #else
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-			deluge::hid::display::OLED::drawStringCentred(parameterName, yPos,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+			image.drawStringCentred(parameterName, yPos, kTextSpacingX, kTextSpacingY);
 
 			// display parameter value
 			yPos = yPos + 24;
@@ -576,16 +573,12 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 				else { // 64ths stutter: all 4 leds turned on
 					buffer = "64ths";
 				}
-				deluge::hid::display::OLED::drawStringCentred(buffer, yPos,
-				                                              deluge::hid::display::OLED::oledMainImage[0],
-				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+				image.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
 			}
 			else {
 				char buffer[5];
 				intToString(knobPos, buffer);
-				deluge::hid::display::OLED::drawStringCentred(buffer, yPos,
-				                                              deluge::hid::display::OLED::oledMainImage[0],
-				                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
+				image.drawStringCentred(buffer, yPos, kTextSpacingX, kTextSpacingY);
 			}
 
 			deluge::hid::display::OLED::markChanged();
@@ -643,9 +636,9 @@ bool PerformanceSessionView::possiblyRefreshPerformanceViewDisplay(params::Kind 
 	return false;
 }
 
-void PerformanceSessionView::renderOLED(uint8_t image[][OLED_MAIN_WIDTH_PIXELS]) {
+void PerformanceSessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	renderViewDisplay();
-	sessionView.renderOLED(image);
+	sessionView.renderOLED(canvas);
 }
 
 void PerformanceSessionView::redrawNumericDisplay() {

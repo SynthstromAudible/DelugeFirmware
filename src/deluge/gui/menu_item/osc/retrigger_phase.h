@@ -66,10 +66,9 @@ public:
 	}
 
 	void drawPixelsForOled() override {
+		deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
 		if (this->getValue() < 0) {
-			deluge::hid::display::OLED::drawStringCentred(l10n::get(l10n::String::STRING_FOR_OFF), 20,
-			                                              deluge::hid::display::OLED::oledMainImage[0],
-			                                              OLED_MAIN_WIDTH_PIXELS, kTextHugeSpacingX, kTextHugeSizeY);
+			canvas.drawStringCentred(l10n::get(l10n::String::STRING_FOR_OFF), 20, kTextHugeSpacingX, kTextHugeSizeY);
 		}
 		else {
 			Decimal::drawPixelsForOled();
