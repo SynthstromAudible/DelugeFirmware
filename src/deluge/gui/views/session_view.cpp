@@ -557,9 +557,6 @@ doActualSimpleChange:
 								Instrument* newInstrument = currentSong->changeOutputType(instrument, newOutputType);
 								if (newInstrument) {
 									view.displayOutputName(newInstrument);
-									if (display->haveOLED()) {
-										deluge::hid::display::OLED::sendMainImage();
-									}
 									view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
 								}
 							}
@@ -750,9 +747,6 @@ startHoldingDown:
 						selectedClipTimePressed = AudioEngine::audioSampleTimer;
 						view.setActiveModControllableTimelineCounter(clip);
 						view.displayOutputName(clip->output, true, clip);
-						if (display->haveOLED()) {
-							deluge::hid::display::OLED::sendMainImage();
-						}
 					}
 				}
 
@@ -1640,9 +1634,6 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 	view.setActiveModControllableTimelineCounter(newClip);
 	view.displayOutputName(newClip->output, true, newClip);
 
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::sendMainImage();
-	}
 	// If Clip was in keyboard view, need to redraw that
 	requestRendering(this, 1 << selectedClipYDisplay, 1 << selectedClipYDisplay);
 }
@@ -1840,7 +1831,7 @@ void SessionView::renderViewDisplay(char const* viewString) {
 		deluge::hid::display::OLED::drawStringCentred(viewString, yPos, deluge::hid::display::OLED::oledMainImage[0],
 		                                              OLED_MAIN_WIDTH_PIXELS, kTextSpacingX, kTextSpacingY);
 		if (!display->hasPopup()) {
-			deluge::hid::display::OLED::sendMainImage();
+			deluge::hid::display::OLED::markChanged();
 		}
 	}
 	else {
@@ -3402,7 +3393,6 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			view.setActiveModControllableTimelineCounter(clip);
 			view.displayOutputName(clip->output, true, clip);
 			if (display->haveOLED()) {
-				deluge::hid::display::OLED::sendMainImage();
 				// removes potential stuck pop-up if you're previewing / entering a clip
 				// while holding section pad and repeats popup is displayed
 				deluge::hid::display::OLED::removePopup();
@@ -3560,9 +3550,6 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 			selectedClipTimePressed = AudioEngine::audioSampleTimer;
 			currentSong->setCurrentClip(clip);
 			view.displayOutputName(clip->output, true, clip);
-			if (display->haveOLED()) {
-				deluge::hid::display::OLED::sendMainImage();
-			}
 			// this needs to be called after the current clip is set in order to ensure that
 			// if midi follow feedback is enabled, it sends feedback for the right clip
 			view.setActiveModControllableTimelineCounter(clip);
@@ -3628,9 +3615,6 @@ ActionResult SessionView::gridHandlePadsConfig(int32_t x, int32_t y, int32_t on,
 				currentSong->setCurrentClip(clip);
 				currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 				view.displayOutputName(clip->output, true, clip);
-				if (display->haveOLED()) {
-					deluge::hid::display::OLED::sendMainImage();
-				}
 			}
 		}
 		else {

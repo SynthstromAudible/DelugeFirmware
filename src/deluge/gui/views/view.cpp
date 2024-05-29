@@ -1884,9 +1884,7 @@ char const* View::getReverbPresetDisplayName(int32_t preset) {
 	return deluge::l10n::get(presetReverbNames[preset]);
 }
 
-// If OLED, must make sure deluge::hid::display::OLED::sendMainImage() gets called after this.
 void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
-
 	int32_t channel, channelSuffix;
 	bool editedByUser = true;
 	if (output->type != OutputType::AUDIO) {
@@ -1904,9 +1902,9 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 	}
 
 	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), editedByUser, doBlink, clip);
+	deluge::hid::display::OLED::markChanged();
 }
 
-// If OLED, must make sure deluge::hid::display::OLED::sendMainImage() gets called after this.
 void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int32_t channelSuffix, char const* name,
                                      bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
@@ -2154,9 +2152,6 @@ void View::navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* cl
 	}
 
 	displayOutputName(newOutput, doBlink);
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::sendMainImage();
-	}
 
 	setActiveModControllableTimelineCounter(clip); // Necessary? Does ParamManager get moved over too?
 }
@@ -2366,9 +2361,6 @@ gotAnInstrument:
 		}
 
 		displayOutputName(newInstrument, doBlink);
-		if (display->haveOLED()) {
-			deluge::hid::display::OLED::sendMainImage();
-		}
 
 		// Special case: when it is a saved MIDI preset (with a name), then we need to show the channel in a popup, as
 		// the name will print over the midi channel and we can't see it while changing it
@@ -2517,9 +2509,6 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 	// Do a redraw. Obviously the Clip is the same
 	setActiveModControllableTimelineCounter(clip);
 	displayOutputName(newInstrument, doBlink);
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::sendMainImage();
-	}
 
 	return true;
 }

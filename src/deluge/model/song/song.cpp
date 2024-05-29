@@ -4952,9 +4952,6 @@ cantDoIt:
 		}
 
 		view.displayOutputName(oldNonAudioInstrument);
-		if (display->haveOLED()) {
-			deluge::hid::display::OLED::sendMainImage();
-		}
 	}
 
 	// Or if we're on a Kit or Synth...
