@@ -55,7 +55,7 @@ TEST(Scheduler, schedule) {
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
-	taskManager.addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001);
+	taskManager.addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sleep_50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -65,7 +65,7 @@ TEST(Scheduler, schedule) {
 TEST(Scheduler, remove) {
 	static SelfRemoving selfRemoving;
 
-	TaskID id = addRepeatingTask([]() { selfRemoving.runFiveTimes(); }, 0, 0.001, 0.001, 0.001);
+	TaskID id = addRepeatingTask([]() { selfRemoving.runFiveTimes(); }, 0, 0.001, 0.001, 0.001, "run five times");
 	selfRemoving.id = id;
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
@@ -81,7 +81,7 @@ TEST(Scheduler, scheduleOnce) {
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
 	mock().expectNCalls(1, "sleep_50ns");
-	addOnceTask(sleep_50ns, 0, 0.001);
+	addOnceTask(sleep_50ns, 0, 0.001, "sleep 50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -104,8 +104,8 @@ TEST(Scheduler, scheduleOnceWithRepeating) {
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
 	mock().expectNCalls(1, "sleep_2ms");
 	// every 1ms sleep for 50ns and 10ns
-	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001);
-	addOnceTask(sleep_2ms, 11, 0.0094);
+	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep_50ns");
+	addOnceTask(sleep_2ms, 11, 0.0094, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.0095);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -117,11 +117,11 @@ TEST(Scheduler, removeWithPriZero) {
 	mock().expectNCalls((0.01 - 0.002) / 0.001 - 1, "sleep_50ns");
 	mock().expectNCalls(2, "sleep_2ms");
 	// every 1ms sleep for 50ns and 10ns
-	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001);
-	addRepeatingTask([]() { passMockTime(0.00001); }, 0, 0.001, 0.001, 0.001);
-	addOnceTask(sleep_2ms, 11, 0.002);
-	addRepeatingTask([]() { passMockTime(0.00003); }, 0, 0.001, 0.001, 0.001);
-	addOnceTask(sleep_2ms, 11, 0.009);
+	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep 50ns");
+	addRepeatingTask([]() { passMockTime(0.00001); }, 0, 0.001, 0.001, 0.001, "mock time");
+	addOnceTask(sleep_2ms, 11, 0.002, "sleep 2 ms");
+	addRepeatingTask([]() { passMockTime(0.00003); }, 0, 0.001, 0.001, 0.001, "mock time");
+	addOnceTask(sleep_2ms, 11, 0.009, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.01);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -135,7 +135,7 @@ TEST(Scheduler, tooManyTasks) {
 	mock().expectNCalls(kMaxTasks, "sleep_50ns");
 	// more than allowed
 	for (int i = 0; i <= kMaxTasks + 10; i++) {
-		addOnceTask(sleep_50ns, 0, 0.001);
+		addOnceTask(sleep_50ns, 0, 0.001, "sleep 50ns");
 	}
 
 	// run the scheduler for 10ms
@@ -150,7 +150,7 @@ void reAdd50() {
 	passMockTime(0.00002);
 	numCalls += 1;
 	if (numCalls < 50) {
-		TaskID id = addOnceTask(reAdd50, 0, 0);
+		TaskID id = addOnceTask(reAdd50, 0, 0, "reAdd 50");
 	}
 };
 /// dynamically schedules more than kMaxTask tasks while remaining under kMaxTasks at all times
@@ -158,7 +158,7 @@ TEST(Scheduler, moreThanMaxTotal) {
 	numCalls = 0;
 	mock().clear();
 	mock().expectNCalls(50, "reAdd50");
-	addOnceTask(reAdd50, 0, 0);
+	addOnceTask(reAdd50, 0, 0, "reAdd50");
 	taskManager.start(0.01);
 	mock().checkExpectations();
 }
@@ -169,9 +169,9 @@ TEST(Scheduler, scheduleMultiple) {
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_20ns");
 	mock().expectNCalls(1, "sleep_2ms");
 	// every 1ms sleep for 50ns and 10ns
-	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001);
-	addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001);
-	addOnceTask(sleep_2ms, 11, 0.0094);
+	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep 50ns");
+	addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001, "sleep 20ns");
+	addOnceTask(sleep_2ms, 11, 0.0094, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.0095);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -188,9 +188,9 @@ TEST(Scheduler, overSchedule) {
 	mock().expectNCalls(0.006 / 0.001, "sleep_20ns");
 
 	// every 1ms sleep for 50ns and 10ns
-	auto fiftynshandle = addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001);
-	auto tennshandle = addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001);
-	auto twomsHandle = addRepeatingTask(sleep_2ms, 100, 0.001, 0.002, 0.005);
+	auto fiftynshandle = addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep 50ns");
+	auto tennshandle = addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001, "sleep 20ns");
+	auto twomsHandle = addRepeatingTask(sleep_2ms, 100, 0.001, 0.002, 0.005, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.0099);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;

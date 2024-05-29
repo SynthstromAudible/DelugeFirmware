@@ -40,10 +40,10 @@ typedef int8_t TaskID;
 /// @param backOffTime Minimum time from completing the task to calling it again in seconds.
 /// @param targetTimeBetweenCalls Desired time between calls to the task, including the runtime for the task itself.
 uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
-                         double maxTimeBetweenCalls);
+                         double maxTimeBetweenCalls, const char* name);
 
 /// Add a task to run once, aiming to run at current time + timeToWait and worst case run at timeToWait*10
-uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait);
+uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name);
 void removeTask(TaskID id);
 /// start the task scheduler
 void startTaskManager();
