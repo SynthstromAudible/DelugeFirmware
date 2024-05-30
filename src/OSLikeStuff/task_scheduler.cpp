@@ -24,39 +24,32 @@ constexpr int kMaxTasks = 25;
 constexpr double rollTime = ((double)(UINT32_MAX) / DELUGE_CLOCKS_PERf);
 struct Task {
 	Task() = default;
-	Task(TaskHandle _handle, uint8_t _priority, double _minTimeBetweenCalls, double _targetTimeBetweenCalls,
-	     double _maxTimeBetweenCalls, const char* _name) {
-		handle = _handle;
-		priority = _priority;
-		backOffTime = _minTimeBetweenCalls;
-		targetTimeBetweenCalls = _targetTimeBetweenCalls;
-		maxTimeBetweenCalls = _maxTimeBetweenCalls;
-		name = _name;
-		removeAfterUse = false;
-	}
+
+	// constructor for making a "once" task
 	Task(TaskHandle _handle, uint8_t _priority, double timeNow, double _timeToWait, const char* _name) {
 		handle = _handle;
-		priority = _priority;
 		lastCallTime = timeNow;
-		backOffTime = _timeToWait;
-		targetTimeBetweenCalls = _timeToWait;
-		maxTimeBetweenCalls = _timeToWait * 2;
+		schedule = TaskSchedule{_priority, _timeToWait, _timeToWait, _timeToWait * 2};
 		name = _name;
 		removeAfterUse = true;
 	}
+	// makes a repeating task
+	Task(TaskHandle task, TaskSchedule _schedule, const char* _name) {
+		handle = task;
+		schedule = _schedule;
+		name = _name;
+		removeAfterUse = false;
+	}
 	TaskHandle handle{nullptr};
-	uint8_t priority{};
+	TaskSchedule schedule{0, 0, 0, 0};
 	double lastCallTime{0};
 	double lastFinishTime{0};
 	double averageDuration{0};
-	double backOffTime{0};
-	double targetTimeBetweenCalls{0};
-	double maxTimeBetweenCalls{0};
+
 	bool removeAfterUse{false};
 	const char* name{};
 
 	double highestLatency{0};
-
 	double totalTime{0};
 	double timesCalled{0};
 };
@@ -81,8 +74,9 @@ struct TaskManager {
 	void removeTask(TaskID id);
 	void runTask(TaskID id);
 	TaskID chooseBestTask(double deadline);
-	TaskID addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime,
-	                        double targetTimeBetweenCalls, double maxTimeBetweenCalls, const char* name);
+	TaskID addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name);
+	TaskID addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
+	                        double maxTimeBetweenCalls, const char* name);
 	TaskID addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name);
 	void createSortedList();
 	void clockRolledOver();
@@ -97,7 +91,7 @@ void TaskManager::createSortedList() {
 	int j = 0;
 	for (TaskID i = 0; i < kMaxTasks; i++) {
 		if (list[i].handle != nullptr) {
-			sortedList[j] = (SortedTask{list[i].priority, i});
+			sortedList[j] = (SortedTask{list[i].schedule.priority, i});
 			j++;
 		}
 	}
@@ -118,27 +112,28 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 	/// priority than the current best task, it becomes the best task
 
 	for (int i = 0; i < numActiveTasks; i++) {
-		struct Task t = list[sortedList[i].task];
-		double timeToCall = t.lastCallTime + t.targetTimeBetweenCalls - t.averageDuration;
-		double maxTimeToCall = t.lastCallTime + t.maxTimeBetweenCalls - t.averageDuration;
-		double timeSinceFinish = currentTime - t.lastFinishTime;
+		struct Task* t = &list[sortedList[i].task];
+		struct TaskSchedule* s = &t->schedule;
+		double timeToCall = t->lastCallTime + s->targetInterval - t->averageDuration;
+		double maxTimeToCall = t->lastCallTime + s->maxInterval - t->averageDuration;
+		double timeSinceFinish = currentTime - t->lastFinishTime;
 		// ensure every routine is within its target
-		if (currentTime - t.lastCallTime > t.maxTimeBetweenCalls) {
+		if (currentTime - t->lastCallTime > s->maxInterval) {
 			return sortedList[i].task;
 		}
 		if (timeToCall < currentTime || maxTimeToCall < nextFinishTime) {
-			if (currentTime + t.averageDuration < deadline) {
+			if (currentTime + t->averageDuration < deadline) {
 
-				if (t.priority < bestPriority && t.handle) {
-					if (timeSinceFinish > t.backOffTime) {
+				if (s->priority < bestPriority && t->handle) {
+					if (timeSinceFinish > s->backOffPeriod) {
 						bestTask = sortedList[i].task;
-						nextFinishTime = currentTime + t.averageDuration;
+						nextFinishTime = currentTime + t->averageDuration;
 					}
 					else {
 						bestTask = -1;
 						nextFinishTime = maxTimeToCall;
 					}
-					bestPriority = t.priority;
+					bestPriority = s->priority;
 				}
 			}
 		}
@@ -148,17 +143,19 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 	if (bestTask == -1) {
 		// first look based on target time
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
-			struct Task t = list[sortedList[i].task];
-			if (currentTime + t.averageDuration < nextFinishTime
-			    && currentTime - t.lastFinishTime > t.targetTimeBetweenCalls
-			    && currentTime - t.lastFinishTime > t.backOffTime) {
+			struct Task* t = &list[sortedList[i].task];
+			struct TaskSchedule* s = &t->schedule;
+			if (currentTime + t->averageDuration < nextFinishTime && currentTime - t->lastFinishTime > s->targetInterval
+			    && currentTime - t->lastFinishTime > s->backOffPeriod) {
 				return sortedList[i].task;
 			}
 		}
 		// then look based on min time just to avoid busy waiting
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
-			struct Task t = list[sortedList[i].task];
-			if (currentTime + t.averageDuration < nextFinishTime && currentTime - t.lastFinishTime > t.backOffTime) {
+			struct Task* t = &list[sortedList[i].task];
+			struct TaskSchedule* s = &t->schedule;
+			if (currentTime + t->averageDuration < nextFinishTime
+			    && currentTime - t->lastFinishTime > s->backOffPeriod) {
 				return sortedList[i].task;
 			}
 		}
@@ -179,15 +176,17 @@ TaskID TaskManager::insertTaskToList(Task task) {
 
 	return index;
 };
-
 TaskID TaskManager::addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime,
                                      double targetTimeBetweenCalls, double maxTimeBetweenCalls, const char* name) {
+	return addRepeatingTask(task, TaskSchedule{priority, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls},
+	                        name);
+}
+TaskID TaskManager::addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name) {
 	if (numActiveTasks >= (kMaxTasks)) {
 		return -1;
 	}
 
-	TaskID index =
-	    insertTaskToList(Task{task, priority, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls, name});
+	TaskID index = insertTaskToList(Task{task, schedule, name});
 
 	createSortedList();
 	return index;
@@ -282,8 +281,8 @@ void startTaskManager() {
 
 uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
                          double maxTimeBetweenCalls, const char* name) {
-	return taskManager.addRepeatingTask(task, priority, backOffTime, targetTimeBetweenCalls,
-	                                    maxTimeBetweenCalls, name);
+	return taskManager.addRepeatingTask(
+	    task, TaskSchedule{priority, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls}, name);
 }
 uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name) {
 	return taskManager.addOnceTask(task, priority, timeToWait, name);
