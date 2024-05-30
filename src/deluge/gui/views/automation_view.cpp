@@ -1297,7 +1297,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 
 		if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
 			char buffer[5];
-			if (padSelectionOn && leftPadSelectedX != kNoSelection) {
+			if ((isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) && leftPadSelectedX != kNoSelection) {
 				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 					NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 					int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
@@ -2544,6 +2544,7 @@ void AutomationView::velocityPadSelectionAction(ModelStackWithNoteRow* modelStac
 void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
                                            InstrumentClip* clip, int32_t x, int32_t y, int32_t velocity,
                                            int32_t effectiveLength, SquareInfo& squareInfo) {
+	leftPadSelectedX = x;
 	int32_t newVelocity = getVelocity(y);
 	bool refreshVelocityEditor = false;
 
@@ -2578,10 +2579,9 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 			refreshVelocityEditor = true;
 		}
 		// pressing pad corresponding to note's current averageVelocity, remove note
-		else if (velocity
-		         && (nonPatchCableMinPadDisplayValues[y] <= squareInfo.averageVelocity
-		             && squareInfo.averageVelocity <= nonPatchCableMaxPadDisplayValues[y])) {
-			removeNote(x);
+		else if (nonPatchCableMinPadDisplayValues[y] <= squareInfo.averageVelocity
+		         && squareInfo.averageVelocity <= nonPatchCableMaxPadDisplayValues[y]) {
+			recordNoteEditPadAction(x, velocity);
 			refreshVelocityEditor = true;
 		}
 		// note(s) exists, adjust velocity of existing notes
@@ -2593,7 +2593,7 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 	// if no note exists and you're trying to remove a note (y == 0 && squareInfo.numNotes == 0),
 	// well no need to do anything
 
-	if (velocity && refreshVelocityEditor) {
+	if (refreshVelocityEditor) {
 		// refresh grid and update default velocity on the display
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		renderDisplay();
@@ -2708,14 +2708,6 @@ void AutomationView::setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, N
 	instrumentClipView.displayVelocity(velocityValue, 0);
 
 	instrumentClipView.reassessAllAuditionStatus();
-}
-
-// removes note(s) in square by sending pad press and release actions
-void AutomationView::removeNote(int32_t x) {
-	// record pad press
-	recordNoteEditPadAction(x, 1);
-	// record pad release
-	recordNoteEditPadAction(x, 0);
 }
 
 // call instrument clip view edit pad action function to process velocity pad press actions
@@ -4109,7 +4101,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	}
 	// edit row or note probability
 	else if (inNoteEditor()) {
-		if (currentUIMode == UI_MODE_NONE) {
+		if (currentUIMode == UI_MODE_AUDITIONING) {
 			instrumentClipView.setRowProbability(offset);
 		}
 		else if (currentUIMode == UI_MODE_NOTES_PRESSED) {

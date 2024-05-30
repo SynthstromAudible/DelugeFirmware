@@ -193,7 +193,6 @@ private:
 	void adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t velocity,
 	                        int32_t newVelocity, uint8_t squareType);
 	void setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t newVelocity);
-	void removeNote(int32_t x);
 	void recordNoteEditPadAction(int32_t x, int32_t velocity);
 	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
 	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
