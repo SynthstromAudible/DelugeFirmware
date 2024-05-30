@@ -32,9 +32,11 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/util/lookuptables.cpp
         ../../src/deluge/util/waves.cpp
         ../../src/deluge/modulation/lfo.cpp
+        # For value scaling
+        ../../src/deluge/gui/menu_item/value_scaling.cpp
 )
 
-add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp lfo_tests.cpp scale_tests.cpp)
+add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp lfo_tests.cpp scale_tests.cpp value_scaling_tests.cpp)
 add_test(NAME UnitTests
         COMMAND UnitTests)
 target_sources(UnitTests PRIVATE ${deluge_SOURCES})
