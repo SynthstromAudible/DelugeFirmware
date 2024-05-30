@@ -28,6 +28,7 @@
 /// - UnpatchedParam
 /// - patched_param::Integer
 /// - CompParam
+/// - PulseWidth
 ///
 /// As stuff is extraced and turns out to be functionally identical the dupes
 /// should be eliminated.
@@ -51,8 +52,8 @@ int32_t computeFinalValueForStandardMenuItem(int32_t value);
 
 /** Scales 0-INT32_MAX range to 0-50 for display.
  */
-int32_t computeCurrentValueForCompParam(int32_t value);
+int32_t computeCurrentValueForHalfPrecisionMenuItem(int32_t value);
 
 /** Scales 0-50 range to 0-INT32_MAX for storage and use.
  */
-int32_t computeFinalValueForCompParam(int32_t value);
+int32_t computeFinalValueForHalfPrecisionMenuItem(int32_t value);
