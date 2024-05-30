@@ -31,7 +31,7 @@
 namespace deluge::gui::menu_item {
 
 void UnpatchedParam::readCurrentValue() {
-	this->setValue(computeCurrentValueForUnpatchedParam(
+	this->setValue(computeCurrentValueForStandardMenuItem(
 	    soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
 }
 
@@ -58,7 +58,7 @@ void UnpatchedParam::writeCurrentValue() {
 }
 
 int32_t UnpatchedParam::getFinalValue() {
-	return computeFinalValueForUnpatchedParam(this->getValue());
+	return computeFinalValueForStandardMenuItem(this->getValue());
 }
 
 ParamDescriptor UnpatchedParam::getLearningThing() {

@@ -24,17 +24,26 @@
 ///   SomeClass::writeCurrentValue() -> SomeClass::getFinalValue() ->
 ///     -> computeFinalValueForSomeClass()
 ///
-/// Right now only UnpatchedParam, but more is coming. As stuff is
-/// is extraced and turns out to be functionally identical the dupes
-/// will be eliminated.
+/// Done:
+/// - UnpatchedParam
+/// - patched_param::Integer
 ///
-/// Then when we have only functionally distinct variations here (and
-/// we have tests for them), then we can replace them with a parametrized
-/// version.
+/// As stuff is extraced and turns out to be functionally identical the dupes
+/// should be eliminated.
+///
+/// When we have all the functionally distinct variations here, and we have
+/// tests for them, then we can replace them with a parametrized version or
+/// two.
 ///
 /// ...and then it should be easier to make changes like specifying envelope
-/// times in milliseconds and bitcrushing in bits, hopefully without
-/// needing specialized code to handle existing saves.
+/// times in seconds and bitcrushing in bits, hopefully without
+/// needing specialized code to handle existing saves -- or at least have
+/// unit tests for the conversion code if it is needed.
 
-int32_t computeCurrentValueForUnpatchedParam(int32_t value);
-int32_t computeFinalValueForUnpatchedParam(int32_t value);
+/** Scales int32_t range to 0-50 for display.
+ */
+int32_t computeCurrentValueForStandardMenuItem(int32_t value);
+
+/** Scales 0-50 range to int32_t for storage and use.
+ */
+int32_t computeFinalValueForStandardMenuItem(int32_t value);
