@@ -1524,6 +1524,8 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// when you press affect entire in a kit, the parameter selection needs to reset
 	else if (b == AFFECT_ENTIRE) {
 		initParameterSelection();
+		resetParameterShortcutBlinking();
+		blinkShortcuts();
 		goto passToOthers;
 	}
 
@@ -1591,7 +1593,18 @@ bool AutomationView::handleScaleButtonAction(InstrumentClip* instrumentClip, Out
 
 // called by button action if b == SESSION_VIEW
 void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
-	if (on && currentUIMode == UI_MODE_NONE) {
+	// if shift is pressed, go back to automation overview
+	if (on && Buttons::isShiftButtonPressed()) {
+		initParameterSelection();
+		resetShortcutBlinking();
+		blinkShortcuts();
+		uiNeedsRendering(this);
+	}
+	// go back to song / arranger view
+	else if (on && (currentUIMode == UI_MODE_NONE)) {
+		if (padSelectionOn) {
+			initPadSelection();
+		}
 		if (onArrangerView) {
 			onArrangerView = false;
 			changeRootUI(&arrangerView);
@@ -1622,26 +1635,25 @@ void AutomationView::handleKeyboardButtonAction(bool on) {
 
 // called by button action if b == CLIP_VIEW
 void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
-	if (on && currentUIMode == UI_MODE_NONE) {
-		if (Buttons::isShiftButtonPressed()) {
-			initParameterSelection();
-			resetParameterShortcutBlinking();
-			uiNeedsRendering(this);
+	// if audition pad or shift is pressed, go back to automation overview
+	if (on && (currentUIMode == UI_MODE_AUDITIONING || Buttons::isShiftButtonPressed())) {
+		initParameterSelection();
+		resetShortcutBlinking();
+		blinkShortcuts();
+		uiNeedsRendering(this);
+	}
+	// go back to clip view
+	else if (on && (currentUIMode == UI_MODE_NONE)) {
+		if (padSelectionOn) {
+			initPadSelection();
+		}
+		if (isAudioClip) {
+			changeRootUI(&audioClipView);
 		}
 		else {
-			if (isAudioClip) {
-				changeRootUI(&audioClipView);
-			}
-			else {
-				changeRootUI(&instrumentClipView);
-			}
-			resetShortcutBlinking();
+			changeRootUI(&instrumentClipView);
 		}
-	}
-	else if (on && currentUIMode == UI_MODE_AUDITIONING) {
-		initParameterSelection();
-		resetParameterShortcutBlinking();
-		uiNeedsRendering(this);
+		resetShortcutBlinking();
 	}
 }
 
@@ -1667,6 +1679,7 @@ void AutomationView::handleKitButtonAction(OutputType outputType, bool on) {
 		if (outputType != OutputType::KIT) {
 			initParameterSelection();
 			resetParameterShortcutBlinking();
+			blinkShortcuts();
 		}
 		if (Buttons::isShiftButtonPressed()) {
 			instrumentClipView.createNewInstrument(OutputType::KIT);
@@ -1684,6 +1697,7 @@ void AutomationView::handleSynthButtonAction(OutputType outputType, bool on) {
 		if (outputType != OutputType::SYNTH) {
 			initParameterSelection();
 			resetParameterShortcutBlinking();
+			blinkShortcuts();
 		}
 		// this gets triggered when you change an existing clip to synth / create a new synth clip in song mode
 		if (Buttons::isShiftButtonPressed()) {
@@ -1703,6 +1717,7 @@ void AutomationView::handleMidiButtonAction(OutputType outputType, bool on) {
 		if (outputType != OutputType::MIDI_OUT) {
 			initParameterSelection();
 			resetParameterShortcutBlinking();
+			blinkShortcuts();
 		}
 		instrumentClipView.changeOutputType(OutputType::MIDI_OUT);
 	}
@@ -1715,6 +1730,7 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 		if (outputType != OutputType::CV) {
 			initParameterSelection();
 			resetParameterShortcutBlinking();
+			blinkShortcuts();
 			displayCVErrorMessage();
 		}
 		instrumentClipView.changeOutputType(OutputType::CV);
