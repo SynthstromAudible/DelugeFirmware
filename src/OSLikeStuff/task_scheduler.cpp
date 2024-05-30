@@ -20,6 +20,26 @@
 #include "io/debug/log.h"
 #include "util/container/static_vector.hpp"
 #include <algorithm>
+
+#define SCHEDULER_DETAILED_STATS (1 && ENABLE_TEXT_OUTPUT)
+
+struct StatBlock {
+#if SCHEDULER_DETAILED_STATS
+	double min{std::numeric_limits<double>::infinity()};
+	double max{-std::numeric_limits<double>::infinity()};
+#endif
+	/// Running average, computed as (last + avg) / 2
+	double average{0};
+
+	[[gnu::hot]] void update(double v) {
+#if SCHEDULER_DETAILED_STATS
+		min = std::min(v, min);
+		max = std::max(v, max);
+#endif
+		average = (average + v) / 2;
+	}
+};
+
 // currently 14 are in use
 constexpr int kMaxTasks = 25;
 constexpr double rollTime = ((double)(UINT32_MAX) / DELUGE_CLOCKS_PERf);
@@ -45,12 +65,15 @@ struct Task {
 	TaskSchedule schedule{0, 0, 0, 0};
 	double lastCallTime{0};
 	double lastFinishTime{0};
-	double averageDuration{0};
+
+	StatBlock durationStats;
+#if SCHEDULER_DETAILED_STATS
+	StatBlock latency;
+#endif
 
 	bool removeAfterUse{false};
 	const char* name{nullptr};
 
-	double highestLatency{0};
 	double totalTime{0};
 	int32_t timesCalled{0};
 };
@@ -117,20 +140,20 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 	for (int i = 0; i < numActiveTasks; i++) {
 		struct Task* t = &list[sortedList[i].task];
 		struct TaskSchedule* s = &t->schedule;
-		double timeToCall = t->lastCallTime + s->targetInterval - t->averageDuration;
-		double maxTimeToCall = t->lastCallTime + s->maxInterval - t->averageDuration;
+		double timeToCall = t->lastCallTime + s->targetInterval - t->durationStats.average;
+		double maxTimeToCall = t->lastCallTime + s->maxInterval - t->durationStats.average;
 		double timeSinceFinish = currentTime - t->lastFinishTime;
 		// ensure every routine is within its target
 		if (currentTime - t->lastCallTime > s->maxInterval) {
 			return sortedList[i].task;
 		}
 		if (timeToCall < currentTime || maxTimeToCall < nextFinishTime) {
-			if (currentTime + t->averageDuration < deadline) {
+			if (currentTime + t->durationStats.average < deadline) {
 
 				if (s->priority < bestPriority && t->handle) {
 					if (timeSinceFinish > s->backOffPeriod) {
 						bestTask = sortedList[i].task;
-						nextFinishTime = currentTime + t->averageDuration;
+						nextFinishTime = currentTime + t->durationStats.average;
 					}
 					else {
 						bestTask = -1;
@@ -148,7 +171,8 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task* t = &list[sortedList[i].task];
 			struct TaskSchedule* s = &t->schedule;
-			if (currentTime + t->averageDuration < nextFinishTime && currentTime - t->lastFinishTime > s->targetInterval
+			if (currentTime + t->durationStats.average < nextFinishTime
+			    && currentTime - t->lastFinishTime > s->targetInterval
 			    && currentTime - t->lastFinishTime > s->backOffPeriod) {
 				return sortedList[i].task;
 			}
@@ -157,7 +181,7 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task* t = &list[sortedList[i].task];
 			struct TaskSchedule* s = &t->schedule;
-			if (currentTime + t->averageDuration < nextFinishTime
+			if (currentTime + t->durationStats.average < nextFinishTime
 			    && currentTime - t->lastFinishTime > s->backOffPeriod) {
 				return sortedList[i].task;
 			}
@@ -216,10 +240,9 @@ void TaskManager::removeTask(TaskID id) {
 void TaskManager::runTask(TaskID id) {
 	auto task = &list[id];
 	auto timeNow = getTimerValueSeconds(0);
-	auto latency = timeNow - task->lastCallTime;
-	if (latency > task->highestLatency) {
-		task->highestLatency = latency;
-	}
+#if SCHEDULER_DETAILED_STATS
+	task->latency.update(timeNow - task->lastCallTime);
+#endif
 	task->lastCallTime = timeNow;
 	task->handle();
 	timeNow = getTimerValueSeconds(0);
@@ -233,7 +256,7 @@ void TaskManager::runTask(TaskID id) {
 			runtime += rollTime;
 		}
 
-		task->averageDuration = (task->averageDuration + runtime) / 2;
+		task->durationStats.update(runtime);
 		task->totalTime += runtime;
 		task->timesCalled += 1;
 		cpuTime += runtime;
@@ -286,8 +309,28 @@ void TaskManager::printStats() {
 	D_PRINTLN("Dumping task manager stats:");
 	for (auto task : list) {
 		if (task.handle) {
-			D_PRINTLN("Task: %s, Load: %.4f, Latency: %.8f, Average Duration: %.8f, Times Called: %d", task.name,
-			          task.totalTime / cpuTime, task.highestLatency, task.averageDuration, task.timesCalled);
+			constexpr const double latencyScale = 1000.0;
+			constexpr const double durationScale = 1000000.0;
+#if SCHEDULER_DETAILED_STATS
+			D_PRINTLN("Load: %5.2f, "                             //<
+			          "Dur: %8.3f/%8.3f/%9.3f "                   //<
+			          "Latency: %8.3f/%8.3f/%8.3f "               //<
+			          "N: %10d, Task: %s",                        //<
+			          100.0 * task.totalTime / cpuTime,           //<
+			          durationScale * task.durationStats.min,     //<
+			          durationScale * task.durationStats.average, //<
+			          durationScale * task.durationStats.max,     //<
+			          latencyScale * task.latency.min,            //<
+			          latencyScale * task.latency.average,        //<
+			          latencyScale * task.latency.max,            //<
+			          task.timesCalled, task.name);
+#else
+			D_PRINTLN("Load: %5.2f "                  //<
+			          "Average Duration: %9.3f "      //<
+			          "Times Called: %10d, Task: %s", //<
+			          100.0 * task.totalTime / cpuTime, durationScale * task.durationStats.average, task.timesCalled,
+			          task.name);
+#endif
 		}
 	}
 }
