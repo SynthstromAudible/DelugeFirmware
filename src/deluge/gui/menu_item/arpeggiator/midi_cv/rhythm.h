@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -29,12 +30,10 @@ class Rhythm final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		auto* current_clip = getCurrentInstrumentClip();
-		int64_t value = (int64_t)current_clip->arpeggiatorRhythm;
-		this->setValue((value * (NUM_PRESET_ARP_RHYTHMS - 1) + 2147483648) >> 32);
+		this->setValue(computeCurrentValueForArpRhythm(getCurrentInstrumentClip()->arpeggiatorRhythm));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRhythm = (uint32_t)this->getValue() * 85899345;
+		getCurrentInstrumentClip()->arpeggiatorRhythm = computeFinalValueForArpRhythm(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return NUM_PRESET_ARP_RHYTHMS - 1; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/patched_param.h"
+#include "gui/menu_item/value_scaling.h"
 
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
