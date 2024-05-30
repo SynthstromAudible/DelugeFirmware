@@ -247,10 +247,9 @@ void ramTestLED(bool stuffAlreadySetUp) {
 	cvEngine.sendVoltageOut(1, 65520);
 
 	if (display->haveOLED()) {
-
+		deluge::hid::display::OLED::clearMainImage();
 		deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
 
-		canvas.clear();
 		canvas.invertArea(0, OLED_MAIN_WIDTH_PIXELS, OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS - 1);
 		deluge::hid::display::OLED::sendMainImage();
 	}

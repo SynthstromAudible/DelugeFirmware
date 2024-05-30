@@ -40,6 +40,8 @@ public:
 
 	/// Clear the canvas currently being used as the main image.
 	///
+	/// This also stops any active scrolling and blinking animations.
+	///
 	/// Marks the OLED as dirty, so you don't need to do that later yourself.
 	static void clearMainImage();
 

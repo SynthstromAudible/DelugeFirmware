@@ -1090,7 +1090,7 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 
 void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft, int32_t knobPosRight) {
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
-	canvas.clear();
+	hid::display::OLED::clearMainImage();
 
 	if (onAutomationOverview() || (outputType == OutputType::CV)) {
 

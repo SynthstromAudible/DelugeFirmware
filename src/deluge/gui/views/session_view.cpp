@@ -1819,8 +1819,7 @@ nothingToDisplay:
 void SessionView::renderViewDisplay(char const* viewString) {
 	if (display->haveOLED()) {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
-
-		canvas.clear();
+		hid::display::OLED::clearMainImage();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;

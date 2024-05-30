@@ -448,7 +448,7 @@ void PerformanceSessionView::renderViewDisplay() {
 	if (defaultEditingMode) {
 		if (display->haveOLED()) {
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-			image.clear();
+			deluge::hid::display::OLED::clearMainImage();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -489,7 +489,7 @@ void PerformanceSessionView::renderViewDisplay() {
 	else {
 		if (display->haveOLED()) {
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-			image.clear();
+			deluge::hid::display::OLED::clearMainImage();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -520,7 +520,7 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
 		if (display->haveOLED()) {
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-			image.clear();
+			deluge::hid::display::OLED::clearMainImage();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -540,7 +540,7 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 	else {
 		if (display->haveOLED()) {
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-			image.clear();
+			deluge::hid::display::OLED::clearMainImage();
 
 			// display parameter name
 			char parameterName[30];
