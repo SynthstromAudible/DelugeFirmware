@@ -1966,7 +1966,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 
 	if (display->haveOLED()) {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
-		canvas.clear();
+		hid::display::OLED::clearMainImage();
 
 		char const* outputTypeText;
 		switch (outputType) {
