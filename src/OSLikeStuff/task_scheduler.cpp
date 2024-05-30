@@ -17,6 +17,7 @@
 
 #include "task_scheduler.h"
 #include "RZA1/ostm/ostm.h"
+#include "io/debug/log.h"
 #include "util/container/static_vector.hpp"
 #include <algorithm>
 // currently 14 are in use
@@ -47,11 +48,11 @@ struct Task {
 	double averageDuration{0};
 
 	bool removeAfterUse{false};
-	const char* name{};
+	const char* name{nullptr};
 
 	double highestLatency{0};
 	double totalTime{0};
-	double timesCalled{0};
+	int32_t timesCalled{0};
 };
 
 struct SortedTask {
@@ -66,10 +67,13 @@ struct TaskManager {
 	// All current tasks
 	// Not all entries are filled - removed entries have a null task handle
 	std::array<Task, kMaxTasks> list{};
-	// Sorted list of the current numActiveTasks, lowest priority first
+	// Sorted list of the current numActiveTasks, lowest priority (highest number) first
 	std::array<SortedTask, kMaxTasks> sortedList;
 	uint8_t numActiveTasks = 0;
-	double mustEndBefore = 128;
+	double mustEndBefore = 128; // use for testing or I guess if you want a second temporary task manager?
+	bool running{false};
+	double cpuTime{0};
+	double lastPrintedStats{0};
 	void start(double duration = 0);
 	void removeTask(TaskID id);
 	void runTask(TaskID id);
@@ -80,9 +84,8 @@ struct TaskManager {
 	TaskID addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name);
 	void createSortedList();
 	void clockRolledOver();
-	bool running{false};
 	TaskID insertTaskToList(Task task);
-	double cpuTime{0};
+	void printStats();
 };
 
 TaskManager taskManager;
@@ -213,7 +216,7 @@ void TaskManager::removeTask(TaskID id) {
 void TaskManager::runTask(TaskID id) {
 	auto task = &list[id];
 	auto timeNow = getTimerValueSeconds(0);
-	auto latency = task->lastCallTime - timeNow;
+	auto latency = timeNow - task->lastCallTime;
 	if (latency > task->highestLatency) {
 		task->highestLatency = latency;
 	}
@@ -243,6 +246,7 @@ void TaskManager::clockRolledOver() {
 			list[i].lastCallTime -= rollTime;
 		}
 	}
+	lastPrintedStats -= rollTime;
 }
 
 /// default duration of 0 signifies infinite loop, intended to be specified only for testing
@@ -270,6 +274,20 @@ void TaskManager::start(double duration) {
 		TaskID task = chooseBestTask(mustEndBefore);
 		if (task >= 0) {
 			runTask(task);
+		}
+		else if (newTime > lastPrintedStats + 10) {
+			lastPrintedStats = newTime;
+			// couldn't find anything so here we go
+			printStats();
+		}
+	}
+}
+void TaskManager::printStats() {
+	D_PRINTLN("Dumping task manager stats:");
+	for (auto task : list) {
+		if (task.handle) {
+			D_PRINTLN("Task: %s, Load: %.4f, Latency: %.8f, Average Duration: %.8f, Times Called: %d", task.name,
+			          task.totalTime / cpuTime, task.highestLatency, task.averageDuration, task.timesCalled);
 		}
 	}
 }
