@@ -318,6 +318,8 @@ constexpr uint8_t kInterpolationShortcutX = 0;
 constexpr uint8_t kInterpolationShortcutY = 6;
 constexpr uint8_t kPadSelectionShortcutX = 0;
 constexpr uint8_t kPadSelectionShortcutY = 7;
+constexpr uint8_t kVelocityShortcutX = 15;
+constexpr uint8_t kVelocityShortcutY = 1;
 
 AutomationView automationView{};
 
@@ -427,7 +429,9 @@ void AutomationView::initializeView() {
 			// if you did that...reset the parameter selection and save the current parameter type selection
 			// so we can check this again next time it happens
 			if (outputType != clip->lastSelectedOutputType) {
-				initParameterSelection();
+				if (inAutomationEditor()) {
+					initParameterSelection();
+				}
 
 				clip->lastSelectedOutputType = outputType;
 			}
@@ -821,7 +825,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 
 		if (!onArrangerView && clip->type == ClipType::INSTRUMENT) {
 			// highlight velocity pad
-			if (xDisplay == 15 && yDisplay == 1) {
+			if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
 				pixel = colours::grey;
 				occupancyMask[yDisplay][xDisplay] = 64;
 			}
@@ -2392,9 +2396,9 @@ bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* m
 void AutomationView::handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay) {
 	// PatchSource::Velocity shortcut
 	// Enter Velocity Note Editor
-	if (xDisplay == 15 && yDisplay == 1) {
+	if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
 		if (clip->type == ClipType::INSTRUMENT) {
-			initParameterSelection();
+			initParameterSelection(false);
 			automationParamType = AutomationParamType::NOTE_VELOCITY;
 			clip->lastSelectedParamShortcutX = xDisplay;
 			clip->lastSelectedParamShortcutY = yDisplay;
@@ -4511,7 +4515,7 @@ void AutomationView::notifyPlaybackBegun() {
 
 // resets the Parameter Selection which sends you back to the Automation Overview screen
 // these values are saved on a clip basis
-void AutomationView::initParameterSelection() {
+void AutomationView::initParameterSelection(bool updateDisplay) {
 	initPadSelection();
 
 	if (onArrangerView) {
@@ -4536,9 +4540,11 @@ void AutomationView::initParameterSelection() {
 	// if we're going back to the Automation Overview, set the display to show "Automation Overview"
 	// and update the knob indicator levels to match the master FX button selected
 	display->cancelPopup();
-	renderDisplay();
 	view.setKnobIndicatorLevels();
 	view.setModLedStates();
+	if (updateDisplay) {
+		renderDisplay();
+	}
 }
 
 // exit pad selection mode, reset pad press statuses

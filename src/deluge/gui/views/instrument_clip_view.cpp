@@ -99,6 +99,9 @@ extern "C" {
 
 using namespace deluge::gui;
 
+constexpr uint8_t kVelocityShortcutX = 15;
+constexpr uint8_t kVelocityShortcutY = 1;
+
 InstrumentClipView instrumentClipView{};
 
 InstrumentClipView::InstrumentClipView() {
@@ -1470,14 +1473,29 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 		// down that audition pad, because if they've done that, they're probably not intending to deliberately go into
 		// the SoundEditor, but might be trying to edit notes. Which they currently can't do...
 		if (velocity && (!isUIModeActive(UI_MODE_AUDITIONING) || !editedAnyPerNoteRowStuffSinceAuditioningBegan)) {
-
-			ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
-
-			if (soundEditorResult == ActionResult::NOT_DEALT_WITH) {
-				goto doRegularEditPadActionProbably;
+			// are we trying to enter the automation view velocity note editor
+			// by pressing audition pad + velocity shortcut?
+			if (isUIModeActive(UI_MODE_AUDITIONING) && (x == kVelocityShortcutX && y == kVelocityShortcutY)) {
+				if (automationView.inAutomationEditor()) {
+					automationView.initParameterSelection(false);
+				}
+				automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
+				Clip* clip = getCurrentClip();
+				clip->lastSelectedParamShortcutX = x;
+				clip->lastSelectedParamShortcutY = y;
+				changeRootUI(&automationView);
+				return ActionResult::DEALT_WITH;
 			}
+			// otherwise let's check for another shortcut pad action
 			else {
-				return soundEditorResult;
+				ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
+
+				if (soundEditorResult == ActionResult::NOT_DEALT_WITH) {
+					goto doRegularEditPadActionProbably;
+				}
+				else {
+					return soundEditorResult;
+				}
 			}
 		}
 

@@ -131,7 +131,7 @@ public:
 	                              deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
 
 	// public so instrument clip view can access it
-	void initParameterSelection();
+	void initParameterSelection(bool updateDisplay = true);
 	bool onArrangerView;
 	bool noteRowFlashOn;
 
