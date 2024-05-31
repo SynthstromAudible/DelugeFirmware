@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -25,12 +26,10 @@ class Gate final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		auto* current_clip = getCurrentInstrumentClip();
-		int64_t arp_gate = (int64_t)current_clip->arpeggiatorGate + 2147483648;
-		this->setValue((arp_gate * kMaxMenuValue + 2147483648) >> 32);
+		this->setValue(computeCurrentValueForArpMidiCvGate(getCurrentInstrumentClip()->arpeggiatorGate));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorGate = (uint32_t)this->getValue() * 85899345 - 2147483648;
+		getCurrentInstrumentClip()->arpeggiatorGate = computeFinalValueForArpMidiCvGate(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
