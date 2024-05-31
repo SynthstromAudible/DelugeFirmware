@@ -447,8 +447,9 @@ void AutomationView::initializeView() {
 				}
 			}
 
-			if (clip->wrapEditing) { // turn led off if it's on
-				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+			// if you're not in note editor, turn led off if it's on
+			if (clip->wrapEditing) {
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteEditor());
 			}
 		}
 	}
@@ -1646,11 +1647,14 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	}
 
 	// Auto scrolling
-	// Only works in arranger view (for now)
+	// Or Cross Screen Note Editing in Note Editor
+	// Does not currently work for Automation
 	else if (b == CROSS_SCREEN_EDIT) {
-		if (onArrangerView) {
+		// toggle auto scroll or cross screen editing
+		if (onArrangerView || inNoteEditor()) {
 			handleCrossScreenButtonAction(on);
 		}
+		// don't toggle for automation editing
 		else {
 			return ActionResult::DEALT_WITH;
 		}
@@ -1855,14 +1859,45 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 // call by button action if b == CROSS_SCREEN_EDIT
 void AutomationView::handleCrossScreenButtonAction(bool on) {
 	if (on && currentUIMode == UI_MODE_NONE) {
-		currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
-		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
+		if (onArrangerView) {
+			currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
+			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
 
-		if (currentSong->arrangerAutoScrollModeActive) {
-			arrangerView.reassessWhetherDoingAutoScroll();
+			if (currentSong->arrangerAutoScrollModeActive) {
+				arrangerView.reassessWhetherDoingAutoScroll();
+			}
+			else {
+				arrangerView.doingAutoScrollNow = false;
+			}
 		}
 		else {
-			arrangerView.doingAutoScrollNow = false;
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (clip) {
+				if (clip->wrapEditing) {
+					clip->wrapEditing = false;
+				}
+				else {
+					clip->wrapEditLevel = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
+					// Ensure that there are actually multiple screens to edit across
+					if (clip->wrapEditLevel < clip->loopLength) {
+						clip->wrapEditing = true;
+					}
+					// If in we're in the note editor, we can check if the note row has multiple screens
+					else if (inNoteEditor()) {
+						char modelStackMemory[MODEL_STACK_MAX_SIZE];
+						ModelStackWithTimelineCounter* modelStack =
+						    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+						ModelStackWithNoteRow* modelStackWithNoteRow =
+						    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
+						                             modelStack); // don't create
+						if (clip->wrapEditLevel < modelStackWithNoteRow->getLoopLength()) {
+							clip->wrapEditing = true;
+						}
+					}
+				}
+
+				setLedStates();
+			}
 		}
 	}
 }
@@ -2051,9 +2086,22 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 
 // handle by button action if b == Y_ENC
 void AutomationView::handleVerticalEncoderButtonAction(bool on) {
-	if (on && currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
-		if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
-			currentSong->displayCurrentRootNoteAndScaleName();
+	if (on) {
+		if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed() && !inNoteEditor()) {
+			if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
+				currentSong->displayCurrentRootNoteAndScaleName();
+			}
+		}
+		else if (inNoteEditor()) {
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    ((InstrumentClip*)modelStack->getTimelineCounter())
+			        ->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
+
+			// Just pop up number - don't do anything
+			instrumentClipView.editNumEuclideanEvents(modelStackWithNoteRow, 0,
+			                                          instrumentClipView.lastAuditionedYDisplay);
 		}
 	}
 }
@@ -2298,6 +2346,11 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 				    || (outputType == OutputType::KIT && getAffectEntire())) {
 
 					handleParameterSelection(clip, outputType, x, y);
+
+					// if you're in not in note editor, turn led off if it's on
+					if (((InstrumentClip*)clip)->wrapEditing) {
+						indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteEditor());
+					}
 				}
 			}
 
@@ -2406,6 +2459,10 @@ void AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 			blinkShortcuts();
 			renderDisplay();
 			uiNeedsRendering(this);
+			// if you're in note editor, turn led on
+			if (((InstrumentClip*)clip)->wrapEditing) {
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
+			}
 			return;
 		}
 	}
@@ -2491,6 +2548,10 @@ void AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 	displayAutomation(true);
 	view.setModLedStates();
 	uiNeedsRendering(this);
+	// turn off cross screen LED in automation editor
+	if (clip && clip->type == ClipType::INSTRUMENT && ((InstrumentClip*)clip)->wrapEditing) {
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	}
 }
 
 // note edit pad action
@@ -4530,6 +4591,11 @@ void AutomationView::initParameterSelection(bool updateDisplay) {
 		clip->lastSelectedParamShortcutY = kNoSelection;
 		clip->lastSelectedPatchSource = PatchSource::NONE;
 		clip->lastSelectedParamArrayPosition = 0;
+
+		// if you're on automation overview, turn led off if it's on
+		if (clip->type == ClipType::INSTRUMENT && ((InstrumentClip*)clip)->wrapEditing) {
+			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+		}
 	}
 
 	automationParamType = AutomationParamType::NON_NOTE;

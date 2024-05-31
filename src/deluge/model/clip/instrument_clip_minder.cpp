@@ -296,20 +296,26 @@ void InstrumentClipMinder::displayOrLanguageChanged() {
 }
 
 void InstrumentClipMinder::setLedStates() {
-	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentOutputType() == OutputType::SYNTH);
-	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentOutputType() == OutputType::KIT);
-	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentOutputType() == OutputType::MIDI_OUT);
-	indicator_leds::setLedState(IndicatorLED::CV, getCurrentOutputType() == OutputType::CV);
+	OutputType outputType = getCurrentOutputType();
 
-	// cross screen editing doesn't currently work in automation view, so don't light it up
-	if (getCurrentUI() != &automationView) {
-		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentInstrumentClip()->wrapEditing);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, outputType == OutputType::SYNTH);
+	indicator_leds::setLedState(IndicatorLED::KIT, outputType == OutputType::KIT);
+	indicator_leds::setLedState(IndicatorLED::MIDI, outputType == OutputType::MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV, outputType == OutputType::CV);
+
+	InstrumentClip* clip = getCurrentInstrumentClip();
+
+	bool inAutomationView = ((getCurrentUI() == &automationView) && !automationView.inNoteEditor());
+	if (!inAutomationView) {
+		// only light cross screen led up if you're in the automation view note editor or outside automation view
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, clip->wrapEditing);
 	}
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentInstrumentClip()->isScaleModeClip());
+
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, clip->isScaleModeClip());
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
 #ifdef currentClipStatusButtonX
-	view.drawCurrentClipPad(getCurrentInstrumentClip());
+	view.drawCurrentClipPad(clip);
 #endif
 
 	view.setLedStates();
