@@ -29,6 +29,7 @@
 /// - arpeggiator::midi_cv::Gate
 /// - arpeggiator::midi_cv::RatchetAmount
 /// - arpeggiator::midi_cv::RatchetProbability
+/// - arpeggiator::midi_cv::Rate
 /// - osc::PulseWidth
 /// - patched_param::Integer
 /// - patched_param::Pan
@@ -76,6 +77,10 @@ int32_t computeFinalValueForPan(int32_t value);
  *
  * This roundtrips with the final value math despite not
  * being it's proper inverse.
+ *
+ * This is exactly the same as the "standard" version, but
+ * has a wrapper for clarity, because the final value compuation
+ * is different.
  */
 int32_t computeCurrentValueForArpMidiCvGate(int32_t value);
 
@@ -84,6 +89,9 @@ int32_t computeCurrentValueForArpMidiCvGate(int32_t value);
  * This is presumably to have the gate go down even at 50: the values
  * produced create a 2.5ms gate down period between 16th arp notes at Gate=50,
  * which exactly matches the gate down period between regular 16h notes.
+ *
+ * NOTE: computeFinalValueForArpMidiRate() is _almost_ but not quite
+ * the same: this one returns -23 for zero, that one returns 0.
  */
 int32_t computeFinalValueForArpMidiCvGate(int32_t value);
 
@@ -101,3 +109,23 @@ int32_t computeCurrentValueForArpMidiCvRatchets(uint32_t value);
  * Note UNSIGNED output!
  */
 uint32_t computeFinalValueForArpMidiCvRatchets(int32_t value);
+
+/** Scales INT32_MIN-INT32_MAX range to 0-50 for display.
+ *
+ * This roundtrips with the final value math despite being
+ * not being it's proper inverse.
+ *
+ * This is exactly the same as the "standard" version, but
+ * has a wrapper for clarity, because the final value compuation
+ * is different.
+ */
+int32_t computeCurrentValueForArpMidiCvRate(int32_t value);
+
+/** Scales 0-50 range to INT32_MIN-(INT32_MAX-45) for storage and use.
+ *
+ * arpeggiator::midi_cv::Rate uses this, it is not obvious why, though.
+ *
+ * NOTE: computeFinalValueForArpMidiGate() is _almost_ but not quite
+ * the same: this one returns 0 for 0, whereas that one does not.
+ */
+int32_t computeFinalValueForArpMidiCvRate(int32_t value);
