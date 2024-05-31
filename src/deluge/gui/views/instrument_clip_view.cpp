@@ -4978,7 +4978,8 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 			D_PRINTLN("did actual note repeat edit");
 		}
 
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		// use current UI because this might be called from automation view note editor
+		uiNeedsRendering(getCurrentUI(), 0xFFFFFFFF, 0);
 		currentClip->expectEvent();
 	}
 

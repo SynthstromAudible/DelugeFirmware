@@ -3398,20 +3398,25 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 		// thus, pressing and turning vertical encoder should engage euclidean instead
 		// of transpose because transpose affects all note rows
 		if (inNoteEditor()) {
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-			                             modelStack); // don't create
-			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-				if (inNoteEditor() && clip->output->type != OutputType::KIT) {
-					modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
-					    modelStack, instrumentClipView.lastAuditionedYDisplay);
-				}
+			if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
+				instrumentClipView.editNoteRepeat(offset);
 			}
+			else {
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
+				                             modelStack); // don't create
+				if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+					if (inNoteEditor() && clip->output->type != OutputType::KIT) {
+						modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
+						    modelStack, instrumentClipView.lastAuditionedYDisplay);
+					}
+				}
 
-			instrumentClipView.editNumEuclideanEvents(modelStackWithNoteRow, offset,
-			                                          instrumentClipView.lastAuditionedYDisplay);
-			instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
-			instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+				instrumentClipView.editNumEuclideanEvents(modelStackWithNoteRow, offset,
+				                                          instrumentClipView.lastAuditionedYDisplay);
+				instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
+				instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+			}
 		}
 		// If user not wanting to move a noteCode, they want to transpose the key
 		else if (!currentUIMode && outputType != OutputType::KIT) {

@@ -209,6 +209,7 @@ public:
 	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void adjustProbability(int32_t offset);
 	void setRowProbability(int32_t offset);
+	void editNoteRepeat(int32_t offset);
 
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
@@ -239,7 +240,6 @@ private:
 
 	void createDrumForAuditionedNoteRow(DrumType drumType);
 	void nudgeNotes(int32_t offset);
-	void editNoteRepeat(int32_t offset);
 
 	bool isRowAuditionedByInstrument(int32_t yDisplay);
 
