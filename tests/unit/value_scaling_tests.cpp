@@ -6,10 +6,13 @@
 
 TEST_GROUP(ValueScalingTest) {};
 
-TEST(ValueScalingTest, unpatchedParamValueRoundTrip) {
+TEST(ValueScalingTest, standardMenuItemValueRoundTrip) {
 	for (int i = kMinMenuValue; i <= kMaxMenuValue; i++) {
-		int32_t finalValue = computeFinalValueForUnpatchedParam(i);
-		int32_t currentValue = computeCurrentValueForUnpatchedParam(finalValue);
+		int32_t finalValue = computeFinalValueForStandardMenuItem(i);
+		int32_t currentValue = computeCurrentValueForStandardMenuItem(finalValue);
 		CHECK_EQUAL(i, currentValue);
 	}
+	CHECK_EQUAL(INT32_MIN, computeFinalValueForStandardMenuItem(0));
+	CHECK_EQUAL(-23,       computeFinalValueForStandardMenuItem(25));
+	CHECK_EQUAL(INT32_MAX, computeFinalValueForStandardMenuItem(50));
 }
