@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "integer.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -26,10 +27,8 @@
 
 namespace deluge::gui::menu_item::patched_param {
 void Integer::readCurrentValue() {
-	this->setValue(
-	    (((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) + 2147483648) * kMaxMenuValue
-	     + 2147483648)
-	    >> 32);
+	this->setValue(computeCurrentValueForStandardMenuItem(
+	    soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
 }
 
 void Integer::writeCurrentValue() {
@@ -53,15 +52,7 @@ void Integer::writeCurrentValue() {
 }
 
 int32_t Integer::getFinalValue() {
-	if (this->getValue() == kMaxMenuValue) {
-		return 2147483647;
-	}
-	else if (this->getValue() == kMinMenuValue) {
-		return -2147483648;
-	}
-	else {
-		return (uint32_t)this->getValue() * (2147483648 / kMidMenuValue) - 2147483648;
-	}
+	return computeFinalValueForStandardMenuItem(this->getValue());
 }
 
 } // namespace deluge::gui::menu_item::patched_param
