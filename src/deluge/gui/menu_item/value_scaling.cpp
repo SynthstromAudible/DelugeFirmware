@@ -3,11 +3,11 @@
 
 #include <cstdint>
 
-int32_t computeCurrentValueForUnpatchedParam(int32_t value) {
+int32_t computeCurrentValueForStandardMenuItem(int32_t value) {
 	return (((int64_t)value + 2147483648) * kMaxMenuValue + 2147483648) >> 32;
 }
 
-int32_t computeFinalValueForUnpatchedParam(int32_t value) {
+int32_t computeFinalValueForStandardMenuItem(int32_t value) {
 	if (value == kMaxMenuValue) {
 		return 2147483647;
 	}
