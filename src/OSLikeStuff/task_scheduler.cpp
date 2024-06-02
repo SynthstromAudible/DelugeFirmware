@@ -332,9 +332,9 @@ void TaskManager::start(double duration) {
 }
 bool TaskManager::checkConditionalTasks() {
 	bool addedTask = false;
-	for (int i = 0; i < numRegisteredTasks; i++) {
+	for (int i = 0; i < kMaxTasks; i++) {
 		struct Task* t = &list[i];
-		if (t->handle != nullptr && !(t->runnable)) {
+		if (t->condition != nullptr && !(t->runnable)) {
 			t->runnable = t->condition();
 			if (t->runnable) {
 				addedTask = true;
