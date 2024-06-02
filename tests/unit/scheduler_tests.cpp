@@ -58,7 +58,6 @@ TEST(Scheduler, schedule) {
 	addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sleep_50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
-	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 	mock().checkExpectations();
 };
 
@@ -73,7 +72,6 @@ TEST(Scheduler, remove) {
 
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
-	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 	mock().checkExpectations();
 };
 
@@ -84,7 +82,6 @@ TEST(Scheduler, scheduleOnce) {
 	addOnceTask(sleep_50ns, 0, 0.001, "sleep 50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
-	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 	mock().checkExpectations();
 };
 
@@ -95,7 +92,6 @@ TEST(Scheduler, scheduleConditional) {
 	taskManager.addConditionalTask(sleep_50ns, 0, []() { return true; }, "sleep 50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
-	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 	mock().checkExpectations();
 };
 
@@ -106,7 +102,6 @@ TEST(Scheduler, scheduleConditionalDoesntRun) {
 	taskManager.addConditionalTask(sleep_50ns, 0, []() { return false; }, "sleep 50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
-	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 	mock().checkExpectations();
 };
 
@@ -117,7 +112,6 @@ TEST(Scheduler, backOffTime) {
 	addRepeatingTask(sleep_50ns, 1, 0.01, 0.001, 1, "sleep_50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.1);
-	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 	mock().checkExpectations();
 };
 
@@ -130,7 +124,6 @@ TEST(Scheduler, scheduleOnceWithRepeating) {
 	addOnceTask(sleep_2ms, 11, 0.0094, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.0095);
-	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 	mock().checkExpectations();
 };
 
@@ -146,7 +139,6 @@ TEST(Scheduler, removeWithPriZero) {
 	addOnceTask(sleep_2ms, 11, 0.009, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.01);
-	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 	mock().checkExpectations();
 };
 
@@ -196,7 +188,6 @@ TEST(Scheduler, scheduleMultiple) {
 	addOnceTask(sleep_2ms, 11, 0.0094, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.0095);
-	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 	mock().checkExpectations();
 };
 
@@ -215,7 +206,6 @@ TEST(Scheduler, overSchedule) {
 	auto twomsHandle = addRepeatingTask(sleep_2ms, 100, 0.001, 0.002, 0.005, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.0099);
-	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
 
 	mock().checkExpectations();
 };
