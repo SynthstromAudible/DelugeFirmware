@@ -24,6 +24,7 @@ extern "C" {
 
 /// void function with no arguments
 typedef void (*TaskHandle)();
+typedef bool (*RunCondition)();
 typedef int8_t TaskID;
 struct TaskSchedule {
 	// 0 is highest priority
@@ -54,6 +55,10 @@ uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, 
 
 /// Add a task to run once, aiming to run at current time + timeToWait and worst case run at timeToWait*10
 uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name);
+
+/// add a task that runs only after the condition returns true. Condition checks should be very fast or they could
+/// interfere with scheduling
+uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
 void removeTask(TaskID id);
 /// start the task scheduler
 void startTaskManager();
