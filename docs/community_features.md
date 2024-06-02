@@ -516,13 +516,17 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
 
     - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
-#### 4.2.8 - Alternate Reverb Models
+#### 4.2.8 - Reverb Improvements
 
 - ([#1065]) New reverb models are available for selection inside of the `FX > REVERB > MODEL` menu. These include:
     - Freeverb (the original Deluge reverb)
     - Mutable (an adapted version of the reverb found in Mutable Instruments' Rings module)
         - The Mutable reverb model has been set as the default reverb model for new songs. Old songs will respect the
           reverb model used with those songs.
+
+- ([#2080]) Reverb can now be panned fully left or right. Old songs retain their reverb panning behavior, but display
+  it as smaller numbers. This change also fixes an issue with reverb values displaying differently than how they were
+  set.
 
 ### 4.3 - Instrument Clip View - General Features
 
