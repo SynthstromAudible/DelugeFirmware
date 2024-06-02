@@ -27,10 +27,10 @@ class CompParam final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 	void readCurrentValue() override {
-		this->setValue(
-		    computeCurrentValueForCompParam(soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
+		this->setValue(computeCurrentValueForHalfPrecisionMenuItem(
+		    soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
 	}
-	int32_t getFinalValue() override { return computeFinalValueForCompParam(this->getValue()); }
+	int32_t getFinalValue() override { return computeFinalValueForHalfPrecisionMenuItem(this->getValue()); }
 };
 
 } // namespace deluge::gui::menu_item::audio_compressor
