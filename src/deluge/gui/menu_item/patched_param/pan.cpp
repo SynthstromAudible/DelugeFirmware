@@ -16,6 +16,7 @@
  */
 #include "pan.h"
 
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -44,21 +45,10 @@ void Pan::drawValue() {
 }
 
 int32_t Pan::getFinalValue() {
-	if (this->getValue() == kMaxMenuRelativeValue) {
-		return 2147483647;
-	}
-	else if (this->getValue() == kMinMenuRelativeValue) {
-		return -2147483648;
-	}
-	else {
-		return ((int32_t)this->getValue() * (2147483648 / (kMaxMenuRelativeValue * 2)) * 2);
-	}
+	return computeFinalValueForPan(this->getValue());
 }
 
 void Pan::readCurrentValue() {
-	this->setValue(
-	    ((int64_t)soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP()) * (kMaxMenuRelativeValue * 2)
-	     + 2147483648)
-	    >> 32);
+	this->setValue(computeCurrentValueForPan(soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
 }
 } // namespace deluge::gui::menu_item::patched_param
