@@ -17,13 +17,13 @@ TEST(ValueScalingTest, standardMenuItemValueScaling) {
 	CHECK_EQUAL(INT32_MAX, computeFinalValueForStandardMenuItem(50));
 }
 
-TEST(ValueScalingTest, compParamMenuItemValueScaling) {
+TEST(ValueScalingTest, HalfPrecisionValueScaling) {
 	for (int i = kMinMenuValue; i <= kMaxMenuValue; i++) {
-		int32_t finalValue = computeFinalValueForCompParam(i);
-		int32_t currentValue = computeCurrentValueForCompParam(finalValue);
+		int32_t finalValue = computeFinalValueForHalfPrecisionMenuItem(i);
+		int32_t currentValue = computeCurrentValueForHalfPrecisionMenuItem(finalValue);
 		CHECK_EQUAL(i, currentValue);
 	}
-	CHECK_EQUAL(0,          computeFinalValueForCompParam(0));
-	CHECK_EQUAL(1073741812, computeFinalValueForCompParam(25));
-	CHECK_EQUAL(INT32_MAX,  computeFinalValueForCompParam(50));
+	CHECK_EQUAL(0,          computeFinalValueForHalfPrecisionMenuItem(0));
+	CHECK_EQUAL(1073741812, computeFinalValueForHalfPrecisionMenuItem(25));
+	CHECK_EQUAL(INT32_MAX,  computeFinalValueForHalfPrecisionMenuItem(50));
 }
