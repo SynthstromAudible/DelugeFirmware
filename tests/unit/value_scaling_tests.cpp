@@ -27,3 +27,14 @@ TEST(ValueScalingTest, HalfPrecisionValueScaling) {
 	CHECK_EQUAL(1073741812, computeFinalValueForHalfPrecisionMenuItem(25));
 	CHECK_EQUAL(INT32_MAX,  computeFinalValueForHalfPrecisionMenuItem(50));
 }
+
+TEST(ValueScalingTest, panValueScaling) {
+	for (int i = kMinMenuRelativeValue; i <= kMaxMenuRelativeValue; i++) {
+		int32_t finalValue = computeFinalValueForPan(i);
+		int32_t currentValue = computeCurrentValueForPan(finalValue);
+		CHECK_EQUAL(i, currentValue);
+	}
+	CHECK_EQUAL(INT32_MIN, computeFinalValueForPan(-25));
+	CHECK_EQUAL(0,         computeFinalValueForPan(0));
+	CHECK_EQUAL(INT32_MAX, computeFinalValueForPan(25));
+}
