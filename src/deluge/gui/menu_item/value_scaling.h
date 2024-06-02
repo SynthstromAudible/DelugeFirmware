@@ -25,11 +25,12 @@
 ///     -> computeFinalValueForSomeClass()
 ///
 /// Done:
-/// - unpatched_param::UnpatchedParam
-/// - unpatched_param::Pan
-/// - patched_param::Integer
 /// - audio_compressor::CompParam
 /// - osc::PulseWidth
+/// - patched_param::Integer
+/// - patched_param::Pan
+/// - unpatched_param::Pan
+/// - unpatched_param::UnpatchedParam
 ///
 /// As stuff is extraced and turns out to be functionally identical the dupes
 /// should be eliminated.
