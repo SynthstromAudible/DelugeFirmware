@@ -24,6 +24,7 @@ extern "C" {
 
 /// void function with no arguments
 typedef void (*TaskHandle)();
+typedef bool (*RunCondition)();
 typedef int8_t TaskID;
 struct TaskSchedule {
 	// 0 is highest priority

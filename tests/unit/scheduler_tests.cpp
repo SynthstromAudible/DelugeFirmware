@@ -55,7 +55,7 @@ TEST(Scheduler, schedule) {
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
-	taskManager.addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sleep_50ns");
+	addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sleep_50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
@@ -88,11 +88,33 @@ TEST(Scheduler, scheduleOnce) {
 	mock().checkExpectations();
 };
 
+TEST(Scheduler, scheduleConditional) {
+	mock().clear();
+	mock().expectNCalls(1, "sleep_50ns");
+	// will load as blocked but immediately pass condition
+	taskManager.addConditionalTask(sleep_50ns, 0, []() { return true; }, "sleep 50ns");
+	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
+	taskManager.start(0.0095);
+	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
+	mock().checkExpectations();
+};
+
+TEST(Scheduler, scheduleConditionalDoesntRun) {
+	mock().clear();
+	mock().expectNCalls(0, "sleep_50ns");
+	// will load as blocked but immediately pass condition
+	taskManager.addConditionalTask(sleep_50ns, 0, []() { return false; }, "sleep 50ns");
+	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
+	taskManager.start(0.0095);
+	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;
+	mock().checkExpectations();
+};
+
 TEST(Scheduler, backOffTime) {
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
 	mock().expectNCalls(9, "sleep_50ns");
-	taskManager.addRepeatingTask(sleep_50ns, 1, 0.01, 0.001, 1, "sleep_50ns");
+	addRepeatingTask(sleep_50ns, 1, 0.01, 0.001, 1, "sleep_50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.1);
 	std::cout << "ending tests at " << getTimerValueSeconds(0) << std::endl;

@@ -20,6 +20,7 @@
 #include "io/debug/log.h"
 #include "util/container/static_vector.hpp"
 #include <algorithm>
+#include <iostream>
 
 #define SCHEDULER_DETAILED_STATS (1 && ENABLE_TEXT_OUTPUT)
 
@@ -61,6 +62,15 @@ struct Task {
 		name = _name;
 		removeAfterUse = false;
 	}
+	// makes a conditional task
+	Task(TaskHandle task, uint8_t priority, RunCondition _condition, const char* _name) {
+		handle = task;
+		schedule = {priority, 0, 0, 0};
+		name = _name;
+		removeAfterUse = true;
+		runnable = false;
+		condition = _condition;
+	}
 	TaskHandle handle{nullptr};
 	TaskSchedule schedule{0, 0, 0, 0};
 	double lastCallTime{0};
@@ -70,7 +80,8 @@ struct Task {
 #if SCHEDULER_DETAILED_STATS
 	StatBlock latency;
 #endif
-
+	bool runnable{true};
+	RunCondition condition{nullptr};
 	bool removeAfterUse{false};
 	const char* name{nullptr};
 
@@ -93,6 +104,7 @@ struct TaskManager {
 	// Sorted list of the current numActiveTasks, lowest priority (highest number) first
 	std::array<SortedTask, kMaxTasks> sortedList;
 	uint8_t numActiveTasks = 0;
+
 	double mustEndBefore = 128; // use for testing or I guess if you want a second temporary task manager?
 	bool running{false};
 	double cpuTime{0};
@@ -102,9 +114,10 @@ struct TaskManager {
 	void runTask(TaskID id);
 	TaskID chooseBestTask(double deadline);
 	TaskID addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name);
-	TaskID addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
-	                        double maxTimeBetweenCalls, const char* name);
+
 	TaskID addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name);
+	TaskID addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
+
 	void createSortedList();
 	void clockRolledOver();
 	TaskID insertTaskToList(Task task);
@@ -121,6 +134,7 @@ void TaskManager::createSortedList() {
 			j++;
 		}
 	}
+
 	if (numActiveTasks > 1) {
 		// &array[size] is UB, or at least Clang + MSVC manages to choke
 		// on it. So grab what is at worst size-1, and then increment
@@ -203,11 +217,7 @@ TaskID TaskManager::insertTaskToList(Task task) {
 
 	return index;
 };
-TaskID TaskManager::addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime,
-                                     double targetTimeBetweenCalls, double maxTimeBetweenCalls, const char* name) {
-	return addRepeatingTask(task, TaskSchedule{priority, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls},
-	                        name);
-}
+
 TaskID TaskManager::addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name) {
 	if (numActiveTasks >= (kMaxTasks)) {
 		return -1;
@@ -226,6 +236,16 @@ TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeTo
 	double timeToStart = running ? getTimerValueSeconds(0) : 0;
 	TaskID index = insertTaskToList(Task{task, priority, timeToStart, timeToWait, name});
 
+	createSortedList();
+	return index;
+}
+
+TaskID TaskManager::addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name) {
+	if (numActiveTasks >= (kMaxTasks)) {
+		return -1;
+	}
+	TaskID index = insertTaskToList(Task{task, priority, condition, name});
+	//  don't sort since it's not runnable yet
 	createSortedList();
 	return index;
 }
@@ -298,10 +318,21 @@ void TaskManager::start(double duration) {
 		if (task >= 0) {
 			runTask(task);
 		}
-		else if (newTime > lastPrintedStats + 10) {
-			lastPrintedStats = newTime;
-			// couldn't find anything so here we go
-			printStats();
+		else {
+			for (int i = 0; i < numActiveTasks; i++) {
+				struct Task* t = &list[sortedList[i].task];
+				if (!(t->runnable)) {
+					t->runnable = t->condition();
+					if (t->runnable) {
+						createSortedList();
+					}
+				}
+			}
+			if (newTime > lastPrintedStats + 10) {
+				lastPrintedStats = newTime;
+				// couldn't find anything so here we go
+				printStats();
+			}
 		}
 	}
 }
