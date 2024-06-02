@@ -456,8 +456,6 @@ void setupBlankSong() {
 
 /// Can only happen after settings, which includes default settings, have been read
 void setupStartupSong() {
-	// Temporarily disable startup song loading while it is broken. See TODO below.
-	return setupBlankSong();
 
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
 	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
@@ -467,7 +465,6 @@ void setupStartupSong() {
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
 	failSafePath.concatenate(replace_char(filename, '/', '_'));
 	if (storageManager.fileExists(failSafePath.get())) {
-		setupBlankSong();
 		String msgReason;
 		msgReason.concatenate("STARTUP OFF, reason: ");
 		msgReason.concatenate(filename);
@@ -477,7 +474,6 @@ void setupStartupSong() {
 	switch (startupSongMode) {
 	case StartupSongMode::TEMPLATE: {
 		if (!storageManager.fileExists(defaultSongFullPath)) {
-			setupBlankSong();
 			currentSong->writeTemplateSong(defaultSongFullPath);
 		}
 	}
@@ -490,35 +486,17 @@ void setupStartupSong() {
 			f_close(&f);
 		}
 		else {
-			setupBlankSong(); // something wrong creating canary file, failsafe.
+			// something wrong creating canary file, failsafe.
 			return;
 		}
 		if (!storageManager.fileExists(filename)) {
 			filename = defaultSongFullPath;
 			if (startupSongMode == StartupSongMode::TEMPLATE || !storageManager.fileExists(filename)) {
-				setupBlankSong();
 				return;
 			}
 		}
 		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
-		currentSong = new (songMemory) Song();
-		// TODO: This is broken with async loading for sure, and possibly worked by
-		// accident in the first place.
-		//
-		// 1. LoadSongUI::performLoad() expects the song
-		//    to be loaded to be identified by the browser's notion of current song,
-		//    and Song::setSongFullPath() does not appear to touch that.
-		//
-		// 2. Scheduler isn't running yet, so async loading is not going to work well.
-		//
-		// 3. Even if async loading was running already, clearing the name after completion
-		//    seems dubious, since there's no guarantee that the loading is complete, or
-		//    name would not be set again by a later step in the loading.
-		//
-		// 4. If the async loading is happening, we probably need to set up a blank song
-		//    properly first, because otherwise once setup completes we're left with
-		//    a song load in progress but no song in place.
-		//
+
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
 			loadSongUI.performLoad(storageManager);
@@ -527,15 +505,12 @@ void setupStartupSong() {
 				currentSong->name.clear();
 			}
 		}
-		else {
-			setupBlankSong();
-		}
 		f_unlink(failSafePath.get());
 	} break;
 	case StartupSongMode::BLANK:
 		[[fallthrough]];
 	default:
-		setupBlankSong();
+		return;
 	}
 }
 
@@ -875,7 +850,8 @@ extern "C" int32_t deluge_main(void) {
 	MIDIDeviceManager::readDevicesFromFile(storageManager);
 	midiFollow.readDefaultsFromFile(storageManager);
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
-	setupStartupSong();
+	setupBlankSong(); // we always need to do this
+	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
 
 #ifdef TEST_BST
 	BST bst;
