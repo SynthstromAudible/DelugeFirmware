@@ -29,6 +29,7 @@
 /// - osc::PulseWidth
 /// - patched_param::Integer
 /// - patched_param::Pan
+/// - reverb::Pan
 /// - unpatched_param::Pan
 /// - unpatched_param::UnpatchedParam
 ///

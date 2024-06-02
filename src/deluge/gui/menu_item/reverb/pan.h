@@ -38,11 +38,10 @@ public:
 		display->setText(buffer, true);
 	}
 
-	void writeCurrentValue() override { AudioEngine::reverbPan = ((int32_t)this->getValue() * 33554432); }
+	void writeCurrentValue() override { AudioEngine::reverbPan = computeFinalValueForPan(this->getValue()); }
 
-	void readCurrentValue() override {
-		this->setValue(((int64_t)AudioEngine::reverbPan * (kMaxMenuRelativeValue * 4) + 2147483648) >> 32);
-	}
+	void readCurrentValue() override { this->setValue(computeCurrentValueForPan(AudioEngine::reverbPan)); }
+
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }
 };
