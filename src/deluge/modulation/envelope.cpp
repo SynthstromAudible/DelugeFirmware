@@ -86,6 +86,10 @@ considerEnvelopeStage:
 		break;
 
 	case EnvelopeStage::FAST_RELEASE:
+		if (fastReleaseIncrement < 2 * release) {
+			release = 2 * release;
+			fastReleaseIncrement = release;
+		}
 		pos += fastReleaseIncrement * numSamples;
 		if (pos >= 8388608) {
 			setState(EnvelopeStage::OFF);
