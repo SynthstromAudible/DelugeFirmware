@@ -456,6 +456,9 @@ void setupBlankSong() {
 
 /// Can only happen after settings, which includes default settings, have been read
 void setupStartupSong() {
+	// Temporarily disable startup song loading while it is broken. See TODO below.
+	return setupBlankSong();
+
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
 	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
 	auto filename =
@@ -499,6 +502,23 @@ void setupStartupSong() {
 		}
 		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 		currentSong = new (songMemory) Song();
+		// TODO: This is broken with async loading for sure, and possibly worked by
+		// accident in the first place.
+		//
+		// 1. LoadSongUI::performLoad() expects the song
+		//    to be loaded to be identified by the browser's notion of current song,
+		//    and Song::setSongFullPath() does not appear to touch that.
+		//
+		// 2. Scheduler isn't running yet, so async loading is not going to work well.
+		//
+		// 3. Even if async loading was running already, clearing the name after completion
+		//    seems dubious, since there's no guarantee that the loading is complete, or
+		//    name would not be set again by a later step in the loading.
+		//
+		// 4. If the async loading is happening, we probably need to set up a blank song
+		//    properly first, because otherwise once setup completes we're left with
+		//    a song load in progress but no song in place.
+		//
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
 			loadSongUI.performLoad(storageManager);
