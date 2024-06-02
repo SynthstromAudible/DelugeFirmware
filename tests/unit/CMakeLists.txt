@@ -34,24 +34,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/modulation/lfo.cpp
         # For value scaling
         ../../src/deluge/gui/menu_item/value_scaling.cpp
-        # Containers
-        ../../src/deluge/gui/l10n/*
-        ../../src/deluge/util/cfunctions.c
-        ../../src/deluge/util/container/*
-        ../../src/deluge/util/d_string.cpp
-        ../../src/deluge/util/functions.cpp
 )
 
-add_executable(UnitTests
-  RunAllTests.cpp
-
-  scheduler_tests.cpp
-  lfo_tests.cpp
-  scale_tests.cpp
-  value_scaling_tests.cpp
-  container/open_addressing_hash_table.cpp
-)
-
+add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp lfo_tests.cpp scale_tests.cpp value_scaling_tests.cpp)
 add_test(NAME UnitTests
         COMMAND UnitTests)
 target_sources(UnitTests PRIVATE ${deluge_SOURCES})

@@ -21,7 +21,6 @@
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "util/functions.h"
-#include <cinttypes>
 #include <string.h>
 
 #define SECONDARY_MEMORY_FUNCTION_NONE 0
@@ -378,4 +377,82 @@ void OpenAddressingHashTableWith8bitKey::setKeyAtAddress(uint32_t key, void* add
 
 bool OpenAddressingHashTableWith8bitKey::doesKeyIndicateEmptyBucket(uint32_t key) {
 	return (key == (uint32_t)0xFF);
+}
+
+#define NUM_ELEMENTS_TO_ADD 64
+void OpenAddressingHashTable::test() {
+	uint32_t elementsAdded[NUM_ELEMENTS_TO_ADD];
+
+	uint32_t count = 0;
+
+	while (true) {
+		count++;
+		if (!(count & ((1 << 13) - 1))) {
+			D_PRINTLN("still going");
+		}
+
+		int32_t numElementsAdded = 0;
+
+		// Add a bunch of elements
+		while (numElementsAdded < NUM_ELEMENTS_TO_ADD) {
+			do {
+				elementsAdded[numElementsAdded] = getNoise() & 0xFF;
+			} while (!elementsAdded[numElementsAdded]
+			         || (uint8_t)elementsAdded[numElementsAdded]
+			                == 0xFF); // Don't allow 0 - we'll use that for special test. Or 0xFF, cos that means empty
+
+			bool result = insert(elementsAdded[numElementsAdded]);
+			numElementsAdded++;
+
+			if (!result) {
+				D_PRINTLN("couldn't add element");
+				while (1) {
+					;
+				}
+			}
+		}
+
+		if (numElements != NUM_ELEMENTS_TO_ADD) {
+			D_PRINTLN("wrong numElements");
+			while (1) {
+				;
+			}
+		}
+
+		// See if it'll let us remove an element that doesn't exist
+		bool result = remove(0);
+		if (result) {
+			D_PRINTLN("reported successful removal of nonexistent element");
+			while (1) {
+				;
+			}
+		}
+
+		for (int32_t i = 0; i < NUM_ELEMENTS_TO_ADD; i++) {
+			bool result = remove(elementsAdded[i]);
+			if (!result) {
+				D_PRINTLN("remove failed. i ==  %d numBuckets ==  %d numElements ==  %d key ==  %d", i, numBuckets,
+				          numElements, elementsAdded[i]);
+				while (1) {
+					;
+				}
+			}
+		}
+
+		if (numElements != 0) {
+			D_PRINTLN("numElements didn't return to 0");
+			while (1) {
+				;
+			}
+		}
+
+		// See if it'll let us remove an element that doesn't exist
+		result = remove(0);
+		if (result) {
+			D_PRINTLN("reported successful removal of element when there are no elements at all");
+			while (1) {
+				;
+			}
+		}
+	}
 }
