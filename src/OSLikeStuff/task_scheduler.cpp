@@ -104,7 +104,7 @@ struct TaskManager {
 	// Sorted list of the current numActiveTasks, lowest priority (highest number) first
 	std::array<SortedTask, kMaxTasks> sortedList;
 	uint8_t numActiveTasks = 0;
-
+	uint8_t numRegisteredTasks = 0;
 	double mustEndBefore = 128; // use for testing or I guess if you want a second temporary task manager?
 	bool running{false};
 	double cpuTime{0};
@@ -122,6 +122,7 @@ struct TaskManager {
 	void clockRolledOver();
 	TaskID insertTaskToList(Task task);
 	void printStats();
+	bool checkConditionalTasks();
 };
 
 TaskManager taskManager;
@@ -129,12 +130,12 @@ TaskManager taskManager;
 void TaskManager::createSortedList() {
 	int j = 0;
 	for (TaskID i = 0; i < kMaxTasks; i++) {
-		if (list[i].handle != nullptr) {
+		if (list[i].handle != nullptr && list[i].runnable) {
 			sortedList[j] = (SortedTask{list[i].schedule.priority, i});
 			j++;
 		}
 	}
-
+	numActiveTasks = j;
 	if (numActiveTasks > 1) {
 		// &array[size] is UB, or at least Clang + MSVC manages to choke
 		// on it. So grab what is at worst size-1, and then increment
@@ -212,14 +213,14 @@ TaskID TaskManager::insertTaskToList(Task task) {
 	}
 	if (index < kMaxTasks) {
 		list[index] = task;
-		numActiveTasks++;
+		numRegisteredTasks++;
 	}
 
 	return index;
 };
 
 TaskID TaskManager::addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name) {
-	if (numActiveTasks >= (kMaxTasks)) {
+	if (numRegisteredTasks >= (kMaxTasks)) {
 		return -1;
 	}
 
@@ -230,7 +231,7 @@ TaskID TaskManager::addRepeatingTask(TaskHandle task, TaskSchedule schedule, con
 }
 
 TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name) {
-	if (numActiveTasks >= (kMaxTasks)) {
+	if (numRegisteredTasks >= (kMaxTasks)) {
 		return -1;
 	}
 	double timeToStart = running ? getTimerValueSeconds(0) : 0;
@@ -241,18 +242,17 @@ TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeTo
 }
 
 TaskID TaskManager::addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name) {
-	if (numActiveTasks >= (kMaxTasks)) {
+	if (numRegisteredTasks >= (kMaxTasks)) {
 		return -1;
 	}
 	TaskID index = insertTaskToList(Task{task, priority, condition, name});
-	//  don't sort since it's not runnable yet
-	createSortedList();
+	//  don't sort since it's not runnable yet anyway, so no change to the active list
 	return index;
 }
 
 void TaskManager::removeTask(TaskID id) {
 	list[id] = Task{};
-	numActiveTasks--;
+	numRegisteredTasks--;
 	createSortedList();
 	return;
 }
@@ -319,22 +319,32 @@ void TaskManager::start(double duration) {
 			runTask(task);
 		}
 		else {
-			for (int i = 0; i < numActiveTasks; i++) {
-				struct Task* t = &list[sortedList[i].task];
-				if (!(t->runnable)) {
-					t->runnable = t->condition();
-					if (t->runnable) {
-						createSortedList();
-					}
-				}
-			}
-			if (newTime > lastPrintedStats + 10) {
+			bool addedTask = checkConditionalTasks();
+			// if we sorted our list then we should get back to running things and not print stats
+			if (!addedTask && newTime > lastPrintedStats + 10) {
 				lastPrintedStats = newTime;
 				// couldn't find anything so here we go
 				printStats();
 			}
 		}
 	}
+}
+bool TaskManager::checkConditionalTasks() {
+	bool addedTask = false;
+	for (int i = 0; i < numRegisteredTasks; i++) {
+		struct Task* t = &list[i];
+		if (t->handle != nullptr && !(t->runnable)) {
+			t->runnable = t->condition();
+			if (t->runnable) {
+				addedTask = true;
+			}
+		}
+	}
+	if (addedTask) {
+		createSortedList();
+		return true;
+	}
+	return false;
 }
 void TaskManager::printStats() {
 	D_PRINTLN("Dumping task manager stats:");
