@@ -76,18 +76,17 @@ public:
 	void dealloc(void* address);
 	void* allocExternal(uint32_t requiredSize);
 	void deallocExternal(void* address);
-
-	/// Returns the new size actually achieved
 	uint32_t shortenRight(void* address, uint32_t newSize);
-	/// Returns the new size actually achieved
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
-
 	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
 	            uint32_t* getAmountExtendedLeft, uint32_t* getAmountExtendedRight, void* thingNotToStealFrom = NULL);
 	uint32_t extendRightAsMuchAsEasilyPossible(void* address);
+	void test();
 	uint32_t getAllocatedSize(void* address);
 	void checkStack(char const* caller);
+	void testShorten(int32_t i);
 	int32_t getRegion(void* address);
+	void testMemoryDeallocated(void* address);
 
 	void putStealableInQueue(Stealable* stealable, StealableQueue q);
 	void putStealableInAppropriateQueue(Stealable* stealable);
