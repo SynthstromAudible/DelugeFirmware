@@ -244,3 +244,7 @@ private:
 extern StorageManager storageManager;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
+
+inline bool isCardReady() {
+	return Error::NONE == storageManager.initSD();
+}
