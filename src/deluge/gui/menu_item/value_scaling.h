@@ -27,6 +27,7 @@
 /// Done:
 /// - UnpatchedParam
 /// - patched_param::Integer
+/// - CompParam
 ///
 /// As stuff is extraced and turns out to be functionally identical the dupes
 /// should be eliminated.
@@ -40,10 +41,18 @@
 /// needing specialized code to handle existing saves -- or at least have
 /// unit tests for the conversion code if it is needed.
 
-/** Scales int32_t range to 0-50 for display.
+/** Scales INT32_MIN-INT32_MAX range to 0-50 for display.
  */
 int32_t computeCurrentValueForStandardMenuItem(int32_t value);
 
-/** Scales 0-50 range to int32_t for storage and use.
+/** Scales 0-50 range to INT32_MIN-INT32_MAX for storage and use.
  */
 int32_t computeFinalValueForStandardMenuItem(int32_t value);
+
+/** Scales 0-INT32_MAX range to 0-50 for display.
+ */
+int32_t computeCurrentValueForCompParam(int32_t value);
+
+/** Scales 0-50 range to 0-INT32_MAX for storage and use.
+ */
+int32_t computeFinalValueForCompParam(int32_t value);
