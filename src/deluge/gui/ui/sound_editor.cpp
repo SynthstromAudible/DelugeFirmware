@@ -606,7 +606,8 @@ doSetupBlinkingForSessionView:
 		}
 
 		// For Kit Instrument Clip with Affect Entire Enabled
-		else if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
+		else if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)
+		         && setupKitGlobalFXMenu) {
 
 			int32_t x, y;
 
