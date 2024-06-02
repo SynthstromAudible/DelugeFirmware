@@ -25,10 +25,11 @@
 ///     -> computeFinalValueForSomeClass()
 ///
 /// Done:
-/// - UnpatchedParam
+/// - unpatched_param::UnpatchedParam
+/// - unpatched_param::Pan
 /// - patched_param::Integer
-/// - CompParam
-/// - PulseWidth
+/// - audio_compressor::CompParam
+/// - osc::PulseWidth
 ///
 /// As stuff is extraced and turns out to be functionally identical the dupes
 /// should be eliminated.
@@ -57,3 +58,11 @@ int32_t computeCurrentValueForHalfPrecisionMenuItem(int32_t value);
 /** Scales 0-50 range to 0-INT32_MAX for storage and use.
  */
 int32_t computeFinalValueForHalfPrecisionMenuItem(int32_t value);
+
+/** Scales INT32_MIN-INT32_MAX range to -25-25 for display.
+ */
+int32_t computeCurrentValueForPan(int32_t value);
+
+/** Scales -25 to 25 range to INT32_MIN-INT32_MAX for storage and use.
+ */
+int32_t computeFinalValueForPan(int32_t value);
