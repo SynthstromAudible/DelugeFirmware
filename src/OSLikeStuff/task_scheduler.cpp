@@ -65,6 +65,7 @@ struct Task {
 	// makes a conditional task
 	Task(TaskHandle task, uint8_t priority, RunCondition _condition, const char* _name) {
 		handle = task;
+		// good to go as soon as it's marked as runnable
 		schedule = {priority, 0, 0, 0};
 		name = _name;
 		removeAfterUse = true;
@@ -388,6 +389,10 @@ uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, 
 }
 uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name) {
 	return taskManager.addOnceTask(task, priority, timeToWait, name);
+}
+
+uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name) {
+	return taskManager.addConditionalTask(task, priority, condition, name);
 }
 
 void removeTask(TaskID id) {
