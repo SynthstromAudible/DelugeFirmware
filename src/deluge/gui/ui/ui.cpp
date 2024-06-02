@@ -253,13 +253,13 @@ bool isUIOpen(UI* ui) {
 	}
 	return false;
 }
+bool doesOLEDNeedRendering = false;
 
 void nullifyUIs() {
 	lastUIBeforeNullifying = getCurrentUI();
 	numUIsOpen = 0;
+	doesOLEDNeedRendering = false;
 }
-
-bool doesOLEDNeedRendering = false;
 
 void renderUIsForOled() {
 	doesOLEDNeedRendering = true;
@@ -357,7 +357,7 @@ void doAnyPendingOLEDRendering() {
 		}
 
 		OLED::clearMainImage();
-
+		u = std::max(u, 0L);
 		for (; u < numUIsOpen; u++) {
 			OLED::stopScrollingAnimation();
 			uiNavigationHierarchy[u]->renderOLED(deluge::hid::display::OLED::main);
