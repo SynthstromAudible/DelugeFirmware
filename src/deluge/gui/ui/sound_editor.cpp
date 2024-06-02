@@ -566,6 +566,7 @@ void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem
 		for (auto y = 0; y < kDisplayHeight; ++y) {
 			if (items[x][y] == currentItem) {
 				setupShortcutBlink(x, y, 0);
+				return;
 			}
 		}
 	}
