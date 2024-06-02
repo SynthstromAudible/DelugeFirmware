@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/unpatched_param.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "modulation/params/param_set.h"
 
@@ -26,21 +27,10 @@ class CompParam final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 	void readCurrentValue() override {
-		auto value = (int64_t)soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP());
-		this->setValue((value * (kMaxMenuValue * 2) + 2147483648) >> 32);
+		this->setValue(
+		    computeCurrentValueForCompParam(soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
 	}
-	// comp params aren't set up for negative inputs - this is the same as osc pulse width
-	int32_t getFinalValue() override {
-		if (this->getValue() == kMaxMenuValue) {
-			return 2147483647;
-		}
-		else if (this->getValue() == kMinMenuValue) {
-			return 0;
-		}
-		else {
-			return (uint32_t)this->getValue() * (2147483648 / kMidMenuValue) >> 1;
-		}
-	}
+	int32_t getFinalValue() override { return computeFinalValueForCompParam(this->getValue()); }
 };
 
 } // namespace deluge::gui::menu_item::audio_compressor
