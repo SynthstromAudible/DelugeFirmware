@@ -37,7 +37,8 @@ jobs:
       - name: Run 32 bit CppUTest
         run: |
           cd build/results
-          ../32bit_unit_tests/32BitTests -ojunit
+          ../32bit_unit_tests/SmallPointerTests -ojunit
+          ../32bit_unit_tests/MemoryManagerTests -ojunit
       - name: Run main CppUTest
         run: |
           cd build/results
