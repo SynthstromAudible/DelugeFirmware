@@ -2974,26 +2974,26 @@ ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* 
 			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
 		}
 		else if (isUIModeWithinRange(mutePadActionUIModes) && velocity) {
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    instrumentClip->getNoteRowOnScreen(y, modelStackWithTimelineCounter);
+			if (inAutomationEditor()) {
+				ModelStackWithNoteRow* modelStackWithNoteRow =
+				    instrumentClip->getNoteRowOnScreen(y, modelStackWithTimelineCounter);
 
-			// if we're in a kit, and you press a mute pad
-			// check if it's a mute pad corresponding to the current selected drum
-			// if not, change the drum selection, refresh parameter selection and go back to automation overview
-			if (outputType == OutputType::KIT) {
-				if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-					Drum* drum = modelStackWithNoteRow->getNoteRow()->drum;
-					if (((Kit*)output)->selectedDrum != drum) {
-						if (!getAffectEntire()) {
-							initParameterSelection();
+				// if we're in a kit, and you press a mute pad
+				// check if it's a mute pad corresponding to the current selected drum
+				// if not, change the drum selection, refresh parameter selection and go back to automation overview
+				if (outputType == OutputType::KIT) {
+					if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+						Drum* drum = modelStackWithNoteRow->getNoteRow()->drum;
+						if (((Kit*)output)->selectedDrum != drum) {
+							if (!getAffectEntire()) {
+								initParameterSelection();
+							}
 						}
 					}
 				}
 			}
 
 			instrumentClipView.mutePadPress(y);
-
-			uiNeedsRendering(this); // re-render mute pads
 		}
 	}
 	return ActionResult::DEALT_WITH;
@@ -5408,5 +5408,5 @@ void AutomationView::blinkSelectedNoteRow(int32_t whichMainRows) {
 	noteRowBlinking = true;
 	noteRowFlashOn = !noteRowFlashOn;
 	uiNeedsRendering(this, whichMainRows, 0xFFFFFFFF);
-	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 1000);
+	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 180);
 }

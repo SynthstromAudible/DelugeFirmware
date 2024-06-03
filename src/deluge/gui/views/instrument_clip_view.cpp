@@ -2489,6 +2489,11 @@ void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 	// controlling, and eventually stop stuttering on, their current selected Drum
 	bool wasStuttering = isUIModeActive(UI_MODE_STUTTERING);
 
+	// We do not want to change the selected drum if we're in the automation view note editor
+	// because the selected drum for note editing is the last auditioned note row and we don't want
+	// these two to get out of sync.
+	bool inNoteEditor = getRootUI() == &automationView && automationView.inNoteEditor();
+
 	// Try getting existing NoteRow.
 	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 
@@ -2498,7 +2503,7 @@ void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 		// For Kits, get out.
 		if (clip->output->type == OutputType::KIT) {
 fail:
-			if (!wasStuttering) {
+			if (!wasStuttering && !inNoteEditor) {
 				setSelectedDrum(NULL);
 			}
 			return;
@@ -2515,11 +2520,12 @@ fail:
 
 	clip->toggleNoteRowMute(modelStackWithNoteRow);
 
-	if (!wasStuttering && clip->output->type == OutputType::KIT) {
+	if (!wasStuttering && !inNoteEditor && clip->output->type == OutputType::KIT) {
 		setSelectedDrum(noteRow->drum);
 	}
 
-	uiNeedsRendering(this, 0, 1 << yDisplay);
+	// getRootUI() in case called from automation view
+	uiNeedsRendering(getRootUI(), 0, 1 << yDisplay);
 }
 
 NoteRow* InstrumentClipView::createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
