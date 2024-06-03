@@ -430,7 +430,9 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			// probably bad
 			cullVoice(false, numRoutines == 0 ? SOFT : SOFT_ALWAYS, numSamples, nullptr);
 			logAction("soft cull");
-			culled = true;
+			if (numRoutines > 0) {
+				culled = true;
+			}
 		}
 	}
 	else {
