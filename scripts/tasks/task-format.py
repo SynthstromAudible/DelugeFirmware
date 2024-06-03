@@ -146,7 +146,7 @@ def main() -> int:
     files_and_directories = (
         [Path(f) for f in args.files_and_directories]
         if args.files_and_directories
-        else [util.get_git_root().absolute() / "src"]
+        else [util.get_git_root().absolute() / p for p in ["src", "tests"]]
     )
     temp = [[], []]
     directories, files = temp

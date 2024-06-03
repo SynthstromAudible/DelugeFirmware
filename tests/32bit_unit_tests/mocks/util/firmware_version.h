@@ -13,7 +13,7 @@ struct FirmwareVersion {
 
 	constexpr static FirmwareVersion current() {
 		return FirmwareVersion(Type::COMMUNITY, {
-			// clang-format off
+		                                            // clang-format off
 			0,
 			0,
 			0,
