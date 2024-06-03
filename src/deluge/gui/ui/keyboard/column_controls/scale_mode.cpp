@@ -28,6 +28,10 @@ void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], i
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool mode_selected = scaleModes[y] == currentScale;
+		if (currentScalePad == -1 && mode_selected) {
+			// fill currentScalePad with the current matching scale if not set yet
+			currentScalePad = y;
+		}
 		uint8_t mode_available = y < NUM_PRESET_SCALES ? 0x7f : 0;
 		otherChannels = mode_selected ? 0xf0 : 0;
 		uint8_t base = mode_selected ? 0xff : mode_available;
@@ -36,9 +40,23 @@ void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], i
 }
 
 bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
-	int32_t newScale = ((int32_t)scaleModes[pad] + offset) % NUM_PRESET_SCALES;
-	if (newScale < 0) {
-		newScale = NUM_PRESET_SCALES - 1;
+	int32_t newScale = scaleModes[pad];
+	bool newScaleNotSelectedYet = true;
+	while (newScaleNotSelectedYet) {
+		newScale = (newScale + offset) % NUM_PRESET_SCALES;
+		if (newScale < 0) {
+			newScale = NUM_PRESET_SCALES - 1;
+		}
+		bool scaleFoundInPads = false;
+		for (int32_t y = 0; y < kDisplayHeight; ++y) {
+			if (scaleModes[y] == newScale) {
+				scaleFoundInPads = true;
+				break;
+			}
+		}
+		if (!scaleFoundInPads) {
+			newScaleNotSelectedYet = false;
+		}
 	}
 	scaleModes[pad] = newScale;
 	return true;
@@ -47,6 +65,7 @@ bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                                 KeyboardLayout* layout) {
 	if (pad.active) {
+		previousScale = currentSong->getCurrentPresetScale();
 		if (keyboardScreen.setScale(scaleModes[pad.y])) {
 			currentScalePad = pad.y;
 		}
@@ -54,14 +73,20 @@ void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTim
 	else if (!pad.padPressHeld) {
 		// Pad released after short press
 		if (keyboardScreen.setScale(scaleModes[pad.y])) {
-			previousScalePad = pad.y;
+			previousScale = scaleModes[pad.y];
 			currentScalePad = pad.y;
 		}
 	}
 	else {
 		// Pad released after long press
-		if (keyboardScreen.setScale(scaleModes[previousScalePad])) {
-			currentScalePad = previousScalePad;
+
+		if (keyboardScreen.setScale(previousScale)) {
+			for (int32_t y = 0; y < kDisplayHeight; ++y) {
+				if (scaleModes[y] == previousScale) {
+					currentScalePad = y;
+					break;
+				}
+			}
 		}
 	}
 };
