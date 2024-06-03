@@ -13,8 +13,8 @@
 
 namespace {
 uint32_t vtableAddress;  // will hold address of the stealable test vtable
-uint32_t nSteals;        //to count steals
-uint32_t totalAllocated; //to count allocated space
+uint32_t nSteals;        // to count steals
+uint32_t totalAllocated; // to count allocated space
 
 uint32_t getAllocatedSize(void* address) {
 	uint32_t* header = (uint32_t*)((uint32_t)address - 4);
@@ -57,7 +57,7 @@ void testWritingMemory(void* address, uint32_t size) {
 
 bool testAllocationStructure(void* address, uint32_t size, uint32_t spaceType) {
 	if (!address) {
-		//for convenience
+		// for convenience
 		return true;
 	}
 	uint32_t* header = (uint32_t*)address - 1;
@@ -84,12 +84,12 @@ bool testAllocationStructure(void* address, uint32_t size, uint32_t spaceType) {
 
 TEST_GROUP(MemoryAllocation) {
 	MemoryRegion memreg;
-	//this will hold the address of the stealable test vtable
+	// this will hold the address of the stealable test vtable
 	uint32_t empty_spaze_size = sizeof(EmptySpaceRecord) * 512;
 	void* emptySpacesMemory = malloc(empty_spaze_size);
 	int32_t mem_size = MEM_SIZE;
 	void* raw_mem = malloc(mem_size);
-	//this runs before each test to re intitialize the memory
+	// this runs before each test to re intitialize the memory
 	void setup() {
 		nSteals = 0;
 		memset(raw_mem, 0, mem_size);
@@ -114,7 +114,7 @@ TEST(MemoryAllocation, alloc100mb) {
 };
 
 TEST(MemoryAllocation, allocstealable) {
-	//mock().expectOneCall("steal");
+	// mock().expectOneCall("steal");
 	int32_t size = 1000;
 	void* testalloc = memreg.alloc(size, true, NULL);
 	StealableTest* stealable = new (testalloc) StealableTest();
@@ -132,8 +132,8 @@ TEST(MemoryAllocation, allocstealable) {
 // allocate 512 1m stealables
 TEST(MemoryAllocation, uniformAllocation) {
 	uint32_t size = 1 << 20;
-	//this is the number of steals we expect to occur
-	//it's plus 8 for the header and footer
+	// this is the number of steals we expect to occur
+	// it's plus 8 for the header and footer
 	int ncalls = NUM_TEST_ALLOCATIONS - mem_size / (size + 8);
 	mock().clear();
 	mock().expectNCalls(ncalls, "steal");
@@ -153,14 +153,14 @@ TEST(MemoryAllocation, uniformAllocation) {
 };
 
 TEST(MemoryAllocation, allocationStructure) {
-	//this is technically random
+	// this is technically random
 	int expectedAllocations = 1000;
 	void* testAllocations[expectedAllocations] = {0};
 	uint32_t testSizes[expectedAllocations] = {0};
 	uint32_t totalSize = 0;
 
 	for (int i = 0; i < expectedAllocations; i++) {
-		//this is to make a log distribution - probably the worst case for packing efficiency
+		// this is to make a log distribution - probably the worst case for packing efficiency
 		int magnitude = rand() % 16;
 		int size = (rand() % 10) << magnitude;
 		void* testalloc = memreg.alloc(size, false, NULL);
@@ -179,7 +179,7 @@ TEST(MemoryAllocation, allocationStructure) {
 			}
 		}
 		else {
-			//filled the memory
+			// filled the memory
 			break;
 		}
 	}
@@ -206,7 +206,7 @@ TEST(MemoryAllocation, allocationSizes) {
 		totalSize = 0;
 		for (int i = 0; i < expectedAllocations; i++) {
 			if (!testAllocations[i]) {
-				//this is to make a log distribution - probably the worst case for packing efficiency
+				// this is to make a log distribution - probably the worst case for packing efficiency
 				int magnitude = rand() % 16;
 				int size = (rand() % 10) << magnitude;
 				void* testalloc = memreg.alloc(size, false, NULL);
@@ -222,18 +222,18 @@ TEST(MemoryAllocation, allocationSizes) {
 				testAllocations[i] = nullptr;
 			}
 		}
-		//std::cout << (float(totalSize) / float(mem_size)) << std::endl;
-		//check that efficiency wasn't terrible
+		// std::cout << (float(totalSize) / float(mem_size)) << std::endl;
+		// check that efficiency wasn't terrible
 		CHECK(totalSize > 0.95 * mem_size);
 		average_packing_factor += (float(totalSize) / float(mem_size));
 
-		//we should have one empty space left, and it should be the size of the memory minus headers
+		// we should have one empty space left, and it should be the size of the memory minus headers
 		CHECK(memreg.emptySpaces.getNumElements() == 1);
 		CHECK(memreg.emptySpaces.getKeyAtIndex(0) == mem_size - 16);
 	}
-	//un modified GMA gets .999311
-	//current with extra padding gets .9939
-	//std::cout << "Packing factor: " << (average_packing_factor / numRepeats) << std::endl;
+	// un modified GMA gets .999311
+	// current with extra padding gets .9939
+	// std::cout << "Packing factor: " << (average_packing_factor / numRepeats) << std::endl;
 	CHECK(average_packing_factor / numRepeats > 0.99);
 };
 
@@ -247,7 +247,7 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 	float averageSize = 0;
 	uint32_t allocations = 0;
 
-	//we need to pre alloc a bunch to setup the test
+	// we need to pre alloc a bunch to setup the test
 	for (int i = 0; i < expectedAllocations; i++) {
 		if (i % 4 != 0) {
 			int magnitude = rand() % 18;
@@ -267,7 +267,7 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 		totalSize = 0;
 		for (int i = 0; i < allocations; i++) {
 			if (!testAllocations[i]) {
-				//this is to make a log distribution - probably the worst case for packing efficiency
+				// this is to make a log distribution - probably the worst case for packing efficiency
 				int magnitude = rand() % 18;
 				int size = (rand() % 10) << magnitude;
 				void* testalloc = memreg.alloc(size, false, NULL);
@@ -288,12 +288,12 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 				}
 			}
 		}
-		//std::cout << float(totalSize) / float(mem_size) << std::endl;
+		// std::cout << float(totalSize) / float(mem_size) << std::endl;
 		averageSize += totalSize;
 	};
-	//for regression - unmodified GMA scores 0.60
-	//with power of 2 alignment GMA scores 0.689
-	//a perfect allocator with no fragmentation would tend towards 0.75
+	// for regression - unmodified GMA scores 0.60
+	// with power of 2 alignment GMA scores 0.689
+	// a perfect allocator with no fragmentation would tend towards 0.75
 	std::cout << "Average efficiency: " << (float(averageSize / numRepeats) / float(mem_size)) << std::endl;
 	CHECK(averageSize / numRepeats > 0.685 * mem_size);
 };
@@ -301,7 +301,7 @@ TEST(MemoryAllocation, RandomAllocFragmentation) {
 // allocate 512 1m stealables
 TEST(MemoryAllocation, stealableAllocations) {
 	srand(1);
-	//these are the possible stealable sizes
+	// these are the possible stealable sizes
 	int32_t sizes[3] = {sizeof(Sample), sizeof(WaveTable), sizeof(Cluster) + (1 << 15)};
 
 	void* testAllocations[NUM_TEST_ALLOCATIONS];
@@ -325,9 +325,9 @@ TEST(MemoryAllocation, stealableAllocations) {
 		testAllocations[i] = testalloc;
 	}
 	float efficiency = (float(totalAllocated) / MEM_SIZE);
-	//std::cout << (nSteals) << std::endl;
+	// std::cout << (nSteals) << std::endl;
 	std::cout << "stealable efficiency: " << efficiency << std::endl;
-	//current efficiency is .994
+	// current efficiency is .994
 	CHECK(efficiency > 0.994);
 	mock().checkExpectations();
 };

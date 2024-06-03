@@ -1,14 +1,13 @@
 #include "CppUTest/TestHarness.h"
-#include "modulation/lfo.h"
 #include "definitions_cxx.hpp"
+#include "modulation/lfo.h"
 #include "util/waves.h"
 
-TEST_GROUP(LFOTest) {
-	void setup() {
-		// Set CONG for all tests, so they're deterministic
-		CONG = 13287131;
-	}
-};
+TEST_GROUP(LFOTest){void setup(){// Set CONG for all tests, so they're deterministic
+                                 CONG = 13287131;
+}
+}
+;
 
 TEST(LFOTest, renderGlobalTriangle) {
 	LFO lfo;
@@ -16,7 +15,7 @@ TEST(LFOTest, renderGlobalTriangle) {
 	lfo.setGlobalInitialPhase(conf);
 	int32_t numSamples = 10, phaseIncrement = 100;
 	CHECK_EQUAL(0, lfo.render(10, conf, 100));
-	CHECK_EQUAL(numSamples*phaseIncrement*2, lfo.render(0, conf, 0));
+	CHECK_EQUAL(numSamples * phaseIncrement * 2, lfo.render(0, conf, 0));
 }
 
 TEST(LFOTest, renderLocalTriangle) {
@@ -24,7 +23,7 @@ TEST(LFOTest, renderLocalTriangle) {
 	LFOConfig conf(LFOType::TRIANGLE);
 	lfo.setLocalInitialPhase(conf);
 	CHECK_EQUAL(INT32_MIN, lfo.render(10, conf, 100));
-	CHECK_EQUAL(INT32_MIN+2000, lfo.render(0, conf, 0));
+	CHECK_EQUAL(INT32_MIN + 2000, lfo.render(0, conf, 0));
 }
 
 TEST(LFOTest, renderGlobalSine) {
@@ -62,7 +61,7 @@ TEST(LFOTest, renderGSaw) {
 	CHECK_EQUAL(localPhase, lfo.phase);
 	// Check the values as well.
 	CHECK_EQUAL(INT32_MIN, lfo.render(10, conf, 100));
-	CHECK_EQUAL(INT32_MIN+1000, lfo.render(0, conf, 0));
+	CHECK_EQUAL(INT32_MIN + 1000, lfo.render(0, conf, 0));
 }
 
 TEST(LFOTest, renderSquare) {
@@ -156,9 +155,7 @@ TEST(LFOTest, renderRandomWalk) {
 	CHECK_EQUAL(199, lfo.phase);
 }
 
-TEST_GROUP(WaveTest) {
-	void setup() {}
-};
+TEST_GROUP(WaveTest){void setup(){}};
 
 TEST(WaveTest, triangle) {
 	// low turnover
@@ -167,13 +164,13 @@ TEST(WaveTest, triangle) {
 	CHECK_EQUAL(-2147483646, getTriangle(1));
 	// passing zero up
 	CHECK_EQUAL(-2, getTriangle(1073741823));
-	CHECK_EQUAL( 0, getTriangle(1073741824));
-	CHECK_EQUAL( 2, getTriangle(1073741825));
+	CHECK_EQUAL(0, getTriangle(1073741824));
+	CHECK_EQUAL(2, getTriangle(1073741825));
 	// thigh turnover
-	CHECK_EQUAL( 2147483646, getTriangle(2147483647u));
-	CHECK_EQUAL( 2147483647, getTriangle(2147483648u));
-	CHECK_EQUAL( 2147483645, getTriangle(2147483649u));
+	CHECK_EQUAL(2147483646, getTriangle(2147483647u));
+	CHECK_EQUAL(2147483647, getTriangle(2147483648u));
+	CHECK_EQUAL(2147483645, getTriangle(2147483649u));
 	// passing zero down
-	CHECK_EQUAL( 1, getTriangle(3221225471u));
+	CHECK_EQUAL(1, getTriangle(3221225471u));
 	CHECK_EQUAL(-1, getTriangle(3221225472u));
 }

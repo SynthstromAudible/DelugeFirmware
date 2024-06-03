@@ -1,10 +1,10 @@
 #include "CppUTest/TestHarness.h"
-#include "gui/menu_item/value_scaling.h"
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/value_scaling.h"
 
 #include <iostream>
 
-TEST_GROUP(ValueScalingTest) {};
+TEST_GROUP(ValueScalingTest){};
 
 TEST(ValueScalingTest, standardMenuItemValueScaling) {
 	for (int i = kMinMenuValue; i <= kMaxMenuValue; i++) {
@@ -13,7 +13,7 @@ TEST(ValueScalingTest, standardMenuItemValueScaling) {
 		CHECK_EQUAL(i, currentValue);
 	}
 	CHECK_EQUAL(INT32_MIN, computeFinalValueForStandardMenuItem(0));
-	CHECK_EQUAL(-23,       computeFinalValueForStandardMenuItem(25));
+	CHECK_EQUAL(-23, computeFinalValueForStandardMenuItem(25));
 	CHECK_EQUAL(INT32_MAX, computeFinalValueForStandardMenuItem(50));
 }
 
@@ -23,9 +23,9 @@ TEST(ValueScalingTest, HalfPrecisionValueScaling) {
 		int32_t currentValue = computeCurrentValueForHalfPrecisionMenuItem(finalValue);
 		CHECK_EQUAL(i, currentValue);
 	}
-	CHECK_EQUAL(0,          computeFinalValueForHalfPrecisionMenuItem(0));
+	CHECK_EQUAL(0, computeFinalValueForHalfPrecisionMenuItem(0));
 	CHECK_EQUAL(1073741812, computeFinalValueForHalfPrecisionMenuItem(25));
-	CHECK_EQUAL(INT32_MAX,  computeFinalValueForHalfPrecisionMenuItem(50));
+	CHECK_EQUAL(INT32_MAX, computeFinalValueForHalfPrecisionMenuItem(50));
 }
 
 TEST(ValueScalingTest, panValueScaling) {
@@ -35,6 +35,6 @@ TEST(ValueScalingTest, panValueScaling) {
 		CHECK_EQUAL(i, currentValue);
 	}
 	CHECK_EQUAL(INT32_MIN, computeFinalValueForPan(-25));
-	CHECK_EQUAL(0,         computeFinalValueForPan(0));
+	CHECK_EQUAL(0, computeFinalValueForPan(0));
 	CHECK_EQUAL(INT32_MAX, computeFinalValueForPan(25));
 }
