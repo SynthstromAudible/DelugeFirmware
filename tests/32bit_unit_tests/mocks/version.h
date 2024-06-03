@@ -1,4 +1,4 @@
-//mock up the version.h that would be made by cmake in the main build
+// mock up the version.h that would be made by cmake in the main build
 
 #pragma once
 
