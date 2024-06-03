@@ -385,7 +385,11 @@ gotErrorAfterCreatingSong:
 		// Ensure all AudioFile Clusters needed for new song are loaded
 		// Prevent any unforeseen loop. Not sure if that actually could happen
 		if (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 50) {
-			addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05, nullptr);
+			// addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05, nullptr);
+			addConditionalTask(
+			    []() { loadSongUI.performLoadFixedSM(); }, 100,
+			    []() { return !(audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 50); },
+			    "Song loading");
 			return;
 		}
 
@@ -434,7 +438,11 @@ gotErrorAfterCreatingSong:
 			AudioEngine::logAction("h");
 			// If any more waiting required before the song swap actually happens, do that
 			if (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
-				addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05, nullptr);
+				// addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05, nullptr);
+				addConditionalTask([]() { loadSongUI.performLoadFixedSM(); }, 100,
+				                   []() { return currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING; },
+				                   "Song loading");
+
 				return;
 			}
 		}
@@ -445,7 +453,9 @@ gotErrorAfterCreatingSong:
 	}
 	case LoadStatus::WAIT_FOR_SAMPLES: {
 		if (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
-			addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05, nullptr);
+			// I don't think this is possible anymore but just in case
+			addConditionalTask([]() { loadSongUI.performLoadFixedSM(); }, 100,
+			                   []() { return currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING; }, "Song loading");
 			return;
 		}
 swapDone:
