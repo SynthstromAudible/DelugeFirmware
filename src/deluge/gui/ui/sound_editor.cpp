@@ -560,6 +560,18 @@ void SoundEditor::updateSourceBlinks(MenuItem* currentItem) {
 	}
 }
 
+void SoundEditor::setupShortcutsBlinkFromTable(MenuItem const* const currentItem,
+                                               MenuItem const* const items[kDisplayWidth][kDisplayHeight]) {
+	for (auto x = 0; x < 15; ++x) {
+		for (auto y = 0; y < kDisplayHeight; ++y) {
+			if (items[x][y] == currentItem) {
+				setupShortcutBlink(x, y, 0);
+				return;
+			}
+		}
+	}
+}
+
 bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 	MenuItem* currentItem = getCurrentMenuItem();
@@ -587,66 +599,19 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		// Find param shortcut
 		currentParamShorcutX = 255;
 
+		// Global song parameters (this check seems very sketchy...)
 		if (!rootUIIsClipMinderScreen()) {
-			int32_t x, y;
-
-			// First, see if there's a shortcut for the actual MenuItem we're currently on
-			for (x = 0; x < 15; x++) {
-				for (y = 0; y < kDisplayHeight; y++) {
-					if (paramShortcutsForSongView[x][y] == currentItem) {
-						goto doSetupBlinkingForSessionView;
-					}
-				}
-			}
-
-			if (false) {
-doSetupBlinkingForSessionView:
-				setupShortcutBlink(x, y, 0);
-			}
+			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForSongView);
 		}
-
 		// For Kit Instrument Clip with Affect Entire Enabled
-		else if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
-
-			int32_t x, y;
-
-			// First, see if there's a shortcut for the actual MenuItem we're currently on
-			for (x = 0; x < 15; x++) {
-				for (y = 0; y < kDisplayHeight; y++) {
-					if (paramShortcutsForKitGlobalFX[x][y] == currentItem) {
-						goto doSetupBlinkingForKitGlobalFX;
-					}
-				}
-			}
-
-			if (false) {
-doSetupBlinkingForKitGlobalFX:
-				setupShortcutBlink(x, y, 0);
-			}
+		else if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)
+		         && setupKitGlobalFXMenu) {
+			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForKitGlobalFX);
 		}
-
 		// For AudioClips...
 		else if (getCurrentClip()->type == ClipType::AUDIO) {
-
-			int32_t x, y;
-
-			// First, see if there's a shortcut for the actual MenuItem we're currently on
-			for (x = 0; x < 15; x++) {
-				for (y = 0; y < kDisplayHeight; y++) {
-					if (paramShortcutsForAudioClips[x][y] == currentItem) {
-						// if (x == 10 && y < 6 && editingReverbSidechain()) goto stopThat;
-						// if (currentParamShorcutX != 255 && (x & 1) && currentSourceIndex == 0) goto stopThat;
-						goto doSetupBlinkingForAudioClip;
-					}
-				}
-			}
-
-			if (false) {
-doSetupBlinkingForAudioClip:
-				setupShortcutBlink(x, y, 0);
-			}
+			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForAudioClips);
 		}
-
 		// Or for MIDI or CV clips
 		else if (editingCVOrMIDIClip()) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
@@ -656,7 +621,6 @@ doSetupBlinkingForAudioClip:
 				}
 			}
 		}
-
 		// Or the "normal" case, for Sounds
 		else {
 
