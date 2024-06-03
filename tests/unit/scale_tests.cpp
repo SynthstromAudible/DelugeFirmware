@@ -1,8 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "model/scale/note_set.h"
 
-TEST_GROUP(NoteSetTest) {
-};
+TEST_GROUP(NoteSetTest){};
 
 TEST(NoteSetTest, init) {
 	NoteSet notes;
