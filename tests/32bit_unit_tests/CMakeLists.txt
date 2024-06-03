@@ -1,4 +1,6 @@
+#
 # CppUTest
+#
 include(FetchContent)
 FetchContent_Declare(
         CppUTest
@@ -6,8 +8,8 @@ FetchContent_Declare(
         GIT_TAG eccbc2190c672e598c1dd2bf5e4295f5ba27aad1
 )
 
-# Set this to ON if you want to have the CppUTests in your project as well.
 set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
+
 add_compile_definitions(
         CPPUTEST_MEM_LEAK_DETECTION_DISABLED
         IN_UNIT_TESTS=1
@@ -15,27 +17,37 @@ add_compile_definitions(
 
 FetchContent_MakeAvailable(CppUTest)
 
-file(GLOB_RECURSE deluge_SOURCES
+#
+# Find source files
+#
 
+file(GLOB_RECURSE deluge_mm_SOURCES
         # Required for memory tests
         ../../src/deluge/memory/*
+)
 
+file(GLOB_RECURSE deluge_SOURCES
         # Used for prints
         ../../src/deluge/gui/l10n/*
 
         # Used by most other modules
         ../../src/deluge/util/*
+)
 
+file(GLOB_RECURSE mock_SOURCES
         # Mock implementations
         mocks/*
 )
 
-add_executable(32BitTests RunAllTests.cpp memory_tests.cpp)
-add_test(NAME 32BitTests
-         COMMAND 32BitTests)
-target_sources(32BitTests PRIVATE ${deluge_SOURCES})
-target_include_directories(32BitTests PRIVATE
+#
+# Build the memory manager test binary, and register it with ctest.
+#
+add_executable(MemoryManagerTests RunAllTests.cpp memory_tests.cpp)
 
+add_test(NAME MemoryManagerTests COMMAND MemoryManagerTests)
+target_sources(MemoryManagerTests PRIVATE ${deluge_mm_SOURCES} ${deluge_SOURCES} ${mock_SOURCES})
+
+target_include_directories(MemoryManagerTests PRIVATE
         # include the non test project source
         mocks
         ../../src/deluge
@@ -43,7 +55,7 @@ target_include_directories(32BitTests PRIVATE
         ../../src
 )
 
-set_target_properties(32BitTests
+set_target_properties(MemoryManagerTests
         PROPERTIES
         C_STANDARD 23
         C_STANDARD_REQUIRED ON
@@ -53,9 +65,47 @@ set_target_properties(32BitTests
         LINK_FLAGS -m32
 )
 
-target_link_libraries(32BitTests CppUTest CppUTestExt)
+target_link_libraries(MemoryManagerTests CppUTest CppUTestExt)
 
 # strchr is seemingly different in x86
-target_compile_options(32BitTests PUBLIC
+target_compile_options(MemoryManagerTests PUBLIC
+        $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
+)
+
+#
+# Build tests for all the code that assumes 32-bit pointers.
+#
+add_executable(SmallPointerTests
+        RunAllTests.cpp
+        container/open_addressing_hash_table.cpp
+)
+
+add_test(NAME SmallPointerTests COMMAND SmallPointerTests)
+target_sources(SmallPointerTests PRIVATE
+        ${deluge_SOURCES}
+        ${mock_SOURCES}
+        ./mock_memory_manager.cpp)
+target_include_directories(SmallPointerTests PRIVATE
+        # include the non test project source
+        mocks
+        ../../src/deluge
+        ../../src/NE10/inc
+        ../../src
+)
+
+set_target_properties(SmallPointerTests
+        PROPERTIES
+        C_STANDARD 23
+        C_STANDARD_REQUIRED ON
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS ON
+        LINK_FLAGS -m32
+)
+
+target_link_libraries(SmallPointerTests CppUTest CppUTestExt)
+
+# strchr is seemingly different in x86
+target_compile_options(SmallPointerTests PUBLIC
         $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
 )

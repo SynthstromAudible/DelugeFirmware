@@ -32,7 +32,6 @@ public:
 	void* insert(uint32_t key, bool* onlyIfNotAlreadyPresent = nullptr);
 	void* lookup(uint32_t key);
 	bool remove(uint32_t key);
-	void test();
 	void empty(bool destructing = false);
 
 	void* memory;
