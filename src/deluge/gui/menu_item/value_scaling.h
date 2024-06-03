@@ -30,6 +30,7 @@
 /// - arpeggiator::midi_cv::RatchetAmount
 /// - arpeggiator::midi_cv::RatchetProbability
 /// - arpeggiator::midi_cv::Rate
+/// - arpeggiator::midi_cv::Rhythm
 /// - osc::PulseWidth
 /// - patched_param::Integer
 /// - patched_param::Pan
@@ -101,14 +102,22 @@ int32_t computeFinalValueForArpMidiCvGate(int32_t value);
  *
  * Is well behaved for whole UINT32 range despite the final value
  * computation not utilizing the whole range.
+ *
+ * While both ratchets and rhythm use this, there doesn't seeem
+ * to be a clear abstraction or category they embody which leads
+ * to this computation, particularly with the final value
+ * computation not utilizing the whole range -- otherwise
+ * we could call these ...ForUnsignedMenuItem, maybe?
  */
-int32_t computeCurrentValueForArpMidiCvRatchets(uint32_t value);
+int32_t computeCurrentValueForArpMidiCvRatchetsOrRhythm(uint32_t value);
 
 /** Scales 0-50 range to 0-(UINT32-45) for storage and use.
  *
  * Note UNSIGNED output!
+ *
+ * See comment in the current value computation above for more.
  */
-uint32_t computeFinalValueForArpMidiCvRatchets(int32_t value);
+uint32_t computeFinalValueForArpMidiCvRatchetsOrRhythm(int32_t value);
 
 /** Scales INT32_MIN-INT32_MAX range to 0-50 for display.
  *
