@@ -148,6 +148,9 @@ public:
 	bool selectedNoteRow;
 
 private:
+	/// Setup shortcut blinking by finding the given menu item in the provided item map
+	void setupShortcutsBlinkFromTable(MenuItem const* currentItem,
+	                                  MenuItem const* const items[kDisplayWidth][kDisplayHeight]);
 	bool beginScreen(MenuItem* oldMenuItem = NULL);
 	uint8_t getActualParamFromScreen(uint8_t screen);
 	void setLedStates();
