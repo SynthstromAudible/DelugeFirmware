@@ -4910,7 +4910,8 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 		thisNoteRow->quantize(modelStackWithNoteRow, squareSize, quantizeAmount);
 	}
 
-	uiNeedsRendering(this, rowUpdateMask, 0);
+	// root UI in case called from automation note editor
+	uiNeedsRendering(getCurrentUI(), rowUpdateMask, 0);
 
 	if (playbackHandler.isEitherClockActive() && currentClip->isActiveOnOutput()) {
 		currentClip->expectEvent();

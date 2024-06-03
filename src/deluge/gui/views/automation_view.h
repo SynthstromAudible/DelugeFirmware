@@ -98,9 +98,6 @@ public:
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	CopiedParamAutomation copiedParamAutomation;
 
-	// tempo encoder action
-	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
-
 	// Select encoder action
 	void selectEncoderAction(int8_t offset);
 	void getLastSelectedParamShortcut(Clip* clip);      // public so menu can access it

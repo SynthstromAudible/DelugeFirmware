@@ -4575,11 +4575,6 @@ void AutomationView::getLastSelectedGlobalParamArrayPosition(Clip* clip) {
 	}
 }
 
-// tempo encoder action
-void AutomationView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
-	playbackHandler.tempoEncoderAction(offset, encoderButtonPressed, shiftButtonPressed);
-}
-
 // called by melodic_instrument.cpp or kit.cpp
 void AutomationView::noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {
 	instrumentClipView.noteRowChanged(clip, noteRow);
