@@ -295,6 +295,9 @@ bool readButtonsAndPads() {
 			if (Pad::isPad(util::to_underlying(value))) {
 				auto p = Pad(util::to_underlying(value));
 				result = matrixDriver.padAction(p.x, p.y, thisPadPressIsOn);
+				if (thisPadPressIsOn) {
+					Buttons::ignoreCurrentShiftForSticky();
+				}
 				/* while this function takes an int32_t for velocity, 255 indicates to the downstream audition pad
 				 * function that it should use the default velocity for the instrument
 				 */
