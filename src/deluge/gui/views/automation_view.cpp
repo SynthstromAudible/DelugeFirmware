@@ -1297,7 +1297,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 		// display parameter value
 		yPos = yPos + 12;
 
-		if ((multiPadPressSelected) && (knobPosRight != kNoSelection)) {
+		if (knobPosRight != kNoSelection) {
 			char bufferLeft[10];
 			bufferLeft[0] = 'L';
 			bufferLeft[1] = ':';
@@ -2716,6 +2716,7 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 
 					// update multi pad press selection indicator
 					multiPadPressSelected = true;
+					multiPadPressActive = true;
 
 					break;
 				}
@@ -2752,17 +2753,19 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 			adjustNoteVelocity(modelStackWithNoteRow, noteRow, x, velocity, newVelocity, squareInfo.squareType);
 			refreshVelocityEditor = true;
 		}
-		multiPadPressSelected = false;
-		multiPadPressActive = true;
 	}
 	// if no note exists and you're trying to remove a note (y == 0 && squareInfo.numNotes == 0),
 	// well no need to do anything
+
+	if (multiPadPressActive && !isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+		multiPadPressActive = false;
+	}
 
 	if (refreshVelocityEditor) {
 		// refresh grid and update default velocity on the display
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		// if holding a multi pad press, render left and right velocity of the multi pad press
-		if (multiPadPressSelected) {
+		if (multiPadPressActive) {
 			int32_t leftPadSelectedVelocity = getVelocityFromY(leftPadSelectedY);
 			int32_t rightPadSelectedVelocity = getVelocityFromY(rightPadSelectedY);
 			renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
@@ -3194,8 +3197,10 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 			    selecting a new note row
 			*/
 
+			int32_t previousY = instrumentClipView.lastAuditionedYDisplay;
+
 			// are we in note editor mode and holding a note?
-			if (inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+			if (previousY != y && inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 				// are we also in pad selection mode and selected a column?
 				if (padSelectionOn && (leftPadSelectedX != kNoSelection)) {
 					// release that column that was selected
@@ -3214,7 +3219,8 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 			// now that we've processed audition pad action, we may now have changed note row selection
 			// if note row selection has changed, and we're in pad selection mode
 			// we'll re-select the previous column selection by recording a pad press
-			if (inNoteEditor() && padSelectionOn && leftPadSelectedX != kNoSelection) {
+			if (previousY != instrumentClipView.lastAuditionedYDisplay && inNoteEditor() && padSelectionOn
+			    && leftPadSelectedX != kNoSelection) {
 				recordNoteEditPadAction(leftPadSelectedX, 1);
 			}
 		}
@@ -3460,8 +3466,8 @@ getOut:
 			uiNeedsRendering(this);
 		}
 	}
-	else {
-		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
+	else if (inNoteEditor()) {
+		uiNeedsRendering(this);
 	}
 
 	// draw note code on top of the automation view display which may have just been refreshed
@@ -3479,14 +3485,17 @@ getOut:
 // horizontal encoder action
 // using this to shift automations left / right
 // using this to zoom in / out
+// using this to adjust velocity in note editor
 ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
 
-	// exit multi pad press selection but keep single pad press selection (if it's selected)
-	multiPadPressSelected = false;
-	rightPadSelectedX = kNoSelection;
+	if (inAutomationEditor()) {
+		// exit multi pad press selection but keep single pad press selection (if it's selected)
+		multiPadPressSelected = false;
+		rightPadSelectedX = kNoSelection;
+	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
