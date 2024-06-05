@@ -277,7 +277,7 @@ const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , LOCAL_FOLD},
     {LOCAL_ENV_0_RELEASE     , LOCAL_ENV_0_SUSTAIN           , LOCAL_ENV_0_DECAY             , LOCAL_ENV_0_ATTACK     , LOCAL_LPF_MORPH, kNoParamID                , LOCAL_LPF_RESONANCE   , LOCAL_LPF_FREQ},
     {LOCAL_ENV_1_RELEASE     , LOCAL_ENV_1_SUSTAIN           , LOCAL_ENV_1_DECAY             , LOCAL_ENV_1_ATTACK     , LOCAL_HPF_MORPH, kNoParamID                , LOCAL_HPF_RESONANCE   , LOCAL_HPF_FREQ},
-    {kNoParamID              , kNoParamID                    , GLOBAL_VOLUME_POST_REVERB_SEND, kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
+    {kNoParamID              , kNoParamID                    , kNoParamID					 , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
     {GLOBAL_ARP_RATE         , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
     {GLOBAL_LFO_FREQ         , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , GLOBAL_MOD_FX_DEPTH   , GLOBAL_MOD_FX_RATE},
     {LOCAL_LFO_LOCAL_FREQ    , kNoParamID                    , kNoParamID                    , GLOBAL_REVERB_AMOUNT   , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
