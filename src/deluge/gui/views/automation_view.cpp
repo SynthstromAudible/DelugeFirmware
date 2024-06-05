@@ -2095,8 +2095,7 @@ void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 				// Just pop up number - don't do anything
 				instrumentClipView.editNoteRepeat(0);
 			}
-			else if ((currentUIMode == UI_MODE_NONE || isUIModeActiveExclusively(UI_MODE_AUDITIONING))
-			         && !padSelectionOn) {
+			else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -3555,9 +3554,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	}
 
 	// Auditioning but not holding down <> encoder - edit length of just one row
-	// Also do this if you're holding shift while in the note editor and you're not in pad selection mode
-	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)
-	         || (inNoteEditor() && !padSelectionOn && Buttons::isShiftButtonPressed())) {
+	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 		instrumentClipView.editNoteRowLength(offset);
 		return ActionResult::DEALT_WITH;
 	}
@@ -3647,22 +3644,18 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 
 	// If encoder button pressed
 	if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
-		// when you are in the note editor, you are focusing on one note row at a time
-		// thus, pressing and turning vertical encoder should engage euclidean instead
-		// of transpose because transpose affects all note rows
-		if (inNoteEditor()) {
+		if (inNoteEditor() && currentUIMode != UI_MODE_NONE) {
 			// only allow editing note repeats when selecting a note
 			if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 				instrumentClipView.editNoteRepeat(offset);
 			}
-			// don't enable euclidean while in pad selection mode (pad selection mode is for selecting notes)
-			else if ((currentUIMode == UI_MODE_NONE || isUIModeActiveExclusively(UI_MODE_AUDITIONING))
-			         && !padSelectionOn) {
+			// only allow euclidean while holding audition pad
+			else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 				                             modelStack); // don't create
 				if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-					if (inNoteEditor() && clip->output->type != OutputType::KIT) {
+					if (clip->output->type != OutputType::KIT) {
 						modelStackWithNoteRow = instrumentClipView.createNoteRowForYDisplay(
 						    modelStack, instrumentClipView.lastAuditionedYDisplay);
 					}
@@ -4362,15 +4355,18 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	}
 	// edit row or note probability
 	else if (inNoteEditor()) {
-		// don't edit row probability in pad selection mode because focus is on one note at a time
-		if (!padSelectionOn && (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING)) {
-			instrumentClipView.setRowProbability(offset);
-		}
-		else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+		// only allow adjusting probbaility while holding note
+		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 			instrumentClipView.adjustProbability(offset);
+			timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
+			probabilityChanged = true;
 		}
-		timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
-		probabilityChanged = true;
+		// only allow adjusting row probability while holding audition
+		else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
+			instrumentClipView.setRowProbability(offset);
+			timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
+			probabilityChanged = true;
+		}
 		return;
 	}
 	// if you're in a midi clip
