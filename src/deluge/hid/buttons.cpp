@@ -283,4 +283,7 @@ void noPressesHappening(bool inCardRoutine) {
 		}
 	}
 }
+void ignoreCurrentShiftForSticky() {
+	considerShiftReleaseForSticky = false;
+}
 } // namespace Buttons
