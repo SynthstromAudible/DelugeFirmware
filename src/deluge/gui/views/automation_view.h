@@ -185,11 +185,14 @@ private:
 	                                int32_t y, int32_t velocity, SquareInfo& squareInfo);
 	void velocityEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
 	                           int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
-	int32_t getVelocity(int32_t y);
+	int32_t getVelocityFromY(int32_t y);
+	int32_t getYFromVelocity(int32_t velocity);
 	void addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity);
 	void adjustNoteVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t velocity,
 	                        int32_t newVelocity, uint8_t squareType);
 	void setVelocity(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, int32_t x, int32_t newVelocity);
+	void setVelocityRamp(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow,
+	                     SquareInfo rowSquareInfo[kDisplayWidth], int32_t velocityIncrement);
 	void recordNoteEditPadAction(int32_t x, int32_t velocity);
 	void automationEditPadAction(ModelStackWithAutoParam* modelStackWithParam, Clip* clip, int32_t xDisplay,
 	                             int32_t yDisplay, int32_t velocity, int32_t effectiveLength, int32_t xScroll,
