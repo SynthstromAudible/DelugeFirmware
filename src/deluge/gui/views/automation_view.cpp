@@ -4362,7 +4362,8 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	}
 	// edit row or note probability
 	else if (inNoteEditor()) {
-		if (currentUIMode == UI_MODE_AUDITIONING) {
+		// don't edit row probability in pad selection mode because focus is on one note at a time
+		if (!padSelectionOn && (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING)) {
 			instrumentClipView.setRowProbability(offset);
 		}
 		else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
