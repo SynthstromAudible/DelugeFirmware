@@ -118,7 +118,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 61;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 60;
 constexpr int32_t kNumGlobalParamsForAutomation = 26;
 constexpr int32_t kParamNodeWidth = 3;
 
@@ -147,8 +147,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     // Delay Rate, Amount
     {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},
     {params::Kind::PATCHED, params::GLOBAL_DELAY_FEEDBACK},
-    // Sidechain Send, Shape
-    {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_REVERB_SEND},
+    // Sidechain Shape
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SIDECHAIN_SHAPE},
     // Decimation, Bitcrush, Wavefolder
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION},
@@ -2136,8 +2135,9 @@ void AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 		int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
 		// don't allow automation of pitch adjust, or sidechain in arranger
-		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
-		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+		if (onArrangerView
+		    && ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
+		        || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME))) {
 			return; // no parameter selected, don't re-render grid;
 		}
 
