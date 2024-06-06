@@ -98,7 +98,7 @@ public:
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void editNoteRowLength(int32_t offset);
-	void rotateNoteRowHorizontally(int32_t offset);	
+	void rotateNoteRowHorizontally(int32_t offset);
 	void fillOffScreenImageStores();
 	void graphicsRoutine() override;
 
