@@ -420,6 +420,9 @@ void AutomationView::initializeView() {
 	// re-initialize pad selection mode (so you start with the default automation editor)
 	initPadSelection();
 
+	// let the view know if we're dealing with an automation parameter or a note parameter
+	setAutomationParamType();
+
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	if (!onArrangerView) {
@@ -3559,6 +3562,12 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		return ActionResult::DEALT_WITH;
 	}
 
+	// Auditioning *and* holding down <> encoder - rotate/shift just one row
+	else if (inNoteEditor() && isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+		instrumentClipView.rotateNoteRowHorizontally(offset);
+		return ActionResult::DEALT_WITH;
+	}	
+
 	// fine tune note velocity
 	// If holding down notes and nothing else is held down, adjust velocity
 	// or if in pad selection mode, create note or adjust velocity
@@ -5446,6 +5455,17 @@ bool AutomationView::inAutomationEditor() {
 	}
 
 	return true;
+}
+
+void AutomationView::setAutomationParamType() {
+	automationParamType = AutomationParamType::NON_NOTE;
+	if (!inAutomationEditor()) {
+		Clip* clip = getCurrentClip();
+		if ((clip->lastSelectedParamShortcutX == kVelocityShortcutX)
+		    && (clip->lastSelectedParamShortcutY == kVelocityShortcutY)) {
+			automationParamType = AutomationParamType::NOTE_VELOCITY;
+		}
+	}
 }
 
 // used to check if we're automating a note row specific param type
