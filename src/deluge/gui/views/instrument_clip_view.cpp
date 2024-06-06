@@ -2131,6 +2131,10 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 	reassessAllAuditionStatus();
 }
 
+// determines whether or not you're trying to adjust the velocities of multiple notes
+// with different starting velocities (prior to adjustment)
+// used to determine whether to display the updated velocity value or a generalized
+// "velocity increased / decreased" message
 void InstrumentClipView::getVelocityValue(int32_t& velocityValue, int32_t velocity) {
 	if (velocityValue == 0) {
 		velocityValue = velocity;
@@ -2142,6 +2146,7 @@ void InstrumentClipView::getVelocityValue(int32_t& velocityValue, int32_t veloci
 	}
 }
 
+// display updated velocity value for note(s) edited or generalized "velocity increase / decreased" message
 void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocityChange) {
 	if (velocityValue) {
 		char buffer[22];
@@ -2180,6 +2185,7 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 	}
 }
 
+// display velocity popup
 void InstrumentClipView::popupVelocity(char const* displayString) {
 	if (display->haveOLED()) {
 		display->popupText(displayString);
