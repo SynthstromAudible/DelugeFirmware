@@ -143,8 +143,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     // Delay Rate, Amount
     {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},
     {params::Kind::PATCHED, params::GLOBAL_DELAY_FEEDBACK},
-    // Sidechain Send, Shape
-    {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_REVERB_SEND},
+    // Sidechain Shape
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SIDECHAIN_SHAPE},
     // Decimation, Bitcrush, Wavefolder
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION},
@@ -4086,8 +4085,9 @@ bool AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 		int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
 
 		// don't allow automation of pitch adjust, or sidechain in arranger
-		if (onArrangerView && (paramID == params::UNPATCHED_PITCH_ADJUST)
-		    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE) || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+		if (onArrangerView
+		    && ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
+		        || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME))) {
 			return true;
 		}
 
