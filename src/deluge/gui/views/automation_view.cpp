@@ -3563,10 +3563,11 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	}
 
 	// Auditioning *and* holding down <> encoder - rotate/shift just one row
-	else if (inNoteEditor() && isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+	else if (inNoteEditor()
+	         && isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 		instrumentClipView.rotateNoteRowHorizontally(offset);
 		return ActionResult::DEALT_WITH;
-	}	
+	}
 
 	// fine tune note velocity
 	// If holding down notes and nothing else is held down, adjust velocity
