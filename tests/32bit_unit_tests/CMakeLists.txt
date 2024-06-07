@@ -62,7 +62,6 @@ set_target_properties(MemoryManagerTests
         CXX_STANDARD 23
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS ON
-        LINK_FLAGS -m32
 )
 
 target_link_libraries(MemoryManagerTests CppUTest CppUTestExt)
@@ -100,7 +99,6 @@ set_target_properties(SmallPointerTests
         CXX_STANDARD 23
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS ON
-        LINK_FLAGS -m32
 )
 
 target_link_libraries(SmallPointerTests CppUTest CppUTestExt)
