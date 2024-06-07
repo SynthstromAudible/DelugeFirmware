@@ -25,21 +25,21 @@
 char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
 char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
 char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
-extern uint32_t __sdram_bss_start;
-extern uint32_t __sdram_bss_end;
-extern uint32_t __heap_start;
-extern uint32_t __heap_end;
-extern uint32_t program_stack_start;
-extern uint32_t program_stack_end;
+extern uintptr_t __sdram_bss_start;
+extern uintptr_t __sdram_bss_end;
+extern uintptr_t __heap_start;
+extern uintptr_t __heap_end;
+extern uintptr_t program_stack_start;
+extern uintptr_t program_stack_end;
 GeneralMemoryAllocator::GeneralMemoryAllocator() {
 	lock = false;
 
-	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), (uint32_t)&__sdram_bss_end,
+	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), __sdram_bss_end,
 	                                       EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR);
 	regions[MEMORY_REGION_EXTERNAL].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral),
 	                                      EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR, EXTERNAL_MEMORY_END);
-	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
-	                                      (uint32_t)&__heap_start, (uint32_t)&program_stack_start);
+	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal), __heap_start,
+	                                      program_stack_start);
 
 #if ALPHA_OR_BETA_VERSION
 	regions[MEMORY_REGION_STEALABLE].name = "stealable";
@@ -53,13 +53,12 @@ int32_t closestDistance = 2147483647;
 void GeneralMemoryAllocator::checkStack(char const* caller) {
 #if ALPHA_OR_BETA_VERSION
 
-	char a;
+	uintptr_t a;
 
-	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
+	ptrdiff_t distance = a - program_stack_start;
 	if (distance < closestDistance) {
 		closestDistance = distance;
-		D_PRINT("%d bytes in stack %d free bytes in stack at %x", (uint32_t)&program_stack_end - (int32_t)&a, distance,
-		        caller);
+		D_PRINT("%d bytes in stack %d free bytes in stack at %x", program_stack_end - a, distance, caller);
 
 		if (distance < 200) {
 			FREEZE_WITH_ERROR("E338");
@@ -73,7 +72,7 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 uint32_t totalMallocTime = 0;
 int32_t numMallocTimes = 0;
 #endif
-extern "C" void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
+extern "C" void* delugeAlloc(size_t requiredSize, bool mayUseOnChipRam) {
 	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr);
 }
 extern "C" void delugeDealloc(void* address) {
@@ -83,7 +82,7 @@ extern "C" void delugeDealloc(void* address) {
 	GeneralMemoryAllocator::get().dealloc(address);
 #endif
 }
-void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
+void* GeneralMemoryAllocator::allocExternal(size_t requiredSize) {
 
 	if (lock) {
 		return NULL; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
@@ -106,7 +105,7 @@ void GeneralMemoryAllocator::deallocExternal(void* address) {
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code
 // from there, thingNotToStealFrom could be interpreted as makeStealable! requiredSize 0 means get biggest allocation
 // available.
-void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
+void* GeneralMemoryAllocator::alloc(size_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
                                     void* thingNotToStealFrom) {
 
 	if (lock) {
@@ -159,12 +158,12 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 }
 
 uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
-	uint32_t* header = (uint32_t*)((uint32_t)address - 4);
-	return (*header & SPACE_SIZE_MASK);
+	uintptr_t header = (uintptr_t)address - 4;
+	return (header & SPACE_SIZE_MASK);
 }
 
 int32_t GeneralMemoryAllocator::getRegion(void* address) {
-	uint32_t value = (uint32_t)address;
+	uinptr_t value = (uintptr_t)address;
 	if (value >= regions[MEMORY_REGION_INTERNAL].start && value < regions[MEMORY_REGION_INTERNAL].end) {
 		return MEMORY_REGION_INTERNAL;
 	}

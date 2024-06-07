@@ -12,13 +12,13 @@ GeneralMemoryAllocator allocator;
 
 class MockMemoryAllocator {
 public:
-	void* alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom) {
+	void* alloc(size_t requiredSize, bool mayUseOnChipRam, bool makeStealable, void* thingNotToStealFrom) {
 		return malloc(requiredSize);
 	}
 
 	void dealloc(void* address) { free(address); }
 
-	void* allocExternal(uint32_t requiredSize) { return malloc(requiredSize); }
+	void* allocExternal(size_t requiredSize) { return malloc(requiredSize); }
 
 	void deallocExternal(void* address) { free(address); }
 
@@ -66,7 +66,7 @@ MockMemoryAllocator mockAllocator;
 MemoryRegion::MemoryRegion() = default;
 GeneralMemoryAllocator::GeneralMemoryAllocator() = default;
 
-void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
+void* GeneralMemoryAllocator::alloc(size_t requiredSize, bool mayUseOnChipRam, bool makeStealable,
                                     void* thingNotToStealFrom) {
 	return mockAllocator.alloc(requiredSize, mayUseOnChipRam, makeStealable, thingNotToStealFrom);
 }
@@ -75,7 +75,7 @@ void GeneralMemoryAllocator::dealloc(void* address) {
 	return mockAllocator.dealloc(address);
 }
 
-void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
+void* GeneralMemoryAllocator::allocExternal(size_t requiredSize) {
 	return mockAllocator.allocExternal(requiredSize);
 }
 
@@ -117,7 +117,7 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 
 extern "C" {
 
-void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam) {
+void* delugeAlloc(size_t requiredSize, bool mayUseOnChipRam) {
 	return GeneralMemoryAllocator::get().alloc(requiredSize, mayUseOnChipRam, false, nullptr);
 }
 

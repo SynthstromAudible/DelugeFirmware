@@ -45,7 +45,7 @@ class MemoryRegion {
 public:
 	MemoryRegion();
 	void setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize, uint32_t regionBegin, uint32_t regionEnd);
-	void* alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom);
+	void* alloc(size_t requiredSize, bool makeStealable, void* thingNotToStealFrom);
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
 	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,
@@ -77,5 +77,5 @@ private:
 
 	void writeTempHeadersBeforeASteal(uint32_t newStartAddress, uint32_t newSize);
 	void sanityCheck();
-	uint32_t padSize(uint32_t requiredSize);
+	uint32_t padSize(size_t requiredSize);
 };

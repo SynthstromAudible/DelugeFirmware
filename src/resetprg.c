@@ -80,15 +80,15 @@ extern void __libc_init_array(void);
 #define PLACEMENT_INTRAM_START (0x20020000)
 #define PLACEMENT_FLASH_START (0x18080000) // Copied from bootloader, start address of firmware image in flash
 
-extern uint32_t __heap_start;
-extern uint32_t __frunk_bss_start;
-extern uint32_t __frunk_bss_end;
-extern uint32_t __sdram_bss_start;
-extern uint32_t __sdram_bss_end;
-extern uint32_t __sdram_text_start;
-extern uint32_t __sdram_text_end;
-extern uint32_t __sdram_data_start;
-extern uint32_t __sdram_data_end;
+extern uintptr_t __heap_start;
+extern uintptr_t __frunk_bss_start;
+extern uintptr_t __frunk_bss_end;
+extern uintptr_t __sdram_bss_start;
+extern uintptr_t __sdram_bss_end;
+extern uintptr_t __sdram_text_start;
+extern uintptr_t __sdram_text_end;
+extern uintptr_t __sdram_data_start;
+extern uintptr_t __sdram_data_end;
 
 void* __dso_handle = NULL;
 
@@ -100,20 +100,20 @@ void _fini(void) {
 	// empty
 }
 
-static void emptySection(uint32_t* start, uint32_t* end) {
-	uint32_t* dst = start;
+static void emptySection(uintptr_t start, uintptr_t end) {
+	uintptr_t dst = start;
 	while (dst < end) {
-		*dst = 0;
+		dst = 0;
 		++dst;
 	}
 }
 
-static void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
-	uint32_t* src = (uint32_t*)((uint32_t)&__heap_start + ((uint32_t)start - PLACEMENT_SDRAM_START));
-	uint32_t* dst = start;
+static void relocateSDRAMSection(uintptr_t start, uintptr_t end) {
+	uintptr_t src = (__heap_start + (start - PLACEMENT_SDRAM_START));
+	uintptr_t dst = start;
 	while (dst < end) {
-		*dst = *src; // Copy to SDRAM
-		*src = 0;    // Clear in internal ram
+		dst = src; // Copy to SDRAM
+		src = 0;   // Clear in internal ram
 		++src;
 		++dst;
 	}
@@ -126,7 +126,7 @@ static void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
  * Return Value : none
  *******************************************************************************/
 void resetprg(void) {
-	emptySection(&__frunk_bss_start, &__frunk_bss_end);
+	emptySection(__frunk_bss_start, __frunk_bss_end);
 
 	// Enable all modules' clocks --------------------------------------------------------------
 	STB_Init();
@@ -184,12 +184,12 @@ void resetprg(void) {
 	userdef_bsc_cs2_init(0); // 64MB, hardcoded
 
 #if !defined(NDEBUG)
-	const uint32_t SDRAM_SIZE = EXTERNAL_MEMORY_END - EXTERNAL_MEMORY_BEGIN;
+	const size_t SDRAM_SIZE = EXTERNAL_MEMORY_END - EXTERNAL_MEMORY_BEGIN;
 	memset((void*)EXTERNAL_MEMORY_BEGIN, 0, SDRAM_SIZE);
 #endif
 
-	relocateSDRAMSection(&__sdram_text_start, &__sdram_text_end);
-	relocateSDRAMSection(&__sdram_data_start, &__sdram_data_end);
+	relocateSDRAMSection(__sdram_text_start, __sdram_text_end);
+	relocateSDRAMSection(__sdram_data_start, __sdram_data_end);
 
 	__libc_init_array();
 	// located in OSLikeStuff/main.c

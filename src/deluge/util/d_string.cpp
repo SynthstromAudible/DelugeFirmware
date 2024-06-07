@@ -215,7 +215,7 @@ Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCha
 
 	int32_t oldNumReasons = getNumReasons();
 
-	int32_t requiredSize = pos + newCharsLength + 4 + 1;
+	size_t requiredSize = pos + newCharsLength + 4 + 1;
 	int32_t extraBytesNeeded;
 	bool deallocateAfter = true;
 
@@ -293,7 +293,7 @@ Error String::setChar(char newChar, int32_t pos) {
 
 		int32_t length = getLength();
 
-		int32_t requiredSize = length + 4 + 1;
+		size_t requiredSize = length + 4 + 1;
 		void* newMemory = GeneralMemoryAllocator::get().allocExternal(requiredSize);
 		if (!newMemory) {
 			return Error::INSUFFICIENT_RAM;

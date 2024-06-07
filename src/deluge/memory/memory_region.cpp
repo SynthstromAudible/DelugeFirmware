@@ -52,7 +52,7 @@ void MemoryRegion::setup(void* emptySpacesMemory, int32_t emptySpacesMemorySize,
 	pivot = 512;
 }
 
-uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
+uint32_t MemoryRegion::padSize(size_t requiredSize) {
 	if (requiredSize < minAlign) {
 		requiredSize = minAlign;
 	}
@@ -272,7 +272,7 @@ goingToReplaceOldRecord:
 	emptySpaces.testSequentiality("M005");
 }
 
-void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom) {
+void* MemoryRegion::alloc(size_t requiredSize, bool makeStealable, void* thingNotToStealFrom) {
 	requiredSize = padSize(requiredSize);
 	bool large = requiredSize > pivot;
 	// set a minimum size	requiredSize = padSize(requiredSize);
