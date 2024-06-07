@@ -2091,7 +2091,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 						                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 					}
 
-					getVelocityValue(velocityValue, note->getVelocity());
+					updateVelocityValue(velocityValue, note->getVelocity());
 
 					numNotesThisSquare++;
 					velocitySumThisSquare += note->getVelocity();
@@ -2100,12 +2100,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 					note = noteRow->notes.getElement(noteI);
 				}
 
-				// Rohan: Get the average. Ideally we'd have done this when first selecting the note too, but I didn't
-
-				// Sean: not sure how getting the average when first selecting the note would help because the average
-				// will change based on the velocity adjustment happening here.
-
-				// We're adjusting the intendedVelocity here because this is the velocity that is used to audition
+				// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to audition
 				// the pad press note so you can hear the velocity changes as you're holding the note down
 				editPadPresses[i].intendedVelocity = velocitySumThisSquare / numNotesThisSquare;
 			}
@@ -2121,7 +2116,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 					                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 				}
 
-				getVelocityValue(velocityValue, editPadPresses[i].intendedVelocity);
+				updateVelocityValue(velocityValue, editPadPresses[i].intendedVelocity);
 			}
 		}
 	}
@@ -2135,12 +2130,17 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 // with different starting velocities (prior to adjustment)
 // used to determine whether to display the updated velocity value or a generalized
 // "velocity increased / decreased" message
-void InstrumentClipView::getVelocityValue(int32_t& velocityValue, int32_t velocity) {
+void InstrumentClipView::updateVelocityValue(int32_t& velocityValue, int32_t newVelocity) {
+	// Compares velocityValue to newVelocity
+	// Sets velocityValue to newVelocity if velocityValue is 0.
+	// Keeps velocityValue the same if they're equal
+	// Sets velocityValue to 255 if they're different
+	// -> which means there's multiple notes with different velocities in a square
 	if (velocityValue == 0) {
-		velocityValue = velocity;
+		velocityValue = newVelocity;
 	}
 	else {
-		if (velocityValue != velocity) {
+		if (velocityValue != newVelocity) {
 			velocityValue = 255; // Means "multiple"
 		}
 	}

@@ -75,7 +75,7 @@ public:
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
 	void adjustVelocity(int32_t velocityChange);
-	void getVelocityValue(int32_t& velocityValue, int32_t velocity);
+	void updateVelocityValue(int32_t& velocityValue, int32_t newVelocity);
 	void displayVelocity(int32_t velocityValue, int32_t velocityChange);
 	void popupVelocity(char const* displayString);
 	void mutePadPress(uint8_t yDisplay);
