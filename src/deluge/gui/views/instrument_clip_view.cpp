@@ -2146,7 +2146,7 @@ void InstrumentClipView::updateVelocityValue(int32_t& velocityValue, int32_t new
 	}
 }
 
-// display updated velocity value for note(s) edited or generalized "velocity increase / decreased" message
+// display updated velocity value for note(s) edited or generalized "velocity increased / decreased" message
 void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocityChange) {
 	if (velocityValue) {
 		char buffer[22];
