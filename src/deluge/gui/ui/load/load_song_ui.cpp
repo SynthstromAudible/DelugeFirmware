@@ -283,8 +283,9 @@ ramError:
 		error = Error::INSUFFICIENT_RAM;
 
 someError:
-		display->displayError(error);
-		storageManager.closeFile();
+
+			display->displayError(error);
+			f_close(&smDeserializer.readFIL);
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
 		if (!currentSong) {
@@ -293,7 +294,64 @@ fail:
 			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 		}
 
+
 		// Otherwise, stay here in this UI
+
+		preLoadedSong = new (songMemory) Song();
+		error = preLoadedSong->paramManager.setupUnpatched();
+		if (error != Error::NONE) {
+gotErrorAfterCreatingSong:
+			void* toDealloc = dynamic_cast<void*>(preLoadedSong);
+			preLoadedSong->~Song(); // Will also delete paramManager
+			delugeDealloc(toDealloc);
+			preLoadedSong = NULL;
+			goto someError;
+		}
+
+		GlobalEffectable::initParams(&preLoadedSong->paramManager);
+
+		AudioEngine::logAction("c");
+
+		// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but
+		// chances are, after failing on one of those, it'd try to load something else and that would fail.
+		error = preLoadedSong->readFromFile(smDeserializer);
+		if (error != Error::NONE) {
+			goto gotErrorAfterCreatingSong;
+		}
+		AudioEngine::logAction("d");
+
+		bool success = bdsm->closeFile(smDeserializer.readFIL);
+
+		if (!success) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
+			goto fail;
+		}
+
+		preLoadedSong->dirPath.set(&currentDir);
+
+		String currentFilenameWithoutExtension;
+		error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
+		if (error != Error::NONE) {
+			goto gotErrorAfterCreatingSong;
+		}
+
+		error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath,
+		                                                    currentDir.get(), &currentFilenameWithoutExtension);
+		if (error != Error::NONE) {
+			goto gotErrorAfterCreatingSong;
+		}
+		audioFileManager.thingBeginningLoading(ThingType::SONG);
+
+		// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
+		// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that
+		// we might actually want
+		preLoadedSong->loadAllSamples(false);
+
+		// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
+		if (playbackHandler.isEitherClockActive()) {
+			preLoadedSong->loadCrucialSamplesOnly();
+		}
+
 		else {
 			displayText(false);
 		}
@@ -779,7 +837,7 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 		}
 	}
 stopLoadingPreview:
-	bdsm.closeFile();
+	bdsm.closeFile(smDeserializer.readFIL);
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {

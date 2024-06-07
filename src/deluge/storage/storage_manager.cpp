@@ -68,12 +68,12 @@ extern void songLoaded(Song* song);
 
 // Because FATFS and FIL objects store buffers for SD read data to be read to via DMA, we have to space them apart from
 // any other data so that invalidation and stuff works
-struct FileSystemStuff fileSystemStuff {};
+FatFS::Filesystem  fileSystem;
 
 
 Error StorageManager::checkSpaceOnCard() {
-	D_PRINTLN("free clusters:  %d", fileSystemStuff.fileSystem.free_clst);
-	return fileSystemStuff.fileSystem.free_clst
+	D_PRINTLN("free clusters:  %d", fileSystem.free_clst);
+	return fileSystem.free_clst
 	           ? Error::NONE
 	           : Error::SD_CARD_FULL; // This doesn't seem to always be 100% accurate...
 }
@@ -174,7 +174,7 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 		}
 		return created.error();
 	}
-	fileSystemStuff.currentFile = created.value().inner();
+	writer.writeFIL = created.value().inner();
 
 	writer.fileWriteBufferCurrentPos = 0;
 	writer.fileTotalBytesWritten = 0;
@@ -198,30 +198,27 @@ bool StorageManager::fileExists(char const* pathName) {
 
 // Lets you get the FilePointer for the file.
 bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
+	FIL fil;
 	Error error = initSD();
 	if (error != Error::NONE) {
 		return false;
 	}
 
-	FRESULT result = f_open(&fileSystemStuff.currentFile, pathName, FA_READ);
+	FRESULT result = f_open(&fil, pathName, FA_READ);
 	if (result != FR_OK) {
 		return false;
 	}
 
-	fp->sclust = fileSystemStuff.currentFile.obj.sclust;
-	fp->objsize = fileSystemStuff.currentFile.obj.objsize;
+	fp->sclust = fil.obj.sclust;
+	fp->objsize = fil.obj.objsize;
 
-	f_close(&fileSystemStuff.currentFile);
+	f_close(&fil);
 	return true;
 }
 
 // Returns false if some error, including error while writing
-bool StorageManager::closeFile() {
-	if (smSerializer.fileAccessFailedDuringWrite) {
-		return false; // Calling f_close if this is false might be dangerous - if access has failed, we don't want it to
-		              // flush any data to the card or anything
-	}
-	FRESULT result = f_close(&fileSystemStuff.currentFile);
+bool StorageManager::closeFile(FIL &fileToClose) {
+	FRESULT result = f_close(&fileToClose);
 	return (result == FR_OK);
 }
 
@@ -242,7 +239,7 @@ Error StorageManager::initSD() {
 	}
 
 	// Otherwise, we can mount the filesystem...
-	bool success = D_TRY_CATCH(fileSystemStuff.fileSystem.mount(1).transform_error(fatfsErrorToDelugeError), error, {
+	bool success = D_TRY_CATCH(fileSystem.mount(1).transform_error(fatfsErrorToDelugeError), error, {
 		return error; //<
 	});
 	if (success) {
@@ -263,21 +260,21 @@ bool StorageManager::checkSDInitialized() {
 }
 
 // Function can't fail.
-void StorageManager::openFilePointer(FilePointer* fp) {
+void StorageManager::openFilePointer(FilePointer* fp, XMLDeserializer& reader) {
 
 	AudioEngine::logAction("openFilePointer");
 
 	D_PRINTLN("openFilePointer");
 
-	fileSystemStuff.currentFile.obj.sclust = fp->sclust;
-	fileSystemStuff.currentFile.obj.objsize = fp->objsize;
-	fileSystemStuff.currentFile.obj.fs = &fileSystemStuff.fileSystem; /* Validate the file object */
-	fileSystemStuff.currentFile.obj.id = fileSystemStuff.fileSystem.id;
+	reader.readFIL.obj.sclust = fp->sclust;
+	reader.readFIL.obj.objsize = fp->objsize;
+	reader.readFIL.obj.fs = &fileSystem; /* Validate the file object */
+	reader.readFIL.obj.id = fileSystem.id;
 
-	fileSystemStuff.currentFile.flag = FA_READ; /* Set file access mode */
-	fileSystemStuff.currentFile.err = 0;        /* Clear error flag */
-	fileSystemStuff.currentFile.sect = 0;       /* Invalidate current data sector */
-	fileSystemStuff.currentFile.fptr = 0;       /* Set file pointer top of the file */
+	reader.readFIL.flag = FA_READ; /* Set file access mode */
+	reader.readFIL.err = 0;        /* Clear error flag */
+	reader.readFIL.sect = 0;       /* Invalidate current data sector */
+	reader.readFIL.fptr = 0;       /* Set file pointer top of the file */
 }
 
 Error StorageManager::openInstrumentFile(OutputType outputType, FilePointer* filePointer) {
@@ -324,14 +321,14 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	Instrument* newInstrument = createNewInstrument(outputType);
 
 	if (!newInstrument) {
-		closeFile();
+		closeFile(smDeserializer.readFIL);
 		D_PRINTLN("Allocating instrument file failed -  %d", name->get());
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
 
-	bool fileSuccess = closeFile();
+	bool fileSuccess = closeFile(smDeserializer.readFIL);
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -426,7 +423,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
 
-	bool fileSuccess = closeFile();
+	bool fileSuccess = closeFile(smDeserializer.readFIL);;
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -755,7 +752,7 @@ void XMLSerializer::printIndents() {
 Error XMLSerializer::writeXMLBufferToFile() {
 	UINT bytesWritten;
 	FRESULT result =
-	    f_write(&fileSystemStuff.currentFile, writeClusterBuffer, fileWriteBufferCurrentPos, &bytesWritten);
+	    f_write(&writeFIL, writeClusterBuffer, fileWriteBufferCurrentPos, &bytesWritten);
 	if (result != FR_OK || bytesWritten != fileWriteBufferCurrentPos) {
 		return Error::SD_CARD;
 	}
@@ -776,21 +773,21 @@ Error XMLSerializer::closeFileAfterWriting(char const* path, char const* beginni
 		return Error::WRITE_FAIL;
 	}
 
-	FRESULT result = f_close(&fileSystemStuff.currentFile);
+	FRESULT result = f_close(&writeFIL);
 	if (result) {
 		return Error::WRITE_FAIL;
 	}
 
 	if (path) {
 		// Check file exists
-		result = f_open(&fileSystemStuff.currentFile, path, FA_READ);
+		result = f_open(&writeFIL, path, FA_READ);
 		if (result) {
 			return Error::WRITE_FAIL;
 		}
 	}
 
 	// Check size
-	if (f_size(&fileSystemStuff.currentFile) != fileTotalBytesWritten) {
+	if (f_size(&writeFIL) != fileTotalBytesWritten) {
 		return Error::WRITE_FAIL;
 	}
 
@@ -798,7 +795,7 @@ Error XMLSerializer::closeFileAfterWriting(char const* path, char const* beginni
 	if (beginningString) {
 		UINT dontCare;
 		int32_t length = strlen(beginningString);
-		result = f_read(&fileSystemStuff.currentFile, miscStringBuffer, length, &dontCare);
+		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
 		if (result) {
 			return Error::WRITE_FAIL;
 		}
@@ -812,12 +809,12 @@ Error XMLSerializer::closeFileAfterWriting(char const* path, char const* beginni
 		UINT dontCare;
 		int32_t length = strlen(endString);
 
-		result = f_lseek(&fileSystemStuff.currentFile, fileTotalBytesWritten - length);
+		result = f_lseek(&writeFIL, fileTotalBytesWritten - length);
 		if (result) {
 			return Error::WRITE_FAIL;
 		}
 
-		result = f_read(&fileSystemStuff.currentFile, miscStringBuffer, length, &dontCare);
+		result = f_read(&writeFIL, miscStringBuffer, length, &dontCare);
 		if (result) {
 			return Error::WRITE_FAIL;
 		}
@@ -826,7 +823,7 @@ Error XMLSerializer::closeFileAfterWriting(char const* path, char const* beginni
 		}
 	}
 
-	result = f_close(&fileSystemStuff.currentFile);
+	result = f_close(&writeFIL);
 	if (result) {
 		return Error::WRITE_FAIL;
 	}
@@ -1616,7 +1613,7 @@ bool XMLDeserializer::readXMLFileCluster() {
 
 	AudioEngine::logAction("readXMLFileCluster");
 
-	FRESULT result = f_read(&fileSystemStuff.currentFile, (UINT*)fileClusterBuffer, audioFileManager.clusterSize,
+	FRESULT result = f_read(&readFIL, (UINT*)fileClusterBuffer, audioFileManager.clusterSize,
 	                        &currentReadBufferEndPos);
 	if (result) {
 		fileAccessFailedDuring = true;
@@ -1701,11 +1698,11 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer& rea
 	AudioEngine::logAction("openXMLFile");
 	reader.reset();
 	// Prep to read first Cluster shortly
-	openFilePointer(filePointer);
+	openFilePointer(filePointer, reader);
 	Error err = reader.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
 	if (err == Error::NONE)
 		return Error::NONE;
-	f_close(&fileSystemStuff.currentFile);
+	f_close(&reader.readFIL);
 
 	return Error::FILE_CORRUPTED;
 }
@@ -1732,7 +1729,7 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 		exitTag(tagName);
 	}
 
-	f_close(&fileSystemStuff.currentFile);
+	f_close(&readFIL);
 	return Error::FILE_CORRUPTED;
 }
 
@@ -1748,7 +1745,7 @@ Error XMLDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool i
 		char const* firmware_version_string = readTagOrAttributeValue();
 		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
 		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
-			f_close(&fileSystemStuff.currentFile);
+			f_close(&readFIL);
 			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
 		}
 	}

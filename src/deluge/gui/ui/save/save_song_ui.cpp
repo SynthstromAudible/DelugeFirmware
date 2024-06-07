@@ -237,7 +237,7 @@ gotError:
 				// converted
 
 				// Open file to read
-				FRESULT result = f_open(&fileSystemStuff.currentFile, sourceFilePath, FA_READ);
+				FRESULT result = f_open(&smSerializer.writeFIL, sourceFilePath, FA_READ);
 				if (result != FR_OK) {
 					D_PRINTLN("open fail %s", sourceFilePath);
 					error = Error::UNSPECIFIED;
@@ -308,7 +308,7 @@ gotError:
 						                                                     &audioFile->filePath);
 						if (error != Error::NONE) {
 failAfterOpeningSourceFile:
-							f_close(&fileSystemStuff.currentFile); // Close source file
+							f_close(&smDeserializer.readFIL); // Close source file
 							goto gotError;
 						}
 					}
@@ -352,7 +352,7 @@ failAfterOpeningSourceFile:
 					// Copy
 					while (true) {
 						UINT bytesRead;
-						result = f_read(&fileSystemStuff.currentFile, smDeserializer.fileClusterBuffer,
+						result = f_read(&smDeserializer.readFIL, smDeserializer.fileClusterBuffer,
 						                audioFileManager.clusterSize, &bytesRead);
 						if (result) {
 							D_PRINTLN("read fail");
@@ -376,7 +376,7 @@ fail3:
 					}
 				}
 
-				f_close(&fileSystemStuff.currentFile); // Close source file
+				f_close(&smDeserializer.readFIL); // Close source file
 
 				// Write has succeeded. We can mark it as existing in its normal main location (e.g. in the SAMPLES
 				// folder). Unless we were collection media, in which case it won't be there - it'll be in the new

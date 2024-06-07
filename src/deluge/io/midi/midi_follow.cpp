@@ -834,7 +834,7 @@ void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 		reader.exitTag();
 	}
 
-	bdsm.closeFile();
+	bdsm.closeFile(smDeserializer.readFIL);
 
 	successfullyReadDefaultsFromFile = true;
 }

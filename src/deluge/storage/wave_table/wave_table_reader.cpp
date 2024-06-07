@@ -39,7 +39,7 @@ Error WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t 
 Error WaveTableReader::readNewCluster() {
 
 	UINT bytesRead;
-	FRESULT result = f_read(&fileSystemStuff.currentFile, smDeserializer.fileClusterBuffer,
+	FRESULT result = f_read(&smDeserializer.readFIL, smDeserializer.fileClusterBuffer,
 	                        audioFileManager.clusterSize, &bytesRead);
 	if (result) {
 		return Error::SD_CARD; // Failed to load cluster from card

@@ -237,7 +237,7 @@ void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
 		}
 		reader.exitTag(currentTag);
 	}
-	bdsm.closeFile();
+	f_close(&smDeserializer.readFIL);
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {

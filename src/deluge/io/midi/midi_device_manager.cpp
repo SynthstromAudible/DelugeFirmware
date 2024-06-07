@@ -566,7 +566,7 @@ void readDevicesFromFile(StorageManager& bdsm) {
 		reader.exitTag();
 	}
 
-	bdsm.closeFile();
+	f_close(&smDeserializer.readFIL);
 
 	recountSmallestMPEZones();
 
