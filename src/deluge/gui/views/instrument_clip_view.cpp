@@ -4513,6 +4513,9 @@ shiftAllColour:
 static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
 ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
+	}
 
 	// If holding down notes
 	if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
@@ -4529,9 +4532,6 @@ ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 			// Or, if horizontal encoder held down, nudge note
 			else if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 			         && isUIModeWithinRange(noteNudgeUIModes)) {
-				if (sdRoutineLock) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
-				}
 				nudgeNotes(offset);
 			}
 		}
@@ -4540,48 +4540,13 @@ ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 
 	// Auditioning but not holding down <> encoder - edit length of just one row
 	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-		if (!shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
-wantToEditNoteRowLength:
-			if (sdRoutineLock) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
-			}
-
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
-
-			editNoteRowLength(modelStackWithNoteRow, offset, lastAuditionedYDisplay);
-			editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
-		}
-
-		// Unlike for all other cases where we protect against the user accidentally turning the encoder more after
-		// releasing their press on it, for this edit-NoteRow-length action, because it's a related action, it's quite
-		// likely that the user actually will want to do it after the yes-pressed-encoder-down action, which is
-		// "rotate/shift notes in row". So, we have a 250ms timeout for this one.
-		else if ((uint32_t)(AudioEngine::audioSampleTimer - timeHorizontalKnobLastReleased) >= 250 * 44) {
-			shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-			goto wantToEditNoteRowLength;
-		}
+		editNoteRowLength(offset);
 		return ActionResult::DEALT_WITH;
 	}
 
 	// Auditioning *and* holding down <> encoder - rotate/shift just one row
 	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-		if (sdRoutineLock) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
-		}
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		ModelStackWithNoteRow* modelStackWithNoteRow =
-		    ((InstrumentClip*)modelStack->getTimelineCounter())
-		        ->getNoteRowOnScreen(lastAuditionedYDisplay, modelStack); // Don't create
-
-		rotateNoteRowHorizontally(modelStackWithNoteRow, offset, lastAuditionedYDisplay, true);
-		shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress =
-		    true; // So don't accidentally shorten row after
-		editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+		rotateNoteRowHorizontally(offset);
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -4589,6 +4554,41 @@ wantToEditNoteRowLength:
 	else {
 		return ClipView::horizontalEncoderAction(offset);
 	}
+}
+
+void InstrumentClipView::editNoteRowLength(int32_t offset) {
+	if (!shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress) {
+wantToEditNoteRowLength:
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    getOrCreateNoteRowForYDisplay(modelStack, lastAuditionedYDisplay);
+
+		editNoteRowLength(modelStackWithNoteRow, offset, lastAuditionedYDisplay);
+		editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
+	}
+
+	// Unlike for all other cases where we protect against the user accidentally turning the encoder more after
+	// releasing their press on it, for this edit-NoteRow-length action, because it's a related action, it's
+	// quite likely that the user actually will want to do it after the yes-pressed-encoder-down action, which
+	// is "rotate/shift notes in row". So, we have a 250ms timeout for this one.
+	else if ((uint32_t)(AudioEngine::audioSampleTimer - timeHorizontalKnobLastReleased) >= 250 * 44) {
+		shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+		goto wantToEditNoteRowLength;
+	}
+}
+
+void InstrumentClipView::rotateNoteRowHorizontally(int32_t offset) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    ((InstrumentClip*)modelStack->getTimelineCounter())
+	        ->getNoteRowOnScreen(lastAuditionedYDisplay, modelStack); // Don't create
+
+	rotateNoteRowHorizontally(modelStackWithNoteRow, offset, lastAuditionedYDisplay, true);
+	// So don't accidentally shorten row after
+	shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
+	editedAnyPerNoteRowStuffSinceAuditioningBegan = true;
 }
 
 void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
