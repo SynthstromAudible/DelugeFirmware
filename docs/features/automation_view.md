@@ -12,7 +12,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 
 1. Automatable Clip View Parameters for Synths and Kits with a row selected and affect entire DISABLED
 
->The 61 parameters that can be edited are:
+>The 60 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -20,7 +20,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **EQ** Bass, Bass Frequency, Treble, Treble Frequency
 > - **Reverb** Amount
 > - **Delay** Rate, Amount
-> - **Sidechain** Level, Shape
+> - **Sidechain** Shape
 > - **Distortion** Decimation, Bitcrush, Wavefolder
 > - **OSC 1** Level, Pitch, Phase Width, Carrier Feedback, Wave Position
 > - **OSC 2** Level, Pitch, Phase Width, Carrier Feedback, Wave Position
