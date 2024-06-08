@@ -227,272 +227,234 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	return ActionResult::DEALT_WITH;
 }
 
-enum class LoadStatus { START, BEGIN_LOADING_SAMPLES, WAIT_FOR_SAMPLES, COMPLETE };
-StorageManager* bdsm{};
-LoadStatus status = LoadStatus::COMPLETE;
 // Before calling this, you must set loadButtonReleased.
-void LoadSongUI::performLoad(StorageManager& _bdsm) {
-	if (status == LoadStatus::COMPLETE) {
-		status = LoadStatus::START;
+void LoadSongUI::performLoad(StorageManager& bdsm) {
+
+	FileItem* currentFileItem = getCurrentFileItem();
+
+	if (!currentFileItem) {
+		display->displayError(display->haveOLED()
+		                          ? Error::FILE_NOT_FOUND
+		                          : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
+		                                                                     // for consistency with old times.
+		return;
+	}
+
+	actionLogger.deleteAllLogs();
+
+	if (arrangement.hasPlaybackActive()) {
+		playbackHandler.switchToSession();
+	}
+
+	Error error = storageManager.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song");
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return;
+	}
+
+	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	indicator_leds::setLedState(IndicatorLED::LOAD, false);
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
+
+	display->displayLoadingAnimationText("Loading");
+	nullifyUIs();
+
+	deletedPartsOfOldSong = true;
+
+	// If not currently playing, don't load both songs at once (this avoids any RAM overfilling, fragmentation etc.)
+	if (!playbackHandler.isEitherClockActive()) {
+		// Otherwise, a timer might get called and try to access Clips that we may have deleted below (really?)
+		uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
+
+		deleteOldSongBeforeLoadingNew();
 	}
 	else {
-		FREEZE_WITH_ERROR("L000");
+		// Note: this is dodgy, but in this case we don't reset view.activeControllableClip here - we let the user keep
+		// fiddling with it. It won't get deleted.
+		AudioEngine::logAction("a");
+		AudioEngine::songSwapAboutToHappen();
+		AudioEngine::logAction("b");
+		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 	}
-	bdsm = &_bdsm;
-	performLoadFixedSM();
-}
-void LoadSongUI::performLoadFixedSM() {
-	static int32_t count = 0;
-	Song* toDelete = nullptr;
-	// static LoadStatus status = LoadStatus::START;
 
-	switch (status) {
-	case LoadStatus::START: {
-		FileItem* currentFileItem = getCurrentFileItem();
-
-		if (!currentFileItem) {
-			display->displayError(
-			    display->haveOLED() ? Error::FILE_NOT_FOUND
-			                        : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
-			                                                                   // for consistency with old times.
-			return;
-		}
-
-		actionLogger.deleteAllLogs();
-
-		if (arrangement.hasPlaybackActive()) {
-			playbackHandler.switchToSession();
-		}
-
-		Error error = bdsm->openXMLFile(&currentFileItem->filePointer, smDeserializer, "song");
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return;
-		}
-
-		currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
-		indicator_leds::setLedState(IndicatorLED::LOAD, false);
-		indicator_leds::setLedState(IndicatorLED::BACK, false);
-
-		display->displayLoadingAnimationText("Loading");
-		nullifyUIs();
-
-		deletedPartsOfOldSong = true;
-
-		// If not currently playing, don't load both songs at once (this avoids any RAM overfilling, fragmentation etc.)
-		if (!playbackHandler.isEitherClockActive()) {
-			// Otherwise, a timer might get called and try to access Clips that we may have deleted below (really?)
-			uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
-
-			deleteOldSongBeforeLoadingNew();
-		}
-		else {
-			// Note: this is dodgy, but in this case we don't reset view.activeControllableClip here - we let the user
-			// keep fiddling with it. It won't get deleted.
-			AudioEngine::logAction("a");
-			AudioEngine::songSwapAboutToHappen();
-			AudioEngine::logAction("b");
-			playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
-		}
-
-		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
-		if (!songMemory) {
+	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+	if (!songMemory) {
 ramError:
-			error = Error::INSUFFICIENT_RAM;
+		error = Error::INSUFFICIENT_RAM;
 
 someError:
-			display->displayError(error);
-			bdsm->closeFile();
+		display->displayError(error);
+		storageManager.closeFile();
 fail:
-			// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
-			if (!currentSong) {
-				// If we're here, it's most likely because of a file error. On paper, a RAM error could be possible too.
-				setupBlankSong();
-				audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
-			}
-
-			// Otherwise, stay here in this UI
-			else {
-				displayText(false);
-			}
-			currentUIMode = UI_MODE_NONE;
-			display->removeWorkingAnimation();
-			return;
+		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
+		if (!currentSong) {
+			// If we're here, it's most likely because of a file error. On paper, a RAM error could be possible too.
+			setupBlankSong();
+			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 		}
 
-		preLoadedSong = new (songMemory) Song();
-		error = preLoadedSong->paramManager.setupUnpatched();
-		if (error != Error::NONE) {
-gotErrorAfterCreatingSong:
-			void* toDealloc = dynamic_cast<void*>(preLoadedSong);
-			preLoadedSong->~Song(); // Will also delete paramManager
-			delugeDealloc(toDealloc);
-			preLoadedSong = NULL;
-			goto someError;
-		}
-
-		GlobalEffectable::initParams(&preLoadedSong->paramManager);
-
-		AudioEngine::logAction("c");
-
-		// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but
-		// chances are, after failing on one of those, it'd try to load something else and that would fail.
-		error = preLoadedSong->readFromFile(smDeserializer);
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
-		AudioEngine::logAction("d");
-
-		bool success = bdsm->closeFile();
-
-		if (!success) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
-			goto fail;
-		}
-
-		preLoadedSong->dirPath.set(&currentDir);
-
-		String currentFilenameWithoutExtension;
-		error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
-
-		error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath,
-		                                                    currentDir.get(), &currentFilenameWithoutExtension);
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
-		audioFileManager.thingBeginningLoading(ThingType::SONG);
-
-		// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
-		// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that
-		// we might actually want
-		preLoadedSong->loadAllSamples(false);
-
-		// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
-		if (playbackHandler.isEitherClockActive()) {
-			preLoadedSong->loadCrucialSamplesOnly();
-		}
+		// Otherwise, stay here in this UI
 		else {
-			preLoadedSong->loadAllSamples(true);
+			displayText(false);
 		}
-		status = LoadStatus::BEGIN_LOADING_SAMPLES;
-		addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05, nullptr);
-		break;
-	}
-	case LoadStatus::BEGIN_LOADING_SAMPLES: {
-		// Ensure all AudioFile Clusters needed for new song are loaded
-		// Prevent any unforeseen loop. Not sure if that actually could happen
-		if (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 50) {
-			// addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05, nullptr);
-			addConditionalTask(
-			    []() { loadSongUI.performLoadFixedSM(); }, 100,
-			    []() { return !(audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 50); },
-			    "Song loading");
-			return;
-		}
-
-		preLoadedSong->name.set(&enteredText);
-
-		toDelete = currentSong;
-		status = LoadStatus::WAIT_FOR_SAMPLES;
-		if (playbackHandler.isEitherClockActive()) {
-
-			// If load button was already released while that loading was happening, arm for song-swap now
-			if (!Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
-				bool result = session.armForSongSwap();
-
-				// If arming couldn't really be done, e.g. because current song had no Clips currently playing, swap has
-				// already occurred
-				if (!result) {
-					goto swapDone;
-				}
-
-				currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-				if (display->haveOLED()) {
-					displayArmedPopup();
-				}
-				else {
-					sessionView.redrawNumericDisplay();
-				}
-			}
-
-			// Otherwise, set up so that the song-swap will be armed as soon as the user releases the load button
-			else {
-				display->removeWorkingAnimation();
-				if (display->haveOLED()) {
-					display->popupText("Loading complete");
-				}
-				else {
-					display->setText("DONE", false, 255, true, NULL, false, true);
-				}
-				currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
-			}
-
-			// We're now waiting, either for the user to arm, or for the arming to launch the song-swap. Get loading all
-			// the rest of the samples which weren't needed right away. (though we might run out of RAM cos we haven't
-			// discarded all the old samples yet)
-			AudioEngine::logAction("g");
-			preLoadedSong->loadAllSamples(true);
-			AudioEngine::logAction("h");
-			// If any more waiting required before the song swap actually happens, do that
-			if (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
-				// addOnceTask([]() { loadSongUI.performLoadFixedSM(); }, 100, 0.05, nullptr);
-				addConditionalTask([]() { loadSongUI.performLoadFixedSM(); }, 100,
-				                   []() { return currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING; },
-				                   "Song loading");
-
-				return;
-			}
-		}
-
-		else {
-			playbackHandler.doSongSwap();
-		}
-	}
-	case LoadStatus::WAIT_FOR_SAMPLES: {
-		if (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
-			// I don't think this is possible anymore but just in case
-			addConditionalTask([]() { loadSongUI.performLoadFixedSM(); }, 100,
-			                   []() { return currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING; }, "Song loading");
-			return;
-		}
-swapDone:
-		// we're done so load the rest of the song
-		if (display->haveOLED()) {
-			deluge::hid::display::OLED::displayWorkingAnimation(
-			    "Loading"); // To override our popup if we did one. (Still necessary?)
-		}
-		// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of
-		// samples wanting some data loaded. So do that immediately
-		audioFileManager.loadAnyEnqueuedClusters(99999);
-
-		// Delete the old song
-		AudioEngine::logAction("i");
-		if (toDelete) {
-			void* toDealloc = dynamic_cast<void*>(toDelete);
-			toDelete->~Song();
-			delugeDealloc(toDealloc);
-		}
-
-		audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
-
-		// Try one more time to load all AudioFiles - there might be more RAM free now
-		currentSong->loadAllSamples();
-		AudioEngine::logAction("l");
-		currentSong->markAllInstrumentsAsEdited();
-
-		audioFileManager.thingFinishedLoading();
-
-		PadLEDs::doGreyoutInstantly(); // This will get faded out of just below
-		setUIForLoadedSong(currentSong);
 		currentUIMode = UI_MODE_NONE;
-
 		display->removeWorkingAnimation();
-		status = LoadStatus::COMPLETE;
+		return;
 	}
+
+	preLoadedSong = new (songMemory) Song();
+	error = preLoadedSong->paramManager.setupUnpatched();
+	if (error != Error::NONE) {
+gotErrorAfterCreatingSong:
+		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
+		preLoadedSong->~Song(); // Will also delete paramManager
+		delugeDealloc(toDealloc);
+		preLoadedSong = NULL;
+		goto someError;
 	}
+
+	GlobalEffectable::initParams(&preLoadedSong->paramManager);
+
+	AudioEngine::logAction("c");
+
+	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
+	// are, after failing on one of those, it'd try to load something else and that would fail.
+	error = preLoadedSong->readFromFile(smDeserializer);
+	if (error != Error::NONE) {
+		goto gotErrorAfterCreatingSong;
+	}
+	AudioEngine::logAction("d");
+
+	bool success = storageManager.closeFile();
+
+	if (!success) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
+		goto fail;
+	}
+
+	preLoadedSong->dirPath.set(&currentDir);
+
+	String currentFilenameWithoutExtension;
+	error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
+	if (error != Error::NONE) {
+		goto gotErrorAfterCreatingSong;
+	}
+
+	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
+	                                                    &currentFilenameWithoutExtension);
+	if (error != Error::NONE) {
+		goto gotErrorAfterCreatingSong;
+	}
+	audioFileManager.thingBeginningLoading(ThingType::SONG);
+
+	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
+	// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that we
+	// might actually want
+	preLoadedSong->loadAllSamples(false);
+
+	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
+	if (playbackHandler.isEitherClockActive()) {
+		preLoadedSong->loadCrucialSamplesOnly();
+	}
+	else {
+		preLoadedSong->loadAllSamples(true);
+	}
+
+	// Ensure all AudioFile Clusters needed for new song are loaded
+	static int32_t count =
+	    0; // Prevent any unforeseen loop. Not sure if that actually could happen
+	       //	while (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 1024)
+	       //{ 		audioFileManager.loadAnyEnqueuedClusters(); 		routineForSD(); 		count++;
+	       //	}
+	yield([]() { return !(audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 50); });
+
+	preLoadedSong->name.set(&enteredText);
+
+	Song* toDelete = currentSong;
+
+	if (playbackHandler.isEitherClockActive()) {
+
+		// If load button was already released while that loading was happening, arm for song-swap now
+		if (!Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
+			bool result = session.armForSongSwap();
+
+			// If arming couldn't really be done, e.g. because current song had no Clips currently playing, swap has
+			// already occurred
+			if (!result) {
+				goto swapDone;
+			}
+
+			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
+			if (display->haveOLED()) {
+				displayArmedPopup();
+			}
+			else {
+				sessionView.redrawNumericDisplay();
+			}
+		}
+
+		// Otherwise, set up so that the song-swap will be armed as soon as the user releases the load button
+		else {
+			display->removeWorkingAnimation();
+			if (display->haveOLED()) {
+				display->popupText("Loading complete");
+			}
+			else {
+				display->setText("DONE", false, 255, true, NULL, false, true);
+			}
+			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
+		}
+
+		// We're now waiting, either for the user to arm, or for the arming to launch the song-swap. Get loading all the
+		// rest of the samples which weren't needed right away. (though we might run out of RAM cos we haven't discarded
+		// all the old samples yet)
+		AudioEngine::logAction("g");
+		preLoadedSong->loadAllSamples(true);
+		AudioEngine::logAction("h");
+
+		//		// If any more waiting required before the song swap actually happens, do that
+		//		while (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
+		//			audioFileManager.loadAnyEnqueuedClusters();
+		//			routineForSD();
+		//		}
+		yield([]() { return currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING; });
+	}
+
+	else {
+		playbackHandler.doSongSwap();
+	}
+
+swapDone:
+	if (display->haveOLED()) {
+		deluge::hid::display::OLED::displayWorkingAnimation(
+		    "Loading"); // To override our popup if we did one. (Still necessary?)
+	}
+	// Ok, the swap's been done, the first tick of the new song has been done, and there are potentially loads of
+	// samples wanting some data loaded. So do that immediately
+	audioFileManager.loadAnyEnqueuedClusters(99999);
+
+	// Delete the old song
+	AudioEngine::logAction("i");
+	if (toDelete) {
+		void* toDealloc = dynamic_cast<void*>(toDelete);
+		toDelete->~Song();
+		delugeDealloc(toDealloc);
+	}
+
+	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
+
+	// Try one more time to load all AudioFiles - there might be more RAM free now
+	currentSong->loadAllSamples();
+	AudioEngine::logAction("l");
+	currentSong->markAllInstrumentsAsEdited();
+
+	audioFileManager.thingFinishedLoading();
+
+	PadLEDs::doGreyoutInstantly(); // This will get faded out of just below
+	setUIForLoadedSong(currentSong);
+	currentUIMode = UI_MODE_NONE;
+
+	display->removeWorkingAnimation();
 }
 
 ActionResult LoadSongUI::timerCallback() {
