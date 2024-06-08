@@ -303,22 +303,20 @@ void TaskManager::clockRolledOver() {
 void TaskManager::yield(RunCondition until) {
 	auto yieldingTask = &list[currentID];
 	auto yieldingID = currentID;
+	bool taskRemoved = false;
+	double runtime;
 	// for now we first end this as if the task finished - might be advantageous to replace with a context switch later
 	if (yieldingTask->removeAfterUse) {
 		removeTask(currentID);
+		taskRemoved = true;
 	}
 	else {
 		auto timeNow = getTimerValueSeconds(0);
-		yieldingTask->lastFinishTime = timeNow;
-		double runtime = (yieldingTask->lastFinishTime - yieldingTask->lastCallTime);
+		yieldingTask->lastFinishTime = timeNow; // update this so it's in its back off window
+		runtime = (yieldingTask->lastFinishTime - yieldingTask->lastCallTime);
 		if (runtime < 0) {
 			runtime += rollTime;
 		}
-
-		yieldingTask->durationStats.update(runtime);
-		yieldingTask->totalTime += runtime;
-		yieldingTask->timesCalled += 1;
-		cpuTime += runtime;
 	}
 	// continue the main loop. The yielding task is still on the stack but that should be fine
 	// run at least once so this can be used for yielding a single call as well
@@ -328,12 +326,11 @@ void TaskManager::yield(RunCondition until) {
 			runTask(task);
 		}
 	} while (!until());
+	if (!taskRemoved) {
 
-	auto timeNow = getTimerValueSeconds(0);
-#if SCHEDULER_DETAILED_STATS
-	yieldingTask->latency.update(timeNow - yieldingTask->lastCallTime);
-#endif
-	yieldingTask->lastCallTime = timeNow;
+		auto timeNow = getTimerValueSeconds(0);
+		yieldingTask->lastCallTime = timeNow - runtime; // hack so the time spent yielding doesn't get counted
+	}
 }
 
 /// default duration of 0 signifies infinite loop, intended to be specified only for testing
