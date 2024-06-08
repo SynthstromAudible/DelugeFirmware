@@ -2047,12 +2047,14 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 	}
 }
 
+// adjust a note's velocity when pressing and holding a pad with a note in it and turning the horizontal encoder <>
 void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 	int32_t velocityValue = 0;
 
 	Action* action;
-	if (display->haveOLED() || display->hasPopup()) {
+	if (display->hasPopup()) {
+		// we're only going to adjust velocity when there's a pop-up so no need to get an action otherwise
 		action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 		if (!action) {
 			return; // Necessary why?
@@ -2083,18 +2085,14 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 				Note* note = noteRow->notes.getElement(noteI);
 				while (note && note->pos - editPadPresses[i].intendedPos < editPadPresses[i].intendedLength) {
 					if (display->hasPopup()) {
+						// Sean: check for pop-up so that you don't change encoder turn (cause you may just want to see
+						// the value)
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 						                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 					}
 
-					if (velocityValue == 0) {
-						velocityValue = note->getVelocity();
-					}
-					else {
-						if (velocityValue != note->getVelocity()) {
-							velocityValue = 255; // Means "multiple"
-						}
-					}
+					updateVelocityValue(velocityValue, note->getVelocity());
+
 					numNotesThisSquare++;
 					velocitySumThisSquare += note->getVelocity();
 
@@ -2102,36 +2100,60 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 					note = noteRow->notes.getElement(noteI);
 				}
 
-				editPadPresses[i].intendedVelocity =
-				    velocitySumThisSquare / numNotesThisSquare; // Get the average. Ideally we'd have done this when
-				                                                // first selecting the note too, but I didn't
+				// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to audition
+				// the pad press note so you can hear the velocity changes as you're holding the note down
+				editPadPresses[i].intendedVelocity = velocitySumThisSquare / numNotesThisSquare;
 			}
 
 			// Only one note in square
 			else {
 				if (display->hasPopup()) {
+					// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to
+					// audition the pad press note so you can hear the velocity changes as you're holding the note down
 					editPadPresses[i].intendedVelocity =
 					    std::clamp<int32_t>((int32_t)editPadPresses[i].intendedVelocity + velocityChange, 1, 127);
 					noteRow->changeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow, action,
 					                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 				}
 
-				if (velocityValue == 0) {
-					velocityValue = editPadPresses[i].intendedVelocity;
-				}
-				else {
-					if (velocityValue != editPadPresses[i].intendedVelocity) {
-						velocityValue = 255; // Means "multiple"
-					}
-				}
+				updateVelocityValue(velocityValue, editPadPresses[i].intendedVelocity);
 			}
 		}
 	}
 
+	displayVelocity(velocityValue, velocityChange);
+
+	reassessAllAuditionStatus();
+}
+
+// determines whether or not you're trying to adjust the velocities of multiple notes
+// with different starting velocities (prior to adjustment)
+// used to determine whether to display the updated velocity value or a generalized
+// "velocity increased / decreased" message
+void InstrumentClipView::updateVelocityValue(int32_t& velocityValue, int32_t newVelocity) {
+	// Compares velocityValue to newVelocity
+	// Sets velocityValue to newVelocity if velocityValue is 0.
+	// Keeps velocityValue the same if they're equal
+	// Sets velocityValue to 255 if they're different
+	// -> which means there's multiple notes with different velocities in a square
+	if (velocityValue == 0) {
+		velocityValue = newVelocity;
+	}
+	else {
+		if (velocityValue != newVelocity) {
+			velocityValue = 255; // Means "multiple"
+		}
+	}
+}
+
+// display updated velocity value for note(s) edited or generalized "velocity increased / decreased" message
+void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocityChange) {
 	if (velocityValue) {
 		char buffer[22];
 		char const* displayString;
 		if (velocityValue == 255) {
+			// this happens when you're holding two or more notes that have two different velocities, so it can't show
+			// the current velocity value (so it just says note velocities have increased or decreased)
 			if (velocityChange >= 0) {
 				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_INCREASED);
 			}
@@ -2139,31 +2161,38 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 				displayString = deluge::l10n::get(deluge::l10n::String::STRING_FOR_VELOCITY_DECREASED);
 			}
 
-			// Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get updated
-			// when user releases last press.
+			popupVelocity(displayString);
+
+			// Rohan: Don't bother trying to think of some smart way to update lastVelocityInteractedWith. It'll get
+			// updated when user releases last press.
 		}
 		else {
-			if (display->haveOLED()) {
-				strcpy(buffer, "Velocity: ");
-				intToString(velocityValue, buffer + strlen(buffer));
-			}
-			else {
-
-				intToString(velocityValue, buffer);
-			}
-
-			displayString = buffer;
 			getCurrentInstrument()->defaultVelocity = velocityValue;
-		}
-		if (display->haveOLED()) {
-			display->popupText(displayString);
-		}
-		else {
-			display->displayPopup(displayString, 0, true);
+			if (getCurrentUI() != &automationView) {
+				if (display->haveOLED()) {
+					strcpy(buffer, "Velocity: ");
+					intToString(velocityValue, buffer + strlen(buffer));
+				}
+				else {
+					intToString(velocityValue, buffer);
+				}
+
+				displayString = buffer;
+
+				popupVelocity(displayString);
+			}
 		}
 	}
+}
 
-	reassessAllAuditionStatus();
+// display velocity popup
+void InstrumentClipView::popupVelocity(char const* displayString) {
+	if (display->haveOLED()) {
+		display->popupText(displayString);
+	}
+	else {
+		display->displayPopup(displayString, 0, true);
+	}
 }
 
 void InstrumentClipView::adjustProbability(int32_t offset) {
