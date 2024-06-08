@@ -2140,7 +2140,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 			// Only one note in square
 			else {
-				if (display->hasPopup()) {
+				if (display->hasPopup() || getCurrentUI() == &automationView) {
 					// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to
 					// audition the pad press note so you can hear the velocity changes as you're holding the note down
 					editPadPresses[i].intendedVelocity =
