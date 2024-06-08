@@ -109,6 +109,7 @@ struct TaskManager {
 	double mustEndBefore = 128; // use for testing or I guess if you want a second temporary task manager?
 	bool running{false};
 	double cpuTime{0};
+	double overhead{0};
 	double lastPrintedStats{0};
 	void start(double duration = 0);
 	void removeTask(TaskID id);
@@ -120,14 +121,17 @@ struct TaskManager {
 	TaskID addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
 
 	void createSortedList();
-	void clockRolledOver();
 	TaskID insertTaskToList(Task task);
 	void printStats();
 	bool checkConditionalTasks();
 	void yield(RunCondition until);
+	double getSecondsFromStart();
 
 private:
 	TaskID currentID;
+	// for time tracking with rollover
+	double lastTime{0};
+	double runningTime{0};
 };
 
 TaskManager taskManager;
@@ -150,7 +154,7 @@ void TaskManager::createSortedList() {
 }
 
 TaskID TaskManager::chooseBestTask(double deadline) {
-	double currentTime = getTimerValueSeconds(0);
+	double currentTime = getSecondsFromStart();
 	double nextFinishTime = currentTime;
 	TaskID bestTask = -1;
 	uint8_t bestPriority = INT8_MAX;
@@ -239,7 +243,7 @@ TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeTo
 	if (numRegisteredTasks >= (kMaxTasks)) {
 		return -1;
 	}
-	double timeToStart = running ? getTimerValueSeconds(0) : 0;
+	double timeToStart = running ? getSecondsFromStart() : 0;
 	TaskID index = insertTaskToList(Task{task, priority, timeToStart, timeToWait, name});
 
 	createSortedList();
@@ -263,39 +267,29 @@ void TaskManager::removeTask(TaskID id) {
 }
 
 void TaskManager::runTask(TaskID id) {
+	auto timeNow = getSecondsFromStart();
+	// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
+	overhead += timeNow - list[currentID].lastFinishTime;
 	currentID = id;
 	auto currentTask = &list[currentID];
-	auto timeNow = getTimerValueSeconds(0);
 #if SCHEDULER_DETAILED_STATS
 	currentTask->latency.update(timeNow - currentTask->lastCallTime);
 #endif
 	currentTask->lastCallTime = timeNow;
 	currentTask->handle();
-	timeNow = getTimerValueSeconds(0);
+	timeNow = getSecondsFromStart();
 	if (currentTask->removeAfterUse) {
 		removeTask(id);
 	}
 	else {
 		currentTask->lastFinishTime = timeNow;
 		double runtime = (currentTask->lastFinishTime - currentTask->lastCallTime);
-		if (runtime < 0) {
-			runtime += rollTime;
-		}
 
 		currentTask->durationStats.update(runtime);
 		currentTask->totalTime += runtime;
 		currentTask->timesCalled += 1;
 		cpuTime += runtime;
 	}
-}
-void TaskManager::clockRolledOver() {
-	for (int i = 0; i < kMaxTasks; i++) {
-		// just check it exists, otherwise tasks that never run will overflow
-		if (list[i].handle != nullptr) {
-			list[i].lastCallTime -= rollTime;
-		}
-	}
-	lastPrintedStats -= rollTime;
 }
 
 /// pause current task, continue to run scheduler loop until a condition is met, then return to it
@@ -311,12 +305,9 @@ void TaskManager::yield(RunCondition until) {
 		taskRemoved = true;
 	}
 	else {
-		auto timeNow = getTimerValueSeconds(0);
+		auto timeNow = getSecondsFromStart();
 		yieldingTask->lastFinishTime = timeNow; // update this so it's in its back off window
 		runtime = (yieldingTask->lastFinishTime - yieldingTask->lastCallTime);
-		if (runtime < 0) {
-			runtime += rollTime;
-		}
 	}
 	// continue the main loop. The yielding task is still on the stack but that should be fine
 	// run at least once so this can be used for yielding a single call as well
@@ -328,7 +319,7 @@ void TaskManager::yield(RunCondition until) {
 	} while (!until());
 	if (!taskRemoved) {
 
-		auto timeNow = getTimerValueSeconds(0);
+		auto timeNow = getSecondsFromStart();
 		yieldingTask->lastCallTime = timeNow - runtime; // hack so the time spent yielding doesn't get counted
 	}
 }
@@ -342,18 +333,15 @@ void TaskManager::start(double duration) {
 	// just let it count - a full loop is 2 minutes or so and we'll handle that case manually
 	setOperatingMode(0, FREE_RUNNING, false);
 	enableTimer(0);
-	double startTime = getTimerValueSeconds(0);
+	double startTime = getSecondsFromStart();
 	double lastLoop = startTime;
 	if (duration != 0) {
 		mustEndBefore = startTime + duration;
 	}
 
 	running = true;
-	while (duration == 0 || getTimerValueSeconds(0) < startTime + duration) {
-		double newTime = getTimerValueSeconds(0);
-		if (newTime < lastLoop) {
-			clockRolledOver();
-		}
+	while (duration == 0 || getSecondsFromStart() < startTime + duration) {
+		double newTime = getSecondsFromStart();
 		lastLoop = newTime;
 		TaskID task = chooseBestTask(mustEndBefore);
 		if (task >= 0) {
@@ -388,7 +376,7 @@ bool TaskManager::checkConditionalTasks() {
 	return false;
 }
 void TaskManager::printStats() {
-	D_PRINTLN("Dumping task manager stats:");
+	D_PRINTLN("Dumping task manager stats: (min/ average/ max)");
 	for (auto task : list) {
 		if (task.handle) {
 			constexpr const double latencyScale = 1000.0;
@@ -415,6 +403,17 @@ void TaskManager::printStats() {
 #endif
 		}
 	}
+	D_PRINTLN("Total time: %5.2f, cpu time: %5.2f, Overhead: %5.2f", runningTime, cpuTime, overhead);
+}
+/// return a monotonic timer value in seconds from when the task manager started
+double TaskManager::getSecondsFromStart() {
+	auto timeNow = getTimerValueSeconds(0);
+	if (timeNow < lastTime) {
+		runningTime += rollTime;
+	}
+	runningTime += timeNow - lastTime;
+	lastTime = timeNow;
+	return runningTime;
 }
 
 // C api starts here
