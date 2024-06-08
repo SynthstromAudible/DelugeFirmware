@@ -34,3 +34,4 @@ __pycache__
 .idea
 *.srctrl*
 
+.deluge_hex_key
