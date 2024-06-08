@@ -1,4 +1,4 @@
-certifi==2024.2.2
+certifi==2024.6.2
 setuptools==70.0.0
 pyserial==3.5
 ansi==0.3.7
