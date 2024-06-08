@@ -60,6 +60,7 @@ uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const 
 /// interfere with scheduling
 uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
 void removeTask(TaskID id);
+void yield(RunCondition until);
 /// start the task scheduler
 void startTaskManager();
 #ifdef __cplusplus

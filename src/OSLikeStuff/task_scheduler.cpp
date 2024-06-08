@@ -124,6 +124,10 @@ struct TaskManager {
 	TaskID insertTaskToList(Task task);
 	void printStats();
 	bool checkConditionalTasks();
+	void yield(RunCondition until);
+
+private:
+	TaskID currentID;
 };
 
 TaskManager taskManager;
@@ -259,27 +263,28 @@ void TaskManager::removeTask(TaskID id) {
 }
 
 void TaskManager::runTask(TaskID id) {
-	auto task = &list[id];
+	currentID = id;
+	auto currentTask = &list[currentID];
 	auto timeNow = getTimerValueSeconds(0);
 #if SCHEDULER_DETAILED_STATS
-	task->latency.update(timeNow - task->lastCallTime);
+	currentTask->latency.update(timeNow - currentTask->lastCallTime);
 #endif
-	task->lastCallTime = timeNow;
-	task->handle();
+	currentTask->lastCallTime = timeNow;
+	currentTask->handle();
 	timeNow = getTimerValueSeconds(0);
-	if (task->removeAfterUse) {
+	if (currentTask->removeAfterUse) {
 		removeTask(id);
 	}
 	else {
-		task->lastFinishTime = timeNow;
-		double runtime = (task->lastFinishTime - task->lastCallTime);
+		currentTask->lastFinishTime = timeNow;
+		double runtime = (currentTask->lastFinishTime - currentTask->lastCallTime);
 		if (runtime < 0) {
 			runtime += rollTime;
 		}
 
-		task->durationStats.update(runtime);
-		task->totalTime += runtime;
-		task->timesCalled += 1;
+		currentTask->durationStats.update(runtime);
+		currentTask->totalTime += runtime;
+		currentTask->timesCalled += 1;
 		cpuTime += runtime;
 	}
 }
@@ -291,6 +296,36 @@ void TaskManager::clockRolledOver() {
 		}
 	}
 	lastPrintedStats -= rollTime;
+}
+
+/// pause current task, continue to run scheduler loop until a condition is met, then return to it
+/// current task can be called again if it's repeating - this is to match behaviour of busy waiting with routineForSD
+void TaskManager::yield(RunCondition until) {
+	auto currentTask = &list[currentID];
+	// for now we first end this as if the task finished - might be advantageous to replace with a context switch later
+	if (currentTask->removeAfterUse) {
+		removeTask(currentID);
+	}
+	else {
+		auto timeNow = getTimerValueSeconds(0);
+		currentTask->lastFinishTime = timeNow;
+		double runtime = (currentTask->lastFinishTime - currentTask->lastCallTime);
+		if (runtime < 0) {
+			runtime += rollTime;
+		}
+
+		currentTask->durationStats.update(runtime);
+		currentTask->totalTime += runtime;
+		currentTask->timesCalled += 1;
+		cpuTime += runtime;
+	}
+	// continue the main loop. The yielding task is still on the stack but that should be fine
+	while (!until()) {
+		TaskID task = chooseBestTask(mustEndBefore);
+		if (task >= 0) {
+			runTask(task);
+		}
+	}
 }
 
 /// default duration of 0 signifies infinite loop, intended to be specified only for testing
@@ -393,6 +428,10 @@ uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const 
 
 uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name) {
 	return taskManager.addConditionalTask(task, priority, condition, name);
+}
+
+void yield(RunCondition until) {
+	taskManager.yield(until);
 }
 
 void removeTask(TaskID id) {
