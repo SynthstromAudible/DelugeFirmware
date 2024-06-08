@@ -3455,15 +3455,11 @@ NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 	}
 }
 
-bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) {
-
-	// New community feature as part of Automation Clip View Implementation
-	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), shifting a clip
-	// will only shift the Notes and MPE data (NON MPE automations remain intact).
-
-	// If this is enabled, if you want to shift NON MPE automations, you will enter Automation Clip View and shift the
-	// clip there.
-
+bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
+                                       bool shiftSequenceAndMPE) {
+	// the following code iterates through all param collections and shifts automation and MPE separately
+	// automation only gets shifted if shiftAutomation is true
+	// MPE only gets shifted if shiftSequenceAndMPE is true
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
@@ -3479,17 +3475,15 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (getCurrentUI() != &automationView) { // don't shift MPE if you're in the automation view
+				if (shiftSequenceAndMPE) {
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
 				}
 			}
 
-			// Normal case
+			// Normal case (non MPE automation)
 			else {
-				// this never gets called from Automation View because in the Automation View we shift specific
-				// parameters not all parameters
-				if (!FlashStorage::automationShift) {
+				if (shiftAutomation) {
 					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
 				}
 			}
@@ -3502,7 +3496,8 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		int32_t noteRowId = getNoteRowId(thisNoteRow, i);
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
-		thisNoteRow->shiftHorizontally(amount, modelStackWithNoteRow); // Shifts NoteRow-level param automation too
+		// Shifts NoteRow-level param automation too
+		thisNoteRow->shiftHorizontally(amount, modelStackWithNoteRow, shiftAutomation, shiftSequenceAndMPE);
 	}
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
@@ -3512,10 +3507,11 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 	return true;
 }
 
-void InstrumentClip::shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t shiftAmount) {
+void InstrumentClip::shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t shiftAmount,
+                                                     bool shiftAutomation, bool shiftSequenceAndMPE) {
 	NoteRow* noteRow = modelStack->getNoteRow();
 
-	noteRow->shiftHorizontally(shiftAmount, modelStack);
+	noteRow->shiftHorizontally(shiftAmount, modelStack, shiftAutomation, shiftSequenceAndMPE);
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
 		expectEvent();
@@ -3548,15 +3544,15 @@ void InstrumentClip::sendMIDIPGM() {
 }
 
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
-                           bool clearNotesAndMPE) {
+                           bool clearSequenceAndMPE) {
 	// this clears automations when "affectEntire" is enabled
-	Clip::clear(action, modelStack, clearAutomation, clearNotesAndMPE);
+	Clip::clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
 
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
-		thisNoteRow->clear(action, modelStackWithNoteRow, clearAutomation, clearNotesAndMPE);
+		thisNoteRow->clear(action, modelStackWithNoteRow, clearAutomation, clearSequenceAndMPE);
 	}
 
 	// Paul: Note rows were lingering, delete them immediately instead of relying they get deleted along the way

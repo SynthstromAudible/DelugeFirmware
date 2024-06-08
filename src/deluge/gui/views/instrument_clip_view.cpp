@@ -4991,13 +4991,19 @@ doCompareNote:
 					return;
 				}
 
+				// Nudge automation with notes and MPE when default setting is false
+				bool nudgeAutomation = !FlashStorage::automationNudgeNote;
+
+				// MPE always gets nudged with notes when this function is called
+				bool nudgeMPE = true;
+
 				// Nudge automation at NoteRow level, while our ModelStack still has a pointer to the NoteRow
 				{
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThingsForNoteRow =
 					    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
 					noteRow->paramManager.nudgeAutomationHorizontallyAtPos(
 					    editPadPresses[i].intendedPos, offset, modelStackWithThreeMainThingsForNoteRow->getLoopLength(),
-					    action, modelStackWithThreeMainThingsForNoteRow, distanceTilNext);
+					    action, modelStackWithThreeMainThingsForNoteRow, nudgeAutomation, nudgeMPE, distanceTilNext);
 				}
 
 				// WARNING! A bit dodgy, but at this stage, we can no longer refer to modelStackWithNoteRow, cos
@@ -5010,7 +5016,8 @@ doCompareNote:
 					    modelStackWithTimelineCounter->addOtherTwoThingsButNoNoteRow(
 					        currentClip->output->toModControllable(), &currentClip->paramManager);
 					currentClip->paramManager.nudgeAutomationHorizontallyAtPos(
-					    editPadPresses[i].intendedPos, offset, lengthBeforeLoop, action, modelStackWithThreeMainThings);
+					    editPadPresses[i].intendedPos, offset, lengthBeforeLoop, action, modelStackWithThreeMainThings,
+					    nudgeAutomation, nudgeMPE);
 				}
 
 				editPadPresses[i].intendedPos = newPos;
@@ -5613,7 +5620,16 @@ void InstrumentClipView::rotateNoteRowHorizontally(ModelStackWithNoteRow* modelS
 		uint32_t squareWidth = getSquareWidth(0, kMaxSequenceLength);
 		int32_t shiftAmount = offset * squareWidth;
 
-		clip->shiftOnlyOneNoteRowHorizontally(modelStack, shiftAmount);
+		UI* currentUI = getCurrentUI();
+
+		// Always shift automation when in Automation View
+		// or also shift automation when default setting to only shift automation in Automation View is false
+		bool shiftAutomation = (currentUI == &automationView || !FlashStorage::automationShift);
+
+		// Always clear Notes and MPE when you're not in Automation View
+		bool shiftSequenceAndMPE = (currentUI != &automationView);
+
+		clip->shiftOnlyOneNoteRowHorizontally(modelStack, shiftAmount, shiftAutomation, shiftSequenceAndMPE);
 
 		// Render change
 		if (yDisplay >= 0 && yDisplay < kDisplayHeight) {
@@ -5652,7 +5668,8 @@ addConsequenceToAction:
 
 				if (consMemory) {
 					ConsequenceNoteRowHorizontalShift* newConsequence =
-					    new (consMemory) ConsequenceNoteRowHorizontalShift(modelStack->noteRowId, shiftAmount);
+					    new (consMemory) ConsequenceNoteRowHorizontalShift(modelStack->noteRowId, shiftAmount,
+					                                                       shiftAutomation, shiftSequenceAndMPE);
 					action->addConsequence(newConsequence);
 				}
 			}
