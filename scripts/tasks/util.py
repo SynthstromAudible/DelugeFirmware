@@ -2,6 +2,7 @@ from functools import partial
 import itertools
 import multiprocessing
 import os
+import re
 import subprocess
 import sys
 import shutil
@@ -198,3 +199,37 @@ def get_environment_from_batch_command(env_cmd, initial=None):
 
 def get_dbt_version():
     return open(get_git_root() / "toolchain" / "REQUIRED_VERSION").readline().rstrip()
+
+
+def ensure_midi_port(type, midi, port):
+    if port is None:
+        r = re.compile("MIDI(OUT|IN)3 \\(Deluge\\)")
+        for i, p in enumerate(midi.get_ports()):
+            if r.match(str(p)):
+                port = i
+                break
+    if port is None:
+        note(
+            f"Could not identify {type.strip()} port for Deluge. Aborting.",
+        )
+        exit(1)
+    else:
+        # Report ports to stderr so the logs remain separate.
+        note(f"# MIDI {type} {port}: {midi.get_port_name(port)}")
+    return port
+
+
+def report_available_midi_ports(type, midi):
+    print(f"\nAvailable MIDI {type} ports:")
+    any = False
+    for i, p in enumerate(midi.get_ports()):
+        print(f"  {i}. {p}")
+        any = True
+    if not any:
+        print("  none")
+
+
+def note(message):
+    # Let's assume stdout is piped to a file, and put all
+    # interactive notices to stderr.
+    print(message, file=sys.stderr)

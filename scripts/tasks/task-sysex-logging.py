@@ -4,12 +4,7 @@ import time
 import argparse
 import rtmidi
 import sys
-
-
-def note(message):
-    # Let's assume stdout is piped to a file, and put all
-    # interactive notices to stderr.
-    print(message, file=sys.stderr)
+import util
 
 
 def argparser():
@@ -105,23 +100,6 @@ def sysex_console(midiout, midiin):
             time.sleep(0.01)
 
 
-def ensure_port(type, midi, port):
-    if port is None:
-        for i, p in enumerate(midi.get_ports()):
-            if str(p).startswith("Deluge"):
-                port = i
-                break
-    if port is None:
-        note(
-            f"Could not identify {type.strip()} port for Deluge. Aborting.",
-        )
-        exit(1)
-    else:
-        # Report ports to stderr so the logs remain separate.
-        note(f"# MIDI {type} {port}: {midi.get_port_name(port)}")
-    return port
-
-
 def main():
     midiout = rtmidi.MidiOut()
     midiin = rtmidi.MidiIn()
@@ -135,22 +113,18 @@ def main():
         if outport and not inport:
             inport = outport
 
-        outport = ensure_port("output", midiout, outport)
-        inport = ensure_port("input ", midiin, inport)
+        outport = util.ensure_midi_port("output", midiout, outport)
+        inport = util.ensure_midi_port("input ", midiin, inport)
 
         midiout.open_port(outport)
         midiin.open_port(inport)
         ok = True
     except Exception as e:
-        note(f"ERROR: {e}")
+        util.note(f"ERROR: {e}")
     finally:
         if not ok:
-            note("\nAvailable MIDI output ports:")
-            for i, p in enumerate(midiout.get_ports()):
-                note(f"  {i}. {p}")
-            note("\nAvailable MIDI input ports:")
-            for i, p in enumerate(midiin.get_ports()):
-                note(f"  {i}. {p}")
+            util.report_available_midi_ports("output", midiout)
+            util.report_available_midi_ports("input", midiin)
             exit(1)
 
     sysex_console(midiout, midiin)
