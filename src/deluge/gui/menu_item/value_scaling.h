@@ -26,6 +26,7 @@
 ///
 /// Done:
 /// - audio_compressor::CompParam
+/// - arpeggiator::midi_cv::Gate
 /// - osc::PulseWidth
 /// - patched_param::Integer
 /// - patched_param::Pan
@@ -68,3 +69,18 @@ int32_t computeCurrentValueForPan(int32_t value);
 /** Scales -25 to 25 range to INT32_MIN-INT32_MAX for storage and use.
  */
 int32_t computeFinalValueForPan(int32_t value);
+
+/** Scales INT32_MIN-INT32_MAX range to 0-50 for display.
+ *
+ * This roundtrips with the final value math despite not
+ * being it's proper inverse.
+ */
+int32_t computeCurrentValueForArpMidiCvGate(int32_t value);
+
+/** Scales 0-50 range to INT32_MIN-(INT32_MAX-45) for storage and use.
+ *
+ * This is presumably to have the gate go down even at 50: the values
+ * produced create a 2.5ms gate down period between 16th arp notes at Gate=50,
+ * which exactly matches the gate down period between regular 16h notes.
+ */
+int32_t computeFinalValueForArpMidiCvGate(int32_t value);
