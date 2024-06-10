@@ -1868,7 +1868,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 
 // handle by button action if b == Y_ENC
 void AutomationView::handleVerticalEncoderButtonAction(bool on) {
-	if (on && currentUIMode == UI_MODE_NONE) {
+	if (on && currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
 		if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
 			currentSong->displayCurrentRootNoteAndScaleName();
 		}
@@ -2660,10 +2660,12 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 
 	if (onArrangerView) {
 		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-			currentSong->transpose(offset);
-		}
-		else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
-			currentSong->adjustMasterTransposeInterval(offset);
+			if (Buttons::isShiftButtonPressed()) {
+				currentSong->adjustMasterTransposeInterval(offset);
+			}
+			else {
+				currentSong->transpose(offset);
+			}
 		}
 		return ActionResult::DEALT_WITH;
 	}
