@@ -15,6 +15,10 @@ int32_t computeCurrentValueForPan(int32_t value) {
 	return ((int64_t)value * (kMaxMenuRelativeValue * 2) + 2147483648) >> 32;
 }
 
+int32_t computeCurrentValueForArpMidiCvGate(int32_t value) {
+	return computeCurrentValueForStandardMenuItem(value);
+}
+
 int32_t computeFinalValueForStandardMenuItem(int32_t value) {
 	if (value == kMaxMenuValue) {
 		return 2147483647;
@@ -63,4 +67,8 @@ int32_t computeFinalValueForPan(int32_t value) {
 	else {
 		return ((int32_t)value * (2147483648 / (kMaxMenuRelativeValue * 2)) * 2);
 	}
+}
+
+int32_t computeFinalValueForArpMidiCvGate(int32_t value) {
+	return (uint32_t)value * 85899345 - 2147483648;
 }
