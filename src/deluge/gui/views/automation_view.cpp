@@ -2789,8 +2789,13 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 			currentSong->transpose(offset);
 		}
-		else if (currentUIMode == UI_MODE_NONE && Buttons::isShiftButtonPressed()) {
-			currentSong->adjustMasterTransposeInterval(offset);
+		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+			if (Buttons::isShiftButtonPressed()) {
+				currentSong->adjustMasterTransposeInterval(offset);
+			}
+			else {
+				currentSong->transpose(offset);
+			}
 		}
 		return ActionResult::DEALT_WITH;
 	}
