@@ -589,7 +589,7 @@ doActualSimpleChange:
 		}
 	}
 	else if (b == Y_ENC) {
-		if (on) {
+		if (on && !Buttons::isShiftButtonPressed()) {
 			currentSong->displayCurrentRootNoteAndScaleName();
 		}
 	}

@@ -1834,7 +1834,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 
 // handle by button action if b == Y_ENC
 void AutomationView::handleVerticalEncoderButtonAction(bool on) {
-	if (on && currentUIMode == UI_MODE_NONE) {
+	if (on && currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
 		if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
 			currentSong->displayCurrentRootNoteAndScaleName();
 		}
