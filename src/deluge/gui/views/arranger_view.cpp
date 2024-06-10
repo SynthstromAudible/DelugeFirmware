@@ -350,7 +350,7 @@ doActualSimpleChange:
 	}
 
 	else if (b == Y_ENC) {
-		if (on) {
+		if (on && !Buttons::isShiftButtonPressed()) {
 			currentSong->displayCurrentRootNoteAndScaleName();
 		}
 	}
@@ -2899,13 +2899,12 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (currentUIMode == UI_MODE_NONE) {
-			currentSong->transpose(offset);
-		}
-		return ActionResult::DEALT_WITH;
-	}
-	else if (Buttons::isShiftButtonPressed()) {
-		if (currentUIMode == UI_MODE_NONE) {
-			currentSong->adjustMasterTransposeInterval(offset);
+			if (Buttons::isShiftButtonPressed()) {
+				currentSong->adjustMasterTransposeInterval(offset);
+			}
+			else {
+				currentSong->transpose(offset);
+			}
 		}
 		return ActionResult::DEALT_WITH;
 	}
