@@ -175,13 +175,9 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 		return created.error();
 	}
 	writer.writeFIL = created.value().inner();
+	writer.reset();
 
-	writer.fileWriteBufferCurrentPos = 0;
-	writer.fileTotalBytesWritten = 0;
-	writer.fileAccessFailedDuringWrite = false;
 	writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-
-	writer.indentAmount = 0;
 
 	return Error::NONE;
 }

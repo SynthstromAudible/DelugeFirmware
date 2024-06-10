@@ -104,18 +104,17 @@ public:
 	void write(char const* output) override;
 	void reset() override;
 
-	// Private member variables for XML display and parsing:
-public:
+
+	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
+	                            char const* endString = nullptr) override;
 	FIL	 writeFIL;
+private:
 	char* writeClusterBuffer;
 	uint8_t indentAmount;
 	int32_t fileWriteBufferCurrentPos;
 	int32_t fileTotalBytesWritten;
 	bool fileAccessFailedDuringWrite;
-
 	Error writeXMLBufferToFile();
-	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
-	                            char const* endString = nullptr) override;
 };
 
 class Deserializer {
@@ -160,12 +159,15 @@ public:
 	Error openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                  bool ignoreIncorrectFirmware = false);
 	void reset() override;
-public:
+
 	FIL	 readFIL;
+	char* fileClusterBuffer; // This buffer is reused in various places outside of StorageManager proper.
+	FirmwareVersion firmware_version = FirmwareVersion::current();
+
+	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
+private:
 	UINT currentReadBufferEndPos;
 	int32_t fileReadBufferCurrentPos;
-
-	char* fileClusterBuffer; // This buffer is reused in various places outside of StorageManager proper.
 
 	uint8_t xmlArea; // state variable for tokenizer
 	bool xmlReachedEnd;
@@ -175,9 +177,6 @@ public:
 	int32_t xmlReadCount;
 
 	char stringBuffer[kFilenameBufferSize];
-
-	FirmwareVersion firmware_version = FirmwareVersion::current();
-	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
 
 	void skipUntilChar(char endChar);
 	uint32_t readCharXML(char* thisChar);
