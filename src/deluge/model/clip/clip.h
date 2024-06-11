@@ -107,7 +107,7 @@ public:
 	virtual bool getCurrentlyRecordingLinearly() = 0;
 	virtual bool currentlyScrollableAndZoomable() = 0;
 	virtual void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
-	                   bool clearNotesAndMPE);
+	                   bool clearSequenceAndMPE);
 
 	void writeToFile(Serializer& writer, Song* song);
 	virtual void writeDataToFile(Serializer& writer, Song* song);
@@ -130,7 +130,8 @@ public:
 	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newSequenceDirection);
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
 	/// Return true if successfully shifted
-	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) = 0;
+	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
+	                               bool shiftSequenceAndMPE) = 0;
 
 	// ----- TimelineCounter implementation -------
 	[[nodiscard]] uint32_t getLivePos() const override;

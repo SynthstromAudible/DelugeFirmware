@@ -23,9 +23,13 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 
-ConsequenceNoteRowHorizontalShift::ConsequenceNoteRowHorizontalShift(int32_t newNoteRowId, int32_t newAmount) {
+ConsequenceNoteRowHorizontalShift::ConsequenceNoteRowHorizontalShift(int32_t newNoteRowId, int32_t newAmount,
+                                                                     bool newShiftAutomation,
+                                                                     bool newShiftSequenceAndMPE) {
 	amount = newAmount;
 	noteRowId = newNoteRowId;
+	shiftAutomation = newShiftAutomation;
+	shiftSequenceAndMPE = newShiftSequenceAndMPE;
 }
 
 Error ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
@@ -48,7 +52,7 @@ Error ConsequenceNoteRowHorizontalShift::revert(TimeType time, ModelStack* model
 	}
 
 	((InstrumentClip*)modelStackWithNoteRow->getTimelineCounter())
-	    ->shiftOnlyOneNoteRowHorizontally(modelStackWithNoteRow, amountNow);
+	    ->shiftOnlyOneNoteRowHorizontally(modelStackWithNoteRow, amountNow, shiftAutomation, shiftSequenceAndMPE);
 
 	return Error::NONE;
 }

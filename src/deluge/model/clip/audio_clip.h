@@ -68,7 +68,7 @@ public:
 	bool currentlyScrollableAndZoomable() override;
 	void getScrollAndZoomInSamples(int32_t xScroll, int32_t xZoom, int64_t* xScrollSamples, int64_t* xZoomSamples);
 	void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
-	           bool clearNotesAndMPE) override;
+	           bool clearSequenceAndMPE) override;
 	bool getCurrentlyRecordingLinearly() override;
 	void abortRecording() override;
 	void setupPlaybackBounds();
@@ -80,7 +80,8 @@ public:
 	int64_t getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack);
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers) override;
 	/// Return true if successfully shifted, as clip cannot be shifted past beginning
-	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) override;
+	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
+	                       bool shiftSequenceAndMPE) override;
 
 	Error readFromFile(Deserializer& reader, Song* song) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;

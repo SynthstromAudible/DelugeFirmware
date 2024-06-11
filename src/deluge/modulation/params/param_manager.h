@@ -192,8 +192,8 @@ public:
 
 	void shiftHorizontally(ModelStackWithThreeMainThings* modelStack, int32_t amount, int32_t effectiveLength);
 	void nudgeAutomationHorizontallyAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
-	                                      ModelStackWithThreeMainThings* modelStack,
-	                                      int32_t moveMPEDataWithinRegionLength = 0);
+	                                      ModelStackWithThreeMainThings* modelStack, bool nudgeAutomation,
+	                                      bool nudgeMPE, int32_t moveMPEDataWithinRegionLength = 0);
 	void deleteAllAutomation(Action* action, ModelStackWithThreeMainThings* modelStack);
 	void notifyPingpongOccurred(ModelStackWithThreeMainThings* modelStack);
 	void ensureSomeParamCollections(); // For debugging only
