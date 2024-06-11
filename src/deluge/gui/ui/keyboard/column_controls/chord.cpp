@@ -69,7 +69,10 @@ bool ChordColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 };
 
 void ChordColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                      KeyboardLayout* layout){};
+                                      KeyboardLayout* layout) {
+	// Restore previously set chord
+	setActiveChord(defaultChord);
+};
 
 void ChordColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                             KeyboardLayout* layout) {
