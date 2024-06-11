@@ -62,6 +62,9 @@ bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return true;
 };
 
+void ScaleModeColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                          KeyboardLayout* layout){};
+
 void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                                 KeyboardLayout* layout) {
 	if (pad.active) {
