@@ -1229,11 +1229,11 @@ bool AudioClip::currentlyScrollableAndZoomable() {
 }
 
 void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
-                      bool clearNotesAndMPE) {
-	Clip::clear(action, modelStack, clearAutomation, clearNotesAndMPE);
+                      bool clearSequenceAndMPE) {
+	Clip::clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
 
-	// do not clear sample when you are in automation view
-	if (getRootUI() != &automationView) {
+	// if clearSequenceAndMPE is true, clear sample
+	if (clearSequenceAndMPE) {
 		// If recording, stop that - but only if we're not doing tempoless recording
 		if (recorder) {
 			if (!playbackHandler.isEitherClockActive()) {
@@ -1270,50 +1270,83 @@ void AudioClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos
 	setPosForParamManagers(modelStack, useActualPosForParamManagers);
 }
 
-bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) {
-	// No horizontal shift when recording
-	if (recorder)
-		return false;
-	// No horizontal shift when no sample is loaded
-	if (!sampleHolder.audioFile)
-		return false;
+bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
+                                  bool shiftSequenceAndMPE) {
+	// the following code iterates through all param collections and shifts automation and MPE separately
+	// automation only gets shifted if shiftAutomation is true
+	// MPE only gets shifted if shiftSequenceAndMPE is true
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
-	int64_t newStartPos = int64_t(sampleHolder.startPos) - getSamplesFromTicks(amount);
-	uint64_t sampleLength = ((Sample*)sampleHolder.audioFile)->lengthInSamples;
+	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		ParamCollectionSummary* summary = paramManager.summaries;
 
-	if (newStartPos < 0 || newStartPos > sampleLength) {
-		return false;
-	}
+		int32_t i = 0;
 
-	// this never gets called from Automation View because in the Automation View we shift specific parameters not all
-	// parameters
-	if (!FlashStorage::automationShift) {
-		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
-			paramManager.shiftHorizontally(
-			    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager), amount,
-			    loopLength);
+		while (summary->paramCollection) {
+
+			ModelStackWithParamCollection* modelStackWithParamCollection =
+			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
+
+			// Special case for MPE only - not even "mono" / Clip-level expression.
+			if (i == paramManager.getExpressionParamSetOffset()) {
+				if (shiftSequenceAndMPE) {
+					((ExpressionParamSet*)summary->paramCollection)
+					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+				}
+			}
+
+			// Normal case (non MPE automation)
+			else {
+				if (shiftAutomation) {
+					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+				}
+			}
+			summary++;
+			i++;
 		}
 	}
 
-	uint64_t length = sampleHolder.endPos - sampleHolder.startPos;
+	// if shiftSequenceAndMPE is true, shift sample
+	if (shiftSequenceAndMPE) {
+		// No horizontal shift when recording
+		if (recorder) {
+			return false;
+		}
 
-	// Stop the clip if it is playing
-	bool active = (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this) && voiceSample);
-	unassignVoiceSample(false);
+		// No horizontal shift when no sample is loaded
+		if (!sampleHolder.audioFile) {
+			return false;
+		}
 
-	sampleHolder.startPos = newStartPos;
-	sampleHolder.endPos = newStartPos + length;
+		int64_t newStartPos = int64_t(sampleHolder.startPos) - getSamplesFromTicks(amount);
+		uint64_t sampleLength = ((Sample*)sampleHolder.audioFile)->lengthInSamples;
 
-	sampleHolder.claimClusterReasons(sampleControls.reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
+		if (newStartPos < 0 || newStartPos > sampleLength) {
+			return false;
+		}
 
-	if (active) {
-		expectEvent();
-		reGetParameterAutomation(modelStack);
+		uint64_t length = sampleHolder.endPos - sampleHolder.startPos;
 
-		// Resume the clip if it was playing before
-		getCurrentClip()->resumePlayback(modelStack, true);
+		// Stop the clip if it is playing
+		bool active = (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this) && voiceSample);
+		unassignVoiceSample(false);
+
+		sampleHolder.startPos = newStartPos;
+		sampleHolder.endPos = newStartPos + length;
+
+		sampleHolder.claimClusterReasons(sampleControls.reversed, CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
+
+		if (active) {
+			expectEvent();
+			reGetParameterAutomation(modelStack);
+
+			// Resume the clip if it was playing before
+			getCurrentClip()->resumePlayback(modelStack, true);
+		}
+		return true;
 	}
-	return true;
+	return false;
 }
 
 uint64_t AudioClip::getCullImmunity() {

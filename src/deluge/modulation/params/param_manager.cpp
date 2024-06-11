@@ -556,7 +556,11 @@ void ParamManagerForTimeline::tickSamples(int32_t numSamples, ModelStackWithThre
 void ParamManagerForTimeline::nudgeAutomationHorizontallyAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop,
                                                                Action* action,
                                                                ModelStackWithThreeMainThings* modelStack,
+                                                               bool nudgeAutomation, bool nudgeMPE,
                                                                int32_t moveMPEDataWithinRegionLength) {
+	// the following code iterates through all param collections and nudges automation and MPE separately
+	// automation only gets nudged if nudgeAutomation is true
+	// MPE only gets nudged if nudgeMPE is true
 
 	ParamCollectionSummary* summary = summaries;
 	int32_t i = 0;
@@ -566,16 +570,16 @@ void ParamManagerForTimeline::nudgeAutomationHorizontallyAtPos(int32_t pos, int3
 
 		// Special case for MPE only - not even "mono" / Clip-level expression.
 		if (moveMPEDataWithinRegionLength && i == getExpressionParamSetOffset()) {
-			((ExpressionParamSet*)summary->paramCollection)
-			    ->moveRegionHorizontally(modelStackWithParamCollection, pos, moveMPEDataWithinRegionLength, offset,
-			                             lengthBeforeLoop, action);
+			if (nudgeMPE) {
+				((ExpressionParamSet*)summary->paramCollection)
+				    ->moveRegionHorizontally(modelStackWithParamCollection, pos, moveMPEDataWithinRegionLength, offset,
+				                             lengthBeforeLoop, action);
+			}
 		}
 
-		// Normal case
+		// Normal case (non MPE automation)
 		else {
-
-			// if this community feature is on, regular (non MPE) automation will not be nudged when you nudge a note
-			if (!FlashStorage::automationNudgeNote) {
+			if (nudgeAutomation) {
 				summary->paramCollection->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action,
 				                                                          modelStackWithParamCollection);
 			}

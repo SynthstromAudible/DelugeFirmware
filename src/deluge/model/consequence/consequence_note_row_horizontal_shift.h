@@ -22,9 +22,12 @@
 
 class ConsequenceNoteRowHorizontalShift final : public Consequence {
 public:
-	ConsequenceNoteRowHorizontalShift(int32_t newNoteRowId, int32_t newAmount);
+	ConsequenceNoteRowHorizontalShift(int32_t newNoteRowId, int32_t newAmount, bool newShiftAutomation,
+	                                  bool newShiftSequenceAndMPE);
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	int32_t noteRowId;
 	int32_t amount;
+	bool shiftAutomation;
+	bool shiftSequenceAndMPE;
 };

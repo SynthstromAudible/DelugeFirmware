@@ -3542,17 +3542,13 @@ goAgain:
 
 // Caller must call expectEvent() on the Clip, and paramManager->setPlayPos on this NoteRow, if (and only if)
 // playbackHandler.isEitherClockActive().
-void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStack) {
-
+void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStack, bool shiftAutomation,
+                                bool shiftSequenceAndMPE) {
 	int32_t effectiveLength = modelStack->getLoopLength();
 
-	// New default as part of Automation Clip View Implementation
-	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), shifting a clip
-	// will only shift the Notes and MPE data (NON MPE automations remain intact).
-
-	// If this is enabled, if you want to shift NON MPE automations, you will enter Automation Clip View and shift the
-	// clip there.
-
+	// the following code iterates through all param collections and shifts automation and MPE separately
+	// automation only gets shifted if shiftAutomation is true
+	// MPE only gets shifted if shiftSequenceAndMPE is true
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
@@ -3568,17 +3564,15 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (getCurrentUI() != &automationView) { // don't shift MPE if you're in the automation view
+				if (shiftSequenceAndMPE) {
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
 				}
 			}
 
-			// Normal case
+			// Normal case (non MPE automation)
 			else {
-				// not called from automation view because in the automation view we shift specific parameters, not all
-				// parameters
-				if (!FlashStorage::automationShift) {
+				if (shiftAutomation) {
 					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, effectiveLength);
 				}
 			}
@@ -3587,22 +3581,16 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 		}
 	}
 
-	// New addition as part of Automation Clip View Implementation
-	// If you are in Automation Clip View, shifting a note row will not shift notes, only NON MPE automations.
-	if (getCurrentUI() != &automationView) {
-
+	// if shiftSequenceAndMPE is true, shift notes
+	if (shiftSequenceAndMPE) {
 		notes.shiftHorizontal(amount, effectiveLength);
 	}
 }
 
-void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clearAutomation, bool clearNotesAndMPE) {
-	// New default as part of Automation Clip View Implementation
-	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
-	// will only clear the Notes and MPE data (NON MPE automations remain intact).
-
-	// If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the
-	// clip there.
-
+void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clearAutomation, bool clearSequenceAndMPE) {
+	// the following code iterates through all param collections and clears automation and MPE separately
+	// automation only gets cleared if clearAutomation is true
+	// MPE only gets cleared if clearSequenceAndMPE is true
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
@@ -3618,13 +3606,13 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clea
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (clearNotesAndMPE) {
+				if (clearSequenceAndMPE) {
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
 			}
 
-			// Normal case
+			// Normal case (non MPE automation)
 			else {
 				if (clearAutomation) {
 					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);
@@ -3635,9 +3623,8 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clea
 		}
 	}
 
-	// New addition as part of Automation Clip View Implementation
-	// If you are in Automation Clip View, clearing a kit note row will not clear notes, only NON MPE automations.
-	if (clearNotesAndMPE) {
+	// if clearSequenceAndMPE is true, clear notes
+	if (clearSequenceAndMPE) {
 
 		stopCurrentlyPlayingNote(modelStack);
 
