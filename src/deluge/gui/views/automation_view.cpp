@@ -3517,35 +3517,40 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	}
 
-	if (inAutomationEditor()
+	if (!onAutomationOverview()
 	    && ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
 	        || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	            && Buttons::isButtonPressed(hid::button::CLIP_VIEW))
 	        || (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)))) {
 
-		int32_t xScroll = currentSong->xScroll[navSysId];
-		int32_t xZoom = currentSong->xZoom[navSysId];
-		int32_t squareSize = getPosFromSquare(1, xScroll, xZoom) - getPosFromSquare(0, xScroll, xZoom);
-		int32_t shiftAmount = offset * squareSize;
+		if (inAutomationEditor()) {
+			int32_t xScroll = currentSong->xScroll[navSysId];
+			int32_t xZoom = currentSong->xZoom[navSysId];
+			int32_t squareSize = getPosFromSquare(1, xScroll, xZoom) - getPosFromSquare(0, xScroll, xZoom);
+			int32_t shiftAmount = offset * squareSize;
 
-		if (onArrangerView) {
-			modelStackWithParam =
-			    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
+			if (onArrangerView) {
+				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+				                                                          currentSong->lastSelectedParamID);
+			}
+			else {
+				Clip* clip = getCurrentClip();
+				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+			}
+
+			int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
+
+			shiftAutomationHorizontally(modelStackWithParam, shiftAmount, effectiveLength);
+
+			if (offset < 0) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_LEFT));
+			}
+			else if (offset > 0) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_RIGHT));
+			}
 		}
-		else {
-			Clip* clip = getCurrentClip();
-			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
-		}
-
-		int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
-
-		shiftAutomationHorizontally(modelStackWithParam, shiftAmount, effectiveLength);
-
-		if (offset < 0) {
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_LEFT));
-		}
-		else if (offset > 0) {
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SHIFT_RIGHT));
+		else if (inNoteEditor()) {
+			instrumentClipView.rotateNoteRowHorizontally(offset);
 		}
 
 		return ActionResult::DEALT_WITH;
@@ -3559,13 +3564,6 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	// Auditioning but not holding down <> encoder - edit length of just one row
 	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 		instrumentClipView.editNoteRowLength(offset);
-		return ActionResult::DEALT_WITH;
-	}
-
-	// Auditioning *and* holding down <> encoder - rotate/shift just one row
-	else if (inNoteEditor()
-	         && isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
-		instrumentClipView.rotateNoteRowHorizontally(offset);
 		return ActionResult::DEALT_WITH;
 	}
 
