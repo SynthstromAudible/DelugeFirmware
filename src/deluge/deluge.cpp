@@ -17,6 +17,7 @@
 
 #include "deluge.h"
 
+#include "RZA1/sdhi/inc/sdif.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
@@ -92,7 +93,7 @@ extern "C" void disk_timerproc(UINT msPassed);
 Song* currentSong = NULL;
 Song* preLoadedSong = NULL;
 
-bool sdRoutineLock = true;
+bool sdRoutineLock = false;
 
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
@@ -567,12 +568,12 @@ void registerTasks() {
 
 	// 0-9: High priority (10 for dyn tasks)
 	uint8_t p = 0;
-	addRepeatingTask(&(AudioEngine::routine), p++, 8 / 44100., 16 / 44100., 32 / 44100., "audio  routine");
+	addRepeatingTask(&(AudioEngine::routine), p++, 0.00001, 16 / 44100., 24 / 44100., "audio  routine");
 	// this one runs quickly and frequently to check for encoder changes
 	addRepeatingTask([]() { encoders::readEncoders(); }, p++, 0.0005, 0.001, 0.001, "read encoders");
 	// formerly part of audio routine, updates midi and clock
 	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 8 / 44100., 16 / 44100, 32 / 44100., "playback routine");
-	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(8, false); }, p++, 0.00001, 0.00001, 0.00002,
+	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.00001, 0.00001, 0.00002,
 	                 "load clusters");
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
@@ -950,6 +951,28 @@ extern "C" void logAudioAction(char const* string) {
 	AudioEngine::logAction(string);
 }
 
+extern "C" bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds) {
+	if (intc_func_active != 0) {
+		return false;
+	}
+	auto timeNow = getSystemTime();
+	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
+	// USB -> routineForSD()
+	if (sdRoutineLock) {
+		// busy wait - matches running sdroutine in a loop while checking for condition
+		while (!until()) {
+			if (getSystemTime() > timeNow + timeoutSeconds) {
+				return false;
+			}
+		}
+		return true;
+	}
+	sdRoutineLock = true;
+	bool ret = yieldWithTimeout(until, timeoutSeconds);
+	sdRoutineLock = false;
+	return ret;
+}
+
 extern "C" void yieldingRoutineForSD(RunCondition until) {
 	if (intc_func_active != 0) {
 		return;
@@ -958,6 +981,10 @@ extern "C" void yieldingRoutineForSD(RunCondition until) {
 	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
 	// USB -> routineForSD()
 	if (sdRoutineLock) {
+		// busy wait - matches running sdroutine in a loop while checking for condition
+		while (!until()) {
+			asm volatile("nop");
+		}
 		return;
 	}
 	sdRoutineLock = true;
@@ -979,7 +1006,7 @@ extern "C" void routineForSD(void) {
 	}
 
 	sdRoutineLock = true;
-
+	ignoreForStats();
 	AudioEngine::logAction("from routineForSD()");
 	AudioEngine::routine();
 
