@@ -769,7 +769,7 @@ doCancelPopup:
 			}
 		}
 
-		if (on && (currentUIMode == UI_MODE_NONE)) {
+		if (on && (currentUIMode == UI_MODE_NONE) && !Buttons::isShiftButtonPressed()) {
 			if (getCurrentInstrumentClip()->isScaleModeClip()) {
 				currentSong->displayCurrentRootNoteAndScaleName();
 			}
