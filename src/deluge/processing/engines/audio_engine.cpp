@@ -955,9 +955,9 @@ void routine() {
 			deluge::hid::encoders::interpretEncoders(true);
 		}
 #endif
-		numRoutines += 1;
 		routine_();
 		routineBeenCalled = true;
+		numRoutines += 1;
 	}
 	audioRoutineLocked = false;
 }
