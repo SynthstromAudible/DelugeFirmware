@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -187,7 +188,16 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-		bool wasShifted = clip->shiftHorizontally(modelStack, shiftAmount);
+		UI* currentUI = getCurrentUI();
+
+		// Always shift automation when in Automation View
+		// or also shift automation when default setting to only shift automation in Automation View is false
+		bool shiftAutomation = (currentUI == &automationView || !FlashStorage::automationShift);
+
+		// Always shift Notes and MPE when you're not in Automation View
+		bool shiftSequenceAndMPE = (currentUI != &automationView);
+
+		bool wasShifted = clip->shiftHorizontally(modelStack, shiftAmount, shiftAutomation, shiftSequenceAndMPE);
 		if (!wasShifted) {
 			// No need to show the user why it didnt succeed, usually these cases are fairly trivial
 			return ActionResult::DEALT_WITH;
@@ -222,8 +232,8 @@ addConsequenceToAction:
 				void* consMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(ConsequenceClipHorizontalShift));
 
 				if (consMemory) {
-					ConsequenceClipHorizontalShift* newConsequence =
-					    new (consMemory) ConsequenceClipHorizontalShift(shiftAmount);
+					ConsequenceClipHorizontalShift* newConsequence = new (consMemory)
+					    ConsequenceClipHorizontalShift(shiftAmount, shiftAutomation, shiftSequenceAndMPE);
 					action->addConsequence(newConsequence);
 				}
 			}

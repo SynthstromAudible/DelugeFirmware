@@ -980,14 +980,10 @@ trimFoundParamManager:
 }
 
 void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
-                 bool clearNotesAndMPE) {
-	// New community feature as part of Automation Clip View Implementation
-	// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing a clip
-	// will only clear the Notes and MPE data (NON MPE automations remain intact).
-
-	// If this is enabled, if you want to clear NON MPE automations, you will enter Automation Clip View and clear the
-	// clip there.
-
+                 bool clearSequenceAndMPE) {
+	// the following code iterates through all param collections and clears automation and MPE separately
+	// automation only gets cleared if clearAutomation is true
+	// MPE only gets cleared if clearSequenceAndMPE is true
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
@@ -1003,13 +999,13 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool
 
 			// Special case for MPE only - not even "mono" / Clip-level expression.
 			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (clearNotesAndMPE) {
+				if (clearSequenceAndMPE) {
 					((ExpressionParamSet*)summary->paramCollection)
 					    ->deleteAllAutomation(action, modelStackWithParamCollection);
 				}
 			}
 
-			// Normal case
+			// Normal case (non MPE automation)
 			else {
 				if (clearAutomation) {
 					summary->paramCollection->deleteAllAutomation(action, modelStackWithParamCollection);

@@ -22,8 +22,10 @@
 
 class ConsequenceClipHorizontalShift final : public Consequence {
 public:
-	ConsequenceClipHorizontalShift(int32_t newAmount);
+	ConsequenceClipHorizontalShift(int32_t newAmount, bool newShiftAutomation, bool newShiftSequenceAndMPE);
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
 	int32_t amount;
+	bool shiftAutomation;
+	bool shiftSequenceAndMPE;
 };

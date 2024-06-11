@@ -20,8 +20,11 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 
-ConsequenceClipHorizontalShift::ConsequenceClipHorizontalShift(int32_t newAmount) {
+ConsequenceClipHorizontalShift::ConsequenceClipHorizontalShift(int32_t newAmount, bool newShiftAutomation,
+                                                               bool newShiftSequenceAndMPE) {
 	amount = newAmount;
+	shiftAutomation = newShiftAutomation;
+	shiftSequenceAndMPE = newShiftSequenceAndMPE;
 }
 
 Error ConsequenceClipHorizontalShift::revert(TimeType time, ModelStack* modelStack) {
@@ -36,7 +39,7 @@ Error ConsequenceClipHorizontalShift::revert(TimeType time, ModelStack* modelSta
 	    modelStack->addTimelineCounter(modelStack->song->getCurrentClip());
 
 	((Clip*)modelStackWithTimelineCounter->getTimelineCounter())
-	    ->shiftHorizontally(modelStackWithTimelineCounter, amountNow);
+	    ->shiftHorizontally(modelStackWithTimelineCounter, amountNow, shiftAutomation, shiftSequenceAndMPE);
 
 	return Error::NONE;
 }

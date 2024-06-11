@@ -97,7 +97,8 @@ public:
 	int32_t getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex);
 	NoteRow* getNoteRowFromId(int32_t id);
 	/// Return true if successfully shifted. Instrument clips always succeed
-	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount) override;
+	bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
+	                       bool shiftSequenceAndMPE) override;
 	bool isEmpty();
 	bool containsAnyNotes();
 	ModelStackWithNoteRow* getNoteRowOnScreen(int32_t yDisplay, ModelStackWithTimelineCounter* modelStack);
@@ -200,7 +201,7 @@ public:
 	void sendMIDIPGM();
 	void noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song);
 	void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
-	           bool clearNotesAndMPE) override;
+	           bool clearSequenceAndMPE) override;
 	bool doesProbabilityExist(int32_t apartFromPos, int32_t probability, int32_t secondProbability = -1);
 	void clearArea(ModelStackWithTimelineCounter* modelStack, int32_t startPos, int32_t endPos, Action* action);
 	ScaleType getScaleType();
@@ -238,7 +239,8 @@ public:
 	bool getCurrentlyRecordingLinearly() override;
 	void abortRecording() override;
 	void yDisplayNoLongerAuditioning(int32_t yDisplay, Song* song);
-	void shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t shiftAmount);
+	void shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t shiftAmount, bool shiftAutomation,
+	                                     bool shiftSequenceAndMPE);
 	int32_t getMaxLength() override;
 	bool hasAnyPitchExpressionAutomationOnNoteRows();
 	ModelStackWithNoteRow* duplicateModelStackForClipBeingRecordedFrom(ModelStackWithNoteRow* modelStack,
