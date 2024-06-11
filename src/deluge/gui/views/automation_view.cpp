@@ -1794,7 +1794,9 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 				// clear automation, don't clear sample and mpe
-				clip->clear(action, modelStack, true, false);
+				bool clearAutomation = true;
+				bool clearSequenceAndMPE = false;
+				clip->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
 			}
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 
