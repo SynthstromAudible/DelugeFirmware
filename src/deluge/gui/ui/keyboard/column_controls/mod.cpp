@@ -58,12 +58,9 @@ bool ModColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 
 void ModColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                     KeyboardLayout* layout) {
-	if (!FlashStorage::keyboardFunctionsModwheelGlide) {
-		// Restore previously set Modwheel
-		modDisplay = mod32;
-		getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
-		                                                         modelStackWithTimelineCounter);
-	}
+	// Restore previously set Modwheel
+	modDisplay = mod32;
+	getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32, modelStackWithTimelineCounter);
 };
 
 void ModColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
