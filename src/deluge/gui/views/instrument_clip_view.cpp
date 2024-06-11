@@ -5733,12 +5733,7 @@ noteRowChanged:
 				// Render it
 				if (yDisplay >= 0 && yDisplay < kDisplayHeight) {
 					// this could be called from automation view velocity editor
-					if (getRootUI() == &automationView) {
-						uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
-					}
-					else {
-						uiNeedsRendering(this, 1 << yDisplay, 0);
-					}
+					uiNeedsRendering(getCurrentUI(), 1 << yDisplay, 0);
 				}
 			}
 		}
@@ -5783,18 +5778,22 @@ void InstrumentClipView::rotateNoteRowHorizontally(ModelStackWithNoteRow* modelS
 
 		UI* currentUI = getCurrentUI();
 
-		// Always shift automation when in Automation View
-		// or also shift automation when default setting to only shift automation in Automation View is false
-		bool shiftAutomation = (currentUI == &automationView || !FlashStorage::automationShift);
+		// If you're in Automation View, only shift automation if you're not in the Note Editor
+		// or also shift Automation when default setting to only shift automation in Automation View is false
+		bool shiftAutomation = ((currentUI == &automationView && !automationView.inNoteEditor())
+		                        || (currentUI != &automationView && !FlashStorage::automationShift));
 
-		// Always clear Notes and MPE when you're not in Automation View
-		bool shiftSequenceAndMPE = (currentUI != &automationView);
+		// If you're in Automation View, only shift Notes and MPE if you're in the Note Editor
+		// Always shift Notes and MPE when you're not in Automation View
+		bool shiftSequenceAndMPE =
+		    ((currentUI != &automationView) || (currentUI == &automationView && automationView.inNoteEditor()));
 
 		clip->shiftOnlyOneNoteRowHorizontally(modelStack, shiftAmount, shiftAutomation, shiftSequenceAndMPE);
 
 		// Render change
 		if (yDisplay >= 0 && yDisplay < kDisplayHeight) {
-			uiNeedsRendering(this, 1 << yDisplay, 0);
+			// this could be called from automation view velocity editor
+			uiNeedsRendering(currentUI, 1 << yDisplay, 0);
 		}
 
 		// If possible, just modify a previous Action to add this new shift amount to it.

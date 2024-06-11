@@ -2088,7 +2088,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 // handle by button action if b == Y_ENC
 void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 	if (on) {
-		if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed() && !inNoteEditor()) {
+		if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
 			if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
 				currentSong->displayCurrentRootNoteAndScaleName();
 			}
@@ -3698,6 +3698,9 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 			}
 			instrumentClipView.recalculateColours();
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			if (inNoteEditor()) {
+				renderDisplay();
+			}
 		}
 	}
 
