@@ -333,10 +333,7 @@ void TaskManager::runTask(TaskID id) {
 /// returns whether the condition was met
 bool TaskManager::yield(RunCondition until, double timeout) {
 	if (!running) {
-		disableTimer(0);
-		setTimerValue(0, 0);
-		setOperatingMode(0, FREE_RUNNING, false);
-		enableTimer(0);
+		startClock();
 	}
 	auto yieldingTask = &list[currentID];
 	auto yieldingID = currentID;
@@ -381,7 +378,6 @@ void TaskManager::start(double duration) {
 	// set up os timer 0 as a free running timer
 
 	startClock();
-	lastTime = 0;
 	double startTime = getSecondsFromStart();
 	double lastLoop = startTime;
 	if (duration != 0) {
@@ -413,6 +409,7 @@ void TaskManager::startClock() {
 	setOperatingMode(0, FREE_RUNNING, false);
 	enableTimer(0);
 	running = true;
+	lastTime = 0;
 }
 bool TaskManager::checkConditionalTasks() {
 	bool addedTask = false;
