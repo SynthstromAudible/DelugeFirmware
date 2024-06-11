@@ -192,10 +192,15 @@ ControlColumn* ColumnControlsKeyboard::getColumnForFunc(ColumnControlFunction fu
 }
 
 bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
+
 	if (leftColHeld == 7 && offset) {
 		if (!horizontalScrollingLeftCol) {
 			leftColPrev = leftCol;
 		}
+		leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
 		horizontalScrollingLeftCol = true;
 		leftColFunc = (offset > 0) ? nextControlFunction(leftColFunc, rightColFunc)
 		                           : prevControlFunction(leftColFunc, rightColFunc);
@@ -207,6 +212,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		if (!horizontalScrollingRightCol) {
 			rightColPrev = rightCol;
 		}
+		rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
 		horizontalScrollingRightCol = true;
 		rightColFunc = (offset > 0) ? nextControlFunction(rightColFunc, leftColFunc)
 		                            : prevControlFunction(rightColFunc, leftColFunc);

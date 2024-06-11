@@ -76,6 +76,9 @@ bool DXColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return false;
 };
 
+void DXColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                   KeyboardLayout* layout){};
+
 void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                          KeyboardLayout* layout) {
 	DxPatch* patch = getCurrentDxPatch();
