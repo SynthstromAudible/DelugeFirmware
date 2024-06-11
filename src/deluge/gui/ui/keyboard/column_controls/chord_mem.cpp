@@ -17,6 +17,7 @@
 
 #include "chord_mem.h"
 #include "hid/buttons.h"
+#include "model/song/song.h"
 
 namespace deluge::gui::ui::keyboard::controls {
 
@@ -24,7 +25,7 @@ void ChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], in
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool chord_selected = y == activeChordMem;
-		uint8_t chord_slot_filled = chordMemNoteCount[y] > 0 ? 0x7f : 0;
+		uint8_t chord_slot_filled = currentSong->chordMemNoteCount[y] > 0 ? 0x7f : 0;
 		otherChannels = chord_selected ? 0xf0 : 0;
 		uint8_t base = chord_selected ? 0xff : chord_slot_filled;
 		image[y][column] = {otherChannels, base, base};
@@ -41,23 +42,23 @@ void ChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTime
 
 	if (pad.active) {
 		activeChordMem = pad.y;
-		auto noteCount = chordMemNoteCount[pad.y];
-		for (int i = 0; i < noteCount && i < kMaxNotesChordMem; i++) {
-			currentNotesState.enableNote(chordMem[pad.y][i], layout->velocity);
+		auto noteCount = currentSong->chordMemNoteCount[pad.y];
+		for (int i = 0; i < noteCount && i < MAX_NOTES_CHORD_MEM; i++) {
+			currentNotesState.enableNote(currentSong->chordMem[pad.y][i], layout->velocity);
 		}
-		chordMemNoteCount[pad.y] = noteCount;
+		currentSong->chordMemNoteCount[pad.y] = noteCount;
 	}
 	else {
 		activeChordMem = 0xFF;
-		if ((!chordMemNoteCount[pad.y] || Buttons::isShiftButtonPressed()) && currentNotesState.count) {
+		if ((!currentSong->chordMemNoteCount[pad.y] || Buttons::isShiftButtonPressed()) && currentNotesState.count) {
 			auto noteCount = currentNotesState.count;
-			for (int i = 0; i < noteCount && i < kMaxNotesChordMem; i++) {
-				chordMem[pad.y][i] = currentNotesState.notes[i].note;
+			for (int i = 0; i < noteCount && i < MAX_NOTES_CHORD_MEM; i++) {
+				currentSong->chordMem[pad.y][i] = currentNotesState.notes[i].note;
 			}
-			chordMemNoteCount[pad.y] = noteCount;
+			currentSong->chordMemNoteCount[pad.y] = noteCount;
 		}
 		else if (Buttons::isShiftButtonPressed()) {
-			chordMemNoteCount[pad.y] = 0;
+			currentSong->chordMemNoteCount[pad.y] = 0;
 		}
 	}
 };

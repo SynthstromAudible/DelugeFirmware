@@ -1457,6 +1457,17 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeClosingTag("arrangementOnlyTracks");
 	}
 
+	// Chord mem
+	writer.writeOpeningTag("chordMemory");
+	for (int32_t i = 0; i < NUM_CHORD_MEMORY_SLOTS; i++) {
+		writer.writeOpeningTag("chord");
+		for (int32_t j = 0; j < chordMemNoteCount[i]; j++) {
+			writer.writeTag("note", chordMem[i][j]);
+		}
+		writer.writeClosingTag("chord");
+	}
+	writer.writeClosingTag("chordMemory");
+
 	writer.writeClosingTag("song");
 }
 
@@ -1841,6 +1852,45 @@ unknownTag:
 					}
 				}
 				reader.exitTag("modeNotes");
+			}
+
+			else if (!strcmp(tagName, "chordMemory")) {
+				uint8_t numChord = 0;
+
+				// Read in all the chords
+				while (*(tagName = reader.readNextTagOrAttributeName())) {
+					if (!strcmp(tagName, "chord")) {
+
+						char const* tagName2;
+
+						uint8_t numNote = 0;
+						while (*(tagName2 = reader.readNextTagOrAttributeName())) {
+							if (!strcmp(tagName2, "note")) {
+								chordMem[numChord][numNote] = reader.readTagOrAttributeValueInt();
+								chordMem[numChord][numNote] =
+								    std::min((uint8_t)127, std::max((uint8_t)0, chordMem[numChord][numNote]));
+								numNote++;
+								reader.exitTag("note");
+							}
+							else {
+								reader.exitTag(tagName2);
+							}
+							if (numNote >= MAX_NOTES_CHORD_MEM) {
+								break;
+							}
+						}
+						chordMemNoteCount[numChord] = numNote;
+						numChord++;
+						reader.exitTag("chord");
+					}
+					else {
+						reader.exitTag(tagName);
+					}
+					if (numChord >= NUM_CHORD_MEMORY_SLOTS) {
+						break;
+					}
+				}
+				reader.exitTag("chordMemory");
 			}
 
 			else if (!strcmp(tagName, "sections")) {
