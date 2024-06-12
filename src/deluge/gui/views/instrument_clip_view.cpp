@@ -3695,7 +3695,7 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 	if (shiftButtonDown || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 
 		fileBrowserShouldNotPreview = true;
-		
+
 		doSilentAudition = true;
 	}
 	else {
