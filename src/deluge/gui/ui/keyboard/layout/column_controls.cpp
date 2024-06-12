@@ -73,12 +73,7 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 			if (pressed.active) {
 				leftColHeld = pressed.y;
 			}
-			else if (horizontalScrollingLeftCol && pressed.y == 7) {
-				leftColPrev->handlePad(modelStackWithTimelineCounter, pressed, this);
-				horizontalScrollingLeftCol = false;
-				continue;
-			}
-			if (!horizontalScrollingLeftCol && !pressed.dead) {
+			if (!pressed.dead) {
 				leftCol->handlePad(modelStackWithTimelineCounter, pressed, this);
 			}
 		}
@@ -86,12 +81,7 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 			if (pressed.active) {
 				rightColHeld = pressed.y;
 			}
-			else if (horizontalScrollingRightCol && pressed.y == 7) {
-				rightColPrev->handlePad(modelStackWithTimelineCounter, pressed, this);
-				horizontalScrollingRightCol = false;
-				continue;
-			}
-			if (!horizontalScrollingRightCol && !pressed.dead) {
+			if (!pressed.dead) {
 				rightCol->handlePad(modelStackWithTimelineCounter, pressed, this);
 			}
 		}
@@ -192,11 +182,12 @@ ControlColumn* ColumnControlsKeyboard::getColumnForFunc(ColumnControlFunction fu
 }
 
 bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
+
 	if (leftColHeld == 7 && offset) {
-		if (!horizontalScrollingLeftCol) {
-			leftColPrev = leftCol;
-		}
-		horizontalScrollingLeftCol = true;
+		leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
 		leftColFunc = (offset > 0) ? nextControlFunction(leftColFunc, rightColFunc)
 		                           : prevControlFunction(leftColFunc, rightColFunc);
 		display->displayPopup(functionNames[leftColFunc]);
@@ -204,10 +195,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		return true;
 	}
 	else if (rightColHeld == 7 && offset) {
-		if (!horizontalScrollingRightCol) {
-			rightColPrev = rightCol;
-		}
-		horizontalScrollingRightCol = true;
+		rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
 		rightColFunc = (offset > 0) ? nextControlFunction(rightColFunc, leftColFunc)
 		                            : prevControlFunction(rightColFunc, leftColFunc);
 		display->displayPopup(functionNames[rightColFunc]);

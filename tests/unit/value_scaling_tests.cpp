@@ -45,13 +45,13 @@ TEST(ValueScalingTest, arpMidiCvGateValueScaling) {
 		int32_t currentValue = computeCurrentValueForArpMidiCvGate(finalValue);
 		CHECK_EQUAL(i, currentValue);
 	}
-	CHECK_EQUAL(INT32_MIN,    computeFinalValueForArpMidiCvGate(0));
-	CHECK_EQUAL(-23,          computeFinalValueForArpMidiCvGate(25));
+	CHECK_EQUAL(INT32_MIN, computeFinalValueForArpMidiCvGate(0));
+	CHECK_EQUAL(-23, computeFinalValueForArpMidiCvGate(25));
 	// As seen here, we diverge _slightly_ from the standard
 	// menu item scaling when computing final values, despite roundtripping
 	// and using the identical current value computation.
 	//
 	// See computeFinalValueForArpMidiCvGate()'s comment for possible
 	// motivation.
-	CHECK_EQUAL(INT32_MAX-45, computeFinalValueForArpMidiCvGate(50));
+	CHECK_EQUAL(INT32_MAX - 45, computeFinalValueForArpMidiCvGate(50));
 }

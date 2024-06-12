@@ -35,6 +35,9 @@ bool ChordMemColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return false;
 };
 
+void ChordMemColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                         KeyboardLayout* layout){};
+
 void ChordMemColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                                KeyboardLayout* layout) {
 	NotesState& currentNotesState = layout->getNotesState();

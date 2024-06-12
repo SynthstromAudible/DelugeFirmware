@@ -29,6 +29,8 @@ public:
 
 	void renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) override;
 	bool handleVerticalEncoder(int8_t pad, int32_t offset) override;
+	void handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                         KeyboardLayout* layout) override;
 	void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
 	               KeyboardLayout* layout) override;
 
