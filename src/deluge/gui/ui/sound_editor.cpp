@@ -431,6 +431,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 				}
 				automationView.resetInterpolationShortcutBlinking();
+				automationView.resetPadSelectionShortcutBlinking();
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
