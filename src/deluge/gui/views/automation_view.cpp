@@ -2329,7 +2329,6 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 				return toggleAutomationInterpolation();
 			}
 			// toggle pad selection on / off
-			// not relevant for note editor yet
 			else if (!onAutomationOverview()) {
 				if (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY) {
 					if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
@@ -2393,7 +2392,6 @@ bool AutomationView::toggleVelocityPadSelectionMode(SquareInfo& squareInfo) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 		initPadSelection();
-		resetPadSelectionShortcutBlinking();
 	}
 	else {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
@@ -2429,7 +2427,6 @@ bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* m
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 		initPadSelection();
-		resetPadSelectionShortcutBlinking();
 		if (!playbackHandler.isEitherClockActive()) {
 			displayAutomation(true, !display->have7SEG());
 		}
@@ -4839,6 +4836,8 @@ void AutomationView::initPadSelection() {
 	if (inNoteEditor() && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 		instrumentClipView.endAllEditPadPresses();
 	}
+
+	resetPadSelectionShortcutBlinking();
 }
 
 void AutomationView::initInterpolation() {
