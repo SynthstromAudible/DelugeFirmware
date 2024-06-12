@@ -3246,6 +3246,11 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 // audition pad action
 // not used with Audio Clip Automation View or Arranger Automation View
 void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
+	if (instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan && !velocity) {
+		// in case we were editing quantize/humanize
+		actionLogger.closeAction(ActionType::NOTE_NUDGE);
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
@@ -3460,6 +3465,7 @@ doSilentAudition:
 			// don't recalculateLastAuditionedNoteOnScreen if we're in the note editor because it
 			// messes up the note row selection	for velocity editing
 			instrumentClipView.someAuditioningHasEnded(!inNoteEditor());
+			actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
 			actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
 			if (display->have7SEG()) {
 				renderDisplay();
