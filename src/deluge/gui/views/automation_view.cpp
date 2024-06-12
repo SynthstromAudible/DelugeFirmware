@@ -2588,7 +2588,7 @@ void AutomationView::velocityPadSelectionAction(ModelStackWithNoteRow* modelStac
 	if (velocity) {
 		// if selection has changed and note was previously selected, release previous press
 		// if we recorded the previous pad that was pressed
-		if (leftPadSelectedX != kNoSelection && leftPadSelectedX != x && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+		if (leftPadSelectedX != kNoSelection && isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 			recordNoteEditPadAction(leftPadSelectedX, 0);
 		}
 
@@ -2602,9 +2602,16 @@ void AutomationView::velocityPadSelectionAction(ModelStackWithNoteRow* modelStac
 			instrumentClipView.dontDeleteNotesOnDepress();
 		}
 
-		// store new pad selection
-		leftPadSelectedX = x;
-		numNotesSelected = squareInfo.numNotes;
+		if (leftPadSelectedX != x) {
+			// store new pad selection
+			leftPadSelectedX = x;
+			numNotesSelected = squareInfo.numNotes;
+		}
+		else {
+			// de-select pad selection
+			leftPadSelectedX = kNoSelection;
+			numNotesSelected = 0;
+		}
 
 		// refresh grid and display
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
