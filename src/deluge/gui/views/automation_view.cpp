@@ -3468,14 +3468,16 @@ getOut:
 			resetSelectedNoteRowBlinking();
 			blinkSelectedNoteRow(0xFFFFFFFF);
 		}
-		else {
+		else if (selectedDrumChanged) {
 			initParameterSelection();
-			// need to redraw automation grid squares cause selected drum may have changed
 			uiNeedsRendering(this);
 		}
+		else {
+			renderingNeededRegardlessOfUI(0, 1 << yDisplay);
+		}
 	}
-	else if (inNoteEditor()) {
-		uiNeedsRendering(this);
+	else {
+		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
 	}
 
 	// draw note code on top of the automation view display which may have just been refreshed
