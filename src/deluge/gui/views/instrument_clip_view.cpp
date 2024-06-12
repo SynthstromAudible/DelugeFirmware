@@ -3741,7 +3741,7 @@ doSilentAudition:
 }
 
 // sub-function of AuditionPadAction
-// if you're in the sequence direction menu, 
+// if you're in the sequence direction menu,
 // pressing audition pad will change the note row selected in the menu
 void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 	// are we in the sound editor menu for a selected note row?

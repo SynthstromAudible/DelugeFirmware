@@ -260,7 +260,7 @@ private:
 	                                ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
 	int32_t getVelocityToSound(int32_t velocity);
 	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
-                                             NoteRow* noteRowOnActiveClip, Drum* drum);
+	                         NoteRow* noteRowOnActiveClip, Drum* drum);
 	void finishAuditioningRow(int32_t yDisplay, NoteRow* noteRowOnActiveClip);
 };
 
