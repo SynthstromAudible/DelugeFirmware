@@ -57,6 +57,13 @@ bool VelocityColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	return false;
 };
 
+void VelocityColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                         KeyboardLayout* layout) {
+	// Restore previously set Velocity
+	vDisplay = velocity32;
+	layout->velocity = (velocity32 + kHalfStep) >> kVelModShift;
+};
+
 void VelocityColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                                KeyboardLayout* layout) {
 	if (pad.active) {
