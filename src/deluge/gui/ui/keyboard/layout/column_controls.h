@@ -101,15 +101,11 @@ private:
 	ColumnControlFunction leftColFunc = VELOCITY;
 	ColumnControlFunction rightColFunc = MOD;
 	bool rightColSetAtRuntime = false;
-	ControlColumn* leftColPrev = &velocityColumn;
-	ControlColumn* rightColPrev = &modColumn;
 	ControlColumn* leftCol = &velocityColumn;
 	ControlColumn* rightCol = &modColumn;
 
 	ControlColumn* getColumnForFunc(ColumnControlFunction func);
 
-	bool horizontalScrollingLeftCol = false;
-	bool horizontalScrollingRightCol = false;
 	int8_t leftColHeld = -1;
 	int8_t rightColHeld = -1;
 };
