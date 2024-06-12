@@ -1980,8 +1980,10 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 				return toggleAutomationInterpolation();
 			}
 			// toggle pad selection on / off
-			else if (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY) {
-				return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
+			else if (!onAutomationOverview()) {
+				if (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY) {
+					return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
+				}
 			}
 
 			shortcutPress = true;
@@ -3827,6 +3829,8 @@ void AutomationView::initPadSelection() {
 	leftPadSelectedX = kNoSelection;
 	rightPadSelectedX = kNoSelection;
 	lastPadSelectedKnobPos = kNoSelection;
+
+	resetPadSelectionShortcutBlinking();
 }
 
 void AutomationView::initInterpolation() {
