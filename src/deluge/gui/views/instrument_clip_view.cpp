@@ -3677,6 +3677,8 @@ int32_t InstrumentClipView::getVelocityToSound(int32_t velocity) {
 // audition pad is pressed, we'll either do a silent audition or non-silent audition
 bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
                                              NoteRow* noteRowOnActiveClip, Drum* drum) {
+	bool doSilentAudition = false;
+
 	int32_t velocityToSound = getVelocityToSound(velocity);
 
 	auditionPadIsPressed[yDisplay] = velocityToSound; // Yup, need to do this even if we're going to do a
@@ -3685,7 +3687,7 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 	if (noteRowOnActiveClip) {
 		// Ensure our auditioning doesn't override a note playing in the sequence
 		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->soundingStatus == STATUS_SEQUENCED_NOTE) {
-			goto doSilentAudition;
+			doSilentAudition = true;
 		}
 	}
 
@@ -3693,9 +3695,8 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 	if (shiftButtonDown || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 
 		fileBrowserShouldNotPreview = true;
-doSilentAudition:
-		auditioningSilently = true;
-		reassessAllAuditionStatus();
+		
+		doSilentAudition = true;
 	}
 	else {
 		if (!auditioningSilently) {
@@ -3706,6 +3707,11 @@ doSilentAudition:
 
 			lastAuditionedVelocityOnScreen[yDisplay] = velocityToSound;
 		}
+	}
+
+	if (doSilentAudition) {
+		auditioningSilently = true;
+		reassessAllAuditionStatus();
 	}
 
 	// If wasn't already auditioning...
