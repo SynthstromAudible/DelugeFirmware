@@ -2393,11 +2393,13 @@ bool AutomationView::toggleVelocityPadSelectionMode(SquareInfo& squareInfo) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 		initPadSelection();
+		resetPadSelectionShortcutBlinking();
 	}
 	else {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
 
 		padSelectionOn = true;
+		blinkPadSelectionShortcut();
 
 		// display only left cursor
 		leftPadSelectedX = 0;
@@ -2427,6 +2429,7 @@ bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* m
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 		initPadSelection();
+		resetPadSelectionShortcutBlinking();
 		if (!playbackHandler.isEitherClockActive()) {
 			displayAutomation(true, !display->have7SEG());
 		}
@@ -5541,6 +5544,12 @@ void AutomationView::blinkShortcuts() {
 	}
 	else {
 		resetInterpolationShortcutBlinking();
+	}
+	if (padSelectionOn) {
+		blinkPadSelectionShortcut();
+	}
+	else {
+		resetPadSelectionShortcutBlinking();
 	}
 	if (inNoteEditor()) {
 		if (!noteRowBlinking) {
