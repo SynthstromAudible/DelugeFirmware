@@ -79,7 +79,6 @@ struct BackedUpParamManager {
 };
 
 #define MAX_NOTES_CHORD_MEM 10
-#define NUM_CHORD_MEMORY_SLOTS 8
 
 class Song final : public TimelineCounter {
 public:
@@ -396,8 +395,8 @@ public:
 	int32_t countAudioClips() const;
 
 	// Chord memory
-	uint8_t chordMemNoteCount[NUM_CHORD_MEMORY_SLOTS] = {0};
-	uint8_t chordMem[NUM_CHORD_MEMORY_SLOTS][MAX_NOTES_CHORD_MEM] = {0};
+	uint8_t chordMemNoteCount[kDisplayHeight] = {0};
+	uint8_t chordMem[kDisplayHeight][MAX_NOTES_CHORD_MEM] = {0};
 
 private:
 	uint8_t indexLastUnusedScaleDegreeFrom7To6 = 0;

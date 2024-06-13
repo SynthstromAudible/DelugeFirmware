@@ -1458,15 +1458,27 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	// Chord mem
-	writer.writeOpeningTag("chordMemory");
-	for (int32_t i = 0; i < NUM_CHORD_MEMORY_SLOTS; i++) {
-		writer.writeOpeningTag("chord");
-		for (int32_t j = 0; j < chordMemNoteCount[i]; j++) {
-			writer.writeTag("note", chordMem[i][j]);
+
+	int maxChordPosToSave = 0;
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		if (chordMemNoteCount[y] > 0) {
+			maxChordPosToSave = y + 1;
 		}
-		writer.writeClosingTag("chord");
 	}
-	writer.writeClosingTag("chordMemory");
+	if (maxChordPosToSave > 0) {
+		// some chords to save
+		writer.writeOpeningTag("chordMem");
+		for (int32_t y = 0; y < maxChordPosToSave; y++) {
+			writer.writeOpeningTag("chord");
+			for (int i = 0; i < chordMemNoteCount[y]; i++) {
+				writer.writeOpeningTagBeginning("note");
+				writer.writeAttribute("code", chordMem[y][i]);
+				writer.closeTag();
+			}
+			writer.writeClosingTag("chord");
+		}
+		writer.writeClosingTag("chordMem");
+	}
 
 	writer.writeClosingTag("song");
 }
@@ -1854,43 +1866,41 @@ unknownTag:
 				reader.exitTag("modeNotes");
 			}
 
-			else if (!strcmp(tagName, "chordMemory")) {
-				uint8_t numChord = 0;
-
-				// Read in all the chords
+			else if (!strcmp(tagName, "chordMem")) {
+				int slot_index = 0;
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "chord")) {
-
-						char const* tagName2;
-
-						uint8_t numNote = 0;
-						while (*(tagName2 = reader.readNextTagOrAttributeName())) {
-							if (!strcmp(tagName2, "note")) {
-								chordMem[numChord][numNote] = reader.readTagOrAttributeValueInt();
-								chordMem[numChord][numNote] =
-								    std::min((uint8_t)127, std::max((uint8_t)0, chordMem[numChord][numNote]));
-								numNote++;
-								reader.exitTag("note");
+						int y = slot_index++;
+						if (y >= 8) {
+							reader.exitTag("chord");
+							continue;
+						}
+						int i = 0;
+						while (*(tagName = reader.readNextTagOrAttributeName())) {
+							if (!strcmp(tagName, "note")) {
+								while (*(tagName = reader.readNextTagOrAttributeName())) {
+									if (!strcmp(tagName, "code")) {
+										if (i < MAX_NOTES_CHORD_MEM) {
+											chordMem[y][i] = reader.readTagOrAttributeValueInt();
+										}
+									}
+									else {
+										reader.exitTag();
+									}
+								}
+								i++;
 							}
 							else {
-								reader.exitTag(tagName2);
-							}
-							if (numNote >= MAX_NOTES_CHORD_MEM) {
-								break;
+								reader.exitTag();
 							}
 						}
-						chordMemNoteCount[numChord] = numNote;
-						numChord++;
-						reader.exitTag("chord");
+						chordMemNoteCount[y] = std::min(8, i);
 					}
 					else {
-						reader.exitTag(tagName);
-					}
-					if (numChord >= NUM_CHORD_MEMORY_SLOTS) {
-						break;
+						reader.exitTag();
 					}
 				}
-				reader.exitTag("chordMemory");
+				reader.exitTag("chordMem");
 			}
 
 			else if (!strcmp(tagName, "sections")) {
