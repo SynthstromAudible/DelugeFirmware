@@ -51,6 +51,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 #include <new>
@@ -1463,15 +1464,27 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 
 	// Chord mem
-	storageManager.writeOpeningTag("chordMemory");
-	for (int32_t i = 0; i < NUM_CHORD_MEMORY_SLOTS; i++) {
-		storageManager.writeOpeningTag("chord");
-		for (int32_t j = 0; j < chordMemNoteCount[i]; j++) {
-			storageManager.writeTag("note", chordMem[i][j]);
+
+	int maxChordPosToSave = 0;
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		if (chordMemNoteCount[y] > 0) {
+			maxChordPosToSave = y + 1;
 		}
-		storageManager.writeClosingTag("chord");
 	}
-	storageManager.writeClosingTag("chordMemory");
+	if (maxChordPosToSave > 0) {
+		// some chords to save
+		storageManager.writeOpeningTag("chordMem");
+		for (int32_t y = 0; y < maxChordPosToSave; y++) {
+			storageManager.writeOpeningTag("chord");
+			for (int i = 0; i < chordMemNoteCount[y]; i++) {
+				storageManager.writeOpeningTagBeginning("note");
+				storageManager.writeAttribute("code", chordMem[y][i]);
+				storageManager.closeTag();
+			}
+			storageManager.writeClosingTag("chord");
+		}
+		storageManager.writeClosingTag("chordMem");
+	}
 
 	storageManager.writeClosingTag("song");
 }
@@ -1858,43 +1871,41 @@ unknownTag:
 				storageManager.exitTag("modeNotes");
 			}
 
-			else if (!strcmp(tagName, "chordMemory")) {
-				uint8_t numChord = 0;
-
-				// Read in all the chords
+			else if (!strcmp(tagName, "chordMem")) {
+				int slot_index = 0;
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "chord")) {
-
-						char const* tagName2;
-
-						uint8_t numNote = 0;
-						while (*(tagName2 = storageManager.readNextTagOrAttributeName())) {
-							if (!strcmp(tagName2, "note")) {
-								chordMem[numChord][numNote] = storageManager.readTagOrAttributeValueInt();
-								chordMem[numChord][numNote] =
-								    std::min((uint8_t)127, std::max((uint8_t)0, chordMem[numChord][numNote]));
-								numNote++;
-								storageManager.exitTag("note");
+						int y = slot_index++;
+						if (y >= 8) {
+							storageManager.exitTag("chord");
+							continue;
+						}
+						int i = 0;
+						while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+							if (!strcmp(tagName, "note")) {
+								while (*(tagName = storageManager.readNextTagOrAttributeName())) {
+									if (!strcmp(tagName, "code")) {
+										if (i < MAX_NOTES_CHORD_MEM) {
+											chordMem[y][i] = storageManager.readTagOrAttributeValueInt();
+										}
+									}
+									else {
+										storageManager.exitTag();
+									}
+								}
+								i++;
 							}
 							else {
-								storageManager.exitTag(tagName2);
-							}
-							if (numNote >= MAX_NOTES_CHORD_MEM) {
-								break;
+								storageManager.exitTag();
 							}
 						}
-						chordMemNoteCount[numChord] = numNote;
-						numChord++;
-						storageManager.exitTag("chord");
+						chordMemNoteCount[y] = std::min(8, i);
 					}
 					else {
-						storageManager.exitTag(tagName);
-					}
-					if (numChord >= NUM_CHORD_MEMORY_SLOTS) {
-						break;
+						storageManager.exitTag();
 					}
 				}
-				storageManager.exitTag("chordMemory");
+				storageManager.exitTag("chordMem");
 			}
 
 			else if (!strcmp(tagName, "sections")) {
@@ -3236,7 +3247,7 @@ int32_t Song::getCurrentPresetScale() {
 		// If we're here, must be this one!
 		return p;
 
-notThisOne: {}
+notThisOne : {}
 	}
 
 	return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
@@ -5154,7 +5165,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 			return NULL;
 		}
 
-gotAnInstrument: {}
+gotAnInstrument : {}
 	}
 
 	// Synth or Kit
