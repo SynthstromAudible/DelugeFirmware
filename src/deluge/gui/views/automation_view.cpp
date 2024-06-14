@@ -331,8 +331,6 @@ AutomationView::AutomationView() {
 	interpolation = true;
 	interpolationBefore = false;
 	interpolationAfter = false;
-	// used to prevent excessive blinking when you're scrolling with horizontal / vertical / mod encoders
-	encoderAction = false;
 	// used to set parameter shortcut blinking
 	parameterShortcutBlinking = false;
 	// used to set interpolation shortcut blinking
@@ -602,45 +600,39 @@ bool AutomationView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 }
 
 void AutomationView::blinkShortcuts() {
-	if (!encoderAction) {
-		if (getCurrentUI() == this) {
-			int32_t lastSelectedParamShortcutX = kNoSelection;
-			int32_t lastSelectedParamShortcutY = kNoSelection;
-			if (onArrangerView) {
-				lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
-				lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
-			}
-			else {
-				Clip* clip = getCurrentClip();
-				lastSelectedParamShortcutX = clip->lastSelectedParamShortcutX;
-				lastSelectedParamShortcutY = clip->lastSelectedParamShortcutY;
-			}
-			// if a Param has been selected for editing, blink its shortcut pad
-			if (lastSelectedParamShortcutX != kNoSelection) {
-				if (!parameterShortcutBlinking) {
-					soundEditor.setupShortcutBlink(lastSelectedParamShortcutX, lastSelectedParamShortcutY, 10);
-					soundEditor.blinkShortcut();
-
-					parameterShortcutBlinking = true;
-				}
-			}
-			// unset previously set blink timers if not editing a parameter
-			else {
-				resetParameterShortcutBlinking();
-			}
-		}
-		if (interpolation) {
-			if (!interpolationShortcutBlinking) {
-				blinkInterpolationShortcut();
-			}
+	if (getCurrentUI() == this) {
+		int32_t lastSelectedParamShortcutX = kNoSelection;
+		int32_t lastSelectedParamShortcutY = kNoSelection;
+		if (onArrangerView) {
+			lastSelectedParamShortcutX = currentSong->lastSelectedParamShortcutX;
+			lastSelectedParamShortcutY = currentSong->lastSelectedParamShortcutY;
 		}
 		else {
-			resetInterpolationShortcutBlinking();
+			Clip* clip = getCurrentClip();
+			lastSelectedParamShortcutX = clip->lastSelectedParamShortcutX;
+			lastSelectedParamShortcutY = clip->lastSelectedParamShortcutY;
+		}
+		// if a Param has been selected for editing, blink its shortcut pad
+		if (lastSelectedParamShortcutX != kNoSelection) {
+			if (!parameterShortcutBlinking) {
+				soundEditor.setupShortcutBlink(lastSelectedParamShortcutX, lastSelectedParamShortcutY, 10);
+				soundEditor.blinkShortcut();
+
+				parameterShortcutBlinking = true;
+			}
+		}
+		// unset previously set blink timers if not editing a parameter
+		else {
+			resetParameterShortcutBlinking();
+		}
+	}
+	if (interpolation) {
+		if (!interpolationShortcutBlinking) {
+			blinkInterpolationShortcut();
 		}
 	}
 	else {
-		// doing this so the shortcut doesn't blink like crazy while turning knobs that refresh UI
-		encoderAction = false;
+		resetInterpolationShortcutBlinking();
 	}
 }
 
@@ -2693,8 +2685,6 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	}
 
-	encoderAction = true;
-
 	if (inAutomationEditor()
 	    && ((isNoUIModeActive() && Buttons::isButtonPressed(hid::button::Y_ENC))
 	        || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
@@ -2805,7 +2795,6 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	OutputType outputType = clip->output->type;
-	encoderAction = true;
 
 	// If encoder button pressed
 	if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
@@ -3065,8 +3054,6 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 		modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
 	}
 	int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
-
-	encoderAction = true;
 
 	// if user holding a node down, we'll adjust the value of the selected parameter being automated
 	if (isUIModeActive(UI_MODE_NOTES_PRESSED) || padSelectionOn) {
