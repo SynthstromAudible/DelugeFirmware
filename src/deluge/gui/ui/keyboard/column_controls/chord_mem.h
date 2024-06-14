@@ -21,8 +21,6 @@
 
 namespace deluge::gui::ui::keyboard::controls {
 
-constexpr int32_t kMaxNotesChordMem = 10;
-
 class ChordMemColumn : public ControlColumn {
 public:
 	ChordMemColumn() = default;
@@ -35,8 +33,6 @@ public:
 	               KeyboardLayout* layout) override;
 
 private:
-	uint8_t chordMemNoteCount[8] = {0};
-	uint8_t chordMem[8][kMaxNotesChordMem] = {0};
 	uint8_t activeChordMem = 0xFF;
 };
 
