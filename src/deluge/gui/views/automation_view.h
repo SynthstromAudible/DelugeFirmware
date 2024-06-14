@@ -282,7 +282,6 @@ private:
 	void resetShortcutBlinking();
 	void resetParameterShortcutBlinking();
 
-	bool encoderAction;
 	bool parameterShortcutBlinking;
 
 	bool interpolationShortcutBlinking;
