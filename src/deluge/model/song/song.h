@@ -78,6 +78,8 @@ struct BackedUpParamManager {
 	ParamManager paramManager;
 };
 
+#define MAX_NOTES_CHORD_MEM 10
+
 class Song final : public TimelineCounter {
 public:
 	Song();
@@ -391,6 +393,10 @@ public:
 	int16_t transposeOffset = 0;
 
 	int32_t countAudioClips() const;
+
+	// Chord memory
+	uint8_t chordMemNoteCount[kDisplayHeight] = {0};
+	uint8_t chordMem[kDisplayHeight][MAX_NOTES_CHORD_MEM] = {0};
 
 private:
 	uint8_t indexLastUnusedScaleDegreeFrom7To6 = 0;
