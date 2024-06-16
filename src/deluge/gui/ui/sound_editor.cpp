@@ -431,6 +431,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, true);
 				}
 				automationView.resetInterpolationShortcutBlinking();
+				automationView.resetPadSelectionShortcutBlinking();
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
@@ -852,8 +853,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 	}
 	else {
-		// allow automation view to handle interpolation shortcut
-		if ((getRootUI() == &automationView) && (x == 0 && y == 6)) {
+		// allow automation view to handle interpolation and pad selection shortcut
+		if ((getRootUI() == &automationView) && (x == 0 && (y == 6) || (y == 7))) {
 			ignoreAction = true;
 		}
 	}

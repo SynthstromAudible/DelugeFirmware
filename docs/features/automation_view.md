@@ -238,7 +238,7 @@ The Automation Editor **will:**
 
 > **Note 3:** If the parameter selected is not currently automated, turning the Mod Encoders (Gold Knobs) will increase the value of every step in the automation grid in unison (e.g. same value for all steps).
 
-- you can also fine tune automation values by entering **Pad Selection Mode**. You enter / exit this mode by pressing the pad selection mode shortcut (Shift + Waveform Pad in first column of grid / the very top left pad)
+- you can also fine tune automation values by entering **Pad Selection Mode**. You enter / exit this mode by pressing the pad selection mode shortcut (Shift + Waveform Pad in first column of grid / the very top left pad). The waveform shortcut pad will blink every few seconds to remind you that you are in pad selection mode.
 
 ![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/1e4b3653-c1a1-4d21-bfa0-826df378b063)
 
