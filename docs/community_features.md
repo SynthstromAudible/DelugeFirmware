@@ -613,6 +613,8 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
       - Negative value = bottom 4 pads lit up according to position in middle to minimum value range
       - Note: per the functionality added in [#887] mentioned above, you can set a param to the middle value by pressing the two pads in a column or you can use the fine tuning method with the gold encoders in or out of pad selection mode by selecting a pad and turning gold encoder.
       - To make it easier to set the middle value, functionality has been added to blink the LED indicators when you reach the middle value and it also makes it more difficult to turn the knob past the middle value as it currently did outside automation view editor.
+    - ([#2137]) Change pad selection mode shortcut.
+      - Updated `AUTOMATION VIEW` to move `PAD SELECTION MODE` shortcut to the `WAVEFORM` pad in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using `SHIFT` + `WAVEFORM` shortcut pad. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.
 
 #### 4.3.6 - Set Probability By Row
 
@@ -1217,6 +1219,8 @@ different firmware
 [#1739]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1739
 
 [#1846]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1846
+
+[#2137]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2137
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 

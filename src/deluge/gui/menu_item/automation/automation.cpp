@@ -86,6 +86,7 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 			else if (automationView.onMenuView) {
 				automationView.onMenuView = false;
 				automationView.resetInterpolationShortcutBlinking();
+				automationView.resetPadSelectionShortcutBlinking();
 				swapOutRootUILowLevel(automationView.previousUI);
 				uiNeedsRendering(automationView.previousUI);
 				view.setKnobIndicatorLevels();
@@ -106,6 +107,7 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 				if (automationView.onMenuView) {
 					automationView.onMenuView = false;
 					automationView.resetInterpolationShortcutBlinking();
+					automationView.resetPadSelectionShortcutBlinking();
 					swapOutRootUILowLevel(automationView.previousUI);
 					uiNeedsRendering(automationView.previousUI);
 					view.setKnobIndicatorLevels();

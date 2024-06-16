@@ -131,6 +131,7 @@ public:
 
 	// public so uiTimerManager can access it
 	void blinkInterpolationShortcut();
+	void blinkPadSelectionShortcut();
 
 	// public so menu can access it
 	bool onMenuView;
@@ -138,6 +139,7 @@ public:
 	int32_t getParameterKnobPos(ModelStackWithAutoParam* modelStack, uint32_t pos);
 	void setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPosLeft, int32_t knobPosRight);
 	void resetInterpolationShortcutBlinking();
+	void resetPadSelectionShortcutBlinking();
 	bool getAffectEntire();
 
 private:
@@ -285,8 +287,7 @@ private:
 	bool parameterShortcutBlinking;
 
 	bool interpolationShortcutBlinking;
-	uint8_t interpolationShortcutX;
-	uint8_t interpolationShortcutY;
+	bool padSelectionShortcutBlinking;
 
 	bool padSelectionOn;
 	bool multiPadPressActive;
