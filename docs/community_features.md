@@ -994,6 +994,10 @@ as an oscillator type within the subtractive engine, so it can be combined with 
   the kit.
     - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
+#### 4.6.5 - Change Settings for All Kit Rows at Once
+
+- While in a kit row menu, e.g. Polyphony, hold the `AFFECT ENTIRE` button (it will blink rapidly), and then use the `SELECT` encoder to change the menu value (e.g. set Polyphony to Choke). Let go of affect entire and exit the menu. The value you just changed will be set for all kit rows in the kit.
+
 ### 4.7 Audio Clip View - Features
 
 #### 4.7.1 - Shift Clip

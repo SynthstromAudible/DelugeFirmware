@@ -133,6 +133,8 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Drum randomization is no longer limited to only 10 sounds per folder.
 - Fixed several crashes related to drum randomization.
 - The default Mod-FX type for kit affect-entire is now DISABLED rather than FLANGER.
+- You can change a setting for all kit rows at once. 
+ - While in a kit row menu, e.g. Polyphony, hold the `AFFECT ENTIRE` button (it will blink rapidly), and then use the `SELECT` encoder to change the menu value (e.g. set Polyphony to Choke). Let go of affect entire and exit the menu. The value you just changed will be set for all kit rows in the kit.
 
 ### MIDI
 
