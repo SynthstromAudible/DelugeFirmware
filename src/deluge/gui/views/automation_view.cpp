@@ -2030,35 +2030,32 @@ bool AutomationView::toggleAutomationInterpolation() {
 bool AutomationView::toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam,
                                                       int32_t effectiveLength, int32_t xScroll, int32_t xZoom) {
 	// enter/exit pad selection mode
-	if (inAutomationEditor()) {
-		if (padSelectionOn) {
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
+	if (padSelectionOn) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
-			initPadSelection();
-			resetPadSelectionShortcutBlinking();
-			if (!playbackHandler.isEitherClockActive()) {
-				displayAutomation(true, !display->have7SEG());
-			}
+		initPadSelection();
+		if (!playbackHandler.isEitherClockActive()) {
+			displayAutomation(true, !display->have7SEG());
 		}
-		else {
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
-
-			padSelectionOn = true;
-			blinkPadSelectionShortcut();
-
-			multiPadPressSelected = false;
-			multiPadPressActive = false;
-
-			// display only left cursor initially
-			leftPadSelectedX = 0;
-			rightPadSelectedX = kNoSelection;
-
-			uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
-
-			updateAutomationModPosition(modelStackWithParam, squareStart, !display->have7SEG());
-		}
-		uiNeedsRendering(this);
 	}
+	else {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
+
+		padSelectionOn = true;
+		blinkPadSelectionShortcut();
+
+		multiPadPressSelected = false;
+		multiPadPressActive = false;
+
+		// display only left cursor initially
+		leftPadSelectedX = 0;
+		rightPadSelectedX = kNoSelection;
+
+		uint32_t squareStart = getMiddlePosFromSquare(leftPadSelectedX, effectiveLength, xScroll, xZoom);
+
+		updateAutomationModPosition(modelStackWithParam, squareStart, !display->have7SEG());
+	}
+	uiNeedsRendering(this);
 	return true;
 }
 
