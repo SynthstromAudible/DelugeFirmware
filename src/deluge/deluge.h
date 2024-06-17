@@ -33,7 +33,8 @@ extern void loadAnyEnqueuedClustersRoutine(void);
 extern void logAudioAction(char const* string);
 
 extern void consoleTextIfAllBootedUp(char const* text);
-
+typedef bool (*RunCondition)();
+void yieldingRoutineForSD(RunCondition until);
 extern void routineForSD(void);
 extern void sdCardInserted(void);
 extern void sdCardEjected(void);
