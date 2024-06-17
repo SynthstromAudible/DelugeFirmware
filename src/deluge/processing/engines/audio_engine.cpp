@@ -20,6 +20,7 @@
 #include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
+#include "extern.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/ui/audio_recorder.h"
@@ -53,6 +54,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "task_scheduler.h"
 #include "timers_interrupts/timers_interrupts.h"
 #include "util/functions.h"
 #include "util/misc.h"
@@ -108,19 +110,24 @@ extern "C" uint32_t getAudioSampleTimerMS() {
 int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 
 namespace AudioEngine {
-
+// statically allocate some of these to reduce allocations
 constexpr int32_t kNumVoicesStatic = 48;
 constexpr int32_t kNumVoiceSamplesStatic = 24;
 constexpr int32_t kNumTimeStretchersStatic = 24;
-// used for culling
-constexpr int32_t numSamplesLimit = 40; // storageManager.devVarC;
+
+// used for culling. This can be high now since it's decoupled from the time between renders, and
+// will spill into a second render and output if needed so as long as we always render 128 samples in under 128/44100
+// seconds it will work maybe this should be user configurable? Values from 60-100 all seem justifiable. 100
+// occasionally crackles but means more voices. 60 keeps the modulation updating at about 800hz and LFO2 goes up to
+// 100ish
+constexpr int32_t numSamplesLimit = 80;
 // used for decisions in rendering engine
-constexpr int32_t direnessThreshold = numSamplesLimit - 20;
+constexpr int32_t direnessThreshold = numSamplesLimit - 30;
 
 // 7 can overwhelm SD bandwidth if we schedule the loads badly. It could be improved by starting future loads
 // earlier for now we provide an outlet in culling a single voice if we're under MIN_VOICES and still getting close
 // to the limit
-constexpr int MIN_VOICES = 5;
+constexpr int MIN_VOICES = 7;
 
 dsp::Reverb reverb{};
 PLACE_INTERNAL_FRUNK SideChain reverbSidechain{};
@@ -401,7 +408,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
 		// If it's real dire, do a proper immediate cull
-		if (numSamplesOverLimit >= 10) {
+		if (numSamplesOverLimit >= 20) {
 
 			numToCull = (numSamplesOverLimit >> 3);
 
@@ -424,7 +431,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
 		// is increasing
-		else if (numSamplesOverLimit >= -6) {
+		else if (numSamplesOverLimit >= 0) {
 
 			// If not in first routine call this is inaccurate, so just release another voice since things are
 			// probably bad
@@ -432,15 +439,16 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			logAction("soft cull");
 			if (numRoutines > 0) {
 				culled = true;
+				D_PRINTLN("culling in second routine");
 			}
 		}
 	}
 	else {
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
-		// If it's real dire, do a proper immediate cull
-		if (numSamplesOverLimit >= 10) {
+		// Cull anyway if things are bad
+		if (numSamplesOverLimit >= 40) {
 			D_PRINTLN("under min voices but culling anyway");
-			cullVoice(false, FORCE, numSamples, nullptr);
+			cullVoice(false, SOFT, numSamples, nullptr);
 			culled = true;
 		}
 	}
@@ -455,6 +463,11 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 // not in header (private to audio engine)
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
+	// number of samples it took to do the last render
+	auto dspTime = (size_t)(getLastRunTimeforCurrentTask() * 44100.);
+	size_t nonDSP = numSamples - dspTime;
+	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
+	numSamples = dspTime - numRoutines * numSamples;
 
 	// don't smooth this - used for other decisions as well
 	if (numSamples >= direnessThreshold) {
@@ -520,6 +533,9 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
 	if (numSamples <= (10 * numRoutines)) {
+		if (!numRoutines) {
+			ignoreForStats();
+		}
 		return;
 	}
 #if AUTOMATED_TESTER_ENABLED
@@ -690,11 +706,8 @@ startAgain:
 
 	// Render audio for song
 	if (currentSong) {
-		DISABLE_ALL_INTERRUPTS();
 
 		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
-
-		ENABLE_INTERRUPTS();
 	}
 
 #ifdef REPORT_CPU_USAGE
@@ -1487,7 +1500,10 @@ void doRecorderCardRoutines() {
 }
 
 void slowRoutine() {
-
+	if (sdRoutineLock) {
+		// can happen if the SD routine is yielding
+		return;
+	}
 	// The RX buffer is much bigger than the TX, and we get our timing from the TX buffer's sending.
 	// However, if there's an audio glitch, and also at start-up, it's possible we might have missed an entire cycle
 	// of the TX buffer. That would cause the RX buffer's latency to increase. So here, we check for that and

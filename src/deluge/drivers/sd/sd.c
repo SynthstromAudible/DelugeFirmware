@@ -22,9 +22,15 @@
 
 #include "RZA1/sdhi/inc/sdif.h"
 #include "deluge.h"
+#include "task_scheduler.h"
 #include "util/cfunctions.h"
 
 uint16_t stopTime;
+
+bool wrappedCheckTimer() {
+	// this is a bit odd but it returns err when the timer goes off
+	return (sddev_check_timer() == SD_ERR);
+}
 
 /******************************************************************************
  * Function Name: int32_t sddev_power_on(int32_t sd_port);
@@ -38,15 +44,22 @@ int32_t sddev_power_on(int32_t sd_port) {
 
 	/* ---- Wait for  SD Wake up ---- */
 	sddev_start_timer(100); /* wait 100ms */
+#ifdef USE_TASK_MANAGER
+	yieldingRoutineForSD(wrappedCheckTimer);
+#else
 	while (sddev_check_timer() == SD_OK) {
 		/* wait */
 		routineForSD(); // By Rohan
 	}
+#endif
 	sddev_end_timer();
 
 	return SD_OK;
 }
 
+bool sdIntFinished() {
+	return (sd_check_int(SD_PORT) == SD_OK);
+}
 /******************************************************************************
  * Function Name: int32_t sddev_int_wait(int32_t sd_port, int32_t time);
  * Description  : Waitting for SDHI Interrupt
@@ -58,7 +71,13 @@ int32_t sddev_int_wait(int32_t sd_port, int32_t time) {
 
 	logAudioAction("sddev_int_wait");
 	int32_t loop;
-
+#ifdef USE_TASK_MANAGER
+	if (yieldingRoutineWithTimeoutForSD(sdIntFinished, time / 1000.)) {
+		return SD_OK;
+	}
+	else
+		return SD_ERR;
+#else
 	if (time > 500) {
 		/* @1000ms */
 		loop = (time / 500);
@@ -85,7 +104,7 @@ int32_t sddev_int_wait(int32_t sd_port, int32_t time) {
 			if (sddev_check_timer() == SD_ERR) {
 				break;
 			}
-
+			// called during command execution
 			routineForSD(); // By Rohan, obviously
 		}
 
@@ -99,6 +118,7 @@ int32_t sddev_int_wait(int32_t sd_port, int32_t time) {
 	sddev_end_timer();
 
 	return SD_ERR;
+#endif
 }
 
 /******************************************************************************
