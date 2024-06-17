@@ -3403,6 +3403,7 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 		// in case we were editing quantize/humanize
 		actionLogger.closeAction(ActionType::NOTE_NUDGE);
 	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
@@ -3416,94 +3417,20 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 	ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip =
 	    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStackWithTimelineCounter);
 
-	Drum* drum = NULL;
+	Drum* drum = nullptr;
 
 	// If Kit...
 	if (isKit) {
-
-		if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-			drum = modelStackWithNoteRowOnCurrentClip->getNoteRow()->drum;
-		}
-
-		// If NoteRow doesn't exist here, we'll see about creating one
-		else {
-
-			// But not if we're actually not on this screen
-			if (getCurrentUI() != this) {
-				return;
-			}
-
-			// Press-down
-			if (velocity) {
-
-				setSelectedDrum(NULL);
-
-				if (currentUIMode == UI_MODE_NONE) {
-					currentUIMode = UI_MODE_ADDING_DRUM_NOTEROW;
-					fileBrowserShouldNotPreview = shiftButtonDown;
-
-					drumForNewNoteRow = NULL; //(Drum*)0xFFFFFFFF;
-					// newDrumOptionSelected = true;
-					drawDrumName(drumForNewNoteRow);
-
-					// Remember what NoteRow was pressed - and limit to being no further than 1 above or 1 below the
-					// existing NoteRows
-					yDisplayOfNewNoteRow = yDisplay;
-					yDisplayOfNewNoteRow =
-					    std::max((int32_t)yDisplayOfNewNoteRow, (int32_t)-1 - getCurrentInstrumentClip()->yScroll);
-					int32_t maximum =
-					    getCurrentInstrumentClip()->getNumNoteRows() - getCurrentInstrumentClip()->yScroll;
-					yDisplayOfNewNoteRow = std::min((int32_t)yDisplayOfNewNoteRow, maximum);
-
-					goto justReRender;
-				}
-			}
-
-			// Press-up
-			else {
-				if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
-					currentUIMode = UI_MODE_NONE;
-
-					// If the user didn't select "none"...
-					if (drumForNewNoteRow) {
-
-						// Make a new NoteRow
-						int32_t noteRowIndex;
-						NoteRow* newNoteRow =
-						    createNewNoteRowForKit(modelStackWithTimelineCounter, yDisplayOfNewNoteRow, &noteRowIndex);
-						if (newNoteRow) {
-							uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
-
-							ModelStackWithNoteRow* modelStackWithNoteRow =
-							    modelStackWithTimelineCounter->addNoteRow(noteRowIndex, newNoteRow);
-							newNoteRow->setDrum(drumForNewNoteRow, (Kit*)instrument, modelStackWithNoteRow);
-							AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
-						}
-					}
-					if (display->haveOLED()) {
-						deluge::hid::display::OLED::removePopup();
-					}
-					else {
-						redrawNumericDisplay();
-					}
-justReRender:
-					uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
-				}
-			}
-
-			goto getOut;
+		drum = getAuditionedDrum(velocity, yDisplay, shiftButtonDown, instrument, modelStackWithTimelineCounter,
+		                         modelStackWithNoteRowOnCurrentClip);
+		if (drum == nullptr) {
+			return; // don't continue auditioning if drum is null
 		}
 	}
 
 	// Or if synth
 	else if (instrument->type == OutputType::SYNTH) {
-		if (velocity) {
-			if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-				menu_item::multiRangeMenu.noteOnToChangeRange(
-				    getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
-				    + ((SoundInstrument*)instrument)->transpose);
-			}
-		}
+		potentiallyUpdateMultiRangeMenu(velocity, yDisplay, instrument);
 	}
 
 	// Recording - only allowed if currentClip is activeClip
@@ -3517,163 +3444,38 @@ justReRender:
 			// This is basic. For MIDI input, we do this in a couple more cases - see noteMessageReceived()
 			// in MelodicInstrument and Kit
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
-				if (isKit) {
-					if (drum) {
-						drum->recordNoteOnEarly(
-						    (velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity : velocity,
-						    getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
-					}
-				}
-				else {
-					// NoteRow is allowed to be NULL in this case.
-					int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-					((MelodicInstrument*)instrument)
-					    ->earlyNotes.insertElementIfNonePresent(
-					        yNote, instrument->defaultVelocity,
-					        getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
-				}
+				recordNoteOnEarly(velocity, yDisplay, instrument, isKit, modelStackWithNoteRowOnCurrentClip, drum);
 			}
-
 			else {
-
-				// May need to create NoteRow if there wasn't one previously
-				if (!modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-
-					modelStackWithNoteRowOnCurrentClip =
-					    createNoteRowForYDisplay(modelStackWithTimelineCounter, yDisplay);
-				}
-
-				if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-					getCurrentInstrumentClip()->recordNoteOn(
-					    modelStackWithNoteRowOnCurrentClip,
-					    (velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity : velocity);
-					goto maybeRenderRow;
-				}
+				recordNoteOn(velocity, yDisplay, instrument, modelStackWithTimelineCounter,
+				             modelStackWithNoteRowOnCurrentClip);
 			}
 		}
 
 		// Note-off
 		else {
-
-			if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
-				getCurrentInstrumentClip()->recordNoteOff(modelStackWithNoteRowOnCurrentClip);
-maybeRenderRow:
-				if (!(currentUIMode & UI_MODE_HORIZONTAL_SCROLL)) { // What about zoom too?
-					uiNeedsRendering(this, 1 << yDisplay, 0);
-				}
-			}
+			recordNoteOff(yDisplay, modelStackWithNoteRowOnCurrentClip);
 		}
 	}
 
-	{
-		NoteRow* noteRowOnActiveClip;
+	NoteRow* noteRowOnActiveClip = getNoteRowOnActiveClip(yDisplay, instrument, clipIsActiveOnInstrument,
+	                                                      modelStackWithNoteRowOnCurrentClip, drum);
 
-		if (clipIsActiveOnInstrument) {
-			noteRowOnActiveClip = modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull();
-		}
+	bool doRender = true;
 
-		else {
-			// Kit
-			if (instrument->type == OutputType::KIT) {
-				noteRowOnActiveClip = ((InstrumentClip*)instrument->activeClip)->getNoteRowForDrum(drum);
-			}
+	// If note on...
+	if (velocity) {
+		doRender = startAuditioningRow(velocity, yDisplay, shiftButtonDown, isKit, noteRowOnActiveClip, drum);
+	}
 
-			// Non-kit
-			else {
-				int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-				noteRowOnActiveClip = ((InstrumentClip*)instrument->activeClip)->getNoteRowForYNote(yNote);
-			}
-		}
+	// Or if auditioning this NoteRow just finished...
+	else {
+		finishAuditioningRow(yDisplay, noteRowOnActiveClip);
+	}
 
-		// If note on...
-		if (velocity) {
-			int32_t velocityToSound = velocity;
-			if (velocityToSound == USE_DEFAULT_VELOCITY) {
-				velocityToSound = getCurrentInstrument()->defaultVelocity;
-			}
-
-			auditionPadIsPressed[yDisplay] = velocityToSound; // Yup, need to do this even if we're going to do a
-			                                                  // "silent" audition, so pad lights up etc.
-
-			if (noteRowOnActiveClip) {
-				// Ensure our auditioning doesn't override a note playing in the sequence
-				if (playbackHandler.isEitherClockActive()
-				    && noteRowOnActiveClip->soundingStatus == STATUS_SEQUENCED_NOTE) {
-					goto doSilentAudition;
-				}
-			}
-
-			// If won't be actually sounding Instrument...
-			if (shiftButtonDown || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-
-				fileBrowserShouldNotPreview = true;
-doSilentAudition:
-				auditioningSilently = true;
-				reassessAllAuditionStatus();
-			}
-			else {
-				if (!auditioningSilently) {
-
-					fileBrowserShouldNotPreview = false;
-
-					sendAuditionNote(true, yDisplay, velocityToSound, 0);
-
-					{ lastAuditionedVelocityOnScreen[yDisplay] = velocityToSound; }
-				}
-			}
-
-			// If wasn't already auditioning...
-			if (!isUIModeActive(UI_MODE_AUDITIONING)) {
-				shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-				shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
-				editedAnyPerNoteRowStuffSinceAuditioningBegan = false;
-				enterUIMode(UI_MODE_AUDITIONING);
-			}
-
-			drawNoteCode(yDisplay);
-			bool lastAuditionedYDisplayChanged = lastAuditionedYDisplay != yDisplay;
-			lastAuditionedYDisplay = yDisplay;
-
-			// are we in a synth / midi / cv clip
-			// and have we changed our note row selection
-			if (!isKit && lastAuditionedYDisplayChanged) {
-				potentiallyRefreshNoteRowMenu();
-			}
-
-			// Begin resampling / output-recording
-			if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
-			    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
-				audioRecorder.beginOutputRecording();
-				Buttons::recordButtonPressUsedUp = true;
-			}
-
-			if (isKit) {
-				setSelectedDrum(drum);
-				goto getOut; // No need to redraw any squares, because setSelectedDrum() has done it
-			}
-		}
-
-		// Or if auditioning this NoteRow just finished...
-		else {
-			if (auditionPadIsPressed[yDisplay]) {
-				auditionPadIsPressed[yDisplay] = 0;
-				lastAuditionedVelocityOnScreen[yDisplay] = 255;
-
-				// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
-				if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF) {
-					sendAuditionNote(false, yDisplay, 64, 0);
-				}
-			}
-			display->cancelPopup();        // In case euclidean stuff was being edited etc
-			someAuditioningHasEnded(true); // lastAuditionedYDisplay == yDisplay);
-			actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
-			actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
-		}
-
+	if (doRender) {
 		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
 	}
-
-getOut:
 
 	// This has to happen after setSelectedDrum is called, cos that resets LEDs
 	if (!clipIsActiveOnInstrument && velocity) {
@@ -3681,6 +3483,270 @@ getOut:
 	}
 }
 
+// sub-function of AuditionPadAction
+// if we're in a kit clip, get the drum that were trying to audition
+Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, bool shiftButtonDown,
+                                            Instrument* instrument,
+                                            ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                            ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip) {
+	bool doRender = false;
+
+	Drum* drum = nullptr;
+
+	// if NoteRow exists, get drum assigned to it
+	if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
+		drum = modelStackWithNoteRowOnCurrentClip->getNoteRow()->drum;
+	}
+
+	// If NoteRow doesn't exist here, we'll see about creating one
+	else {
+		// But not if we're actually not on this screen
+		if (getCurrentUI() != this) {
+			return drum;
+		}
+
+		// Press-down
+		if (velocity) {
+
+			setSelectedDrum(NULL);
+
+			if (currentUIMode == UI_MODE_NONE) {
+				currentUIMode = UI_MODE_ADDING_DRUM_NOTEROW;
+				fileBrowserShouldNotPreview = shiftButtonDown;
+
+				drumForNewNoteRow = NULL; //(Drum*)0xFFFFFFFF;
+				// newDrumOptionSelected = true;
+				drawDrumName(drumForNewNoteRow);
+
+				// Remember what NoteRow was pressed - and limit to being no further than 1 above or 1 below the
+				// existing NoteRows
+				yDisplayOfNewNoteRow = yDisplay;
+				yDisplayOfNewNoteRow =
+				    std::max((int32_t)yDisplayOfNewNoteRow, (int32_t)-1 - getCurrentInstrumentClip()->yScroll);
+				int32_t maximum = getCurrentInstrumentClip()->getNumNoteRows() - getCurrentInstrumentClip()->yScroll;
+				yDisplayOfNewNoteRow = std::min((int32_t)yDisplayOfNewNoteRow, maximum);
+
+				doRender = true;
+			}
+		}
+
+		// Press-up
+		else {
+			if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
+				currentUIMode = UI_MODE_NONE;
+
+				// If the user didn't select "none"...
+				if (drumForNewNoteRow) {
+
+					// Make a new NoteRow
+					int32_t noteRowIndex;
+					NoteRow* newNoteRow =
+					    createNewNoteRowForKit(modelStackWithTimelineCounter, yDisplayOfNewNoteRow, &noteRowIndex);
+					if (newNoteRow) {
+						// uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
+
+						ModelStackWithNoteRow* modelStackWithNoteRow =
+						    modelStackWithTimelineCounter->addNoteRow(noteRowIndex, newNoteRow);
+						newNoteRow->setDrum(drumForNewNoteRow, (Kit*)instrument, modelStackWithNoteRow);
+						AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+					}
+				}
+				if (display->haveOLED()) {
+					deluge::hid::display::OLED::removePopup();
+				}
+				else {
+					redrawNumericDisplay();
+				}
+				doRender = true;
+			}
+		}
+	}
+
+	if (doRender) {
+		uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
+	}
+
+	return drum;
+}
+
+// sub-function of AuditionPadAction
+// record note on early if count in is on
+void InstrumentClipView::recordNoteOnEarly(int32_t velocity, int32_t yDisplay, Instrument* instrument, bool isKit,
+                                           ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum) {
+	if (isKit) {
+		if (drum) {
+			drum->recordNoteOnEarly((velocity == USE_DEFAULT_VELOCITY) ? instrument->defaultVelocity : velocity,
+			                        getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+		}
+	}
+	else {
+		// NoteRow is allowed to be NULL in this case.
+		int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
+		((MelodicInstrument*)instrument)
+		    ->earlyNotes.insertElementIfNonePresent(
+		        yNote, instrument->defaultVelocity,
+		        getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+	}
+}
+
+// sub-function of AuditionPadAction
+// if count in is not on, record note on as per usual
+void InstrumentClipView::recordNoteOn(int32_t velocity, int32_t yDisplay, Instrument* instrument,
+                                      ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                      ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip) {
+
+	// May need to create NoteRow if there wasn't one previously
+	if (!modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
+
+		modelStackWithNoteRowOnCurrentClip = createNoteRowForYDisplay(modelStackWithTimelineCounter, yDisplay);
+	}
+
+	if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
+		getCurrentInstrumentClip()->recordNoteOn(modelStackWithNoteRowOnCurrentClip, (velocity == USE_DEFAULT_VELOCITY)
+		                                                                                 ? instrument->defaultVelocity
+		                                                                                 : velocity);
+		if (!(currentUIMode & UI_MODE_HORIZONTAL_SCROLL)) { // What about zoom too?
+			uiNeedsRendering(this, 1 << yDisplay, 0);
+		}
+	}
+}
+
+// sub-function of AuditionPadAction
+// if recording is on, make sure to record note off so that you can end tails
+void InstrumentClipView::recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip) {
+	if (modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
+		getCurrentInstrumentClip()->recordNoteOff(modelStackWithNoteRowOnCurrentClip);
+		if (!(currentUIMode & UI_MODE_HORIZONTAL_SCROLL)) { // What about zoom too?
+			uiNeedsRendering(this, 1 << yDisplay, 0);
+		}
+	}
+}
+
+// sub-function of AuditionPadAction
+// if you're in a multi range menu, you can use audition pads to set the note range
+void InstrumentClipView::potentiallyUpdateMultiRangeMenu(int32_t velocity, int32_t yDisplay, Instrument* instrument) {
+	if (velocity) {
+		if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
+			menu_item::multiRangeMenu.noteOnToChangeRange(
+			    getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
+			    + ((SoundInstrument*)instrument)->transpose);
+		}
+	}
+}
+
+// sub-function of AuditionPadAction
+// get the note row that we're auditioning
+NoteRow* InstrumentClipView::getNoteRowOnActiveClip(int32_t yDisplay, Instrument* instrument,
+                                                    bool clipIsActiveOnInstrument,
+                                                    ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip,
+                                                    Drum* drum) {
+	NoteRow* noteRowOnActiveClip = nullptr;
+
+	if (clipIsActiveOnInstrument) {
+		noteRowOnActiveClip = modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull();
+	}
+
+	else {
+		// Kit
+		if (instrument->type == OutputType::KIT) {
+			noteRowOnActiveClip = ((InstrumentClip*)instrument->activeClip)->getNoteRowForDrum(drum);
+		}
+
+		// Non-kit
+		else {
+			int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
+			noteRowOnActiveClip = ((InstrumentClip*)instrument->activeClip)->getNoteRowForYNote(yNote);
+		}
+	}
+	return noteRowOnActiveClip;
+}
+
+// sub-function of AuditionPadAction
+// get the velocity that should be used to sound the audition pad of the note row selected
+int32_t InstrumentClipView::getVelocityToSound(int32_t velocity) {
+	int32_t velocityToSound = velocity;
+	if (velocityToSound == USE_DEFAULT_VELOCITY) {
+		velocityToSound = getCurrentInstrument()->defaultVelocity;
+	}
+	return velocityToSound;
+}
+
+// sub-function of AuditionPadAction
+// audition pad is pressed, we'll either do a silent audition or non-silent audition
+bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
+                                             NoteRow* noteRowOnActiveClip, Drum* drum) {
+	bool doSilentAudition = false;
+
+	int32_t velocityToSound = getVelocityToSound(velocity);
+
+	auditionPadIsPressed[yDisplay] = velocityToSound; // Yup, need to do this even if we're going to do a
+	                                                  // "silent" audition, so pad lights up etc.
+
+	if (noteRowOnActiveClip) {
+		// Ensure our auditioning doesn't override a note playing in the sequence
+		if (playbackHandler.isEitherClockActive() && noteRowOnActiveClip->soundingStatus == STATUS_SEQUENCED_NOTE) {
+			doSilentAudition = true;
+		}
+	}
+
+	// If won't be actually sounding Instrument...
+	if (shiftButtonDown || Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
+
+		fileBrowserShouldNotPreview = true;
+
+		doSilentAudition = true;
+	}
+	else {
+		if (!auditioningSilently) {
+
+			fileBrowserShouldNotPreview = false;
+
+			sendAuditionNote(true, yDisplay, velocityToSound, 0);
+
+			lastAuditionedVelocityOnScreen[yDisplay] = velocityToSound;
+		}
+	}
+
+	if (doSilentAudition) {
+		auditioningSilently = true;
+		reassessAllAuditionStatus();
+	}
+
+	// If wasn't already auditioning...
+	if (!isUIModeActive(UI_MODE_AUDITIONING)) {
+		shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+		shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+		editedAnyPerNoteRowStuffSinceAuditioningBegan = false;
+		enterUIMode(UI_MODE_AUDITIONING);
+	}
+
+	drawNoteCode(yDisplay);
+	bool lastAuditionedYDisplayChanged = lastAuditionedYDisplay != yDisplay;
+	lastAuditionedYDisplay = yDisplay;
+
+	// are we in a synth / midi / cv clip
+	// and have we changed our note row selection
+	if (!isKit && lastAuditionedYDisplayChanged) {
+		potentiallyRefreshNoteRowMenu();
+	}
+
+	// Begin resampling / output-recording
+	if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
+	    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
+		audioRecorder.beginOutputRecording();
+		Buttons::recordButtonPressUsedUp = true;
+	}
+
+	if (isKit) {
+		setSelectedDrum(drum);
+		return false; // No need to redraw any squares, because setSelectedDrum() has done it
+	}
+	return true;
+}
+
+// sub-function of AuditionPadAction
+// if you're in the sequence direction menu,
+// pressing audition pad will change the note row selected in the menu
 void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 	// are we in the sound editor menu for a selected note row?
 	if (getCurrentUI() == &soundEditor && soundEditor.selectedNoteRow) {
@@ -3692,6 +3758,24 @@ void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 			currentMenuItem->readValueAgain();
 		}
 	}
+}
+
+// sub-function of AuditionPadAction
+// pad is released, end previous audition pad press
+void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, NoteRow* noteRowOnActiveClip) {
+	if (auditionPadIsPressed[yDisplay]) {
+		auditionPadIsPressed[yDisplay] = 0;
+		lastAuditionedVelocityOnScreen[yDisplay] = 255;
+
+		// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
+		if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF) {
+			sendAuditionNote(false, yDisplay, 64, 0);
+		}
+	}
+	display->cancelPopup();        // In case euclidean stuff was being edited etc
+	someAuditioningHasEnded(true); // lastAuditionedYDisplay == yDisplay);
+	actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
+	actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
 }
 
 void InstrumentClipView::cancelAllAuditioning() {
