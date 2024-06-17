@@ -3419,13 +3419,13 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 
 	Drum* drum = nullptr;
 
-	bool continueAuditioning = true;
-
 	// If Kit...
 	if (isKit) {
 		drum = getAuditionedDrum(velocity, yDisplay, shiftButtonDown, instrument, modelStackWithTimelineCounter,
 		                         modelStackWithNoteRowOnCurrentClip);
-		continueAuditioning = !(drum == nullptr); // don't continue auditioning if drum is null
+		if (drum == nullptr) {
+			return; // don't continue auditioning if drum is null
+		}
 	}
 
 	// Or if synth
@@ -3433,50 +3433,48 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 		potentiallyUpdateMultiRangeMenu(velocity, yDisplay, instrument);
 	}
 
-	if (continueAuditioning) {
-		// Recording - only allowed if currentClip is activeClip
-		if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
-		    && currentSong->isClipActive(getCurrentClip())) {
+	// Recording - only allowed if currentClip is activeClip
+	if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
+	    && currentSong->isClipActive(getCurrentClip())) {
 
-			// Note-on
-			if (velocity) {
-
-				// If count-in is on, we only got here if it's very nearly finished, so pre-empt that note.
-				// This is basic. For MIDI input, we do this in a couple more cases - see noteMessageReceived()
-				// in MelodicInstrument and Kit
-				if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
-					recordNoteOnEarly(velocity, yDisplay, instrument, isKit, modelStackWithNoteRowOnCurrentClip, drum);
-				}
-				else {
-					recordNoteOn(velocity, yDisplay, instrument, modelStackWithTimelineCounter,
-					             modelStackWithNoteRowOnCurrentClip);
-				}
-			}
-
-			// Note-off
-			else {
-				recordNoteOff(yDisplay, modelStackWithNoteRowOnCurrentClip);
-			}
-		}
-
-		NoteRow* noteRowOnActiveClip = getNoteRowOnActiveClip(yDisplay, instrument, clipIsActiveOnInstrument,
-		                                                      modelStackWithNoteRowOnCurrentClip, drum);
-
-		bool doRender = true;
-
-		// If note on...
+		// Note-on
 		if (velocity) {
-			doRender = startAuditioningRow(velocity, yDisplay, shiftButtonDown, isKit, noteRowOnActiveClip, drum);
+
+			// If count-in is on, we only got here if it's very nearly finished, so pre-empt that note.
+			// This is basic. For MIDI input, we do this in a couple more cases - see noteMessageReceived()
+			// in MelodicInstrument and Kit
+			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
+				recordNoteOnEarly(velocity, yDisplay, instrument, isKit, modelStackWithNoteRowOnCurrentClip, drum);
+			}
+			else {
+				recordNoteOn(velocity, yDisplay, instrument, modelStackWithTimelineCounter,
+				             modelStackWithNoteRowOnCurrentClip);
+			}
 		}
 
-		// Or if auditioning this NoteRow just finished...
+		// Note-off
 		else {
-			finishAuditioningRow(yDisplay, noteRowOnActiveClip);
+			recordNoteOff(yDisplay, modelStackWithNoteRowOnCurrentClip);
 		}
+	}
 
-		if (doRender) {
-			renderingNeededRegardlessOfUI(0, 1 << yDisplay);
-		}
+	NoteRow* noteRowOnActiveClip = getNoteRowOnActiveClip(yDisplay, instrument, clipIsActiveOnInstrument,
+	                                                      modelStackWithNoteRowOnCurrentClip, drum);
+
+	bool doRender = true;
+
+	// If note on...
+	if (velocity) {
+		doRender = startAuditioningRow(velocity, yDisplay, shiftButtonDown, isKit, noteRowOnActiveClip, drum);
+	}
+
+	// Or if auditioning this NoteRow just finished...
+	else {
+		finishAuditioningRow(yDisplay, noteRowOnActiveClip);
+	}
+
+	if (doRender) {
+		renderingNeededRegardlessOfUI(0, 1 << yDisplay);
 	}
 
 	// This has to happen after setSelectedDrum is called, cos that resets LEDs
