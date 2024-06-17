@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/ui/keyboard/layout/column_control_state.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::ui::keyboard {
@@ -47,6 +48,8 @@ struct KeyboardState {
 	KeyboardStateIsomorphic isomorphic;
 	KeyboardStateDrums drums;
 	KeyboardStateInKey inKey;
+
+	layout::ColumnControlState columnControl;
 };
 
 }; // namespace deluge::gui::ui::keyboard
