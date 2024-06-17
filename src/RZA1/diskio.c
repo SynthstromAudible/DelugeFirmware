@@ -194,7 +194,7 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, /* Physical drive nmuber to
     BYTE err;
 
     if (currentlyAccessingCard)
-    { //@todo: make sure yield sets the sd card routine flags!
+    {
         if (ALPHA_OR_BETA_VERSION)
         {
             // Operatricks got! But I think I fixed.
