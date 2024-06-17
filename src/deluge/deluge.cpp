@@ -950,6 +950,21 @@ extern "C" void logAudioAction(char const* string) {
 	AudioEngine::logAction(string);
 }
 
+extern "C" void yieldingRoutineForSD(RunCondition until) {
+	if (intc_func_active != 0) {
+		return;
+	}
+
+	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
+	// USB -> routineForSD()
+	if (sdRoutineLock) {
+		return;
+	}
+	sdRoutineLock = true;
+	yield(until);
+	sdRoutineLock = false;
+}
+
 /// this function is used as a busy wait loop for long SD reads, and while swapping songs
 extern "C" void routineForSD(void) {
 
