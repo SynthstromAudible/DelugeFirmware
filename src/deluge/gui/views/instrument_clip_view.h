@@ -244,6 +244,24 @@ private:
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
 
 	void quantizeNotes(int32_t offset, int32_t nudgeMode);
+
+	// auditionPadAction functions
+	Drum* getAuditionedDrum(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, Instrument* instrument,
+	                        ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                        ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
+	void potentiallyUpdateMultiRangeMenu(int32_t velocity, int32_t yDisplay, Instrument* instrument);
+	void recordNoteOnEarly(int32_t velocity, int32_t yDisplay, Instrument* instrument, bool isKit,
+	                       ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
+	void recordNoteOn(int32_t velocity, int32_t yDisplay, Instrument* instrument,
+	                  ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                  ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
+	void recordNoteOff(int32_t yDisplay, ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
+	NoteRow* getNoteRowOnActiveClip(int32_t yDisplay, Instrument* instrument, bool clipIsActiveOnInstrument,
+	                                ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip, Drum* drum);
+	int32_t getVelocityToSound(int32_t velocity);
+	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
+	                         NoteRow* noteRowOnActiveClip, Drum* drum);
+	void finishAuditioningRow(int32_t yDisplay, NoteRow* noteRowOnActiveClip);
 };
 
 extern InstrumentClipView instrumentClipView;
