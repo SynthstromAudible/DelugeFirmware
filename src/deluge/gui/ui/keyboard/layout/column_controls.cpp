@@ -48,8 +48,11 @@ const char* functionNames[][2] = {
 
 void ColumnControlsKeyboard::enableNote(uint8_t note, uint8_t velocity) {
 	currentNotesState.enableNote(note, velocity);
+
+	ColumnControlState& state = getState().columnControl;
+
 	for (int i = 0; i < MAX_CHORD_NOTES; i++) {
-		auto offset = chordColumn.chordSemitoneOffsets[i];
+		auto offset = state.chordColumn.chordSemitoneOffsets[i];
 		if (!offset) {
 			break;
 		}
@@ -66,6 +69,8 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 
 	rightColHeld = -1;
 
+	ColumnControlState& state = getState().columnControl;
+
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		auto pressed = presses[idxPress];
 		// in note columns
@@ -74,7 +79,7 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 				leftColHeld = pressed.y;
 			}
 			if (!pressed.dead) {
-				leftCol->handlePad(modelStackWithTimelineCounter, pressed, this);
+				state.leftCol->handlePad(modelStackWithTimelineCounter, pressed, this);
 			}
 		}
 		else if (pressed.x == RIGHT_COL) {
@@ -82,7 +87,7 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 				rightColHeld = pressed.y;
 			}
 			if (!pressed.dead) {
-				rightCol->handlePad(modelStackWithTimelineCounter, pressed, this);
+				state.rightCol->handlePad(modelStackWithTimelineCounter, pressed, this);
 			}
 		}
 	}
@@ -93,11 +98,13 @@ void ColumnControlsKeyboard::handleVerticalEncoder(int32_t offset) {
 }
 
 bool ColumnControlsKeyboard::verticalEncoderHandledByColumns(int32_t offset) {
+	ColumnControlState& state = getState().columnControl;
+
 	if (leftColHeld != -1) {
-		return leftCol->handleVerticalEncoder(leftColHeld, offset);
+		return state.leftCol->handleVerticalEncoder(leftColHeld, offset);
 	}
 	if (rightColHeld != -1) {
-		return rightCol->handleVerticalEncoder(rightColHeld, offset);
+		return state.rightCol->handleVerticalEncoder(rightColHeld, offset);
 	}
 	return false;
 }
@@ -135,18 +142,18 @@ void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
 	if (newInstrument->type != OutputType::SYNTH) {
 		return;
 	}
+	ColumnControlState& state = getState().columnControl;
 	auto* sound = (SoundInstrument*)newInstrument;
 	bool is_dx = (sound->sources[0].oscType == OscType::DX7);
 	if (!is_dx) {
-		if (rightColFunc == DX) {
-			rightColSetAtRuntime = false;
-			// use rightColPrev if admissable??
-			rightColFunc = nextControlFunction(rightColFunc, leftColFunc);
-			rightCol = getColumnForFunc(rightColFunc);
+		if (state.rightColFunc == DX) {
+			state.rightColSetAtRuntime = false;
+			state.rightColFunc = nextControlFunction(state.rightColFunc, state.leftColFunc);
+			state.rightCol = state.getColumnForFunc(state.rightColFunc);
 		}
-		else if (leftColFunc == DX) {
-			leftColFunc = nextControlFunction(leftColFunc, rightColFunc);
-			leftCol = getColumnForFunc(leftColFunc);
+		else if (state.leftColFunc == DX) {
+			state.leftColFunc = nextControlFunction(state.leftColFunc, state.rightColFunc);
+			state.leftCol = state.getColumnForFunc(state.leftColFunc);
 		}
 	}
 	else {
@@ -155,15 +162,19 @@ void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
 			return;
 		}
 		// don't change column if already set
-		if (leftColFunc == DX || rightColFunc == DX || rightColSetAtRuntime) {
+		if (state.leftColFunc == DX || state.rightColFunc == DX || state.rightColSetAtRuntime) {
 			return;
 		}
-		rightColFunc = DX;
-		rightCol = getColumnForFunc(rightColFunc);
+		state.rightColFunc = DX;
+		state.rightCol = state.getColumnForFunc(state.rightColFunc);
 	}
 }
 
-ControlColumn* ColumnControlsKeyboard::getColumnForFunc(ColumnControlFunction func) {
+ColumnControlFunction stepControlFunction(int32_t offset, ColumnControlFunction cur, ColumnControlFunction skip) {
+	return (offset > 0) ? nextControlFunction(cur, skip) : prevControlFunction(cur, skip);
+}
+
+ControlColumn* ColumnControlState::getColumnForFunc(ColumnControlFunction func) {
 	switch (func) {
 	case VELOCITY:
 		return &velocityColumn;
@@ -181,34 +192,116 @@ ControlColumn* ColumnControlsKeyboard::getColumnForFunc(ColumnControlFunction fu
 	return nullptr;
 }
 
+const char* columnFunctionToString(ColumnControlFunction func) {
+	switch (func) {
+	case VELOCITY:
+		return "velocity";
+	case MOD:
+		return "mod";
+	case CHORD:
+		return "chord";
+	case CHORD_MEM:
+		return "chord_mem";
+	case SCALE_MODE:
+		return "scale_mode";
+	case DX:
+		return "dx";
+	}
+	return "";
+}
+
+ColumnControlFunction stringToColumnFunction(char const* string) {
+	if (!strcmp(string, "velocity")) {
+		return VELOCITY;
+	}
+	else if (!strcmp(string, "mod")) {
+		return MOD;
+	}
+	else if (!strcmp(string, "chord")) {
+		return CHORD;
+	}
+	else if (!strcmp(string, "chord_mem")) {
+		return CHORD_MEM;
+	}
+	else if (!strcmp(string, "scale_mode")) {
+		return SCALE_MODE;
+	}
+	else if (!strcmp(string, "dx")) {
+		return DX;
+	}
+	else {
+		return VELOCITY; // unknown column, just pick the default
+	}
+}
+
+void ColumnControlState::writeToFile(Serializer& writer) {
+	writer.writeOpeningTagBeginning("leftCol");
+	writer.writeAttribute("type", (char*)columnFunctionToString(leftColFunc));
+	writer.closeTag();
+
+	writer.writeOpeningTagBeginning("rightCol");
+	writer.writeAttribute("type", (char*)columnFunctionToString(rightColFunc));
+	writer.closeTag();
+
+	chordMemColumn.writeToFile(writer);
+}
+
+void ColumnControlState::readFromFile(Deserializer& reader) {
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		bool isLeft = !strcmp(tagName, "leftCol");
+		if (isLeft || !strcmp(tagName, "rightCol")) {
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "type")) {
+					auto value = stringToColumnFunction(reader.readTagOrAttributeValue());
+					(isLeft ? leftColFunc : rightColFunc) = value;
+					reader.exitTag("type");
+				}
+				else {
+					reader.exitTag(tagName);
+				}
+			}
+		}
+		else if (!strcmp(tagName, "chordMem")) {
+			chordMemColumn.readFromFile(reader);
+		}
+	}
+
+	leftCol = getColumnForFunc(leftColFunc);
+	rightCol = getColumnForFunc(rightColFunc);
+}
+
 bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
 
+	ColumnControlState& state = getState().columnControl;
 	if (leftColHeld == 7 && offset) {
-		leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
-		leftColFunc = (offset > 0) ? nextControlFunction(leftColFunc, rightColFunc)
-		                           : prevControlFunction(leftColFunc, rightColFunc);
-		display->displayPopup(functionNames[leftColFunc]);
-		leftCol = getColumnForFunc(leftColFunc);
+		state.leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
+		state.leftColFunc = (offset > 0) ? nextControlFunction(state.leftColFunc, state.rightColFunc)
+		                                 : prevControlFunction(state.leftColFunc, state.rightColFunc);
+		display->displayPopup(functionNames[state.leftColFunc]);
+		state.leftCol = state.getColumnForFunc(state.leftColFunc);
 		return true;
 	}
 	else if (rightColHeld == 7 && offset) {
-		rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
-		rightColFunc = (offset > 0) ? nextControlFunction(rightColFunc, leftColFunc)
-		                            : prevControlFunction(rightColFunc, leftColFunc);
-		display->displayPopup(functionNames[rightColFunc]);
-		rightCol = getColumnForFunc(rightColFunc);
-		rightColSetAtRuntime = true;
+		state.rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
+		state.rightColFunc = (offset > 0) ? nextControlFunction(state.rightColFunc, state.leftColFunc)
+		                                  : prevControlFunction(state.rightColFunc, state.leftColFunc);
+		display->displayPopup(functionNames[state.rightColFunc]);
+		state.rightCol = state.getColumnForFunc(state.rightColFunc);
+		state.rightColSetAtRuntime = true;
 		return true;
 	}
 	return false;
 }
 
 void ColumnControlsKeyboard::renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	leftCol->renderColumn(image, LEFT_COL);
-	rightCol->renderColumn(image, RIGHT_COL);
+	ColumnControlState& state = getState().columnControl;
+
+	state.leftCol->renderColumn(image, LEFT_COL);
+	state.rightCol->renderColumn(image, RIGHT_COL);
 }
 
 void ColumnControlsKeyboard::renderColumnBeatRepeat(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {

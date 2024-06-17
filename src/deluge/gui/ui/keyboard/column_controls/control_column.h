@@ -18,9 +18,12 @@
 #pragma once
 
 #include "gui/colour/rgb.h"
-#include "gui/ui/keyboard/layout.h"
 #include "gui/ui/keyboard/notes_state.h"
 #include "model/model_stack.h"
+
+namespace deluge::gui::ui::keyboard {
+class KeyboardLayout;
+}
 
 namespace deluge::gui::ui::keyboard::controls {
 
