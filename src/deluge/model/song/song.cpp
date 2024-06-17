@@ -236,6 +236,7 @@ Song::~Song() {
 
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
+#include "timers_interrupts/timers_interrupts.h"
 extern gui::menu_item::IntegerRange defaultTempoMenu;
 extern gui::menu_item::IntegerRange defaultSwingMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
@@ -2486,9 +2487,10 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		}
 
 		bool isClipActiveNow = (output->activeClip && isClipActive(output->activeClip->getClipBeingRecordedFrom()));
-
+		DISABLE_ALL_INTERRUPTS();
 		output->renderOutput(modelStack, outputBuffer, outputBuffer + numSamples, numSamples, reverbBuffer,
 		                     volumePostFX >> 1, sideChainHitPending, !isClipActiveNow, isClipActiveNow);
+		ENABLE_INTERRUPTS();
 #if DO_AUDIO_LOG
 		char buf[64];
 		snprintf(buf, sizeof(buf), "complete: %s", output->name.get());

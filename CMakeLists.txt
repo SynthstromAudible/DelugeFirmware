@@ -191,6 +191,7 @@ add_compile_options(
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
     -ffunction-sections
     -fdata-sections
+    -DUSE_TASK_MANAGER
 
     # C++ stuff
     $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
@@ -201,6 +202,8 @@ add_compile_options(
     # ASM stuff
     $<$<COMPILE_LANGUAGE:ASM>:-x>
     $<$<COMPILE_LANGUAGE:ASM>:assembler-with-cpp>
+
+
 )
 
 # Add libraries
@@ -232,7 +235,6 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<CONFIG:DEBUG>:-Wno-unused-parameter>
 
     $<$<CONFIG:DEBUG>:-Werror=write-strings>
-    -DUSE_TASK_MANAGER
     # Offsetof for non standard types is supported in GCC,
     # if another compiler does not support it they are obligated to error
 

@@ -136,7 +136,8 @@ int sd_read_sect(int sd_port, unsigned char *buff,unsigned long psn,long cnt)
 
 
 	logAudioAction("sd_read_sect");
-	routineForSD(); // By Rohan
+
+	routineForSD(); // By Rohan. // called during disk reads but only once per read
 
 	if( (sd_port != 0) && (sd_port != 1) ){
 		return SD_ERR;

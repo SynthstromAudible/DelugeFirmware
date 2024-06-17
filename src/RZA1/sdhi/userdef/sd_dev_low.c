@@ -53,6 +53,7 @@ Includes   <System Includes> , "Project Includes"
 #include "deluge/drivers/uart/uart.h"
 #include "deluge/deluge.h"
 #include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
+#include "OSLikeStuff/task_scheduler.h"
 
 /******************************************************************************
 Typedef definitions
@@ -1090,6 +1091,9 @@ static int sddev_wait_dma_end_0(long cnt)
 
 #endif
 }
+bool sd_DMAC_Get_Endflag1() {
+return sd_DMAC_Get_Endflag(SD1_DMA_CHANNEL) == 1;
+};
 
 /******************************************************************************
 * Function Name: static int sddev_wait_dma_end_1(long cnt);
@@ -1108,7 +1112,14 @@ static int sddev_wait_dma_end_1(long cnt)
     time = ((time * 1000) >> 10);
 
     if (time < 2000) time = 2000; // I've seen block write operations sometimes just randomly take as long as 1250ms, despite it normally being 2ms
-
+#ifdef USE_TASK_MANAGER
+    if (yieldingRoutineWithTimeoutForSD(sd_DMAC_Get_Endflag1, time/1000.)) {
+        return SD_OK;
+      }
+    else {
+        return SD_ERR;
+    }
+#else
     if (time > 1024) {
         loop = (time >> 10);
         time = time & 1023;
@@ -1132,13 +1143,14 @@ static int sddev_wait_dma_end_1(long cnt)
                 break;
             }
 
-            routineForSD(); // By Rohan
+            routineForSD(); // By Rohan. // called during reads
         }
     } while (loop--);
 
     sddev_end_timer();
 
     return SD_ERR;
+#endif
 #else
     return SD_OK;
 

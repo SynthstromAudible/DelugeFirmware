@@ -17,6 +17,7 @@
 
 #include "hid/encoders.h"
 #include "definitions_cxx.hpp"
+#include "extern.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -64,16 +65,16 @@ void readEncoders() {
 	}
 }
 
-bool interpretEncoders(bool inCardRoutine) {
-
+bool interpretEncoders(bool skipActioning) {
+	skipActioning |= sdRoutineLock; // if the "sd routine" is yielding then always defer actioning encoders
 	bool anything = false;
 
-	if (!inCardRoutine) {
+	if (!skipActioning) {
 		encodersWaitingForCardRoutineEnd = 0;
 	}
 
 #if SD_TEST_MODE_ENABLED
-	if (!inCardRoutine && playbackHandler.isEitherClockActive()
+	if (!skipActioning && playbackHandler.isEitherClockActive()
 	    && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 
 		if (getRandom255() < 96)
@@ -92,7 +93,7 @@ bool interpretEncoders(bool inCardRoutine) {
 		if (name != EncoderName::SCROLL_Y) {
 
 			// Basically disables all function encoders during SD routine
-			if (inCardRoutine && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
+			if (skipActioning && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 				continue;
 			}
 		}
@@ -135,7 +136,7 @@ checkResult:
 					PadLEDs::changeDimmerInterval(limitedDetentPos);
 				}
 				else {
-					result = getCurrentUI()->verticalEncoderAction(limitedDetentPos, inCardRoutine);
+					result = getCurrentUI()->verticalEncoderAction(limitedDetentPos, skipActioning);
 					goto checkResult;
 				}
 				break;
@@ -167,7 +168,7 @@ checkResult:
 		}
 	}
 
-	if (!inCardRoutine || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
+	if (!skipActioning || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 		// Mod knobs
 		for (int32_t e = 0; e < 2; e++) {
 			// check encoder 0, then encoder 1
