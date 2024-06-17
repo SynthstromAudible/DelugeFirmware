@@ -668,7 +668,8 @@ to each individual note onset. ([#1978])
       - Negative value = bottom 4 pads lit up according to position in middle to minimum value range
       - Note: per the functionality added in [#887] mentioned above, you can set a param to the middle value by pressing the two pads in a column or you can use the fine tuning method with the gold encoders in or out of pad selection mode by selecting a pad and turning gold encoder.
       - To make it easier to set the middle value, functionality has been added to blink the LED indicators when you reach the middle value and it also makes it more difficult to turn the knob past the middle value as it currently did outside automation view editor.
-    - ([#1898]) Updated `AUTOMATION VIEW` shortcut to enter/exit `PAD SELECTION MODE` to `SHIFT` + `WAVEFORM` (the very top left pad in first column of grid).
+    - ([#1898] [#2136]) Change pad selection mode shortcut.
+      - Updated `AUTOMATION VIEW` to move `PAD SELECTION MODE` shortcut to the `WAVEFORM` pad in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using `SHIFT` + `WAVEFORM` shortcut pad. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.    
 
 #### 4.3.6 - Set Probability By Row
 
@@ -1293,6 +1294,8 @@ different firmware
 [#1898]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1898
 
 [#1962]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1962
+
+[#2136]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2136
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 

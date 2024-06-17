@@ -15,7 +15,6 @@
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
 - Added new `YELLOW GRID MODE` which allows you configure the clip type between `DEFAULT`, `FILL`, and `ONCE` by holding on a clip pad and pressing `SELECT`. In this mode, while clips are inactive, the clip pads are highlighted different colours to indicate the current clip type.
-- Updated `AUTOMATION VIEW` shortcut to enter/exit `PAD SELECTION MODE` to `SHIFT` + `WAVEFORM` (the very top left pad in first column of grid).
 - The maximum zoom level for timelines has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
 
@@ -51,6 +50,7 @@
 - Updated `AUTOMATION VIEW` to move the `INTERPOLATION` shortcut to the `INTERPOLATION` pad in the first column of the
   Deluge grid (second pad from the top). Toggle interpolation on/off using `SHIFT` + `INTERPOLATION` shortcut pad. The
   Interpolation shortcut pad will blink to indicate that interpolation is enabled.
+- Updated `AUTOMATION VIEW` to move the `PAD SELECTION MODE` shortcut to the `WAVEFORM` pad in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using `SHIFT` + `WAVEFORM` shortcut pad. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.  
 - Updated `AUTOMATION VIEW` to provide access to `SETTINGS` menu (`SHIFT` + press `SELECT`)
 - Updated `AUTOMATION VIEW` to provide access to the `SOUND` menu (press `SELECT`)
 - Updated automatable parameter editing menus (accessed via `SOUND` menu or `SHIFT + PARAMETER SHORTCUT`) to provide the ability to access the `AUTOMATION VIEW EDITOR` directly from the parameter menu. While in the parameter menu press `CLIP` (if you are in a clip) or `SONG` (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` for that respective parameter or patch cable.
