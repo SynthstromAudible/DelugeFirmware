@@ -1369,6 +1369,28 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 	writer.writeClosingTag("modeNotes");
 
+	// Chord mem
+	int maxChordPosToSave = 0;
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		if (chordMemNoteCount[y] > 0) {
+			maxChordPosToSave = y + 1;
+		}
+	}
+	if (maxChordPosToSave > 0) {
+		// some chords to save
+		writer.writeOpeningTag("chordMem");
+		for (int32_t y = 0; y < maxChordPosToSave; y++) {
+			writer.writeOpeningTag("chord");
+			for (int i = 0; i < chordMemNoteCount[y]; i++) {
+				writer.writeOpeningTagBeginning("note");
+				writer.writeAttribute("code", chordMem[y][i]);
+				writer.closeTag();
+			}
+			writer.writeClosingTag("chord");
+		}
+		writer.writeClosingTag("chordMem");
+	}
+
 	writer.writeOpeningTagBeginning("reverb");
 	deluge::dsp::Reverb::Model model = AudioEngine::reverb.getModel();
 	uint32_t roomSize = AudioEngine::reverb.getRoomSize() * (uint32_t)2147483648u;
@@ -1456,29 +1478,6 @@ weAreInArrangementEditorOrInClipInstance:
 			clip->writeToFile(writer, this);
 		}
 		writer.writeClosingTag("arrangementOnlyTracks");
-	}
-
-	// Chord mem
-
-	int maxChordPosToSave = 0;
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		if (chordMemNoteCount[y] > 0) {
-			maxChordPosToSave = y + 1;
-		}
-	}
-	if (maxChordPosToSave > 0) {
-		// some chords to save
-		writer.writeOpeningTag("chordMem");
-		for (int32_t y = 0; y < maxChordPosToSave; y++) {
-			writer.writeOpeningTag("chord");
-			for (int i = 0; i < chordMemNoteCount[y]; i++) {
-				writer.writeOpeningTagBeginning("note");
-				writer.writeAttribute("code", chordMem[y][i]);
-				writer.closeTag();
-			}
-			writer.writeClosingTag("chord");
-		}
-		writer.writeClosingTag("chordMem");
 	}
 
 	writer.writeClosingTag("song");
@@ -1872,7 +1871,7 @@ unknownTag:
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "chord")) {
 						int y = slot_index++;
-						if (y >= 8) {
+						if (y >= kDisplayHeight) {
 							reader.exitTag("chord");
 							continue;
 						}
@@ -1895,7 +1894,7 @@ unknownTag:
 								reader.exitTag();
 							}
 						}
-						chordMemNoteCount[y] = std::min(8, i);
+						chordMemNoteCount[y] = std::min(MAX_NOTES_CHORD_MEM, i);
 					}
 					else {
 						reader.exitTag();
