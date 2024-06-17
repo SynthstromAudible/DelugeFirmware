@@ -16,11 +16,11 @@
  */
 #ifndef DELUGE_TASK_SCHEDULER_H
 #define DELUGE_TASK_SCHEDULER_H
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "RZA1/ostm/ostm.h"
+#include "stdint.h"
 
 /// void function with no arguments
 typedef void (*TaskHandle)();
@@ -59,7 +59,14 @@ uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const 
 /// add a task that runs only after the condition returns true. Condition checks should be very fast or they could
 /// interfere with scheduling
 uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
+void ignoreForStats();
+double getLastRunTimeforCurrentTask();
+double getSystemTime();
+void setNextRunTimeforCurrentTask(double seconds);
 void removeTask(TaskID id);
+void yield(RunCondition until);
+/// timeout in seconds, returns whether the condition was met
+bool yieldWithTimeout(RunCondition until, double timeout);
 /// start the task scheduler
 void startTaskManager();
 #ifdef __cplusplus
