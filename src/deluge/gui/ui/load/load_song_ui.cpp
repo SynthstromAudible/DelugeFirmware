@@ -361,12 +361,17 @@ gotErrorAfterCreatingSong:
 	}
 
 	// Ensure all AudioFile Clusters needed for new song are loaded
-	static int32_t count =
-	    0; // Prevent any unforeseen loop. Not sure if that actually could happen
-	       //	while (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 1024)
-	       //{ 		audioFileManager.loadAnyEnqueuedClusters(); 		routineForSD(); 		count++;
-	       //	}
+	static int32_t count = 0;
+	// Prevent any unforeseen loop. Not sure if that actually could happen
+#ifdef USE_TASK_MANAGER
 	yield([]() { return !(audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 50); });
+#else
+	while (audioFileManager.loadingQueueHasAnyLowestPriorityElements() && count < 1024) {
+		audioFileManager.loadAnyEnqueuedClusters();
+		routineForSD();
+		count++;
+	}
+#endif
 
 	preLoadedSong->name.set(&enteredText);
 
@@ -411,13 +416,15 @@ gotErrorAfterCreatingSong:
 		AudioEngine::logAction("g");
 		preLoadedSong->loadAllSamples(true);
 		AudioEngine::logAction("h");
-
-		//		// If any more waiting required before the song swap actually happens, do that
-		//		while (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
-		//			audioFileManager.loadAnyEnqueuedClusters();
-		//			routineForSD();
-		//		}
+#ifdef USE_TASK_MANAGER
 		yield([]() { return currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING; });
+#else
+		// If any more waiting required before the song swap actually happens, do that
+		while (currentUIMode != UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
+			audioFileManager.loadAnyEnqueuedClusters();
+			routineForSD();
+		}
+#endif
 	}
 
 	else {
