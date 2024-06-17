@@ -38,10 +38,11 @@ int32_t sddev_power_on(int32_t sd_port) {
 
 	/* ---- Wait for  SD Wake up ---- */
 	sddev_start_timer(100); /* wait 100ms */
-	while (sddev_check_timer() == SD_OK) {
-		/* wait */
-		routineForSD(); // By Rohan
-	}
+	                        //	while (sddev_check_timer() == SD_OK) {
+	                        //		/* wait */
+	                        //		routineForSD(); // By Rohan
+	                        //	}
+	yieldingRoutineForSD((RunCondition)sddev_check_timer);
 	sddev_end_timer();
 
 	return SD_OK;
