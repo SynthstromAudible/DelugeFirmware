@@ -44,7 +44,7 @@ extern uint32_t timeModEncoderLastTurned[];
 
 void init();
 void readEncoders();
-bool interpretEncoders(bool inCardRoutine = false);
+bool interpretEncoders(bool skipActioning = false);
 
 Encoder& getEncoder(EncoderName which);
 } // namespace deluge::hid::encoders
