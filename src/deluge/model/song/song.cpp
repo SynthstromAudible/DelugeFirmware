@@ -1373,6 +1373,28 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 	storageManager.writeClosingTag("modeNotes");
 
+	// Chord mem
+	int maxChordPosToSave = 0;
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		if (chordMemNoteCount[y] > 0) {
+			maxChordPosToSave = y + 1;
+		}
+	}
+	if (maxChordPosToSave > 0) {
+		// some chords to save
+		storageManager.writeOpeningTag("chordMem");
+		for (int32_t y = 0; y < maxChordPosToSave; y++) {
+			storageManager.writeOpeningTag("chord");
+			for (int i = 0; i < chordMemNoteCount[y]; i++) {
+				storageManager.writeOpeningTagBeginning("note");
+				storageManager.writeAttribute("code", chordMem[y][i]);
+				storageManager.closeTag();
+			}
+			storageManager.writeClosingTag("chord");
+		}
+		storageManager.writeClosingTag("chordMem");
+	}
+
 	storageManager.writeOpeningTagBeginning("reverb");
 	deluge::dsp::Reverb::Model model = AudioEngine::reverb.getModel();
 	uint32_t roomSize = AudioEngine::reverb.getRoomSize() * (uint32_t)2147483648u;
@@ -1461,29 +1483,6 @@ weAreInArrangementEditorOrInClipInstance:
 			clip->writeToFile(this);
 		}
 		storageManager.writeClosingTag("arrangementOnlyTracks");
-	}
-
-	// Chord mem
-
-	int maxChordPosToSave = 0;
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		if (chordMemNoteCount[y] > 0) {
-			maxChordPosToSave = y + 1;
-		}
-	}
-	if (maxChordPosToSave > 0) {
-		// some chords to save
-		storageManager.writeOpeningTag("chordMem");
-		for (int32_t y = 0; y < maxChordPosToSave; y++) {
-			storageManager.writeOpeningTag("chord");
-			for (int i = 0; i < chordMemNoteCount[y]; i++) {
-				storageManager.writeOpeningTagBeginning("note");
-				storageManager.writeAttribute("code", chordMem[y][i]);
-				storageManager.closeTag();
-			}
-			storageManager.writeClosingTag("chord");
-		}
-		storageManager.writeClosingTag("chordMem");
 	}
 
 	storageManager.writeClosingTag("song");
@@ -1876,7 +1875,7 @@ unknownTag:
 				while (*(tagName = storageManager.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "chord")) {
 						int y = slot_index++;
-						if (y >= 8) {
+						if (y >= kDisplayHeight) {
 							storageManager.exitTag("chord");
 							continue;
 						}
@@ -1899,7 +1898,7 @@ unknownTag:
 								storageManager.exitTag();
 							}
 						}
-						chordMemNoteCount[y] = std::min(8, i);
+						chordMemNoteCount[y] = std::min(MAX_NOTES_CHORD_MEM, i);
 					}
 					else {
 						storageManager.exitTag();
