@@ -17,13 +17,8 @@
 
 #pragma once
 
-#include "gui/ui/keyboard/column_controls/chord.h"
-#include "gui/ui/keyboard/column_controls/chord_mem.h"
-#include "gui/ui/keyboard/column_controls/dx.h"
-#include "gui/ui/keyboard/column_controls/mod.h"
-#include "gui/ui/keyboard/column_controls/scale_mode.h"
-#include "gui/ui/keyboard/column_controls/velocity.h"
 #include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/column_control_state.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -32,17 +27,6 @@ using namespace deluge::gui::ui::keyboard::controls;
 constexpr int32_t kMinIsomorphicRowInterval = 1;
 constexpr int32_t kMaxIsomorphicRowInterval = 16;
 constexpr uint32_t kHalfStep = 0x7FFFFF;
-
-enum ColumnControlFunction : int8_t {
-	VELOCITY = 0,
-	MOD,
-	CHORD,
-	CHORD_MEM,
-	SCALE_MODE,
-	DX,
-	// BEAT_REPEAT,
-	COL_CTRL_FUNC_MAX,
-};
 
 ColumnControlFunction nextControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
 ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
@@ -87,24 +71,7 @@ public:
 
 	void checkNewInstrument(Instrument* newInstrument) override;
 
-	VelocityColumn velocityColumn{velocity};
-
-private:
-	ModColumn modColumn{};
-	ChordColumn chordColumn{};
-	ChordMemColumn chordMemColumn{};
-	ScaleModeColumn scaleModeColumn{};
-	DXColumn dxColumn{};
-
 	void renderColumnBeatRepeat(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column);
-
-	ColumnControlFunction leftColFunc = VELOCITY;
-	ColumnControlFunction rightColFunc = MOD;
-	bool rightColSetAtRuntime = false;
-	ControlColumn* leftCol = &velocityColumn;
-	ControlColumn* rightCol = &modColumn;
-
-	ControlColumn* getColumnForFunc(ColumnControlFunction func);
 
 	int8_t leftColHeld = -1;
 	int8_t rightColHeld = -1;
