@@ -271,9 +271,9 @@ void LoadSongUI::performLoad(StorageManager& bdsm) {
 	else {
 		// Note: this is dodgy, but in this case we don't reset view.activeControllableClip here - we let the user keep
 		// fiddling with it. It won't get deleted.
-		AudioEngine::logAction("a");
+		AudioEngine::logAction("arming for song swap");
 		AudioEngine::songSwapAboutToHappen();
-		AudioEngine::logAction("b");
+		AudioEngine::logAction("song swap armed");
 		playbackHandler.songSwapShouldPreserveTempo = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 	}
 
@@ -315,7 +315,7 @@ gotErrorAfterCreatingSong:
 
 	GlobalEffectable::initParams(&preLoadedSong->paramManager);
 
-	AudioEngine::logAction("c");
+	AudioEngine::logAction("initialized new song");
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
@@ -323,7 +323,7 @@ gotErrorAfterCreatingSong:
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
-	AudioEngine::logAction("d");
+	AudioEngine::logAction("read new song from file");
 
 	bool success = storageManager.closeFile();
 
@@ -413,9 +413,9 @@ gotErrorAfterCreatingSong:
 		// We're now waiting, either for the user to arm, or for the arming to launch the song-swap. Get loading all the
 		// rest of the samples which weren't needed right away. (though we might run out of RAM cos we haven't discarded
 		// all the old samples yet)
-		AudioEngine::logAction("g");
+		AudioEngine::logAction("asking for samples");
 		preLoadedSong->loadAllSamples(true);
-		AudioEngine::logAction("h");
+		AudioEngine::logAction("waiting for samples");
 #ifdef USE_TASK_MANAGER
 		yield([]() { return currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING; });
 #else
@@ -441,7 +441,7 @@ swapDone:
 	audioFileManager.loadAnyEnqueuedClusters(99999);
 
 	// Delete the old song
-	AudioEngine::logAction("i");
+	AudioEngine::logAction("deleting old song");
 	if (toDelete) {
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Song();
@@ -452,7 +452,7 @@ swapDone:
 
 	// Try one more time to load all AudioFiles - there might be more RAM free now
 	currentSong->loadAllSamples();
-	AudioEngine::logAction("l");
+	AudioEngine::logAction("done loading new song");
 	currentSong->markAllInstrumentsAsEdited();
 
 	audioFileManager.thingFinishedLoading();
