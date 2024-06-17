@@ -100,7 +100,7 @@ void ChordMemColumn::readFromFile(Deserializer& reader) {
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "chordSlot")) {
 			int y = slot_index++;
-			if (y >= 8) {
+			if (y >= kDisplayHeight) {
 				reader.exitTag("chordSlot");
 				continue;
 			}
@@ -123,7 +123,7 @@ void ChordMemColumn::readFromFile(Deserializer& reader) {
 					reader.exitTag();
 				}
 			}
-			chordMemNoteCount[y] = std::min(8, i);
+			chordMemNoteCount[y] = std::min((int)kMaxNotesChordMem, i);
 		}
 		else {
 			reader.exitTag();
