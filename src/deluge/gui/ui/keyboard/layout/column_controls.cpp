@@ -40,7 +40,8 @@ const char* functionNames[][2] = {
     /* VELOCITY    */ {"VEL", "Velocity"},
     /* MOD         */ {"MOD", "Modwheel"},
     /* CHORD       */ {"CHRD", "Chords"},
-    /* CHORD_MEM   */ {"CMEM", "Chord Memory"},
+    /* SONG_CHORD_MEM   */ {"CMEM", "Song Chord Memory"},
+    /* CHORD_MEM   */ {"CCME", "Clip Chord Memory"},
     /* SCALE_MODE  */ {"SMOD", "Scales"},
     /* DX          */ {"DX", "DX operators"},
     /* BEAT_REPEAT */ {"BEAT", "Beat Repeat"},
@@ -182,6 +183,8 @@ ControlColumn* ColumnControlState::getColumnForFunc(ColumnControlFunction func) 
 		return &modColumn;
 	case CHORD:
 		return &chordColumn;
+	case SONG_CHORD_MEM:
+		return &songChordMemColumn;
 	case CHORD_MEM:
 		return &chordMemColumn;
 	case SCALE_MODE:
@@ -200,8 +203,10 @@ const char* columnFunctionToString(ColumnControlFunction func) {
 		return "mod";
 	case CHORD:
 		return "chord";
+	case SONG_CHORD_MEM:
+		return "song_chord_mem";
 	case CHORD_MEM:
-		return "chord_mem";
+		return "clip_chord_mem";
 	case SCALE_MODE:
 		return "scale_mode";
 	case DX:
@@ -220,7 +225,10 @@ ColumnControlFunction stringToColumnFunction(char const* string) {
 	else if (!strcmp(string, "chord")) {
 		return CHORD;
 	}
-	else if (!strcmp(string, "chord_mem")) {
+	else if (!strcmp(string, "song_chord_mem")) {
+		return SONG_CHORD_MEM;
+	}
+	else if (!strcmp(string, "clip_chord_mem")) {
 		return CHORD_MEM;
 	}
 	else if (!strcmp(string, "scale_mode")) {
