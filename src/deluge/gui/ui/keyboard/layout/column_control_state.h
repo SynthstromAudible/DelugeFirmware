@@ -18,11 +18,11 @@
 #pragma once
 
 #include "gui/ui/keyboard/column_controls/chord.h"
-#include "gui/ui/keyboard/column_controls/song_chord_mem.h"
 #include "gui/ui/keyboard/column_controls/chord_mem.h"
 #include "gui/ui/keyboard/column_controls/dx.h"
 #include "gui/ui/keyboard/column_controls/mod.h"
 #include "gui/ui/keyboard/column_controls/scale_mode.h"
+#include "gui/ui/keyboard/column_controls/song_chord_mem.h"
 #include "gui/ui/keyboard/column_controls/velocity.h"
 
 namespace deluge::gui::ui::keyboard::layout {
