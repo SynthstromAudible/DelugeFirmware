@@ -25,12 +25,12 @@ class RatchetAmount final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		auto* current_clip = getCurrentInstrumentClip();
-		int64_t value = (int64_t)current_clip->arpeggiatorRatchetAmount;
-		this->setValue((value * kMaxMenuValue + 2147483648) >> 32);
+		this->setValue(
+		    computeCurrentValueForArpMidiCvRatchetAmount(getCurrentInstrumentClip()->arpeggiatorRatchetAmount));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRatchetAmount = (uint32_t)this->getValue() * 85899345;
+		getCurrentInstrumentClip()->arpeggiatorRatchetAmount =
+		    computeFinalValueForArpMidiCvRatchetAmount(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
