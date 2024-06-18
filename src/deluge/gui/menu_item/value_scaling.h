@@ -27,6 +27,7 @@
 /// Done:
 /// - audio_compressor::CompParam
 /// - arpeggiator::midi_cv::Gate
+/// - arpeggiator::midi_cv::RatchetAmount
 /// - osc::PulseWidth
 /// - patched_param::Integer
 /// - patched_param::Pan
@@ -84,3 +85,14 @@ int32_t computeCurrentValueForArpMidiCvGate(int32_t value);
  * which exactly matches the gate down period between regular 16h notes.
  */
 int32_t computeFinalValueForArpMidiCvGate(int32_t value);
+
+/** Scales UINT32 range to 0-50 for display.
+ *
+ * Is well behaved for whole UINT32 range despite the final value
+ * computation not utilizing the whole range.
+ */
+int32_t computeCurrentValueForArpMidiCvRatchetAmount(uint32_t value);
+
+/** Scales 0-50 range to 0-(UINT32-45) for storage and use.
+ */
+uint32_t computeFinalValueForArpMidiCvRatchetAmount(int32_t value);

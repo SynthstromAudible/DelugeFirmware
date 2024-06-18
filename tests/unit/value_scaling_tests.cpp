@@ -55,3 +55,17 @@ TEST(ValueScalingTest, arpMidiCvGateValueScaling) {
 	// motivation.
 	CHECK_EQUAL(INT32_MAX - 45, computeFinalValueForArpMidiCvGate(50));
 }
+
+TEST(ValueScalingTest, arpMidiCvRatchetAmountValueScaling) {
+	for (int i = kMinMenuValue; i <= kMaxMenuValue; i++) {
+		int32_t finalValue = computeFinalValueForArpMidiCvRatchetAmount(i);
+		int32_t currentValue = computeCurrentValueForArpMidiCvRatchetAmount(finalValue);
+		CHECK_EQUAL(i, currentValue);
+	}
+	CHECK_EQUAL(0, computeFinalValueForArpMidiCvRatchetAmount(0));
+	CHECK_EQUAL(UINT32_MAX / 2 - 22, computeFinalValueForArpMidiCvRatchetAmount(25));
+	CHECK_EQUAL(UINT32_MAX - 45, computeFinalValueForArpMidiCvRatchetAmount(50));
+	// while 50 doesn't quite get to UINT32_MAX, make sure the current value math
+	// behaves well on the whole range
+	CHECK_EQUAL(50, computeCurrentValueForArpMidiCvRatchetAmount(UINT32_MAX));
+}
