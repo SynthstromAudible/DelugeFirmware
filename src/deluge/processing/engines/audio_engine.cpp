@@ -554,7 +554,9 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 		// it)
 		// - otherwise this will all get called soon anyway. I thiiiink this is 100% immune to any synchronization
 		// problems?
+		//@todo - if the timer went off before the routine was called we still shouldn't do this
 		if (!isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
+			D_PRINTLN("no timer ISR");
 			if (anythingInGateOutputBufferNow) {
 				cvEngine.updateGateOutputs();
 			}
