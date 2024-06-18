@@ -546,15 +546,18 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	// output and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and
 	// also want to give them a head-start being sent and out of the way so the clock messages can be sent on-time
 	bool anythingInMidiOutputBufferNow = midiEngine.anythingInOutputBuffer();
+	// if there's a gate clock pending then this is not the right time for it - needs to be done by the ISR
+	//@todo - it's possible the midi engine suffers from the same problem but there's no way to see if there's a clock
+	// in it's output buffer. If gate clock is on then this fixes the bug for both anyway
 	bool anythingInGateOutputBufferNow =
-	    cvEngine.gateOutputPending || cvEngine.clockOutputPending; // Not asapGateOutputPending (RUN)
+	    cvEngine.gateOutputPending && !cvEngine.clockOutputPending; // Not asapGateOutputPending (RUN)
 	if (anythingInMidiOutputBufferNow || anythingInGateOutputBufferNow) {
 
 		// We're only allowed to do this if the timer ISR isn't pending (i.e. we haven't enabled to timer to trigger
 		// it)
 		// - otherwise this will all get called soon anyway. I thiiiink this is 100% immune to any synchronization
 		// problems?
-		//@todo - if the timer went off before the routine was called we still shouldn't do this
+
 		if (!isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
 			D_PRINTLN("no timer ISR");
 			if (anythingInGateOutputBufferNow) {
