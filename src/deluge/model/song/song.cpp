@@ -1872,7 +1872,7 @@ unknownTag:
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "chord")) {
 						int y = slot_index++;
-						if (y >= 8) {
+						if (y >= kDisplayHeight) {
 							reader.exitTag("chord");
 							continue;
 						}
@@ -1895,7 +1895,7 @@ unknownTag:
 								reader.exitTag();
 							}
 						}
-						chordMemNoteCount[y] = std::min(8, i);
+						chordMemNoteCount[y] = std::min(MAX_NOTES_CHORD_MEM, i);
 					}
 					else {
 						reader.exitTag();

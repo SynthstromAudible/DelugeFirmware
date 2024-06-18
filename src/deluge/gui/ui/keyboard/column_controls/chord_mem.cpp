@@ -26,10 +26,12 @@ void ChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], in
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		bool chord_selected = y == activeChordMem;
-		uint8_t chord_slot_filled = chordMemNoteCount[y] > 0 ? 0x7f : 0;
+		uint8_t chord_slot_filled_1 = chordMemNoteCount[y] > 0 ? 0x7f : 0;
+		uint8_t chord_slot_filled_2 = chordMemNoteCount[y] > 0 ? 0x3f : 0;
 		otherChannels = chord_selected ? 0xf0 : 0;
-		uint8_t base = chord_selected ? 0xff : chord_slot_filled;
-		image[y][column] = {otherChannels, base, base};
+		uint8_t base_1 = chord_selected ? 0xff : chord_slot_filled_1;
+		uint8_t base_2 = chord_selected ? 0xff : chord_slot_filled_2;
+		image[y][column] = {base_2, otherChannels, base_1};
 	}
 }
 
@@ -98,7 +100,7 @@ void ChordMemColumn::readFromFile(Deserializer& reader) {
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "chordSlot")) {
 			int y = slot_index++;
-			if (y >= 8) {
+			if (y >= kDisplayHeight) {
 				reader.exitTag("chordSlot");
 				continue;
 			}
@@ -121,7 +123,7 @@ void ChordMemColumn::readFromFile(Deserializer& reader) {
 					reader.exitTag();
 				}
 			}
-			chordMemNoteCount[y] = std::min(8, i);
+			chordMemNoteCount[y] = std::min((int)kMaxNotesChordMem, i);
 		}
 		else {
 			reader.exitTag();

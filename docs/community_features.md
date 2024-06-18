@@ -883,10 +883,13 @@ to each individual note onset. ([#1978])
       and the remaining notes will be played along with it. The default chord is none.
       You can get back to none by short pressing the current chord. Chords include 5th, Sus2,
       Minor, Major, Sus4, Minor7, Dom7, Major7. All are in closed root position.
-    - **`Chord Memory (CMEM - Cyan):`** Hold a chord down and press a pad to remember the chord. Press
+    - **`Song Chord Memory (CMEM - Cyan):`** Hold a chord down and press a pad to remember the chord. Press
       that pad again to play it. You can play over the top of your saved chords. To clear a chord,
       press shift and the pad you want to clear. Chord memory is shared across all song clips and it
       is saved in the song file.
+    - **`Clip Chord Memory (CCME - Purple):`** Hold a chord down and press a pad to remember the chord. Press
+      that pad again to play it. You can play over the top of your saved chords. To clear a chord,
+      press shift and the pad you want to clear. Clip chord memory is available only to the current instrument.
     - **`Scale Mode (SMOD - Yellow):`** Press and hold a pad to temporarily change the scale of the
       keyboard to the selected scale mode. Tap a scale mode to make it the new default. The scale
       pads will default to the first 7 scale modes, but you can change any pad to any scale by
