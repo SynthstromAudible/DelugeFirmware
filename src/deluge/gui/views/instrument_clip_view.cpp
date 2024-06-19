@@ -5327,17 +5327,20 @@ void InstrumentClipView::graphicsRoutine() {
 
 	uint8_t colours[kDisplayHeight];
 	uint8_t nonMutedColour = clip->getCurrentlyRecordingLinearly() ? 2 : 0;
+
+	int32_t noteRowIndex;
+	NoteRow* noteRow = nullptr;
+	bool inNoteEditor = getRootUI() == &automationView && automationView.inNoteEditor();
+	// if we're in the automation view note editor, then we're only looking at one note row at a time
+	// so we want to render a single note row's playhead across all note rows
+	if (inNoteEditor) {
+		noteRow = clip->getNoteRowOnScreen(lastAuditionedYDisplay, currentSong, &noteRowIndex);
+	}
+
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		int32_t noteRowIndex;
-		NoteRow* noteRow = nullptr;
-		// if we're in the automation view note editor, then we're only looking at one note row at a time
-		// so we want to render a single note row's playhead across all note rows
-		if (getRootUI() == &automationView && automationView.inNoteEditor()) {
-			noteRow = clip->getNoteRowOnScreen(lastAuditionedYDisplay, currentSong, &noteRowIndex);
-		}
-		// otherwise, iterate through all note row's displayed so we can render independent note row playheads
-		// (if required)
-		else {
+		// if you're not in the note editor, iterate through all note row's displayed so we can render independent note
+		// row playheads (if required)
+		if (!inNoteEditor) {
 			noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong, &noteRowIndex);
 		}
 		colours[yDisplay] = (noteRow && noteRow->muted) ? 1 : nonMutedColour;
