@@ -806,6 +806,11 @@ to each individual note onset. ([#1978])
       - `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
       velocity of each new arpeggiated note by applying different pressure (aftertouch) or slide (Y) on the keys.
 
+#### 4.3.9 - Velocity View
+
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
+- ([#2046]) Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
+
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
 #### 4.4.1 - Keyboard View
@@ -1298,9 +1303,13 @@ different firmware
 
 [#1962]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1962
 
+[#2046]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2046
+
 [#2136]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2136
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
+
+[Velocity View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/velocity_view.md
 
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 
