@@ -2331,10 +2331,11 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 			// toggle pad selection on / off
 			else if (!onAutomationOverview()) {
 				if (x == kPadSelectionShortcutX && y == kPadSelectionShortcutY) {
-					if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
-						return toggleVelocityPadSelectionMode(squareInfo);
-					}
-					else {
+					//	if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
+					//		return toggleVelocityPadSelectionMode(squareInfo);
+					//	}
+					//	else {
+					if (inAutomationEditor()) {
 						return toggleAutomationPadSelectionMode(modelStackWithParam, effectiveLength, xScroll, xZoom);
 					}
 				}
@@ -2712,8 +2713,10 @@ void AutomationView::velocityEditPadAction(ModelStackWithNoteRow* modelStackWith
 					//	numSquare.append("\n");
 
 					// calculate increment from first pad to last pad
+					float multiPadPressVelocityIncrementFloat =
+					    static_cast<float>((rightPadSelectedVelocity - leftPadSelectedVelocity)) / (numSquares - 1);
 					multiPadPressVelocityIncrement =
-					    (rightPadSelectedVelocity - leftPadSelectedVelocity) / (numSquares - 1);
+					    static_cast<int32_t>(std::round(multiPadPressVelocityIncrementFloat));
 					// if ramp is upwards, make increment positive
 					if (leftPadSelectedVelocity < rightPadSelectedVelocity) {
 						multiPadPressVelocityIncrement = std::abs(multiPadPressVelocityIncrement);
