@@ -303,6 +303,9 @@ void CVEngine::setGateType(uint8_t channel, GateType value) {
 }
 
 void CVEngine::updateClockOutput() {
+	if (clockOutputPending) {
+		D_PRINTLN("update clock while clock pending");
+	}
 	if (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode != GateType::SPECIAL) {
 		return;
 	}
