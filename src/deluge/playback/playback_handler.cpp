@@ -629,6 +629,7 @@ maybeDoTriggerClockOutputTick:
 
 			if (fractionNextAnalogOutTick <= fractionLastTimerTick) {
 				doTriggerClockOutTick();
+				D_PRINTLN("double trigger");
 				goto maybeDoTriggerClockOutputTick;
 			}
 
