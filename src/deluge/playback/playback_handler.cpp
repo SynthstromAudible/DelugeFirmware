@@ -623,16 +623,23 @@ void PlaybackHandler::actionTimerTickPart2() {
 			uint32_t analogOutTicksPer;
 			getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
 			uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
-
+			static bool triggered = false;
 maybeDoTriggerClockOutputTick:
 			uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
 
 			if (fractionNextAnalogOutTick <= fractionLastTimerTick) {
+				// theory - if we do this instead of scheduling it (handled at end of current audio routine), and the
+				// next tick isn't in this window, then this tick is picked up at the start of the audio routine and not
+				// by an ISR
 				doTriggerClockOutTick();
-				D_PRINTLN("double trigger");
-				goto maybeDoTriggerClockOutputTick;
+				if (triggered == true) {
+					D_PRINTLN("double trigger");
+				}
+				triggered = true;
+				// goto maybeDoTriggerClockOutputTick;
+				fractionNextAnalogOutTick += internalTicksPer;
 			}
-
+			triggered = false;
 			// Schedule another trigger clock output tick
 			scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick, fractionNextAnalogOutTick);
 		}
