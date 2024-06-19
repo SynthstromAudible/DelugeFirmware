@@ -4123,8 +4123,8 @@ doneLookingForRootNoteOnScreen:
 
 	// Need to figure out the scale first...
 	getCurrentInstrumentClip()->inScaleMode = true;
-	currentSong->setRootNote(newRootNote,
-	                         getCurrentInstrumentClip()); // Computation to find out what notes in scale
+	// Computation to find out what notes in scale
+	currentSong->setRootNote(newRootNote, getCurrentInstrumentClip());
 
 	int32_t yVisual = getCurrentInstrumentClip()->getYVisualFromYNote(pinAnimationToYNote, currentSong);
 
