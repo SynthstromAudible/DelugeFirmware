@@ -169,7 +169,7 @@ void Automation::selectAutomationViewParameter(bool clipMinder) {
 			automationView.getLastSelectedParamArrayPosition(clip);
 		}
 
-		automationView.automationParamType = AutomationParamType::NON_NOTE;
+		automationView.automationParamType = AutomationParamType::PER_SOUND;
 	}
 }
 

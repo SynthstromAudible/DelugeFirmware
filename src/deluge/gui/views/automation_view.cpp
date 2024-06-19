@@ -369,7 +369,7 @@ AutomationView::AutomationView() {
 	initMIDICCShortcutsForAutomation();
 	midiCCShortcutsLoaded = false;
 
-	automationParamType = AutomationParamType::NON_NOTE;
+	automationParamType = AutomationParamType::PER_SOUND;
 	noteRowBlinking = false;
 	noteRowFlashOn = false;
 
@@ -2550,7 +2550,7 @@ void AutomationView::handleParameterSelection(Clip* clip, OutputType outputType,
 
 	resetParameterShortcutBlinking();
 	if (inNoteEditor()) {
-		automationParamType = AutomationParamType::NON_NOTE;
+		automationParamType = AutomationParamType::PER_SOUND;
 		resetSelectedNoteRowBlinking();
 		if (padSelectionOn) {
 			initPadSelection();
@@ -4492,7 +4492,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		clip->lastSelectedParamKind = kind;
 		clip->lastSelectedParamArrayPosition = idx;
 	}
-	automationParamType = AutomationParamType::NON_NOTE;
+	automationParamType = AutomationParamType::PER_SOUND;
 }
 
 // used with SelectEncoderAction to get the next synth or kit non-affect entire param
@@ -4554,7 +4554,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 			clip->lastSelectedParamArrayPosition = idx;
 		}
 	}
-	automationParamType = AutomationParamType::NON_NOTE;
+	automationParamType = AutomationParamType::PER_SOUND;
 }
 
 // iterate through the patch cable list to select the previous or next patch cable
@@ -4648,7 +4648,7 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 		newCC += offset;
 	}
 	clip->lastSelectedParamID = newCC;
-	automationParamType = AutomationParamType::NON_NOTE;
+	automationParamType = AutomationParamType::PER_SOUND;
 }
 
 // used with SelectEncoderAction to get the next parameter in the list of parameters
@@ -4814,7 +4814,7 @@ void AutomationView::initParameterSelection(bool updateDisplay) {
 		}
 	}
 
-	automationParamType = AutomationParamType::NON_NOTE;
+	automationParamType = AutomationParamType::PER_SOUND;
 
 	// if we're going back to the Automation Overview, set the display to show "Automation Overview"
 	// and update the knob indicator levels to match the master FX button selected
@@ -5480,7 +5480,7 @@ bool AutomationView::inAutomationEditor() {
 }
 
 void AutomationView::setAutomationParamType() {
-	automationParamType = AutomationParamType::NON_NOTE;
+	automationParamType = AutomationParamType::PER_SOUND;
 	if (!inAutomationEditor()) {
 		Clip* clip = getCurrentClip();
 		if ((clip->lastSelectedParamShortcutX == kVelocityShortcutX)
@@ -5493,7 +5493,7 @@ void AutomationView::setAutomationParamType() {
 // used to check if we're automating a note row specific param type
 // e.g. velocity, probability, poly expression, etc.
 bool AutomationView::inNoteEditor() {
-	return (automationParamType != AutomationParamType::NON_NOTE);
+	return (automationParamType != AutomationParamType::PER_SOUND);
 }
 
 // used to determine the affect entire context

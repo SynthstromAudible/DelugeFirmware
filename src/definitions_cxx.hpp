@@ -225,7 +225,7 @@ enum class AutomationSubType : uint8_t {
 };
 
 enum class AutomationParamType : uint8_t {
-	NON_NOTE,
+	PER_SOUND,
 	NOTE_VELOCITY,
 };
 
