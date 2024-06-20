@@ -13,9 +13,9 @@ Specifications:
   - 16 FX columns
     - 1 Param assigned to each column
   - 8 FX values per column
-    - Long press pads in a column to change value momentarily and reset it (to the value before the pad was pressed) upon pad release
-    - Short press pads in a column to the change value until you press the pad again (resetting it to the value before the pad was pressed)
-    - Quickly clear all held values using `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
+    - Long press pads (>= 0.5 sec) in a column to change value momentarily and reset it (to the value before the pad was pressed) upon pad release
+    - Short press pads (< 0.5 sec) in a column to the change value until you press the pad again (resetting it to the value before the pad was pressed)
+    - Quickly clear all held values by pressing `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
   - Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
   - Save defaults as PerformanceView.xml file
     - Adjustable default Values assigned to each FX column via `VALUE` editing mode or PerformanceView.xml
