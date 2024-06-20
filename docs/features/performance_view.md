@@ -31,7 +31,7 @@ Specifications:
 
 - Note: If you save the layout while pad's are in a "held" state, the next time you re-load that layout it will re-load the held pad's and change the associated parameter's value based on the previous held state.
 
-#### 3) Long press a pad in the columns to play the FX but not hold it (when you let go of the pad it will snap back to previous value). 
+#### 3) Long press a pad in the columns to play the FX but not hold it (when you let go of the pad it will snap back to previous value).
 
 #### 4) Press `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` to clear all "held" FX values.
 
@@ -39,10 +39,10 @@ Specifications:
 
 > Enter using `SHIFT` + `KEYBOARD` button
 
-or 
+or
 
 > Enter using the menu
-> 
+>
 > - Enter/Exit Editing Mode by pressing down on the `SELECT` Encoder to open up the Perform FX Menu
 > - In the Perform FX menu, select the `EDITING MODE` sub menu and press down on Select Encoder to enter the menu
 > - Change Editing Mode to `VALUE`
@@ -59,10 +59,10 @@ Value Editing Mode:
 
 > Enter using `SHIFT` + `KEYBOARD` button. You will need to cycle passed the Value Editing Mode to enter the Param Editing Mode.
 
-or 
+or
 
 > Enter using the menu
-> 
+>
 > - Enter/Exit Editing Mode by pressing down on the `SELECT` Encoder to open up the Perform FX Menu
 > - In the Perform FX menu, select the `EDITING MODE` sub menu and press down on Select Encoder to enter the menu
 > - Change Editing Mode to `PARAM`
