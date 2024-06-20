@@ -123,6 +123,10 @@ void UITimerManager::routine() {
 					automationView.blinkPadSelectionShortcut();
 					break;
 
+				case TimerName::NOTE_ROW_BLINK:
+					automationView.blinkSelectedNoteRow();
+					break;
+
 				case TimerName::MATRIX_DRIVER:
 					PadLEDs::timerRoutine();
 					break;

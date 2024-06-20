@@ -224,6 +224,11 @@ enum class AutomationSubType : uint8_t {
 	NONE = 255,
 };
 
+enum class AutomationParamType : uint8_t {
+	PER_SOUND,
+	NOTE_VELOCITY,
+};
+
 enum class OutputType : uint8_t {
 	SYNTH,
 	KIT,
