@@ -86,7 +86,7 @@ Here is a list of general improvements that have been made, ordered from newest 
           go up a tone, and after that a D5 will go up an octave, or a D3 will go down etc.
     - **Limitation** Just as with setting transposition from the encoders, a new transpose event will cut off currently
       playing notes. If this is done from a MIDI clip, it can cut off notes right at the start so they are never heard.
-      Clip playback ensures transpose clips play first to affect new notes starting at the same position correctly, 
+      Clip playback ensures transpose clips play first to affect new notes starting at the same position correctly,
       but any already sounding notes will be stopped.
 
 - ([#889]) `Master MIDI Follow Mode` whereby after setting a master MIDI follow channel for Synth/MIDI/CV clips, Kit
@@ -231,13 +231,13 @@ Here is a list of general improvements that have been made, ordered from newest 
   - Not included in c1.1.0
 
 #### 3.18 - Remove Timestretching From Audio Clip Sample
-- ([#1542]) Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
+- ([#1542]) Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching.
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
 
 #### 3.19 - Sample Slice Default Mode
 
-- ([#1589]) Added a new default setting that controls which playback mode new slices of a kit will get. 
+- ([#1589]) Added a new default setting that controls which playback mode new slices of a kit will get.
 -  To change the setting, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
 - every new slice in a kit using the slicer will now get one of the modes by default
   -  `CUT`, `ONCE`, `LOOP`, `STRETCH`
@@ -297,7 +297,7 @@ Here is a list of features that have been added to the firmware as a list, group
 - ([#196] and [#1018]) In Song View (Rows mode), holding the status pad (mute pad) for a clip and pressing `SELECT`
   brings up a clip type selection menu. For Grid Mode there is a dedicated Config Mode in which this menu can be
   reached, see `Yellow Mode` in [Grid View](#415grid-view).
-  
+
   The options are:
     - **`Default (DEFA)`** - the default Deluge clip type.
     - **`Fill (FILL)`** - Fill clip.
@@ -402,11 +402,9 @@ Here is a list of features that have been added to the firmware as a list, group
         - 16 FX columns
             - 1 Param assigned to each column
         - 8 FX values per column
-            - Long press pads in a column to change value momentarily and reset it (to the value before the pad was
-              pressed) upon pad release
-            - Short press pads in a column to the change value until you press the pad again (resetting it to the value
-              before the pad was pressed)
-            - Quickly clear all held values using `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
+            - Long press pads (>= 0.5 sec) in a column to change value momentarily and reset it (to the value before the pad was pressed) upon pad release
+            - Short press pads (< 0.5 sec) in a column to the change value until you press the pad again (resetting it to the value before the pad was pressed)
+            - Quickly clear all held values by pressing `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
         - Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
         - Save defaults as PerformanceView.xml file
             - Adjustable default Values assigned to each FX column via `VALUE` editing mode or PerformanceView.xml
@@ -680,7 +678,7 @@ to each individual note onset. ([#1978])
           press Clip (if you are in a clip) or Song (if you are in arranger) to open the `AUTOMATION VIEW EDITOR` while you are still in the menu. You will be able to interact with the grid to edit automation for the current parameter / patch cable selected in the menu.
     - ([#1374]) Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.
       - ([#1607]) You can also use the `SELECT ENCODER` while in the `AUTOMATION VIEW EDITOR` to scroll to any patch cables that exist.
-    - ([#1456]) Added an in-between-layer in the Deluge menu system to be able to access and interact with the `AUTOMATION VIEW EDITOR` while you are still in the menu from the regular `ARRANGER / CLIP VIEW`. When you exit the menu you will be returned to the View you were in prior to entering the menu. Press Clip (if you are in a clip) or Song (if you are in arranger) to temporarily open the `AUTOMATION VIEW EDITOR` while you are still in the menu.    
+    - ([#1456]) Added an in-between-layer in the Deluge menu system to be able to access and interact with the `AUTOMATION VIEW EDITOR` while you are still in the menu from the regular `ARRANGER / CLIP VIEW`. When you exit the menu you will be returned to the View you were in prior to entering the menu. Press Clip (if you are in a clip) or Song (if you are in arranger) to temporarily open the `AUTOMATION VIEW EDITOR` while you are still in the menu.
     - ([#1480]) As a follow-up to [#1374] which enabled enabled patch cables to be edited in Automation View, the Automation Editor has now been modified to display param values according to whether the Param is bipolar or not. If it's a bipolar param, the grid will light up as follows:
       - Middle value = no pads lit up
       - Positive value = top 4 pads lit up according to position in middle to maximum value rnage
@@ -688,7 +686,7 @@ to each individual note onset. ([#1978])
       - Note: per the functionality added in [#887] mentioned above, you can set a param to the middle value by pressing the two pads in a column or you can use the fine tuning method with the gold encoders in or out of pad selection mode by selecting a pad and turning gold encoder.
       - To make it easier to set the middle value, functionality has been added to blink the LED indicators when you reach the middle value and it also makes it more difficult to turn the knob past the middle value as it currently did outside automation view editor.
     - ([#1898] [#2136]) Change pad selection mode shortcut.
-      - Updated `AUTOMATION VIEW` to move `PAD SELECTION MODE` shortcut to the `WAVEFORM` pad in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using `SHIFT` + `WAVEFORM` shortcut pad. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.    
+      - Updated `AUTOMATION VIEW` to move `PAD SELECTION MODE` shortcut to the `WAVEFORM` pad in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using `SHIFT` + `WAVEFORM` shortcut pad. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.
 
 #### 4.3.6 - Set Probability By Row
 
@@ -874,17 +872,17 @@ to each individual note onset. ([#1978])
       messages from norns.
     - The functionality of the grid changes with each norns script.
 
-  **1.** Connect Deluge to norns with a USB cable for MIDI.  
+  **1.** Connect Deluge to norns with a USB cable for MIDI.
   **2.** Install [Midigrid](https://llllllll.co/t/midigrid-use-launchpads-midi-grid-controllers-with-norns/42336/) on
-  your norns, turn on the mod, set to 128 grid size.  
+  your norns, turn on the mod, set to 128 grid size.
   **3.** Turn on two features in the `COMMUNITY FEATURES` menu (via `SETTINGS > COMMUNITY FEATURES`): "Highlight
-  Incoming Notes" (HIGH) and "Norns Layout" (NORN) both set to ON.  
+  Incoming Notes" (HIGH) and "Norns Layout" (NORN) both set to ON.
   **4.** Create a MIDI clip on Deluge by pressing `MIDI` button in Clip View. Set MIDI output for the clip to channel 16
-  by turning the `SELECT` encoder.  
+  by turning the `SELECT` encoder.
   **5.** Select the keyboard layout on the MIDI clip. Press and hold keyboard button and turn `SELECT` encoder to
-  select "Norns Layout" (NORN).  
+  select "Norns Layout" (NORN).
   **6.** Select a [script](https://norns.community/) on norns that supports grid controls (awake, boingg,
-  rudiments, ... ).  
+  rudiments, ... ).
   **7.** The grid LEDs should light up indicating that norns is sending MIDI notes out on channel 16 to Deluge. Press a
   pad to see a change on norns indicating Deluge is sending MIDI notes out on channel 16.
 
