@@ -59,7 +59,7 @@ struct SquareInfo {
 	uint8_t squareType;
 	int32_t averageProbability;
 	int32_t averageVelocity;
-	bool isValid = false;
+	bool isValid{false};
 };
 
 struct PendingNoteOn {
