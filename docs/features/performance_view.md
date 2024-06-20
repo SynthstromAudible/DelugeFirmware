@@ -13,8 +13,8 @@ Specifications:
   - 16 FX columns
     - 1 Param assigned to each column
   - 8 FX values per column
-    - Long press pads (>= 0.5 sec) in a column to change value momentarily and reset it (to the value before the pad was pressed) upon pad release
-    - Short press pads (< 0.5 sec) in a column to the change value until you press the pad again (resetting it to the value before the pad was pressed)
+    - Long press pads (>= 100ms by default) in a column to change value momentarily and reset it (to the value before the pad was pressed) upon pad release
+    - Short press pads (< 100ms by default) in a column to the change value until you press the pad again (resetting it to the value before the pad was pressed)
     - Quickly clear all held values by pressing `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
   - Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
   - Save defaults as PerformanceView.xml file
@@ -27,11 +27,13 @@ Specifications:
 
 #### 1) Enter performance view from song row view / arranger view by pressing the keyboard button / Enter performance view from song grid view by pressing the pink grid mode pad in the bottom right hand corner of the sidebar
 
-#### 2) Short press a pad in the columns to hold that pad's value (parameter and held value is displayed on the screen)
+#### 2) Short press (< 100ms by default) a pad in the columns to hold that pad's value (parameter and held value is displayed on the screen)
 
 - Note: If you save the layout while pad's are in a "held" state, the next time you re-load that layout it will re-load the held pad's and change the associated parameter's value based on the previous held state.
 
-#### 3) Long press a pad in the columns to play the FX but not hold it (when you let go of the pad it will snap back to previous value).
+#### 3) Long press (>= 100ms by default) a pad in the columns to play the FX but not hold it (when you let go of the pad it will snap back to previous value).
+
+- Note: The long press / short press time used for Performance View can be configured in the global settings menu under `DEFAULTS` as `HOLD PRESS TIME`.
 
 #### 4) Press `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` to clear all "held" FX values.
 
