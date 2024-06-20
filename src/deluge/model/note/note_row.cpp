@@ -220,6 +220,7 @@ void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
 	squareInfo.numNotes = 0;
 	squareInfo.averageProbability = 0;
 	squareInfo.averageVelocity = 0;
+	squareInfo.isValid = true;
 }
 
 /// get info about squares for display at current zoom level
