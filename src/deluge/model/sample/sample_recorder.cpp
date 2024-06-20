@@ -688,8 +688,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 				if (firstSampleCluster->sdAddress == 0) {
 					FREEZE_WITH_ERROR("E268");
 				}
-				if ((firstSampleCluster->sdAddress - fileSystem.database)
-				    & (fileSystem.csize - 1)) {
+				if ((firstSampleCluster->sdAddress - fileSystem.database) & (fileSystem.csize - 1)) {
 					FREEZE_WITH_ERROR("E269");
 				}
 

@@ -178,8 +178,7 @@ clusterSizeChangedButItsOk:
 						continue;
 					}
 
-					uint32_t firstSector =
-					    clst2sect(&fileSystem, sampleFile.obj.sclust);
+					uint32_t firstSector = clst2sect(&fileSystem, sampleFile.obj.sclust);
 
 					f_close(&sampleFile);
 

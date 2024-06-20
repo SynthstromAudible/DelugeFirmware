@@ -32,7 +32,6 @@ extern "C" {
 
 extern void deleteOldSongBeforeLoadingNew();
 
-
 extern FatFS::Filesystem fileSystem;
 
 class Instrument;
@@ -49,6 +48,46 @@ class SoundDrum;
 class StorageManager;
 
 class SMSharedData {};
+
+class FileReader {
+public:
+	FileReader();
+	virtual ~FileReader();
+
+	FIL readFIL;
+	char* fileClusterBuffer;
+	UINT currentReadBufferEndPos;
+	int32_t fileReadBufferCurrentPos;
+
+protected:
+	bool readFileCluster();
+	bool readFileClusterIfNecessary();
+	uint32_t readChar(char* thisChar);
+	void readDone();
+
+	int32_t readCount; // Used for multitask interleaving.
+	bool reachedBufferEnd;
+	void resetReader();
+};
+
+class FileWriter {
+public:
+	FIL writeFIL;
+	FileWriter();
+	virtual ~FileWriter();
+
+	Error closeAfterWriting(char const* path, char const* beginningString, char const* endString);
+
+protected:
+	void resetWriter();
+	Error writeBufferToFile();
+
+	char* writeClusterBuffer;
+	uint8_t indentAmount;
+	int32_t fileWriteBufferCurrentPos;
+	int32_t fileTotalBytesWritten;
+	bool fileAccessFailedDuringWrite;
+};
 
 class Serializer {
 public:
@@ -69,7 +108,7 @@ public:
 	virtual Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                                    char const* endString = nullptr) = 0;
 
-	virtual void reset()= 0;
+	virtual void reset() = 0;
 	void writeFirmwareVersion();
 
 	void writeEarliestCompatibleFirmwareVersion(char const* versionString) {
@@ -83,10 +122,10 @@ public:
 	void writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue, bool onNewLine);
 };
 
-class XMLSerializer : public Serializer {
+class XMLSerializer : public Serializer, public FileWriter {
 public:
 	XMLSerializer();
-	virtual ~XMLSerializer();
+	~XMLSerializer() = default;
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
@@ -102,19 +141,14 @@ public:
 	void writeClosingTag(char const* tag, bool shouldPrintIndents = true) override;
 	void printIndents() override;
 	void write(char const* output) override;
-	void reset() override;
-
-
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr) override;
-	FIL	 writeFIL;
+	void reset() override;
+
+	FIL writeFIL;
+
 private:
-	char* writeClusterBuffer;
 	uint8_t indentAmount;
-	int32_t fileWriteBufferCurrentPos;
-	int32_t fileTotalBytesWritten;
-	bool fileAccessFailedDuringWrite;
-	Error writeXMLBufferToFile();
 };
 
 class Deserializer {
@@ -133,13 +167,13 @@ public:
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
 	virtual void exitTag(char const* exitTagName = NULL) = 0;
-	virtual void reset()= 0;
+	virtual void reset() = 0;
 };
 
-class XMLDeserializer : public Deserializer {
+class XMLDeserializer : public Deserializer, public FileReader {
 public:
 	XMLDeserializer();
-	virtual ~XMLDeserializer();
+	~XMLDeserializer() = default;
 
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
 	char const* readNextTagOrAttributeName() override;
@@ -159,42 +193,37 @@ public:
 	Error openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                  bool ignoreIncorrectFirmware = false);
 	void reset() override;
-
-	FIL	 readFIL;
-	char* fileClusterBuffer; // This buffer is reused in various places outside of StorageManager proper.
+	/*
+	    FIL	 readFIL;
+	    char* fileClusterBuffer; // This buffer is reused in various places outside of StorageManager proper.
+	*/
 	FirmwareVersion firmware_version = FirmwareVersion::current();
 
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
-private:
-	UINT currentReadBufferEndPos;
-	int32_t fileReadBufferCurrentPos;
 
+private:
+	char charAtEndOfValue;
 	uint8_t xmlArea; // state variable for tokenizer
-	bool xmlReachedEnd;
+
 	int32_t tagDepthCaller; // How deeply indented in XML the main Deluge classes think we are, as data being read.
 	int32_t tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way
 	                      // to finding next useful data.
-	int32_t xmlReadCount;
 
 	char stringBuffer[kFilenameBufferSize];
 
 	void skipUntilChar(char endChar);
-	uint32_t readCharXML(char* thisChar);
+
 	char const* readTagName();
 	char const* readNextAttributeName();
 	char const* readUntilChar(char endChar);
 	char const* readAttributeValue();
 
-	bool fileAccessFailedDuring;
-
 	int32_t readIntUntilChar(char endChar);
 	bool getIntoAttributeValue();
 	int32_t readAttributeValueInt();
-	bool readXMLFileClusterIfNecessary();
+
 	Error readStringUntilChar(String* string, char endChar);
 	Error readAttributeValueString(String* string);
-	bool readXMLFileCluster();
-	void xmlReadDone();
 };
 
 extern XMLSerializer smSerializer;
@@ -212,7 +241,7 @@ public:
 	                  char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 
 	Error initSD();
-	bool closeFile(FIL &fileToClose);
+	bool closeFile(FIL& fileToClose);
 
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);
@@ -231,6 +260,7 @@ public:
 	void openFilePointer(FilePointer* fp, XMLDeserializer& reader);
 
 	Error checkSpaceOnCard();
+
 private:
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 };

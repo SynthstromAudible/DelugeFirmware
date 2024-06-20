@@ -283,9 +283,9 @@ ramError:
 		error = Error::INSUFFICIENT_RAM;
 
 someError:
+		display->displayError(error);
+		f_close(&smDeserializer.readFIL);
 
-			display->displayError(error);
-			f_close(&smDeserializer.readFIL);
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
 		if (!currentSong) {
@@ -383,8 +383,7 @@ gotErrorAfterCreatingSong:
 	}
 	AudioEngine::logAction("read new song from file");
 
-	bool success = storageManager.closeFile();
-
+	bool success = storageManager.closeFile(smDeserializer.readFIL);
 	if (!success) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
