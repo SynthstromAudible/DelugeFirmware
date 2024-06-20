@@ -296,20 +296,26 @@ void InstrumentClipMinder::displayOrLanguageChanged() {
 }
 
 void InstrumentClipMinder::setLedStates() {
-	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentOutputType() == OutputType::SYNTH);
-	indicator_leds::setLedState(IndicatorLED::KIT, getCurrentOutputType() == OutputType::KIT);
-	indicator_leds::setLedState(IndicatorLED::MIDI, getCurrentOutputType() == OutputType::MIDI_OUT);
-	indicator_leds::setLedState(IndicatorLED::CV, getCurrentOutputType() == OutputType::CV);
+	OutputType outputType = getCurrentOutputType();
 
-	// cross screen editing doesn't currently work in automation view, so don't light it up
-	if (getCurrentUI() != &automationView) {
-		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, getCurrentInstrumentClip()->wrapEditing);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, outputType == OutputType::SYNTH);
+	indicator_leds::setLedState(IndicatorLED::KIT, outputType == OutputType::KIT);
+	indicator_leds::setLedState(IndicatorLED::MIDI, outputType == OutputType::MIDI_OUT);
+	indicator_leds::setLedState(IndicatorLED::CV, outputType == OutputType::CV);
+
+	InstrumentClip* clip = getCurrentInstrumentClip();
+
+	bool inAutomationView = ((getCurrentUI() == &automationView) && !automationView.inNoteEditor());
+	if (!inAutomationView) {
+		// only light cross screen led up if you're in the automation view note editor or outside automation view
+		indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, clip->wrapEditing);
 	}
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, getCurrentInstrumentClip()->isScaleModeClip());
+
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, clip->isScaleModeClip());
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
 #ifdef currentClipStatusButtonX
-	view.drawCurrentClipPad(getCurrentInstrumentClip());
+	view.drawCurrentClipPad(clip);
 #endif
 
 	view.setLedStates();
@@ -412,12 +418,15 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 
 			UI* currentUI = getCurrentUI();
 
-			// Always clear automation when in Automation View
-			// or also clear automation when default setting to only clear automation in Automation View is false
-			bool clearAutomation = (currentUI == &automationView || !FlashStorage::automationClear);
+			// If you're in Automation View, only clear automation if you're not in the Note Editor
+			// or also clear Automation when default setting to only clear automation in Automation View is false
+			bool clearAutomation = ((currentUI == &automationView && !automationView.inNoteEditor())
+			                        || (currentUI != &automationView && !FlashStorage::automationClear));
 
+			// If you're in Automation View, only clear Notes and MPE if you're in the Note Editor
 			// Always clear Notes and MPE when you're not in Automation View
-			bool clearSequenceAndMPE = (currentUI != &automationView);
+			bool clearSequenceAndMPE =
+			    ((currentUI != &automationView) || (currentUI == &automationView && automationView.inNoteEditor()));
 
 			getCurrentInstrumentClip()->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
 
@@ -427,12 +436,15 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			// automations, you will enter Automation Clip View and clear the clip there. If this is enabled, the
 			// message displayed on the OLED screen is adjusted to reflect the nature of what is being cleared
 
+			// if you're in automation view but not in the note editor, you're clearing non-MPE automation
 			if (currentUI == &automationView) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 			}
+			// if you're not in automation view and automationClear default is on, you're only clearing Notes and MPE
 			else if (FlashStorage::automationClear) {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
 			}
+			// if you're not in automation view and automationClear default is off, you're clearing everything
 			else {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_CLIP_CLEARED));
 			}

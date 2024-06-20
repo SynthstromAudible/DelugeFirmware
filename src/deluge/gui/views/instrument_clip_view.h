@@ -159,6 +159,7 @@ public:
 	bool getAffectEntire() override;
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
 	void endEditPadPress(uint8_t i);
+	void endAllEditPadPresses();
 	void copyAutomation(int32_t whichModEncoder, int32_t navSysId = NAVIGATION_CLIP);
 	void pasteAutomation(int32_t whichModEncoder, int32_t navSysId = NAVIGATION_CLIP);
 	// made these public so they can be accessed by the automation clip view
@@ -196,17 +197,23 @@ public:
 	uint32_t timeHorizontalKnobLastReleased;
 	bool shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress;
 	bool shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress;
+	// Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do
+	// that shortcut into the SoundEditor!
+	bool editedAnyPerNoteRowStuffSinceAuditioningBegan;
 	// made these public so they can be accessed by the automation clip view
 
 	// ui
 	UIType getUIType() override { return UIType::INSTRUMENT_CLIP_VIEW; }
 
+	// public so they can be accessed by the velocity note editor in automation view
+	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
+	void adjustProbability(int32_t offset);
+	void setRowProbability(int32_t offset);
+	void editNoteRepeat(int32_t offset);
+
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool offsettingNudgeNumberDisplay;
-	// Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do
-	// that shortcut into the SoundEditor!
-	bool editedAnyPerNoteRowStuffSinceAuditioningBegan;
 
 	uint8_t flashScaleModeLedErrorCount;
 
@@ -226,8 +233,6 @@ private:
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
 	                                int32_t* getIndex = NULL);
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
-	void adjustProbability(int32_t offset);
-	void setRowProbability(int32_t offset);
 	void displayProbability(uint8_t probability, bool prevBase);
 	void copyNotes();
 	void pasteNotes(bool overwriteExisting);
@@ -235,11 +240,9 @@ private:
 
 	void createDrumForAuditionedNoteRow(DrumType drumType);
 	void nudgeNotes(int32_t offset);
-	void editNoteRepeat(int32_t offset);
 
 	bool isRowAuditionedByInstrument(int32_t yDisplay);
 
-	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay,
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
 
