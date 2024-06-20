@@ -1953,7 +1953,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
-	// hook to render display for OLED and 7SEG when in Automation Clip View
+	// hook to render display for OLED and 7SEG when in Automation View
 	if (getCurrentUI() == &automationView && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		if (automationView.inAutomationEditor()) {
 			automationView.displayAutomation(true, !display->have7SEG());
