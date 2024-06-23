@@ -96,6 +96,7 @@
 - Added New MIDI Takeover Mode: `RELATIVE` for use with controllers sending relative value changes
 - Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
+- Added ability to save and load MIDI presets. They end up in a new folder named MIDI.  
 
 In addition, a number of improvements have been made to how the OLED display is used:
 
