@@ -1371,8 +1371,10 @@ void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevi
 	Kit* kit = (Kit*)clip->output;
 	Drum* thisDrum = getDrumFromNoteCode(clip, note);
 
-	kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
-	                         thisDrum);
+	if (thisDrum) {
+		kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
+		                         thisDrum);
+	}
 }
 
 /// for learning a whole kit to a single channel, offer cc to all drums
