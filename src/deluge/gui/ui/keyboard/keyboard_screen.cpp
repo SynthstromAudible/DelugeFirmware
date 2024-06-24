@@ -588,8 +588,9 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int32_t offset) {
 	    offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
 
 	if (isUIModeWithinRange(padActionUIModes)) {
-		evaluateActiveNotes();
-		updateActiveNotes();
+		// ignore the change?
+		//		evaluateActiveNotes();
+		//		updateActiveNotes();
 	}
 
 	requestRendering();
