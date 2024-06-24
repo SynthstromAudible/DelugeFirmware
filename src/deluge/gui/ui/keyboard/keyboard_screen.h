@@ -55,6 +55,8 @@ public:
 
 	inline void requestRendering() { uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF); }
 
+	void killColumnSwitchKey(int32_t column);
+
 	// ui
 	UIType getUIType() { return UIType::KEYBOARD_SCREEN; }
 

@@ -69,6 +69,7 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 		// in note columns
 		if (pressed.x == LEFT_COL) {
 			if (pressed.active) {
+				// if holding multiple will be left as the last button pressed
 				leftColHeld = pressed.y;
 			}
 			if (!pressed.dead) {
@@ -148,19 +149,22 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
 
 	if (leftColHeld == 7 && offset) {
-		leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
-		leftColFunc = (offset > 0) ? nextControlFunction(leftColFunc, rightColFunc)
-		                           : prevControlFunction(leftColFunc, rightColFunc);
-		display->displayPopup(functionNames[leftColFunc]);
-		leftCol = getColumnForFunc(leftColFunc);
+		state.leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
+		state.leftColFunc = (offset > 0) ? nextControlFunction(state.leftColFunc, state.rightColFunc)
+		                                 : prevControlFunction(state.leftColFunc, state.rightColFunc);
+		display->displayPopup(functionNames[state.leftColFunc]);
+		state.leftCol = state.getColumnForFunc(state.leftColFunc);
+		keyboardScreen.killColumnSwitchKey(LEFT_COL);
 		return true;
 	}
 	else if (rightColHeld == 7 && offset) {
-		rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
-		rightColFunc = (offset > 0) ? nextControlFunction(rightColFunc, leftColFunc)
-		                            : prevControlFunction(rightColFunc, leftColFunc);
-		display->displayPopup(functionNames[rightColFunc]);
-		rightCol = getColumnForFunc(rightColFunc);
+		state.rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
+		state.rightColFunc = (offset > 0) ? nextControlFunction(state.rightColFunc, state.leftColFunc)
+		                                  : prevControlFunction(state.rightColFunc, state.leftColFunc);
+		display->displayPopup(functionNames[state.rightColFunc]);
+		state.rightCol = state.getColumnForFunc(state.rightColFunc);
+		state.rightColSetAtRuntime = true;
+		keyboardScreen.killColumnSwitchKey(RIGHT_COL);
 		return true;
 	}
 	return false;
