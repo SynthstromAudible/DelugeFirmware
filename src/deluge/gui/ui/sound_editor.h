@@ -121,7 +121,10 @@ public:
 	bool inSettingsMenu();
 	bool inSongMenu();
 	bool setupKitGlobalFXMenu;
-	void exitUI() override { exitCompletely(); };
+	bool exitUI() override {
+		exitCompletely();
+		return true;
+	};
 	void exitCompletely();
 	void goUpOneLevel();
 	void enterSubmenu(MenuItem* newItem);

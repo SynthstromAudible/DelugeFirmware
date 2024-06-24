@@ -35,7 +35,7 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::RENAME_OUTPUT; }
-	void exitUI() override;
+	bool exitUI() override;
 
 protected:
 	void enterKeyPress();

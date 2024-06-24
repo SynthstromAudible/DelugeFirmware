@@ -68,7 +68,7 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::SAMPLE_MARKER_EDITOR; }
-	void exitUI() override;
+	bool exitUI() override;
 
 private:
 	static constexpr int32_t kInvalidColumn = -2147483648;
