@@ -23,7 +23,8 @@ namespace deluge::gui::ui::keyboard::controls {
 
 class VelocityColumn : public ControlColumn {
 public:
-	VelocityColumn(uint8_t velocity) : vDisplay(velocity), storedVelocity(velocity << kVelModShift){};
+	explicit VelocityColumn(uint8_t velocity)
+	    : vDisplay(velocity << kVelModShift), storedVelocity(velocity << kVelModShift){};
 
 	void renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) override;
 	bool handleVerticalEncoder(int8_t pad, int32_t offset) override;
