@@ -140,7 +140,7 @@ public:
 		return false;
 	}
 	// called when back is held, used to exit menus or similar full screen views completely
-	virtual void exitUI() {};
+	virtual void exitUI(){};
 	void close();
 
 	virtual void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) = 0;
