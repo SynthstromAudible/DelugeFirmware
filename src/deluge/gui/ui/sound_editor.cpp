@@ -151,7 +151,9 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	switch (uiType) {
 	case UIType::KEYBOARD_SCREEN:
 		// don't greyout keyboard screen
-		doGreyout = false;
+		doGreyout = true;
+		// left column is instant exit so grey it out
+		*cols = 0x00000002;
 		break;
 	case UIType::AUTOMATION_VIEW:
 		// only greyout if you're not in automation editor
@@ -1134,7 +1136,13 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	if (rootUI == &keyboardScreen) {
-		keyboardScreen.padAction(x, y, on);
+		// left column -> totally exit sound menu
+		if (x == kDisplayWidth) {
+			exitCompletely();
+		}
+		else {
+			keyboardScreen.padAction(x, y, on);
+		}
 		return ActionResult::DEALT_WITH;
 	}
 
