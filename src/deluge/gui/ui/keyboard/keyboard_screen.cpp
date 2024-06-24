@@ -72,6 +72,18 @@ KeyboardScreen::KeyboardScreen() {
 static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
                                             0}; // Careful - this is referenced in two places // I'm always careful ;)
 
+void KeyboardScreen::killColumnSwitchKey(int32_t column) {
+	if (column != kDisplayWidth && column != kDisplayWidth + 1) {
+		return;
+	}
+	for (auto& pressedPad : pressedPads) {
+		// kill the pad so it doesn't get used on release or hold
+		if (pressedPad.x == column && pressedPad.y == 7) {
+			pressedPad.dead = true;
+			return;
+		}
+	}
+}
 ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
@@ -588,9 +600,8 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int32_t offset) {
 	    offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
 
 	if (isUIModeWithinRange(padActionUIModes)) {
-		// ignore the change?
-		//		evaluateActiveNotes();
-		//		updateActiveNotes();
+		evaluateActiveNotes();
+		updateActiveNotes();
 	}
 
 	requestRendering();
