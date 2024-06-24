@@ -240,6 +240,10 @@ Here is a list of general improvements that have been made, ordered from newest 
 - This allows for more flexibility when entering long notes and chord progressions.
 - While changing the zoom level, the horizontal encoder will briefly pause while passing the zoom level which represents the entire sequence. This is to prevent frustration from users who are used to the prior limitations.
 
+#### 3.22 Exit menus by holding back
+
+- ([#2166]) Holding back will now fully exit your current menu
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1318,6 +1322,7 @@ different firmware
 
 [#2136]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2136
 
+[#2166]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
 [Velocity View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/velocity_view.md
