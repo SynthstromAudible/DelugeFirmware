@@ -120,6 +120,10 @@ public:
 	bool inSettingsMenu();
 	bool inSongMenu();
 	bool setupKitGlobalFXMenu;
+	bool exitUI() override {
+		exitCompletely();
+		return true;
+	};
 	void exitCompletely();
 	void goUpOneLevel();
 	bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program);

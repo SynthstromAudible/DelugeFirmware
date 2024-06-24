@@ -33,13 +33,13 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::RENAME_DRUM; }
+	bool exitUI() override;
 
 protected:
 	void enterKeyPress();
 
 private:
 	SoundDrum* getDrum();
-	void exitUI();
 };
 
 extern RenameDrumUI renameDrumUI;
