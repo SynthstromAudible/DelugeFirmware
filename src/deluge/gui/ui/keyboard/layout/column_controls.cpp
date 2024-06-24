@@ -149,21 +149,20 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(getCurrentClip());
 
 	if (leftColHeld == 7 && offset) {
-		state.leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
-		state.leftColFunc = (offset > 0) ? nextControlFunction(state.leftColFunc, state.rightColFunc)
-		                                 : prevControlFunction(state.leftColFunc, state.rightColFunc);
-		display->displayPopup(functionNames[state.leftColFunc]);
-		state.leftCol = state.getColumnForFunc(state.leftColFunc);
+		leftCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
+		leftColFunc = (offset > 0) ? nextControlFunction(leftColFunc, rightColFunc)
+		                           : prevControlFunction(leftColFunc, rightColFunc);
+		display->displayPopup(functionNames[leftColFunc]);
+		leftCol = getColumnForFunc(leftColFunc);
 		keyboardScreen.killColumnSwitchKey(LEFT_COL);
 		return true;
 	}
 	else if (rightColHeld == 7 && offset) {
-		state.rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
-		state.rightColFunc = (offset > 0) ? nextControlFunction(state.rightColFunc, state.leftColFunc)
-		                                  : prevControlFunction(state.rightColFunc, state.leftColFunc);
-		display->displayPopup(functionNames[state.rightColFunc]);
-		state.rightCol = state.getColumnForFunc(state.rightColFunc);
-		state.rightColSetAtRuntime = true;
+		rightCol->handleLeavingColumn(modelStackWithTimelineCounter, this);
+		rightColFunc = (offset > 0) ? nextControlFunction(rightColFunc, leftColFunc)
+		                            : prevControlFunction(rightColFunc, leftColFunc);
+		display->displayPopup(functionNames[rightColFunc]);
+		rightCol = getColumnForFunc(rightColFunc);
 		keyboardScreen.killColumnSwitchKey(RIGHT_COL);
 		return true;
 	}
