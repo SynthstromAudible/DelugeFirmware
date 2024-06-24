@@ -59,8 +59,9 @@ bool ModColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 void ModColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                     KeyboardLayout* layout) {
 	// Restore previously set Modwheel
-	modDisplay = mod32;
-	getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32, modelStackWithTimelineCounter);
+	modDisplay = storedMod;
+	getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, storedMod,
+	                                                         modelStackWithTimelineCounter);
 };
 
 void ModColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
@@ -73,13 +74,14 @@ void ModColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineC
 		display->displayPopup((modDisplay + kHalfStep) >> kVelModShift);
 	}
 	else if (!pad.padPressHeld || FlashStorage::keyboardFunctionsModwheelGlide) {
-		mod32 = modMin + pad.y * modStep;
-		getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
+		// short press or momentary velocity is off, latch the display mod from the ON press
+		storedMod = modDisplay;
+		getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, storedMod,
 		                                                         modelStackWithTimelineCounter);
 	}
 	else {
-		modDisplay = mod32;
-		getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, mod32,
+		modDisplay = storedMod;
+		getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, storedMod,
 		                                                         modelStackWithTimelineCounter);
 	}
 };

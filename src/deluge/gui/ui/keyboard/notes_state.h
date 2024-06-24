@@ -34,6 +34,8 @@ struct PressedPad : Cartesian {
 	bool active;
 	// all evaluatePads wil be called at least once with pad.active == false on release. Following
 	// that, dead will be set to true to avoid repeatedly processing releases.
+	// exception - if the pad is "used up" by switching keyboard columns it will be set dead immediately to prevent
+	// processing its release, while still being set as active
 	bool dead;
 };
 
