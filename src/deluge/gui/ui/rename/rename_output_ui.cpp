@@ -107,9 +107,10 @@ void RenameOutputUI::enterKeyPress() {
 	exitUI();
 }
 
-void RenameOutputUI::exitUI() {
+bool RenameOutputUI::exitUI() {
 	display->setNextTransitionDirection(-1);
 	close();
+	return true;
 }
 
 ActionResult RenameOutputUI::padAction(int32_t x, int32_t y, int32_t on) {
