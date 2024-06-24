@@ -928,20 +928,27 @@ Synchronization modes accessible through `SYNC` shortcuts for `ARP`, `LFO1`, `DE
   the kit.
     - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
-### 4.7 Audio Clip View - Features
+### 4.7 Instrument Clip View - Midi Clip Features
 
-#### 4.7.1 - Shift Clip
+#### 4.7.1 - Save/Load MIDI Presets
+
+- ([#1390]) Allows saving and loading midi presets. They end up in a new folder named MIDI.
+  - Note: It only saves the items which would be saved in a song at the moment.
+
+### 4.8 Audio Clip View - Features
+
+#### 4.8.1 - Shift Clip
 
 - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument
   clips.
 
-### 4.8 Third Party Device Integration
+### 4.9 Third Party Device Integration
 
 This is largely on the development side and created the start of a system of modules and hook points for enabling
 actions on the Deluge to signal third-party equipment over hosted USB. To start things off this includes some support
 for the Lumi Keys Studio Edition, described below.
 
-### 4.8.1 Lumi Keys Studio Edition
+### 4.9.1 Lumi Keys Studio Edition
 
 - ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark
   until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible
@@ -1206,6 +1213,8 @@ different firmware
 
 [#1382]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1382
 
+[#1390]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1390
+
 [#1456]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1456
 
 [#1480]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1480
@@ -1220,7 +1229,15 @@ different firmware
 
 [#1846]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1846
 
-[#2137]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2137
+[#1898]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1898
+
+[#1962]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1962
+
+[#2046]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2046
+
+[#2080]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2080
+
+[#2136]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2136
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
