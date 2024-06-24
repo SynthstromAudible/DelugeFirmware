@@ -69,6 +69,7 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 		// in note columns
 		if (pressed.x == LEFT_COL) {
 			if (pressed.active) {
+				// if holding multiple will be left as the last button pressed
 				leftColHeld = pressed.y;
 			}
 			if (!pressed.dead) {
@@ -153,6 +154,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		                           : prevControlFunction(leftColFunc, rightColFunc);
 		display->displayPopup(functionNames[leftColFunc]);
 		leftCol = getColumnForFunc(leftColFunc);
+		keyboardScreen.killColumnSwitchKey(LEFT_COL);
 		return true;
 	}
 	else if (rightColHeld == 7 && offset) {
@@ -161,6 +163,7 @@ bool ColumnControlsKeyboard::horizontalEncoderHandledByColumns(int32_t offset, b
 		                            : prevControlFunction(rightColFunc, leftColFunc);
 		display->displayPopup(functionNames[rightColFunc]);
 		rightCol = getColumnForFunc(rightColFunc);
+		keyboardScreen.killColumnSwitchKey(RIGHT_COL);
 		return true;
 	}
 	return false;
