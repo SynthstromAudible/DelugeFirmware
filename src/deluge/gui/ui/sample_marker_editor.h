@@ -68,11 +68,11 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::SAMPLE_MARKER_EDITOR; }
+	void exitUI() override;
 
 private:
 	static constexpr int32_t kInvalidColumn = -2147483648;
 	void writeValue(uint32_t value, MarkerType markerTypeNow = MarkerType::NOT_AVAILABLE);
-	void exitUI();
 
 	int32_t getStartColOnScreen(int32_t unscrolledPos);
 	int32_t getEndColOnScreen(int32_t unscrolledPos);

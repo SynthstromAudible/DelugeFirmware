@@ -35,12 +35,10 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::RENAME_OUTPUT; }
+	void exitUI() override;
 
 protected:
 	void enterKeyPress();
-
-private:
-	void exitUI();
 };
 
 extern RenameOutputUI renameOutputUI;

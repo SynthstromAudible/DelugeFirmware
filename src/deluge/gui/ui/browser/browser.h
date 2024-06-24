@@ -104,6 +104,7 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::BROWSER; }
+	void exitUI() override { Browser::close(); }
 
 protected:
 	Error setEnteredTextFromCurrentFilename();
