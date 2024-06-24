@@ -84,6 +84,7 @@ extern bool pendingUIRenderingLock;
 #define UI_MODE_AUDITIONING (1 << 30)
 #define UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON ((uint32_t)1 << 31)
 
+#define LONG_PRESS_DURATION 400
 class UI {
 public:
 	UI();
@@ -138,7 +139,9 @@ public:
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return false;
 	}
-
+	// called when back is held, used to exit menus or similar full screen views completely
+	/// returns whether a UI exited
+	virtual bool exitUI() { return false; };
 	void close();
 
 	virtual void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) = 0;
