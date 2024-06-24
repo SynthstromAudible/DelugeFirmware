@@ -134,6 +134,11 @@ void UITimerManager::routine() {
 					}
 					break;
 				}
+				case TimerName::BACK_MENU_EXIT: {
+
+					getCurrentUI()->exitUI();
+					break;
+				}
 
 				case TimerName::DISPLAY_AUTOMATION:
 					if (((getCurrentUI() == &automationView) || (getRootUI() == &automationView))

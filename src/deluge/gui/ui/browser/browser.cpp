@@ -1542,7 +1542,7 @@ ActionResult Browser::mainButtonAction(bool on) {
 			if (sdRoutineLock) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, LONG_PRESS_DURATION);
 			currentUIMode = UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS;
 		}
 	}
