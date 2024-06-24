@@ -36,7 +36,7 @@ private:
 	uint32_t modMax = 127 << kVelModShift;
 	uint32_t modMin = 0 << kVelModShift;
 	uint32_t modStep = (modMax - modMin) / 7;
-	uint32_t mod32 = 0 << kVelModShift;
+	uint32_t storedMod = 0 << kVelModShift;
 	uint32_t modDisplay;
 };
 

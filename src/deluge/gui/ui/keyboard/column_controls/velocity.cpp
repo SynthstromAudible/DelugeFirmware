@@ -60,8 +60,8 @@ bool VelocityColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 void VelocityColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                          KeyboardLayout* layout) {
 	// Restore previously set Velocity
-	vDisplay = velocity32;
-	layout->velocity = (velocity32 + kHalfStep) >> kVelModShift;
+	vDisplay = storedVelocity;
+	layout->velocity = (storedVelocity + kHalfStep) >> kVelModShift;
 };
 
 void VelocityColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
@@ -72,13 +72,14 @@ void VelocityColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTime
 		display->displayPopup(layout->velocity);
 	}
 	else if (!pad.padPressHeld || FlashStorage::keyboardFunctionsVelocityGlide) {
-		velocity32 = velocityMin + pad.y * velocityStep;
-		vDisplay = velocity32;
-		layout->velocity = (velocity32 + kHalfStep) >> kVelModShift;
+		// short press or momentary velocity is off, latch the display velocity from the ON press
+		storedVelocity = vDisplay;
+		layout->velocity = (storedVelocity + kHalfStep) >> kVelModShift;
 	}
 	else {
-		vDisplay = velocity32;
-		layout->velocity = (velocity32 + kHalfStep) >> kVelModShift;
+		// revert to previous value
+		vDisplay = storedVelocity;
+		layout->velocity = (storedVelocity + kHalfStep) >> kVelModShift;
 	}
 };
 } // namespace deluge::gui::ui::keyboard::controls
