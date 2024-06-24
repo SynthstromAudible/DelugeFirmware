@@ -109,7 +109,9 @@ Here is a list of general improvements that have been made, ordered from newest 
           Song menu, go to each parameter (Volume, Pan, LPF Freq, etc), hold Learn button and then move the knobs and
           faders within the page "B" of Loopy's project.
         - Pages "C" and "D" are the controls that are doing the heavy lifting of sending/receiving midi so they can't be deleted.
-          Pages "A" and "B" are just the "user facing" controls, tied to the stepped dials from the other two pages.  
+          Pages "A" and "B" are just the "user facing" controls, tied to the stepped dials from the other two pages.
+        - **How to setup Feedback:** In Loopy, go to Menu -> Control Settings -> MIDI Devices section -> Deluge Port 1 -> make sure that Feedback switch is enabled
+          In your Deluge, do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> FEEDBACK. Here you can select the Channel to send feedback to, the Rate at which feedback is send for Automation, and you can set Filter Responses to DISABLED.
     - ([#1053]) For users of Touch OSC, you will find a MIDI Follow template in this
       folder: [MIDI Follow Mode Touch OSC Template]
 
