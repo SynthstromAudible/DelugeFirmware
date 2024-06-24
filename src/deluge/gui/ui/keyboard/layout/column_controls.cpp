@@ -80,6 +80,14 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 				// if holding multiple will be left as the last button pressed
 				leftColHeld = pressed.y;
 			}
+			// needs to be wrapped in a community features toggle since there's no UI for this
+			if (pressed.y == 7) {
+				if (getCurrentUI()->exitUI()) {
+					keyboardScreen.killColumnSwitchKey(LEFT_COL);
+					continue;
+				}
+			}
+
 			if (!pressed.dead) {
 				state.leftCol->handlePad(modelStackWithTimelineCounter, pressed, this);
 			}
