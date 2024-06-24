@@ -106,9 +106,10 @@ void RenameDrumUI::enterKeyPress() {
 	exitUI();
 }
 
-void RenameDrumUI::exitUI() {
+bool RenameDrumUI::exitUI() {
 	display->setNextTransitionDirection(-1);
 	close();
+	return true;
 }
 
 ActionResult RenameDrumUI::padAction(int32_t x, int32_t y, int32_t on) {
