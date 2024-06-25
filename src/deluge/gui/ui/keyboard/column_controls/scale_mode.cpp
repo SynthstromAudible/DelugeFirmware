@@ -65,6 +65,9 @@ bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 void ScaleModeColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                           KeyboardLayout* layout) {
 	// Restore previously set scale
+	if (previousScale == -1) {
+		return;
+	}
 	if (keyboardScreen.setScale(previousScale)) {
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
 			if (scaleModes[y] == previousScale) {
