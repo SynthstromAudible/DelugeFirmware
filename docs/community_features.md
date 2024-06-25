@@ -1025,7 +1025,7 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with
       sticky
       shift.
-* `Grain FX (GRFX)`
+* `Enable Grain FX (GRFX)`
     * When On, `GRAIN` will be a selectable option in the `MOD FX TYPE` category. Resource intensive, recommended to
       only use one instance per song or resample and remove instance afterwards.
 * `Emulated Display (EMUL)`
