@@ -46,6 +46,7 @@ public:
 		}
 		soundEditor.currentSourceIndex = this->getValue();
 
+		// Value of 0 is the first gate output, so we need to add 1 to get the correct physical gate output number label
 		if (display->haveOLED()) {
 			gateModeMenu.format(this->getValue() + 1);
 		}
