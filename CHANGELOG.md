@@ -98,7 +98,7 @@
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
 - Added ability to save and load MIDI presets. They end up in a new folder named MIDI.  
 - Holding back now fully exits the menu
-- A new community feature toggle has been added (`KB View Sidebar Menu Exit (EXIT)`) which will enable you to immediately exit the menu using the top left sidebar pad if you are in the `SETTINGS` or `SOUND` menu for `KEYBOARD VIEW`.
+- A new community feature toggle has been added (`Enable KB View Sidebar Menu Exit (EXIT)`) which will enable you to immediately exit the menu using the top left sidebar pad if you are in the `SETTINGS` or `SOUND` menu for `KEYBOARD VIEW`.
 
 In addition, a number of improvements have been made to how the OLED display is used:
 

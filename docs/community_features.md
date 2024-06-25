@@ -919,7 +919,7 @@ to each individual note onset. ([#1978])
       pads will default to the first 7 scale modes, but you can change any pad to any scale by
       holding it down and turning the vertical encoder. If the scale that is going to be set
       can't fit/transpose the existing notes from your clips, screen will show `Can't`.
-- ([#2174]) With the addition of the new Keyboard Sidebar Controls, the default behaviour of being able to immediately exit the menu by pressing a sidebar pad while in Keyboard View was removed. To accomodate users that still wish to be able to exit the menus immediately by pressing a sidebar pad, a new community feature toggle has been added (`KB View Sidebar Menu Exit (EXIT)`) which will enable you to immediately exit the menu using the top left sidebar pad if you are in the `SETTINGS` or `SOUND` menu for `KEYBOARD VIEW`.
+- ([#2174]) With the addition of the new Keyboard Sidebar Controls, the default behaviour of being able to immediately exit the menu by pressing a sidebar pad while in Keyboard View was removed. To accomodate users that still wish to be able to exit the menus immediately by pressing a sidebar pad, a new community feature toggle has been added (`Enable KB View Sidebar Menu Exit (EXIT)`) which will enable you to immediately exit the menu using the top left sidebar pad if you are in the `SETTINGS` or `SOUND` menu for `KEYBOARD VIEW`.
 
 #### 4.4.2 - New scales
 
@@ -1106,7 +1106,7 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * With the "7SEG" mode, the deluge will boot with the emulated display.
     * This option is technically available also on deluge with 7SEG hardware. But as you need an external display to
       render the OLED screen, it is of more limited use.
-* `KB View Sidebar Menu Exit (EXIT)`
+* `Enable KB View Sidebar Menu Exit (EXIT)`
     * When On, while in the `SETTINGS` or `SOUND` menu of `KEYBOARD VIEW`, pressing the top left sidebar pad will immediately exit the menu.
 
 ## 6. Sysex Handling
