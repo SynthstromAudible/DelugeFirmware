@@ -81,13 +81,15 @@ void ColumnControlsKeyboard::evaluatePads(PressedPad presses[kMaxNumKeyboardPadP
 				leftColHeld = pressed.y;
 			}
 			// needs to be wrapped in a community features toggle since there's no UI for this
-			if (pressed.y == 7) {
-				if (getCurrentUI()->exitUI()) {
-					keyboardScreen.killColumnSwitchKey(LEFT_COL);
-					continue;
+			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit)
+			    == RuntimeFeatureStateToggle::On) {
+				if (pressed.y == 7) {
+					if (getCurrentUI()->exitUI()) {
+						keyboardScreen.killColumnSwitchKey(LEFT_COL);
+						continue;
+					}
 				}
 			}
-
 			if (!pressed.dead) {
 				state.leftCol->handlePad(modelStackWithTimelineCounter, pressed, this);
 			}
