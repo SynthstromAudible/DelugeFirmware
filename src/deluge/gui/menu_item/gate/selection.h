@@ -47,7 +47,7 @@ public:
 		soundEditor.currentSourceIndex = this->getValue();
 
 		if (display->haveOLED()) {
-			gateModeMenu.format(this->getValue());
+			gateModeMenu.format(this->getValue() + 1);
 		}
 
 		gateModeMenu.updateOptions(this->getValue());
