@@ -35,7 +35,7 @@ public:
 
 private:
 	int32_t currentScalePad = -1;
-	int32_t previousScale = currentSong->getCurrentPresetScale();
+	int32_t previousScale = -1;
 	uint8_t scaleModes[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 };
 
