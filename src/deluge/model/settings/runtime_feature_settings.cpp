@@ -162,6 +162,11 @@ void RuntimeFeatureSettings::init() {
 	SetupEmulatedDisplaySetting(settings[RuntimeFeatureSettingType::EmulatedDisplay],
 	                            STRING_FOR_COMMUNITY_FEATURE_EMULATED_DISPLAY, "emulatedDisplay",
 	                            RuntimeFeatureStateEmulatedDisplay::Hardware);
+
+	// EnableKeyboardViewSidebarMenuExit
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit],
+	                  STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT, "enableKeyboardViewSidebarMenuExit",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

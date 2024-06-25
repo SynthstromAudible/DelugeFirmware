@@ -43,6 +43,7 @@ ShiftIsSticky menuShiftIsSticky{};
 Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
 Setting menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
 EmulatedDisplay menuEmulatedDisplay{};
+Setting menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -60,7 +61,8 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuShiftIsSticky,
     &menuLightShiftLed,
     &menuEnableGrainFX,
-    &menuEmulatedDisplay};
+    &menuEmulatedDisplay,
+    &menuEnableKeyboardViewSidebarMenuExit};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }
