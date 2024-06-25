@@ -60,6 +60,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	EnableGrainFX,
 	EnableDxShortcuts,
 	EmulatedDisplay,
+	EnableKeyboardViewSidebarMenuExit,
 	MaxElement // Keep as boundary
 };
 
