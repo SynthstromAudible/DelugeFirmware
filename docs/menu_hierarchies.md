@@ -378,6 +378,9 @@ NOTE: These options can change depending on how your default resolution is set
 		- OLED (OLED)
 		- Toggle (TOGL)
 		- 7SEG (7SEG)
+	- Enable KB View Sidebar Menu Exit (EXIT)
+		- OFF
+		- ON
 </details>
 
 Firmware Version (FIRM)

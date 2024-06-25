@@ -58,6 +58,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	LightShiftLed,
 	EnableGrainFX,
 	EmulatedDisplay,
+	EnableKeyboardViewSidebarMenuExit,
 	MaxElement // Keep as boundary
 };
 
