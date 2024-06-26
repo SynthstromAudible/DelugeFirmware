@@ -312,11 +312,12 @@ void copyBackgroundAroundForeground(ImageStore backgroundImage, ImageStore foreg
                                     int32_t maxX, int32_t maxY) {
 	if (maxX < 0 || minX < 0 || maxX < minX || minX > OLED_MAIN_WIDTH_PIXELS || maxX > OLED_MAIN_WIDTH_PIXELS)
 	    [[unlikely]] {
-		FREEZE_WITH_ERROR("C001");
+		// D for Display
+		FREEZE_WITH_ERROR("D001");
 	}
 	if (maxY < 0 || minY < 0 || maxY < minY || minY > OLED_MAIN_HEIGHT_PIXELS || maxY > OLED_MAIN_HEIGHT_PIXELS)
 	    [[unlikely]] {
-		FREEZE_WITH_ERROR("C002");
+		FREEZE_WITH_ERROR("D002");
 	}
 	// Copy everything above
 	int32_t firstRow = minY >> 3;
