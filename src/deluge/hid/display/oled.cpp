@@ -159,7 +159,7 @@ void OLED::setupPopup(int32_t width, int32_t height) {
 	if (height > OLED_MAIN_HEIGHT_PIXELS) {
 		height = OLED_MAIN_HEIGHT_PIXELS;
 	}
-
+	D_PRINTLN("popup with %d x %d", width, height);
 	oledPopupWidth = width;
 	popupHeight = height;
 
@@ -179,7 +179,8 @@ void OLED::setupPopup(int32_t width, int32_t height) {
 	// Clear the popup's area, not including the rectangle we're about to draw
 	int32_t popupFirstRow = (popupMinY + 1) >> 3;
 	int32_t popupLastRow = (popupMaxY - 1) >> 3;
-
+	D_PRINTLN("popup dimensions");
+	D_PRINTLN("minX %d, minY %d, maxX %d, maxY %d", popupMinX, popupMaxX, popupMinY, popupMaxY);
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 	popup.drawRectangle(popupMinX, popupMinY, popupMaxX, popupMaxY);
 }
