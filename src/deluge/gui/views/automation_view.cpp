@@ -3697,21 +3697,10 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 		else if (!currentUIMode && outputType != OutputType::KIT) {
 			actionLogger.deleteAllLogs();
 
-			offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
+			clip->nudgeNotesVertically(
+			    offset, Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE,
+			    modelStack);
 
-			// If shift button not pressed, transpose whole octave
-			if (!Buttons::isShiftButtonPressed()) {
-				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes
-				// 12 rows
-				clip->nudgeNotesVertically(offset * (clip->isScaleModeClip() ? modelStack->song->numModeNotes : 12),
-				                           modelStack);
-			}
-			// Otherwise, transpose single row position
-			else {
-				// Transpose just one row up or down (if not in scale mode, then it's a semitone, and if
-				// in scale mode, it's the next note in the scale)¬
-				clip->nudgeNotesVertically(offset, modelStack);
-			}
 			instrumentClipView.recalculateColours();
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 			if (inNoteEditor()) {
