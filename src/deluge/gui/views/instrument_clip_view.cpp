@@ -47,6 +47,7 @@
 #include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_follow.h"
 #include "io/midi/midi_transpose.h"
 #include "lib/printf.h"
 #include "memory/general_memory_allocator.h"
@@ -3302,6 +3303,9 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 	else {
 		kit = (Kit*)clip->output;
 	}
+	Clip* selectedClip = kit->activeClip;
+	bool affectEntire = ((InstrumentClip*)selectedClip)->affectEntire;
+
 	UI* currentUI = getCurrentUI();
 
 	bool drumSelectionChanged = false;
@@ -3318,26 +3322,28 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 		}
 	}
 
+	bool activeModControllableChanged = false;
+
 	if (shouldRedrawStuff) {
 		// make sure we're dealing with the same clip that this kit is a part of
-		// if you selected a clip and then sent a midi note to a kit that is part of a different clip, well
+		// if you entered a clip and then sent a midi note to a kit that is part of a different clip, well
 		// we don't need to do anything here because we're in a different clip
-		if (clip == kit->activeClip) {
+		if (clip == selectedClip) {
 			// let's make sure that that the output type for that clip is a kit
-			//(if for some strange reason you changed the drum selection for a hibernated instrument...)
+			// (if for some strange reason you changed the drum selection for a hibernated instrument...)
 			if (clip->output->type == OutputType::KIT) {
 				// are we currently in the instrument clip UI?
 				// if yes, we may need to refresh it (main pads and / or sidebar)
 				if (currentUI == &instrumentClipView || currentUI == &automationView) {
-					bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
-
-					// don't reset mod controllable when affect entire is enabled because mod controllable is unchanged
-					//(you can't control the newly selected row's model stack with gold encoders when affect entire is
-					// enabled) no need to potentially send midi follow feedback either because context hasn't changed
+					// don't reset mod controllable when affect entire is enabled because mod controllable is
+					// unchanged (you can't control the newly selected row's model stack with gold encoders
+					// when affect entire is enabled)
+					// no need to potentially send midi follow feedback either because context hasn't changed
 					if (!affectEntire && drumSelectionChanged) {
 						// reset mod controllable stack / send midi feedback
 						// redraw mod (gold) encoder led indicators
 						view.setActiveModControllableTimelineCounter(clip);
+						activeModControllableChanged = true;
 					}
 
 					// if in automation clip view with affect entire disabled
@@ -3360,6 +3366,20 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 					renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 				}
 			}
+		}
+	}
+
+	// if we send a note to a kit, then a kit is selected and drum selection is changed
+	// when drum selection is changed, if we're using midi follow with midi feedback
+	// we'll want updated parameter values for the newly selected drum if affect entire is disabled
+	// if the active mod controllable was changed, then midi feedback will have already been sent
+	if (!affectEntire && selectedKit && !activeModControllableChanged && drumSelectionChanged) {
+		// if mod controllable has not been changed, and drum selection was changed, then we
+		// will want to send midi feedback if the kit clip who's drum was changed is the same clip
+		// that is currently in focus for midi follow control
+		if (selectedClip == midiFollow.getSelectedOrActiveClip()) {
+			// potentially send midi follow feedback if midi follow feedback is enabled
+			view.sendMidiFollowFeedback();
 		}
 	}
 }
