@@ -34,6 +34,8 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/modulation/lfo.cpp
         # For value scaling
         ../../src/deluge/gui/menu_item/value_scaling.cpp
+        # For scale utilities
+        ../../src/deluge/model/scale/utils.cpp
 )
 
 add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp lfo_tests.cpp scale_tests.cpp value_scaling_tests.cpp)
