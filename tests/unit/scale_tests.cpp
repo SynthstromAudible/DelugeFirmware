@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "model/scale/note_set.h"
+#include "model/scale/musical_key.h"
 #include "model/scale/utils.h"
 
 TEST_GROUP(NoteSetTest){};
@@ -147,6 +148,15 @@ TEST(NoteSetTest, subscript3) {
 	CHECK_EQUAL(7, a[5]);
 	CHECK_EQUAL(9, a[6]);
 	CHECK_EQUAL(11, a[7]);
+}
+
+TEST_GROUP(MusicalKeyTest){};
+
+TEST(MusicalKeyTest, ctor) {
+	MusicalKey k;
+	CHECK_EQUAL(0, k.rootNote);
+	CHECK_EQUAL(1, k.modeNotes.count());
+	CHECK_EQUAL(true, k.modeNotes.has(0));
 }
 
 TEST_GROUP(UtilTest){};

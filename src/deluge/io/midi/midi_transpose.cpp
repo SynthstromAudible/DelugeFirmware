@@ -18,9 +18,9 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 	if (on) {
 		if (!currentSong->hasBeenTransposed) {
 			/* First transpose event in a new song snaps to nearest octave */
-			currentSong->transposeOffset = (currentSong->rootNote - newNoteOrCC) / 12;
-			if (currentSong->rootNote < newNoteOrCC) {
-				if (abs((currentSong->rootNote - newNoteOrCC) % 12) > 6) {
+			currentSong->transposeOffset = (currentSong->key.rootNote - newNoteOrCC) / 12;
+			if (currentSong->key.rootNote < newNoteOrCC) {
+				if (abs((currentSong->key.rootNote - newNoteOrCC) % 12) > 6) {
 					currentSong->transposeOffset -= 1;
 				}
 			}
@@ -29,7 +29,7 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 		}
 
 		int32_t semitones;
-		semitones = (newNoteOrCC + currentSong->transposeOffset) - currentSong->rootNote;
+		semitones = (newNoteOrCC + currentSong->transposeOffset) - currentSong->key.rootNote;
 
 		if (controlMethod == MIDITransposeControlMethod::INKEY) {
 
@@ -42,7 +42,7 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 				else {
 					octaves = (semitones / 12);
 				}
-				int32_t steps = octaves * currentSong->modeNotes.count() + indexInMode;
+				int32_t steps = octaves * currentSong->key.modeNotes.count() + indexInMode;
 
 				currentSong->transposeAllScaleModeClips(steps, false);
 
