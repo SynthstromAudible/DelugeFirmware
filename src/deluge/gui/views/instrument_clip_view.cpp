@@ -68,6 +68,7 @@
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
+#include "model/scale/utils.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -4106,8 +4107,7 @@ int32_t InstrumentClipView::setupForEnteringScaleMode(int32_t newRootNote, int32
 		// If there's a root-note (or its octave) currently onscreen, pin animation to that
 		for (int32_t i = 0; i < kDisplayHeight; i++) {
 			int32_t thisNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(i, currentSong);
-			// If it's the root note...
-			if ((int32_t)std::abs(newRootNote - thisNote) % 12 == 0) {
+			if (isSameNote(newRootNote, thisNote)) {
 				pinAnimationToYDisplay = i;
 				pinAnimationToYNote = thisNote;
 				goto doneLookingForRootNoteOnScreen;
@@ -4218,8 +4218,7 @@ int32_t InstrumentClipView::setupForExitingScaleMode() {
 	bool foundRootNoteOnScreen = false;
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(i, currentSong);
-		// If it's the root note...
-		if ((int32_t)std::abs(currentSong->rootNote - yNote) % 12 == 0) {
+		if (isSameNote(currentSong->rootNote, yNote)) {
 			scrollAdjust = yNote - i - getCurrentInstrumentClip()->yScroll;
 			foundRootNoteOnScreen = true;
 			break;
@@ -4477,7 +4476,7 @@ drawNormally:
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 				if (flashDefaultRootNoteOn) {
 					int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-					if ((uint16_t)(yNote - defaultRootNote + 120) % (uint8_t)12 == 0) {
+					if (isSameNote(yNote, defaultRootNote)) {
 						thisColour = rowColour[yDisplay];
 						return;
 					}
@@ -4488,7 +4487,7 @@ drawNormally:
 				{
 					// If this is the root note, indicate
 					int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-					if ((uint16_t)(yNote - currentSong->rootNote + 120) % (uint8_t)12 == 0) {
+					if (isSameNote(yNote, currentSong->rootNote)) {
 						thisColour = rowColour[yDisplay];
 					}
 					else {
