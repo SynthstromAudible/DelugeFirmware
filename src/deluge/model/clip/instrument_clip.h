@@ -80,7 +80,7 @@ public:
 	void replaceMusicalMode(uint8_t numModeNotes, int8_t changes[], ModelStackWithTimelineCounter* modelStack);
 	void seeWhatNotesWithinOctaveArePresent(NoteSet&, int32_t, Song* song, bool deleteEmptyNoteRows = true);
 	void transpose(int32_t, ModelStackWithTimelineCounter* modelStack);
-	void nudgeNotesVertically(int32_t, VerticalNudgeType, ModelStackWithTimelineCounter* modelStack);
+	void nudgeNotesVertically(int32_t direction, VerticalNudgeType, ModelStackWithTimelineCounter* modelStack);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;
 	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) const override;
 	NoteRow* createNewNoteRowForYVisual(int32_t, Song* song);

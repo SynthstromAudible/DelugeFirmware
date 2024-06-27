@@ -4595,9 +4595,8 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 			InstrumentClip* clip = getCurrentInstrumentClip();
-			clip->nudgeNotesVertically(
-			    offset, Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE,
-			    modelStack);
+			auto nudgeType = Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE;
+			clip->nudgeNotesVertically(offset, nudgeType, modelStack);
 
 			recalculateColours();
 			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);

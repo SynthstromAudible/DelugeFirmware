@@ -3697,9 +3697,8 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 		else if (!currentUIMode && outputType != OutputType::KIT) {
 			actionLogger.deleteAllLogs();
 
-			clip->nudgeNotesVertically(
-			    offset, Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE,
-			    modelStack);
+			auto nudgeType = Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE;
+			clip->nudgeNotesVertically(offset, nudgeType, modelStack);
 
 			instrumentClipView.recalculateColours();
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);
