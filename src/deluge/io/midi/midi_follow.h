@@ -67,12 +67,13 @@ public:
 
 	void handleReceivedCC(ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber, int32_t value);
 
+	Clip* getSelectedOrActiveClip();
+
 private:
 	// initialize
 	void init();
 	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
 
-	Clip* getSelectedOrActiveClip();
 	Clip* getSelectedClip();
 	Clip* getActiveClip(ModelStack* modelStack);
 

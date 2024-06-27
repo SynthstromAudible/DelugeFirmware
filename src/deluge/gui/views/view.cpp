@@ -1620,23 +1620,31 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 }
 
 void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
+	// is a midi follow channel (A/B/C) assigned to the midi feedback channel? if not, then midi feedback is disabled
 	if (midiEngine.midiFollowFeedbackChannelType != MIDIFollowChannelType::NONE) {
 		int32_t channel =
 		    midiEngine.midiFollowChannelType[util::to_underlying(midiEngine.midiFollowFeedbackChannelType)]
 		        .channelOrZone;
+		// is a valid channel assigned to one of the midi follow channels? if not, then midi feedback is disabled
 		if (channel != MIDI_CHANNEL_NONE) {
-			// check if we're dealing with a clip context param (don't send feedback for song params)
-			if (isClipContext()) {
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-					int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
-					if (ccNumber != MIDI_CC_NONE) {
-						midiFollow.sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+			// we only receive a modelStackWithParam when we're tweaking param values using gold knobs or menu
+			if (modelStackWithParam) {
+				// if autoParam is null, then the modelStackWithParam is invalid
+				if (modelStackWithParam->autoParam) {
+					// check if we're dealing with a clip context param (don't send feedback for song params)
+					if (isClipContext()) {
+						params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+						int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
+						if (ccNumber != MIDI_CC_NONE) {
+							midiFollow.sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
+						}
 					}
 				}
-				else {
-					midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
-				}
+			}
+			// if no modelStackWithParam is provided, it means this function was called from a change in context
+			// e.g. turn affectEntire on / off, select clip, change instrument presets, change kit drum selection, etc.
+			else {
+				midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
 			}
 		}
 	}
