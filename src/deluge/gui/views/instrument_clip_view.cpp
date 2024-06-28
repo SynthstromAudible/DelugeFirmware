@@ -1557,7 +1557,7 @@ possiblyAuditionPad:
 		if (x == kDisplayWidth + 1) {
 
 			// "Learning" to this audition pad:
-			if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) {
+			if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) [[unlikely]] {
 				if (getCurrentUI() == this) {
 					if (sdRoutineLock) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1577,7 +1577,7 @@ possiblyAuditionPad:
 			}
 
 			// Changing the scale:
-			else if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) {
+			else if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) [[unlikely]] {
 				if (sdRoutineLock) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
@@ -1594,7 +1594,7 @@ possiblyAuditionPad:
 					}
 				}
 			}
-			else if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && velocity) {
+			else if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && velocity) [[unlikely]] {
 				Instrument* instrument = getCurrentInstrument();
 
 				bool isKit = (instrument->type == OutputType::KIT);
