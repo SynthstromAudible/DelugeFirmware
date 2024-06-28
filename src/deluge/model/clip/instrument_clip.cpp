@@ -1319,10 +1319,27 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 	colourOffset -= semitones;
 }
 
-void InstrumentClip::nudgeNotesVertically(int32_t change, ModelStackWithTimelineCounter* modelStack) {
-	// Note: the usage of this method is limited to no more than an octave of "change"
-	//  ideally used by the "hold and turn vertical encoder"
-	//  and "shift + hold and turn vertical encoder" shorcuts within clip
+void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType type,
+                                          ModelStackWithTimelineCounter* modelStack) {
+	// This method is limited to no more than an octave of "change", currently used
+	// by the "hold and turn vertical encoder" and "shift + hold and turn vertical
+	// encoder" shorcuts.
+
+	if (!direction) {
+		// It's not clear if we ever get "zero" as direction of change, but let's
+		// make sure we behave sensibly in that case as well.
+		return;
+	}
+
+	int32_t change = direction > 0 ? 1 : -1;
+	if (type == VerticalNudgeType::OCTAVE) {
+		if (isScaleModeClip()) {
+			change *= modelStack->song->numModeNotes;
+		}
+		else {
+			change *= 12;
+		}
+	}
 
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
