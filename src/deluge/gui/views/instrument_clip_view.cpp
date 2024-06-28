@@ -4593,22 +4593,10 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			auto nudgeType = Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE;
+			clip->nudgeNotesVertically(offset, nudgeType, modelStack);
 
-			offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
-
-			// If shift button not pressed, transpose whole octave
-			if (!Buttons::isShiftButtonPressed()) {
-				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes 12 rows
-				instrumentClip->nudgeNotesVertically(
-				    offset * (instrumentClip->isScaleModeClip() ? modelStack->song->numModeNotes : 12), modelStack);
-			}
-			// Otherwise, transpose single row position
-			else {
-				// Transpose just one row up or down (if not in scale mode, then it's a semitone, and if in scale
-				// mode, it's the next note in the scale)¬
-				instrumentClip->nudgeNotesVertically(offset, modelStack);
-			}
 			recalculateColours();
 			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
