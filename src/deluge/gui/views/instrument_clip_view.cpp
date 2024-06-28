@@ -1599,6 +1599,8 @@ possiblyAuditionPad:
 
 				bool isKit = (instrument->type == OutputType::KIT);
 				if (isKit) {
+					// this is fine - since it's a kit we don't need the song, it's only used to check scale for
+					// instrument clips
 					NoteRow* noteRow =
 					    getCurrentInstrumentClip()->getNoteRowOnScreen(y, nullptr, nullptr); // On *current* clip!
 
