@@ -148,7 +148,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	ArpNote* arpNoteAsPlayed;
 
 	int32_t notesKey = notes.search(noteCode, GREATER_OR_EQUAL);
-	if (notesKey < notes.getNumElements()) {
+	if (notesKey < notes.getNumElements()) [[unlikely]] {
 		arpNote = (ArpNote*)notes.getElementAddress(notesKey);
 		if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCode) {
 			noteExists = true;

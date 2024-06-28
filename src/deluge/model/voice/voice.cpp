@@ -185,7 +185,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	// Porta
 	if (sound->polyphonic != PolyphonyMode::LEGATO
 	    && paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO) != -2147483648
-	    && sound->lastNoteCode != -2147483648) {
+	    && sound->lastNoteCode != -2147483648) [[unlikely]] {
 		setupPorta(sound);
 	}
 
@@ -223,7 +223,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 		guides[s].audioFileHolder = NULL;
 
 		bool sourceEverActive = modelStack->checkSourceEverActive(s);
-		if (sourceEverActive) {
+		if (sourceEverActive) [[likely]] {
 			guides[s].noteOffReceived = false;
 			guides[s].sequenceSyncLengthTicks = 0; // That's the default - may get overwritten below
 
@@ -279,7 +279,7 @@ activenessDetermined:
 
 		bool sourceEverActive = modelStack->checkSourceEverActive(s);
 
-		if (!sourceEverActive) {
+		if (!sourceEverActive) [[unlikely]] {
 			continue;
 		}
 
@@ -311,7 +311,7 @@ activenessDetermined:
 				bool success =
 				    unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate, sound->oscRetriggerPhase[s],
 				                                     resetEnvelopes, sound->synthMode, velocity);
-				if (!success) {
+				if (!success) [[unlikely]] {
 					return false; // This shouldn't really ever happen I don't think really...
 				}
 			}
