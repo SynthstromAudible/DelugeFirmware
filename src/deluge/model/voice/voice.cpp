@@ -129,7 +129,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 		sourceValues[util::to_underlying(PatchSource::NOTE)] = 2147483647;
 	}
 	else if (newNoteCodeAfterArpeggiation <= 0) {
-		sourceValues[util::to_underlying(PatchSource::NOTE)] = -2147483648u;
+		sourceValues[util::to_underlying(PatchSource::NOTE)] = -2147483648;
 	}
 	else {
 		sourceValues[util::to_underlying(PatchSource::NOTE)] = ((int32_t)newNoteCodeAfterArpeggiation - 64) * 33554432;
@@ -840,6 +840,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 	// to do it before patching, we can only do it after because we need to know pitch
 
 	// If not already releasing and some release is set, and no noise-source...
+	//@todo - cache this, it never changes
 	if (sound->getSynthMode() != SynthMode::FM && envelopes[0].state < EnvelopeStage::RELEASE && hasReleaseStage()
 	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
 
@@ -869,7 +870,8 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 		}
 
 		// If either / both sources need attention...
-		if (whichSourcesNeedAttention) {
+		// only happens for auto release of play once samples - we probably don't get here
+		if (whichSourcesNeedAttention) [[unlikely]] {
 
 			int32_t releaseStageLengthSamples =
 			    (uint32_t)8388608 / (uint32_t)paramFinalValues[params::LOCAL_ENV_0_RELEASE];
@@ -989,7 +991,7 @@ skipAutoRelease: {}
 	int32_t overallOscillatorAmplitudeIncrement;
 
 	// If not ringmod, then sources need their volume calculated
-	if (synthMode != SynthMode::RINGMOD) {
+	if (synthMode != SynthMode::RINGMOD) [[likely]] {
 
 		// params::LOCAL_OSC_x_VOLUME can normally only be up to a quarter of full range, but patching can make it up to
 		// full-range overallOscAmplitude (same range as) params::LOCAL_VOLUME, is the same.
@@ -1090,49 +1092,7 @@ skipAutoRelease: {}
 	bool stereoUnison = sound->unisonStereoSpread && sound->numUnison > 1 && soundRenderingInStereo;
 
 	// If various conditions are met, we can cut a corner by rendering directly into the Sound's buffer
-	bool renderingDirectlyIntoSoundBuffer;
-
-	// Lots of conditions rule out renderingDirectlyIntoSoundBuffer right away
-	if (sound->clippingAmount
-	    || sound->synthMode == SynthMode::RINGMOD // We could make this one work - but currently the ringmod rendering
-	                                              // code doesn't really have
-	    // proper amplitude control - e.g. no increments - built in, so we rely on the normal final
-	    // buffer-copying bit for that
-	    || filterSet.isHPFOn() || filterSet.isLPFOn()
-	    || (paramFinalValues[params::LOCAL_NOISE_VOLUME] != 0
-	        && synthMode != SynthMode::FM) // Not essential, but makes life easier
-	    || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_PAN)
-	    || (paramFinalValues[params::LOCAL_FOLD] != NEGATIVE_ONE_Q31)) {
-		renderingDirectlyIntoSoundBuffer = false;
-	}
-
-	// Otherwise, we need to think about whether we're rendering the same number of channels as the Sound
-	else {
-		if (synthMode == SynthMode::SUBTRACTIVE) {
-
-			for (int32_t s = 0; s < kNumSources; s++) {
-				if (!sound->isSourceActiveCurrently(s, paramManager)) {
-					continue;
-				}
-
-				bool renderingSourceInStereo =
-				    sound->sources[s].renderInStereo(sound, (SampleHolder*)guides[s].audioFileHolder);
-
-				if (renderingSourceInStereo != soundRenderingInStereo) {
-					renderingDirectlyIntoSoundBuffer = false;
-					goto decidedWhichBufferRenderingInto;
-				}
-			}
-
-			// If still here, no mismatch, so go for it
-			renderingDirectlyIntoSoundBuffer = true;
-		}
-		else {
-			// If got here, we're rendering in mono
-			renderingDirectlyIntoSoundBuffer = (soundRenderingInStereo == false);
-		}
-	}
-decidedWhichBufferRenderingInto:
+	bool renderingDirectlyIntoSoundBuffer = false;
 
 	int32_t* oscBuffer;
 	bool anythingInOscBuffer = false;
@@ -1144,74 +1104,50 @@ decidedWhichBufferRenderingInto:
 	int32_t amplitudeL, amplitudeR;
 	bool doPanning;
 
-	// If rendering directly into the Sound's buffer, set up for that.
-	// Have to modify amplitudes to get the volume right - factoring the "overall" amplitude, which will now not get
-	// used in its normal way, into the oscillator/source amplitudes instead
-	if (renderingDirectlyIntoSoundBuffer) {
-		oscBuffer = soundBuffer;
+	// two first indicies are reserved in case we need stereo for unison spread
+	oscBuffer = spareRenderingBuffer[0];
+	int32_t channels = stereoUnison ? 2 : 1;
 
-		// Don't modify amplitudes if we're FM, because for that, overallOscAmplitude has already been factored into the
-		// oscillator (carrier) amplitudes
-		if (synthMode == SynthMode::SUBTRACTIVE) {
-			for (int32_t s = 0; s < kNumSources; s++) {
-				sourceAmplitudeIncrements[s] =
-				    (multiply_32x32_rshift32(sourceAmplitudeIncrements[s], overallOscAmplitudeLastTime)
-				     + multiply_32x32_rshift32(overallOscillatorAmplitudeIncrement, sourceAmplitudesNow[s]))
-				    << 1;
+	int32_t const* const oscBufferEnd = oscBuffer + numSamples * channels;
 
-				sourceAmplitudesNow[s] = multiply_32x32_rshift32(sourceAmplitudesNow[s], overallOscAmplitudeLastTime)
-				                         << 1;
-			}
+	// If any noise, do that. By cutting a corner here, we do it just once for all "unison", rather than for each
+	// unison. Increasing number of unison cuts the volume of the oscillators
+	if (paramFinalValues[params::LOCAL_NOISE_VOLUME] != 0 && synthMode != SynthMode::FM) [[unlikely]] {
+
+		// This was >>2, but because I had a bug in V2.0.x which made noise too loud if filter on,
+		// I'm now making this louder to compensate and remain consistent by going just >>1.
+		// So now I really need to make it so that sounds made before V2.0 halve their noise volume... (Hey, did I
+		// ever do this? Who knows...)
+		int32_t n = paramFinalValues[params::LOCAL_NOISE_VOLUME] >> 1;
+		if (sound->hasFilters()) {
+			n = multiply_32x32_rshift32(n, filterGain) << 4;
 		}
+
+		// Perform the same limiting that we do above for the oscillators
+		int32_t noiseAmplitude = std::min(n, (int32_t)268435455) >> 2;
+
+		int32_t* __restrict__ thisSample = oscBuffer;
+		do {
+			*thisSample = multiply_32x32_rshift32(getNoise(), noiseAmplitude);
+			thisSample++;
+		} while (thisSample != oscBufferEnd);
+
+		anythingInOscBuffer = true;
 	}
 
-	// Or if rendering to local Voice buffer, We need to do some other setting up - like wiping the buffer clean first
+	// Otherwise, clear the buffer
 	else {
-		// two first indicies are reserved in case we need stereo for unison spread
-		oscBuffer = spareRenderingBuffer[0];
-		int32_t channels = stereoUnison ? 2 : 1;
+		memset(oscBuffer, 0, channels * numSamples * sizeof(int32_t));
+	}
 
-		int32_t const* const oscBufferEnd = oscBuffer + numSamples * channels;
-
-		// If any noise, do that. By cutting a corner here, we do it just once for all "unison", rather than for each
-		// unison. Increasing number of unison cuts the volume of the oscillators
-		if (paramFinalValues[params::LOCAL_NOISE_VOLUME] != 0 && synthMode != SynthMode::FM) {
-
-			// This was >>2, but because I had a bug in V2.0.x which made noise too loud if filter on,
-			// I'm now making this louder to compensate and remain consistent by going just >>1.
-			// So now I really need to make it so that sounds made before V2.0 halve their noise volume... (Hey, did I
-			// ever do this? Who knows...)
-			int32_t n = paramFinalValues[params::LOCAL_NOISE_VOLUME] >> 1;
-			if (sound->hasFilters()) {
-				n = multiply_32x32_rshift32(n, filterGain) << 4;
-			}
-
-			// Perform the same limiting that we do above for the oscillators
-			int32_t noiseAmplitude = std::min(n, (int32_t)268435455) >> 2;
-
-			int32_t* __restrict__ thisSample = oscBuffer;
-			do {
-				*thisSample = multiply_32x32_rshift32(getNoise(), noiseAmplitude);
-				thisSample++;
-			} while (thisSample != oscBufferEnd);
-
-			anythingInOscBuffer = true;
-		}
-
-		// Otherwise, clear the buffer
-		else {
-			memset(oscBuffer, 0, channels * numSamples * sizeof(int32_t));
-		}
-
-		// Even if first rendering into a local Voice buffer, we'll very often still just do panning at the Sound level
-		if (!applyingPanAtVoiceLevel) {
-			doPanning = false;
-		}
-		else {
-			// Set up panning
-			doPanning = (AudioEngine::renderInStereo
-			             && shouldDoPanning(paramFinalValues[params::LOCAL_PAN], &amplitudeL, &amplitudeR));
-		}
+	// Even if first rendering into a local Voice buffer, we'll very often still just do panning at the Sound level
+	if (!applyingPanAtVoiceLevel) {
+		doPanning = false;
+	}
+	else {
+		// Set up panning
+		doPanning = (AudioEngine::renderInStereo
+		             && shouldDoPanning(paramFinalValues[params::LOCAL_PAN], &amplitudeL, &amplitudeR));
 	}
 
 	uint32_t sourcesToRenderInStereo = 0;
@@ -1360,7 +1296,7 @@ decidedWhichBufferRenderingInto:
 			}
 
 			// If ringmod
-			if (synthMode == SynthMode::RINGMOD) {
+			if (synthMode == SynthMode::RINGMOD) [[unlikely]] {
 
 				int32_t amplitudeForRingMod = 1 << 27;
 
@@ -1550,7 +1486,7 @@ skipUnisonPart: {}
 			int32_t* const oscBufferEnd = oscBuffer + (numSamples << 1);
 			// fold
 			if (paramFinalValues[params::LOCAL_FOLD] > 0) {
-				dsp::foldBuffer(oscBuffer, oscBufferEnd, paramFinalValues[params::LOCAL_FOLD]);
+				dsp::foldBufferPolyApproximation(oscBuffer, oscBufferEnd, paramFinalValues[params::LOCAL_FOLD]);
 			}
 			// Filters
 			filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
@@ -1791,7 +1727,7 @@ inline int32x4_t doFMVector(uint32x4_t phaseVector, uint32x4_t phaseShift) {
 
 	uint32x4_t finalPhase = vaddq_u32(phaseVector, vshlq_n_u32(phaseShift, 8));
 
-	uint32x4_t readValue;
+	uint32x4_t readValue{0};
 #define fmVectorLoopComponent(i)                                                                                       \
 	{                                                                                                                  \
 		uint32_t readOffsetNow = (vgetq_lane_u32(finalPhase, i) >> (32 - SINE_TABLE_SIZE_MAGNITUDE)) << 2;             \
@@ -2164,7 +2100,7 @@ pitchTooHigh:
 
 			// If user unmuted mid-note...
 			bool tryToStartMidNote = voiceSample->pendingSamplesLate;
-			if (tryToStartMidNote) {
+			if (tryToStartMidNote) [[unlikely]] {
 
 				int32_t rawSamplesLate;
 
@@ -2293,7 +2229,7 @@ dontUseCache: {}
 
 			int32_t* renderBuffer = oscBuffer;
 
-			if (stereoUnison) {
+			if (stereoUnison) [[unlikely]] {
 				// TODO: I first wanted to integrate this with voiceSample->render()'s own
 				// amplitude control but it is just too complex - multiple copies of
 				// the amp logic depending if caching is used or not, timestretching or not,
@@ -2504,7 +2440,7 @@ dontUseCache: {}
 
 			// Or regular wave
 		}
-		else {
+		else [[likely]] {
 			uint32_t oscSyncPosThisUnison;
 			uint32_t oscSyncPhaseIncrementsThisUnison;
 			uint32_t oscRetriggerPhase =
@@ -2861,7 +2797,7 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 		retriggerPhase += 3221225472u;
 	}
 
-	else if (type != OscType::TRIANGLE) { // Not sines and not triangles
+	else if (type != OscType::TRIANGLE) [[likely]] { // Not sines and not triangles
 		uint32_t phaseIncrementForCalculations = phaseIncrement;
 
 		// PW for the perfect mathematical/digital square - we'll do it by multiplying two squares
@@ -2944,7 +2880,7 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 	}
 
 	// We want to see if we're within half a phase-increment of the "reset" pos
-	if (doOscSync) {
+	if (doOscSync) [[unlikely]] {
 doOscSyncSetup:
 
 		resetterDivideByPhaseIncrement = // You should >> 47 if multiplying by this.
@@ -2955,7 +2891,7 @@ doOscSyncSetup:
 	}
 
 skipPastOscSyncStuff:
-	if (type == OscType::SINE) {
+	if (type == OscType::SINE) [[unlikely]] {
 doSine:
 		table = sineWaveSmall;
 		tableSizeMagnitude = 8;
@@ -3070,7 +3006,7 @@ doSine:
 		}
 	}
 
-	else {
+	else [[likely]] {
 
 		uint32_t phaseToAdd;
 
