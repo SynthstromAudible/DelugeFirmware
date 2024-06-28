@@ -48,7 +48,7 @@
 - Updated `AUTOMATION VIEW EDITOR` to allow you to edit Bipolar params according to their Bipolar nature. E.g. positive values are shown in the top four pads, negative value in the bottom four pads, and the middle value (0) is shown by not lighting up any pads.
 - Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset
   file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the
-  Automation Overview and with the shortcut combos (e.g. Shift + Shortcut Pad).
+  Automation Overview and with the shortcut combos (e.g. `SHIFT` + `SHORTCUT PAD`).
 - Updated `AUTOMATION VIEW` to move the `INTERPOLATION` shortcut to the `INTERPOLATION` pad in the first column of the
   Deluge grid (second pad from the top). Toggle interpolation on/off using `SHIFT` + `INTERPOLATION` shortcut pad. The
   Interpolation shortcut pad will blink to indicate that interpolation is enabled.
@@ -70,9 +70,8 @@
 - Fixed several bugs with pad grid rendering.
 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips from any SONG View (`SONG VIEW`, `ARRANGER VIEW`,
   `ARRANGER AUTOMATION VIEW` and `PERFORMANCE VIEW`). Uses the same shortcut as in a Synth/Midi/CV clip (Press and
-  turn `▼︎▲︎` to transpose all clips by +/- 1 semitone). The number of semitones transposed is customizable (Press `SHIFT`
-  + turn `▼︎▲︎`). After transposing, the display shows the new Root Note (and Scale Name on OLED displays).
-- Added `SIDEBAR CONTROLS` in  `KEYBOARD VIEW` for synths. By default the two sidebar columns pertain to `VELOCITY` (red) and `MOD WHEEL` (blue). Holding a pad sets it momentarily to that value, tapping a pad latches it to that value. The functionality can be changed per column by holding the top pad and turning `▼▲`. Available options are `VELOCITY`, `MOD WHEEL`, 'CHORDS', `CHORD MEMORY`, and `SCALES`.
+  turn `▼︎▲︎` to transpose all clips by +/- 1 semitone). The number of semitones transposed is customizable (Press `SHIFT` and press and turn `▼︎▲︎`). After transposing, the display shows the new Root Note (and Scale Name on OLED displays).
+- Added `SIDEBAR CONTROLS` in  `KEYBOARD VIEW` for synths. By default the two sidebar columns pertain to `VELOCITY` (red) and `MOD WHEEL` (blue). Holding a pad sets it momentarily to that value, tapping a pad latches it to that value. The functionality can be changed per column by holding the top pad and turning `▼▲`. Available options are `VELOCITY`, `MOD WHEEL`, `CHORDS`, `CHORD MEMORY`, and `SCALES`.
 - Added a `VU METER` toggle that displays the VU Meter on the sidebar in `SONG`, `ARRANGER`, & `PERFORMANCE VIEW`. To activate it, on a song view ensure `AFFECT-ENTIRE` is enabled, then select the `LEVEL/PAN` mod button and press it again to activate the meter.
 - Added ability to save a drum kit row back to an synth preset by pressing `AUDITION` + `SAVE`.
 - Mod (Gold) Encoders learned to the Mod Matrix can now access the full range of the Mod Matrix / Patch Cable parameters (Values from -50 to +50 where previously only 0 to +50 were accesible via Mod (Gold) Encoders).
@@ -117,27 +116,28 @@ In addition, a number of improvements have been made to how the OLED display is 
   Minor, Hirajoshi.
 - Added `ONCE CLIP` launch mode, which allows a clip to play just once when launched and then mute itself. Settable in Song's `ROWS VIEW` by holding the `MUTE` pad of a row and then pressing `SELECT`. 
 - Added `NOT FILL` note probability. Similar to the `FILL` probability but only plays when the `FILL` button is *not*
-  pressed.
+  pressed. When the `SYNC-SCALING` button is held, `NOT FILL` notes will be highlighted in red color, as opposed to
+  blue for `FILL` notes.
 - Added support for copy/paste of single rows.
 - Added support for notes to `PASTE GENTLY` which pastes notes without removing old ones.
 - Fixed numerous crash bugs around parameter automation when entering and leaving clip view.
 - The default Mod-FX type for songs is now DISABLED rather than FLANGER.
 - The shorcut `SHIFT` + hold and turn `▼︎▲︎`, inside a clip, has been changed to "Nudge notes vertically" without
   unexpectedly changing the scale and root note of the whole song.
-- The arpeggiator has been completely redesigned to have advanced features for the user like independent Octave and Note
-  modes, Rhythm, Sequence Length and Ratchet notes. It also enables MPE keyboards to give more expression to the
+- The arpeggiator has been completely redesigned to have advanced features for the user like independent `OCTAVE MODE` and `NOTE MODE`,
+  `RHYTHM`, `SEQUENCE LENGTH` and `RATCHETS` notes. It also enables MPE keyboards to give more expression to the
   arpeggiated notes by updating live the velocity of the notes based on Aftertouch or MPE Y data coming from the keyboard.
 
 ### Audio Clips
 
-- The default Mod-FX type is now DISABLED rather than FLANGER for Audio Clips (this means Mod-FX can be disabled on Audio
+- The default Mod-FX type is now `DISABLED` rather than `FLANGER` for Audio Clips (this means Mod-FX can be disabled on Audio
   Clips which was not previously possible).
 
 ### Kits
 
 - Drum randomization is no longer limited to only 10 sounds per folder.
 - Fixed several crashes related to drum randomization.
-- The default Mod-FX type for kit affect-entire is now DISABLED rather than FLANGER.
+- The default Mod-FX type for kit affect-entire is now `DISABLED` rather than `FLANGER`.
 
 ### MIDI
 
@@ -145,11 +145,11 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Added `MIDI FEEDBACK`, so external MIDI controllers can be made aware of the state of the Deluge synth engine.
   Configurable via the new global `MIDI > MIDI-FOLLOW > FEEDBACK` menu.
 - Added MIDI learn for kits, allowing a whole kit to be learnt to the same midi channel at once. The incoming note is
-  the first row, and increasing notes go to the next rows.
-- Added Loopy Pro and TouchOsc templates for use with MIDI follow/MIDI feedback.
+  the first row, and increasing notes (chromatically) go to the next rows.
+- Added Loopy Pro and TouchOsc templates to use with MIDI follow/MIDI feedback.
 - Added a `MIDI LOOPBACK` mode, accessible in the SONG menu, which directs MIDI data from internal MIDI clips back to
   the Deluge input.
-- Added support for learning Program Change methods to most global commands.
+- Added support for learning Program Change methods for most global commands.
 - Added "MPE collapse" on MIDI clips which converts MPE X/Y/Z to Pitch/Modwheel/Aftertouch CCs for use of MPE
   controllers with non-MPE aware synths. Configurable via the clip menu.
 - Added a new global setting, `MIDI > SELECT KIT ROW`, which causes MIDI notes sent to kits to select the corresponding
