@@ -1594,6 +1594,23 @@ possiblyAuditionPad:
 					}
 				}
 			}
+			else if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && velocity) {
+				Instrument* instrument = getCurrentInstrument();
+
+				bool isKit = (instrument->type == OutputType::KIT);
+				if (isKit) {
+					NoteRow* noteRow =
+					    getCurrentInstrumentClip()->getNoteRowOnScreen(y, nullptr, nullptr); // On *current* clip!
+
+					if (noteRow && noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
+						auto* drum = static_cast<SoundDrum*>(noteRow->drum);
+						currentUIMode = UI_MODE_NONE;
+						indicator_leds::setLedState(IndicatorLED::SAVE, false);
+						saveKitRowUI.setup(static_cast<SoundDrum*>(drum), &noteRow->paramManager);
+						openUI(&saveKitRowUI);
+					}
+				}
+			}
 
 			// Actual basic audition pad press:
 			else if (!velocity || isUIModeWithinRange(auditionPadActionUIModes)) {
