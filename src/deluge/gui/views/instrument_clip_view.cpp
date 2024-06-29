@@ -1558,7 +1558,7 @@ possiblyAuditionPad:
 		if (x == kDisplayWidth + 1) {
 
 			// "Learning" to this audition pad:
-			if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) {
+			if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) [[unlikely]] {
 				if (getCurrentUI() == this) {
 					if (sdRoutineLock) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1578,7 +1578,7 @@ possiblyAuditionPad:
 			}
 
 			// Changing the scale:
-			else if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) {
+			else if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) [[unlikely]] {
 				if (sdRoutineLock) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
@@ -1592,6 +1592,25 @@ possiblyAuditionPad:
 					}
 					else {
 						enterScaleMode(y);
+					}
+				}
+			}
+			else if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && velocity) [[unlikely]] {
+				Instrument* instrument = getCurrentInstrument();
+
+				bool isKit = (instrument->type == OutputType::KIT);
+				if (isKit) {
+					// this is fine - since it's a kit we don't need the song, it's only used to check scale for
+					// instrument clips
+					NoteRow* noteRow =
+					    getCurrentInstrumentClip()->getNoteRowOnScreen(y, nullptr, nullptr); // On *current* clip!
+
+					if (noteRow && noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
+						auto* drum = static_cast<SoundDrum*>(noteRow->drum);
+						currentUIMode = UI_MODE_NONE;
+						indicator_leds::setLedState(IndicatorLED::SAVE, false);
+						saveKitRowUI.setup(static_cast<SoundDrum*>(drum), &noteRow->paramManager);
+						openUI(&saveKitRowUI);
 					}
 				}
 			}
