@@ -998,7 +998,7 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 #### 4.6.2 - Drum Randomizer / Load Random Samples
 
 - ([#122]) Pressing `AUDITION` + `RANDOM` on a drum kit row will load a random sample from the same folder as the
-  currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons.
+  currently enabled sample and load it as the sound for that row.
     - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 #### 4.6.3 - Manual Slicing / Lazy Chop
