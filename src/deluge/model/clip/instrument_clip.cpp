@@ -964,6 +964,7 @@ ModelStackWithNoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, Mode
 	return modelStack->addNoteRow(noteRowId, noteRow);
 }
 
+/// can be called with null song if the clip is a kit
 NoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, Song* song, int32_t* getIndex) {
 	// Kit
 	if (output->type == OutputType::KIT) {
