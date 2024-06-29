@@ -593,6 +593,7 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whic
 	// For each Clip in session and arranger for specific Output (that Output is "this")
 	int32_t numElements = modelStack->song->sessionClips.getNumElements();
 	bool doingArrangementClips = false;
+	// TODO: Should use AllClips, but less obvious so later.
 traverseClips:
 	for (int32_t c = 0; c < numElements; c++) {
 		Clip* clip;

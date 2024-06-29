@@ -32,6 +32,7 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
 #include "model/note/note_row.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -1940,12 +1941,7 @@ bool Session::areAnyClipsArmed() {
 // affected by each Action. This is only to be called if playbackHandler.isEitherClockActive().
 void Session::reversionDone() {
 
-	// For each Clip in session and arranger
-	ClipArray* clipArray = &currentSong->sessionClips;
-traverseClips:
-	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-		Clip* clip = clipArray->getClipAtIndex(c);
-
+	for (Clip* clip : AllClips::everywhere(currentSong)) {
 		if (currentSong->isClipActive(clip)) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -1954,10 +1950,6 @@ traverseClips:
 			clip->reGetParameterAutomation(modelStackWithTimelineCounter);
 			clip->expectEvent();
 		}
-	}
-	if (clipArray != &currentSong->arrangementOnlyClips) {
-		clipArray = &currentSong->arrangementOnlyClips;
-		goto traverseClips;
 	}
 }
 

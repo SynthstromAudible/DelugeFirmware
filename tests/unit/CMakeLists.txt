@@ -38,9 +38,18 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/model/scale/musical_key.cpp
         ../../src/deluge/model/scale/note_set.cpp
         ../../src/deluge/model/scale/utils.cpp
+        # For clip iterator tests
+        ../../src/deluge/model/song/clip_iterators.cpp
 )
 
-add_executable(UnitTests RunAllTests.cpp scheduler_tests.cpp lfo_tests.cpp scale_tests.cpp value_scaling_tests.cpp)
+add_executable(UnitTests
+        RunAllTests.cpp
+        scheduler_tests.cpp
+        lfo_tests.cpp
+        scale_tests.cpp
+        value_scaling_tests.cpp
+        clip_iterator_tests.cpp
+)
 add_test(NAME UnitTests
         COMMAND UnitTests)
 target_sources(UnitTests PRIVATE ${deluge_SOURCES})

@@ -41,6 +41,7 @@
 #include "model/consequence/consequence_swing_change.h"
 #include "model/consequence/consequence_tempo_change.h"
 #include "model/instrument/kit.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
@@ -156,19 +157,8 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		newAction->clipStates = clipStates;
 
 		int32_t i = 0;
-
-		// For each Clip in session and arranger
-		ClipArray* clipArray = &currentSong->sessionClips;
-traverseClips:
-		for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-			Clip* clip = clipArray->getClipAtIndex(c);
-
-			newAction->clipStates[i].grabFromClip(clip);
-			i++;
-		}
-		if (clipArray != &currentSong->arrangementOnlyClips) {
-			clipArray = &currentSong->arrangementOnlyClips;
-			goto traverseClips;
+		for (Clip* clip : AllClips::everywhere(currentSong)) {
+			newAction->clipStates[i++].grabFromClip(clip);
 		}
 
 		newAction->numClipStates = numClips;
@@ -217,22 +207,13 @@ void ActionLogger::updateAction(Action* newAction) {
 		}
 
 		else {
+			// NOTE: i ranges over all clips, not just instrument clips
 			int32_t i = 0;
-
-			// For each Clip in session and arranger
-			ClipArray* clipArray = &currentSong->sessionClips;
-traverseClips2:
-			for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-				Clip* clip = clipArray->getClipAtIndex(c);
-
+			for (Clip* clip : AllClips::everywhere(currentSong)) {
 				if (clip->type == ClipType::INSTRUMENT) {
 					newAction->clipStates[i].yScrollSessionView[AFTER] = ((InstrumentClip*)clip)->yScroll;
 				}
 				i++;
-			}
-			if (clipArray != &currentSong->arrangementOnlyClips) {
-				clipArray = &currentSong->arrangementOnlyClips;
-				goto traverseClips2;
 			}
 		}
 	}
@@ -483,16 +464,11 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 			    currentSong->sessionClips.getNumElements() + currentSong->arrangementOnlyClips.getNumElements();
 			if (action->numClipStates == totalNumClips) {
 
+				// NOTE: i ranges over all clips, not just instrument clips
 				int32_t i = 0;
 
-				// For each Clip in session and arranger
-				ClipArray* clipArray = &currentSong->sessionClips;
-traverseClips:
-				for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-					Clip* clip = clipArray->getClipAtIndex(c);
-
+				for (Clip* clip : AllClips::everywhere(currentSong)) {
 					// clip->modKnobMode = action->clipStates[i].modKnobMode;
-
 					if (clip->type == ClipType::INSTRUMENT) {
 						InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 						instrumentClip->yScroll = action->clipStates[i].yScrollSessionView[time];
@@ -512,10 +488,6 @@ traverseClips:
 					}
 
 					i++;
-				}
-				if (clipArray != &currentSong->arrangementOnlyClips) {
-					clipArray = &currentSong->arrangementOnlyClips;
-					goto traverseClips;
 				}
 			}
 			else {
