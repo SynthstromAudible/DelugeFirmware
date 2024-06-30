@@ -1026,7 +1026,7 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 #### 4.7.1 - Save/Load MIDI Presets
 
 - ([#1390]) Allows saving and loading midi presets. They end up in a new folder named MIDI.
-  - Note: The information that is saved is the MIDI channel selection, and the assigments of CC parameters to golden knobs.
+  - Note: The information that is saved is the MIDI channel selection, and the assignments of CC parameters to golden knobs.
 
 ### 4.8 Audio Clip View - Features
 
