@@ -5304,6 +5304,9 @@ void InstrumentClipView::graphicsRoutine() {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
+	TimelineView::renderTickIndicator(deluge::hid::display::OLED::main, *clip, clip->getMaxLength());
+	deluge::hid::display::OLED::sendMainImage();
+
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 		return;
 	}
@@ -5463,6 +5466,12 @@ void InstrumentClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 
 void InstrumentClipView::notifyPlaybackBegun() {
 	reassessAllAuditionStatus();
+}
+
+void InstrumentClipView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	InstrumentClipMinder::renderOLED(canvas);
+	TimelineView::renderTickIndicator(canvas, *clip, clip->getMaxLength());
 }
 
 bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],

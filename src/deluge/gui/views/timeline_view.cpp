@@ -21,9 +21,12 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
+#include "io/debug/log.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/timeline_counter.h"
 #include "processing/engines/audio_engine.h"
 #include "string.h"
 #include <algorithm>
@@ -295,6 +298,47 @@ putBeatCountOnFarRight:
 
 		display->displayPopup(text, 3, false, dotMask);
 	}
+}
+
+void TimelineView::renderTickIndicator(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                       TimelineCounter const& counter, uint32_t totalTicks) const {
+	auto ticksPerBar = currentSong->getBarLength();
+	auto totalBars = (totalTicks + ticksPerBar - 1) / ticksPerBar;
+	// round total ticks up to the number of bars we're going to render
+	totalTicks = totalBars * ticksPerBar;
+
+	int32_t const navSysId = getNavSysId();
+	int32_t const xScroll = currentSong->xScroll[navSysId];
+	int32_t const xZoom = currentSong->xZoom[navSysId];
+	auto viewStartPos = xScroll;
+	uint32_t viewEndPos = xScroll + kDisplayWidth * xZoom;
+
+	if (viewEndPos > totalTicks) {
+		viewEndPos = totalTicks;
+	}
+
+	auto livePos = counter.getLivePos();
+
+	constexpr int32_t kBarRenderTop = OLED_MAIN_TOPMOST_PIXEL - 1;
+	constexpr int32_t kBarRenderHeight = 2;
+
+	canvas.clearAreaExact(0, kBarRenderTop, OLED_MAIN_WIDTH_PIXELS - 1, kBarRenderTop + kBarRenderHeight);
+
+	canvas.drawPixel(0, kBarRenderTop);
+	for (auto i = 1; i <= totalBars; ++i) {
+		auto tick = i * ticksPerBar;
+		auto x = ((tick * OLED_MAIN_WIDTH_PIXELS) / totalTicks) - 1;
+		canvas.drawPixel(x, kBarRenderTop);
+	}
+
+	auto lineStart = static_cast<int32_t>((viewStartPos * OLED_MAIN_WIDTH_PIXELS) / totalTicks);
+	auto lineEnd = static_cast<int32_t>(((viewEndPos - 1) * OLED_MAIN_WIDTH_PIXELS) / totalTicks);
+
+	canvas.drawHorizontalLine(kBarRenderTop, lineStart, lineEnd);
+	canvas.drawPixel((livePos * OLED_MAIN_WIDTH_PIXELS) / totalTicks, kBarRenderTop + 1);
+
+	// TODO: only mark dirty if we actually changed some pixels.
+	hid::display::OLED::markDirty();
 }
 
 // Changes the actual xScroll.

@@ -2032,8 +2032,9 @@ oledDrawString:
 			}
 			else {
 				canvas.drawString(nameToDraw, 0, yPos, textSpacingX, textSpacingY);
-				deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
-				                                              yPos + textSpacingY, textSpacingX, textSpacingY, false);
+				deluge::hid::display::OLED::setupSideScroller(kScrollerIndexPrimary, name, 0, OLED_MAIN_WIDTH_PIXELS,
+				                                              yPos, yPos + textSpacingY, textSpacingX, textSpacingY,
+				                                              false);
 			}
 		}
 		else {
