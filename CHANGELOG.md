@@ -126,8 +126,6 @@ In addition, a number of improvements have been made to how the OLED display is 
 - Added MIDI learn for kits, allowing a whole kit to be learnt to the same midi channel at once. The incoming note is
   the first row, and increasing notes (chromatically) go to the next rows.
 - Added Loopy Pro and TouchOsc templates to use with MIDI follow/MIDI feedback.
-- Added a `MIDI LOOPBACK` mode, accessible in the SONG menu, which directs MIDI data from internal MIDI clips back to
-  the Deluge input.
 - Added support for learning Program Change methods for most global commands.
 - Added "MPE collapse" on MIDI clips which converts MPE X/Y/Z to Pitch/Modwheel/Aftertouch CCs for use of MPE
   controllers with non-MPE aware synths. Configurable via the clip menu.
