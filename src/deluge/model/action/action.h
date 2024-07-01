@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/scale/note_set.h"
 #include <cstdint>
 
 class Consequence;
@@ -107,8 +108,7 @@ public:
 	int32_t yScrollArranger[2];
 	int32_t xZoomArranger[2];
 
-	uint8_t modeNotes[2][12];
-	uint8_t numModeNotes[2];
+	NoteSet modeNotes[2];
 
 	// And a few more snapshot-things here only store one state - at the time of the action, because the action could
 	// not change these things

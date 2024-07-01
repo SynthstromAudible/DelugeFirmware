@@ -34,7 +34,8 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/modulation/lfo.cpp
         # For value scaling
         ../../src/deluge/gui/menu_item/value_scaling.cpp
-        # For scale utilities
+        # For scale tests
+        ../../src/deluge/model/scale/note_set.cpp
         ../../src/deluge/model/scale/utils.cpp
 )
 
