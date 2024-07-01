@@ -90,7 +90,6 @@ public:
 	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
-	void addModeNote(uint8_t modeNote);
 	void addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& notesWithinOctavePresent);
 	bool yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave);
 	uint8_t getYNoteWithinOctaveFromYNote(int32_t yNote);
@@ -98,9 +97,9 @@ public:
 	void rotateMusicalMode(int8_t change);
 	void replaceMusicalMode(int8_t changes[], bool affectMIDITranspose);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
-	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, int16_t root, uint8_t nModeNotes, uint8_t mNotes[]);
+	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, int16_t root, NoteSet& mNotes);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
-	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, int16_t root, uint8_t nModeNotes, uint8_t mNotes[]);
+	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, int16_t root, NoteSet& mNotes);
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
 	bool modeContainsYNote(int32_t yNote);
 	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
@@ -185,8 +184,7 @@ public:
 	Section sections[kMaxNumSections];
 
 	// Scales
-	uint8_t modeNotes[12];
-	uint8_t numModeNotes;
+	NoteSet modeNotes;
 	int16_t rootNote;
 
 	uint16_t slot;

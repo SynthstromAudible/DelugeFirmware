@@ -24,6 +24,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/instrument.h"
 #include "model/note/note_row.h"
+#include "model/scale/note_set.h"
 #include "model/song/song.h"
 
 constexpr uint8_t kMaxNumKeyboardPadPresses = 10;
@@ -36,8 +37,6 @@ enum class RequiredScaleMode : uint8_t {
 	Enabled = 2,
 };
 
-constexpr uint8_t kModesArraySize = kOctaveSize;
-typedef uint8_t ModesArray[kModesArraySize];
 typedef uint8_t NoteHighlightIntensity[kHighestKeyboardNote];
 
 class KeyboardLayout {
@@ -85,9 +84,9 @@ protected:
 	/// Song root note can be in any octave, layouts get the normalized one
 	inline int16_t getRootNote() { return (currentSong->rootNote % kOctaveSize); }
 	inline bool getScaleModeEnabled() { return getCurrentInstrumentClip()->inScaleMode; }
-	inline uint8_t getScaleNoteCount() { return currentSong->numModeNotes; }
+	inline uint8_t getScaleNoteCount() { return currentSong->modeNotes.count(); }
 
-	inline ModesArray& getScaleNotes() { return currentSong->modeNotes; }
+	inline NoteSet& getScaleNotes() { return currentSong->modeNotes; }
 
 	inline uint8_t getDefaultVelocity() { return getCurrentInstrument()->defaultVelocity; }
 

@@ -187,8 +187,7 @@ traverseClips:
 		newAction->xScrollArranger[BEFORE] = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 		newAction->xZoomArranger[BEFORE] = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
-		newAction->numModeNotes[BEFORE] = currentSong->numModeNotes;
-		memcpy(newAction->modeNotes[BEFORE], currentSong->modeNotes, sizeof(currentSong->modeNotes));
+		newAction->modeNotes[BEFORE] = currentSong->modeNotes;
 
 		newAction->tripletsOn = currentSong->tripletsOn;
 		newAction->tripletsLevel = currentSong->tripletsLevel;
@@ -246,8 +245,7 @@ traverseClips2:
 	newAction->xScrollArranger[AFTER] = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 	newAction->xZoomArranger[AFTER] = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
 
-	newAction->numModeNotes[AFTER] = currentSong->numModeNotes;
-	memcpy(newAction->modeNotes[AFTER], currentSong->modeNotes, sizeof(currentSong->modeNotes));
+	newAction->modeNotes[AFTER] = currentSong->modeNotes;
 }
 
 void ActionLogger::recordUnautomatedParamChange(ModelStackWithAutoParam const* modelStack, ActionType actionType) {
@@ -530,8 +528,7 @@ traverseClips:
 		currentSong->arrangementYScroll = action->yScrollArranger[time];
 
 		// Musical Scale
-		currentSong->numModeNotes = action->numModeNotes[time];
-		memcpy(currentSong->modeNotes, action->modeNotes[time], sizeof(currentSong->modeNotes));
+		currentSong->modeNotes = action->modeNotes[time];
 
 		// Other stuff
 		// currentSong->modKnobMode = action->modKnobModeSongView;
