@@ -4,84 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Deluge Community Firmware</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <style>
-        body {
-            background-color: #111;
-            margin: 0px;
-        }
-
-        #headerContainer {
-            background-image: url("background.png");
-            background-position: center;
-            background-size: cover;
-        }
-
-        #header {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding-top: 50px;
-            padding-bottom: 50px;
-            width: 100%;
-            
-        }
-
-        #main {
-            margin-top: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn {
-            width: 70%;
-            max-width: 300px;
-            margin: 10px;
-            display: inline-block;
-            background-color: #efefef;
-            border-color: #efefef;
-            color: #222 !important;
-            text-decoration: none;
-            text-align: center !important;
-            padding: 9px 27px;
-            border-style: solid;
-            border-width: 3px;
-            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
-        }
-
-        span,
-        p,
-        h1,
-        a:link,
-        a:visited,
-        .btn {
-            font-size: 1.1rem;
-            line-height: 1.5rem;
-            color: #ededed;
-            font-family: 'Karla', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            text-align: justify;
-        }
-
-        a {
-            text-decoration: underline;
-        }
-
-        h1 {
-            padding-top: 42px;
-            max-width: 100%;
-            font-size: 1.5rem;
-            font-weight: 600;
-            letter-spacing: -0.05em;
-        }
-
-        p {
-            margin: 10px;
-            max-width: 600px;
-            -webkit-font-smoothing: antialiased;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -101,36 +24,25 @@
             We aim to maintain compatibility, prevent data loss and provide a stable experience but accidents can happen so <span style="font-weight: bold; color: #ef494d;">please backup your SD card before switching to community firmware to prevent losing data</span>.
             You can always go back to the <a target="_blank" href="https://synthstrom.com/product/deluge/#downloads">official firmware</a> but be aware that songs created with community firmware <span style="font-weight: bold;">can not be loaded by the official firmware</span>. 
         </p>
-       
-        
-        <h1>Release 1.0.1 (Amadeus)</h1>
-        <p>
-            After months of hard work we are very proud to present you the first release of the community firmware project! 
-            We put a lot of effort into making it fast, stable and packed with cool new features for everyone to enjoy.
-            It would mean a lot to us if you could report any problems you might have on GitHub or Discord linked below so we can further improve.
-            Update JAN 7, 2024 - c1.0.1 released, find the changelog at the end of the release notes.
-        </p>
-        <a class="btn" target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/releases/latest/download/deluge-community-release.zip">Download c1.0.1</a>
-        <a class="btn" target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/releases/latest">Release notes</a>
-        <a class="btn" target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/wiki/Update-guide">Installation instructions</a>
-        
-        <h1>Release 1.1 (Beethoven) Beta</h1>
-        <p>
-            The next release is almost ready! Please download from the link below, and remember to report any issues
-            This beta firmware will mature into a stable release and receive updates to improve stability without adding new features until it is finished.
-        </p>
 
-        <a class="btn" target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/releases/download/beta/Beta.zip">Download c1.1 Beta</a>
-        <a class="btn" target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/docs/community_features.md">Documentation for this release</a>
-        <a class="btn" taget="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/CHANGELOG.md">Changelog</a>
-
-        
+        <h1>Latest Stable Release - 1.1.0 (Beethoven)</h1>
+        <p>
+            Released June 30th, 2024.
+        </p>
+        <p>
+            This release has even more new features and bugfixes over the 1.0 community release, and should be backwards compatible.
+            Please report any bugs <a href="https://github.com/SynthstromAudible/DelugeFirmware/issues/new?assignees=&labels=&projects=&template=bug_report.yml">on github</a>, as you find them.
+        </p>
+        <a class="btn" target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/releases/release_1_1_0">Release notes</a>
+        <a class="btn" target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/CHANGELOG.md">Changelog</a>
+        <a class="btn" target="_blank" href="https://github.com/SynthstromAudible/DelugeFirmware/releases/download/release_1_1_0/deluge-c1_1_0.bin">Download c1.1.0</a>
 
         <h1>Development firmware</h1>
         <p>
             The current nightly build is available below. The nightly firmware captures the current state of development every day and might be broken but needs to be tested to find out.
-            
-            <p>Be aware that in addition to new features there are large internal changes - we believe these will make the deluge more efficient and stable in the long term, 
+        </p>
+        <p>
+            Be aware that in addition to new features there are large internal changes - we believe these will make the deluge more efficient and stable in the long term, 
             but there may be short term issues with perceived performance due to interactions between sub systems. 
         </p>
 
@@ -150,6 +62,7 @@
             feedback</a>
         <a class="btn" target="_blank" href="https://discord.gg/s2MnkFqZgj">Join
             Discord testers channel</a>
+        <a class="btn" target="_blank" href="old-releases.html">Old releases</a>
     </div>
 </body>
 
