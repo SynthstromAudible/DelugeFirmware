@@ -39,6 +39,7 @@ body:
       label: What firmware did you reproduce it with?
       multiple: true
       options:
+        - Release 1.1/Beethoven
         - Release 1.0/Amadeus
         - Nightly
         - Built from community
