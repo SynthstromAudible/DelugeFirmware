@@ -219,6 +219,47 @@ The only build able to send debug messages via sysex is the "debug" build, so yo
 To make debug log prints in your code, which will be sent to the console, here is a code example:
 `D_PRINTLN("my log message which prints an integer value %d", theIntegerValue);`
 
+Similar functionality is available for popup windows
+
+`D_POPUP("%d bottles of beer on the wall.", 100/2);`
+
+### Automatically logging all function calls. 
+
+A task exists that will traverse through the source files in a path and annotate each function with a `D_PRINT` statement, revealing the line and the calling function call on each instance. 
+
+`dbt annotate add -p src/deluge/gui/views`
+
+This will add a logging line to every function invocation unless the function is in the blacklist in `scripts/tasks/task-annotate.py`
+
+```
+ArrangerView::ArrangerView() {
+	D_PRINTLN("ArrangerView"); // ArrangerView DBT:ANNOTATE
+	doingAutoScrollNow = false;
+
+	lastInteractedOutputIndex = 0;
+	lastInteractedPos = -1;
+	lastInteractedSection = 0;
+	lastInteractedClipInstance = nullptr;
+}
+
+void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	D_PRINTLN("renderOLED"); // renderOLED DBT:ANNOTATE
+	sessionView.renderOLED(canvas);
+}
+
+void ArrangerView::moveClipToSession() {
+	D_PRINTLN("moveClipToSession"); // moveClipToSession DBT:ANNOTATE
+	Output* output = outputsOnScreen[yPressedEffective];
+```
+
+To remove the potentially hundreds of added log invocations. simply call
+
+`dbt annotate rm -p src/deluge/ui/views`
+
+each logging call added during `dbt annotate add` has a string marker used to later remove the annotations
+
+
+
 ### Deluge Crash Reader Discord Bot
 
 If deluge crashes, there is a colorful pixelated image that gets displayed across the main pads and sidebar. In case 
@@ -246,6 +287,8 @@ I couldn't find a recent matching commit for `0x714a`
 
 Then run the command that Deluge Crash Reader Bot outputs. This outputs the latest stack trace before hard crashing.
 (If you're on Windows and using VS Code, try running `.\dbt.cmd shell` first in your terminal.)
+
+Alternatively, you can run `dbt trace`, choose the firmware binary the crash originated from, and paste in the output of the discord bot. this will provide line numbers and file reeferences as well.
 
 [Black Box PR](https://github.com/SynthstromAudible/DelugeFirmware/pull/660)
 [Discord Bot Repo](https://github.com/0beron/delugeqr/)

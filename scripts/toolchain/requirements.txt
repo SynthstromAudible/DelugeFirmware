@@ -3,3 +3,5 @@ setuptools==70.1.1
 pyserial==3.5
 ansi==0.3.7
 python-rtmidi==1.5.8
+iterfzf
+libclang
