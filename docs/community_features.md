@@ -978,12 +978,12 @@ to each individual note onset. ([#1978])
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
   documentation: [DX7 Synth Documentation]
 
-- A new synth type is added fully compatible with DX7 patches, including editing of all DX7 parameters. This is implemented
+- ([#1114]) A new synth type is added fully compatible with DX7 patches, including editing of all DX7 parameters. This is implemented
 as an oscillator type within the subtractive engine, so it can be combined with filters and other features of this engine.
 
-- Patches can be imported from the common 32-patch bank syx-file format, and afterwards saved as SYNTH presets or as part of songs.
+  - Patches can be imported from the common 32-patch bank syx-file format, and afterwards saved as SYNTH presets or as part of songs.
 
-- As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
+  - As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
 
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
@@ -1287,6 +1287,8 @@ different firmware
 [#1065]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1065
 
 [#1083]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1083
+
+[#1114]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1114
 
 [#1156]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1156
 
