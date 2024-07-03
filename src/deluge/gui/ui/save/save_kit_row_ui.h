@@ -31,8 +31,8 @@ public:
 	}
 	bool opened();
 	// void selectEncoderAction(int8_t offset);
-	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
-	void endSession() {};
+	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
+	void endSession(){};
 	bool performSave(StorageManager& bdsm, bool mayOverwrite);
 
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
