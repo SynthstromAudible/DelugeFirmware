@@ -27,8 +27,6 @@
 
 #define AUTOMATED_TESTER_ENABLED (0 && ALPHA_OR_BETA_VERSION)
 
-#define MATRIX_DRIVER_DEBUG 0
-
 #define ALLOW_SPAM_MODE 0 // For debugging (in buttons.cpp, audio_engine.cpp, deluge.cpp)
 
 #if ALPHA_OR_BETA_VERSION

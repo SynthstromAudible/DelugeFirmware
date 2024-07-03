@@ -221,8 +221,13 @@ To make debug log prints in your code, which will be sent to the console, here i
 
 ### Useful extra debug options
 
-Using the previously mentionned sysex debugging, the following defs can be toggled to add extra logging for various actions:
-- definitions_cxx.hpp -> #define MATRIX_DRIVER_DEBUG 1 : this will log pads presses and which UI mode is currently selected, usually pointing to the matching named files under ui/*
+Using the previously mentionned sysex debugging, the following option can be toggled to enable pad logging for the pad matrix driver:
+
+```shell
+./dbt configure -DENABLE_MATRIX_DEBUG=YES
+./dbt build debug
+# copy build/Release/deluge.bin to an SD card and flash it
+```
 
 ### Deluge Crash Reader Discord Bot
 
