@@ -102,7 +102,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 		// TODO: Logic should be inverted as part of a bigger rewrite
 		if (currentUIMode == UI_MODE_IMPLODE_ANIMATION || currentUIMode == UI_MODE_ANIMATION_FADE
 		    || currentUIMode == UI_MODE_INSTRUMENT_CLIP_COLLAPSING) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		int32_t freeSlotIdx = -1;
@@ -179,7 +179,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	}
 
 	requestRendering();
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void KeyboardScreen::evaluateActiveNotes() {
@@ -405,7 +405,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	// Scale mode button
 	if (b == SCALE_MODE) {
 		if (getCurrentOutputType() == OutputType::KIT) {
-			return ActionResult::DEALT_WITH; // Kits can't do scales!
+			HANDLED_ACTION; // Kits can't do scales!
 		}
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
@@ -479,7 +479,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		// Transition back to arranger
 		if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->section == 255) {
 			if (arrangerView.transitionToArrangementEditor()) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 
@@ -570,7 +570,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		return view.buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
@@ -591,7 +591,7 @@ ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRo
 	}
 
 	requestRendering();
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult KeyboardScreen::horizontalEncoderAction(int32_t offset) {
@@ -605,7 +605,7 @@ ActionResult KeyboardScreen::horizontalEncoderAction(int32_t offset) {
 	}
 
 	requestRendering();
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void KeyboardScreen::selectLayout(int8_t offset) {

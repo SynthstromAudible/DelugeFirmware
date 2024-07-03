@@ -342,7 +342,7 @@ doEndMidiLearnPressSession:
 			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 cant:
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			if (inCardRoutine) {
@@ -353,7 +353,7 @@ cant:
 			if (!currentSong->getSyncScalingClip()) {
 				if (!getCurrentUI()->toClipMinder()) {
 					indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW);
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 
 				// Can't do it for arranger-only Clips
@@ -438,7 +438,7 @@ possiblyRevert:
 
 			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			if (inCardRoutine) {
@@ -454,7 +454,7 @@ possiblyRevert:
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void View::endMIDILearn() {
@@ -2686,7 +2686,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		break;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void View::flashPlayEnable() {

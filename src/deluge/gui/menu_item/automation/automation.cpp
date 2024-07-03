@@ -94,7 +94,7 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 			view.setModLedStates();
 			PadLEDs::reassessGreyout();
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	// Select encoder button, used to change current parameter selection in automation view
 	// Back button, used to back out of current automatable parameter menu
@@ -121,13 +121,13 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 				PadLEDs::reassessGreyout();
 			}
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	else if ((b == X_ENC) && (clipMinder || arrangerView)) {
 		// Horizontal encoder button to zoom in/out of underlying automation view
 		if (rootUI == &automationView) {
 			automationView.buttonAction(b, on, inCardRoutine);
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 	return ActionResult::NOT_DEALT_WITH;

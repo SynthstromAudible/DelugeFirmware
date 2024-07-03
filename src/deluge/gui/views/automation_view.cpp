@@ -1612,12 +1612,12 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// these button actions are not used in the audio clip automation view
 	if (isAudioClip || onArrangerView) {
 		if (b == SCALE_MODE || b == KEYBOARD || b == KIT || b == SYNTH || b == MIDI || b == CV) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 	if (onArrangerView) {
 		if (b == CLIP_VIEW) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -1626,7 +1626,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	// Scale mode button
 	if (b == SCALE_MODE) {
 		if (handleScaleButtonAction((InstrumentClip*)clip, outputType, on)) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -1657,7 +1657,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 		}
 		// don't toggle for automation editing
 		else {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -1756,7 +1756,7 @@ passToOthers:
 		uiNeedsRendering(this);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // called by button action if b == SCALE_MODE
@@ -2197,13 +2197,13 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	if (clip->type == ClipType::AUDIO) {
 		if (x >= kDisplayWidth) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
 	// don't interact with sidebar if VU Meter is displayed
 	if (onArrangerView && x >= kDisplayWidth && view.displayVUMeter) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	Output* output = clip->output;
@@ -2269,7 +2269,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // called by pad action when pressing a pad in the main grid (x < kDisplayWidth)
@@ -2280,7 +2280,7 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
                                                  SquareInfo& squareInfo) {
 
 	if (onArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	int32_t xScroll = currentSong->xScroll[navSysId];
@@ -2292,7 +2292,7 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	// or they want to enable/disable pad selection mode
 	if (shortcutPadAction(modelStackWithParam, clip, output, outputType, effectiveLength, x, y, velocity, xScroll,
 	                      xZoom, squareInfo)) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// regular automation / note editing action
@@ -2307,7 +2307,7 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 			}
 		}
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 /// handles shortcut pad actions, including:
@@ -3145,11 +3145,11 @@ ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* 
 	else {
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 			if (outputType != OutputType::KIT) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 			NoteRow* noteRow = instrumentClip->getNoteRowOnScreen(y, currentSong);
 			if (!noteRow || !noteRow->drum) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
 		}
@@ -3176,7 +3176,7 @@ ActionResult AutomationView::handleMutePadAction(ModelStackWithTimelineCounter* 
 			instrumentClipView.mutePadPress(y);
 		}
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // called by pad action when pressing a pad in the audition column (x = kDisplayWidth + 1)
@@ -3194,7 +3194,7 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 				if (outputType == OutputType::KIT) {
 					NoteRow* thisNoteRow = instrumentClip->getNoteRowOnScreen(y, currentSong);
 					if (!thisNoteRow || !thisNoteRow->drum) {
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 					view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, (Kit*)output);
 				}
@@ -3227,7 +3227,7 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 				// if we're not in pad selection mode or didn't select a column
 				// don't process audition pad action
 				else {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 			}
 
@@ -3243,7 +3243,7 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 			}
 		}
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // audition pad action
@@ -3571,18 +3571,18 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 			instrumentClipView.rotateNoteRowHorizontally(offset);
 		}
 
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// else if showing the Parameter selection grid menu, disable this action
 	else if (onAutomationOverview()) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Auditioning but not holding down <> encoder - edit length of just one row
 	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 		instrumentClipView.editNoteRowLength(offset);
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// fine tune note velocity
@@ -3615,7 +3615,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Or, let parent deal with it
@@ -3655,11 +3655,11 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 				currentSong->transpose(offset);
 			}
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	if (getCurrentClip()->type == ClipType::AUDIO) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
@@ -3800,7 +3800,7 @@ shiftAllColour:
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // don't think I touch anything here compared to the instrument clip view version
@@ -3826,12 +3826,12 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 		// Limit scrolling
 		if (scrollAmount >= 0) {
 			if ((int16_t)(clip->yScroll + scrollAmount) > (int16_t)(clip->getNumNoteRows() - 1)) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 		else {
 			if (clip->yScroll + scrollAmount < 1 - kDisplayHeight) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 		// if we're in the note editor we don't want to over-scroll so that selected row is not a valid note row
@@ -3841,7 +3841,7 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 			    clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, modelStack);
 			// over-scrolled, no valid note row, so return and don't do the actual scrolling
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 			// we have a valid note row, so let's set selected drum equal to previous auditioned y display
 			else {
@@ -3864,7 +3864,7 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 		}
 
 		if (!clip->isScrollWithinRange(scrollAmount, newYNote)) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -3968,7 +3968,7 @@ ActionResult AutomationView::scrollVertical(int32_t scrollAmount) {
 	}
 
 	uiNeedsRendering(this);
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // mod encoder action

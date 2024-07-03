@@ -149,7 +149,7 @@ void PatchCables::blinkShortcutsSoon() {
 
 ActionResult PatchCables::timerCallback() {
 	blinkShortcuts();
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void PatchCables::blinkShortcuts() {

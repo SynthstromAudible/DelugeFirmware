@@ -252,7 +252,7 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
@@ -275,7 +275,7 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 			display->displayPopup(buffer, 0, true);
 		}
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void Slicer::selectEncoderAction(int8_t offset) {
@@ -333,7 +333,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 
 		getCurrentKit()->firstDrum->unassignAllVoices(); // stop
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// pop up Transpose value
@@ -351,7 +351,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
 			display->displayPopup(buffer, 0, true);
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// delete slice
@@ -384,7 +384,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			else {
 				redraw();
 			}
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -440,7 +440,7 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void Slicer::stopAnyPreviewing() {
@@ -583,7 +583,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 
 	if (slicerMode == SLICER_MODE_MANUAL) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	return sampleBrowser.padAction(x, y, on);

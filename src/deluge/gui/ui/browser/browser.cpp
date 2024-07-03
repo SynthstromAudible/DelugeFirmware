@@ -1508,7 +1508,7 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 				if (currentFileItem->isFolder) {
 					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE));
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1529,7 +1529,7 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult Browser::mainButtonAction(bool on) {
@@ -1556,7 +1556,7 @@ ActionResult Browser::mainButtonAction(bool on) {
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // Virtual function - may be overridden, by child classes that need to do more stuff, e.g. SampleBrowser needs to mute
@@ -1570,7 +1570,7 @@ ActionResult Browser::backButtonAction() {
 		exitAction();
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // Virtual function - may be overridden, by child classes that need to do more stuff on exit.

@@ -222,7 +222,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 					if (error != Error::NONE) {
 						display->displayError(error);
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 					playbackHandler.recording = RecordingMode::ARRANGEMENT;
 					playbackHandler.setupPlaybackUsingInternalClock();
@@ -239,14 +239,14 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 
 				// Rows are not aligned in grid so we disabled this function, the code below also would need to be
 				// aligned
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_IMPOSSIBLE_FROM_GRID));
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 
 				actionLogger.deleteAllLogs();
@@ -284,14 +284,14 @@ moveAfterClipInstance:
 				if (proposedStartPos > kMaxSequenceLength - clip->loopLength) {
 					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_WOULD_BREACH_MAX_ARRANGEMENT_LENGTH));
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 
 				// If we're here, we're ok!
 				Error error = output->clipInstances.insertAtIndex(i);
 				if (error != Error::NONE) {
 					display->displayError(error);
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 
 				ClipInstance* newInstance = output->clipInstances.getElement(i);
@@ -404,7 +404,7 @@ moveAfterClipInstance:
 			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				performActionOnPadRelease = false;
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			if (inCardRoutine) {
@@ -495,7 +495,7 @@ changeOutputType:
 
 			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			if (inCardRoutine) {
@@ -518,7 +518,7 @@ changeOutputType:
 					// only impose this restriction if switching to/from kit clip
 					if (((getCurrentOutputType() == OutputType::KIT) || (newOutputType == OutputType::KIT))
 					    && !instrumentClip->isEmpty()) {
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 
 					// If load button held, go into LoadInstrumentPresetUI
@@ -598,7 +598,7 @@ notDealtWith:
 		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void SessionView::goToArrangementEditor() {
@@ -617,7 +617,7 @@ ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t 
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
 	if (xDisplay >= kDisplayWidth && view.displayVUMeter && (view.getModKnobMode() == 0)) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
@@ -653,18 +653,18 @@ holdingRecord:
 						Clip* sourceClip = getClipOnScreen(yDisplay + 1);
 
 						if (!sourceClip) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 
 						// If already has a pending overdub, get out
 						if (currentSong->getPendingOverdubWithOutput(sourceClip->output)) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 
 						if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 							display->displayPopup(
 							    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 
 						if (sdRoutineLock) {
@@ -754,7 +754,7 @@ startHoldingDown:
 				else {
 
 					if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 					if (sdRoutineLock) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -765,7 +765,7 @@ startHoldingDown:
 
 					clip = createNewInstrumentClip(yDisplay);
 					if (!clip) {
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 
 					int32_t numClips = currentSong->sessionClips.getNumElements();
@@ -791,7 +791,7 @@ startHoldingDown:
 					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 						display->displayPopup(
 						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 
 					if (sdRoutineLock) {
@@ -960,7 +960,7 @@ justEndClipPress:
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void SessionView::clipPressEnded() {
@@ -1116,7 +1116,7 @@ ActionResult SessionView::timerCallback() {
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void SessionView::drawSectionRepeatNumber() {
@@ -1266,7 +1266,7 @@ ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 		if (Buttons::isShiftButtonPressed()) {
 			// Tell the user why they can't resize
 			indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW);
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -1302,7 +1302,7 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 
 			requestRendering(this, 1 << selectedClipYDisplay, 0);
 
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
@@ -1317,19 +1317,19 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 		return verticalScrollOneSquare(offset);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 
 	if (direction == 1) {
 		if (currentSong->songViewYScroll >= currentSong->sessionClips.getNumElements() - 1) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 	else {
 		if (currentSong->songViewYScroll <= 1 - kDisplayHeight) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -1341,19 +1341,19 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		// Not allowed if recording arrangement
 		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		int32_t oldIndex = selectedClipYDisplay + currentSong->songViewYScroll;
 
 		if (direction == 1) {
 			if (oldIndex >= currentSong->sessionClips.getNumElements() - 1) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 		else {
 			if (oldIndex <= 0) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 
@@ -1374,7 +1374,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		PadLEDs::reassessGreyout(true);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool SessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -3234,7 +3234,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	}
 
 	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Right sidebar column - action modes
@@ -3261,7 +3261,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
 				changeRootUI(&performanceSessionView);
 				uiNeedsRendering(&performanceSessionView);
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 			}
 		}
@@ -3299,7 +3299,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 
 		if (modeHandleResult == ActionResult::DEALT_WITH) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -3308,7 +3308,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		view.flashPlayEnable();
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip) {
@@ -3317,7 +3317,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 		// Get pressed section
 		auto section = gridSectionFromY(y);
 		if (section < 0) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		// Immediate release of the pad arms the section, holding allows changing repeats
@@ -3457,13 +3457,13 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 		// Get pressed section
 		auto section = gridSectionFromY(y);
 		if (section < 0) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		// MIDI learn section
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
 			view.sectionMidiLearnPadPressed(on, section);
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		if (on) {
@@ -3510,7 +3510,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 			}
 		}
 
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Learn MIDI ARM
@@ -3530,7 +3530,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 ActionResult SessionView::gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip) {
 	// From here all actions only happen on press
 	if (!on) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	gridHandlePadsLaunchToggleArming(clip, Buttons::isShiftButtonPressed());
@@ -3647,7 +3647,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 			requestRendering(this);
 		}
 
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	gridResetPresses();
@@ -3664,7 +3664,7 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	// use root UI in case this is called from performance view
 	requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
 	view.flashPlayEnable();
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void SessionView::gridTransitionToSessionView() {

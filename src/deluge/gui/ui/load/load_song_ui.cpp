@@ -224,7 +224,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 		return LoadUI::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // Before calling this, you must set loadButtonReleased.
@@ -496,7 +496,7 @@ ActionResult LoadSongUI::timerCallback() {
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4);
 		}
 getOut: {}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	else {
@@ -690,7 +690,7 @@ ActionResult LoadSongUI::verticalEncoderAction(int32_t offset, bool inCardRoutin
 		exitAction(); // Exit if your scroll down
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void LoadSongUI::exitAction() {
@@ -811,5 +811,5 @@ ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 	if (qwertyVisible) {
 		return LoadUI::padAction(x, y, on);
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }

@@ -313,7 +313,7 @@ considerContextMenu:
 				}
 			}
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	else {
 		return Browser::timerCallback();
@@ -414,7 +414,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 					Error error = getCurrentFilePath(&filePath);
 					if (error != Error::NONE) {
 						display->displayError(error);
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 
 					bool allFine = audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(filePath.get());
@@ -450,7 +450,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 	else if (b == RECORD && audioRecorder.recordingSource == AudioInputChannel::NONE
 	         && getCurrentClip()->type != ClipType::AUDIO) {
 		if (!on || currentUIMode != UI_MODE_NONE) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 		AudioEngine::stopAnyPreviewing();
 
@@ -469,7 +469,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		return Browser::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool SampleBrowser::canImportWholeKit() {
@@ -694,11 +694,11 @@ possiblyExit:
 			return QwertyUI::padAction(x, y, on);
 		}
 		else {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
@@ -2005,7 +2005,7 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 				PadLEDs::sendOutMainPadColours();
 			}
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	else {
 		qwertyVisible = true;
@@ -2024,12 +2024,12 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (getRootUI() == &instrumentClipView) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 		return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool SampleBrowser::canSeeViewUnderneath() {

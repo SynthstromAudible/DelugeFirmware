@@ -257,7 +257,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 			// If currently loading preset, definitely don't abort that - make the user wait and press button again when
 			// finished
 			else if (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			else if (!currentUIMode) {
@@ -285,7 +285,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 				char newChar =
 				    keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)][kQwertyHomeRow - y + 2][x - 3];
 				if (newChar == 0) {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 
 				// First character must be alphanumerical
@@ -293,7 +293,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 					if ((newChar >= 'A' && newChar <= 'Z') || (newChar >= '0' && newChar <= '9')) {
 					} // Then everything's fine
 					else {
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 				}
 
@@ -369,7 +369,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 						if (error != Error::NONE) {
 							display->displayError(error);
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 
 						enteredTextEditPos++;
@@ -390,7 +390,7 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void QwertyUI::processBackspace() {
@@ -412,7 +412,7 @@ ActionResult QwertyUI::horizontalEncoderAction(int32_t offset) {
 
 			// If not, get out
 			if (enteredTextEditPos == enteredText.getLength()) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			goto doDisplayText;
@@ -420,7 +420,7 @@ ActionResult QwertyUI::horizontalEncoderAction(int32_t offset) {
 	}
 	else {
 		if (enteredTextEditPos == 0) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -429,7 +429,7 @@ ActionResult QwertyUI::horizontalEncoderAction(int32_t offset) {
 doDisplayText:
 	displayText();
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult QwertyUI::timerCallback() {
@@ -438,5 +438,5 @@ ActionResult QwertyUI::timerCallback() {
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, display->haveOLED() ? 80 : 125);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }

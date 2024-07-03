@@ -69,7 +69,7 @@ ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardR
 		return ClipNavigationTimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 extern bool allowResyncingDuringClipLengthChange;
@@ -144,14 +144,14 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		uint32_t oldLength = getCurrentClip()->loopLength;
 
 		// If we're not scrolled all the way to the right, go there now
 		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		// Or if still here, we've already scrolled far-right
@@ -169,7 +169,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 		if (action) {
 			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Or, maybe shift everything horizontally
@@ -200,7 +200,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 		bool wasShifted = clip->shiftHorizontally(modelStack, shiftAmount, shiftAutomation, shiftSequenceAndMPE);
 		if (!wasShifted) {
 			// No need to show the user why it didnt succeed, usually these cases are fairly trivial
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -238,7 +238,7 @@ addConsequenceToAction:
 				}
 			}
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Or, if shift button not pressed...
@@ -246,7 +246,7 @@ addConsequenceToAction:
 
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		// Otherwise, let parent do scrolling and zooming

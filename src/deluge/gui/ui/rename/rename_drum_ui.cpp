@@ -85,7 +85,7 @@ ActionResult RenameDrumUI::buttonAction(deluge::hid::Button b, bool on, bool inC
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void RenameDrumUI::enterKeyPress() {
@@ -134,12 +134,12 @@ ActionResult RenameDrumUI::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult RenameDrumUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 }

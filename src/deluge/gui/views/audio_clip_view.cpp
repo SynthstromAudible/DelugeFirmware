@@ -187,7 +187,7 @@ ActionResult AudioClipView::timerCallback() {
 
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -356,7 +356,7 @@ dontDeactivateMarker:
 			}
 
 			if (!soundEditor.setup(getCurrentClip())) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 			openUI(&soundEditor);
 
@@ -418,7 +418,7 @@ deactivateMarkerIfNecessary:
 		return result;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
@@ -503,7 +503,7 @@ needRendering:
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength,
                                                  int32_t oldLength, uint64_t oldLengthSamples) const {
@@ -683,7 +683,7 @@ ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 		// If tempoless recording, don't allow
 		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		// Ok, move the marker!
@@ -692,7 +692,7 @@ ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 
 		// If we're not scrolled all the way to the right, go there now
 		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		// Or if still here, we've already scrolled far-right
@@ -720,7 +720,7 @@ ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 		if (action) {
 			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	else {
@@ -739,7 +739,7 @@ ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRou
 		getCurrentAudioClip()->colourOffset += offset;
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool AudioClipView::setupScroll(uint32_t oldScroll) {

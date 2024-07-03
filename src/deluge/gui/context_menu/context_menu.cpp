@@ -182,7 +182,7 @@ probablyAcceptCurrentOption:
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void ContextMenu::drawCurrentOption() {
@@ -202,7 +202,7 @@ ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
 		close();
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void ContextMenuForSaving::focusRegained() {

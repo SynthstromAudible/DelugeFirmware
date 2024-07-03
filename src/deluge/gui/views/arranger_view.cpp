@@ -285,7 +285,7 @@ doChangeOutputType:
 				// output are not empty
 				// only impose this restriction if switching to/from kit clip
 				if (((output->type == OutputType::KIT) || (newOutputType == OutputType::KIT)) && !output->isEmpty()) {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 
 				// If load button held, go into LoadInstrumentPresetUI
@@ -297,7 +297,7 @@ doChangeOutputType:
 					}
 
 					if (!output) {
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 
 					actionLogger.deleteAllLogs();
@@ -359,7 +359,7 @@ doActualSimpleChange:
 		return TimelineView::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void ArrangerView::deleteOutput() {
@@ -900,7 +900,7 @@ ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
 	if (x >= kDisplayWidth && view.displayVUMeter && (view.getModKnobMode() == 0)) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Audition pad
@@ -942,14 +942,14 @@ ActionResult ArrangerView::handleEditPadAction(int32_t x, int32_t y, int32_t vel
 			editPadAction(x, y, velocity);
 		}
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult ArrangerView::handleStatusPadAction(int32_t y, int32_t velocity, UI* ui) {
 	Output* output = outputsOnScreen[y];
 
 	if (!output) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	if (velocity) {
@@ -959,7 +959,7 @@ ActionResult ArrangerView::handleStatusPadAction(int32_t y, int32_t velocity, UI
 		case UI_MODE_VIEWING_RECORD_ARMING:
 			output->armedForRecording = !output->armedForRecording;
 			PadLEDs::reassessGreyout(true);
-			return ActionResult::DEALT_WITH; // No need to draw anything
+			HANDLED_ACTION; // No need to draw anything
 
 #ifdef soloButtonX
 		case UI_MODE_SOLO_BUTTON_HELD:
@@ -1039,8 +1039,8 @@ doUnsolo:
 			// yet...
 			if (velocity && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 				output->armedForRecording = !output->armedForRecording;
-				timerCallback();                 // Get into UI_MODE_VIEWING_RECORD_ARMING
-				return ActionResult::DEALT_WITH; // No need to draw anything
+				timerCallback(); // Get into UI_MODE_VIEWING_RECORD_ARMING
+				HANDLED_ACTION;  // No need to draw anything
 			}
 			// No break
 
@@ -1072,7 +1072,7 @@ regularMutePadPress:
 		uiNeedsRendering(ui, 0, rowsToRedraw);
 		mustRedrawTickSquares = true;
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult ArrangerView::handleAuditionPadAction(int32_t y, int32_t velocity, UI* ui) {
@@ -1099,7 +1099,7 @@ ActionResult ArrangerView::handleAuditionPadAction(int32_t y, int32_t velocity, 
 		auditionPadAction(velocity, y, ui);
 		break;
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void ArrangerView::outputActivated(Output* output) {
@@ -2316,7 +2316,7 @@ ActionResult ArrangerView::timerCallback() {
 		break;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void ArrangerView::selectEncoderAction(int8_t offset) {
@@ -2562,13 +2562,13 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 			// Constrain to zoom limits
 			if (zoomMagnitude == -1) {
 				if (oldXZoom <= 3) {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 				currentSong->xZoom[NAVIGATION_ARRANGEMENT] >>= 1;
 			}
 			else {
 				if (oldXZoom >= getMaxZoom()) {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 				currentSong->xZoom[NAVIGATION_ARRANGEMENT] <<= 1;
 			}
@@ -2617,7 +2617,7 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
 				// If expanding, make sure we don't exceed length limit
 				if (offset >= 0 && getMaxLength() > kMaxSequenceLength - scrollAmount) {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 
 				ActionType actionType =
@@ -2719,13 +2719,13 @@ ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 		actionOnDepress = false;
 
 		if (offset == -1 && currentSong->xScroll[NAVIGATION_ARRANGEMENT] == 0) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		return horizontalScrollOneSquare(offset);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
@@ -2781,7 +2781,7 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 
 	displayScrollPos();
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // No need to check whether playback active before calling - we check for that here.
@@ -2806,12 +2806,12 @@ void ArrangerView::reassessWhetherDoingAutoScroll(int32_t pos) {
 ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 	if (direction >= 0) { // Up
 		if (currentSong->arrangementYScroll >= currentSong->getNumOutputs() - 1) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 	else { // Down
 		if (currentSong->arrangementYScroll <= 1 - kDisplayHeight) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -2823,19 +2823,19 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 	// If a Output or ClipInstance selected for dragging, limit scrolling
 	if (draggingWholeRow || draggingClipInstance) {
 		if (yPressedEffective != yPressedActual) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		output = outputsOnScreen[yPressedEffective];
 
 		if (direction >= 0) { // Up
 			if (output->next == NULL) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 		else { // Down
 			if (currentSong->firstOutput == output) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 
@@ -2889,7 +2889,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 		PadLEDs::reassessGreyout(true);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 static const uint32_t verticalEncoderUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
@@ -2906,7 +2906,7 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 				currentSong->transpose(offset);
 			}
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	if (isUIModeWithinRange(verticalEncoderUIModes)) {
@@ -2917,7 +2917,7 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 		return verticalScrollOneSquare(offset);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void ArrangerView::setNoSubMode() {

@@ -86,7 +86,7 @@ ActionResult RenameOutputUI::buttonAction(deluge::hid::Button b, bool on, bool i
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void RenameOutputUI::enterKeyPress() {
@@ -128,12 +128,12 @@ ActionResult RenameOutputUI::padAction(int32_t x, int32_t y, int32_t on) {
 		exitUI();
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult RenameOutputUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	return arrangerView.verticalEncoderAction(offset, inCardRoutine);
 }

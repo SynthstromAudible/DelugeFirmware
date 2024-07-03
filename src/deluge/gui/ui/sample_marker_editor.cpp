@@ -362,7 +362,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 			instrumentClipView.padAction(x, y, on);
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Mute pads
@@ -379,7 +379,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 			if (currentUIMode && currentUIMode != UI_MODE_AUDITIONING
 			    && currentUIMode != UI_MODE_HOLDING_SAMPLE_MARKER) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			MarkerColumn cols[kNumMarkerTypes];
@@ -435,14 +435,14 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 						// Limit position
 						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						if (getCurrentMultisampleRange().sampleHolder.loopEndPos
 						    && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						if (cols[util::to_underlying(MarkerType::END)].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 
 						newMarkerType = MarkerType::LOOP_START;
@@ -451,7 +451,7 @@ ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 ensureNotPastSampleLength:
 						// Loop start and end points are not allowed to be further right than the sample waveform length
 						if (newValue >= waveformBasicNavigator.sample->lengthInSamples) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						markerType = newMarkerType;
 						value = newValue;
@@ -471,13 +471,13 @@ ensureNotPastSampleLength:
 
 						// Limit position
 						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						if (cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen >= x) {
-							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
+							HANDLED_ACTION; // Will be a big negative number if inactive
 						}
 						if (cols[util::to_underlying(MarkerType::END)].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 
 						newMarkerType = MarkerType::LOOP_END;
@@ -512,7 +512,7 @@ exitAfterRemovingLoopMarker:
 							goto doRender;
 						}
 						else {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 					}
 					else if (markerHeld == MarkerType::LOOP_END) {
@@ -526,7 +526,7 @@ exitAfterRemovingLoopMarker:
 							goto exitAfterRemovingLoopMarker;
 						}
 						else {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 					}
 
@@ -555,51 +555,51 @@ exitAfterRemovingLoopMarker:
 					if (markerType == MarkerType::START) {
 						if (cols[util::to_underlying(MarkerType::LOOP_START)].pos
 						    && cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						if (cols[util::to_underlying(MarkerType::LOOP_END)].pos
 						    && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						if (cols[util::to_underlying(MarkerType::END)].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 					}
 
 					else if (markerType == MarkerType::LOOP_START) {
 						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						if (cols[util::to_underlying(MarkerType::LOOP_END)].pos
 						    && cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						if (cols[util::to_underlying(MarkerType::END)].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 					}
 
 					else if (markerType == MarkerType::LOOP_END) {
 						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						if (cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen >= x) {
-							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
+							HANDLED_ACTION; // Will be a big negative number if inactive
 						}
 						if (cols[util::to_underlying(MarkerType::END)].colOnScreen <= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 					}
 
 					else if (markerType == MarkerType::END) {
 						if (cols[util::to_underlying(MarkerType::START)].colOnScreen >= x) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						if (cols[util::to_underlying(MarkerType::LOOP_START)].colOnScreen >= x) {
-							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
+							HANDLED_ACTION; // Will be a big negative number if inactive
 						}
 						if (cols[util::to_underlying(MarkerType::LOOP_END)].colOnScreen >= x) {
-							return ActionResult::DEALT_WITH; // Will be a big negative number if inactive
+							HANDLED_ACTION; // Will be a big negative number if inactive
 						}
 					}
 
@@ -613,7 +613,7 @@ exitAfterRemovingLoopMarker:
 						if (markerType == MarkerType::END && shouldAllowExtraScrollRight()) {
 							if (x > cols[util::to_underlying(markerType)].colOnScreen
 							    && value < cols[util::to_underlying(markerType)].pos) {
-								return ActionResult::DEALT_WITH; // Probably not actually necessary
+								HANDLED_ACTION; // Probably not actually necessary
 							}
 							if (value > lengthInSamples && value < lengthInSamples + waveformBasicNavigator.xZoom) {
 								value = lengthInSamples;
@@ -654,7 +654,7 @@ doRender:
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -687,7 +687,7 @@ ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bo
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool SampleMarkerEditor::exitUI() {
@@ -715,7 +715,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 			}
 			else {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_TOO_LONG));
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 		else { // turn anti-clockwise
@@ -727,7 +727,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 			}
 			else {
 				display->displayPopup(l10n::get(l10n::String::STRING_FOR_LOOP_TOO_SHORT));
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 
@@ -738,7 +738,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// We're quite likely going to need to read the SD card to do either scrolling or zooming
@@ -778,7 +778,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 		recordScrollAndZoom();
 		blinkPhase = 0;
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 // Just for the blinking marker I think
@@ -810,7 +810,7 @@ ActionResult SampleMarkerEditor::timerCallback() {
 
 	if (!anyMarkerVisible) {
 		// No markers visible, no need to re-schedule the timer or do any rendering
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	blinkPhase = static_cast<int8_t>((blinkPhase + 1) % 4);
@@ -879,13 +879,13 @@ ActionResult SampleMarkerEditor::timerCallback() {
 
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kSampleMarkerBlinkTime);
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)
 	    || getCurrentClip()->type == ClipType::AUDIO) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Must say these buttons were not pressed, or else editing might take place

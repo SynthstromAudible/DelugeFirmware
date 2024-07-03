@@ -617,7 +617,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 		}
 		display->displayPopup(popupMsg.c_str());
 
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	return ActionResult::NOT_DEALT_WITH;
 }

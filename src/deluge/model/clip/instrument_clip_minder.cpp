@@ -389,7 +389,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			}
 
 			if (!soundEditor.setup(getCurrentClip())) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 			openUI(&soundEditor);
 		}
@@ -484,7 +484,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		return ClipMinder::buttonAction(b, on);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool InstrumentClipMinder::changeOutputType(OutputType newOutputType) {

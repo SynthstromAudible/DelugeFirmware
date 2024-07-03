@@ -378,7 +378,7 @@ doChangeOutputType:
 		return LoadUI::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult LoadInstrumentPresetUI::timerCallback() {
@@ -394,7 +394,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		// Folders don't have a context menu
 		if (!currentFileItem || currentFileItem->isFolder) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		// We want to open the context menu to choose to reload the original file for the currently selected preset in
@@ -403,13 +403,13 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		Error error = getCurrentFilePath(&filePath);
 		if (error != Error::NONE) {
 			display->displayError(error);
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		bool fileExists = storageManager.fileExists(filePath.get(), &currentFileItem->filePointer);
 		if (!fileExists) {
 			display->displayError(Error::FILE_NOT_FOUND);
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
@@ -423,7 +423,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);
 		}
 
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	else {
 		return LoadUI::timerCallback();
@@ -1106,13 +1106,13 @@ potentiallyExit:
 		return LoadUI::padAction(x, y, on);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (showingAuditionPads()) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
@@ -1128,7 +1128,7 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool 
 		return result;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],

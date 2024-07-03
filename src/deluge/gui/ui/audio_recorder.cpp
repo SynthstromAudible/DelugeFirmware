@@ -260,7 +260,7 @@ ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool in
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool AudioRecorder::isCurrentlyResampling() {

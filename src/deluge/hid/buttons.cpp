@@ -257,7 +257,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	}
 dealtWith:
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool isButtonPressed(deluge::hid::Button b) {

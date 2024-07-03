@@ -111,7 +111,7 @@ ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		return SlotBrowser::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult SaveUI::timerCallback() {
@@ -129,7 +129,7 @@ ActionResult SaveUI::timerCallback() {
 			exitUIMode(UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS);
 		}
 
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	else {
 		return SlotBrowser::timerCallback();

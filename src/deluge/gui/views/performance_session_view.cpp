@@ -320,7 +320,7 @@ ActionResult PerformanceSessionView::timerCallback() {
 	else {
 		arrangerView.timerCallback();
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 bool PerformanceSessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -740,7 +740,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 					if (error != Error::NONE) {
 						display->displayError(error);
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 					playbackHandler.recording = RecordingMode::ARRANGEMENT;
 					playbackHandler.setupPlaybackUsingInternalClock();
@@ -803,7 +803,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			if (inCardRoutine) {
@@ -898,7 +898,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 		return buttonActionResult;
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
@@ -920,7 +920,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 				bool ignorePadAction =
 				    defaultEditingMode && lastPadPress.isActive && (lastPadPress.xDisplay != xDisplay);
 				if (ignorePadAction || (layoutForPerformance[xDisplay].paramID == kNoSelection)) {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 				normalPadAction(modelStack, xDisplay, yDisplay, on);
 			}
@@ -935,7 +935,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			// don't interact with sidebar if VU Meter is displayed
 			// and you're in the volume/pan mod knob mode (0)
 			if (view.displayVUMeter && (view.getModKnobMode() == 0)) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 			// if in arranger view
 			if (currentSong->lastClipInstanceEnteredStartPos != -1) {
@@ -997,7 +997,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 	else if (!on) {
 		justExitedSoundEditor = false;
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 /// process pad actions in the normal performance view or value editor
@@ -1518,7 +1518,7 @@ int32_t PerformanceSessionView::calculateKnobPosForSelectEncoderTurn(int32_t kno
 }
 
 ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {

@@ -276,7 +276,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					if (newItem != (MenuItem*)0xFFFFFFFF) {
 						if (newItem == &audioSourceSelectorMenu) {
 							newItem->selectButtonPress();
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						else {
 							MenuPermission result = newItem->checkPermissionToBeginSession(
@@ -448,7 +448,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		return getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 /// check if menu we're in has changed
@@ -751,7 +751,7 @@ ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
 	}
 	else {
 		getCurrentMenuItem()->horizontalEncoderAction(offset);
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 }
 
@@ -906,7 +906,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				if (output) {
 					renameOutputUI.output = output;
 					openUI(&renameOutputUI);
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 			}
 			else if (x <= 14) {
@@ -922,7 +922,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
 			           == RuntimeFeatureStateToggle::On) {
 				if (dxParam.potentialShortcutPadAction(x, y, on)) {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 			}
 			// Shortcut to edit a parameter
@@ -950,7 +950,7 @@ doSetup:
 
 					if (item == comingSoonMenu) {
 						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 
 					// if we're in the menu and automation view is the root (background) UI
@@ -964,7 +964,7 @@ doSetup:
 						deluge::modulation::params::Kind kind = newItem->getParamKind();
 						if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
 						    && getRootUI() == &automationView) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 					}
 
@@ -993,7 +993,7 @@ doSetup:
 					}
 
 					if (!setupSuccess) {
-						return ActionResult::DEALT_WITH;
+						HANDLED_ACTION;
 					}
 
 					enterOrUpdateSoundEditor(on);
@@ -1009,7 +1009,7 @@ doSetup:
 				}
 
 				if (source >= kLastPatchSource) {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 
 				bool previousPressStillActive = false;
@@ -1042,7 +1042,7 @@ getOut:
 						newNavigationDepth--;
 						if (newNavigationDepth < 0) { // This normally shouldn't happen
 							exitCompletely();
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						wentBack = true;
 					}
@@ -1076,7 +1076,7 @@ getOut:
 			}
 		}
 	}
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void SoundEditor::enterOrUpdateSoundEditor(bool on) {
@@ -1122,7 +1122,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 	    && !performanceSessionView.editingParam) {
 		if (x < kDisplayWidth) {
 			performanceSessionView.padAction(x, y, on);
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -1135,14 +1135,14 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	if (rootUI == &keyboardScreen) {
 		keyboardScreen.padAction(x, y, on);
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Audition pads
 	else if (rootUI == &instrumentClipView) {
 		if (x == kDisplayWidth + 1) {
 			instrumentClipView.padAction(x, y, on);
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -1163,20 +1163,20 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 				auto& region = GeneralMemoryAllocator::get().regions[MEMORY_REGION_INTERNAL];
 				intToString(region.end - region.start, buffer);
 				display->displayPopup(buffer);
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			// Read active voices
 			else if (x == 14) {
 				intToString(AudioEngine::activeVoices.getNumElements(), buffer);
 				display->displayPopup(buffer);
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			else if (x == 13) {
 				intToString(picFirmwareVersion, buffer);
 				display->displayPopup(buffer);
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 
@@ -1189,7 +1189,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		exitCompletely();
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 ActionResult SoundEditor::handleAutomationViewPadAction(int32_t x, int32_t y, int32_t velocity) {
@@ -1200,7 +1200,7 @@ ActionResult SoundEditor::handleAutomationViewPadAction(int32_t x, int32_t y, in
 	// then only allow interacting with sidebar pads
 	if ((x >= kDisplayWidth) || editingParamInAutomationView) {
 		automationView.padAction(x, y, velocity);
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	return ActionResult::NOT_DEALT_WITH;
 }
@@ -1235,7 +1235,7 @@ bool SoundEditor::isEditingAutomationViewParam() {
 
 ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }

@@ -111,7 +111,7 @@ ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inC
 		return view.buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void TimelineView::displayZoomLevel(bool justPopup) {
@@ -208,7 +208,7 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
 getOut:
 	horizontalEncoderActionLock = false;
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void TimelineView::displayScrollPos() {

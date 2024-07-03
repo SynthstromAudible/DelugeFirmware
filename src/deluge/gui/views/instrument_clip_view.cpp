@@ -190,7 +190,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 			if (on) {
 				indicator_leds::indicateAlertOnLed(IndicatorLED::KIT);
 			}
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
@@ -388,7 +388,7 @@ doOther:
 			NoteRow* newNoteRow = createNewNoteRowForKit(modelStack, yDisplayOfNewNoteRow, &noteRowIndex);
 			if (!newNoteRow) {
 				display->displayError(Error::INSUFFICIENT_RAM);
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, newNoteRow);
@@ -795,7 +795,7 @@ passToOthers:
 		return ClipView::buttonAction(b, on, inCardRoutine);
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void InstrumentClipView::createDrumForAuditionedNoteRow(DrumType drumType) {
@@ -1406,7 +1406,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				if (result != FR_OK) {
 
 					display->displayError(Error::SD_CARD);
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 
 				// Select random audio file from directory
@@ -1449,7 +1449,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 
 		case 1:
 			display->displayPopup(chosenFilename);
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 			break;
 
 		default:
@@ -1459,7 +1459,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 			else {
 				display->displayPopup("Randomized selected rows");
 			}
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -1485,7 +1485,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 				clip->lastSelectedParamShortcutX = x;
 				clip->lastSelectedParamShortcutY = y;
 				changeRootUI(&automationView);
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 			// otherwise let's check for another shortcut pad action
 			else {
@@ -1517,11 +1517,11 @@ doRegularEditPadActionProbably:
 			}
 
 			if (getCurrentOutputType() != OutputType::KIT) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 			NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(y, currentSong);
 			if (!noteRow || !noteRow->drum) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
 		}
@@ -1567,7 +1567,7 @@ possiblyAuditionPad:
 					if (getCurrentOutputType() == OutputType::KIT) {
 						NoteRow* thisNoteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(y, currentSong);
 						if (!thisNoteRow || !thisNoteRow->drum) {
-							return ActionResult::DEALT_WITH;
+							HANDLED_ACTION;
 						}
 						view.drumMidiLearnPadPressed(velocity, thisNoteRow->drum, getCurrentKit());
 					}
@@ -1626,7 +1626,7 @@ possiblyAuditionPad:
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 uint8_t InstrumentClipView::getEditPadPressXDisplayOnScreen(uint8_t yDisplay) {
@@ -2658,12 +2658,12 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		if (scrollAmount >= 0) {
 			if ((int16_t)(getCurrentInstrumentClip()->yScroll + scrollAmount)
 			    > (int16_t)(getCurrentInstrumentClip()->getNumNoteRows() - 1)) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 		else {
 			if (getCurrentInstrumentClip()->yScroll + scrollAmount < 1 - kDisplayHeight) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 		}
 
@@ -2671,18 +2671,18 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		if (draggingNoteRow) {
 			noteRowToShiftI = lastAuditionedYDisplay + getCurrentInstrumentClip()->yScroll;
 			if (noteRowToShiftI < 0 || noteRowToShiftI >= getCurrentInstrumentClip()->noteRows.getNumElements()) {
-				return ActionResult::DEALT_WITH;
+				HANDLED_ACTION;
 			}
 
 			if (scrollAmount >= 0) {
 				if (noteRowToShiftI >= getCurrentInstrumentClip()->noteRows.getNumElements() - 1) {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 				noteRowToSwapWithI = noteRowToShiftI + 1;
 			}
 			else {
 				if (noteRowToShiftI == 0) {
-					return ActionResult::DEALT_WITH;
+					HANDLED_ACTION;
 				}
 				noteRowToSwapWithI = noteRowToShiftI - 1;
 			}
@@ -2700,7 +2700,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		}
 
 		if (!getCurrentInstrumentClip()->isScrollWithinRange(scrollAmount, newYNote)) {
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 
@@ -2959,7 +2959,7 @@ cancelPress:
 	}
 
 	uiNeedsRendering(this); // Might be in waveform view
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void InstrumentClipView::reassessAllAuditionStatus() {
@@ -4683,7 +4683,7 @@ shiftAllColour:
 		}
 	}
 
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
@@ -4711,19 +4711,19 @@ ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 				nudgeNotes(offset);
 			}
 		}
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Auditioning but not holding down <> encoder - edit length of just one row
 	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 		editNoteRowLength(offset);
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Auditioning *and* holding down <> encoder - rotate/shift just one row
 	else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING | UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 		rotateNoteRowHorizontally(offset);
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 
 	// Or, let parent deal with it

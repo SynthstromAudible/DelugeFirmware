@@ -68,7 +68,7 @@ void SlotBrowser::focusRegained() {
 ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 
 	if (!isNoUIModeActive()) {
-		return ActionResult::DEALT_WITH;
+		HANDLED_ACTION;
 	}
 	if (display->have7SEG()) {
 		FileItem* currentFileItem = getCurrentFileItem();
@@ -89,7 +89,7 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 			}
 
 			displayText(numberEditPos >= 0);
-			return ActionResult::DEALT_WITH;
+			HANDLED_ACTION;
 		}
 	}
 	{

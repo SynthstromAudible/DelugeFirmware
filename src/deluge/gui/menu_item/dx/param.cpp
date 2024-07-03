@@ -154,7 +154,7 @@ void DxParam::blinkSideColumn() {
 }
 ActionResult DxParam::timerCallback() {
 	blinkSideColumn();
-	return ActionResult::DEALT_WITH;
+	HANDLED_ACTION;
 }
 
 void DxParam::selectEncoderAction(int32_t offset) {
