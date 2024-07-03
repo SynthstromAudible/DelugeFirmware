@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "hid/button.h"
+#include "hid/ui_actions.h"
 
 class ClipMinder {
 public:

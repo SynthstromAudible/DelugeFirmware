@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "hid/ui_actions.h"
 #include "modulation/params/param.h"
 
 class ParamManagerForTimeline;
@@ -43,7 +44,7 @@ public:
 	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 		return false;
 	} // Returns whether Instrument was changed
-	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager){};
+	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {};
 	virtual ModelStackWithAutoParam*
 	getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                       bool allowCreation = true); // Check that autoParam isn't NULL, after calling this.

@@ -21,7 +21,7 @@
 #include "gui/colour/colour.h"
 #include "hid/button.h"
 #include "hid/display/oled_canvas/canvas.h"
-
+#include "hid/ui_actions.h"
 class RootUI;
 class ClipMinder;
 class MIDIDevice;

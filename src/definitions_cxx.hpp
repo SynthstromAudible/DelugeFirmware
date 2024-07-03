@@ -807,13 +807,6 @@ enum class AudioInputChannel {
 
 constexpr AudioInputChannel AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION = AudioInputChannel::MIX;
 
-enum class ActionResult {
-	DEALT_WITH,
-	NOT_DEALT_WITH,
-	REMIND_ME_OUTSIDE_CARD_ROUTINE,
-	ACTIONED_AND_CAUSED_CHANGE,
-};
-
 constexpr int32_t kAudioClipMarginSizePostEnd = 2048;
 
 // Let's just do a 100 sample crossfade. Even 12 samples actually sounded fine for my voice - just obviously not so good

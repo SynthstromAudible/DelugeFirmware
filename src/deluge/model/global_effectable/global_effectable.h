@@ -19,7 +19,9 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
+#include "hid/ui_actions.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+
 using namespace deluge;
 class Serializer;
 class GlobalEffectable : public ModControllableAudio {

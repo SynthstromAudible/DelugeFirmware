@@ -44,6 +44,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
+#include "hid/ui_actions.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"

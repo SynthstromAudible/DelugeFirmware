@@ -19,7 +19,9 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/waveform/waveform_render_data.h"
+#include "hid/ui_actions.h"
 #include "pad.h"
+
 #include <cstdint>
 
 class AudioClip;

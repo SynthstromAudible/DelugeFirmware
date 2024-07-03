@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "hid/button.h"
+#include "hid/ui_actions.h"
 #include "model/model_stack.h"
 #include "modulation/params/param.h"
 #include <cstdint>

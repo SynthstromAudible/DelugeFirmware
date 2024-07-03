@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <stddef.h>
-
 #include "button.h"
+#include "hid/ui_actions.h"
+#include <stddef.h>
 
 namespace Buttons {
 
