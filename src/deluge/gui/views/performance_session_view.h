@@ -66,7 +66,7 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::PERFORMANCE_SESSION_VIEW; }
-
+	const char* getName() { return "performance_session_view"; }
 	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;

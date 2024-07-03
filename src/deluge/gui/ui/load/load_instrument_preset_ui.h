@@ -76,6 +76,7 @@ public:
 	}
 	// ui
 	UIType getUIType() { return UIType::LOAD_INSTRUMENT_PRESET; }
+	const char* getName() { return "load_instrument_preset"; }
 
 protected:
 	void enterKeyPress();

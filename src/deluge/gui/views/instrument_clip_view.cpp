@@ -3450,6 +3450,11 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 		actionLogger.closeAction(ActionType::NOTE_NUDGE);
 	}
 
+	if (shiftButtonDown && velocity) {
+		D_PRINT("AUTOSAMPLE", velocity);
+		display->displayPopup("AUTOSAMPLE");
+		return;
+	}
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 

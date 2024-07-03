@@ -61,6 +61,7 @@ public:
 	// ui
 	UIType getUIType() { return UIType::AUTOMATION_VIEW; }
 	AutomationSubType getAutomationSubType();
+	const char* getName() { return "automation_view"; }
 
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);

@@ -120,6 +120,7 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::ARRANGER_VIEW; }
+	const char* getName() { return "arranger_view"; }
 
 	Clip* getClipForSelection();
 

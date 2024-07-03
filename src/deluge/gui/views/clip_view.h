@@ -26,6 +26,7 @@ class ClipView : public ClipNavigationTimelineView {
 public:
 	ClipView();
 
+	const char* getName() { return "clip_view"; }
 	uint32_t getMaxZoom() override;
 	uint32_t getMaxLength() override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;

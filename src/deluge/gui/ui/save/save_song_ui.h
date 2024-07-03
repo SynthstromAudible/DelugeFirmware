@@ -28,7 +28,7 @@ public:
 	void focusRegained();
 	// void selectEncoderAction(int8_t offset);
 	bool performSave(StorageManager& bdsm, bool mayOverwrite = false);
-
+	const char* getName() { return "save_song_ui"; }
 	bool collectingSamples;
 
 protected:

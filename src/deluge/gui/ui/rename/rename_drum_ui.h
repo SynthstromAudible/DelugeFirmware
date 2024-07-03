@@ -33,6 +33,7 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::RENAME_DRUM; }
+	const char* getName() { return "rename_drum_ui"; }
 	bool exitUI() override;
 
 protected:
