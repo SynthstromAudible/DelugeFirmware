@@ -23,6 +23,10 @@ int32_t computeCurrentValueForArpMidiCvRatchets(uint32_t value) {
 	return ((int64_t)value * kMaxMenuValue + 2147483648) >> 32;
 }
 
+int32_t computeCurrentValueForArpMidiCvRate(int32_t value) {
+	return computeCurrentValueForStandardMenuItem(value);
+}
+
 int32_t computeFinalValueForStandardMenuItem(int32_t value) {
 	if (value == kMaxMenuValue) {
 		return 2147483647;
@@ -79,4 +83,13 @@ int32_t computeFinalValueForArpMidiCvGate(int32_t value) {
 
 uint32_t computeFinalValueForArpMidiCvRatchets(int32_t value) {
 	return (uint32_t)value * 85899345;
+}
+
+int32_t computeFinalValueForArpMidiCvRate(int32_t value) {
+	if (value == kMidMenuValue) {
+		return 0;
+	}
+	else {
+		return (uint32_t)value * 85899345 - 2147483648;
+	}
 }

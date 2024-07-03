@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/ui/keyboard/layout/column_controls.h"
+#include "model/scale/note_set.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -50,7 +51,7 @@ private:
 	}
 
 	inline uint16_t noteFromPadIndex(uint16_t padIndex) {
-		ModesArray& scaleNotes = getScaleNotes();
+		NoteSet& scaleNotes = getScaleNotes();
 		uint8_t scaleNoteCount = getScaleNoteCount();
 
 		uint8_t octave = padIndex / scaleNoteCount;
@@ -59,7 +60,7 @@ private:
 	}
 
 	inline uint16_t padIndexFromNote(uint16_t note) {
-		ModesArray& scaleNotes = getScaleNotes();
+		NoteSet& scaleNotes = getScaleNotes();
 		uint8_t scaleNoteCount = getScaleNoteCount();
 		int16_t rootNote = getRootNote();
 

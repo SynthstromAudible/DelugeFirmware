@@ -68,6 +68,7 @@
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
+#include "model/scale/utils.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -1557,7 +1558,7 @@ possiblyAuditionPad:
 		if (x == kDisplayWidth + 1) {
 
 			// "Learning" to this audition pad:
-			if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) {
+			if (isUIModeActiveExclusively(UI_MODE_MIDI_LEARN)) [[unlikely]] {
 				if (getCurrentUI() == this) {
 					if (sdRoutineLock) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1577,7 +1578,7 @@ possiblyAuditionPad:
 			}
 
 			// Changing the scale:
-			else if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) {
+			else if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) [[unlikely]] {
 				if (sdRoutineLock) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
@@ -1591,6 +1592,25 @@ possiblyAuditionPad:
 					}
 					else {
 						enterScaleMode(y);
+					}
+				}
+			}
+			else if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && velocity) [[unlikely]] {
+				Instrument* instrument = getCurrentInstrument();
+
+				bool isKit = (instrument->type == OutputType::KIT);
+				if (isKit) {
+					// this is fine - since it's a kit we don't need the song, it's only used to check scale for
+					// instrument clips
+					NoteRow* noteRow =
+					    getCurrentInstrumentClip()->getNoteRowOnScreen(y, nullptr, nullptr); // On *current* clip!
+
+					if (noteRow && noteRow->drum && noteRow->drum->type == DrumType::SOUND) {
+						auto* drum = static_cast<SoundDrum*>(noteRow->drum);
+						currentUIMode = UI_MODE_NONE;
+						indicator_leds::setLedState(IndicatorLED::SAVE, false);
+						saveKitRowUI.setup(static_cast<SoundDrum*>(drum), &noteRow->paramManager);
+						openUI(&saveKitRowUI);
 					}
 				}
 			}
@@ -3358,9 +3378,9 @@ int32_t InstrumentClipView::getYVisualFromYDisplay(int32_t yDisplay) {
 int32_t InstrumentClipView::getYVisualWithinOctaveFromYDisplay(int32_t yDisplay) {
 	int32_t yVisual = getYVisualFromYDisplay(yDisplay);
 	int32_t yVisualRelativeToRoot = yVisual - currentSong->rootNote;
-	int32_t yVisualWithinOctave = yVisualRelativeToRoot % currentSong->numModeNotes;
+	int32_t yVisualWithinOctave = yVisualRelativeToRoot % currentSong->modeNotes.count();
 	if (yVisualWithinOctave < 0) {
-		yVisualWithinOctave += currentSong->numModeNotes;
+		yVisualWithinOctave += currentSong->modeNotes.count();
 	}
 	return yVisualWithinOctave;
 }
@@ -4111,8 +4131,7 @@ int32_t InstrumentClipView::setupForEnteringScaleMode(int32_t newRootNote, int32
 		// If there's a root-note (or its octave) currently onscreen, pin animation to that
 		for (int32_t i = 0; i < kDisplayHeight; i++) {
 			int32_t thisNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(i, currentSong);
-			// If it's the root note...
-			if ((int32_t)std::abs(newRootNote - thisNote) % 12 == 0) {
+			if (isSameNote(newRootNote, thisNote)) {
 				pinAnimationToYDisplay = i;
 				pinAnimationToYNote = thisNote;
 				goto doneLookingForRootNoteOnScreen;
@@ -4223,8 +4242,7 @@ int32_t InstrumentClipView::setupForExitingScaleMode() {
 	bool foundRootNoteOnScreen = false;
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(i, currentSong);
-		// If it's the root note...
-		if ((int32_t)std::abs(currentSong->rootNote - yNote) % 12 == 0) {
+		if (isSameNote(currentSong->rootNote, yNote)) {
 			scrollAdjust = yNote - i - getCurrentInstrumentClip()->yScroll;
 			foundRootNoteOnScreen = true;
 			break;
@@ -4482,7 +4500,7 @@ drawNormally:
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 				if (flashDefaultRootNoteOn) {
 					int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-					if ((uint16_t)(yNote - defaultRootNote + 120) % (uint8_t)12 == 0) {
+					if (isSameNote(yNote, defaultRootNote)) {
 						thisColour = rowColour[yDisplay];
 						return;
 					}
@@ -4493,7 +4511,7 @@ drawNormally:
 				{
 					// If this is the root note, indicate
 					int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-					if ((uint16_t)(yNote - currentSong->rootNote + 120) % (uint8_t)12 == 0) {
+					if (isSameNote(yNote, currentSong->rootNote)) {
 						thisColour = rowColour[yDisplay];
 					}
 					else {
@@ -4599,22 +4617,10 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			auto nudgeType = Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE;
+			clip->nudgeNotesVertically(offset, nudgeType, modelStack);
 
-			offset = std::min((int32_t)1, std::max((int32_t)-1, offset));
-
-			// If shift button not pressed, transpose whole octave
-			if (!Buttons::isShiftButtonPressed()) {
-				// If in scale mode, an octave takes numModeNotes rows while in chromatic mode it takes 12 rows
-				instrumentClip->nudgeNotesVertically(
-				    offset * (instrumentClip->isScaleModeClip() ? modelStack->song->numModeNotes : 12), modelStack);
-			}
-			// Otherwise, transpose single row position
-			else {
-				// Transpose just one row up or down (if not in scale mode, then it's a semitone, and if in scale
-				// mode, it's the next note in the scale)¬
-				instrumentClip->nudgeNotesVertically(offset, modelStack);
-			}
 			recalculateColours();
 			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		}

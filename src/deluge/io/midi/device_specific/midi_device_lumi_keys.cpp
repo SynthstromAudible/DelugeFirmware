@@ -38,7 +38,7 @@ void MIDIDeviceLumiKeys::hookOnConnected() {
 	uint8_t upperZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel;
 	uint8_t lowerZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel;
 
-	Scale currentScale = determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	Scale currentScale = determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes);
 
 	if (lowerZoneLastChannel != 0 || upperZoneLastChannel != 15) {
 		setMIDIMode(MIDIMode::MPE);
@@ -78,7 +78,7 @@ void MIDIDeviceLumiKeys::hookOnChangeRootNote() {
 }
 
 void MIDIDeviceLumiKeys::hookOnChangeScale() {
-	Scale scale = determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes, currentSong->numModeNotes);
+	Scale scale = determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes);
 	setScale(scale);
 }
 
@@ -236,11 +236,10 @@ void MIDIDeviceLumiKeys::setRootNote(int16_t rootNote) {
 }
 
 // Efficient binary comparison of notes to Lumi builtin scales
-MIDIDeviceLumiKeys::Scale MIDIDeviceLumiKeys::determineScaleAndRootNoteOffsetFromNotes(uint8_t* modeNotes,
-                                                                                       uint8_t noteCount) {
+MIDIDeviceLumiKeys::Scale MIDIDeviceLumiKeys::determineScaleAndRootNoteOffsetFromNotes(NoteSet& modeNotes) {
 	// Turn notes in octave into 12 bit binary
 	uint16_t noteInt = 0;
-	for (uint8_t note = 0; note < noteCount; note++) {
+	for (uint8_t note = 0; note < modeNotes.count(); note++) {
 		noteInt |= 1 << modeNotes[note];
 	}
 	// Compare with Lumis pre-built binary list of scales

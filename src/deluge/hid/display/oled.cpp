@@ -159,7 +159,6 @@ void OLED::setupPopup(int32_t width, int32_t height) {
 	if (height > OLED_MAIN_HEIGHT_PIXELS) {
 		height = OLED_MAIN_HEIGHT_PIXELS;
 	}
-
 	oledPopupWidth = width;
 	popupHeight = height;
 
@@ -309,7 +308,15 @@ void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], i
 
 void copyBackgroundAroundForeground(ImageStore backgroundImage, ImageStore foregroundImage, int32_t minX, int32_t minY,
                                     int32_t maxX, int32_t maxY) {
-
+	if (maxX < 0 || minX < 0 || maxX < minX || minX > OLED_MAIN_WIDTH_PIXELS || maxX > OLED_MAIN_WIDTH_PIXELS)
+	    [[unlikely]] {
+		// D for Display
+		FREEZE_WITH_ERROR("D001");
+	}
+	if (maxY < 0 || minY < 0 || maxY < minY || minY > OLED_MAIN_HEIGHT_PIXELS || maxY > OLED_MAIN_HEIGHT_PIXELS)
+	    [[unlikely]] {
+		FREEZE_WITH_ERROR("D002");
+	}
 	// Copy everything above
 	int32_t firstRow = minY >> 3;
 	int32_t lastRow = maxY >> 3;

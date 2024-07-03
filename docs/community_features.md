@@ -917,6 +917,7 @@ to each individual note onset. ([#1978])
       pads will default to the first 7 scale modes, but you can change any pad to any scale by
       holding it down and turning the vertical encoder. If the scale that is going to be set
       can't fit/transpose the existing notes from your clips, screen will show `Can't`.
+- ([#2174]) With the addition of the new Keyboard Sidebar Controls, the default behaviour of being able to immediately exit the menu by pressing a sidebar pad while in Keyboard View was removed. To accomodate users that still wish to be able to exit the menus immediately by pressing a sidebar pad, a new community feature toggle has been added (`Enable KB View Sidebar Menu Exit (EXIT)`) which will enable you to immediately exit the menu using the top left sidebar pad if you are in the `SETTINGS` or `SOUND` menu for `KEYBOARD VIEW`.
 
 #### 4.4.2 - New scales
 
@@ -997,7 +998,7 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 #### 4.6.2 - Drum Randomizer / Load Random Samples
 
 - ([#122]) Pressing `AUDITION` + `RANDOM` on a drum kit row will load a random sample from the same folder as the
-  currently enabled sample and load it as the sound for that row. Currently limited to 25 files for performance reasons.
+  currently enabled sample and load it as the sound for that row.
     - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 #### 4.6.3 - Manual Slicing / Lazy Chop
@@ -1025,7 +1026,7 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 #### 4.7.1 - Save/Load MIDI Presets
 
 - ([#1390]) Allows saving and loading midi presets. They end up in a new folder named MIDI.
-  - Note: It only saves the items which would be saved in a song at the moment.
+  - Note: The information that is saved is the MIDI channel selection, and the assignments of CC parameters to golden knobs.
 
 ### 4.8 Audio Clip View - Features
 
@@ -1093,9 +1094,11 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with
       sticky
       shift.
-* `Grain FX (GRFX)`
+* `Enable Grain FX (GRFX)`
     * When On, `GRAIN` will be a selectable option in the `MOD FX TYPE` category. Resource intensive, recommended to
       only use one instance per song or resample and remove instance afterwards.
+* `Enable DX Shortcuts (DX7S)`
+    * When On, full access is granted to the relevant DX UI behaviors (see [DX7 Synth Documentation]).
 * `Emulated Display (EMUL)`
     * This allows you to emulate the 7SEG screen on a deluge with OLED hardware screen.
     * In "Toggle" mode, the "SHIFT" + "LEARN" + "AFFECT-ENTIRE" combination can used to switch between screen types at
@@ -1103,6 +1106,8 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * With the "7SEG" mode, the deluge will boot with the emulated display.
     * This option is technically available also on deluge with 7SEG hardware. But as you need an external display to
       render the OLED screen, it is of more limited use.
+* `Enable KB View Sidebar Menu Exit (EXIT)`
+    * When On, while in the `SETTINGS` or `SOUND` menu of `KEYBOARD VIEW`, pressing the top left sidebar pad will immediately exit the menu.
 
 ## 6. Sysex Handling
 
@@ -1336,6 +1341,9 @@ different firmware
 [#2136]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2136
 
 [#2166]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
+
+[#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
+
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
 [Velocity View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/velocity_view.md

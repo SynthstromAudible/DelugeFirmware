@@ -85,7 +85,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * Appropriate branch name, if possible following standard conventions like git flow (e.g.
   feature/shiny_new_feature_name).
 * No small Pull requests exclusively fixing single insignificant typos in code comments, one-off formatting mistakes or
-  whitespace. Aggregate Pull requests fixing bigger areas can be accepted.
+  whitespace. Aggregate Pull requests fixing bigger areas can be accepted. (note: this is just for non-code fixes, fixing small bugs is encouraged!)
 * Automated and low effort Pull requests will not be will not be tolerated or accepted (
   see [Hacktoberfest](https://blog.domenic.me/hacktoberfest/) for an example on why this rule is necessary).
 
