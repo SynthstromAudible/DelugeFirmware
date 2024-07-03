@@ -543,8 +543,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		}
 	}
 
-	else if (b == CV) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+	else if (b == CV && currentUIMode == UI_MODE_NONE) {
+		if (on) {
 			if (changeOutputType(OutputType::CV)) {
 				selectLayout(0);
 			}
