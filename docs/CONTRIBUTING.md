@@ -219,6 +219,11 @@ The only build able to send debug messages via sysex is the "debug" build, so yo
 To make debug log prints in your code, which will be sent to the console, here is a code example:
 `D_PRINTLN("my log message which prints an integer value %d", theIntegerValue);`
 
+### Useful extra debug options
+
+Using the previously mentionned sysex debugging, the following defs can be toggled to add extra logging for various actions:
+- definitions_cxx.hpp -> #define MATRIX_DRIVER_DEBUG 1 : this will log pads presses and which UI mode is currently selected, usually pointing to the matching named files under ui/*
+
 ### Deluge Crash Reader Discord Bot
 
 If deluge crashes, there is a colorful pixelated image that gets displayed across the main pads and sidebar. In case 
