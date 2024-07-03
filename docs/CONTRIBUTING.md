@@ -229,6 +229,14 @@ Using the previously mentionned sysex debugging, the following option can be tog
 # copy build/Release/deluge.bin to an SD card and flash it
 ```
 
+This is a sample of the output:
+```
+@matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=3,VEL=255
+@matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=3,VEL=0
+@matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=2,VEL=255
+@matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=2,VEL=0
+```
+
 ### Deluge Crash Reader Discord Bot
 
 If deluge crashes, there is a colorful pixelated image that gets displayed across the main pads and sidebar. In case 
