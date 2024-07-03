@@ -784,6 +784,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		if (on) {
 			savePerformanceViewLayout();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_SAVED));
+			exitUIMode(UI_MODE_HOLDING_SAVE_BUTTON);
 		}
 	}
 
@@ -793,6 +794,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 			loadPerformanceViewLayout();
 			renderViewDisplay();
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PERFORM_DEFAULTS_LOADED));
+			exitUIMode(UI_MODE_HOLDING_LOAD_BUTTON);
 		}
 	}
 
