@@ -29,6 +29,8 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "testing/hardware_testing.h"
+#include <map>
+#include <string>
 
 namespace Buttons {
 
@@ -76,6 +78,11 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	}
 #endif
 
+// This is a debug feature that allows us to output SYSEX debug logging button presses
+// See contributing.md for more information
+#if ENABLE_MATRIX_DEBUG
+	D_PRINT("UI=%s, Button=%s, On=%d", getCurrentUI()->getName(), getButtonName(b), on);
+#endif
 	// If the user presses a different button while holding shift, don't consider the shift press for the purposes of
 	// enabling sticky keys.
 	if (on) {
@@ -294,4 +301,66 @@ void noPressesHappening(bool inCardRoutine) {
 void ignoreCurrentShiftForSticky() {
 	considerShiftReleaseForSticky = false;
 }
+
+const char* getButtonName(uint8_t button) {
+	switch (button) {
+	case deluge::hid::button::KnownButtons::AFFECT_ENTIRE:
+		return "AFFECT_ENTIRE";
+	case deluge::hid::button::KnownButtons::SESSION_VIEW:
+		return "SESSION_VIEW";
+	case deluge::hid::button::KnownButtons::CLIP_VIEW:
+		return "CLIP_VIEW";
+	case deluge::hid::button::KnownButtons::SYNTH:
+		return "SYNTH";
+	case deluge::hid::button::KnownButtons::KIT:
+		return "KIT";
+	case deluge::hid::button::KnownButtons::MIDI:
+		return "MIDI";
+	case deluge::hid::button::KnownButtons::CV:
+		return "CV";
+	case deluge::hid::button::KnownButtons::KEYBOARD:
+		return "KEYBOARD";
+	case deluge::hid::button::KnownButtons::SCALE_MODE:
+		return "SCALE_MODE";
+	case deluge::hid::button::KnownButtons::CROSS_SCREEN_EDIT:
+		return "CROSS_SCREEN_EDIT";
+	case deluge::hid::button::KnownButtons::BACK:
+		return "BACK";
+	case deluge::hid::button::KnownButtons::LOAD:
+		return "LOAD";
+	case deluge::hid::button::KnownButtons::SAVE:
+		return "SAVE";
+	case deluge::hid::button::KnownButtons::LEARN:
+		return "LEARN";
+	case deluge::hid::button::KnownButtons::TAP_TEMPO:
+		return "TAP_TEMPO";
+	case deluge::hid::button::KnownButtons::SYNC_SCALING:
+		return "SYNC_SCALING";
+	case deluge::hid::button::KnownButtons::TRIPLETS:
+		return "TRIPLETS";
+	case deluge::hid::button::KnownButtons::PLAY:
+		return "PLAY";
+	case deluge::hid::button::KnownButtons::RECORD:
+		return "RECORD";
+	case deluge::hid::button::KnownButtons::SHIFT:
+		return "SHIFT";
+	case deluge::hid::button::KnownButtons::MOD7:
+		return "MOD7";
+	case deluge::hid::button::KnownButtons::X_ENC:
+		return "X_ENC";
+	case deluge::hid::button::KnownButtons::Y_ENC:
+		return "Y_ENC";
+	case deluge::hid::button::KnownButtons::MOD_ENCODER_0:
+		return "MOD_ENCODER_0";
+	case deluge::hid::button::KnownButtons::MOD_ENCODER_1:
+		return "MOD_ENCODER_1";
+	case deluge::hid::button::KnownButtons::SELECT_ENC:
+		return "SELECT_ENC";
+	case deluge::hid::button::KnownButtons::TEMPO_ENC:
+		return "TEMPO_ENC";
+	default:
+		return "UNKNOWN_BUTTON";
+	}
+}
+
 } // namespace Buttons
