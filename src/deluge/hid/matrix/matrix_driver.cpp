@@ -72,7 +72,7 @@ ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	HANDLED_ACTION;
+	return ActionResult::DEALT_WITH;
 }
 
 bool MatrixDriver::isPadPressed(int32_t x, int32_t y) {
