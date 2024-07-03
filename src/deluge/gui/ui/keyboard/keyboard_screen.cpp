@@ -535,8 +535,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		}
 	}
 
-	else if (b == MIDI) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+	else if (b == MIDI && currentUIMode == UI_MODE_NONE) {
+		if (on) {
 			if (changeOutputType(OutputType::MIDI_OUT)) {
 				selectLayout(0);
 			}
