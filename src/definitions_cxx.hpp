@@ -572,6 +572,7 @@ enum class CompParam {
 	ATTACK,
 	RELEASE,
 	SIDECHAIN,
+	BLEND,
 	LAST,
 };
 

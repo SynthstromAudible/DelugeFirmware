@@ -168,7 +168,7 @@ char const* GlobalEffectable::getCompressorModeDisplayName() {
 
 char const* GlobalEffectable::getCompressorParamDisplayName() {
 	currentCompParam = static_cast<CompParam>(util::to_underlying(currentCompParam) % maxCompParam);
-	const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf"};
+	const char* params[util::to_underlying(CompParam::LAST)] = {"ratio", "attack", "release", "hpf", "blend"};
 	return params[int(currentCompParam)];
 }
 
@@ -521,6 +521,10 @@ int32_t GlobalEffectable::getKnobPosForNonExistentParam(int32_t whichModEncoder,
 			case CompParam::SIDECHAIN:
 				current = compressor.getSidechain() >> 24;
 				break;
+
+			case CompParam::BLEND:
+				current = compressor.getBlend() >> 24;
+				break;
 			}
 		}
 	}
@@ -602,6 +606,19 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				displayLevel = compressor.setSidechain(lshiftAndSaturate<24>(current + 64));
 				unit = " HZ";
+				break;
+
+			case CompParam::BLEND:
+				if (display->haveOLED()) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BLEND));
+				}
+				current = (compressor.getBlend() >> 24) - 64;
+				current += offset;
+				current = std::clamp(current, -64, 64);
+				ledLevel = (64 + current);
+
+				displayLevel = compressor.setBlend(lshiftAndSaturate<24>(current + 64));
+				unit = " %";
 				break;
 			}
 			indicator_leds::setKnobIndicatorLevel(0, ledLevel);
@@ -1147,8 +1164,9 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 
 	ModFXType modFXTypeNow = getActiveModFXType(paramManager);
 
-	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem strange,
-	// but it's because unlike for Sounds, the effect can be switched on and off by changing a parameter like "depth".
+	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem
+	// strange, but it's because unlike for Sounds, the effect can be switched on and off by changing a parameter
+	// like "depth".
 	if (modFXTypeNow == ModFXType::FLANGER || modFXTypeNow == ModFXType::CHORUS
 	    || modFXTypeNow == ModFXType::CHORUS_STEREO) {
 		if (!modFXBuffer) {
