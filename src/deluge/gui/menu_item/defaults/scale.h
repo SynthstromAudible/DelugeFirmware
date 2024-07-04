@@ -16,8 +16,8 @@
  */
 #pragma once
 #include "gui/menu_item/selection.h"
+#include "model/scale/preset_scales.h"
 #include "storage/flash_storage.h"
-#include "util/lookuptables/lookuptables.h"
 
 namespace deluge::gui::menu_item::defaults {
 class Scale final : public Selection {

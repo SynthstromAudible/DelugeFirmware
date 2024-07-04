@@ -42,6 +42,7 @@
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/sample/sample_recorder.h"
+#include "model/scale/preset_scales.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -142,7 +143,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	fillModeActive = false;
 
-	key.modeNotes.fromScaleNotes(presetScaleNotes[MAJOR_SCALE_INDEX]);
+	key.modeNotes.fromScaleNotes(presetScaleNotes[MAJOR_SCALE]);
 
 	swingAmount = 0;
 

@@ -18,6 +18,7 @@
 
 #include "scale_mode.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
+#include "model/scale/preset_scales.h"
 
 using namespace deluge::gui::ui::keyboard::layout;
 
