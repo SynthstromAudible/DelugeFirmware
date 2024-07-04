@@ -31,8 +31,8 @@
 // Renders 4 wave values (a "vector") together in one go.
 #define waveRenderingFunctionGeneral()                                                                                 \
 	{                                                                                                                  \
-		uint32x4_t readValue;                                                                                          \
-		uint16x4_t strength2;                                                                                          \
+		uint32x4_t readValue{0};                                                                                       \
+		uint16x4_t strength2{0};                                                                                       \
                                                                                                                        \
 		/* Need to use a macro rather than a for loop here, otherwise won't compile with less than O2. */              \
 		waveRenderingFunctionGeneralForLoop(0) waveRenderingFunctionGeneralForLoop(1)                                  \
@@ -72,8 +72,8 @@
 // Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
 #define waveRenderingFunctionPulse()                                                                                   \
 	{                                                                                                                  \
-		int16x4_t rshiftedA, rshiftedB;                                                                                \
-		uint32x4_t readValueA, readValueB;                                                                             \
+		int16x4_t rshiftedA{0}, rshiftedB{0};                                                                          \
+		uint32x4_t readValueA{0}, readValueB{0};                                                                       \
                                                                                                                        \
 		int32_t rshiftAmount = (32 - tableSizeMagnitude - 16);                                                         \
                                                                                                                        \
