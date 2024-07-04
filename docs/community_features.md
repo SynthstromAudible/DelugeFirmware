@@ -272,7 +272,8 @@ Here is a list of features that have been added to the firmware as a list, group
   -related gold encoder (`FULL` mode). The top LED will become a compression meter. Clicking the `REVERB`-related lower
   gold encoder will cycle through additional params: `RATIO` (displays ratio), `ATTACK` & `RELEASE` (shown in
   milliseconds) and Sidechain `HPF` (shown in Hz). The sidechain HPF is useful to remove some bass from the compressor
-  level detection, which sounds like an increase in bass allowed through the compression.
+  level detection, which sounds like an increase in bass allowed through the compression. There is also a blend control 
+  to allow parallel compression.
 
     - `ATTACK`: 0ms - 63ms
 
@@ -283,6 +284,8 @@ Here is a list of features that have been added to the firmware as a list, group
     - `RATIO`: 2:1 - 256:1
 
     - `THRESHOLD`: 0 - 50
+  
+    - `BLEND` : 0-100%
 - ([#1173]) In clip view, the settings are available under the COMPRESSOR menu entry. The same parameters exist there.
   In kits there is both a per row compressor, accessed through the menu when affect entire is off, and a kit compressor
   accessed while it is on.
