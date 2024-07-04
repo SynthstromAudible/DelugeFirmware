@@ -20,7 +20,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "lib/printf.h"
-#include "modulation/arpeggiator.h"
+#include "modulation/arpeggiator_rhythms.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
 class Rhythm final : public UnpatchedParam {
@@ -28,7 +28,7 @@ public:
 	using UnpatchedParam::UnpatchedParam;
 
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
-	[[nodiscard]] int32_t getMaxValue() const override { return NUM_PRESET_ARP_RHYTHMS - 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxPresetArpRhythm; }
 
 	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }
 

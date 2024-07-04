@@ -17,6 +17,7 @@
 
 #include "modulation/arpeggiator.h"
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/value_scaling.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
@@ -762,10 +763,10 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t ratchAmount,
                                    uint32_t ratchProb) {
 	// Update live Sequence Length value with the most up to date value from automation
-	maxSequenceLength = (((int64_t)sequenceLength) * kMaxMenuValue + 2147483648) >> 32; // in the range 0-50
+	maxSequenceLength = computeCurrentValueForArpMidiCvRatchetsOrRhythm(sequenceLength);
 
 	// Update live Sequence Length value with the most up to date value from automation
-	rhythm = (((int64_t)rhythmValue) * (NUM_PRESET_ARP_RHYTHMS - 1) + 2147483648) >> 32; // in the range 0-50
+	rhythm = computeCurrentValueForArpMidiCvRatchetsOrRhythm(rhythmValue);
 
 	// Update live ratchetProbability value with the most up to date value from automation
 	ratchetProbability = ratchProb >> 16; // just 16 bits is enough resolution for probability

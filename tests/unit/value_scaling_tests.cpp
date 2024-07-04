@@ -1,6 +1,8 @@
 #include "CppUTest/TestHarness.h"
+
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/value_scaling.h"
+#include "modulation/arpeggiator_rhythms.h"
 
 #include <iostream>
 
@@ -59,18 +61,24 @@ TEST(ValueScalingTest, arpMidiCvGateValueScaling) {
 	CHECK_EQUAL(50, computeCurrentValueForArpMidiCvGate(INT32_MAX));
 }
 
-TEST(ValueScalingTest, arpMidiCvRatchetValueScaling) {
+TEST(ValueScalingTest, consistentArpAndMenuMaxValues) {
+	// See comment above definition of kMaxPresetArpRhythm
+	CHECK_EQUAL(kMaxMenuValue, kMaxPresetArpRhythm);
+	CHECK_EQUAL(50, kMaxPresetArpRhythm);
+}
+
+TEST(ValueScalingTest, arpMidiCvRatchetOrRhytmValueScaling) {
 	for (int i = kMinMenuValue; i <= kMaxMenuValue; i++) {
-		int32_t finalValue = computeFinalValueForArpMidiCvRatchets(i);
-		int32_t currentValue = computeCurrentValueForArpMidiCvRatchets(finalValue);
+		int32_t finalValue = computeFinalValueForArpMidiCvRatchetsOrRhythm(i);
+		int32_t currentValue = computeCurrentValueForArpMidiCvRatchetsOrRhythm(finalValue);
 		CHECK_EQUAL(i, currentValue);
 	}
-	CHECK_EQUAL(0, computeFinalValueForArpMidiCvRatchets(0));
-	CHECK_EQUAL(UINT32_MAX / 2 - 22, computeFinalValueForArpMidiCvRatchets(25));
-	CHECK_EQUAL(UINT32_MAX - 45, computeFinalValueForArpMidiCvRatchets(50));
+	CHECK_EQUAL(0, computeFinalValueForArpMidiCvRatchetsOrRhythm(0));
+	CHECK_EQUAL(UINT32_MAX / 2 - 22, computeFinalValueForArpMidiCvRatchetsOrRhythm(25));
+	CHECK_EQUAL(UINT32_MAX - 45, computeFinalValueForArpMidiCvRatchetsOrRhythm(50));
 	// while 50 doesn't quite get to UINT32_MAX, make sure the current value math
 	// behaves well on the whole range
-	CHECK_EQUAL(50, computeCurrentValueForArpMidiCvRatchets(UINT32_MAX));
+	CHECK_EQUAL(50, computeCurrentValueForArpMidiCvRatchetsOrRhythm(UINT32_MAX));
 }
 
 TEST(ValueScalingTest, arpMidiCvRate) {

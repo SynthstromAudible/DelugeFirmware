@@ -1,5 +1,6 @@
 #include "gui/menu_item/value_scaling.h"
 #include "definitions_cxx.hpp"
+#include "modulation/arpeggiator_rhythms.h"
 
 #include <cstdint>
 
@@ -19,7 +20,7 @@ int32_t computeCurrentValueForArpMidiCvGate(int32_t value) {
 	return computeCurrentValueForStandardMenuItem(value);
 }
 
-int32_t computeCurrentValueForArpMidiCvRatchets(uint32_t value) {
+int32_t computeCurrentValueForArpMidiCvRatchetsOrRhythm(uint32_t value) {
 	return ((int64_t)value * kMaxMenuValue + 2147483648) >> 32;
 }
 
@@ -81,7 +82,7 @@ int32_t computeFinalValueForArpMidiCvGate(int32_t value) {
 	return (uint32_t)value * 85899345 - 2147483648;
 }
 
-uint32_t computeFinalValueForArpMidiCvRatchets(int32_t value) {
+uint32_t computeFinalValueForArpMidiCvRatchetsOrRhythm(int32_t value) {
 	return (uint32_t)value * 85899345;
 }
 
