@@ -25,4 +25,5 @@ public:
 
 	void displayText(bool blinkImmediately = false);
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
+	const char* getName() { return "rename_ui"; }
 };

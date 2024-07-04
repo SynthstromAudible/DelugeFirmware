@@ -49,6 +49,7 @@ public:
 	bool opened();
 	void focusRegained();
 
+	const char* getName() { return "session_view"; }
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult horizontalEncoderAction(int32_t offset);

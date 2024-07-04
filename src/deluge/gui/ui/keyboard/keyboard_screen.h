@@ -60,7 +60,7 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::KEYBOARD_SCREEN; }
-
+	const char* getName() { return "keyboard_screen"; }
 	void checkNewInstrument(Instrument* newInstrument);
 
 private:

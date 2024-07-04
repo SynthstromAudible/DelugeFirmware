@@ -31,6 +31,7 @@ public:
 	bool isPadPressed(int32_t x, int32_t y);
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+
 	void noPressesHappening(bool inCardRoutine);
 
 	bool padStates[kDisplayWidth + kSideBarWidth][kDisplayHeight];

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <stddef.h>
-
 #include "button.h"
+#include <stddef.h>
+#include <string>
 
 namespace Buttons {
 
@@ -28,6 +28,8 @@ bool isButtonPressed(deluge::hid::Button b);
 bool isShiftButtonPressed();
 void noPressesHappening(bool inCardRoutine);
 void ignoreCurrentShiftForSticky();
+const char* getButtonName(deluge::hid::Button b);
+
 /**
  * Notify the button management code that the shift button should no longer be considered sticky. We need an explicit
  * notification so we can clear the buttons.cpp:shiftIsHeld to avoid shift getting permanantly stuck.

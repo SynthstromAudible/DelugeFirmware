@@ -1130,6 +1130,10 @@ different firmware
 
   Allow loading firmware over sysex as described above
 
+* ENABLE_MATRIX_DEBUG
+
+  Enable additional debug output for matrix driver when pads are pressed
+
 * FEATURE_...
 
   Description of said feature, first new feature please replace this

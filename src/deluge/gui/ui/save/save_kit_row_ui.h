@@ -39,6 +39,7 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}
+	const char* getName() { return "save_kit_row_ui"; }
 
 protected:
 	SoundDrum* soundDrumToSave;
