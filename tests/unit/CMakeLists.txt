@@ -35,6 +35,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # For value scaling
         ../../src/deluge/gui/menu_item/value_scaling.cpp
         # For scale tests
+        ../../src/deluge/model/scale/musical_key.cpp
         ../../src/deluge/model/scale/note_set.cpp
         ../../src/deluge/model/scale/utils.cpp
 )

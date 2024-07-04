@@ -67,7 +67,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	currentlyRecordingLinearly = false;
 
 	if (song) {
-		colourOffset -= song->rootNote;
+		colourOffset -= song->key.rootNote;
 	}
 
 	wrapEditing = false;
@@ -82,7 +82,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 	onKeyboardScreen = false;
 
 	if (song) {
-		int32_t yNote = ((uint16_t)(song->rootNote + 120) % 12) + 60;
+		int32_t yNote = ((uint16_t)(song->key.rootNote + 120) % 12) + 60;
 		if (yNote > 66) {
 			yNote -= 12;
 		}
@@ -1098,7 +1098,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 				int32_t newI = thisNoteRow->notes.insertAtKey(
 				    0); // Total hack - make it look like the NoteRow has a Note, so it doesn't get discarded during
 				        // setRootNote(). We set it back (and then will soon give it a real note) really soon
-				modelStack->song->setRootNote(modelStack->song->rootNote);
+				modelStack->song->setRootNote(modelStack->song->key.rootNote);
 
 				thisNoteRow = getNoteRowForYNote(yNote); // Must re-get it
 				if (ALPHA_OR_BETA_VERSION && !thisNoteRow) {
@@ -1116,7 +1116,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 						action->addConsequence(newConsequence);
 					}
 
-					action->modeNotes[AFTER] = modelStack->song->modeNotes;
+					action->modeNotes[AFTER] = modelStack->song->key.modeNotes;
 				}
 			}
 
@@ -1282,8 +1282,8 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 
 void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOctavePresent, int32_t newRootNote,
                                                         Song* song, bool deleteEmptyNoteRows) {
-	song->rootNote = newRootNote; // Not ideal to be setting the global root note here... but as it happens, there's no
-	                              // scenario (currently) where this would cause problems
+	song->key.rootNote = newRootNote; // Not ideal to be setting the global root note here... but as it happens, there's
+	                                  // no scenario (currently) where this would cause problems
 
 	for (int32_t i = 0; i < noteRows.getNumElements();) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -1335,7 +1335,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 	int32_t change = direction > 0 ? 1 : -1;
 	if (type == VerticalNudgeType::OCTAVE) {
 		if (isScaleModeClip()) {
-			change *= modelStack->song->modeNotes.count();
+			change *= modelStack->song->key.modeNotes.count();
 		}
 		else {
 			change *= 12;
@@ -1357,7 +1357,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		// Scale clip, transpose by scale note jumps
 
 		// wanting to change a full octave
-		if (std::abs(change) == modelStack->song->modeNotes.count()) {
+		if (std::abs(change) == modelStack->song->key.modeNotes.count()) {
 			int32_t changeInSemitones = (change > 0) ? 12 : -12;
 			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 				NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -1373,33 +1373,33 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 				int32_t changeInSemitones = 0;
 				int32_t yNoteWithinOctave = modelStack->song->getYNoteWithinOctaveFromYNote(thisNoteRow->getNoteCode());
 				int32_t oldModeNoteIndex = 0;
-				for (; oldModeNoteIndex < modelStack->song->modeNotes.count(); oldModeNoteIndex++) {
-					if (modelStack->song->modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
+				for (; oldModeNoteIndex < modelStack->song->key.modeNotes.count(); oldModeNoteIndex++) {
+					if (modelStack->song->key.modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
 						break;
 					}
 				}
-				int32_t newModeNoteIndex = (oldModeNoteIndex + change + modelStack->song->modeNotes.count())
-				                           % modelStack->song->modeNotes.count();
+				int32_t newModeNoteIndex = (oldModeNoteIndex + change + modelStack->song->key.modeNotes.count())
+				                           % modelStack->song->key.modeNotes.count();
 
 				int32_t s = 0;
 				if ((change > 0 && newModeNoteIndex > oldModeNoteIndex)
 				    || (change < 0 && newModeNoteIndex < oldModeNoteIndex)) {
 					// within the same octave
-					changeInSemitones =
-					    modelStack->song->modeNotes[newModeNoteIndex] - modelStack->song->modeNotes[oldModeNoteIndex];
+					changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
+					                    - modelStack->song->key.modeNotes[oldModeNoteIndex];
 					s = 1;
 				}
 				else {
 					if (change > 0) {
 						// go up an octave
-						changeInSemitones = modelStack->song->modeNotes[newModeNoteIndex]
-						                    - modelStack->song->modeNotes[oldModeNoteIndex] + 12;
+						changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
+						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] + 12;
 						s = 2;
 					}
 					else {
 						// go down an octave
-						changeInSemitones = modelStack->song->modeNotes[newModeNoteIndex]
-						                    - modelStack->song->modeNotes[oldModeNoteIndex] - 12;
+						changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
+						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] - 12;
 						s = 3;
 					}
 				}
@@ -3231,7 +3231,7 @@ noteRowFailed: {}
 		chosenNoteRow = noteRows.getElement(0);
 		chosenNoteRowIndex = 0;
 useRootNote:
-		chosenNoteRow->y = (song->rootNote % 12) + 60; // Just do this even if we're not in key-mode
+		chosenNoteRow->y = (song->key.rootNote % 12) + 60; // Just do this even if we're not in key-mode
 	}
 
 	// Now, give all the other NoteRows yNotes
