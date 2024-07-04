@@ -142,14 +142,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	fillModeActive = false;
 
-	modeNotes.add(0);
-	modeNotes.add(2);
-	modeNotes.add(4);
-	modeNotes.add(5);
-	modeNotes.add(7);
-	modeNotes.add(9);
-	modeNotes.add(11);
-	rootNote = 0;
+	key.modeNotes.fromScaleNotes(presetScaleNotes[MAJOR_SCALE_INDEX]);
 
 	swingAmount = 0;
 
@@ -251,7 +244,7 @@ void Song::setupDefault() {
 
 	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
 	swingAmount = defaultSwingMenu.getRandomValueInRange() - 50;
-	rootNote = defaultKeyMenu.getRandomValueInRange();
+	key.rootNote = defaultKeyMenu.getRandomValueInRange();
 
 	// Do scale
 	int32_t whichScale = FlashStorage::defaultScale;
@@ -276,7 +269,7 @@ void Song::setupDefault() {
 		}
 	}
 
-	modeNotes.fromScaleNotes(presetScaleNotes[whichScale]);
+	key.modeNotes.fromScaleNotes(presetScaleNotes[whichScale]);
 }
 
 void Song::deleteAllOutputs(Output** prevPointer) {
@@ -466,8 +459,8 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 	if (!chromatic) {
 		int8_t octaves;
 		int8_t rootIndex;
-		NoteSet oldMode = modeNotes;
-		uint8_t noteCount = modeNotes.count();
+		MusicalKey oldKey = key;
+		uint8_t noteCount = key.modeNotes.count();
 
 		if (offset < 0) {
 			octaves = ((offset + 1) / noteCount) - 1;
@@ -477,7 +470,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 			octaves = (offset / noteCount);
 			rootIndex = offset % noteCount;
 		}
-		int8_t newModeRoot = modeNotes[rootIndex];
+		int8_t newModeRoot = key.modeNotes[rootIndex];
 
 		semitones = 12 * octaves + newModeRoot;
 		rotateMusicalMode(offset);
@@ -485,8 +478,8 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
-		int32_t newRootNote = rootNote + semitones;
-		int32_t oldRootNote = rootNote;
+		MusicalKey newKey = key;
+		newKey.rootNote += semitones;
 
 		ClipArray* clipArray = &sessionClips;
 		for (uint8_t iClipTypes = 0; iClipTypes < 2; iClipTypes++) {
@@ -512,8 +505,8 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 						// stay exactly the same.
 						// Just have to scroll the clip so that the change in song root note
 						// does not visually move the notes on the grid.
-						yNoteOnBottomRow = getYNoteFromYVisual(instrumentClip->yScroll, true, oldRootNote, oldMode);
-						instrumentClip->yScroll = getYVisualFromYNote(yNoteOnBottomRow, true, newRootNote, modeNotes);
+						yNoteOnBottomRow = getYNoteFromYVisual(instrumentClip->yScroll, true, oldKey);
+						instrumentClip->yScroll = getYVisualFromYNote(yNoteOnBottomRow, true, newKey);
 					}
 					else {
 						instrumentClip->transpose(semitones, modelStackWithTimelineCounter);
@@ -521,7 +514,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 				}
 			}
 		}
-		rootNote = newRootNote;
+		key = newKey;
 	}
 	else {
 		semitones = offset;
@@ -558,7 +551,7 @@ traverseClips:
 		goto traverseClips;
 	}
 
-	rootNote += interval;
+	key.rootNote += interval;
 }
 
 bool Song::anyScaleModeClips() {
@@ -586,10 +579,10 @@ traverseClips:
 
 void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
 
-	int32_t oldRootNote = rootNote;
-	rootNote = newRootNote;
+	int32_t oldRootNote = key.rootNote;
+	key.rootNote = newRootNote;
 
-	int32_t oldNumModeNotes = modeNotes.count();
+	int32_t oldNumModeNotes = key.modeNotes.count();
 	NoteSet notesWithinOctavePresent;
 
 	// All InstrumentClips in session and arranger
@@ -603,7 +596,7 @@ traverseClips:
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 		if (instrumentClip->isScaleModeClip()) {
-			instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, rootNote, this);
+			instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, key.rootNote, this);
 		}
 	}
 	if (clipArray != &arrangementOnlyClips) {
@@ -622,8 +615,8 @@ traverseClips:
 		for (int32_t i = 1; i < 12; i++) {
 			if (notesWithinOctavePresent.has(i)) {
 				bool checkPassed = false;
-				for (int32_t n = 1; n < modeNotes.count(); n++) {
-					if (modeNotes[n] == i) {
+				for (int32_t n = 1; n < key.modeNotes.count(); n++) {
+					if (key.modeNotes[n] == i) {
 						checkPassed = true;
 						break;
 					}
@@ -663,8 +656,8 @@ traverseClips:
 
 		bool moreMajor = (majorness >= 0);
 
-		modeNotes.clear();
-		modeNotes.add(0);
+		key.modeNotes.clear();
+		key.modeNotes.add(0);
 
 		// 2nd
 		addMajorDependentModeNotes(1, true, notesWithinOctavePresent);
@@ -674,31 +667,31 @@ traverseClips:
 
 		// 4th, 5th
 		if (notesWithinOctavePresent.has(5)) {
-			modeNotes.add(5);
+			key.modeNotes.add(5);
 			if (notesWithinOctavePresent.has(6)) {
-				modeNotes.add(6);
+				key.modeNotes.add(6);
 				if (notesWithinOctavePresent.has(7)) {
-					modeNotes.add(7);
+					key.modeNotes.add(7);
 				}
 			}
 			else {
-				modeNotes.add(7);
+				key.modeNotes.add(7);
 			}
 		}
 		else {
 			if (notesWithinOctavePresent.has(6)) {
 				if (notesWithinOctavePresent.has(7) || moreMajor) {
-					modeNotes.add(6);
-					modeNotes.add(7);
+					key.modeNotes.add(6);
+					key.modeNotes.add(7);
 				}
 				else {
-					modeNotes.add(5);
-					modeNotes.add(6);
+					key.modeNotes.add(5);
+					key.modeNotes.add(6);
 				}
 			}
 			else {
-				modeNotes.add(5);
-				modeNotes.add(7);
+				key.modeNotes.add(5);
+				key.modeNotes.add(7);
 			}
 		}
 
@@ -711,13 +704,13 @@ traverseClips:
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed
 	// in enterScaleMode();
-	int32_t numMoreNotes = (int32_t)modeNotes.count() - oldNumModeNotes;
+	int32_t numMoreNotes = (int32_t)key.modeNotes.count() - oldNumModeNotes;
 
 	// Compensation for the change in root note itself
-	int32_t rootNoteChange = rootNote - oldRootNote;
+	int32_t rootNoteChange = key.rootNote - oldRootNote;
 	int32_t rootNoteChangeEffect =
-	    rootNoteChange * (12 - modeNotes.count())
-	    / 12; // I wasn't quite sure whether this should use modeNotes.count() or oldNumModeNotes
+	    rootNoteChange * (12 - key.modeNotes.count())
+	    / 12; // I wasn't quite sure whether this should use key.modeNotes.count() or oldNumModeNotes
 
 	// All InstrumentClips in session and arranger
 	clipArray = &sessionClips;
@@ -751,46 +744,46 @@ void Song::addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& not
 	if (notesWithinOctavePresent.has(i)) {
 		// If higher one present as well...
 		if (notesWithinOctavePresent.has(i + 1)) {
-			modeNotes.add(i);
-			modeNotes.add(i + 1);
+			key.modeNotes.add(i);
+			key.modeNotes.add(i + 1);
 		}
 		// Or if just the lower one
 		else {
-			modeNotes.add(i);
+			key.modeNotes.add(i);
 		}
 	}
 	// Or, if lower one absent...
 	else {
 		// We probably want the higher one
 		if (notesWithinOctavePresent.has(i + 1) || preferHigher) {
-			modeNotes.add(i + 1);
+			key.modeNotes.add(i + 1);
 			// Or if neither present and we prefer the lower one, do that
 		}
 		else {
-			modeNotes.add(i);
+			key.modeNotes.add(i);
 		}
 	}
 }
 
 bool Song::yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave) {
 	int32_t yNoteWithinOctave = getYNoteWithinOctaveFromYNote(yNote);
-	return (modeNotes[yVisualWithinOctave] == yNoteWithinOctave);
+	return (key.modeNotes[yVisualWithinOctave] == yNoteWithinOctave);
 }
 
 uint8_t Song::getYNoteWithinOctaveFromYNote(int32_t yNote) {
-	uint16_t yNoteRelativeToRoot = yNote - rootNote + 132;
+	uint16_t yNoteRelativeToRoot = yNote - key.rootNote + 132;
 	int32_t yNoteWithinOctave = yNoteRelativeToRoot % 12;
 	return yNoteWithinOctave;
 }
 
 bool Song::modeContainsYNote(int32_t yNote) {
-	int32_t yNoteWithinOctave = (uint16_t)(yNote - rootNote + 132) % 12;
+	int32_t yNoteWithinOctave = (uint16_t)(yNote - key.rootNote + 132) % 12;
 	return modeContainsYNoteWithinOctave(yNoteWithinOctave);
 }
 
 bool Song::modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave) {
-	for (int32_t i = 0; i < modeNotes.count(); i++) {
-		if (modeNotes[i] == yNoteWithinOctave) {
+	for (int32_t i = 0; i < key.modeNotes.count(); i++) {
+		if (key.modeNotes[i] == yNoteWithinOctave) {
 			return true;
 		}
 	}
@@ -798,9 +791,9 @@ bool Song::modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave) {
 }
 
 uint8_t Song::getYNoteIndexInMode(int32_t yNote) {
-	uint8_t yNoteWithinOctave = (uint8_t)(yNote - rootNote + 132) % 12;
-	for (uint8_t i = 0; i < modeNotes.count(); i++) {
-		if (modeNotes[i] == yNoteWithinOctave) {
+	uint8_t yNoteWithinOctave = (uint8_t)(yNote - key.rootNote + 132) % 12;
+	for (uint8_t i = 0; i < key.modeNotes.count(); i++) {
+		if (key.modeNotes[i] == yNoteWithinOctave) {
 			return i;
 		}
 	}
@@ -819,12 +812,12 @@ void Song::rotateMusicalMode(int8_t change) {
 	int8_t j;
 	int16_t newRoot;
 	int8_t changes[12] = {0};
-	uint8_t noteCount = modeNotes.count();
+	uint8_t noteCount = key.modeNotes.count();
 
 	int8_t steps = (change % noteCount + noteCount) % noteCount;
-	newRoot = modeNotes[steps];
+	newRoot = key.modeNotes[steps];
 	for (int8_t i = 0; i < noteCount; i++) {
-		changes[i] = (modeNotes[(i + steps) % noteCount] - newRoot) - modeNotes[i];
+		changes[i] = (key.modeNotes[(i + steps) % noteCount] - newRoot) - key.modeNotes[i];
 		if (i >= noteCount - steps) {
 			changes[i] += 12;
 		}
@@ -857,7 +850,7 @@ traverseClips:
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
 
-		instrumentClip->replaceMusicalMode(modeNotes.count(), changes, modelStackWithTimelineCounter);
+		instrumentClip->replaceMusicalMode(key.modeNotes.count(), changes, modelStackWithTimelineCounter);
 	}
 
 	if (clipArray != &arrangementOnlyClips) {
@@ -865,8 +858,7 @@ traverseClips:
 		goto traverseClips;
 	}
 
-	modeNotes.applyChanges(changes);
-	rootNote += changes[0];
+	key.applyChanges(changes);
 }
 
 // Flattens or sharpens a given note-within-octave in the current scale
@@ -886,65 +878,65 @@ bool Song::isYNoteAllowed(int32_t yNote, bool inKeyMode) {
 }
 
 int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode) {
-	return getYVisualFromYNote(yNote, inKeyMode, rootNote, modeNotes);
+	return getYVisualFromYNote(yNote, inKeyMode, key);
 }
 
-int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode, int16_t root, NoteSet& mNotes) {
+int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key) {
 	if (!inKeyMode) {
 		return yNote;
 	}
-	int32_t yNoteRelativeToRoot = yNote - root;
+	int32_t yNoteRelativeToRoot = yNote - key.rootNote;
 	int32_t yNoteWithinOctave = (uint16_t)(yNoteRelativeToRoot + 120) % 12;
 
 	int32_t octave = (uint16_t)(yNoteRelativeToRoot + 120 - yNoteWithinOctave) / 12 - 10;
 
 	int32_t yVisualWithinOctave = 0;
-	for (int32_t i = 0; i < mNotes.count() && mNotes[i] <= yNoteWithinOctave; i++) {
+	for (int32_t i = 0; i < key.modeNotes.count() && key.modeNotes[i] <= yNoteWithinOctave; i++) {
 		yVisualWithinOctave = i;
 	}
-	return yVisualWithinOctave + octave * mNotes.count() + root;
+	return yVisualWithinOctave + octave * key.modeNotes.count() + key.rootNote;
 }
 
 int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode) {
-	return getYNoteFromYVisual(yVisual, inKeyMode, rootNote, modeNotes);
+	return getYNoteFromYVisual(yVisual, inKeyMode, key);
 }
 
-int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, int16_t root, NoteSet& mNotes) {
+int32_t Song::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key) {
 	if (!inKeyMode) {
 		return yVisual;
 	}
-	int32_t yVisualRelativeToRoot = yVisual - root;
-	int32_t yVisualWithinOctave = yVisualRelativeToRoot % mNotes.count();
+	int32_t yVisualRelativeToRoot = yVisual - key.rootNote;
+	int32_t yVisualWithinOctave = yVisualRelativeToRoot % key.modeNotes.count();
 	if (yVisualWithinOctave < 0) {
-		yVisualWithinOctave += mNotes.count();
+		yVisualWithinOctave += key.modeNotes.count();
 	}
 
-	int32_t octave = (yVisualRelativeToRoot - yVisualWithinOctave) / mNotes.count();
+	int32_t octave = (yVisualRelativeToRoot - yVisualWithinOctave) / key.modeNotes.count();
 
-	int32_t yNoteWithinOctave = mNotes[yVisualWithinOctave];
-	return yNoteWithinOctave + octave * 12 + root;
+	int32_t yNoteWithinOctave = key.modeNotes[yVisualWithinOctave];
+	return yNoteWithinOctave + octave * 12 + key.rootNote;
 }
 
 bool Song::mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) {
 	// If it's the root note and moving down, special criteria
 	if (yVisualWithinOctave == 0 && newOffset == -1) {
-		return (modeNotes[modeNotes.count() - 1]
+		return (key.modeNotes[key.modeNotes.count() - 1]
 		        < 11); // May ony move down if the top note in scale isn't directly below (at semitone 11)
 	}
 
 	else {
-		return ((newOffset == 1 &&                      // We're moving up and
-		         modeNotes[yVisualWithinOctave] < 11 && // We're not already at the top of the scale and
-		         (yVisualWithinOctave == modeNotes.count() - 1
+		return ((newOffset == 1 &&                          // We're moving up and
+		         key.modeNotes[yVisualWithinOctave] < 11 && // We're not already at the top of the scale and
+		         (yVisualWithinOctave == key.modeNotes.count() - 1
 		          || // Either we're the top note, so don't need to check for a higher neighbour
-		          modeNotes[yVisualWithinOctave + 1]
-		              > modeNotes[yVisualWithinOctave] + 1) // Or the next note up has left us space to move up
+		          key.modeNotes[yVisualWithinOctave + 1]
+		              > key.modeNotes[yVisualWithinOctave] + 1) // Or the next note up has left us space to move up
 		         )
 		        || (newOffset == -1 && // We're moving down and
-		            modeNotes[yVisualWithinOctave] > 1
+		            key.modeNotes[yVisualWithinOctave] > 1
 		            && // We're not already at the bottom of the scale (apart from the root note) and
-		            modeNotes[yVisualWithinOctave - 1]
-		                < modeNotes[yVisualWithinOctave] - 1 // The next note down has left us space to move down
+		            key.modeNotes[yVisualWithinOctave - 1]
+		                < key.modeNotes[yVisualWithinOctave] - 1 // The next note down has left us space to move down
 		            ));
 	}
 }
@@ -955,8 +947,8 @@ void Song::removeYNoteFromMode(int32_t yNoteWithinOctave) {
 
 	/*
 	int32_t i = 0;
-	while (i < modeNotes.count) {
-	    if (modeNotes[i] == yNoteWithinOctave) goto foundIt;
+	while (i < key.modeNotes.count) {
+	    if (key.modeNotes[i] == yNoteWithinOctave) goto foundIt;
 	    i++;
 	}
 
@@ -964,9 +956,9 @@ void Song::removeYNoteFromMode(int32_t yNoteWithinOctave) {
 
 	foundIt:
 
-	modeNotes.count--;
-	while (i < modeNotes.count) {
-	    modeNotes[i] = modeNotes[i + 1];
+	key.modeNotes.count--;
+	while (i < key.modeNotes.count) {
+	    key.modeNotes[i] = key.modeNotes[i + 1];
 	    i++;
 	}
 
@@ -1313,7 +1305,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("timePerTimerTick", timePerTimerTickBig >> 32);
 	writer.writeAttribute("timerTickFraction", (uint32_t)timePerTimerTickBig);
-	writer.writeAttribute("rootNote", rootNote);
+	writer.writeAttribute("rootNote", key.rootNote);
 	writer.writeAttribute("inputTickMagnitude", insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
 	writer.writeAttribute("swingAmount", swingAmount);
 	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval, true);
@@ -1344,8 +1336,8 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
 
 	writer.writeOpeningTag("modeNotes");
-	for (int32_t i = 0; i < modeNotes.count(); i++) {
-		writer.writeTag("modeNote", modeNotes[i]);
+	for (int32_t i = 0; i < key.modeNotes.count(); i++) {
+		writer.writeTag("modeNote", key.modeNotes[i]);
 	}
 	writer.writeClosingTag("modeNotes");
 
@@ -1722,7 +1714,7 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "rootNote")) {
-				rootNote = reader.readTagOrAttributeValueInt();
+				key.rootNote = reader.readTagOrAttributeValueInt();
 				reader.exitTag("rootNote");
 			}
 
@@ -1827,11 +1819,11 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "modeNotes")) {
-				modeNotes.clear();
+				key.modeNotes.clear();
 				// Read in all the modeNotes
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "modeNote")) {
-						modeNotes.addUntrusted(reader.readTagOrAttributeValueInt());
+						key.modeNotes.addUntrusted(reader.readTagOrAttributeValueInt());
 						reader.exitTag("modeNote");
 					}
 					else {
@@ -2988,7 +2980,7 @@ int32_t Song::cycleThroughScales() {
 
 /// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if there are more than 7 notes and no preset is possible.
 int32_t Song::setPresetScale(int32_t newScale) {
-	int32_t numNotesInCurrentScale = modeNotes.count();
+	int32_t numNotesInCurrentScale = key.modeNotes.count();
 	int32_t numNotesInNewScale = 7;
 
 	// Get num of notes of new scale
@@ -3018,7 +3010,7 @@ traverseClips3:
 			InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
 			if (instrumentClip->isScaleModeClip()) {
-				instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, rootNote, this);
+				instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, key.rootNote, this);
 			}
 		}
 		if (clipArray != &arrangementOnlyClips) {
@@ -3053,7 +3045,7 @@ traverseClips3:
 		// First find the highest unused degree to jump from 7 to 6
 		indexLastUnusedScaleDegreeFrom7To6 = 0; // Reset
 		for (int32_t n = 6; n >= 1; n--) {
-			if (modeNotes[n] != 0 && !notesWithinOctavePresent.has(modeNotes[n])) {
+			if (key.modeNotes[n] != 0 && !notesWithinOctavePresent.has(key.modeNotes[n])) {
 				indexLastUnusedScaleDegreeFrom7To6 = n;
 				break;
 			}
@@ -3066,7 +3058,7 @@ traverseClips3:
 				if (n == indexLastUnusedScaleDegreeFrom7To6) {
 					offset++;
 				}
-				transitionModeNotes[n] = modeNotes[n + offset];
+				transitionModeNotes[n] = key.modeNotes[n + offset];
 			}
 		}
 	}
@@ -3082,7 +3074,7 @@ traverseClips3:
 		else {
 			// If the source scale was 6 notes, use the real modeNotes (1-step jump)
 			for (int32_t n = 1; n < 12; n++) {
-				modeNotesToCompare[n] = modeNotes[n];
+				modeNotesToCompare[n] = key.modeNotes[n];
 			}
 		}
 
@@ -3110,7 +3102,7 @@ traverseClips3:
 		// If the new scale is smaller or equal to old scale
 		int32_t offset = noteNumDiff;
 		for (int32_t n = numNotesInCurrentScale - 1; n >= 1; n--) {
-			modeNoteNeedsTransposition = notesWithinOctavePresent.has(modeNotes[n]) && modeNotes[n] != 0;
+			modeNoteNeedsTransposition = notesWithinOctavePresent.has(key.modeNotes[n]) && key.modeNotes[n] != 0;
 
 			if (!modeNoteNeedsTransposition && offset > 0) {
 				offset--;
@@ -3118,7 +3110,7 @@ traverseClips3:
 			}
 
 			int32_t newNote = presetScaleNotes[newScale][n - offset];
-			int32_t oldNote = modeNotes[n];
+			int32_t oldNote = key.modeNotes[n];
 			if (modeNoteNeedsTransposition && oldNote != newNote) {
 				changes[n] = newNote - oldNote;
 			}
@@ -3147,7 +3139,7 @@ traverseClips3:
 					offset++;
 				}
 				int32_t newNote = transitionPresetScale[n + offset];
-				int32_t oldNote = modeNotes[n];
+				int32_t oldNote = key.modeNotes[n];
 				if (oldNote != newNote) {
 					changes[n] = newNote - oldNote;
 				}
@@ -3163,7 +3155,7 @@ traverseClips3:
 					offset++;
 				}
 				int32_t newNote = presetScaleNotes[newScale][n + offset];
-				int32_t oldNote = modeNotes[n];
+				int32_t oldNote = key.modeNotes[n];
 				if (oldNote != newNote) {
 					changes[n] = newNote - oldNote;
 				}
@@ -3173,14 +3165,14 @@ traverseClips3:
 
 	replaceMusicalMode(changes, true);
 
-	modeNotes.fromScaleNotes(presetScaleNotes[newScale]);
+	key.modeNotes.fromScaleNotes(presetScaleNotes[newScale]);
 
 	return newScale;
 }
 
 // Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if no preset matches current notes
 int32_t Song::getCurrentPresetScale() {
-	if (modeNotes.count() > 7) {
+	if (key.modeNotes.count() > 7) {
 		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
 	}
 
@@ -3191,7 +3183,7 @@ int32_t Song::getCurrentPresetScale() {
 			if (newNote == 0) {
 				continue;
 			}
-			if (modeNotes[n] != newNote) {
+			if (key.modeNotes[n] != newNote) {
 				goto notThisOne;
 			}
 		}
@@ -6009,7 +6001,7 @@ void Song::displayCurrentRootNoteAndScaleName() {
 	DEF_STACK_STRING_BUF(popupMsg, 40);
 	char noteName[5];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(currentSong->rootNote, noteName, &isNatural);
+	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
 
 	popupMsg.append(noteName);
 	if (display->haveOLED()) {

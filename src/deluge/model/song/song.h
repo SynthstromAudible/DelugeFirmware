@@ -24,6 +24,7 @@
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "model/instrument/instrument.h"
 #include "model/output.h"
+#include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
@@ -97,9 +98,9 @@ public:
 	void rotateMusicalMode(int8_t change);
 	void replaceMusicalMode(int8_t changes[], bool affectMIDITranspose);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
-	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, int16_t root, NoteSet& mNotes);
+	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
-	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, int16_t root, NoteSet& mNotes);
+	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key);
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
 	bool modeContainsYNote(int32_t yNote);
 	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
@@ -183,9 +184,7 @@ public:
 
 	Section sections[kMaxNumSections];
 
-	// Scales
-	NoteSet modeNotes;
-	int16_t rootNote;
+	MusicalKey key;
 
 	uint16_t slot;
 	int8_t subSlot;

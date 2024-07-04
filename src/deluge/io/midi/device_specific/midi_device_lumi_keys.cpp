@@ -38,7 +38,7 @@ void MIDIDeviceLumiKeys::hookOnConnected() {
 	uint8_t upperZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel;
 	uint8_t lowerZoneLastChannel = this->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel;
 
-	Scale currentScale = determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes);
+	Scale currentScale = determineScaleAndRootNoteOffsetFromNotes(currentSong->key.modeNotes);
 
 	if (lowerZoneLastChannel != 0 || upperZoneLastChannel != 15) {
 		setMIDIMode(MIDIMode::MPE);
@@ -61,7 +61,7 @@ void MIDIDeviceLumiKeys::hookOnConnected() {
 	}
 
 	// Since we're in the neighbourhood, set the root and scale
-	setRootNote(currentSong->rootNote % kOctaveSize);
+	setRootNote(currentSong->key.rootNote % kOctaveSize);
 	setScale(currentScale);
 
 	// Run colour-setting hook.
@@ -74,11 +74,11 @@ void MIDIDeviceLumiKeys::hookOnWriteHostedDeviceToFile() {
 }
 
 void MIDIDeviceLumiKeys::hookOnChangeRootNote() {
-	setRootNote(currentSong->rootNote % kOctaveSize);
+	setRootNote(currentSong->key.rootNote % kOctaveSize);
 }
 
 void MIDIDeviceLumiKeys::hookOnChangeScale() {
-	Scale scale = determineScaleAndRootNoteOffsetFromNotes(currentSong->modeNotes);
+	Scale scale = determineScaleAndRootNoteOffsetFromNotes(currentSong->key.modeNotes);
 	setScale(scale);
 }
 
