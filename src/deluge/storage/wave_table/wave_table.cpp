@@ -1059,7 +1059,7 @@ uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSample
 	WaveTableBand* bandHere = (WaveTableBand*)bands.getElementAddress(bHere);
 
 	// If we're an actual wave table with more than one cycle...
-	if (numCycles > 1) {
+	if (numCycles > 1) [[likely]] {
 		int32_t numSamplesLeftToDo = numSamples;
 
 		// Haven't yet investigated why, but we do need to use the "rounded" multiply functions here, otherwise get a

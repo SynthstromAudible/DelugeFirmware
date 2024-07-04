@@ -427,7 +427,8 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 	int32_t playDirection = guide->playDirection;
 
 	// If there's a cache, check some stuff. Do this first, cos this can cause us to return
-	if (cache) {
+	// unlikely - if there is a cache this render will be fast, if not we definitely don't want to waste time looking
+	if (cache) [[unlikely]] {
 
 		// If relevant params have changed since before, we have to stop using the cache which those params previously
 		// described
@@ -551,7 +552,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 		// If we shouldn't be time stretching now, but if it remains set up from before, stop it. We'd know there's no
 		// cache in this case
 		else {
-			if (timeStretcher && !fudging) {
+			if (timeStretcher && !fudging) [[unlikely]] {
 
 				// We're only allowed to stop once all the play-pos's line up, otherwise there's a big ol' click
 				bool canExit;
@@ -623,7 +624,8 @@ timeStretchingConsidered:
 	// Loop over and over until we've read all the samples we want, until numSamples is 0
 
 	// Replaying cached stuff!
-	if (cache && !writingToCache) {
+	// again unlikely since this is the fast case
+	if (cache && !writingToCache) [[unlikely]] {
 		// if (!getRandom255()) D_PRINTLN("reading cache");
 
 readCachedWindow:
@@ -878,7 +880,7 @@ readCachedWindow:
 	}
 
 	// Or, not replaying cached stuff (but potentially writing into the cache for next time)
-	else {
+	else [[likely]] {
 
 uncachedPlayback:
 
@@ -993,7 +995,8 @@ assessLoopPointAgainTimestretched:
 				int32_t overshootBytes = (bytePosAfterThisUncachedRead - reassessmentPos) * playDirection;
 
 				// If we will have reached the reassessment-point, by the end of this "uncached read"...
-				if (overshootBytes > 0) {
+				// unlikely to match rohan's check from before - otherwise we'll speculatively execute anyway
+				if (overshootBytes > 0) [[unlikely]] {
 
 					// Ok, we passed the quick check, so now do the divide operation
 					int32_t reassessmentPosBytesRelativeToAudioDataStart =
@@ -1061,7 +1064,8 @@ assessLoopPointAgainTimestretched:
 		                                          // numSamplesThisUncachedRead
 
 		// If no time stretching
-		if (!timeStretcher) {
+		// unlikely as it's the fast happy path and we don't struggle with it
+		if (!timeStretcher) [[unlikely]] {
 
 readNonTimestretched:
 
@@ -1116,7 +1120,7 @@ readNonTimestretched:
 		}
 
 		// Or, if yes time stretching
-		else { // TODO: move this all into the TimeStretcher class?
+		else [[likely]] { // TODO: move this all into the TimeStretcher class?
 
 			// AudioEngine::logAction("yes timestretching");
 
