@@ -47,7 +47,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 
 		if (!voiceSample) { // We might actually already have one, and just be restarting this voice
 			voiceSample = AudioEngine::solicitVoiceSample();
-			if (!voiceSample) {
+			if (!voiceSample) [[unlikely]] {
 				return false;
 			}
 		}
@@ -70,7 +70,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 	        || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO)) {
 		// oscPos = 0;
 	}
-	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) {
+	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
 		if (!dxVoice) { // We might actually already have one, and just be restarting this voice
 			dxVoice = getDxEngine()->solicitDxVoice();
 			if (!dxVoice)

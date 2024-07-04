@@ -112,8 +112,8 @@ int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 namespace AudioEngine {
 // statically allocate some of these to reduce allocations
 constexpr int32_t kNumVoicesStatic = 48;
-constexpr int32_t kNumVoiceSamplesStatic = 24;
-constexpr int32_t kNumTimeStretchersStatic = 24;
+constexpr int32_t kNumVoiceSamplesStatic = 48;
+constexpr int32_t kNumTimeStretchersStatic = 48;
 
 // used for culling. This can be high now since it's decoupled from the time between renders, and
 // will spill into a second render and output if needed so as long as we always render 128 samples in under 128/44100
@@ -1377,7 +1377,7 @@ void disposeOfVoice(Voice* voice) {
 }
 
 VoiceSample* solicitVoiceSample() {
-	if (firstUnassignedVoiceSample) {
+	if (firstUnassignedVoiceSample) [[likely]] {
 		VoiceSample* toReturn = firstUnassignedVoiceSample;
 		firstUnassignedVoiceSample = firstUnassignedVoiceSample->nextUnassigned;
 		return toReturn;

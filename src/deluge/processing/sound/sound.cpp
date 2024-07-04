@@ -1517,22 +1517,12 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
-	if (synthMode == SynthMode::RINGMOD) {
-		goto allFine;
+	if (!((synthMode == SynthMode::RINGMOD) || (modelStackWithSoundFlags->checkSourceEverActive(0))
+	      || (modelStackWithSoundFlags->checkSourceEverActive(1))
+	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648))))
+	    [[unlikely]] {
+		return;
 	}
-	if (modelStackWithSoundFlags->checkSourceEverActive(0)) {
-		goto allFine;
-	}
-	if (modelStackWithSoundFlags->checkSourceEverActive(1)) {
-		goto allFine;
-	}
-	if (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
-		goto allFine;
-	}
-
-	return;
-
-allFine:
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	getArpBackInTimeAfterSkippingRendering(arpSettings); // Have to do this before telling the arp to noteOn()
@@ -1546,7 +1536,7 @@ allFine:
 	// find any negative consequence of this, or need to ever remove them en masse.
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
-	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
+	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) [[likely]] {
 		noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.noteCodeOnPostArp, velocity,
 		                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate, fromMIDIChannel);
 	}
@@ -1563,7 +1553,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
 	// If not polyphonic, stop any notes which are releasing, now
-	if (numVoicesAssigned && polyphonic != PolyphonyMode::POLY) {
+	if (numVoicesAssigned && polyphonic != PolyphonyMode::POLY) [[unlikely]] {
 
 		int32_t ends[2];
 		AudioEngine::activeVoices.getRangeForSound(this, ends);
@@ -1621,7 +1611,7 @@ justUnassign:
 		}
 	}
 
-	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) {
+	if (polyphonic == PolyphonyMode::LEGATO && voiceForLegato) [[unlikely]] {
 		ModelStackWithVoice* modelStackWithVoice = modelStack->addVoice(voiceForLegato);
 		voiceForLegato->changeNoteCode(modelStackWithVoice, noteCodePreArp, noteCodePostArp, fromMIDIChannel,
 		                               mpeValues);
@@ -1631,7 +1621,7 @@ justUnassign:
 		Voice* newVoice;
 		int32_t envelopePositions[kNumEnvelopes];
 
-		if (voiceToReuse) {
+		if (voiceToReuse) [[unlikely]] {
 			newVoice = voiceToReuse;
 
 			// The osc phases and stuff will remain
@@ -1653,7 +1643,7 @@ justUnassign:
 			newVoice->randomizeOscPhases(this);
 		}
 
-		if (sideChainSendLevel != 0) {
+		if (sideChainSendLevel != 0) [[unlikely]] {
 			AudioEngine::registerSideChainHit(sideChainSendLevel);
 		}
 
