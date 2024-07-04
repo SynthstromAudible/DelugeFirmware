@@ -57,3 +57,9 @@ if(ENABLE_SYSEX_LOAD)
     message(STATUS "Sysex firmware loading enabled for deluge")
     target_compile_definitions(deluge PUBLIC ENABLE_SYSEX_LOAD=1)
 endif(ENABLE_SYSEX_LOAD)
+
+if(ENABLE_MATRIX_DEBUG)
+    message(STATUS "Extra pad matrix debug enabled for deluge")
+    target_compile_definitions(deluge PUBLIC ENABLE_MATRIX_DEBUG=1)
+endif(ENABLE_MATRIX_DEBUG)
+

@@ -30,6 +30,7 @@ public:
 
 	void scrollFinished();
 
+	const char* getName() { return "timeline_view"; }
 	virtual uint32_t getMaxZoom() = 0;
 	virtual bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom,
 	                                     uint32_t oldZoom); // Returns false if no animation needed

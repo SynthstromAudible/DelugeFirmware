@@ -70,6 +70,7 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() final;
+	const char* getName() { return "instrument_clip_view"; }
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);

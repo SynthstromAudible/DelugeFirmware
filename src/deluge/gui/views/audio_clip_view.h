@@ -59,6 +59,7 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::AUDIO_CLIP_VIEW; }
+	const char* getName() { return "audio_clip_view"; }
 
 private:
 	void needsRenderingDependingOnSubMode();

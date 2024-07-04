@@ -219,6 +219,24 @@ The only build able to send debug messages via sysex is the "debug" build, so yo
 To make debug log prints in your code, which will be sent to the console, here is a code example:
 `D_PRINTLN("my log message which prints an integer value %d", theIntegerValue);`
 
+### Useful extra debug options
+
+Using the previously mentionned sysex debugging, the following option can be toggled to enable pad logging for the pad matrix driver:
+
+```shell
+./dbt configure -DENABLE_MATRIX_DEBUG=YES
+./dbt build debug
+# copy build/Release/deluge.bin to an SD card and flash it
+```
+
+This is a sample of the output:
+```
+@matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=3,VEL=255
+@matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=3,VEL=0
+@matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=2,VEL=255
+@matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=2,VEL=0
+```
+
 ### Deluge Crash Reader Discord Bot
 
 If deluge crashes, there is a colorful pixelated image that gets displayed across the main pads and sidebar. In case 
