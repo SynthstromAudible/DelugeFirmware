@@ -163,7 +163,7 @@ If your device requires Filter Responses to be enabled to avoid a MIDI Feedback 
 
 ### When using MIDI Follow, you experience a MIDI Feedback loop
 
-If you notice that your MIDI controller's values get stuck while sending MIDI CC's to the Deluge or the Deluge's parameter values get stuck while receiving MIDI CC's from your controller, it is possible that you got stuck in a MIDI feedback loop. This is known to happen with Drambo and Loopy Pro for example as these applications always respond to the Deluge's MIDI feedback.
+If you notice that your MIDI controller's values get stuck while sending MIDI CC's to the Deluge or the Deluge's parameter values get stuck while receiving MIDI CC's from your controller, it is possible that you got stuck in a MIDI feedback loop. This is known to happen with Drambo app for example as this application always respond to the Deluge's MIDI feedback.
 
 In this case, you will need to ensure that MIDI Feedback Filter Responses is set to Enabled in the following menu: MIDI > MIDI-FOLLOW > FEEDBACK > FILTER RESPONSES
 
@@ -174,8 +174,23 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 ## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
 
 For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
-    
-- It is setup to send and receive on Channel 15 when the Deluge is connected via USB (and detected “Deluge Port 1”)
+- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected as “Deluge Port
+  1”), so you must go to your Deluge, and do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> CHANNEL A,
+  and set it to 15. In case your port is detected with a different name in Loopy (it could happen if the language of your
+  iOS device is not English), like for example "Deluge **Puerto** 1" (in Spanish), you can always transfer the existing
+  midi bindings from one port to the other by going to Loopy's Menu -> Control Settings -> Current Project -> Default ->
+  look for the "Deluge Port 1" section and tap on "TRANSFER" to copy or move all the midi bindings to the real
+  port name of your Deluge.
+- As a bonus, this project also contains a page "B" with controls for the Song's global parameters, which must be learned
+  individually (not part of MIDI Follow). To do that, go to Deluge Song view, click Select button to enter the
+  Song menu, go to each parameter (Volume, Pan, LPF Freq, etc), hold Learn button and then move the knobs and
+  faders within page "B" of Loopy's project.
+- Pages "C" and "D" are the controls that are doing the heavy lifting of sending/receiving midi so they can't be deleted.
+  Pages "A" and "B" are just the "user facing" controls, tied to the stepped dials from the other two pages.
+- **How to setup Feedback:** In Loopy, go to Menu -> Control Settings -> MIDI Devices section -> Deluge Port 1 -> make sure
+  that Feedback switch is enabled.
+  In your Deluge, do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> FEEDBACK. Here you can select the
+  Channel to send feedback to, the Rate at which feedback is sent for Automation, and you must set Filter Responses to DISABLED.
 
 <img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.jpg">
 
