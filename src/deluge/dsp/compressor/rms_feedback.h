@@ -155,20 +155,16 @@ public:
 
 	/// returns blend in q31
 	constexpr q31_t getBlend() { return wet; }
+	/// returns blend as an integer percentage
+	constexpr int32_t getBlendForDisplay() { return wet > (127 << 24) ? 100 : 100 * (wet >> 24) >> 7; }
 
 	/// update the blend level, where blend is the wet level (i.e. ONE_Q31 is full wet)
 	/// returns wet percentage
 	constexpr int32_t setBlend(q31_t blend) {
 		// hack to allow it to get to full wet. Safe since this isn't a modulatable param and doesn't need the headroom
-		if (blend >= (127 << 24) && wet >= (127 << 24)) {
-			wet = ONE_Q31;
-			dry = 0;
-			return 100;
-		}
 		dry = ONE_Q31 - blend;
 		wet = blend;
-		// this converts to a percentage - equivalent to shifting down 31 and multiplying by 100 but leaves decimals
-		return 100 * (wet >> 24) >> 7;
+		return getBlendForDisplay();
 	}
 
 	/// Configure the base makeup gain. Since reduction is always negative, we only need to worry about the case where

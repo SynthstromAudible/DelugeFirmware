@@ -616,8 +616,8 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-
-				displayLevel = compressor.setBlend(lshiftAndSaturate<24>(current + 64));
+				q31_t level = current == 64 ? ONE_Q31 : lshiftAndSaturate<24>(current + 64);
+				displayLevel = compressor.setBlend(level);
 				unit = " %";
 				break;
 			}
