@@ -827,7 +827,7 @@ skipDoingSumTo100:
 			}
 
 			// Otherwise...
-			else {
+			else [[unlikely]] {
 				int32_t probability = pendingNoteOnList.pendingNoteOns[i].probability & 127;
 
 				// If it's an iteration dependence...
@@ -895,7 +895,7 @@ doNewProbability:
 				}
 			}
 
-			if (conditionPassed) {
+			if (conditionPassed) [[likely]] {
 				sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
 			}
 			else {
