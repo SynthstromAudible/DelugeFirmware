@@ -40,11 +40,19 @@ hpf = Menu(
     name="STRING_FOR_HPF",
 )
 
+blend = Menu(
+    "audio_compressor::Blend",
+    "compBlend",
+    ["{name}", "{title}"],
+    "compressor/blend.md",
+    name="STRING_FOR_BLEND",
+)
+
 menu = Submenu(
     "Submenu",
     "audioCompMenu",
     ["{name}", "%%CHILDREN%%"],
     "compressor/index.md",
-    [threshold, ratio, attack, release, hpf],
+    [threshold, ratio, attack, release, hpf, blend],
     name="STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR",
 )

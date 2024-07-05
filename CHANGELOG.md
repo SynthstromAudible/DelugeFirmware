@@ -7,6 +7,7 @@
 ### Sound Engine
 
 - Added DX7 compatible synth type with support for importing patches from DX7 patch banks in syx format, as well as editing of patch parameters.
+- Added blend control to compressors
 
 ### User Interface
 
