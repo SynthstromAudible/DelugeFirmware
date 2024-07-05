@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
@@ -228,6 +229,20 @@ void UITimerManager::routine() {
 
 				case TimerName::SYSEX_DISPLAY:
 					HIDSysex::sendDisplayIfChanged();
+					break;
+
+				case TimerName::EXPORT_STEMS:
+					if (getCurrentUI() == &sessionView) {
+						sessionView.exportClipStems();
+					}
+					else if (getCurrentUI() == &arrangerView) {
+						arrangerView.exportInstrumentStems();
+					}
+					// if we're still in the stem exporting UI mode,
+					// then we want to keep checking export status
+					if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
+						setTimer(TimerName::EXPORT_STEMS, 100);
+					}
 					break;
 				}
 			}

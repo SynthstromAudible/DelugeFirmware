@@ -259,6 +259,10 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - ([#2166]) Holding back will now fully exit your current menu
 
+#### 3.23 Automated Stem Exporting
+
+- ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1354,6 +1358,8 @@ different firmware
 [#2166]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
+
+[#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 

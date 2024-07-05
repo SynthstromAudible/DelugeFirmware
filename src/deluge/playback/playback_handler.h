@@ -201,6 +201,11 @@ public:
 
 	int32_t arrangementPosToStartAtOnSwitch;
 
+	bool stemExportInProgress;
+	void startStemExportProcess();
+	void stopStemExportProcess();
+	void startOutputRecordingUntilLoopEnd();
+	void stopOutputRecordingAndPlayback();
 	bool stopOutputRecordingAtLoopEnd;
 
 	void actionTimerTick();

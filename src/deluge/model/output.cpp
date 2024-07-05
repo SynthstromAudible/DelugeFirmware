@@ -39,6 +39,8 @@ Output::Output(OutputType newType) : type(newType) {
 	armedForRecording = false;
 
 	modKnobMode = 1;
+
+	stemExported = false;
 }
 
 Output::~Output() {

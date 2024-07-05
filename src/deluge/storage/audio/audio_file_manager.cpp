@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/ui.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device_manager.h"
@@ -26,6 +27,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_reader.h"
+#include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/cluster/cluster.h"
@@ -53,7 +55,8 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, DWORD sector, U
 extern uint8_t currentlyAccessingCard;
 }
 
-char const* const audioRecordingFolderNames[] = {"SAMPLES/CLIPS", "SAMPLES/RECORD", "SAMPLES/RESAMPLE"};
+char const* const audioRecordingFolderNames[] = {"SAMPLES/CLIPS", "SAMPLES/RECORD", "SAMPLES/RESAMPLE",
+                                                 "SAMPLES/STEMS"};
 
 AudioFileManager audioFileManager{};
 
@@ -66,6 +69,8 @@ AudioFileManager::AudioFileManager() {
 		highestUsedAudioRecordingNumber[i] = -1;
 		highestUsedAudioRecordingNumberNeedsReChecking[i] = true;
 	}
+
+	highestUsedStemFolderNumber = -1;
 }
 
 void AudioFileManager::init() {
@@ -245,6 +250,139 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 	}
 }
 
+/// gets folder path in SAMPLES/STEMS to write stems to
+/// within the STEMS folder, it will try to create a folder with the name of the SONG
+/// if it cannot create a folder with the SONG name because it already exists, it will append
+/// an incremental number to the end of the SONG name and try to create a folder with that new name
+/// this function gets called every time a stem recording is being written to a file
+/// to avoid unecessary file system calls, it will save the last song name saved to a String
+/// including the last incremental folder number and use that to obtain the filePath for the next
+/// stem export job (e.g. if you are exporting the same song more than once)
+Error AudioFileManager::getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder) {
+
+	const auto folderID = util::to_underlying(folder);
+
+	Error error = storageManager.initSD();
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	String tempPath;
+
+	// set tempPath = SAMPLES/STEMS
+	error = tempPath.set(audioRecordingFolderNames[folderID]);
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	// try to create the STEMS folder if it doesn't exist
+	FRESULT result = f_mkdir(tempPath.get());
+	if (result != FR_OK && result != FR_EXIST) {
+		return Error::FOLDER_DOESNT_EXIST;
+	}
+
+	// tempPath = SAMPLES/STEMS/
+	error = tempPath.concatenate("/");
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	// tempPath = SAMPLES/STEMS/*INSERT SONG NAME*
+	error = tempPath.concatenate(currentSong->name.get());
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	// did we just export this song? if yes, no need to find folder number to append (we have it)
+	if (strcmp(currentSong->name.get(), lastSongNameForStemExport.get())) {
+		// if we're here we didn't just export this song
+		String tempPathForSearch;
+
+		// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*
+		error = tempPathForSearch.set(tempPath.get());
+		if (error != Error::NONE) {
+			return error;
+		}
+
+		// we don't have a folder number yet, set it to -1 so when we increment below first potential
+		// folder number appended is 00000 (-1 + 1)
+		highestUsedStemFolderNumber = -1;
+
+		// here we loop until we are able to successfully create a folder
+		while (true) {
+			// try to create folder
+			FRESULT result = f_mkdir(tempPathForSearch.get());
+			// successful, exit out of loop
+			if (result == FR_OK) {
+				break;
+			}
+			// not successful
+			else {
+				// increment folder number so we can append it to the SONG name
+				highestUsedStemFolderNumber++;
+
+				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*
+				error = tempPathForSearch.set(tempPath.get());
+				if (error != Error::NONE) {
+					return error;
+				}
+
+				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*-
+				error = tempPathForSearch.concatenate("-");
+				if (error != Error::NONE) {
+					return error;
+				}
+
+				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*-#####
+				error = tempPathForSearch.concatenateInt(highestUsedStemFolderNumber, 5);
+				if (error != Error::NONE) {
+					return error;
+				}
+			}
+		}
+
+		// copy folder path created above into the filePath so it can be used by the caller
+		error = filePath->set(tempPathForSearch.get());
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
+	else {
+		// if folder number is -1, it means this is the first time we're running the stem export
+		// process for this song and the folder didn't previously exist so no number is being appended to it
+
+		// if folder number is not -1, it means this is the second we're running the stem export process
+		// for this song, so we need to append a folder number to the SONG name
+		if (highestUsedStemFolderNumber != -1) {
+			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*-
+			error = tempPath.concatenate("-");
+			if (error != Error::NONE) {
+				return error;
+			}
+
+			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*-#####
+			error = tempPath.concatenateInt(highestUsedStemFolderNumber, 5);
+			if (error != Error::NONE) {
+				return error;
+			}
+		}
+
+		// copy folder path created above into the filePath so it can be used by the caller
+		error = filePath->set(tempPath.get());
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
+
+	// save current song name as last song name exported
+	error = lastSongNameForStemExport.set(currentSong->name.get());
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	return Error::NONE;
+}
+
 // Oi, don't even think about modifying this to take a Sample* pointer - cos the whole Sample could get deleted during
 // the card access.
 Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
@@ -256,8 +394,13 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		return error;
 	}
 
-	if (highestUsedAudioRecordingNumberNeedsReChecking[folderID]) {
-
+	if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
+		error = getUnusedStemRecordingFilePath(filePath, folder);
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
+	else if (highestUsedAudioRecordingNumberNeedsReChecking[folderID]) {
 		FRESULT result = f_opendir(&staticDIR, audioRecordingFolderNames[folderID]);
 		if (result == FR_OK) {
 
@@ -295,20 +438,25 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 
 	D_PRINTLN("new file: --------------  %d", highestUsedAudioRecordingNumber[folderID]);
 
-	error = filePath->set(audioRecordingFolderNames[folderID]);
-	if (error != Error::NONE) {
-		return error;
-	}
+	bool doingTempFolder = false;
 
-	bool doingTempFolder = (folder == AudioRecordingFolder::CLIPS);
-	if (doingTempFolder) {
-		error = tempFilePathForRecording->set(audioRecordingFolderNames[folderID]);
+	// filePath was already obtained above for the stem export UI mode
+	if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+		error = filePath->set(audioRecordingFolderNames[folderID]);
 		if (error != Error::NONE) {
 			return error;
 		}
-		error = tempFilePathForRecording->concatenate("/TEMP");
-		if (error != Error::NONE) {
-			return error;
+
+		bool doingTempFolder = (folder == AudioRecordingFolder::CLIPS);
+		if (doingTempFolder) {
+			error = tempFilePathForRecording->set(audioRecordingFolderNames[folderID]);
+			if (error != Error::NONE) {
+				return error;
+			}
+			error = tempFilePathForRecording->concatenate("/TEMP");
+			if (error != Error::NONE) {
+				return error;
+			}
 		}
 	}
 
@@ -376,8 +524,8 @@ void AudioFileManager::deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int
 
 	// Remove AudioFile from memory
 	audioFiles.removeElement(i);
-	// audioFile->remove(); // Remove from the unused AudioFiles list, where this already must have been. Actually no,
-	// the destructor does this anyway.
+	// audioFile->remove(); // Remove from the unused AudioFiles list, where this already must have been. Actually
+	// no, the destructor does this anyway.
 	audioFile->~AudioFile();
 	delugeDealloc(audioFile);
 }
@@ -484,8 +632,8 @@ doTryOffset:
 				return NULL;
 			}
 
-			// And if the user isn't insisting, then some other signs show that we probably don't want to load this as a
-			// WaveTable
+			// And if the user isn't insisting, then some other signs show that we probably don't want to load this
+			// as a WaveTable
 			if (!makeWaveTableWorkAtAllCosts) {
 				if (isAiffFilename(foundAudioFile->filePath.get())) {
 notLoadableAsWaveTable:
@@ -493,8 +641,8 @@ notLoadableAsWaveTable:
 					return NULL;
 				}
 
-				// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and the
-				// user isn't insisting, then opt not to do it.
+				// If this isn't actually a wavetable-specifying file or at least a wavetable-looking length, and
+				// the user isn't insisting, then opt not to do it.
 				if (!((Sample*)foundAudioFile)->fileExplicitlySpecifiesSelfAsWaveTable) {
 					if (((Sample*)foundAudioFile)->lengthInSamples & 2047) {
 						goto notLoadableAsWaveTable;
@@ -545,8 +693,8 @@ waveTableCloneError:
 	// Or, if that didn't find the audio file in memory...
 	else {
 
-		// If we're loading a preset (not a Song, and not just browsing audio files), we should search in memory for the
-		// alternate path
+		// If we're loading a preset (not a Song, and not just browsing audio files), we should search in memory for
+		// the alternate path
 		if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
 		    || alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
 			if (thingTypeBeingLoaded != ThingType::SONG) {
@@ -608,8 +756,8 @@ tryLoadingFromCard:
 		bool alreadyTriedRegular = false;
 		FRESULT result;
 
-		// If we know the alternate load directory actually exists, then we should try that first, cos there's a high
-		// chance the file is in there
+		// If we know the alternate load directory actually exists, then we should try that first, cos there's a
+		// high chance the file is in there
 		if (alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
 
 tryAlternateDoesExist:
@@ -617,9 +765,9 @@ tryAlternateDoesExist:
 			char const* proposedFileNamePointer;
 			bool alreadyTriedSecondAlternate;
 
-			// We'll first try the long file name, which contains all the folder names from the original path. This is
-			// how collect-media saves look - for Songs. But, if that original path didn't begin with "SAMPLES/", we
-			// can't do that.
+			// We'll first try the long file name, which contains all the folder names from the original path. This
+			// is how collect-media saves look - for Songs. But, if that original path didn't begin with "SAMPLES/",
+			// we can't do that.
 			if (memcasecmp(filePath->get(), "SAMPLES/", 8)) {
 				goto tryNextAlternate;
 			}
@@ -646,8 +794,8 @@ alternateFailed:
 				if (!alreadyTriedSecondAlternate) {
 tryNextAlternate:
 					// Next up we'll try looking for just the filename that the original file had, without any added
-					// folder names. This allows users to copy files into folders for instruments more easily, and have
-					// them load.
+					// folder names. This allows users to copy files into folders for instruments more easily, and
+					// have them load.
 					alreadyTriedSecondAlternate = true;
 					char const* fileName = getFileNameFromEndOfPath(filePath->get());
 					*error = proposedFileName.set(fileName);
@@ -679,8 +827,8 @@ tryNextAlternate:
 			}
 
 			if (thingTypeBeingLoaded == ThingType::SYNTH || thingTypeBeingLoaded == ThingType::KIT) {
-				// Special rule for loading presets with files in their dedicated "alternate" folder: must update the
-				// AudioFile's filePath to point to that alternate location - and then treat them as normal (not
+				// Special rule for loading presets with files in their dedicated "alternate" folder: must update
+				// the AudioFile's filePath to point to that alternate location - and then treat them as normal (not
 				// alternate).
 				filePath->set(&usingAlternateLocation);
 				usingAlternateLocation.clear();
@@ -868,8 +1016,8 @@ void AudioFileManager::testQueue() {
 
 	    if (loadedSampleChunk->nextAvailableLoadedSampleChunk ==
 	&queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].endNode
-	            && queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].endNode.prevAvailableLoadedSampleChunkPointer !=
-	&loadedSampleChunk->nextAvailableLoadedSampleChunk) { D_PRINTLN("error ---------------------------------");
+	            && queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].endNode.prevAvailableLoadedSampleChunkPointer
+	!= &loadedSampleChunk->nextAvailableLoadedSampleChunk) { D_PRINTLN("error ---------------------------------");
 	        D_PRINT(loadedSampleChunk->sample->fileName);
 	        D_PRINT(", part ");
 	        D_PRINTLN(loadedSampleChunk->chunkIndex);
@@ -1055,8 +1203,8 @@ getOutEarly:
 			// If 24-bit wrong-endian data...
 			if (sample->rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24) {
 
-				// If we hadn't previously written the "extra" bytes to the end of the prev Cluster and converted them,
-				// do so now...
+				// If we hadn't previously written the "extra" bytes to the end of the prev Cluster and converted
+				// them, do so now...
 				if (!prevCluster->extraBytesAtEndConverted) {
 
 					uint32_t bytesBeforeStartOfCluster = clusterIndex * clusterSize - sample->audioDataStartPosBytes;
@@ -1072,8 +1220,8 @@ getOutEarly:
 						thisNumber[0] = thisNumber[2];
 						thisNumber[2] = temp;
 
-						// And now, copy 2 bytes back to this Cluster (that's the maximum that the float could have been
-						// overhanging the boundary)
+						// And now, copy 2 bytes back to this Cluster (that's the maximum that the float could have
+						// been overhanging the boundary)
 						memcpy(cluster->data, &prevCluster->data[clusterSize], 2);
 					}
 
@@ -1084,8 +1232,8 @@ getOutEarly:
 			// Or, all other types of raw data conversion
 			else if (sample->rawDataFormat) {
 
-				// If we haven't previously written the "extra" bytes to the end of the prev Cluster and converted them,
-				// do so now...
+				// If we haven't previously written the "extra" bytes to the end of the prev Cluster and converted
+				// them, do so now...
 				if (!prevCluster->extraBytesAtEndConverted) {
 
 					// If misaligned from the 4-byte boundary
@@ -1097,8 +1245,8 @@ getOutEarly:
 						int32_t* thisNumber = (int32_t*)&prevCluster->data[startPos];
 						sample->convertOneData(thisNumber);
 
-						// And now, copy 3 bytes back to this Cluster (that's the maximum that the float could have been
-						// overhanging the boundary)
+						// And now, copy 3 bytes back to this Cluster (that's the maximum that the float could have
+						// been overhanging the boundary)
 						memcpy(cluster->data, &prevCluster->data[clusterSize], 3);
 					}
 
@@ -1140,8 +1288,8 @@ getOutEarly:
 						memcpy(&cluster->data[clusterSize], nextCluster->firstThreeBytesPreDataConversion, 2);
 					}
 
-					// There'll be one word in there which hasn't yet been converted. Do it now. (We've probably just
-					// copied over the next one and a bit, which already was converted)
+					// There'll be one word in there which hasn't yet been converted. Do it now. (We've probably
+					// just copied over the next one and a bit, which already was converted)
 					uint8_t* thisNumber = (uint8_t*)&cluster->data[clusterSize - bytesUnconvertedBeforeNextCluster];
 
 					uint8_t temp = thisNumber[0];
@@ -1152,8 +1300,8 @@ getOutEarly:
 					if (!nextCluster->extraBytesAtStartConverted) {
 						nextCluster->extraBytesAtStartConverted = true;
 
-						// And now, copy 2 bytes back to the next Cluster (that's the maximum that the 24-bit int32_t
-						// could have been overhanging the boundary)
+						// And now, copy 2 bytes back to the next Cluster (that's the maximum that the 24-bit
+						// int32_t could have been overhanging the boundary)
 						memcpy(nextCluster->data, &cluster->data[clusterSize], 2);
 					}
 
@@ -1186,8 +1334,8 @@ getOutEarly:
 						// There'll be one word in there which hasn't yet been converted from float. Do it now
 						sample->convertOneData(thisNumber);
 
-						// And now, copy 3 bytes back to the next Cluster (that's the maximum that the float could have
-						// been overhanging the boundary)
+						// And now, copy 3 bytes back to the next Cluster (that's the maximum that the float could
+						// have been overhanging the boundary)
 						memcpy(nextCluster->data, &cluster->data[clusterSize], 3);
 
 						nextCluster->extraBytesAtStartConverted = true;
@@ -1202,8 +1350,8 @@ getOutEarly:
 						// There'll be one word in there which hasn't yet been converted from float. Do it now
 						sample->convertOneData(thisNumber);
 
-						// And now just copy the converted-from-float first bytes from the next Cluster to the end of
-						// this one
+						// And now just copy the converted-from-float first bytes from the next Cluster to the end
+						// of this one
 						goto copy7ToMe;
 					}
 				}
@@ -1280,8 +1428,8 @@ void AudioFileManager::loadAnyEnqueuedClusters(int32_t maxNum, bool mayProcessUs
 		return;
 	}
 	if (clusterBeingLoaded) {
-		return; // One might be having stuff done to it, like having its data converted, but not actually reading the
-		        // card right now
+		return; // One might be having stuff done to it, like having its data converted, but not actually reading
+		        // the card right now
 	}
 	if (AudioEngine::audioRoutineLocked) {
 		return; // Not sure if this should be neccesary?
@@ -1316,8 +1464,8 @@ performActionsAndGetOut:
 
 	while (true) {
 
-		// We now have an opportunity, since we're not reading the card, to process any pending user actions like undo /
-		// redo.
+		// We now have an opportunity, since we're not reading the card, to process any pending user actions like
+		// undo / redo.
 		if (mayProcessUserActionsBetween) {
 			playbackHandler.slowRoutine();
 		}
@@ -1346,9 +1494,9 @@ performActionsAndGetOut:
 			// been made "available" and we don't have a problem
 			if (!cluster->numReasonsToBeLoaded) {}
 
-			// Otherwise, there are still "reasons" waiting for this Cluster to become loaded, so we need to put it back
-			// in the loading queue. Presumably it won't actually get loaded for a while - only when the user re-inserts
-			// the card
+			// Otherwise, there are still "reasons" waiting for this Cluster to become loaded, so we need to put it
+			// back in the loading queue. Presumably it won't actually get loaded for a while - only when the user
+			// re-inserts the card
 			else {
 
 				if (cluster->type != ClusterType::Sample) {
@@ -1374,8 +1522,8 @@ performActionsAndGetOut:
 #endif
 }
 
-// Currently there's no risk of trying to enqueue a cluster multiple times, because this function only gets called after
-// it's freshly allocated
+// Currently there's no risk of trying to enqueue a cluster multiple times, because this function only gets called
+// after it's freshly allocated
 Error AudioFileManager::enqueueCluster(Cluster* cluster, uint32_t priorityRating) {
 	return loadingQueue.add(cluster, priorityRating);
 }
@@ -1405,9 +1553,9 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 			FREEZE_WITH_ERROR("E364");
 		}
 
-		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being loaded
-		// right now because that would have added a "reason", so we wouldn't be here.)
-		// also do this on song swap
+		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being
+		// loaded right now because that would have added a "reason", so we wouldn't be here.) also do this on song
+		// swap
 		if (loadingQueue.removeIfPresent(cluster) || deletingSong) {
 
 			// Tell its Cluster to forget it exists

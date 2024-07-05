@@ -71,6 +71,8 @@ public:
 
 	bool nextClipFoundShouldGetArmed; // Temp thing for Session::armClipsToStartOrSoloWithQuantization
 
+	bool stemExported;
+
 	// reverbAmountAdjust has "1" as 67108864
 	// Only gets called if there's an activeClip
 	virtual void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,

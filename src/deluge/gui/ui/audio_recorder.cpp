@@ -148,16 +148,20 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 }
 
 bool AudioRecorder::beginOutputRecording() {
-	bool success = setupRecordingToFile(AudioInputChannel::OUTPUT, 2, AudioRecordingFolder::RESAMPLE);
+	AudioRecordingFolder folder = AudioRecordingFolder::RESAMPLE;
+	if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
+		folder = AudioRecordingFolder::STEM;
+	}
+	bool success = setupRecordingToFile(AudioInputChannel::OUTPUT, 2, folder);
 
 	if (success) {
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
 	}
 
-	AudioEngine::bypassCulling =
-	    true; // Not 100% sure if this will help. Leo was getting culled voices right on beginning resampling
-	          // via an audition pad. But I'd more expect it to happen after the first render-window, which this
-	          // won't help. Anyway, I suppose this can't do any harm here.
+	// Rohan: Not 100% sure if this will help. Leo was getting culled voices right on beginning resampling
+	// via an audition pad. But I'd more expect it to happen after the first render-window, which this
+	// won't help. Anyway, I suppose this can't do any harm here.
+	AudioEngine::bypassCulling = true;
 
 	return success;
 }

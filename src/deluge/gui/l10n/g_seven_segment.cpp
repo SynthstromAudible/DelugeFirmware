@@ -419,6 +419,9 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_CANT_ENTER_SCALE, "CANT"},
         {STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, "CPU"},
         {STRING_FOR_HOLD_TIME, "HOLD"},
+        {STRING_FOR_CANT_EXPORT_STEMS, "CANT"},
+        {STRING_FOR_STOP_EXPORT_STEMS, "STOP"},
+        {STRING_FOR_DONE_EXPORT_STEMS, "DONE"},
     },
     &built_in::english,
 };

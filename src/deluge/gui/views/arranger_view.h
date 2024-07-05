@@ -126,6 +126,11 @@ public:
 
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
+	void disarmAllInstrumentsForStemExport();
+	void exportInstrumentStems();
+	int32_t numInstrumentsExported;
+	int32_t totalNumInstrumentsToExport;
+
 private:
 	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();

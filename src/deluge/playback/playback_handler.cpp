@@ -17,6 +17,7 @@
 
 #include "playback/playback_handler.h"
 #include "definitions_cxx.hpp"
+#include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -105,6 +106,7 @@ PlaybackHandler::PlaybackHandler() {
 	countInBars = 1;
 	timeLastMIDIStartOrContinueMessageSent = 0;
 	currentVisualCountForCountIn = 0;
+	stemExportInProgress = false;
 }
 
 extern "C" uint32_t triggerClockRisingEdgeTimes[];
@@ -274,6 +276,71 @@ void PlaybackHandler::recordButtonPressed() {
 			view.setModLedStates(); // Set song LED back
 		}
 	}
+}
+
+/// starts stem export process which includes setting up UI mode, timer, and preparing
+/// instruments / clips for exporting
+void PlaybackHandler::startStemExportProcess() {
+	// exit save UI mode and turn off save button LED
+	exitUIMode(UI_MODE_HOLDING_SAVE_BUTTON);
+	indicator_leds::setLedState(IndicatorLED::SAVE, false);
+
+	// sets up the recording mode
+	recordButtonPressed();
+
+	UI* currentUI = getCurrentUI();
+	if (currentUI == &sessionView) {
+		// prepare all the clips for stem export
+		sessionView.disarmAllClipsForStemExport();
+	}
+	else if (currentUI == &arrangerView) {
+		// prepare all the instruments for stem export
+		arrangerView.disarmAllInstrumentsForStemExport();
+	}
+
+	// enter stem export UI mode to prevent other actions from taking place while exporting stems
+	// restart file numbering for stem export
+	audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(AudioRecordingFolder::STEM)] = -1;
+	enterUIMode(UI_MODE_STEM_EXPORT);
+
+	// set timer for exporting stems
+	// this will trigger an iteration function (SessionView::exportClipStems or ArrangerView::exportInstrumentStems)
+	// which will iterate through and monitor the completion of stem exports for each clip / instrument
+	uiTimerManager.setTimer(TimerName::EXPORT_STEMS, 100);
+}
+
+/// Stop stem export process
+void PlaybackHandler::stopStemExportProcess() {
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_STOP_EXPORT_STEMS));
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	exitUIMode(UI_MODE_STEM_EXPORT);
+	stopOutputRecordingAndPlayback();
+	stemExportInProgress = false;
+}
+
+/// Simulate pressing record and play in order to trigger resampling of out output that ends when loop ends
+void PlaybackHandler::startOutputRecordingUntilLoopEnd() {
+	playButtonPressed(kInternalButtonPressLatency);
+	if (isEitherClockActive()) {
+		audioRecorder.beginOutputRecording();
+		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
+			currentPlaybackMode->stopOutputRecordingAtLoopEnd();
+		}
+	}
+}
+
+/// simulate pressing record and then play to stop output-recording and playback immediately
+void PlaybackHandler::stopOutputRecordingAndPlayback() {
+	if (audioRecorder.isCurrentlyResampling()) {
+		audioRecorder.endRecordingSoon(kInternalButtonPressLatency);
+		recordButtonPressed();
+	}
+	if (isEitherClockActive()) {
+		playButtonPressed(kInternalButtonPressLatency);
+	}
+	audioFileManager.highestUsedStemFolderNumber++;
 }
 
 void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency, bool allowCountIn) {

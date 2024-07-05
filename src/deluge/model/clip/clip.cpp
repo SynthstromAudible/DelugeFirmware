@@ -68,6 +68,8 @@ Clip::Clip(ClipType newType) : type(newType) {
 	lastSelectedPatchSource = PatchSource::NONE;
 	// end initialize of automation clip view variables
 
+	stemExported = false;
+
 #if HAVE_SEQUENCE_STEP_CONTROL
 	sequenceDirectionMode = SequenceDirection::FORWARD;
 #endif

@@ -24,6 +24,7 @@
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/launch_style.h"
 #include "gui/menu_item/colour.h"
+#include "gui/ui/audio_recorder.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -87,6 +88,10 @@ SessionView sessionView{};
 
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
+
+	// stem export
+	numClipsExported = 0;
+	totalNumClipsToExport = 0;
 }
 
 bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -357,6 +362,16 @@ moveAfterClipInstance:
 				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 				view.blinkOn = true;
 			}
+			// trigger stem export when pressing record while holding save
+			else if (isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+				if (playbackHandler.isEitherClockActive() || playbackHandler.recording != RecordingMode::OFF) {
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
+				}
+				else {
+					playbackHandler.startStemExportProcess();
+					return ActionResult::DEALT_WITH;
+				}
+			}
 			else {
 				goto notDealtWith;
 			}
@@ -373,6 +388,13 @@ moveAfterClipInstance:
 			}
 		}
 		return ActionResult::NOT_DEALT_WITH; // Make the MatrixDriver do its normal thing with it too
+	}
+
+	// cancel stem export process
+	else if (b == BACK && currentUIMode == UI_MODE_STEM_EXPORT) {
+		if (on) {
+			playbackHandler.stopStemExportProcess();
+		}
 	}
 
 	// Overwrite to allow not showing zoom level in grid
@@ -1717,6 +1739,10 @@ void SessionView::setLedStates() {
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (currentUIMode == UI_MODE_STEM_EXPORT) {
+		return;
+	}
+
 	UI* currentUI = getCurrentUI();
 	if (currentUI != &performanceSessionView) {
 		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
@@ -1744,7 +1770,7 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
-	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+	if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || currentUIMode == UI_MODE_STEM_EXPORT)) {
 		return;
 	}
 
@@ -2070,6 +2096,139 @@ void SessionView::graphicsRoutine() {
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
+/// disarms and prepares all the clips so that they can be exported
+void SessionView::disarmAllClipsForStemExport() {
+	// when we begin stem export, we haven't exported any clips yet, so initialize these variables
+	numClipsExported = 0;
+	playbackHandler.stemExportInProgress = false;
+	currentSong->xScroll[NAVIGATION_CLIP] = 0;
+
+	// when we trigger stem export, we don't know how many clips there are yet
+	// so get the number and store it so we only need to ping getNumElements once
+	totalNumClipsToExport = currentSong->sessionClips.getNumElements();
+
+	if (totalNumClipsToExport) {
+		// iterate through all clips to disable all the recording relevant flags
+		for (int32_t idxClip = 0; idxClip < totalNumClipsToExport; ++idxClip) {
+			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+			if (clip) {
+				clip->stemExported = false;
+				clip->activeIfNoSolo = false;
+				clip->armState = ArmState::OFF;
+				clip->armedForRecording = false;
+				clip->soloingInSessionMode = false;
+			}
+		}
+	}
+}
+
+/// iterates through all clips, arming one clip at a time for recording
+/// simulates the button combo action of pressing record + play twice to enable resample
+/// and stop recording at the end of the clip's loop length
+void SessionView::exportClipStems() {
+	// if you're currently recording output and playback is off, it means recording is finishing
+	// don't iterate through anymore clips until current output recording is done
+	if (audioRecorder.recordingSource > AudioInputChannel::NONE && !playbackHandler.isEitherClockActive()) {
+		return;
+	}
+
+	// are we currently in the UI mode for exporting clip stems
+	if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
+		// have we started looping already? if we have, then we know how many clips to export
+		if (totalNumClipsToExport) {
+			// if we know how many clips to export, we can check if we've already exported all the clips
+			// and are therefore done and should exit out of the stem export UI mode
+			if (numClipsExported >= totalNumClipsToExport) {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DONE_EXPORT_STEMS));
+				exitUIMode(UI_MODE_STEM_EXPORT);
+				audioFileManager.highestUsedStemFolderNumber++;
+				// if we're in song row view, we'll reset the y scroll so we're back at the top
+				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+					currentSong->songViewYScroll = totalNumClipsToExport - kDisplayHeight;
+					uiNeedsRendering(this);
+				}
+				// re-render "Song View" on the display we're using OLED
+				if (display->haveOLED()) {
+					renderUIsForOled();
+				}
+				return;
+			}
+			// we haven't exported all the clips yet
+			// so display the number of clips we've exported so far
+			else {
+				DEF_STACK_STRING_BUF(exportStatus, 50);
+				if (display->haveOLED()) {
+					exportStatus.append("Exported ");
+					exportStatus.appendInt(numClipsExported);
+					exportStatus.append(" of ");
+					exportStatus.appendInt(totalNumClipsToExport);
+					exportStatus.append(" clips");
+				}
+				else {
+					exportStatus.appendInt(totalNumClipsToExport - numClipsExported);
+				}
+				display->displayPopup(exportStatus.c_str());
+			}
+
+			// now we're going to iterate through all clips to find the first clip that hasn't been exported yet
+			for (int32_t idxClip = totalNumClipsToExport - 1; idxClip >= 0; --idxClip) {
+				Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+				// if clip stem has not been exported, we want to export it
+				if (clip && !clip->stemExported) {
+					// if stem export has not started and playback is not running
+					// then arm it, toggle recording and hit play
+					if (!playbackHandler.stemExportInProgress && !playbackHandler.isEitherClockActive()) {
+						if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+							int32_t yScrollForDisplay = (idxClip - kDisplayHeight + 1);
+							if (currentSong->songViewYScroll != yScrollForDisplay) {
+								// scroll clip being exported to top of grid
+								currentSong->songViewYScroll = yScrollForDisplay;
+							}
+						}
+						clip->armState = ArmState::ON_NORMAL;
+						clip->armedForRecording = true;
+						clip->activeIfNoSolo = true;
+
+						uiNeedsRendering(this); // re-render song view
+
+						playbackHandler.startOutputRecordingUntilLoopEnd();
+						playbackHandler.stemExportInProgress = true;
+
+						// only processing one clip at a time, so break out of the loop
+						break;
+					}
+					// if stem export has started and playback is no longer running
+					// it means recording of this clip has finished
+					else if (playbackHandler.stemExportInProgress && !playbackHandler.isEitherClockActive()) {
+						playbackHandler.stemExportInProgress = false;
+
+						// mark clip stem as being exported so that we don't try to export this clip again
+						// in the current stem export session
+						clip->stemExported = true;
+						clip->activeIfNoSolo = false;
+						clip->armState = ArmState::OFF;
+						clip->armedForRecording = false;
+
+						numClipsExported++;
+
+						uiNeedsRendering(this); // re-render song view
+					}
+					// we're currently exporting this clip, so break out and we'll come back later to check
+					// on the status to determine whether to proceed to the next clip
+					else {
+						break;
+					}
+				}
+				// in the event that stem exporting is cancelled while iterating through clips
+				// break out of the loop
+				if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+					break;
+				}
+			}
+		}
+	}
+}
+
 void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 	if (ui == &performanceSessionView) {
 		// don't re-render main pads in performance view
@@ -2309,8 +2468,8 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 		if (view.midiLearnFlashOn && ((Instrument*)clip->output)->midiInput.containsSomething()) {
 
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it looks
-				// mental, and I think one user was having it cause his Deluge to freeze due to underpowering.
+				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it
+				// looks mental, and I think one user was having it cause his Deluge to freeze due to underpowering.
 				thisImage[xDisplay] = colours::midi_command.dim();
 			}
 		}
@@ -3227,8 +3386,8 @@ void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
 }
 
 ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
-	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably be
-	// refactored
+	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably
+	// be refactored
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}

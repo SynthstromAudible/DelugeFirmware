@@ -96,8 +96,9 @@ public:
 	Error setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath);
 	Error setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
+	Error getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder);
 	Error getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
-	                                      AudioRecordingFolder folderID, uint32_t* getNumber);
+	                                      AudioRecordingFolder folder, uint32_t* getNumber);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int32_t i);
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);
@@ -128,6 +129,9 @@ public:
 
 	int32_t highestUsedAudioRecordingNumber[kNumAudioRecordingFolders];
 	bool highestUsedAudioRecordingNumberNeedsReChecking[kNumAudioRecordingFolders];
+
+	int32_t highestUsedStemFolderNumber;
+	String lastSongNameForStemExport;
 
 private:
 	void setClusterSize(uint32_t newSize);

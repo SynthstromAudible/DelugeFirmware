@@ -759,6 +759,9 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CANT_ENTER_SCALE, "Can't enter scale mode, MIDI transpose is chromatic"},
         {STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, "High CPU Indicator"},
         {STRING_FOR_HOLD_TIME, "Hold Press Time"},
+        {STRING_FOR_CANT_EXPORT_STEMS, "Turn off playback and/or recording"},
+        {STRING_FOR_STOP_EXPORT_STEMS, "Stem Export Cancelled"},
+        {STRING_FOR_DONE_EXPORT_STEMS, "Stem Export Finished"},
     },
 };
 } // namespace deluge::l10n::built_in
