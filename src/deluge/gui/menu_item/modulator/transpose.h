@@ -29,20 +29,19 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
-		this->setValue((int32_t)soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex] * 100
-		               + soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex]);
+		this->setValue(computeCurrentValueForTranspose(
+		    soundEditor.currentSound->modulatorTranspose[soundEditor.currentSourceIndex],
+		    soundEditor.currentSound->modulatorCents[soundEditor.currentSourceIndex]));
 	}
 
 	void writeCurrentValue() override {
-		int32_t currentValue = this->getValue() + 25600;
-
-		int32_t semitones = (currentValue + 50) / 100;
-		int32_t cents = currentValue - semitones * 100;
+		int32_t transpose, cents;
+		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-		soundEditor.currentSound->setModulatorTranspose(soundEditor.currentSourceIndex, semitones - 256, modelStack);
+		soundEditor.currentSound->setModulatorTranspose(soundEditor.currentSourceIndex, transpose, modelStack);
 		soundEditor.currentSound->setModulatorCents(soundEditor.currentSourceIndex, cents, modelStack);
 	}
 
