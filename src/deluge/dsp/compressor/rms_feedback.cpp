@@ -127,10 +127,6 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	gainReduction = std::clamp<int32_t>(-(reduction) * 4 * 4, 0, 127);
 	// calc compression for next round (feedback compressor)
 	rms = calcRMS(buffer, numSamples);
-
-	for (int i = 0; i < numSamples; i++) {
-		// multiply in place - implicitly divides by two
-	}
 }
 
 float RMSFeedbackCompressor::runEnvelope(float current, float desired, float numSamples) const {
