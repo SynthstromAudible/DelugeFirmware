@@ -26,6 +26,7 @@
 ///
 /// Done:
 /// - audio_compressor::CompParam
+/// - audio_clip::Attack
 /// - arpeggiator::midi_cv::Gate
 /// - arpeggiator::midi_cv::RatchetAmount
 /// - arpeggiator::midi_cv::RatchetProbability
@@ -47,6 +48,7 @@
 /// - arpeggiator::OctaveModeToNote
 /// - arpeggiator::Octaves
 /// - arpeggiator::PresetMode
+/// - audio_clip::Reverse
 ///
 /// Special cases:
 /// - arpeggiator::Sync - uses syncTypeAndLevelToMenuOption() to pack two values,
@@ -72,6 +74,31 @@ int32_t computeCurrentValueForStandardMenuItem(int32_t value);
  */
 int32_t computeFinalValueForStandardMenuItem(int32_t value);
 
+/** Scales INT32_MIN-INT32_MAX range to 0-50 for display.
+ *
+ * This roundtrips with the final value math despite being not being it's
+ * proper inverse.
+ *
+ * Thin wrapper for clarity.
+ */
+inline int32_t computeCurrentValueForSemiStandardMenuItem(int32_t value) {
+	return computeCurrentValueForStandardMenuItem(value);
+}
+
+/** Scales 0-50 range to INT32_MIN-(INT32_MAX-45) for storage and use.
+ *
+ * It is unclear when this is used intentionally, and when by accident.
+ *
+ * - arpeggiator::midi_cv::Gate: possibly so that gate
+ *   will momentarily go down even at 50: the values produced create a 2.5ms
+ *   gate down period between 16th arp notes at Gate=50, which exactly matches
+ *   the gate down period between regular 16h notes.
+ *
+ * NOTE: computeFinalValueForArpMidiRate() is _almost_ but not quite
+ * the same: this one returns -23 for zero, that one returns 0.
+ */
+int32_t computeFinalValueForSemiStandardMenuItem(int32_t value);
+
 /** Scales 0-INT32_MAX range to 0-50 for display.
  */
 int32_t computeCurrentValueForHalfPrecisionMenuItem(int32_t value);
@@ -87,28 +114,6 @@ int32_t computeCurrentValueForPan(int32_t value);
 /** Scales -25 to 25 range to INT32_MIN-INT32_MAX for storage and use.
  */
 int32_t computeFinalValueForPan(int32_t value);
-
-/** Scales INT32_MIN-INT32_MAX range to 0-50 for display.
- *
- * This roundtrips with the final value math despite not
- * being it's proper inverse.
- *
- * This is exactly the same as the "standard" version, but
- * has a wrapper for clarity, because the final value compuation
- * is different.
- */
-int32_t computeCurrentValueForArpMidiCvGate(int32_t value);
-
-/** Scales 0-50 range to INT32_MIN-(INT32_MAX-45) for storage and use.
- *
- * This is presumably to have the gate go down even at 50: the values
- * produced create a 2.5ms gate down period between 16th arp notes at Gate=50,
- * which exactly matches the gate down period between regular 16h notes.
- *
- * NOTE: computeFinalValueForArpMidiRate() is _almost_ but not quite
- * the same: this one returns -23 for zero, that one returns 0.
- */
-int32_t computeFinalValueForArpMidiCvGate(int32_t value);
 
 /** Scales UINT32 range to 0-50 for display.
  *
@@ -138,17 +143,17 @@ uint32_t computeFinalValueForArpMidiCvRatchetsOrRhythm(int32_t value);
  * This roundtrips with the final value math despite being
  * not being it's proper inverse.
  *
- * This is exactly the same as the "standard" version, but
- * has a wrapper for clarity, because the final value compuation
- * is different.
+ * Thin wrapper for clarity.
  */
-int32_t computeCurrentValueForArpMidiCvRate(int32_t value);
+inline int32_t computeCurrentValueForArpMidiCvRate(int32_t value) {
+	return computeCurrentValueForStandardMenuItem(value);
+}
 
 /** Scales 0-50 range to INT32_MIN-(INT32_MAX-45) for storage and use.
  *
  * arpeggiator::midi_cv::Rate uses this, it is not obvious why, though.
  *
- * NOTE: computeFinalValueForArpMidiGate() is _almost_ but not quite
- * the same: this one returns 0 for 0, whereas that one does not.
+ * NOTE: computeFinalValueForSemiStandardMenuItem() is _almost_ but not quite
+ * the same: this one returns 0 for kMidMenuValue, whereas that one does not.
  */
 int32_t computeFinalValueForArpMidiCvRate(int32_t value);

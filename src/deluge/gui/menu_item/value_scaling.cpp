@@ -16,16 +16,13 @@ int32_t computeCurrentValueForPan(int32_t value) {
 	return ((int64_t)value * (kMaxMenuRelativeValue * 2) + 2147483648) >> 32;
 }
 
-int32_t computeCurrentValueForArpMidiCvGate(int32_t value) {
-	return computeCurrentValueForStandardMenuItem(value);
-}
-
 int32_t computeCurrentValueForArpMidiCvRatchetsOrRhythm(uint32_t value) {
 	return ((int64_t)value * kMaxMenuValue + 2147483648) >> 32;
 }
 
-int32_t computeCurrentValueForArpMidiCvRate(int32_t value) {
-	return computeCurrentValueForStandardMenuItem(value);
+int32_t computeFinalValueForSemiStandardMenuItem(int32_t value) {
+	// (2147483648 / kMidMenuValue) == 85899345
+	return (uint32_t)value * 85899345 - 2147483648;
 }
 
 int32_t computeFinalValueForStandardMenuItem(int32_t value) {
@@ -36,20 +33,7 @@ int32_t computeFinalValueForStandardMenuItem(int32_t value) {
 		return -2147483648;
 	}
 	else {
-		return (uint32_t)value * (2147483648 / kMidMenuValue) - 2147483648;
-	}
-}
-
-int32_t computeFinalValueForCompParam(int32_t value) {
-	// comp params aren't set up for negative inputs - this is the same as osc pulse width
-	if (value == kMaxMenuValue) {
-		return 2147483647;
-	}
-	else if (value == kMinMenuValue) {
-		return 0;
-	}
-	else {
-		return (uint32_t)value * (2147483648 / kMidMenuValue) >> 1;
+		return computeFinalValueForSemiStandardMenuItem(value);
 	}
 }
 
@@ -78,10 +62,6 @@ int32_t computeFinalValueForPan(int32_t value) {
 	}
 }
 
-int32_t computeFinalValueForArpMidiCvGate(int32_t value) {
-	return (uint32_t)value * 85899345 - 2147483648;
-}
-
 uint32_t computeFinalValueForArpMidiCvRatchetsOrRhythm(int32_t value) {
 	return (uint32_t)value * 85899345;
 }
@@ -91,6 +71,6 @@ int32_t computeFinalValueForArpMidiCvRate(int32_t value) {
 		return 0;
 	}
 	else {
-		return (uint32_t)value * 85899345 - 2147483648;
+		return computeFinalValueForSemiStandardMenuItem(value);
 	}
 }

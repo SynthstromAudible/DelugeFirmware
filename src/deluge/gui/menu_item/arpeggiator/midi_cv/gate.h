@@ -26,10 +26,10 @@ class Gate final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForArpMidiCvGate(getCurrentInstrumentClip()->arpeggiatorGate));
+		this->setValue(computeCurrentValueForStandardMenuItem(getCurrentInstrumentClip()->arpeggiatorGate));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorGate = computeFinalValueForArpMidiCvGate(this->getValue());
+		getCurrentInstrumentClip()->arpeggiatorGate = computeFinalValueForSemiStandardMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
