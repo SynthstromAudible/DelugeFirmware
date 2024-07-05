@@ -559,7 +559,6 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 		// problems?
 
 		if (!isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
-			D_PRINTLN("no timer ISR");
 			if (anythingInGateOutputBufferNow) {
 				cvEngine.updateGateOutputs();
 			}
