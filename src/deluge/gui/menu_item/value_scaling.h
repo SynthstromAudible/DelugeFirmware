@@ -38,6 +38,20 @@
 /// - unpatched_param::Pan
 /// - unpatched_param::UnpatchedParam
 ///
+/// Done, but current value == final value so no function
+/// - arpeggiator::ArpMpeVelocity
+/// - arpeggiator::Mode
+/// - arpeggiator::NoteMode
+/// - arpeggiator::NoteModeFromOctave
+/// - arpeggiator::OctaveMode
+/// - arpeggiator::OctaveModeToNote
+/// - arpeggiator::Octaves
+/// - arpeggiator::PresetMode
+///
+/// Special cases:
+/// - arpeggiator::Sync - uses syncTypeAndLevelToMenuOption() to pack two values,
+///   and menuOptionToSyncType|Level() to unpack them.
+///
 /// As stuff is extraced and turns out to be functionally identical the dupes
 /// should be eliminated.
 ///
