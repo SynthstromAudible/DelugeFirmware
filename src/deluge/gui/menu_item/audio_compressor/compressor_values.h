@@ -81,4 +81,25 @@ public:
 	const char* getUnit() override { return " HZ"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
 };
+class Blend final : public Integer {
+public:
+	using Integer::Integer;
+	void readCurrentValue() override {
+		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getBlend();
+		this->setValue(value >> 24);
+	}
+	void writeCurrentValue() override {
+		auto value = this->getValue();
+		if (value < kMaxKnobPos) {
+			q31_t knobPos = lshiftAndSaturate<24>(value);
+			soundEditor.currentModControllable->compressor.setBlend(knobPos);
+		}
+		else if (value == kMaxKnobPos) {
+			soundEditor.currentModControllable->compressor.setBlend(ONE_Q31);
+		}
+	}
+	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
+	const char* getUnit() override { return " %"; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
+};
 } // namespace deluge::gui::menu_item::audio_compressor

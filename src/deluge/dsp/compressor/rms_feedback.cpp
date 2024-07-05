@@ -17,6 +17,7 @@
 
 #include "dsp/compressor/rms_feedback.h"
 #include "util/fixedpoint.h"
+StereoSample dryBuffer[SSI_TX_BUFFER_NUM_SAMPLES]{0};
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {
 	setAttack(5 << 24);
@@ -24,6 +25,7 @@ RMSFeedbackCompressor::RMSFeedbackCompressor() {
 	setThreshold(0);
 	setRatio(64 << 24);
 	setSidechain(0);
+	setBlend(ONE_Q31);
 	// Default to the maximum useful base gain
 	baseGain_ = 1.35f;
 }
@@ -56,6 +58,11 @@ void RMSFeedbackCompressor::renderVolNeutral(StereoSample* buffer, uint16_t numS
 constexpr uint8_t saturationAmount = 3;
 void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q31_t volAdjustL, q31_t volAdjustR,
                                    q31_t finalVolume) {
+	// make a copy for blending if we need to
+	if (wet != ONE_Q31) {
+		memcpy(dryBuffer, buffer, numSamples * sizeof(StereoSample));
+	}
+
 	if (!onLastTime) {
 		// sets the "working level" for interpolation and anti aliasing
 		lastSaturationTanHWorkingValue[0] =
@@ -90,19 +97,29 @@ void RMSFeedbackCompressor::render(StereoSample* buffer, uint16_t numSamples, q3
 	q31_t amplitudeIncrementR = ((int32_t)((finalVolumeR - (currentVolumeR >> 8)) / float(numSamples))) << 8;
 
 	StereoSample* thisSample = buffer;
+	StereoSample* drySample = dryBuffer;
 	StereoSample* bufferEnd = buffer + numSamples;
 
 	do {
 		currentVolumeL += amplitudeIncrementL;
 		currentVolumeR += amplitudeIncrementR;
-		// Apply post-fx and post-reverb-send volume
-		//
 		// Need to shift left by 4 because currentVolumeL is a 5.26 signed number rather than a 1.30 signed.
 		thisSample->l = multiply_32x32_rshift32(thisSample->l, currentVolumeL) << 4;
 		thisSample->l = getTanHAntialiased(thisSample->l, &lastSaturationTanHWorkingValue[0], saturationAmount);
 
 		thisSample->r = multiply_32x32_rshift32(thisSample->r, currentVolumeR) << 4;
 		thisSample->r = getTanHAntialiased(thisSample->r, &lastSaturationTanHWorkingValue[1], saturationAmount);
+		// wet/dry blend
+		if (wet != ONE_Q31) {
+			thisSample->l = multiply_32x32_rshift32(thisSample->l, wet);
+			thisSample->l = multiply_accumulate_32x32_rshift32_rounded(thisSample->l, drySample->l, dry);
+			thisSample->l <<= 1; // correct for the two multiplications
+			// same for r because StereoSample is a dumb class
+			thisSample->r = multiply_32x32_rshift32(thisSample->r, wet);
+			thisSample->r = multiply_accumulate_32x32_rshift32_rounded(thisSample->r, drySample->r, dry);
+			thisSample->r <<= 1;
+			++drySample; // this is a little gross but it's fine
+		}
 
 	} while (++thisSample != bufferEnd);
 	// for LEDs

@@ -947,6 +947,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 	writer.writeAttribute("thresh", compressor.getThreshold());
 	writer.writeAttribute("ratio", compressor.getRatio());
 	writer.writeAttribute("compHPF", compressor.getSidechain());
+	writer.writeAttribute("compBlend", compressor.getBlend());
 	writer.closeTag();
 }
 
@@ -1165,6 +1166,11 @@ doReadPatchedParam:
 				q31_t masterCompressorSidechain = reader.readTagOrAttributeValueInt();
 				compressor.setSidechain(masterCompressorSidechain);
 				reader.exitTag("compHPF");
+			}
+			else if (!strcmp(tagName, "compBlend")) {
+				q31_t masterCompressorBlend = reader.readTagOrAttributeValueInt();
+				compressor.setRelease(masterCompressorBlend);
+				reader.exitTag("compBlend");
 			}
 			else {
 				reader.exitTag(tagName);
