@@ -9,6 +9,20 @@
           </envs>
         </ADDITIONAL_GENERATION_ENVIRONMENT>
       </configuration>
+      <configuration PROFILE_NAME="RelWithDebInfo" ENABLED="true" GENERATION_DIR="build" CONFIG_NAME="RelWithDebInfo" GENERATION_OPTIONS="-DCMAKE_TOOLCHAIN_FILES=scripts/cmake/CMakeToolchainDeluge.cmake --no-warn-unused-cli -G &quot;Ninja Multi-Config&quot;">
+        <ADDITIONAL_GENERATION_ENVIRONMENT>
+          <envs>
+            <env name="DELUGE_FW_ROOT" value="$PROJECT_DIR$" />
+          </envs>
+        </ADDITIONAL_GENERATION_ENVIRONMENT>
+      </configuration>
+      <configuration PROFILE_NAME="Release" ENABLED="true" GENERATION_DIR="build" CONFIG_NAME="Release" GENERATION_OPTIONS="-DCMAKE_TOOLCHAIN_FILES=scripts/cmake/CMakeToolchainDeluge.cmake --no-warn-unused-cli -G &quot;Ninja Multi-Config&quot;">
+        <ADDITIONAL_GENERATION_ENVIRONMENT>
+          <envs>
+            <env name="DELUGE_FW_ROOT" value="$PROJECT_DIR$" />
+          </envs>
+        </ADDITIONAL_GENERATION_ENVIRONMENT>
+      </configuration>
     </configurations>
   </component>
 </project>
