@@ -624,22 +624,14 @@ void PlaybackHandler::actionTimerTickPart2() {
 			getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
 			uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
 			static bool triggered = false;
-maybeDoTriggerClockOutputTick:
 			uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
 
 			if (fractionNextAnalogOutTick <= fractionLastTimerTick) {
-				// theory - if we do this instead of scheduling it (handled at end of current audio routine), and the
-				// next tick isn't in this window, then this tick is picked up at the start of the audio routine and not
-				// by an ISR
+
 				doTriggerClockOutTick();
-				if (triggered == true) {
-					D_PRINTLN("double trigger");
-				}
-				triggered = true;
-				// goto maybeDoTriggerClockOutputTick;
+
 				fractionNextAnalogOutTick += internalTicksPer;
 			}
-			triggered = false;
 			// Schedule another trigger clock output tick
 			scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick, fractionNextAnalogOutTick);
 		}
@@ -652,12 +644,11 @@ maybeDoTriggerClockOutputTick:
 			getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
 			uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
 
-maybeDoMIDIClockOutputTick:
 			uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
 
 			if (fractionNextMIDIClockOutTick <= fractionLastTimerTick) {
 				doMIDIClockOutTick();
-				goto maybeDoMIDIClockOutputTick;
+				fractionNextMIDIClockOutTick += midiClockOutTicksPer;
 			}
 
 			// Schedule another MIDI clock output tick
@@ -722,6 +713,10 @@ void PlaybackHandler::scheduleMIDIClockOutTickParamsKnown(uint32_t midiClockOutT
 }
 
 void PlaybackHandler::doMIDIClockOutTick() {
+	// we need to flush the buffer in case there's a clock in it, otherwise both will be sent at once
+	if (midiEngine.anythingInOutputBuffer()) {
+		midiEngine.flushMIDI();
+	}
 	midiClockOutTickScheduled = false;
 	lastMIDIClockOutTickDone++;
 	midiEngine.sendClock(this, true);

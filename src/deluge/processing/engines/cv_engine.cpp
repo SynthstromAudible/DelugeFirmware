@@ -251,6 +251,7 @@ int32_t CVEngine::calculateVoltage(int32_t note, uint8_t channel) {
 }
 
 void CVEngine::analogOutTick() {
+	updateGateOutputs();
 	clockState = !clockState;
 	updateClockOutput();
 }
