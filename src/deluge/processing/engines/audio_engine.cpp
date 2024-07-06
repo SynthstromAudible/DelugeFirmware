@@ -953,6 +953,7 @@ void routine() {
 
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
+		ignoreForStats();
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
 		        // called from within this!
 	}
