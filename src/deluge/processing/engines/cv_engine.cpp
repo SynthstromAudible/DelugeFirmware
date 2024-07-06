@@ -251,6 +251,8 @@ int32_t CVEngine::calculateVoltage(int32_t note, uint8_t channel) {
 }
 
 void CVEngine::analogOutTick() {
+	// we need to do this in case there's a clock pending, otherwise both will be sent at once.
+    // gate update function checks and sends the update if there is
 	updateGateOutputs();
 	clockState = !clockState;
 	updateClockOutput();
