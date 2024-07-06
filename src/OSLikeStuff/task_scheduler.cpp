@@ -302,24 +302,27 @@ void TaskManager::setNextRunTimeforCurrentTask(double seconds) {
 void TaskManager::runTask(TaskID id) {
 	countThisTask = true;
 	auto timeNow = getSecondsFromStart();
+    double startTime = timeNow;
 	// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
 	overhead += timeNow - list[currentID].lastFinishTime;
 	currentID = id;
 	auto currentTask = &list[currentID];
-#if SCHEDULER_DETAILED_STATS
-	currentTask->latency.update(timeNow - currentTask->lastCallTime);
-#endif
-	currentTask->lastCallTime = timeNow;
+
 	currentTask->handle();
 	timeNow = getSecondsFromStart();
 	if (currentTask->removeAfterUse) {
 		removeTask(id);
 	}
 	else {
-		currentTask->lastFinishTime = timeNow;
+        if (countThisTask) {
+#if SCHEDULER_DETAILED_STATS
+        currentTask->latency.update(startTime - currentTask->lastCallTime);
+#endif
+        currentTask->lastCallTime = startTime;
+        currentTask->lastFinishTime = timeNow;
 		double runtime = (currentTask->lastFinishTime - currentTask->lastCallTime);
 		cpuTime += runtime;
-		if (countThisTask) {
+
 			currentTask->durationStats.update(runtime);
 			currentTask->totalTime += runtime;
 			currentTask->lastRunTime = runtime;
