@@ -251,6 +251,9 @@ int32_t CVEngine::calculateVoltage(int32_t note, uint8_t channel) {
 }
 
 void CVEngine::analogOutTick() {
+	// we need to do this in case there's a clock pending, otherwise both will be sent at once.
+	// gate update function checks and sends the update if there is
+	updateGateOutputs();
 	clockState = !clockState;
 	updateClockOutput();
 }
@@ -303,6 +306,9 @@ void CVEngine::setGateType(uint8_t channel, GateType value) {
 }
 
 void CVEngine::updateClockOutput() {
+	if (clockOutputPending) {
+		D_PRINTLN("update clock while clock pending");
+	}
 	if (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode != GateType::SPECIAL) {
 		return;
 	}

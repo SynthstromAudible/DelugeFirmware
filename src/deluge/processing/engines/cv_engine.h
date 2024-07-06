@@ -68,10 +68,11 @@ public:
 	void analogOutTick();
 	void playbackBegun();
 	void playbackEnded();
+	/// toggles clock, does not physically update until updateGateOutputs called
 	void updateClockOutput();
 	void updateRunOutput();
 	bool isTriggerClockOutputEnabled();
-
+	/// physically send all gate outs if any output pending
 	void updateGateOutputs();
 
 	GateChannel gateChannels[NUM_GATE_CHANNELS];

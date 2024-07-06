@@ -623,15 +623,12 @@ void PlaybackHandler::actionTimerTickPart2() {
 			uint32_t analogOutTicksPer;
 			getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
 			uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
-
-maybeDoTriggerClockOutputTick:
 			uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
 
 			if (fractionNextAnalogOutTick <= fractionLastTimerTick) {
 				doTriggerClockOutTick();
-				goto maybeDoTriggerClockOutputTick;
+				fractionNextAnalogOutTick += internalTicksPer;
 			}
-
 			// Schedule another trigger clock output tick
 			scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick, fractionNextAnalogOutTick);
 		}
@@ -644,12 +641,11 @@ maybeDoTriggerClockOutputTick:
 			getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
 			uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
 
-maybeDoMIDIClockOutputTick:
 			uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
 
 			if (fractionNextMIDIClockOutTick <= fractionLastTimerTick) {
 				doMIDIClockOutTick();
-				goto maybeDoMIDIClockOutputTick;
+				fractionNextMIDIClockOutTick += midiClockOutTicksPer;
 			}
 
 			// Schedule another MIDI clock output tick
@@ -714,6 +710,10 @@ void PlaybackHandler::scheduleMIDIClockOutTickParamsKnown(uint32_t midiClockOutT
 }
 
 void PlaybackHandler::doMIDIClockOutTick() {
+	// we need to flush the buffer in case there's a clock in it, otherwise both will be sent at once
+	if (midiEngine.anythingInOutputBuffer()) {
+		midiEngine.flushMIDI();
+	}
 	midiClockOutTickScheduled = false;
 	lastMIDIClockOutTickDone++;
 	midiEngine.sendClock(this, true);
