@@ -554,7 +554,6 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 		// it)
 		// - otherwise this will all get called soon anyway. I thiiiink this is 100% immune to any synchronization
 		// problems?
-
 		if (!isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
 			if (anythingInGateOutputBufferNow) {
 				cvEngine.updateGateOutputs();
