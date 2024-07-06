@@ -546,8 +546,8 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	// output and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and
 	// also want to give them a head-start being sent and out of the way so the clock messages can be sent on-time
 	bool anythingInMidiOutputBufferNow = midiEngine.anythingInOutputBuffer();
-    bool anythingInGateOutputBufferNow =
-            cvEngine.gateOutputPending || cvEngine.clockOutputPending; // Not asapGateOutputPending (RUN)
+	bool anythingInGateOutputBufferNow =
+	    cvEngine.gateOutputPending || cvEngine.clockOutputPending; // Not asapGateOutputPending (RUN)
 	if (anythingInMidiOutputBufferNow || anythingInGateOutputBufferNow) {
 
 		// We're only allowed to do this if the timer ISR isn't pending (i.e. we haven't enabled to timer to trigger
