@@ -623,13 +623,10 @@ void PlaybackHandler::actionTimerTickPart2() {
 			uint32_t analogOutTicksPer;
 			getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
 			uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
-			static bool triggered = false;
 			uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
 
 			if (fractionNextAnalogOutTick <= fractionLastTimerTick) {
-
 				doTriggerClockOutTick();
-
 				fractionNextAnalogOutTick += internalTicksPer;
 			}
 			// Schedule another trigger clock output tick
