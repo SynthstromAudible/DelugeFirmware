@@ -148,7 +148,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	swingAmount = 0;
 
-	swingInterval = 8 - insideWorldTickMagnitude; // 16th notes
+	swingInterval = FlashStorage::defaultSwingInterval;
 
 	songViewYScroll = 1 - kDisplayHeight;
 	arrangementYScroll = -kDisplayHeight;
@@ -232,7 +232,7 @@ Song::~Song() {
 #include "gui/menu_item/key_range.h"
 #include "timers_interrupts/timers_interrupts.h"
 extern gui::menu_item::IntegerRange defaultTempoMenu;
-extern gui::menu_item::IntegerRange defaultSwingMenu;
+extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
 
 Clip* Song::getCurrentClip() {
@@ -245,7 +245,7 @@ void Song::setupDefault() {
 	seedRandom();
 
 	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
-	swingAmount = defaultSwingMenu.getRandomValueInRange() - 50;
+	swingAmount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
 	key.rootNote = defaultKeyMenu.getRandomValueInRange();
 
 	// Do scale

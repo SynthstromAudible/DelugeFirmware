@@ -26,6 +26,7 @@
 #include "model/output.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
+#include "model/sync.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"

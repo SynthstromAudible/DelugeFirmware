@@ -132,12 +132,17 @@ Here is a list of general improvements that have been made, ordered from newest 
   updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi
   feedback enabled, this will also send updated cc feedback for the new kit row selection.
 
-#### 3.4 - Tempo
+#### 3.4 - Tempo & Swing
 
 - ([#178]) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
   encoder. With this option enabled the tempo changes by 1 when unpushed and ~4 when pushed (vs ~4 unpushed and 1 pushed
   in the official firmware).
     - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
+- ([#2264]) Swing interval can now be changed by holding `TAP TEMPO` button while turning the `TEMPO` encoder. To view current
+  swing interval hold `TAP TEMPO` and press `TEMPO`. The menu for setting the swing interval has been moved from
+  `SETTINGS > SWING INTERVAL` to `SONG > SWING INTERVAL`. Additionally, when changing either swing amount or interval using the
+  `TEMPO` encoder, first encoder detent shows the current swing without changing it, with subsequent ones editing it.
 
 #### 3.5 - Kits
 

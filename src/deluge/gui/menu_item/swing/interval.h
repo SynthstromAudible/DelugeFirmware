@@ -20,26 +20,16 @@
 
 namespace deluge::gui::menu_item::swing {
 
-class Interval final : public SyncLevel {
+class Interval : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
 
 	void readCurrentValue() override { this->setValue(currentSong->swingInterval); }
 	void writeCurrentValue() override { currentSong->changeSwingInterval(this->getValue()); }
 	// triplet/dotted not yet supported
-	size_t size() override { return SYNC_TYPE_TRIPLET; }
-	void selectEncoderAction(int32_t offset) override { // So that there's no "off" option
-		this->setValue(this->getValue() + offset);
-		int32_t numOptions = this->size();
-
-		// Wrap value
-		if (this->getValue() >= numOptions) {
-			this->setValue(this->getValue() - (numOptions - 1));
-		}
-		else if (this->getValue() < 1) {
-			this->setValue(this->getValue() + (numOptions - 1));
-		}
-
+	size_t size() override { return NUM_SWING_INTERVALS; }
+	void selectEncoderAction(int32_t offset) override {
+		this->setValue(wrapSwingIntervalSyncLevel(this->getValue() + offset));
 		Value::selectEncoderAction(offset);
 	}
 };

@@ -52,7 +52,7 @@
 ///
 /// Special cases:
 /// - arpeggiator::Sync - uses syncTypeAndLevelToMenuOption() to pack two values,
-///   and menuOptionToSyncType|Level() to unpack them.
+///   and syncValueToSyncType|Level() to unpack them.
 ///
 /// As stuff is extraced and turns out to be functionally identical the dupes
 /// should be eliminated.

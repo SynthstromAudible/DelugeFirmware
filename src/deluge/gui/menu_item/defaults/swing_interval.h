@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2024 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -15,21 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/sync_level.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/menu_item/swing/interval.h"
+#include "storage/flash_storage.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
-class Sync final : public SyncLevel {
+namespace deluge::gui::menu_item::defaults {
+
+using namespace deluge::gui::menu_item::swing;
+
+class SwingInterval final : public Interval {
 public:
-	using SyncLevel::SyncLevel;
-	void readCurrentValue() {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentArpSettings->syncType,
-		                                            soundEditor.currentArpSettings->syncLevel));
-	}
-	void writeCurrentValue() {
-		soundEditor.currentArpSettings->syncType = syncValueToSyncType(this->getValue());
-		soundEditor.currentArpSettings->syncLevel = syncValueToSyncLevel(this->getValue());
+	using Interval::Interval;
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultSwingInterval); }
+	void writeCurrentValue() override {
+		FlashStorage::defaultSwingInterval = this->getValue();
+		// NOTE: different defautls are a bit inconsistent in how they treat current values.
+		// eg. Velocity immediately changes the default velocity of the current song, but tempo
+		// and swing don't. So We don't either.
 	}
 };
 
-} // namespace deluge::gui::menu_item::arpeggiator
+} // namespace deluge::gui::menu_item::defaults

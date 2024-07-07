@@ -18,6 +18,7 @@
 #include "playback/playback_handler.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/sync_level.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -53,6 +54,7 @@
 #include "model/sample/sample_holder.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/sync.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "processing/audio_output.h"
@@ -1814,33 +1816,57 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 	lastMIDIClockOutTickDone = (uint64_t)getCurrentInternalTickCount() * midiClockOutTicksPer / internalTicksPer;
 }
 
-void PlaybackHandler::displaySwingAmount() {
+/** On OLED displayes both Swing amount and interval, on 7seg only the interval. */
+void PlaybackHandler::displaySwingInterval() {
+	DEF_STACK_STRING_BUF(text, 30);
 	if (display->haveOLED()) {
-		char buffer[19];
-		strcpy(buffer, "Swing: ");
+		text.append("Swing: ");
 		if (currentSong->swingAmount == 0) {
-			strcpy(&buffer[7], "off");
+			text.append("off");
 		}
 		else {
-			intToString(currentSong->swingAmount + 50, &buffer[7]);
+			text.appendInt(currentSong->swingAmount + 50);
 		}
-		display->popupTextTemporary(buffer);
+		text.append("\n");
+	}
+	syncValueToString(currentSong->swingInterval, text);
+	display->popupTextTemporary(text.c_str(), DisplayPopupType::SWING);
+}
+
+/** On OLED displayes both Swing amount and interval, on 7seg only the amount. */
+void PlaybackHandler::displaySwingAmount() {
+	DEF_STACK_STRING_BUF(text, 30);
+	if (display->haveOLED()) {
+		text.append("Swing: ");
+		if (currentSong->swingAmount == 0) {
+			text.append("off");
+		}
+		else {
+			text.appendInt(currentSong->swingAmount + 50);
+		}
+		text.append("\n");
+		syncValueToString(currentSong->swingInterval, text);
 	}
 	else {
-		char buffer[12];
-		char const* toDisplay;
 		if (currentSong->swingAmount == 0) {
-			toDisplay = "OFF";
+			text.append("OFF");
 		}
 		else {
-			intToString(currentSong->swingAmount + 50, buffer);
-			toDisplay = buffer;
+			text.appendInt(currentSong->swingAmount + 50);
 		}
-		display->displayPopup(toDisplay);
 	}
+	display->popupTextTemporary(text.c_str(), DisplayPopupType::SWING);
 }
 
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
+
+	if (Buttons::isButtonPressed(deluge::hid::button::TAP_TEMPO)) {
+		if (display->hasPopupOfType(DisplayPopupType::SWING)) {
+			// If not yet displaying, don't change the value
+			currentSong->changeSwingInterval(wrapSwingIntervalSyncLevel(currentSong->swingInterval + offset));
+		}
+		return displaySwingInterval();
+	}
 
 	offset = std::max((int8_t)-1, std::min((int8_t)1, offset));
 
@@ -1876,11 +1902,13 @@ displayNudge:
 
 	// Otherwise, adjust swing
 	else if (shiftButtonPressed) {
-		int32_t newSwingAmount = std::clamp(currentSong->swingAmount + offset, -49, 49);
-
-		if (newSwingAmount != currentSong->swingAmount) {
-			actionLogger.recordSwingChange(currentSong->swingAmount, newSwingAmount);
-			currentSong->swingAmount = newSwingAmount;
+		if (display->hasPopupOfType(DisplayPopupType::SWING)) {
+			// Don't change if not yet displaying the amount
+			int32_t newSwingAmount = std::clamp(currentSong->swingAmount + offset, -49, 49);
+			if (newSwingAmount != currentSong->swingAmount) {
+				actionLogger.recordSwingChange(currentSong->swingAmount, newSwingAmount);
+				currentSong->swingAmount = newSwingAmount;
+			}
 		}
 		displaySwingAmount();
 	}

@@ -240,6 +240,9 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			if (isShiftButtonPressed()) {
 				playbackHandler.displaySwingAmount();
 			}
+			else if (isButtonPressed(TAP_TEMPO)) {
+				playbackHandler.displaySwingInterval();
+			}
 			else {
 				if (getCurrentUI() != &loadSongUI) {
 					playbackHandler.displayTempoByCalculation();

@@ -18,6 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/sync.h"
+
 #include <cstdint>
 
 class Song;

@@ -27,15 +27,12 @@ namespace deluge::gui::menu_item {
 class SyncLevel : public Enumeration {
 public:
 	using Enumeration::Enumeration;
-	SyncType menuOptionToSyncType(int32_t option);
-	::SyncLevel menuOptionToSyncLevel(int32_t option);
 	int32_t syncTypeAndLevelToMenuOption(SyncType type, ::SyncLevel level);
-	size_t size() override { return 28; }
+	size_t size() override { return NUM_SYNC_VALUES; }
 
 protected:
 	void drawValue() final;
 	virtual void getNoteLengthName(StringBuf& buffer);
-
 	void drawPixelsForOled() override;
 };
 

@@ -31,8 +31,8 @@ public:
 		                                            soundEditor.currentSound->lfoConfig[lfoId_].syncLevel));
 	}
 	void writeCurrentValue() {
-		soundEditor.currentSound->lfoConfig[lfoId_].syncType = menuOptionToSyncType(this->getValue());
-		soundEditor.currentSound->lfoConfig[lfoId_].syncLevel = menuOptionToSyncLevel(this->getValue());
+		soundEditor.currentSound->lfoConfig[lfoId_].syncType = syncValueToSyncType(this->getValue());
+		soundEditor.currentSound->lfoConfig[lfoId_].syncLevel = syncValueToSyncLevel(this->getValue());
 		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
 		// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
 		// would be enough?

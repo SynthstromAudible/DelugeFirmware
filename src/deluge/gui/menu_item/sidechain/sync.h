@@ -31,8 +31,8 @@ public:
 		                                            soundEditor.currentSidechain->syncLevel));
 	}
 	void writeCurrentValue() override {
-		soundEditor.currentSidechain->syncType = menuOptionToSyncType(this->getValue());
-		soundEditor.currentSidechain->syncLevel = menuOptionToSyncLevel(this->getValue());
+		soundEditor.currentSidechain->syncType = syncValueToSyncType(this->getValue());
+		soundEditor.currentSidechain->syncLevel = syncValueToSyncLevel(this->getValue());
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

@@ -64,6 +64,8 @@ extern bool highCPUUsageIndicator;
 extern uint8_t defaultHoldTime;
 extern int32_t holdTime;
 
+extern uint8_t defaultSwingInterval;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

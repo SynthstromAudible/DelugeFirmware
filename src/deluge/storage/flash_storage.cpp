@@ -43,7 +43,7 @@ extern "C" {
 using namespace deluge;
 
 extern gui::menu_item::IntegerRange defaultTempoMenu;
-extern gui::menu_item::IntegerRange defaultSwingMenu;
+extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
 
 namespace FlashStorage {
@@ -176,6 +176,7 @@ enum Entries {
 168: midiFollow control song params
 169: High CPU Usage Indicator
 170: default hold time (1-20)
+171: default swing interval
 */
 
 uint8_t defaultScale;
@@ -220,6 +221,8 @@ bool highCPUUsageIndicator;
 uint8_t defaultHoldTime;
 int32_t holdTime;
 
+uint8_t defaultSwingInterval;
+
 void resetSettings() {
 
 	cvEngine.setCVVoltsPerOctave(0, 100);
@@ -259,8 +262,8 @@ void resetSettings() {
 	defaultTempoMenu.lower = 120;
 	defaultTempoMenu.upper = 120;
 
-	defaultSwingMenu.lower = 50;
-	defaultSwingMenu.upper = 50;
+	defaultSwingAmountMenu.lower = 50;
+	defaultSwingAmountMenu.upper = 50;
 
 	defaultKeyMenu.lower = 0;
 	defaultKeyMenu.upper = 0;
@@ -310,6 +313,8 @@ void resetSettings() {
 
 	defaultHoldTime = 2;
 	holdTime = (defaultHoldTime * kSampleRate) / 20;
+
+	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 }
 
 void resetMidiFollowSettings() {
@@ -456,8 +461,8 @@ void readSettings() {
 		defaultTempoMenu.lower = 120;
 		defaultTempoMenu.upper = 120;
 
-		defaultSwingMenu.lower = 50;
-		defaultSwingMenu.upper = 50;
+		defaultSwingAmountMenu.lower = 50;
+		defaultSwingAmountMenu.upper = 50;
 
 		defaultKeyMenu.lower = 0;
 		defaultKeyMenu.upper = 0;
@@ -469,8 +474,8 @@ void readSettings() {
 		defaultTempoMenu.lower = buffer[53];
 		defaultTempoMenu.upper = buffer[54];
 
-		defaultSwingMenu.lower = buffer[55];
-		defaultSwingMenu.upper = buffer[56];
+		defaultSwingAmountMenu.lower = buffer[55];
+		defaultSwingAmountMenu.upper = buffer[56];
 
 		defaultKeyMenu.lower = buffer[57];
 		defaultKeyMenu.upper = buffer[58];
@@ -675,6 +680,11 @@ void readSettings() {
 		defaultHoldTime = 2;
 	}
 	holdTime = (defaultHoldTime * kSampleRate) / 20;
+
+	defaultSwingInterval = buffer[171];
+	if (defaultSwingInterval < MIN_SWING_INERVAL || MAX_SWING_INTERVAL < defaultSwingInterval) {
+		defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -838,8 +848,8 @@ void writeSettings() {
 	buffer[53] = defaultTempoMenu.lower;
 	buffer[54] = defaultTempoMenu.upper;
 
-	buffer[55] = defaultSwingMenu.lower;
-	buffer[56] = defaultSwingMenu.upper;
+	buffer[55] = defaultSwingAmountMenu.lower;
+	buffer[56] = defaultSwingAmountMenu.upper;
 
 	buffer[57] = defaultKeyMenu.lower;
 	buffer[58] = defaultKeyMenu.upper;
@@ -931,6 +941,8 @@ void writeSettings() {
 	buffer[169] = highCPUUsageIndicator;
 
 	buffer[170] = defaultHoldTime;
+
+	buffer[171] = defaultSwingInterval;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

@@ -35,37 +35,7 @@ void SyncLevel::drawValue() {
 }
 
 void SyncLevel::getNoteLengthName(StringBuf& buffer) {
-	char const* typeStr = nullptr;
-	uint32_t value = this->getValue();
-	::SyncType type{menuOptionToSyncType(value)};
-	::SyncLevel level{menuOptionToSyncLevel(value)};
-
-	uint32_t shift = SYNC_LEVEL_256TH - level;
-	uint32_t noteLength = uint32_t{3} << shift;
-
-	switch (type) {
-	case SYNC_TYPE_EVEN:
-		if (value != 0) {
-			typeStr = "-notes";
-		}
-		break;
-	case SYNC_TYPE_TRIPLET:
-		typeStr = "-tplts";
-		break;
-	case SYNC_TYPE_DOTTED:
-		typeStr = "-dtted";
-		break;
-	}
-
-	currentSong->getNoteLengthName(buffer, noteLength, typeStr);
-	if (typeStr != nullptr) {
-		int32_t magnitudeLevelBars = SYNC_LEVEL_8TH - currentSong->insideWorldTickMagnitude;
-		if (((type == SYNC_TYPE_TRIPLET || type == SYNC_TYPE_DOTTED) && level <= magnitudeLevelBars)
-		    || display->have7SEG()) {
-			// On OLED, getNoteLengthName handles adding this for the non-bar levels. On 7seg, always append it
-			buffer.append(typeStr);
-		}
-	}
+	syncValueToString(this->getValue(), buffer);
 }
 
 void SyncLevel::drawPixelsForOled() {
@@ -77,32 +47,6 @@ void SyncLevel::drawPixelsForOled() {
 	}
 	deluge::hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX,
 	                                                   kTextBigSizeY);
-}
-
-SyncType SyncLevel::menuOptionToSyncType(int32_t option) {
-	if (option < SYNC_TYPE_TRIPLET) {
-		return SYNC_TYPE_EVEN;
-	}
-	else if (option < SYNC_TYPE_DOTTED) {
-		return SYNC_TYPE_TRIPLET;
-	}
-	else {
-		return SYNC_TYPE_DOTTED;
-	}
-}
-
-::SyncLevel SyncLevel::menuOptionToSyncLevel(int32_t option) {
-	::SyncLevel level;
-	if (option < SYNC_TYPE_TRIPLET) {
-		level = static_cast<::SyncLevel>(option);
-	}
-	else if (option < SYNC_TYPE_DOTTED) {
-		level = static_cast<::SyncLevel>(option - SYNC_TYPE_TRIPLET + 1);
-	}
-	else {
-		level = static_cast<::SyncLevel>(option - SYNC_TYPE_DOTTED + 1);
-	}
-	return level;
 }
 
 int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {

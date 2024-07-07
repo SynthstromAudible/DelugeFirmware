@@ -13,8 +13,11 @@ if (WIN32)
         # Memory leak detection is off by default on Windows, setting
         # it here will cause a massive spam of redefinition warning during
         # build.
+        #
+        # We use things like strncat, which Windows wants to warn about: silence those.
         add_compile_definitions(
                 IN_UNIT_TESTS=1
+                _CRT_SECURE_NO_WARNINGS=1
         )
 else()
         add_compile_definitions(
@@ -40,6 +43,8 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/model/scale/utils.cpp
         # For clip iterator tests
         ../../src/deluge/model/song/clip_iterators.cpp
+        # For sync tests
+        ../../src/deluge/model/sync.cpp
 )
 
 add_executable(UnitTests
@@ -49,6 +54,8 @@ add_executable(UnitTests
         scale_tests.cpp
         value_scaling_tests.cpp
         clip_iterator_tests.cpp
+        function_tests.cpp
+        sync_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)
