@@ -93,6 +93,15 @@ public:
 	void moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length, int32_t offset,
 	                            int32_t lengthBeforeLoop, Action* action);
 	void deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length);
+	/// @brief Make sure the value of this AutoParam will be \p value at time \p pos.
+	///
+	/// If no node exists at the provided position, a new node will be created.
+	///
+	/// @param[in] pos Position to modify.
+	/// @param[in] value Value to use.
+	/// @param[in] shouldInterpolate Sets \ref "ParamNode::interpolated" on the created or modified node.
+	///
+	/// @return the index in to \ref nodes of the modified node.
 	int32_t setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate);
 	int32_t homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length,
 	                         int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
@@ -112,8 +121,10 @@ public:
 		renewedOverridingAtTime = 0;
 	}
 
+	/// The nodes that make up this parameter. If empty, \ref currentValue should be used.
 	ParamNodeVector nodes;
 
+	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
 	int32_t valueIncrementPerHalfTick;
 	uint32_t renewedOverridingAtTime; // If 0, it's off. If 1, it's latched until we hit some nodes / automation
