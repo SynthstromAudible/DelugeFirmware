@@ -296,7 +296,7 @@ private:
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 	uint32_t getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 
-	void getAutomationParameterName(Clip* clip, OutputType outputType, char* parameterName);
+	void getAutomationParameterName(Clip* clip, OutputType outputType, StringBuf& parameterName);
 
 	bool getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
 	void setAutomationParameterValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,

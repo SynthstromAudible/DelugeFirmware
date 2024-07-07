@@ -1,6 +1,6 @@
 #include "CppUTest/TestHarness.h"
-#include "model/scale/note_set.h"
 #include "model/scale/musical_key.h"
+#include "model/scale/note_set.h"
 #include "model/scale/utils.h"
 
 TEST_GROUP(NoteSetTest){};
