@@ -122,6 +122,13 @@ public:
 	UIType getUIType() { return UIType::SESSION_VIEW; }
 
 private:
+	// selectEncoderAction() ..actions
+	void action_changeSectionRepeats(int8_t offset);
+	void action_changeClipPreset(int8_t offset);
+	void action_changeCurrentSectionRepeats(int8_t offset);
+	void action_changeLayout(int8_t offset);
+
+private:
 	void renderViewDisplay(char const* viewString);
 	void sectionPadAction(uint8_t y, bool on);
 	void clipPressEnded();

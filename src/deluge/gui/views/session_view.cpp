@@ -1161,77 +1161,97 @@ void SessionView::drawSectionRepeatNumber() {
 	}
 }
 
+void SessionView::action_changeSectionRepeats(int8_t offset) {
+	if (performActionOnSectionPadRelease) {
+		beginEditingSectionRepeatsNum();
+	}
+	else {
+		int16_t* numRepetitions = &currentSong->sections[sectionPressed].numRepetitions;
+		*numRepetitions += offset;
+		if (*numRepetitions > 9999) {
+			*numRepetitions = 9999;
+		}
+		else if (*numRepetitions < -1) {
+			*numRepetitions = -1;
+		}
+		drawSectionRepeatNumber();
+	}
+}
+
+void SessionView::action_changeClipPreset(int8_t offset) {
+	performActionOnPadRelease = false;
+
+	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+		return;
+	}
+
+	Clip* clip = getClipForLayout();
+
+	if (clip == nullptr) {
+		return;
+	}
+
+	if (clip->type == ClipType::INSTRUMENT) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+
+		switch (currentSong->sessionLayout) {
+		case SessionLayoutType::SessionLayoutTypeRows: {
+			view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
+			break;
+		}
+		case SessionLayoutType::SessionLayoutTypeGrid: {
+			Output* oldOutput = clip->output;
+			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
+			if (oldOutput != newOutput) {
+				view.setActiveModControllableTimelineCounter(newOutput->activeClip);
+				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+			}
+			break;
+		}
+		}
+	}
+	else {
+		// This moves clips around uncomfortably and we have a track for every Audio anyway
+		if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
+			view.navigateThroughAudioOutputsForAudioClip(offset, (AudioClip*)clip, true);
+		}
+	}
+}
+
+void SessionView::action_changeCurrentSectionRepeats(int8_t offset) {
+	if (session.hasPlaybackActive()) {
+		if (session.launchEventAtSwungTickCount) {
+			editNumRepeatsTilLaunch(offset);
+		}
+		else if (offset == 1) {
+			session.userWantsToArmNextSection(1);
+		}
+	}
+}
+
+void SessionView::action_changeLayout(int8_t offset) {
+	return selectLayout(offset);
+}
+
 void SessionView::selectEncoderAction(int8_t offset) {
-	if (currentUIMode == UI_MODE_HOLDING_SECTION_PAD) {
-		if (performActionOnSectionPadRelease) {
-			beginEditingSectionRepeatsNum();
+	switch (currentUIMode) {
+	case UI_MODE_HOLDING_SECTION_PAD:
+		return action_changeSectionRepeats(offset);
+	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
+		return action_changeClipPreset(offset);
+	case UI_MODE_NONE:
+		if (sessionButtonActive) {
+			// TODO: this "held button consumed so no action on release" -logic really needs
+			// to be abstracted somehow. Maybe something like Button::consumeButtonPress() which
+			// removes it from buttonState[] and causes the button-up not to trigger an action?
+			sessionButtonUsed = true;
+			return action_changeLayout(offset);
 		}
 		else {
-			int16_t* numRepetitions = &currentSong->sections[sectionPressed].numRepetitions;
-			*numRepetitions += offset;
-			if (*numRepetitions > 9999) {
-				*numRepetitions = 9999;
-			}
-			else if (*numRepetitions < -1) {
-				*numRepetitions = -1;
-			}
-			drawSectionRepeatNumber();
-		}
-	}
-	else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-		performActionOnPadRelease = false;
-
-		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-			return;
-		}
-
-		Clip* clip = getClipForLayout();
-
-		if (clip == nullptr) {
-			return;
-		}
-
-		if (clip->type == ClipType::INSTRUMENT) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack =
-			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
-
-			switch (currentSong->sessionLayout) {
-			case SessionLayoutType::SessionLayoutTypeRows: {
-				view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
-				break;
-			}
-			case SessionLayoutType::SessionLayoutTypeGrid: {
-				Output* oldOutput = clip->output;
-				Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
-				if (oldOutput != newOutput) {
-					view.setActiveModControllableTimelineCounter(newOutput->activeClip);
-					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-				}
-				break;
-			}
-			}
-		}
-		else {
-			// This moves clips around uncomfortably and we have a track for every Audio anyway
-			if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
-				view.navigateThroughAudioOutputsForAudioClip(offset, (AudioClip*)clip, true);
-			}
-		}
-	}
-	else if (currentUIMode == UI_MODE_NONE && sessionButtonActive) {
-		sessionButtonUsed = true;
-		selectLayout(offset);
-	}
-	else if (currentUIMode == UI_MODE_NONE) {
-		if (session.hasPlaybackActive()) {
-			if (session.launchEventAtSwungTickCount) {
-				editNumRepeatsTilLaunch(offset);
-			}
-			else if (offset == 1) {
-				session.userWantsToArmNextSection(1);
-			}
+			return action_changeCurrentSectionRepeats(offset);
 		}
 	}
 }
