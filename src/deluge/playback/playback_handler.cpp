@@ -1840,10 +1840,6 @@ void PlaybackHandler::displaySwingAmount() {
 
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
 
-	if (currentUIMode == UI_MODE_TAP_TEMPO) {
-		return;
-	}
-
 	offset = std::max((int8_t)-1, std::min((int8_t)1, offset));
 
 	// Nudging sync
@@ -2223,12 +2219,7 @@ void PlaybackHandler::setLedStates() {
 	bool syncedLEDOn = isExternalClockActive();
 	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, syncedLEDOn);
 
-	if (currentUIMode == UI_MODE_TAP_TEMPO) {
-		indicator_leds::blinkLed(IndicatorLED::TAP_TEMPO, 255, 1);
-	}
-	else {
-		indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, metronomeOn);
-	}
+	indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, metronomeOn);
 }
 
 void PlaybackHandler::toggleMetronomeStatus() {

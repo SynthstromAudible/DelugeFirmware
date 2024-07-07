@@ -397,13 +397,7 @@ cant:
 				pendingGlobalMIDICommandNumClustersWritten = GlobalMIDICommand::PLAYBACK_RESTART; // Bug hunting.
 				playbackHandler.slowRoutine(); // Do it now if not reading card.
 			}
-
-			else
 #endif
-				// If we were in tap tempo mode (i.e. waiting for the second tap), stop it!
-				if (currentUIMode == UI_MODE_TAP_TEMPO) {
-					playbackHandler.tapTempoAutoSwitchOff();
-				}
 		}
 	}
 
