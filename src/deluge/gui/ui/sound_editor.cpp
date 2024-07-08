@@ -153,14 +153,14 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 		// don't greyout keyboard screen
 		doGreyout = false;
 		break;
-	case UIType::AUTOMATION_VIEW:
+	case UIType::AUTOMATION:
 		// only greyout if you're not in automation editor
 		doGreyout = !automationView.inAutomationEditor();
 		if (doGreyout) {
 			*cols = 0xFFFFFFFC; // don't greyout sidebar
 		}
 		break;
-	case UIType::INSTRUMENT_CLIP_VIEW:
+	case UIType::INSTRUMENT_CLIP:
 		*cols = 0xFFFFFFFE;
 		break;
 	default:

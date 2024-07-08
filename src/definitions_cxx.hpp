@@ -195,25 +195,26 @@ constexpr int32_t kNumInstrumentSlots = 1000;
 // Don't ever make this less! The zoom rendering code uses this buffer for its stuff
 constexpr size_t kFilenameBufferSize = 256;
 
+/// Static enum representing which view a generic UI pointer actually represents.
 enum class UIType : uint8_t {
-	ARRANGER_VIEW,
-	SESSION_VIEW,
-	INSTRUMENT_CLIP_VIEW,
-	AUDIO_CLIP_VIEW,
-	KEYBOARD_SCREEN,
-	AUTOMATION_VIEW,
-	PERFORMANCE_SESSION_VIEW,
-	TIMELINE_VIEW,
+	ARRANGER,
+	AUDIO_CLIP,
+	AUDIO_RECORDER,
+	AUTOMATION,
 	BROWSER,
 	CONTEXT_MENU,
-	LOAD_SONG,
+	INSTRUMENT_CLIP,
+	KEYBOARD_SCREEN,
 	LOAD_INSTRUMENT_PRESET,
-	RENAME_OUTPUT,
+	LOAD_SONG,
+	PERFORMANCE_SESSION,
 	RENAME_DRUM,
-	AUDIO_RECORDER,
-	SOUND_EDITOR,
+	RENAME_OUTPUT,
 	SAMPLE_MARKER_EDITOR,
+	SESSION,
 	SLICER,
+	SOUND_EDITOR,
+	TIMELINE,
 	NONE = 255,
 };
 

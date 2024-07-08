@@ -59,7 +59,7 @@ public:
 	void graphicsRoutine() override;
 
 	// ui
-	UIType getUIType() override { return UIType::AUTOMATION_VIEW; }
+	UIType getUIType() override { return UIType::AUTOMATION; }
 	AutomationSubType getAutomationSubType();
 	const char* getName() override { return "automation_view"; }
 
