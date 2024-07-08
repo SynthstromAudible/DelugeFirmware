@@ -238,6 +238,11 @@ enum class OutputType : uint8_t {
 	NONE = 255,
 };
 
+enum class StemExportType : uint8_t {
+	CLIP,
+	TRACK,
+};
+
 enum class ThingType : uint8_t {
 	SYNTH,
 	KIT,

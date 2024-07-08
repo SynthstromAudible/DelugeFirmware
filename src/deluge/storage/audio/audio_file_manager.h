@@ -31,6 +31,7 @@ class Cluster;
 class SampleCache;
 class String;
 class SampleRecorder;
+class Output;
 
 enum class AlternateLoadDirStatus {
 	NONE_SET,
@@ -130,8 +131,13 @@ public:
 	int32_t highestUsedAudioRecordingNumber[kNumAudioRecordingFolders];
 	bool highestUsedAudioRecordingNumberNeedsReChecking[kNumAudioRecordingFolders];
 
+	// stem exporting
 	int32_t highestUsedStemFolderNumber;
 	String lastSongNameForStemExport;
+
+	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber);
+	String wavFileNameForStemExport;
+	bool wavFileNameForStemExportSet;
 
 private:
 	void setClusterSize(uint32_t newSize);

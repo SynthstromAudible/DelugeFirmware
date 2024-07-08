@@ -2192,6 +2192,8 @@ void SessionView::exportClipStems() {
 
 						uiNeedsRendering(this); // re-render song view
 
+						audioFileManager.setWavFileNameForStemExport(StemExportType::CLIP, clip->output, idxClip);
+
 						playbackHandler.startOutputRecordingUntilLoopEnd();
 						playbackHandler.stemExportInProgress = true;
 

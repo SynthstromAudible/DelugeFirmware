@@ -3163,6 +3163,8 @@ void ArrangerView::exportInstrumentStems() {
 
 						uiNeedsRendering(this); // re-render arranger view
 
+						audioFileManager.setWavFileNameForStemExport(StemExportType::TRACK, output, idxOutput);
+
 						playbackHandler.startOutputRecordingUntilLoopEnd();
 						playbackHandler.stemExportInProgress = true;
 
