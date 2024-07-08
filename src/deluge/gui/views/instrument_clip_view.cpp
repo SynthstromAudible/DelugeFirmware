@@ -129,8 +129,6 @@ bool InstrumentClipView::opened() {
 
 	openedInBackground();
 
-	InstrumentClipMinder::opened();
-
 	focusRegained();
 
 	return true;

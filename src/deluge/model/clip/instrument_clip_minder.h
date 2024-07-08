@@ -49,7 +49,6 @@ public:
 	static void drawMIDIControlNumber(int32_t controlNumber, bool automationExists);
 	static bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
 	bool changeOutputType(OutputType newOutputType);
-	void opened();
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas);
 
