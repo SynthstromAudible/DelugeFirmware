@@ -21,6 +21,10 @@ add_dependencies(deluge deluge_menus)
 
 target_sources(deluge PUBLIC
   ${deluge_SOURCES}
+  # Add strings-sources explicitly: since they're build artefacts clean nukes them,
+  # and if they're not there in the first place then the source glob won't find them,
+  # and they only get generated not built.
+  ${deluge_strings_SOURCES}
 )
 
 target_include_directories(deluge PUBLIC
