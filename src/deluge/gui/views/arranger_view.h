@@ -128,6 +128,7 @@ public:
 
 	void disarmAllInstrumentsForStemExport();
 	void exportInstrumentStems();
+	void displayStemExportProgress();
 	int32_t numInstrumentsExported;
 	int32_t totalNumInstrumentsToExport;
 

@@ -106,7 +106,6 @@ PlaybackHandler::PlaybackHandler() {
 	countInBars = 1;
 	timeLastMIDIStartOrContinueMessageSent = 0;
 	currentVisualCountForCountIn = 0;
-	stemExportInProgress = false;
 }
 
 extern "C" uint32_t triggerClockRisingEdgeTimes[];
@@ -288,25 +287,19 @@ void PlaybackHandler::startStemExportProcess() {
 	// sets up the recording mode
 	recordButtonPressed();
 
-	UI* currentUI = getCurrentUI();
-	if (currentUI == &sessionView) {
-		// prepare all the clips for stem export
-		sessionView.disarmAllClipsForStemExport();
-	}
-	else if (currentUI == &arrangerView) {
-		// prepare all the instruments for stem export
-		arrangerView.disarmAllInstrumentsForStemExport();
-	}
-
 	// enter stem export UI mode to prevent other actions from taking place while exporting stems
 	// restart file numbering for stem export
 	audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(AudioRecordingFolder::STEM)] = -1;
 	enterUIMode(UI_MODE_STEM_EXPORT);
 
-	// set timer for exporting stems
-	// this will trigger an iteration function (SessionView::exportClipStems or ArrangerView::exportInstrumentStems)
-	// which will iterate through and monitor the completion of stem exports for each clip / instrument
-	uiTimerManager.setTimer(TimerName::EXPORT_STEMS, 100);
+	// export stems
+	UI* currentUI = getCurrentUI();
+	if (currentUI == &sessionView) {
+		sessionView.exportClipStems();
+	}
+	else if (currentUI == &arrangerView) {
+		arrangerView.exportInstrumentStems();
+	}
 }
 
 /// Stop stem export process
@@ -317,7 +310,6 @@ void PlaybackHandler::stopStemExportProcess() {
 	}
 	exitUIMode(UI_MODE_STEM_EXPORT);
 	stopOutputRecordingAndPlayback();
-	stemExportInProgress = false;
 }
 
 /// Simulate pressing record and play in order to trigger resampling of out output that ends when loop ends

@@ -230,20 +230,6 @@ void UITimerManager::routine() {
 				case TimerName::SYSEX_DISPLAY:
 					HIDSysex::sendDisplayIfChanged();
 					break;
-
-				case TimerName::EXPORT_STEMS:
-					if (getCurrentUI() == &sessionView) {
-						sessionView.exportClipStems();
-					}
-					else if (getCurrentUI() == &arrangerView) {
-						arrangerView.exportInstrumentStems();
-					}
-					// if we're still in the stem exporting UI mode,
-					// then we want to keep checking export status
-					if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
-						setTimer(TimerName::EXPORT_STEMS, 100);
-					}
-					break;
 				}
 			}
 		}

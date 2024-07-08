@@ -204,8 +204,6 @@ public:
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 
-	bool stemExported;
-
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
 	                                                                       // modelStack if new Clip got created

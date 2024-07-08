@@ -123,6 +123,7 @@ public:
 
 	void disarmAllClipsForStemExport();
 	void exportClipStems();
+	void displayStemExportProgress();
 	int32_t numClipsExported;
 	int32_t totalNumClipsToExport;
 
