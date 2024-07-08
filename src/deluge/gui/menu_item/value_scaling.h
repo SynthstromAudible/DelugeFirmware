@@ -87,12 +87,8 @@ inline int32_t computeCurrentValueForSemiStandardMenuItem(int32_t value) {
 
 /** Scales 0-50 range to INT32_MIN-(INT32_MAX-45) for storage and use.
  *
- * It is unclear when this is used intentionally, and when by accident.
- *
- * - arpeggiator::midi_cv::Gate: possibly so that gate
- *   will momentarily go down even at 50: the values produced create a 2.5ms
- *   gate down period between 16th arp notes at Gate=50, which exactly matches
- *   the gate down period between regular 16h notes.
+ * Current assumption is that this is an accident. TODO: figure out how
+ * replace this with the standard value computation without changing sounds.
  *
  * NOTE: computeFinalValueForArpMidiRate() is _almost_ but not quite
  * the same: this one returns -23 for zero, that one returns 0.
