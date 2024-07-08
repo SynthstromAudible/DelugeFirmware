@@ -3145,7 +3145,8 @@ void ArrangerView::exportInstrumentStems() {
 			for (int32_t idxOutput = totalNumInstrumentsToExport - 1; idxOutput >= 0; --idxOutput) {
 				Output* output = currentSong->getOutputFromIndex(idxOutput);
 				// if instrument stem has not been exported, we want to export it
-				if (output && !output->stemExported) {
+				if (output && !output->stemExported && output->type != OutputType::MIDI_OUT
+				    && output->type != OutputType::CV) {
 					// if stem export has not started and playback is not running
 					// then arm it, toggle recording and hit play
 					if (!playbackHandler.stemExportInProgress && !playbackHandler.isEitherClockActive()) {

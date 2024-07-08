@@ -2174,7 +2174,8 @@ void SessionView::exportClipStems() {
 			for (int32_t idxClip = totalNumClipsToExport - 1; idxClip >= 0; --idxClip) {
 				Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 				// if clip stem has not been exported, we want to export it
-				if (clip && !clip->stemExported) {
+				if (clip && !clip->stemExported && clip->output->type != OutputType::MIDI_OUT
+				    && clip->output->type != OutputType::CV) {
 					// if stem export has not started and playback is not running
 					// then arm it, toggle recording and hit play
 					if (!playbackHandler.stemExportInProgress && !playbackHandler.isEitherClockActive()) {
