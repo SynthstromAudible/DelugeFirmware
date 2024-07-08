@@ -122,6 +122,16 @@ public:
 	UIType getUIType() { return UIType::SESSION_VIEW; }
 
 private:
+	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
+	// no dispatch logic.
+	//
+	// selectEncoderAction() triggered commands
+	void commandChangeSectionRepeats(int8_t offset);
+	void commandChangeClipPreset(int8_t offset);
+	void commandChangeCurrentSectionRepeats(int8_t offset);
+	void commandChangeLayout(int8_t offset);
+
+private:
 	void renderViewDisplay(char const* viewString);
 	void sectionPadAction(uint8_t y, bool on);
 	void clipPressEnded();
