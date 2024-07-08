@@ -52,7 +52,32 @@
         "${default}"
       ],
       "compileCommands": "${workspaceFolder}/build/compile_commands.json"
-    }
+    },
+    {
+        "name": "Windows",
+        "includePath": [
+          "src/**",
+          "${default}"
+        ],
+        "compilerPath": "${workspaceFolder}/toolchain/v16/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
+        "compilerArgs": [
+          "-mcpu=cortex-a9",
+          "-marm",
+          "-mthumb-interwork",
+          "-mlittle-endian",
+          "-mfloat-abi=hard",
+          "-mfpu=neon",
+          "-DHAVE_OLED=1"
+        ],
+        "cStandard": "gnu17",
+        "cppStandard": "gnu++20",
+        "intelliSenseMode": "gcc-arm",
+        "defines": [
+          "HAVE_OLED=1",
+          "${default}"
+        ],
+        "compileCommands": "${workspaceFolder}/build/compile_commands.json"
+      }
   ],
   "version": 4
 }

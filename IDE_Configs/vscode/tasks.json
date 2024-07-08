@@ -91,6 +91,9 @@
 			"label": "Format source",
 			"problemMatcher": [],
 			"command": "./dbt",
+			"windows": {
+				"command": "./dbt.cmd",
+			},
 			"args": [
 				"format",
 			]
