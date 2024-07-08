@@ -1161,7 +1161,7 @@ void SessionView::drawSectionRepeatNumber() {
 	}
 }
 
-void SessionView::action_changeSectionRepeats(int8_t offset) {
+void SessionView::commandChangeSectionRepeats(int8_t offset) {
 	if (performActionOnSectionPadRelease) {
 		beginEditingSectionRepeatsNum();
 	}
@@ -1178,7 +1178,7 @@ void SessionView::action_changeSectionRepeats(int8_t offset) {
 	}
 }
 
-void SessionView::action_changeClipPreset(int8_t offset) {
+void SessionView::commandChangeClipPreset(int8_t offset) {
 	performActionOnPadRelease = false;
 
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
@@ -1221,7 +1221,7 @@ void SessionView::action_changeClipPreset(int8_t offset) {
 	}
 }
 
-void SessionView::action_changeCurrentSectionRepeats(int8_t offset) {
+void SessionView::commandChangeCurrentSectionRepeats(int8_t offset) {
 	if (session.hasPlaybackActive()) {
 		if (session.launchEventAtSwungTickCount) {
 			editNumRepeatsTilLaunch(offset);
@@ -1232,26 +1232,26 @@ void SessionView::action_changeCurrentSectionRepeats(int8_t offset) {
 	}
 }
 
-void SessionView::action_changeLayout(int8_t offset) {
+void SessionView::commandChangeLayout(int8_t offset) {
 	return selectLayout(offset);
 }
 
 void SessionView::selectEncoderAction(int8_t offset) {
 	switch (currentUIMode) {
 	case UI_MODE_HOLDING_SECTION_PAD:
-		return action_changeSectionRepeats(offset);
+		return commandChangeSectionRepeats(offset);
 	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
-		return action_changeClipPreset(offset);
+		return commandChangeClipPreset(offset);
 	case UI_MODE_NONE:
 		if (sessionButtonActive) {
 			// TODO: this "held button consumed so no action on release" -logic really needs
 			// to be abstracted somehow. Maybe something like Button::consumeButtonPress() which
 			// removes it from buttonState[] and causes the button-up not to trigger an action?
 			sessionButtonUsed = true;
-			return action_changeLayout(offset);
+			return commandChangeLayout(offset);
 		}
 		else {
-			return action_changeCurrentSectionRepeats(offset);
+			return commandChangeCurrentSectionRepeats(offset);
 		}
 	}
 }
