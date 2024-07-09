@@ -3110,8 +3110,7 @@ void ArrangerView::exportInstrumentStems() {
 		// exported yet
 		for (int32_t idxOutput = totalNumInstrumentsToExport - 1; idxOutput >= 0; --idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			// exclude MIDI and CV instruments
-			if (output && output->type != OutputType::MIDI_OUT && output->type != OutputType::CV) {
+			if (output) {
 				currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
 
 				int32_t yScrollForDisplay = (idxOutput - kDisplayHeight + 1);
@@ -3119,6 +3118,15 @@ void ArrangerView::exportInstrumentStems() {
 					// scroll instrument being exported to top of grid
 					currentSong->arrangementYScroll = yScrollForDisplay;
 					repopulateOutputsOnScreen(false);
+				}
+
+				// exclude MIDI and CV instruments
+				if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+					// updated number of instruments exported (even though we didn't actually export anything)
+					// so that we know we processed this instrument
+					numInstrumentsExported++;
+					// skip this instrument and move to the next one
+					continue;
 				}
 
 				// unmute output for recording

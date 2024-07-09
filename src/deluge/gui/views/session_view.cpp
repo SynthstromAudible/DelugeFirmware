@@ -2139,14 +2139,22 @@ void SessionView::exportClipStems() {
 		// now we're going to iterate through all clips to find the first clip that hasn't been exported yet
 		for (int32_t idxClip = totalNumClipsToExport - 1; idxClip >= 0; --idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-			// exclude MIDI and CV clips
-			if (clip && clip->output->type != OutputType::MIDI_OUT && clip->output->type != OutputType::CV) {
+			if (clip) {
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 					int32_t yScrollForDisplay = (idxClip - kDisplayHeight + 1);
 					if (currentSong->songViewYScroll != yScrollForDisplay) {
 						// scroll clip being exported to top of grid
 						currentSong->songViewYScroll = yScrollForDisplay;
 					}
+				}
+
+				// exclude MIDI and CV clips
+				if (clip->output->type == OutputType::MIDI_OUT || clip->output->type == OutputType::CV) {
+					// updated number of clips exported (even though we didn't actually export anything)
+					// so that we know we processed this clip
+					numClipsExported++;
+					// skip this clip and move to the next one
+					continue;
 				}
 
 				// unmute clip for recording
