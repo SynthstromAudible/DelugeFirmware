@@ -30,6 +30,7 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
@@ -55,9 +56,6 @@ DRESULT disk_read_without_streaming_first(BYTE pdrv, BYTE* buff, DWORD sector, U
 extern uint8_t currentlyAccessingCard;
 }
 
-char const* const audioRecordingFolderNames[] = {"SAMPLES/CLIPS", "SAMPLES/RECORD", "SAMPLES/RESAMPLE",
-                                                 "SAMPLES/STEMS"};
-
 AudioFileManager audioFileManager{};
 
 AudioFileManager::AudioFileManager() {
@@ -69,9 +67,6 @@ AudioFileManager::AudioFileManager() {
 		highestUsedAudioRecordingNumber[i] = -1;
 		highestUsedAudioRecordingNumberNeedsReChecking[i] = true;
 	}
-
-	highestUsedStemFolderNumber = -1;
-	wavFileNameForStemExportSet = false;
 }
 
 void AudioFileManager::init() {
@@ -251,219 +246,6 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 	}
 }
 
-/// based on Stem Export Type, will set a WAV file name in the format of:
-/// /OutputType_StemExportType_OutputName_IndexNumber.WAV
-/// example: /SYNTH_CLIP_BASS SYNTH_00000.WAV
-/// example: /SYNTH_TRACK_BASS SYNTH_00000.WAV
-/// this wavFileName is then concatenate to the filePath name to export the WAV file
-void AudioFileManager::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber) {
-	// wavFileNameForStemExport = "/"
-	Error error = wavFileNameForStemExport.set("/");
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType
-	const char* outputType;
-	switch (output->type) {
-	case OutputType::AUDIO:
-		outputType = "AUDIO";
-		break;
-	case OutputType::SYNTH:
-		outputType = "SYNTH";
-		break;
-	case OutputType::KIT:
-		outputType = "KIT";
-		break;
-	default:
-		break;
-	}
-	error = wavFileNameForStemExport.concatenate(outputType);
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType_
-	error = wavFileNameForStemExport.concatenate("_");
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType_StemExportType_
-	if (stemExportType == StemExportType::CLIP) {
-		error = wavFileNameForStemExport.concatenate("CLIP_");
-		if (error != Error::NONE) {
-			return;
-		}
-	}
-	else if (stemExportType == StemExportType::TRACK) {
-		error = wavFileNameForStemExport.concatenate("TRACK_");
-		if (error != Error::NONE) {
-			return;
-		}
-	}
-
-	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName
-	error = wavFileNameForStemExport.concatenate(output->name.get());
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName_
-	error = wavFileNameForStemExport.concatenate("_");
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName_#####
-	error = wavFileNameForStemExport.concatenateInt(fileNumber, 5);
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName_#####.WAV
-	error = wavFileNameForStemExport.concatenate(".WAV");
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// set this flag to true so that the wavFileName set above is used when exporting
-	wavFileNameForStemExportSet = true;
-}
-
-/// gets folder path in SAMPLES/STEMS to write stems to
-/// within the STEMS folder, it will try to create a folder with the name of the SONG
-/// if it cannot create a folder with the SONG name because it already exists, it will append
-/// an incremental number to the end of the SONG name and try to create a folder with that new name
-/// this function gets called every time a stem recording is being written to a file
-/// to avoid unecessary file system calls, it will save the last song name saved to a String
-/// including the last incremental folder number and use that to obtain the filePath for the next
-/// stem export job (e.g. if you are exporting the same song more than once)
-Error AudioFileManager::getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder) {
-
-	const auto folderID = util::to_underlying(folder);
-
-	Error error = storageManager.initSD();
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	String tempPath;
-
-	// set tempPath = SAMPLES/STEMS
-	error = tempPath.set(audioRecordingFolderNames[folderID]);
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	// try to create the STEMS folder if it doesn't exist
-	FRESULT result = f_mkdir(tempPath.get());
-	if (result != FR_OK && result != FR_EXIST) {
-		return Error::FOLDER_DOESNT_EXIST;
-	}
-
-	// tempPath = SAMPLES/STEMS/
-	error = tempPath.concatenate("/");
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	// tempPath = SAMPLES/STEMS/*INSERT SONG NAME*
-	error = tempPath.concatenate(currentSong->name.get());
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	// did we just export this song? if yes, no need to find folder number to append (we have it)
-	if (strcmp(currentSong->name.get(), lastSongNameForStemExport.get())) {
-		// if we're here we didn't just export this song
-		String tempPathForSearch;
-
-		// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*
-		error = tempPathForSearch.set(tempPath.get());
-		if (error != Error::NONE) {
-			return error;
-		}
-
-		// we don't have a folder number yet, set it to -1 so when we increment below first potential
-		// folder number appended is 00000 (-1 + 1)
-		highestUsedStemFolderNumber = -1;
-
-		// here we loop until we are able to successfully create a folder
-		while (true) {
-			// try to create folder
-			FRESULT result = f_mkdir(tempPathForSearch.get());
-			// successful, exit out of loop
-			if (result == FR_OK) {
-				break;
-			}
-			// not successful
-			else {
-				// increment folder number so we can append it to the SONG name
-				highestUsedStemFolderNumber++;
-
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*
-				error = tempPathForSearch.set(tempPath.get());
-				if (error != Error::NONE) {
-					return error;
-				}
-
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*-
-				error = tempPathForSearch.concatenate("-");
-				if (error != Error::NONE) {
-					return error;
-				}
-
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*-#####
-				error = tempPathForSearch.concatenateInt(highestUsedStemFolderNumber, 5);
-				if (error != Error::NONE) {
-					return error;
-				}
-			}
-		}
-
-		// copy folder path created above into the filePath so it can be used by the caller
-		error = filePath->set(tempPathForSearch.get());
-		if (error != Error::NONE) {
-			return error;
-		}
-	}
-	else {
-		// if folder number is -1, it means this is the first time we're running the stem export
-		// process for this song and the folder didn't previously exist so no number is being appended to it
-
-		// if folder number is not -1, it means this is the second we're running the stem export process
-		// for this song, so we need to append a folder number to the SONG name
-		if (highestUsedStemFolderNumber != -1) {
-			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*-
-			error = tempPath.concatenate("-");
-			if (error != Error::NONE) {
-				return error;
-			}
-
-			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*-#####
-			error = tempPath.concatenateInt(highestUsedStemFolderNumber, 5);
-			if (error != Error::NONE) {
-				return error;
-			}
-		}
-
-		// copy folder path created above into the filePath so it can be used by the caller
-		error = filePath->set(tempPath.get());
-		if (error != Error::NONE) {
-			return error;
-		}
-	}
-
-	// save current song name as last song name exported
-	error = lastSongNameForStemExport.set(currentSong->name.get());
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	return Error::NONE;
-}
-
 // Oi, don't even think about modifying this to take a Sample* pointer - cos the whole Sample could get deleted during
 // the card access.
 Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
@@ -476,7 +258,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 	}
 
 	if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
-		error = getUnusedStemRecordingFilePath(filePath, folder);
+		error = stemExport.getUnusedStemRecordingFilePath(filePath, folder);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -543,11 +325,11 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 
 	// wavFileName is uniquely set for each stem export
 	// when this flag is true, there is a valid wavFileName that has been set for stem exported
-	if (wavFileNameForStemExportSet) {
+	if (stemExport.wavFileNameForStemExportSet) {
 		// reset flag to false to ensure that next stem exported is valid
-		wavFileNameForStemExportSet = false;
+		stemExport.wavFileNameForStemExportSet = false;
 
-		error = filePath->concatenate(wavFileNameForStemExport.get());
+		error = filePath->concatenate(stemExport.wavFileNameForStemExport.get());
 		if (error != Error::NONE) {
 			return error;
 		}

@@ -26,7 +26,6 @@
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/menu_item/colour.h"
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -69,10 +68,10 @@
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
 #include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
@@ -91,10 +90,6 @@ SessionView sessionView{};
 
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
-
-	// stem export
-	numClipsExported = 0;
-	totalNumClipsToExport = 0;
 }
 
 bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -371,7 +366,7 @@ moveAfterClipInstance:
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
 				}
 				else {
-					playbackHandler.startStemExportProcess();
+					stemExport.startStemExportProcess(StemExportType::CLIP);
 					return ActionResult::DEALT_WITH;
 				}
 			}
@@ -2102,147 +2097,6 @@ void SessionView::graphicsRoutine() {
 	}
 
 	PadLEDs::setTickSquares(tickSquares, colours);
-}
-
-/// disarms and prepares all the clips so that they can be exported
-void SessionView::disarmAllClipsForStemExport() {
-	// when we begin stem export, we haven't exported any clips yet, so initialize these variables
-	numClipsExported = 0;
-	currentSong->xScroll[NAVIGATION_CLIP] = 0;
-
-	// when we trigger stem export, we don't know how many clips there are yet
-	// so get the number and store it so we only need to ping getNumElements once
-	totalNumClipsToExport = currentSong->sessionClips.getNumElements();
-
-	if (totalNumClipsToExport) {
-		// iterate through all clips to disable all the recording relevant flags
-		for (int32_t idxClip = 0; idxClip < totalNumClipsToExport; ++idxClip) {
-			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-			if (clip) {
-				clip->activeIfNoSolo = false;
-				clip->armState = ArmState::OFF;
-				clip->armedForRecording = false;
-				clip->soloingInSessionMode = false;
-			}
-		}
-	}
-}
-
-/// iterates through all clips, arming one clip at a time for recording
-/// simulates the button combo action of pressing record + play twice to enable resample
-/// and stop recording at the end of the clip's loop length
-void SessionView::exportClipStems() {
-	// prepare all the clips for stem export
-	disarmAllClipsForStemExport();
-
-	if (totalNumClipsToExport) {
-		// now we're going to iterate through all clips to find the first clip that hasn't been exported yet
-		for (int32_t idxClip = totalNumClipsToExport - 1; idxClip >= 0; --idxClip) {
-			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-			if (clip) {
-				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-					int32_t yScrollForDisplay = (idxClip - kDisplayHeight + 1);
-					if (currentSong->songViewYScroll != yScrollForDisplay) {
-						// scroll clip being exported to top of grid
-						currentSong->songViewYScroll = yScrollForDisplay;
-					}
-				}
-
-				// exclude MIDI and CV clips
-				if (clip->output->type == OutputType::MIDI_OUT || clip->output->type == OutputType::CV) {
-					// updated number of clips exported (even though we didn't actually export anything)
-					// so that we know we processed this clip
-					numClipsExported++;
-					// skip this clip and move to the next one
-					continue;
-				}
-
-				// unmute clip for recording
-				clip->activeIfNoSolo = true;
-
-				// re-render song view since we scrolled and updated mutes
-				uiNeedsRendering(this);
-
-				// set wav file name for stem to be exported
-				audioFileManager.setWavFileNameForStemExport(StemExportType::CLIP, clip->output, idxClip);
-
-				// start resampling which ends when end of clip is reached
-				playbackHandler.startOutputRecordingUntilLoopEnd();
-
-				// we haven't exported all the clips yet
-				// so display the number of clips we've exported so far
-				displayStemExportProgress();
-
-				// wait until recording is done and playback is turned off
-				yield([]() {
-					return !(audioRecorder.recordingSource > AudioInputChannel::NONE
-					         || playbackHandler.isEitherClockActive());
-				});
-
-				// mute clip
-				clip->activeIfNoSolo = false;
-
-				// turn off recording if it's still on
-				if (playbackHandler.recording != RecordingMode::OFF) {
-					playbackHandler.recording = RecordingMode::OFF;
-					playbackHandler.setLedStates();
-				}
-
-				// updated number of clips exported
-				numClipsExported++;
-
-				// if we know how many clips to export, we can check if we've already exported all the clips
-				// and are therefore done and should exit out of the stem export UI mode
-				if (numClipsExported >= totalNumClipsToExport) {
-					// the only other UI we could be in is the context menu, so let's get out of that
-					if (getCurrentUI() != this) {
-						display->setNextTransitionDirection(-1);
-						getCurrentUI()->close();
-					}
-					bool available = context_menu::doneStemExport.setupAndCheckAvailability();
-
-					if (available) {
-						display->setNextTransitionDirection(1);
-						openUI(&context_menu::doneStemExport);
-					}
-					exitUIMode(UI_MODE_STEM_EXPORT);
-					audioFileManager.highestUsedStemFolderNumber++;
-					// if we're in song row view, we'll reset the y scroll so we're back at the top
-					if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-						currentSong->songViewYScroll = totalNumClipsToExport - kDisplayHeight;
-						uiNeedsRendering(this);
-					}
-					return;
-				}
-			}
-			// in the event that stem exporting is cancelled while iterating through clips
-			// break out of the loop
-			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-				// re-render song view since we updated mutes
-				uiNeedsRendering(this);
-				break;
-			}
-		}
-	}
-}
-
-void SessionView::displayStemExportProgress() {
-	// if we're in the context menu for cancelling stem export, we don't want to show pop-ups
-	if (getCurrentUI() != this) {
-		return;
-	}
-	DEF_STACK_STRING_BUF(exportStatus, 50);
-	if (display->haveOLED()) {
-		exportStatus.append("Exported ");
-		exportStatus.appendInt(numClipsExported);
-		exportStatus.append(" of ");
-		exportStatus.appendInt(totalNumClipsToExport);
-		exportStatus.append(" clips");
-	}
-	else {
-		exportStatus.appendInt(totalNumClipsToExport - numClipsExported);
-	}
-	display->displayPopup(exportStatus.c_str());
 }
 
 void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {

@@ -24,7 +24,6 @@
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/menu_item/colour.h"
-#include "gui/ui/audio_recorder.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/rename/rename_output_ui.h"
@@ -73,10 +72,10 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <cstdint>
@@ -99,10 +98,6 @@ ArrangerView::ArrangerView() {
 	lastInteractedPos = -1;
 	lastInteractedSection = 0;
 	lastInteractedClipInstance = nullptr;
-
-	// stem export
-	numInstrumentsExported = 0;
-	totalNumInstrumentsToExport = 0;
 }
 
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
@@ -234,7 +229,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
 				}
 				else {
-					playbackHandler.startStemExportProcess();
+					stemExport.startStemExportProcess(StemExportType::TRACK);
 					return ActionResult::DEALT_WITH;
 				}
 			}
@@ -3073,148 +3068,6 @@ void ArrangerView::graphicsRoutine() {
 	}
 
 	mustRedrawTickSquares = false;
-}
-
-/// disarms and prepares all the instruments so that they can be exported
-void ArrangerView::disarmAllInstrumentsForStemExport() {
-	// when we begin stem export, we haven't exported any instruments yet, so initialize these variables
-	numInstrumentsExported = 0;
-
-	// when we trigger stem export, we don't know how many instruments there are yet
-	// so get the number and store it so we only need to ping getNumElements once
-	totalNumInstrumentsToExport = currentSong->getNumOutputs();
-
-	if (totalNumInstrumentsToExport) {
-		// iterate through all the instruments to disable all the recording relevant flags
-		for (int32_t idxOutput = 0; idxOutput < totalNumInstrumentsToExport; ++idxOutput) {
-			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			if (output) {
-				output->mutedInArrangementMode = true;
-				output->recordingInArrangement = false;
-				output->armedForRecording = false;
-				output->soloingInArrangementMode = false;
-			}
-		}
-	}
-}
-
-/// iterates through all instruments, arming one instrument at a time for recording
-/// simulates the button combo action of pressing record + play twice to enable resample
-/// and stop recording at the end of the arrangement
-void ArrangerView::exportInstrumentStems() {
-	// prepare all the instruments for stem export
-	disarmAllInstrumentsForStemExport();
-
-	if (totalNumInstrumentsToExport) {
-		// now we're going to iterate through all instruments to find the first instruments that hasn't been
-		// exported yet
-		for (int32_t idxOutput = totalNumInstrumentsToExport - 1; idxOutput >= 0; --idxOutput) {
-			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			if (output) {
-				currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
-
-				int32_t yScrollForDisplay = (idxOutput - kDisplayHeight + 1);
-				if (currentSong->arrangementYScroll != yScrollForDisplay) {
-					// scroll instrument being exported to top of grid
-					currentSong->arrangementYScroll = yScrollForDisplay;
-					repopulateOutputsOnScreen(false);
-				}
-
-				// exclude MIDI and CV instruments
-				if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-					// updated number of instruments exported (even though we didn't actually export anything)
-					// so that we know we processed this instrument
-					numInstrumentsExported++;
-					// skip this instrument and move to the next one
-					continue;
-				}
-
-				// unmute output for recording
-				output->mutedInArrangementMode = false;
-
-				// turn off recording if it's still on
-				if (playbackHandler.recording != RecordingMode::OFF) {
-					playbackHandler.recording = RecordingMode::OFF;
-					playbackHandler.setLedStates();
-				}
-
-				// re-render arranger view since we scrolled and updated mutes
-				uiNeedsRendering(this);
-
-				// set wav file name for stem to be exported
-				audioFileManager.setWavFileNameForStemExport(StemExportType::TRACK, output, idxOutput);
-
-				// start resampling which ends when end of arrangement is reached
-				playbackHandler.startOutputRecordingUntilLoopEnd();
-
-				// we haven't exported all the instruments yet
-				// so display the number of instruments we've exported so far
-				displayStemExportProgress();
-
-				// wait until recording is done and playback is turned off
-				yield([]() {
-					return !(audioRecorder.recordingSource > AudioInputChannel::NONE
-					         || playbackHandler.isEitherClockActive());
-				});
-
-				// mute output for recording
-				output->mutedInArrangementMode = true;
-
-				// updated number of instruments exported
-				numInstrumentsExported++;
-
-				// if we know how many instruments to export, we can check if we've already exported all the
-				// instruments and are therefore done and should exit out of the stem export UI mode
-				if (numInstrumentsExported >= totalNumInstrumentsToExport) {
-					// the only other UI we could be in is the context menu, so let's get out of that
-					if (getCurrentUI() != this) {
-						display->setNextTransitionDirection(-1);
-						getCurrentUI()->close();
-					}
-					bool available = context_menu::doneStemExport.setupAndCheckAvailability();
-
-					if (available) {
-						display->setNextTransitionDirection(1);
-						openUI(&context_menu::doneStemExport);
-					}
-					exitUIMode(UI_MODE_STEM_EXPORT);
-					audioFileManager.highestUsedStemFolderNumber++;
-					// reset arranger view scrolling so we're back at the top left of the arrangement
-					currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
-					currentSong->arrangementYScroll = totalNumInstrumentsToExport - kDisplayHeight;
-					repopulateOutputsOnScreen(true);
-
-					return;
-				}
-			}
-			// in the event that stem exporting is cancelled while iterating through clips
-			// break out of the loop
-			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-				// re-render arranger view since we updated mutes
-				uiNeedsRendering(this);
-				break;
-			}
-		}
-	}
-}
-
-void ArrangerView::displayStemExportProgress() {
-	// if we're in the context menu for cancelling stem export, we don't want to show pop-ups
-	if (getCurrentUI() != this) {
-		return;
-	}
-	DEF_STACK_STRING_BUF(exportStatus, 50);
-	if (display->haveOLED()) {
-		exportStatus.append("Exported ");
-		exportStatus.appendInt(numInstrumentsExported);
-		exportStatus.append(" of ");
-		exportStatus.appendInt(totalNumInstrumentsToExport);
-		exportStatus.append(" instruments");
-	}
-	else {
-		exportStatus.appendInt(totalNumInstrumentsToExport - numInstrumentsExported);
-	}
-	display->displayPopup(exportStatus.c_str());
 }
 
 void ArrangerView::notifyActiveClipChangedOnOutput(Output* output) {

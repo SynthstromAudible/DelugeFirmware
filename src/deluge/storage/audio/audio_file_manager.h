@@ -40,6 +40,9 @@ enum class AlternateLoadDirStatus {
 	DOES_EXIST,
 };
 
+char const* const audioRecordingFolderNames[] = {"SAMPLES/CLIPS", "SAMPLES/RECORD", "SAMPLES/RESAMPLE",
+                                                 "SAMPLES/STEMS"};
+
 /*
  * ===================== SD card audio streaming ==================
  *
@@ -97,7 +100,6 @@ public:
 	Error setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath);
 	Error setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
-	Error getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder);
 	Error getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
 	                                      AudioRecordingFolder folder, uint32_t* getNumber);
 	void deleteAnyTempRecordedSamplesFromMemory();
@@ -130,14 +132,6 @@ public:
 
 	int32_t highestUsedAudioRecordingNumber[kNumAudioRecordingFolders];
 	bool highestUsedAudioRecordingNumberNeedsReChecking[kNumAudioRecordingFolders];
-
-	// stem exporting
-	int32_t highestUsedStemFolderNumber;
-	String lastSongNameForStemExport;
-
-	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber);
-	String wavFileNameForStemExport;
-	bool wavFileNameForStemExportSet;
 
 private:
 	void setClusterSize(uint32_t newSize);

@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
-#include "playback/playback_handler.h"
+#include "processing/stem_export/stem_export.h"
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -50,7 +50,7 @@ Sized<char const**> CancelStemExport::getOptions() {
 bool CancelStemExport::acceptCurrentOption() {
 	using enum l10n::String;
 
-	playbackHandler.stopStemExportProcess();
+	stemExport.stopStemExportProcess();
 
 	return false; // return false so you exit out of the context menu
 }

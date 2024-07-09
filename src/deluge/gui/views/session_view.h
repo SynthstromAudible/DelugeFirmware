@@ -121,12 +121,6 @@ public:
 	// ui
 	UIType getUIType() { return UIType::SESSION_VIEW; }
 
-	void disarmAllClipsForStemExport();
-	void exportClipStems();
-	void displayStemExportProgress();
-	int32_t numClipsExported;
-	int32_t totalNumClipsToExport;
-
 private:
 	void renderViewDisplay(char const* viewString);
 	void sectionPadAction(uint8_t y, bool on);
