@@ -148,6 +148,7 @@ void StemExport::disarmAllInstrumentsForStemExport() {
 	}
 }
 
+/// set instrument mutes back to their previous state (before exporting stems)
 void StemExport::restoreAllInstrumentMutes() {
 	if (totalNumStemsToExport) {
 		// iterate through all the instruments to restore previous mute states
@@ -227,6 +228,7 @@ void StemExport::disarmAllClipsForStemExport() {
 	}
 }
 
+/// set clip mutes back to their previous state (before exporting stems)
 void StemExport::restoreAllClipMutes() {
 	if (totalNumStemsToExport) {
 		// iterate through all clips to restore previous mute states
