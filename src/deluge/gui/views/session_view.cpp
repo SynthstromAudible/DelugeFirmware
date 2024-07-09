@@ -395,7 +395,7 @@ moveAfterClipInstance:
 	}
 
 	// cancel stem export process
-	else if (b == BACK && currentUIMode == UI_MODE_STEM_EXPORT) {
+	else if (b == BACK && stemExport.processStarted) {
 		if (on) {
 			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
 
@@ -1748,7 +1748,8 @@ void SessionView::setLedStates() {
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
-	if (currentUIMode == UI_MODE_STEM_EXPORT) {
+	if (stemExport.processStarted) {
+		stemExport.displayStemExportProgressOLED(StemExportType::CLIP);
 		return;
 	}
 
@@ -1779,7 +1780,7 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
-	if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || currentUIMode == UI_MODE_STEM_EXPORT)) {
+	if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || stemExport.processStarted)) {
 		return;
 	}
 

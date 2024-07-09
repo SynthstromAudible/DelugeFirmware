@@ -101,6 +101,10 @@ ArrangerView::ArrangerView() {
 }
 
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (stemExport.processStarted) {
+		stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
+		return;
+	}
 	sessionView.renderOLED(canvas);
 }
 
@@ -256,7 +260,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	}
 
 	// cancel stem export process
-	else if (b == BACK && currentUIMode == UI_MODE_STEM_EXPORT) {
+	else if (b == BACK && stemExport.processStarted) {
 		if (on) {
 			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
 

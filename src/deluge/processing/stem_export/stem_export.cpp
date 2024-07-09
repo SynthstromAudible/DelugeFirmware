@@ -24,6 +24,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "model/clip/clip.h"
 #include "model/song/song.h"
@@ -33,6 +34,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "task_scheduler.h"
 #include <new>
+#include <string.h>
 
 extern "C" {
 #include "RZA1/gpio/gpio.h"
@@ -363,27 +365,41 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType) {
 
 /// display how many stems we've exported so far
 void StemExport::displayStemExportProgress(StemExportType stemExportType) {
+	if (display->haveOLED()) {
+		displayStemExportProgressOLED(stemExportType);
+	}
+	else {
+		displayStemExportProgress7SEG();
+	}
+}
+
+void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
 	// if we're in the context menu for cancelling stem export, we don't want to show pop-ups
 	if (inContextMenu()) {
 		return;
 	}
 	DEF_STACK_STRING_BUF(exportStatus, 50);
-	if (display->haveOLED()) {
-		exportStatus.append("Exported ");
-		exportStatus.appendInt(numStemsExported);
-		exportStatus.append(" of ");
-		exportStatus.appendInt(totalNumStemsToExport);
-		if (stemExportType == StemExportType::CLIP) {
-			exportStatus.append(" clips");
-		}
-		else if (stemExportType == StemExportType::TRACK) {
-			exportStatus.append(" instruments");
-		}
+	exportStatus.append("Exported ");
+	exportStatus.appendInt(numStemsExported);
+	exportStatus.append(" of ");
+	exportStatus.appendInt(totalNumStemsToExport);
+	if (stemExportType == StemExportType::CLIP) {
+		exportStatus.append(" clips");
 	}
-	else {
-		exportStatus.appendInt(totalNumStemsToExport - numStemsExported);
+	else if (stemExportType == StemExportType::TRACK) {
+		exportStatus.append(" instruments");
 	}
-	display->displayPopup(exportStatus.c_str());
+	deluge::hid::display::OLED::drawPermanentPopupLookingText(exportStatus.c_str());
+}
+
+void StemExport::displayStemExportProgress7SEG() {
+	// if we're in the context menu for cancelling stem export, we don't want to show pop-ups
+	if (inContextMenu()) {
+		return;
+	}
+	DEF_STACK_STRING_BUF(exportStatus, 50);
+	exportStatus.appendInt(totalNumStemsToExport - numStemsExported);
+	display->setText(exportStatus.c_str(), true, 255, false);
 }
 
 /// based on Stem Export Type, will set a WAV file name in the format of:

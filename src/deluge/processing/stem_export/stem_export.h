@@ -52,6 +52,8 @@ public:
 
 	// export status
 	void displayStemExportProgress(StemExportType stemExportType);
+	void displayStemExportProgressOLED(StemExportType stemExportType);
+	void displayStemExportProgress7SEG();
 	int32_t numStemsExported;
 	int32_t totalNumStemsToExport;
 
