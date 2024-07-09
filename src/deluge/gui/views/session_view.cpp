@@ -2179,6 +2179,11 @@ void SessionView::exportClipStems() {
 				// if we know how many clips to export, we can check if we've already exported all the clips
 				// and are therefore done and should exit out of the stem export UI mode
 				if (numClipsExported >= totalNumClipsToExport) {
+					// the only other UI we could be in is the context menu, so let's get out of that
+					if (getCurrentUI() != this) {
+						display->setNextTransitionDirection(-1);
+						getCurrentUI()->close();
+					}
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DONE_EXPORT_STEMS));
 					exitUIMode(UI_MODE_STEM_EXPORT);
 					audioFileManager.highestUsedStemFolderNumber++;
