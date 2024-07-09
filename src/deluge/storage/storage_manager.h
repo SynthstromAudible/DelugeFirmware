@@ -42,7 +42,6 @@ class ParamManagerForTimeline;
 class ArpeggiatorSettings;
 class Song;
 class InstrumentClip;
-class ParamManagerMIDI;
 class Drum;
 class String;
 class MIDIParamCollection;

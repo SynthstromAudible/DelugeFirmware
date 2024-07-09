@@ -21,7 +21,6 @@
 #include "model/instrument/non_audio_instrument.h"
 #include <array>
 
-class ParamManagerMIDI;
 class ModelStack;
 class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;

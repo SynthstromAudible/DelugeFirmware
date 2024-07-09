@@ -26,9 +26,6 @@
 
 class Sound;
 class ParamManagerForTimeline;
-class ParamManagerForTimeline;
-class ParamManagerForTimeline;
-class ParamManagerMIDI;
 class TimelineCounter;
 class ModelStackWithParamCollection;
 

@@ -40,7 +40,6 @@ class StereoSample;
 class ParamManagerForTimeline;
 class Sound;
 class Note;
-class ParamManagerMIDI;
 class Action;
 class ParamManagerForTimeline;
 class ArrangementRow;
