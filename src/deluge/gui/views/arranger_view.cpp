@@ -3176,6 +3176,8 @@ void ArrangerView::exportInstrumentStems() {
 			// in the event that stem exporting is cancelled while iterating through clips
 			// break out of the loop
 			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+				// re-render arranger view since we updated mutes
+				uiNeedsRendering(this);
 				break;
 			}
 		}
