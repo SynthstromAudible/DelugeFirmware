@@ -833,9 +833,9 @@ enum class AudioRecordingFolder {
 	CLIPS,
 	RECORD,
 	RESAMPLE,
-	STEM,
+	STEMS,
 };
-constexpr auto kNumAudioRecordingFolders = util::to_underlying(AudioRecordingFolder::STEM) + 1;
+constexpr auto kNumAudioRecordingFolders = util::to_underlying(AudioRecordingFolder::STEMS) + 1;
 
 enum class KeyboardLayout : uint8_t {
 	QWERTY,

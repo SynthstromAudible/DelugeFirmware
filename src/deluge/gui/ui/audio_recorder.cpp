@@ -150,7 +150,7 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 bool AudioRecorder::beginOutputRecording() {
 	AudioRecordingFolder folder = AudioRecordingFolder::RESAMPLE;
 	if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
-		folder = AudioRecordingFolder::STEM;
+		folder = AudioRecordingFolder::STEMS;
 	}
 	bool success = setupRecordingToFile(AudioInputChannel::OUTPUT, 2, folder);
 

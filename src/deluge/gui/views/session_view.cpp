@@ -24,6 +24,7 @@
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/launch_style.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
+#include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -2184,17 +2185,18 @@ void SessionView::exportClipStems() {
 						display->setNextTransitionDirection(-1);
 						getCurrentUI()->close();
 					}
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DONE_EXPORT_STEMS));
+					bool available = context_menu::doneStemExport.setupAndCheckAvailability();
+
+					if (available) {
+						display->setNextTransitionDirection(1);
+						openUI(&context_menu::doneStemExport);
+					}
 					exitUIMode(UI_MODE_STEM_EXPORT);
 					audioFileManager.highestUsedStemFolderNumber++;
 					// if we're in song row view, we'll reset the y scroll so we're back at the top
 					if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 						currentSong->songViewYScroll = totalNumClipsToExport - kDisplayHeight;
 						uiNeedsRendering(this);
-					}
-					// re-render "Song View" on the display we're using OLED
-					if (display->haveOLED()) {
-						renderUIsForOled();
 					}
 					return;
 				}

@@ -15,43 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/context_menu/stem_export/cancel_stem_export.h"
-#include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
-#include "hid/display/display.h"
-#include "playback/playback_handler.h"
+#pragma once
 
-extern "C" {
-#include "fatfs/ff.h"
-}
+#include "gui/context_menu/context_menu.h"
 
 namespace deluge::gui::context_menu {
+class DoneStemExport final : public ContextMenu {
+public:
+	DoneStemExport() = default;
 
-CancelStemExport cancelStemExport{};
+	Sized<char const**> getOptions() override;
+	bool acceptCurrentOption() override;
+	bool canSeeViewUnderneath() override { return true; }
 
-char const* CancelStemExport::getTitle() {
-	using enum l10n::String;
-	return l10n::get(STRING_FOR_STOP_EXPORT_STEMS_QMARK);
-}
+	char const* getTitle() override;
+};
 
-Sized<char const**> CancelStemExport::getOptions() {
-	using enum l10n::String;
-
-	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
-		return {options, 1};
-	}
-	else {
-		static char const* options[] = {l10n::get(STRING_FOR_SURE)};
-		return {options, 1};
-	}
-}
-
-bool CancelStemExport::acceptCurrentOption() {
-	using enum l10n::String;
-
-	playbackHandler.stopStemExportProcess();
-
-	return false; // return false so you exit out of the context menu
-}
+extern DoneStemExport doneStemExport;
 } // namespace deluge::gui::context_menu

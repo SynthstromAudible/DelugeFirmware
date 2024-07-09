@@ -22,6 +22,7 @@
 #include "gui/colour/colour.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
+#include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -3156,17 +3157,18 @@ void ArrangerView::exportInstrumentStems() {
 						display->setNextTransitionDirection(-1);
 						getCurrentUI()->close();
 					}
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DONE_EXPORT_STEMS));
+					bool available = context_menu::doneStemExport.setupAndCheckAvailability();
+
+					if (available) {
+						display->setNextTransitionDirection(1);
+						openUI(&context_menu::doneStemExport);
+					}
 					exitUIMode(UI_MODE_STEM_EXPORT);
 					audioFileManager.highestUsedStemFolderNumber++;
 					// reset arranger view scrolling so we're back at the top left of the arrangement
 					currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
 					currentSong->arrangementYScroll = totalNumInstrumentsToExport - kDisplayHeight;
 					repopulateOutputsOnScreen(true);
-					// re-render "Arranger View" on the display if we're using OLED
-					if (display->haveOLED()) {
-						renderUIsForOled();
-					}
 
 					return;
 				}

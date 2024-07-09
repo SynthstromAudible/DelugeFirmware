@@ -26,6 +26,7 @@ public:
 
 	Sized<char const**> getOptions() override;
 	bool acceptCurrentOption() override;
+	bool canSeeViewUnderneath() override { return true; }
 
 	char const* getTitle() override;
 };

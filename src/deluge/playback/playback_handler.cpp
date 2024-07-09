@@ -289,7 +289,7 @@ void PlaybackHandler::startStemExportProcess() {
 
 	// enter stem export UI mode to prevent other actions from taking place while exporting stems
 	// restart file numbering for stem export
-	audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(AudioRecordingFolder::STEM)] = -1;
+	audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(AudioRecordingFolder::STEMS)] = -1;
 	enterUIMode(UI_MODE_STEM_EXPORT);
 
 	// export stems
