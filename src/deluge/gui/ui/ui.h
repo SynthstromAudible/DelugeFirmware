@@ -22,9 +22,10 @@
 #include "hid/button.h"
 #include "hid/display/oled_canvas/canvas.h"
 
-class RootUI;
 class ClipMinder;
 class MIDIDevice;
+class RootUI;
+class TimelineView;
 
 extern uint32_t currentUIMode;
 extern bool pendingUIRenderingLock;
@@ -115,6 +116,12 @@ public:
 	/// Convert this clip to a clip minder. Returns true for views which manage a single clip,
 	/// false for song level views
 	virtual ClipMinder* toClipMinder() { return NULL; }
+
+	/// \brief Convert this view to a TimelineView
+	///
+	/// \return \c nullptr if the view is not a TimelineView, otherwise \c this cast to a TimelineView
+	virtual TimelineView* toTimelineView() { return nullptr; }
+
 	virtual void scrollFinished() {}
 	virtual const char* getName() { return "UI"; }
 	virtual bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) { return false; }
@@ -166,7 +173,6 @@ bool isUIOpen(UI* ui);
 void setRootUILowLevel(UI* newUI);
 void swapOutRootUILowLevel(UI* newUI);
 void nullifyUIs();
-bool rootUIIsTimelineView();
 bool currentUIIsClipMinderScreen();
 bool rootUIIsClipMinderScreen();
 std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows();

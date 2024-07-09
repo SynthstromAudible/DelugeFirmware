@@ -143,11 +143,6 @@ RootUI* getRootUI() {
 	return (RootUI*)uiNavigationHierarchy[0];
 }
 
-bool rootUIIsTimelineView() {
-	RootUI* rootUI = getRootUI();
-	return (rootUI && rootUI->isTimelineView());
-}
-
 bool currentUIIsClipMinderScreen() {
 	UI* currentUI = getCurrentUI();
 	return (currentUI && currentUI->toClipMinder());

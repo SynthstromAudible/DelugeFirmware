@@ -21,6 +21,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -391,7 +392,11 @@ void TimelineView::tripletsButtonPressed() {
 		currentSong->tripletsLevel = currentSong->xZoom[getNavSysId()] * 4 / 3;
 	}
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	view.setTripletsLedState();
+	setTripletsLEDState();
+}
+
+void TimelineView::setTripletsLEDState() {
+	indicator_leds::setLedState(IndicatorLED::TRIPLETS, inTripletsView());
 }
 
 int32_t TimelineView::getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) const {

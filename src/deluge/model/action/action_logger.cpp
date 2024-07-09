@@ -712,7 +712,9 @@ currentClipSwitchedOver:
 			else if (getCurrentUI() == &sessionView) {
 				sessionView.setLedStates();
 			}
-			view.setTripletsLedState();
+			if (auto* timelineView = getCurrentUI()->toTimelineView()) {
+				timelineView->setTripletsLEDState();
+			}
 		}
 	}
 
