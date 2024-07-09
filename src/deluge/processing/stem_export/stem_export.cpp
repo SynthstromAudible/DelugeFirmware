@@ -73,10 +73,10 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 
 	// export stems
 	if (stemExportType == StemExportType::CLIP) {
-		exportClipStems();
+		exportClipStems(stemExportType);
 	}
 	else if (stemExportType == StemExportType::TRACK) {
-		exportInstrumentStems();
+		exportInstrumentStems(stemExportType);
 	}
 
 	// if process wasn't cancelled, then we got here because we finished
@@ -145,7 +145,7 @@ void StemExport::disarmAllInstrumentsForStemExport() {
 /// iterates through all instruments, arming one instrument at a time for recording
 /// simulates the button combo action of pressing record + play twice to enable resample
 /// and stop recording at the end of the arrangement
-void StemExport::exportInstrumentStems() {
+void StemExport::exportInstrumentStems(StemExportType stemExportType) {
 	// prepare all the instruments for stem export
 	disarmAllInstrumentsForStemExport();
 
@@ -155,39 +155,13 @@ void StemExport::exportInstrumentStems() {
 		for (int32_t idxOutput = totalNumStemsToExport - 1; idxOutput >= 0; --idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
 			if (output) {
-				currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
+				bool started = startCurrentStemExport(stemExportType, output, output->type,
+				                                      output->mutedInArrangementMode, idxOutput);
 
-				int32_t yScrollForDisplay = (idxOutput - kDisplayHeight + 1);
-				if (currentSong->arrangementYScroll != yScrollForDisplay) {
-					// scroll instrument being exported to top of grid
-					currentSong->arrangementYScroll = yScrollForDisplay;
-					arrangerView.repopulateOutputsOnScreen(false);
-				}
-
-				// exclude MIDI and CV instruments
-				if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-					// updated number of instruments exported (even though we didn't actually export anything)
-					// so that we know we processed this instrument
-					numStemsExported++;
-					// skip this instrument and move to the next one
+				if (!started) {
+					// skip this stem and move to the next one
 					continue;
 				}
-
-				// unmute output for recording
-				output->mutedInArrangementMode = false;
-
-				// re-render arranger view since we scrolled and updated mutes
-				uiNeedsRendering(getCurrentUI());
-
-				// set wav file name for stem to be exported
-				setWavFileNameForStemExport(StemExportType::TRACK, output, idxOutput);
-
-				// start resampling which ends when end of arrangement is reached
-				stemExport.startOutputRecordingUntilLoopEnd();
-
-				// we haven't exported all the instruments yet
-				// so display the number of instruments we've exported so far
-				displayStemExportProgress(StemExportType::TRACK);
 
 				// wait until recording is done and playback is turned off
 				yield([]() {
@@ -195,17 +169,7 @@ void StemExport::exportInstrumentStems() {
 					         || playbackHandler.isEitherClockActive());
 				});
 
-				// mute output for recording
-				output->mutedInArrangementMode = true;
-
-				// turn off recording if it's still on
-				if (playbackHandler.recording != RecordingMode::OFF) {
-					playbackHandler.recording = RecordingMode::OFF;
-					playbackHandler.setLedStates();
-				}
-
-				// update number of instruments exported
-				numStemsExported++;
+				finishCurrentStemExport(stemExportType, output->mutedInArrangementMode);
 			}
 			// in the event that stem exporting is cancelled while iterating through clips
 			// break out of the loop
@@ -243,7 +207,7 @@ void StemExport::disarmAllClipsForStemExport() {
 /// iterates through all clips, arming one clip at a time for recording
 /// simulates the button combo action of pressing record + play twice to enable resample
 /// and stop recording at the end of the clip's loop length
-void StemExport::exportClipStems() {
+void StemExport::exportClipStems(StemExportType stemExportType) {
 	// prepare all the clips for stem export
 	disarmAllClipsForStemExport();
 
@@ -252,38 +216,13 @@ void StemExport::exportClipStems() {
 		for (int32_t idxClip = totalNumStemsToExport - 1; idxClip >= 0; --idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 			if (clip) {
-				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-					int32_t yScrollForDisplay = (idxClip - kDisplayHeight + 1);
-					if (currentSong->songViewYScroll != yScrollForDisplay) {
-						// scroll clip being exported to top of grid
-						currentSong->songViewYScroll = yScrollForDisplay;
-					}
-				}
+				bool started = startCurrentStemExport(stemExportType, clip->output, clip->output->type,
+				                                      clip->activeIfNoSolo, idxClip);
 
-				// exclude MIDI and CV clips
-				if (clip->output->type == OutputType::MIDI_OUT || clip->output->type == OutputType::CV) {
-					// updated number of clips exported (even though we didn't actually export anything)
-					// so that we know we processed this clip
-					numStemsExported++;
-					// skip this clip and move to the next one
+				if (!started) {
+					// skip this stem and move to the next one
 					continue;
 				}
-
-				// unmute clip for recording
-				clip->activeIfNoSolo = true;
-
-				// re-render song view since we scrolled and updated mutes
-				uiNeedsRendering(getCurrentUI());
-
-				// set wav file name for stem to be exported
-				setWavFileNameForStemExport(StemExportType::CLIP, clip->output, idxClip);
-
-				// start resampling which ends when end of clip is reached
-				stemExport.startOutputRecordingUntilLoopEnd();
-
-				// we haven't exported all the clips yet
-				// so display the number of clips we've exported so far
-				displayStemExportProgress(StemExportType::CLIP);
 
 				// wait until recording is done and playback is turned off
 				yield([]() {
@@ -291,17 +230,7 @@ void StemExport::exportClipStems() {
 					         || playbackHandler.isEitherClockActive());
 				});
 
-				// mute clip
-				clip->activeIfNoSolo = false;
-
-				// turn off recording if it's still on
-				if (playbackHandler.recording != RecordingMode::OFF) {
-					playbackHandler.recording = RecordingMode::OFF;
-					playbackHandler.setLedStates();
-				}
-
-				// update number of clips exported
-				numStemsExported++;
+				finishCurrentStemExport(stemExportType, clip->activeIfNoSolo);
 			}
 			// in the event that stem exporting is cancelled while iterating through clips
 			// break out of the loop
@@ -312,6 +241,86 @@ void StemExport::exportClipStems() {
 	}
 }
 
+bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType,
+                                        bool& muteState, int32_t indexNumber) {
+	// update scroll position of the grid based on the clip / output in focus
+	if (stemExportType == StemExportType::CLIP) {
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+			int32_t yScrollForDisplay = (indexNumber - kDisplayHeight + 1);
+			if (currentSong->songViewYScroll != yScrollForDisplay) {
+				// scroll clip being exported to top of grid
+				currentSong->songViewYScroll = yScrollForDisplay;
+			}
+		}
+	}
+	else if (stemExportType == StemExportType::TRACK) {
+		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
+
+		int32_t yScrollForDisplay = (indexNumber - kDisplayHeight + 1);
+		if (currentSong->arrangementYScroll != yScrollForDisplay) {
+			// scroll instrument being exported to top of grid
+			currentSong->arrangementYScroll = yScrollForDisplay;
+			arrangerView.repopulateOutputsOnScreen(false);
+		}
+	}
+
+	// exclude MIDI and CV clips
+	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
+		// updated number of stems exported (even though we didn't actually export anything)
+		// so that we know we processed this stem
+		numStemsExported++;
+
+		return false;
+	}
+
+	if (stemExportType == StemExportType::CLIP) {
+		// unmute clip for recording
+		muteState = true; // clip->activeIfNoSolo
+	}
+	else if (stemExportType == StemExportType::TRACK) {
+		// unmute output for recording
+		muteState = false; // output->mutedInArrangementMode
+	}
+
+	// re-render song view since we scrolled and updated mutes
+	uiNeedsRendering(getCurrentUI());
+
+	// set wav file name for stem to be exported
+	setWavFileNameForStemExport(stemExportType, output, indexNumber);
+
+	// start resampling which ends when end of clip is reached
+	stemExport.startOutputRecordingUntilLoopEnd();
+
+	// we haven't exported all the clips yet
+	// so display the number of clips we've exported so far
+	displayStemExportProgress(stemExportType);
+
+	return true;
+}
+
+/// mute clip or output after recording it so that it's not recorded next time
+/// update recording mode if it needs to be updated
+/// increment number of stems exported so progress can be displayed
+void StemExport::finishCurrentStemExport(StemExportType stemExportType, bool& muteState) {
+	if (stemExportType == StemExportType::CLIP) {
+		// mute clip for recording
+		muteState = false; // clip->activeIfNoSolo
+	}
+	else if (stemExportType == StemExportType::TRACK) {
+		// mute output for recording
+		muteState = true; // output->mutedInArrangementMode
+	}
+
+	// turn off recording if it's still on
+	if (playbackHandler.recording != RecordingMode::OFF) {
+		playbackHandler.recording = RecordingMode::OFF;
+		playbackHandler.setLedStates();
+	}
+
+	// update number of instruments exported
+	numStemsExported++;
+}
+
 // if we know how many stems to export, we can check if we've already exported all the
 // stems and are therefore done and should exit out of the stem export UI mode
 void StemExport::finishStemExportProcess(StemExportType stemExportType) {
@@ -320,13 +329,18 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType) {
 		display->setNextTransitionDirection(-1);
 		getCurrentUI()->close();
 	}
-	bool available = context_menu::doneStemExport.setupAndCheckAvailability();
 
+	// display stem export completed context menu
+	bool available = context_menu::doneStemExport.setupAndCheckAvailability();
 	if (available) {
 		display->setNextTransitionDirection(1);
 		openUI(&context_menu::doneStemExport);
 	}
+
+	// exit out of the stem export UI mode
 	exitUIMode(UI_MODE_STEM_EXPORT);
+
+	// update folder number in case this same song is exported again
 	highestUsedStemFolderNumber++;
 
 	if (stemExportType == StemExportType::CLIP) {

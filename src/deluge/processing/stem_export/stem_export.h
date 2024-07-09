@@ -36,13 +36,18 @@ public:
 
 	// export instruments
 	void disarmAllInstrumentsForStemExport();
-	void exportInstrumentStems();
+	void exportInstrumentStems(StemExportType stemExportType);
 
 	// export clips
 	void disarmAllClipsForStemExport();
-	void exportClipStems();
+	void exportClipStems(StemExportType stemExportType);
+
+	// start exporting
+	bool startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType, bool& muteState,
+	                            int32_t fileNumber);
 
 	// finish exporting
+	void finishCurrentStemExport(StemExportType stemExportType, bool& muteState);
 	void finishStemExportProcess(StemExportType stemExportType);
 
 	// export status
