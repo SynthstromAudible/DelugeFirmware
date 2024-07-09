@@ -1359,3 +1359,10 @@ uint64_t AudioClip::getCullImmunity() {
 ParamManagerForTimeline* AudioClip::getCurrentParamManager() {
 	return &paramManager;
 }
+
+bool AudioClip::isEmpty(bool displayPopup) {
+	if (sampleHolder.audioFile) {
+		return false;
+	}
+	return true;
+}

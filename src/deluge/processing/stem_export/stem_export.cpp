@@ -173,8 +173,9 @@ void StemExport::exportInstrumentStems(StemExportType stemExportType) {
 		for (int32_t idxOutput = totalNumStemsToExport - 1; idxOutput >= 0; --idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
 			if (output) {
-				bool started = startCurrentStemExport(stemExportType, output, output->type,
-				                                      output->mutedInArrangementMode, idxOutput);
+				bool started =
+				    startCurrentStemExport(stemExportType, output, output->type, output->mutedInArrangementMode,
+				                           idxOutput, output->isEmpty(false));
 
 				if (!started) {
 					// skip this stem and move to the next one
@@ -251,7 +252,7 @@ void StemExport::exportClipStems(StemExportType stemExportType) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 			if (clip) {
 				bool started = startCurrentStemExport(stemExportType, clip->output, clip->output->type,
-				                                      clip->activeIfNoSolo, idxClip);
+				                                      clip->activeIfNoSolo, idxClip, clip->isEmpty(false));
 
 				if (!started) {
 					// skip this stem and move to the next one
@@ -279,11 +280,11 @@ void StemExport::exportClipStems(StemExportType stemExportType) {
 }
 
 bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType,
-                                        bool& muteState, int32_t indexNumber) {
+                                        bool& muteState, int32_t indexNumber, bool isEmpty) {
 	updateScrollPosition(stemExportType, indexNumber + 1);
 
-	// exclude MIDI and CV clips
-	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
+	// exclude empty clips, MIDI and CV clips
+	if (isEmpty || outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
 		// updated number of stems exported (even though we didn't actually export anything)
 		// so that we know we processed this stem
 		numStemsExported++;
@@ -329,12 +330,6 @@ void StemExport::finishCurrentStemExport(StemExportType stemExportType, bool& mu
 		muteState = true; // output->mutedInArrangementMode
 	}
 
-	// turn off recording if it's still on
-	if (playbackHandler.recording != RecordingMode::OFF) {
-		playbackHandler.recording = RecordingMode::OFF;
-		playbackHandler.setLedStates();
-	}
-
 	// update number of instruments exported
 	numStemsExported++;
 }
@@ -361,14 +356,21 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType) {
 	// update folder number in case this same song is exported again
 	highestUsedStemFolderNumber++;
 
+	// reset scroll position
 	updateScrollPosition(stemExportType, totalNumStemsToExport);
+
+	// turn off recording if it's still on
+	if (playbackHandler.recording != RecordingMode::OFF) {
+		playbackHandler.recording = RecordingMode::OFF;
+		playbackHandler.setLedStates();
+	}
 
 	processStarted = false;
 
 	return;
 }
 
-/// resets scroll position so that you can see the top clip or top instrument
+/// resets scroll position so that you can see the current clip or first clip
 /// in the top row of the grid
 void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t indexNumber) {
 	if (stemExportType == StemExportType::CLIP) {

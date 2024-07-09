@@ -3733,10 +3733,12 @@ bool InstrumentClip::isScrollWithinRange(int32_t scrollAmount, int32_t newYNote)
 	return true;
 }
 
-bool InstrumentClip::isEmpty() {
+bool InstrumentClip::isEmpty(bool displayPopup) {
 	// does this clip have notes?
 	if (containsAnyNotes()) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
+		if (displayPopup) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
+		}
 		return false;
 	}
 	return true;

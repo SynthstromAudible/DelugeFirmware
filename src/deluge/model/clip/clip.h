@@ -202,6 +202,8 @@ public:
 	PatchSource lastSelectedPatchSource;
 	// END ~ new Automation Clip View Variables
 
+	virtual bool isEmpty(bool displayPopup = true) = 0;
+
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 

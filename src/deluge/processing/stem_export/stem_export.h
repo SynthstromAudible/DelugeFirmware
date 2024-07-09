@@ -46,7 +46,7 @@ public:
 
 	// start exporting
 	bool startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType, bool& muteState,
-	                            int32_t fileNumber);
+	                            int32_t fileNumber, bool isEmpty);
 
 	// finish exporting
 	void finishCurrentStemExport(StemExportType stemExportType, bool& muteState);
