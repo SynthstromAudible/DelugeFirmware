@@ -21,6 +21,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/context_menu/audio_input_selector.h"
+#include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -255,7 +256,12 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// cancel stem export process
 	else if (b == BACK && currentUIMode == UI_MODE_STEM_EXPORT) {
 		if (on) {
-			playbackHandler.stopStemExportProcess();
+			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
+
+			if (available) {
+				display->setNextTransitionDirection(1);
+				openUI(&context_menu::cancelStemExport);
+			}
 		}
 	}
 
@@ -3170,6 +3176,10 @@ void ArrangerView::exportInstrumentStems() {
 }
 
 void ArrangerView::displayStemExportProgress() {
+	// if we're in the context menu for cancelling stem export, we don't want to show pop-ups
+	if (getCurrentUI() != this) {
+		return;
+	}
 	DEF_STACK_STRING_BUF(exportStatus, 50);
 	if (display->haveOLED()) {
 		exportStatus.append("Exported ");

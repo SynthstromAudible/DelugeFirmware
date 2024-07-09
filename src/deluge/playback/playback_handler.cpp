@@ -304,12 +304,9 @@ void PlaybackHandler::startStemExportProcess() {
 
 /// Stop stem export process
 void PlaybackHandler::stopStemExportProcess() {
-	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_STOP_EXPORT_STEMS));
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
 	exitUIMode(UI_MODE_STEM_EXPORT);
 	stopOutputRecordingAndPlayback();
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_STOP_EXPORT_STEMS), 6);
 }
 
 /// Simulate pressing record and play in order to trigger resampling of out output that ends when loop ends
