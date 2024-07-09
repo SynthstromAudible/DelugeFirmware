@@ -504,7 +504,12 @@ Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordin
 	}
 
 	// tempPath = SAMPLES/STEMS/*INSERT SONG NAME*
-	error = tempPath.concatenate(currentSong->name.get());
+	if (currentSong->name.isEmpty()) { // if you have saved song yet
+		error = tempPath.concatenate("UNSAVED");
+	}
+	else {
+		error = tempPath.concatenate(currentSong->name.get());
+	}
 	if (error != Error::NONE) {
 		return error;
 	}
