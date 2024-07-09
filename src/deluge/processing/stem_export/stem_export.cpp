@@ -135,10 +135,23 @@ void StemExport::disarmAllInstrumentsForStemExport() {
 		for (int32_t idxOutput = 0; idxOutput < totalNumStemsToExport; ++idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
 			if (output) {
+				output->mutedInArrangementModeBeforeStemExport = output->mutedInArrangementMode;
 				output->mutedInArrangementMode = true;
 				output->recordingInArrangement = false;
 				output->armedForRecording = false;
 				output->soloingInArrangementMode = false;
+			}
+		}
+	}
+}
+
+void StemExport::restoreAllInstrumentMutes() {
+	if (totalNumStemsToExport) {
+		// iterate through all the instruments to restore previous mute states
+		for (int32_t idxOutput = 0; idxOutput < totalNumStemsToExport; ++idxOutput) {
+			Output* output = currentSong->getOutputFromIndex(idxOutput);
+			if (output) {
+				output->mutedInArrangementMode = output->mutedInArrangementModeBeforeStemExport;
 			}
 		}
 	}
@@ -180,6 +193,9 @@ void StemExport::exportInstrumentStems(StemExportType stemExportType) {
 			}
 		}
 	}
+
+	// set instrument mutes back to their previous state (before exporting stems)
+	restoreAllInstrumentMutes();
 }
 
 /// disarms and prepares all the clips so that they can be exported
@@ -197,10 +213,23 @@ void StemExport::disarmAllClipsForStemExport() {
 		for (int32_t idxClip = 0; idxClip < totalNumStemsToExport; ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 			if (clip) {
+				clip->activeIfNoSoloBeforeStemExport = clip->activeIfNoSolo;
 				clip->activeIfNoSolo = false;
 				clip->armState = ArmState::OFF;
 				clip->armedForRecording = false;
 				clip->soloingInSessionMode = false;
+			}
+		}
+	}
+}
+
+void StemExport::restoreAllClipMutes() {
+	if (totalNumStemsToExport) {
+		// iterate through all clips to restore previous mute states
+		for (int32_t idxClip = 0; idxClip < totalNumStemsToExport; ++idxClip) {
+			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
+			if (clip) {
+				clip->activeIfNoSolo = clip->activeIfNoSoloBeforeStemExport;
 			}
 		}
 	}
@@ -241,6 +270,9 @@ void StemExport::exportClipStems(StemExportType stemExportType) {
 			}
 		}
 	}
+
+	// set clip mutes back to their previous state (before exporting stems)
+	restoreAllClipMutes();
 }
 
 bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType,

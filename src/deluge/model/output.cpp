@@ -30,6 +30,7 @@
 
 Output::Output(OutputType newType) : type(newType) {
 	mutedInArrangementMode = false;
+	mutedInArrangementModeBeforeStemExport = mutedInArrangementMode;
 	soloingInArrangementMode = false;
 	activeClip = NULL;
 	inValidState = false;

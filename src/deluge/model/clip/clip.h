@@ -154,8 +154,9 @@ public:
 	bool soloingInSessionMode;
 	ArmState armState;
 	bool activeIfNoSolo;
-	bool wasActiveBefore; // A temporary thing used by Song::doLaunch()
-	bool gotInstanceYet;  // For use only while loading song
+	bool activeIfNoSoloBeforeStemExport; // Used by stem export to restore previous state
+	bool wasActiveBefore;                // A temporary thing used by Song::doLaunch()
+	bool gotInstanceYet;                 // For use only while loading song
 
 	bool isPendingOverdub;
 	bool isUnfinishedAutoOverdub;

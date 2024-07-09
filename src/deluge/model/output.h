@@ -57,6 +57,7 @@ public:
 	Output* next;
 	const OutputType type;
 	bool mutedInArrangementMode;
+	bool mutedInArrangementModeBeforeStemExport; // Used by stem export to restore previous state
 	bool soloingInArrangementMode;
 	bool inValidState;
 	bool wasCreatedForAutoOverdub;

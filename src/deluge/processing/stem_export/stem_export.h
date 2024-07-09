@@ -37,10 +37,12 @@ public:
 	// export instruments
 	void disarmAllInstrumentsForStemExport();
 	void exportInstrumentStems(StemExportType stemExportType);
+	void restoreAllInstrumentMutes();
 
 	// export clips
 	void disarmAllClipsForStemExport();
 	void exportClipStems(StemExportType stemExportType);
+	void restoreAllClipMutes();
 
 	// start exporting
 	bool startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType, bool& muteState,
