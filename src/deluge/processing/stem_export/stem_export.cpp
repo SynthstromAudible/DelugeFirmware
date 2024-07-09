@@ -86,6 +86,9 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	if (processStarted) {
 		finishStemExportProcess(stemExportType);
 	}
+	else {
+		resetScrollPosition(stemExportType);
+	}
 
 	// re-render UI because view scroll positions and mute statuses will have been updated
 	uiNeedsRendering(getCurrentUI());
@@ -377,6 +380,16 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType) {
 	// update folder number in case this same song is exported again
 	highestUsedStemFolderNumber++;
 
+	resetScrollPosition(stemExportType);
+
+	processStarted = false;
+
+	return;
+}
+
+/// resets scroll position so that you can see the top clip or top instrument
+/// in the top row of the grid
+void StemExport::resetScrollPosition(StemExportType stemExportType) {
 	if (stemExportType == StemExportType::CLIP) {
 		// if we're in song row view, we'll reset the y scroll so we're back at the top
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
@@ -389,10 +402,6 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType) {
 		currentSong->arrangementYScroll = totalNumStemsToExport - kDisplayHeight;
 		arrangerView.repopulateOutputsOnScreen(false);
 	}
-
-	processStarted = false;
-
-	return;
 }
 
 /// display how many stems we've exported so far
