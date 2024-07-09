@@ -32,6 +32,7 @@ public:
 	void stopStemExportProcess();
 	void startOutputRecordingUntilLoopEnd();
 	void stopOutputRecordingAndPlayback();
+	bool processStarted;
 
 	// export instruments
 	void disarmAllInstrumentsForStemExport();
@@ -41,6 +42,14 @@ public:
 	void disarmAllClipsForStemExport();
 	void exportClipStems();
 
+	// finish exporting
+	void finishStemExportProcess(StemExportType stemExportType);
+
+	// export status
+	void displayStemExportProgress(StemExportType stemExportType);
+	int32_t numStemsExported;
+	int32_t totalNumStemsToExport;
+
 	// audio file management
 	Error getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
@@ -48,11 +57,6 @@ public:
 	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber);
 	String wavFileNameForStemExport;
 	bool wavFileNameForStemExportSet;
-
-	// display progress
-	void displayStemExportProgress(StemExportType stemExportType);
-	int32_t numStemsExported;
-	int32_t totalNumStemsToExport;
 
 	// check if we're in context menu
 	bool inContextMenu();
