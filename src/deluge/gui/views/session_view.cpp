@@ -2174,6 +2174,12 @@ void SessionView::exportClipStems() {
 				// mute clip
 				clip->activeIfNoSolo = false;
 
+				// turn off recording if it's still on
+				if (playbackHandler.recording != RecordingMode::OFF) {
+					playbackHandler.recording = RecordingMode::OFF;
+					playbackHandler.setLedStates();
+				}
+
 				// updated number of clips exported
 				numClipsExported++;
 

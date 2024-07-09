@@ -3124,6 +3124,12 @@ void ArrangerView::exportInstrumentStems() {
 				// unmute output for recording
 				output->mutedInArrangementMode = false;
 
+				// turn off recording if it's still on
+				if (playbackHandler.recording != RecordingMode::OFF) {
+					playbackHandler.recording = RecordingMode::OFF;
+					playbackHandler.setLedStates();
+				}
+
 				// re-render arranger view since we scrolled and updated mutes
 				uiNeedsRendering(this);
 

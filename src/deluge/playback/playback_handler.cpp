@@ -324,7 +324,6 @@ void PlaybackHandler::startOutputRecordingUntilLoopEnd() {
 void PlaybackHandler::stopOutputRecordingAndPlayback() {
 	if (audioRecorder.isCurrentlyResampling()) {
 		audioRecorder.endRecordingSoon(kInternalButtonPressLatency);
-		recordButtonPressed();
 	}
 	if (isEitherClockActive()) {
 		playButtonPressed(kInternalButtonPressLatency);
