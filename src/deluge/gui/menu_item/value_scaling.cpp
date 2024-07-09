@@ -20,7 +20,7 @@ int32_t computeCurrentValueForArpMidiCvRatchetsOrRhythm(uint32_t value) {
 	return ((int64_t)value * kMaxMenuValue + 2147483648) >> 32;
 }
 
-int32_t computeFinalValueForSemiStandardMenuItem(int32_t value) {
+int32_t computeFinalValueWithoutRoundingToOne(int32_t value) {
 	// (2147483648 / kMidMenuValue) == 85899345
 	return (uint32_t)value * 85899345 - 2147483648;
 }
@@ -33,7 +33,7 @@ int32_t computeFinalValueForStandardMenuItem(int32_t value) {
 		return -2147483648;
 	}
 	else {
-		return computeFinalValueForSemiStandardMenuItem(value);
+		return computeFinalValueWithoutRoundingToOne(value);
 	}
 }
 
@@ -71,6 +71,6 @@ int32_t computeFinalValueForArpMidiCvRate(int32_t value) {
 		return 0;
 	}
 	else {
-		return computeFinalValueForSemiStandardMenuItem(value);
+		return computeFinalValueWithoutRoundingToOne(value);
 	}
 }

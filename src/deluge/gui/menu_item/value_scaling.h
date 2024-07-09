@@ -81,7 +81,7 @@ int32_t computeFinalValueForStandardMenuItem(int32_t value);
  *
  * Thin wrapper for clarity.
  */
-inline int32_t computeCurrentValueForSemiStandardMenuItem(int32_t value) {
+inline int32_t computeCurrentValueWithoutRoundingToOne(int32_t value) {
 	return computeCurrentValueForStandardMenuItem(value);
 }
 
@@ -93,7 +93,7 @@ inline int32_t computeCurrentValueForSemiStandardMenuItem(int32_t value) {
  * NOTE: computeFinalValueForArpMidiRate() is _almost_ but not quite
  * the same: this one returns -23 for zero, that one returns 0.
  */
-int32_t computeFinalValueForSemiStandardMenuItem(int32_t value);
+int32_t computeFinalValueWithoutRoundingToOne(int32_t value);
 
 /** Scales 0-INT32_MAX range to 0-50 for display.
  */
@@ -149,7 +149,7 @@ inline int32_t computeCurrentValueForArpMidiCvRate(int32_t value) {
  *
  * arpeggiator::midi_cv::Rate uses this, it is not obvious why, though.
  *
- * NOTE: computeFinalValueForSemiStandardMenuItem() is _almost_ but not quite
+ * NOTE: computeFinalValueWithoutRoundingToOne() is _almost_ but not quite
  * the same: this one returns 0 for kMidMenuValue, whereas that one does not.
  */
 int32_t computeFinalValueForArpMidiCvRate(int32_t value);
