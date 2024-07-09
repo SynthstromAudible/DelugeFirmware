@@ -172,6 +172,12 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 
 	OutputType newOutputType;
 
+	// when stem export process has started,
+	// do not action anybutton presses except BACK to cancel the process
+	if (b != BACK && stemExport.processStarted) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Song button
 	if (b == SESSION_VIEW) {
 		if (on) {

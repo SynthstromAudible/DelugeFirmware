@@ -174,6 +174,12 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	OutputType newOutputType;
 
+	// when stem export process has started,
+	// do not action anybutton presses except BACK to cancel the process
+	if (b != BACK && stemExport.processStarted) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Clip-view button
 	if (b == CLIP_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
