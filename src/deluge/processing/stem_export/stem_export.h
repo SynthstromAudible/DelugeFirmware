@@ -51,7 +51,7 @@ public:
 	// finish exporting
 	void finishCurrentStemExport(StemExportType stemExportType, bool& muteState);
 	void finishStemExportProcess(StemExportType stemExportType);
-	void resetScrollPosition(StemExportType stemExportType);
+	void updateScrollPosition(StemExportType stemExportType, int32_t indexNumber);
 
 	// export status
 	void displayStemExportProgress(StemExportType stemExportType);

@@ -87,7 +87,7 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 		finishStemExportProcess(stemExportType);
 	}
 	else {
-		resetScrollPosition(stemExportType);
+		updateScrollPosition(stemExportType, totalNumStemsToExport);
 	}
 
 	// re-render UI because view scroll positions and mute statuses will have been updated
@@ -280,26 +280,7 @@ void StemExport::exportClipStems(StemExportType stemExportType) {
 
 bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType,
                                         bool& muteState, int32_t indexNumber) {
-	// update scroll position of the grid based on the clip / output in focus
-	if (stemExportType == StemExportType::CLIP) {
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-			int32_t yScrollForDisplay = (indexNumber - kDisplayHeight + 1);
-			if (currentSong->songViewYScroll != yScrollForDisplay) {
-				// scroll clip being exported to top of grid
-				currentSong->songViewYScroll = yScrollForDisplay;
-			}
-		}
-	}
-	else if (stemExportType == StemExportType::TRACK) {
-		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
-
-		int32_t yScrollForDisplay = (indexNumber - kDisplayHeight + 1);
-		if (currentSong->arrangementYScroll != yScrollForDisplay) {
-			// scroll instrument being exported to top of grid
-			currentSong->arrangementYScroll = yScrollForDisplay;
-			arrangerView.repopulateOutputsOnScreen(false);
-		}
-	}
+	updateScrollPosition(stemExportType, indexNumber + 1);
 
 	// exclude MIDI and CV clips
 	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
@@ -380,7 +361,7 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType) {
 	// update folder number in case this same song is exported again
 	highestUsedStemFolderNumber++;
 
-	resetScrollPosition(stemExportType);
+	updateScrollPosition(stemExportType, totalNumStemsToExport);
 
 	processStarted = false;
 
@@ -389,17 +370,17 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType) {
 
 /// resets scroll position so that you can see the top clip or top instrument
 /// in the top row of the grid
-void StemExport::resetScrollPosition(StemExportType stemExportType) {
+void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t indexNumber) {
 	if (stemExportType == StemExportType::CLIP) {
 		// if we're in song row view, we'll reset the y scroll so we're back at the top
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-			currentSong->songViewYScroll = totalNumStemsToExport - kDisplayHeight;
+			currentSong->songViewYScroll = indexNumber - kDisplayHeight;
 		}
 	}
 	else if (stemExportType == StemExportType::TRACK) {
 		// reset arranger view scrolling so we're back at the top left of the arrangement
 		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
-		currentSong->arrangementYScroll = totalNumStemsToExport - kDisplayHeight;
+		currentSong->arrangementYScroll = indexNumber - kDisplayHeight;
 		arrangerView.repopulateOutputsOnScreen(false);
 	}
 }
