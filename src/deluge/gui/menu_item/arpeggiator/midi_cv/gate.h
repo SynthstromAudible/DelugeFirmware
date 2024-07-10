@@ -29,7 +29,7 @@ public:
 		this->setValue(computeCurrentValueForStandardMenuItem(getCurrentInstrumentClip()->arpeggiatorGate));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorGate = computeFinalValueWithoutRoundingToOne(this->getValue());
+		getCurrentInstrumentClip()->arpeggiatorGate = computeFinalValueForStandardMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

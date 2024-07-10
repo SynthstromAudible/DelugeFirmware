@@ -74,27 +74,6 @@ int32_t computeCurrentValueForStandardMenuItem(int32_t value);
  */
 int32_t computeFinalValueForStandardMenuItem(int32_t value);
 
-/** Scales INT32_MIN-INT32_MAX range to 0-50 for display.
- *
- * This roundtrips with the final value math despite being not being it's
- * proper inverse.
- *
- * Thin wrapper for clarity.
- */
-inline int32_t computeCurrentValueWithoutRoundingToOne(int32_t value) {
-	return computeCurrentValueForStandardMenuItem(value);
-}
-
-/** Scales 0-50 range to INT32_MIN-(INT32_MAX-45) for storage and use.
- *
- * Current assumption is that this is an accident. TODO: figure out how
- * replace this with the standard value computation without changing sounds.
- *
- * NOTE: computeFinalValueForArpMidiRate() is _almost_ but not quite
- * the same: this one returns -23 for zero, that one returns 0.
- */
-int32_t computeFinalValueWithoutRoundingToOne(int32_t value);
-
 /** Scales 0-INT32_MAX range to 0-50 for display.
  */
 int32_t computeCurrentValueForHalfPrecisionMenuItem(int32_t value);
@@ -133,23 +112,3 @@ int32_t computeCurrentValueForArpMidiCvRatchetsOrRhythm(uint32_t value);
  * See comment in the current value computation above for more.
  */
 uint32_t computeFinalValueForArpMidiCvRatchetsOrRhythm(int32_t value);
-
-/** Scales INT32_MIN-INT32_MAX range to 0-50 for display.
- *
- * This roundtrips with the final value math despite being
- * not being it's proper inverse.
- *
- * Thin wrapper for clarity.
- */
-inline int32_t computeCurrentValueForArpMidiCvRate(int32_t value) {
-	return computeCurrentValueForStandardMenuItem(value);
-}
-
-/** Scales 0-50 range to INT32_MIN-(INT32_MAX-45) for storage and use.
- *
- * arpeggiator::midi_cv::Rate uses this, it is not obvious why, though.
- *
- * NOTE: computeFinalValueWithoutRoundingToOne() is _almost_ but not quite
- * the same: this one returns 0 for kMidMenuValue, whereas that one does not.
- */
-int32_t computeFinalValueForArpMidiCvRate(int32_t value);

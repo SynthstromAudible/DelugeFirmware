@@ -25,10 +25,10 @@ public:
 	using Integer::Integer;
 
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueWithoutRoundingToOne(getCurrentAudioClip()->attack));
+		this->setValue(computeCurrentValueForStandardMenuItem(getCurrentAudioClip()->attack));
 	}
 	void writeCurrentValue() override {
-		getCurrentAudioClip()->attack = computeFinalValueWithoutRoundingToOne(this->getValue());
+		getCurrentAudioClip()->attack = computeCurrentValueForStandardMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };

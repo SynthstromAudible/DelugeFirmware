@@ -20,11 +20,6 @@ int32_t computeCurrentValueForArpMidiCvRatchetsOrRhythm(uint32_t value) {
 	return ((int64_t)value * kMaxMenuValue + 2147483648) >> 32;
 }
 
-int32_t computeFinalValueWithoutRoundingToOne(int32_t value) {
-	// (2147483648 / kMidMenuValue) == 85899345
-	return (uint32_t)value * 85899345 - 2147483648;
-}
-
 int32_t computeFinalValueForStandardMenuItem(int32_t value) {
 	if (value == kMaxMenuValue) {
 		return 2147483647;
@@ -33,7 +28,8 @@ int32_t computeFinalValueForStandardMenuItem(int32_t value) {
 		return -2147483648;
 	}
 	else {
-		return computeFinalValueWithoutRoundingToOne(value);
+		// (2147483648 / kMidMenuValue) == 85899345
+		return (uint32_t)value * 85899345 - 2147483648;
 	}
 }
 
@@ -64,13 +60,4 @@ int32_t computeFinalValueForPan(int32_t value) {
 
 uint32_t computeFinalValueForArpMidiCvRatchetsOrRhythm(int32_t value) {
 	return (uint32_t)value * 85899345;
-}
-
-int32_t computeFinalValueForArpMidiCvRate(int32_t value) {
-	if (value == kMidMenuValue) {
-		return 0;
-	}
-	else {
-		return computeFinalValueWithoutRoundingToOne(value);
-	}
 }
