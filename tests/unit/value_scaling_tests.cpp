@@ -4,8 +4,6 @@
 #include "gui/menu_item/value_scaling.h"
 #include "modulation/arpeggiator_rhythms.h"
 
-#include <iostream>
-
 TEST_GROUP(ValueScalingTest){};
 
 TEST(ValueScalingTest, standardMenuItemValueScaling) {

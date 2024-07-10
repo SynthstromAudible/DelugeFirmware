@@ -32,6 +32,7 @@
 #include "model/consequence/consequence_param_change.h"
 #include "model/model_stack.h"
 #include "model/note/note.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
@@ -323,14 +324,9 @@ void Action::updateYScrollClipViewAfter(InstrumentClip* clip) {
 		return;
 	}
 
+	// NOTE: i ranges over over all clips, not just instrument clips!
 	int32_t i = 0;
-
-	// For each Clip in session and arranger
-	ClipArray* clipArray = &currentSong->sessionClips;
-traverseClips:
-	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-		Clip* thisClip = clipArray->getClipAtIndex(c);
-
+	for (Clip* thisClip : AllClips::everywhere(currentSong)) {
 		if (thisClip->type == ClipType::INSTRUMENT) {
 
 			if (!clip || thisClip == clip) {
@@ -340,9 +336,5 @@ traverseClips:
 		}
 
 		i++;
-	}
-	if (clipArray != &currentSong->arrangementOnlyClips) {
-		clipArray = &currentSong->arrangementOnlyClips;
-		goto traverseClips;
 	}
 }
