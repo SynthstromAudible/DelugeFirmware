@@ -43,6 +43,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 	soloingInSessionMode = false;
 	armState = ArmState::OFF;
 	activeIfNoSolo = true;
+	activeIfNoSoloBeforeStemExport = activeIfNoSolo;
 	wasActiveBefore = false; // Want to set this default in case a Clip was created during playback
 
 	section = 0;

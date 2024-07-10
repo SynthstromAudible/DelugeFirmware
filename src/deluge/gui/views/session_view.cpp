@@ -23,6 +23,8 @@
 #include "gui/colour/palette.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/launch_style.h"
+#include "gui/context_menu/stem_export/cancel_stem_export.h"
+#include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -66,6 +68,7 @@
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
@@ -170,6 +173,12 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	using namespace deluge::hid::button;
 
 	OutputType newOutputType;
+
+	// when stem export process has started,
+	// do not action anybutton presses except BACK to cancel the process
+	if (b != BACK && stemExport.processStarted) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
@@ -357,6 +366,16 @@ moveAfterClipInstance:
 				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 				view.blinkOn = true;
 			}
+			// trigger stem export when pressing record while holding save
+			else if (isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+				if (playbackHandler.isEitherClockActive() || playbackHandler.recording != RecordingMode::OFF) {
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
+				}
+				else {
+					stemExport.startStemExportProcess(StemExportType::CLIP);
+					return ActionResult::DEALT_WITH;
+				}
+			}
 			else {
 				goto notDealtWith;
 			}
@@ -373,6 +392,18 @@ moveAfterClipInstance:
 			}
 		}
 		return ActionResult::NOT_DEALT_WITH; // Make the MatrixDriver do its normal thing with it too
+	}
+
+	// cancel stem export process
+	else if (b == BACK && stemExport.processStarted) {
+		if (on) {
+			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
+
+			if (available) {
+				display->setNextTransitionDirection(1);
+				openUI(&context_menu::cancelStemExport);
+			}
+		}
 	}
 
 	// Overwrite to allow not showing zoom level in grid
@@ -1737,6 +1768,11 @@ void SessionView::setLedStates() {
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (stemExport.processStarted) {
+		stemExport.displayStemExportProgressOLED(StemExportType::CLIP);
+		return;
+	}
+
 	UI* currentUI = getCurrentUI();
 	if (currentUI != &performanceSessionView) {
 		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
@@ -1764,7 +1800,7 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
-	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+	if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || stemExport.processStarted)) {
 		return;
 	}
 
@@ -2329,8 +2365,8 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 		if (view.midiLearnFlashOn && ((Instrument*)clip->output)->midiInput.containsSomething()) {
 
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it looks
-				// mental, and I think one user was having it cause his Deluge to freeze due to underpowering.
+				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it
+				// looks mental, and I think one user was having it cause his Deluge to freeze due to underpowering.
 				thisImage[xDisplay] = colours::midi_command.dim();
 			}
 		}
@@ -3247,8 +3283,8 @@ void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
 }
 
 ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
-	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably be
-	// refactored
+	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably
+	// be refactored
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}

@@ -259,6 +259,12 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - ([#2166]) Holding back will now fully exit your current menu
 
+#### 3.23 Automated Stem Exporting
+
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Stem Export Documentation]
+- ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
+  - Note: in Arranger, any instruments that are muted will be excluded from the Instrument Stem Export
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1355,6 +1361,8 @@ different firmware
 
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
+[#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
+
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/automation_view.md
 
 [Velocity View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/velocity_view.md
@@ -1368,3 +1376,5 @@ different firmware
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/community/contrib/midi_follow/touch_osc
 
 [DX7 Synth Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/dx_synth.md
+
+[Stem Export Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/stem_export.md

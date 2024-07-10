@@ -239,6 +239,11 @@ enum class OutputType : uint8_t {
 	NONE = 255,
 };
 
+enum class StemExportType : uint8_t {
+	CLIP,
+	TRACK,
+};
+
 enum class ThingType : uint8_t {
 	SYNTH,
 	KIT,
@@ -829,8 +834,9 @@ enum class AudioRecordingFolder {
 	CLIPS,
 	RECORD,
 	RESAMPLE,
+	STEMS,
 };
-constexpr auto kNumAudioRecordingFolders = util::to_underlying(AudioRecordingFolder::RESAMPLE) + 1;
+constexpr auto kNumAudioRecordingFolders = util::to_underlying(AudioRecordingFolder::STEMS) + 1;
 
 enum class KeyboardLayout : uint8_t {
 	QWERTY,

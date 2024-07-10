@@ -21,6 +21,8 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/context_menu/audio_input_selector.h"
+#include "gui/context_menu/stem_export/cancel_stem_export.h"
+#include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -70,6 +72,7 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
@@ -98,6 +101,10 @@ ArrangerView::ArrangerView() {
 }
 
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (stemExport.processStarted) {
+		stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
+		return;
+	}
 	sessionView.renderOLED(canvas);
 }
 
@@ -169,6 +176,12 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 
 	OutputType newOutputType;
 
+	// when stem export process has started,
+	// do not action anybutton presses except BACK to cancel the process
+	if (b != BACK && stemExport.processStarted) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Song button
 	if (b == SESSION_VIEW) {
 		if (on) {
@@ -220,8 +233,21 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// Record button - adds to what MatrixDriver does with it
 	else if (b == RECORD) {
 		if (on) {
-			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
-			blinkOn = true;
+			// trigger stem export when pressing record while holding save
+			if (isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+				if (playbackHandler.isEitherClockActive() || playbackHandler.recording != RecordingMode::OFF) {
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
+				}
+				else {
+					stemExport.startStemExportProcess(StemExportType::TRACK);
+					return ActionResult::DEALT_WITH;
+				}
+			}
+
+			else {
+				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
+				blinkOn = true;
+			}
 		}
 		else {
 			if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
@@ -231,6 +257,18 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			}
 		}
 		return ActionResult::NOT_DEALT_WITH; // Make the MatrixDriver do its normal thing with it too
+	}
+
+	// cancel stem export process
+	else if (b == BACK && stemExport.processStarted) {
+		if (on) {
+			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
+
+			if (available) {
+				display->setNextTransitionDirection(1);
+				openUI(&context_menu::cancelStemExport);
+			}
+		}
 	}
 
 	// Save/delete button with row held
@@ -2928,7 +2966,8 @@ void ArrangerView::setNoSubMode() {
 }
 
 static const uint32_t autoScrollUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
-                                             UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, UI_MODE_HORIZONTAL_ZOOM, 0};
+                                             UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, UI_MODE_HORIZONTAL_ZOOM,
+                                             UI_MODE_STEM_EXPORT, 0};
 
 void ArrangerView::graphicsRoutine() {
 	UI* ui = getCurrentUI();

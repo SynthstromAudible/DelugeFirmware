@@ -25,6 +25,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include <new>
@@ -379,9 +380,14 @@ aborted:
 
 			// Note: we couldn't pass the actual Sample pointer into this function, cos the Sample might get destructed
 			// during the card access! (Though probably not anymore right?)
-			error = audioFileManager.getUnusedAudioRecordingFilePath(
-			    &filePath, &tempFilePathForRecording, folderID,
-			    &audioFileNumber); // Recording could finish or abort during this!
+			// Recording could finish or abort during this!
+			if (stemExport.processStarted) {
+				error = stemExport.getUnusedStemRecordingFilePath(&filePath, folderID);
+			}
+			else {
+				error = audioFileManager.getUnusedAudioRecordingFilePath(&filePath, &tempFilePathForRecording, folderID,
+				                                                         &audioFileNumber);
+			}
 			if (status == RecorderStatus::ABORTED) {
 				goto aborted; // In case aborted during
 			}

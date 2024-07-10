@@ -147,11 +147,13 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 	}
 }
 
+const uint32_t buttonAndPadActionUIModes[] = {UI_MODE_STEM_EXPORT, 0};
+
 ActionResult ContextMenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	if (b == BACK) {
-		if (on && !currentUIMode) {
+		if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -163,7 +165,7 @@ getOut:
 
 	else if (b == SELECT_ENC) {
 probablyAcceptCurrentOption:
-		if (on && !currentUIMode) {
+		if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -194,7 +196,7 @@ void ContextMenu::drawCurrentOption() {
 }
 
 ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
-	if (on && !currentUIMode) {
+	if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}

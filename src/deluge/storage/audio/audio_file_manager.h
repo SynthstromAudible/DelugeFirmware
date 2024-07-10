@@ -31,6 +31,7 @@ class Cluster;
 class SampleCache;
 class String;
 class SampleRecorder;
+class Output;
 
 enum class AlternateLoadDirStatus {
 	NONE_SET,
@@ -38,6 +39,9 @@ enum class AlternateLoadDirStatus {
 	MIGHT_EXIST,
 	DOES_EXIST,
 };
+
+char const* const audioRecordingFolderNames[] = {"SAMPLES/CLIPS", "SAMPLES/RECORD", "SAMPLES/RESAMPLE",
+                                                 "SAMPLES/STEMS"};
 
 /*
  * ===================== SD card audio streaming ==================
@@ -97,7 +101,7 @@ public:
 	Error setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
 	Error getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
-	                                      AudioRecordingFolder folderID, uint32_t* getNumber);
+	                                      AudioRecordingFolder folder, uint32_t* getNumber);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int32_t i);
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);
