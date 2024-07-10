@@ -862,7 +862,14 @@ enum class String : size_t {
 	// string for high CPU usage indicator default setting
 	STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
 
+	// string for configuring hold time for sticky shift / perf view / keyboard sidebars
 	STRING_FOR_HOLD_TIME,
+
+	// strings for Stem Export
+	STRING_FOR_CANT_EXPORT_STEMS,
+	STRING_FOR_STOP_EXPORT_STEMS_QMARK,
+	STRING_FOR_STOP_EXPORT_STEMS,
+	STRING_FOR_DONE_EXPORT_STEMS,
 
 	STRING_LAST
 };

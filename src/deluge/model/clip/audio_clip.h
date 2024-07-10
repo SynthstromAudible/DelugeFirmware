@@ -116,6 +116,8 @@ public:
 
 	ParamManagerForTimeline* getCurrentParamManager() override;
 
+	bool isEmpty(bool displayPopup = true);
+
 protected:
 	bool cloneOutput(ModelStackWithTimelineCounter* modelStack) override;
 
