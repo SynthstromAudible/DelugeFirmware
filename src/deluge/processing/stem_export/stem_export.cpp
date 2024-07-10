@@ -179,9 +179,9 @@ void StemExport::exportInstrumentStems(StemExportType stemExportType) {
 		for (int32_t idxOutput = totalNumStemsToExport - 1; idxOutput >= 0; --idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
 			if (output) {
-				bool started =
-				    startCurrentStemExport(stemExportType, output, output->type, output->mutedInArrangementMode,
-				                           idxOutput, output->isEmpty(false));
+				bool started = startCurrentStemExport(stemExportType, output, output->type,
+				                                      output->mutedInArrangementMode, idxOutput, output->isEmpty(false),
+				                                      output->mutedInArrangementModeBeforeStemExport);
 
 				if (!started) {
 					// skip this stem and move to the next one
@@ -287,11 +287,11 @@ void StemExport::exportClipStems(StemExportType stemExportType) {
 }
 
 bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType,
-                                        bool& muteState, int32_t indexNumber, bool isEmpty) {
+                                        bool& muteState, int32_t indexNumber, bool isEmpty, bool isMuted) {
 	updateScrollPosition(stemExportType, indexNumber + 1);
 
-	// exclude empty clips, MIDI and CV clips
-	if (isEmpty || outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
+	// exclude empty clips / outputs, muted outputs (arranger), MIDI and CV outputs
+	if (isEmpty || isMuted || outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
 		// updated number of stems exported (even though we didn't actually export anything)
 		// so that we know we processed this stem
 		numStemsExported++;

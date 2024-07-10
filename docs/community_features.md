@@ -263,6 +263,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Stem Export Documentation]
 - ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
+  - Note: in Arranger, any instruments that are muted will be excluded from the Instrument Stem Export
 
 ## 4. New Features Added
 
