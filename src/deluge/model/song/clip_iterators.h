@@ -18,21 +18,21 @@
 // from this and implement just those for minimal template bloat.
 class ClipIteratorBase {
 public:
-	__attribute__((noinline))
-	ClipIteratorBase(ClipArray* array_, uint32_t index_, ClipArray* nextArray_, std::optional<ClipType> clipType_);
-	__attribute__((noinline)) ClipIteratorBase& operator++();
-	__attribute__((noinline)) ClipIteratorBase operator++(int);
+	[[gnu::noinline]] ClipIteratorBase(ClipArray* array_, uint32_t index_, ClipArray* nextArray_,
+	                                   std::optional<ClipType> clipType_);
+	[[gnu::noinline]] ClipIteratorBase& operator++();
+	[[gnu::noinline]] ClipIteratorBase operator++(int);
 	/** Deletes the clip pointed to by the iterator and advances it. */
-	__attribute__((noinline)) void deleteClip(InstrumentRemoval instrumentRemoval);
-	__attribute__((noinline)) friend bool operator==(const ClipIteratorBase& a, const ClipIteratorBase& b) {
+	[[gnu::noinline]] void deleteClip(InstrumentRemoval instrumentRemoval);
+	[[gnu::noinline]] friend bool operator==(const ClipIteratorBase& a, const ClipIteratorBase& b) {
 		return (a.array == b.array) && (a.index == b.index) && (a.clipType == b.clipType);
 	}
-	__attribute__((noinline)) friend bool operator!=(const ClipIteratorBase& a, const ClipIteratorBase& b) {
+	[[gnu::noinline]] friend bool operator!=(const ClipIteratorBase& a, const ClipIteratorBase& b) {
 		return (a.array != b.array) || (a.index != b.index) || (a.clipType != b.clipType);
 	}
 
 private:
-	__attribute__((noinline)) void next();
+	[[gnu::noinline]] void next();
 
 protected:
 	ClipArray* array;
