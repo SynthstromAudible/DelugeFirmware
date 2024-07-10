@@ -179,7 +179,7 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 }
 
 void AudioRecorder::slowRoutine() {
-	if (recordingSource == AudioInputChannel::OUTPUT) {
+	if (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 		if (recorder->status >= RecorderStatus::COMPLETE) {
 			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RecordingMode::NORMAL));
 			finishRecording();

@@ -436,18 +436,18 @@ Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordin
 		return error;
 	}
 
-	error = stemExport.getUnusedStemRecordingFolderPath(filePath, folder);
+	error = getUnusedStemRecordingFolderPath(filePath, folder);
 	if (error != Error::NONE) {
 		return error;
 	}
 
 	// wavFileName is uniquely set for each stem export
 	// when this flag is true, there is a valid wavFileName that has been set for stem exporting
-	if (stemExport.wavFileNameForStemExportSet) {
+	if (wavFileNameForStemExportSet) {
 		// reset flag to false to ensure that next stem exported is valid
-		stemExport.wavFileNameForStemExportSet = false;
+		wavFileNameForStemExportSet = false;
 
-		error = filePath->concatenate(stemExport.wavFileNameForStemExport.get());
+		error = filePath->concatenate(wavFileNameForStemExport.get());
 		if (error != Error::NONE) {
 			return error;
 		}
