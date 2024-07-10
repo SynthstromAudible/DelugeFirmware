@@ -37,6 +37,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note.h"
 #include "model/scale/note_set.h"
+#include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
