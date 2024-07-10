@@ -33,7 +33,8 @@ Stem's are given a meaningful name in the following format:
 
 - Hold `SAVE` + Press `RECORD` while Playback and Record are disabled to launch Stem Export process
 - When the stem export is finished, a dialog will appear on the display that tells you that the stem export process has finished. Press `SELECT`, `BACK` or any `PAD` on the grid to exit the dialog.
-- Note: In Arranger View, any Instruments that are `MUTED` will be excluded from the stem export.
+- Note 1: In Arranger View, any Instruments that are `MUTED` will be excluded from the stem export.
+- Note 2: Stems are exported without Master (Song) FX applied
 
 ### Cancelling Stem Export
 

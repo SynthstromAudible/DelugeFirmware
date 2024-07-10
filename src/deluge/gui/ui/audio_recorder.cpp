@@ -150,10 +150,12 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 
 bool AudioRecorder::beginOutputRecording() {
 	AudioRecordingFolder folder = AudioRecordingFolder::RESAMPLE;
+	AudioInputChannel channel = AudioInputChannel::OUTPUT;
 	if (stemExport.processStarted) {
 		folder = AudioRecordingFolder::STEMS;
+		channel = AudioInputChannel::MIX;
 	}
-	bool success = setupRecordingToFile(AudioInputChannel::OUTPUT, 2, folder);
+	bool success = setupRecordingToFile(channel, 2, folder);
 
 	if (success) {
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
