@@ -6,7 +6,6 @@ std::array<char const*, NUM_PRESET_SCALES> presetScaleNames = {
 #undef DEF
 };
 
-// Note: Value of note intervals taken from here: https://www.apassion4jazz.net/scales2.html
 const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
 #define DEF(id, name, notes) notes,
     DEF_SCALES()

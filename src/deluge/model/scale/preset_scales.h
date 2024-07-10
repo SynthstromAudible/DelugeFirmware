@@ -18,11 +18,13 @@
  * Use by defining DEF(id, name, notes) before invoking DEF_SCALES() and undefining it
  * after.
  *
- * DEF_NOTES manages the notes array intact on the trip through the preprocessor, since
+ * DEF_NOTES keeps the notes array intact on the trip through the preprocessor, since
  * cpp doesn't understand arrays, seeing { and } as a normal tokens.
  */
 #define DEF_NOTES(...)                                                                                                 \
 	{ __VA_ARGS__ }
+
+// Note: Value of note intervals taken from here: https://www.apassion4jazz.net/scales2.html
 #define DEF_SCALES()                                                                                                   \
 	/* ============================== 7-note scales ============================== */                                  \
 	/* ------------- ORIGINAL DELUGE SCALES: modes of the major scale ------------ */                                  \
