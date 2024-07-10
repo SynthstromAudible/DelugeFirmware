@@ -169,8 +169,7 @@ void StemExport::exportInstrumentStems(StemExportType stemExportType) {
 	disarmAllInstrumentsForStemExport();
 
 	if (totalNumStemsToExport) {
-		// now we're going to iterate through all instruments to find the first instruments that hasn't been
-		// exported yet
+		// now we're going to iterate through all instruments to find the ones that should be exported
 		for (int32_t idxOutput = totalNumStemsToExport - 1; idxOutput >= 0; --idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
 			if (output) {
@@ -249,7 +248,7 @@ void StemExport::exportClipStems(StemExportType stemExportType) {
 	disarmAllClipsForStemExport();
 
 	if (totalNumStemsToExport) {
-		// now we're going to iterate through all clips to find the first clip that hasn't been exported yet
+		// now we're going to iterate through all clips to find the ones that should be exported
 		for (int32_t idxClip = totalNumStemsToExport - 1; idxClip >= 0; --idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 			if (clip) {
