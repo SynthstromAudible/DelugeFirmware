@@ -37,6 +37,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
@@ -149,7 +150,7 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 
 bool AudioRecorder::beginOutputRecording() {
 	AudioRecordingFolder folder = AudioRecordingFolder::RESAMPLE;
-	if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
+	if (stemExport.processStarted) {
 		folder = AudioRecordingFolder::STEMS;
 	}
 	bool success = setupRecordingToFile(AudioInputChannel::OUTPUT, 2, folder);

@@ -257,7 +257,9 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		return error;
 	}
 
-	if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
+	// if stem export process has started and this function is called,
+	// then we want to export stem files to a specific stems folder
+	if (stemExport.processStarted) {
 		error = stemExport.getUnusedStemRecordingFilePath(filePath, folder);
 		if (error != Error::NONE) {
 			return error;
@@ -303,8 +305,8 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 
 	bool doingTempFolder = false;
 
-	// filePath was already obtained above for the stem export UI mode
-	if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+	// filePath was already obtained above for the stem export process
+	if (!stemExport.processStarted) {
 		error = filePath->set(audioRecordingFolderNames[folderID]);
 		if (error != Error::NONE) {
 			return error;
