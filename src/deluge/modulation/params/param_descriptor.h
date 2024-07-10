@@ -21,9 +21,20 @@
 #include "util/misc.h"
 #include <cstdint>
 
+/// Wrapper class around an int32, representing a parameter. The least significant 8 bits represent the actual
+/// parameter. The next 8 bits represent a PatchSource modulating that parameter, the 8 bits after that represent the
+/// source modulating that modulation, and so on.
 class ParamDescriptor {
 public:
 	ParamDescriptor() = default;
+	ParamDescriptor(const ParamDescriptor&) = default;
+	ParamDescriptor(ParamDescriptor&&) = default;
+	ParamDescriptor& operator=(const ParamDescriptor&) = default;
+	ParamDescriptor& operator=(ParamDescriptor&&) = default;
+
+	/// Construct a ParamDescriptor directly from its value.
+	explicit ParamDescriptor(int32_t data_) : data(data_) {}
+
 	constexpr void setToHaveParamOnly(int32_t p) { data = p | 0xFFFFFF00; }
 
 	constexpr void setToHaveParamAndSource(int32_t p, PatchSource s) {

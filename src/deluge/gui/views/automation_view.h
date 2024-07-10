@@ -50,25 +50,25 @@ class SoundDrum;
 class AutomationView final : public ClipView, public InstrumentClipMinder {
 public:
 	AutomationView();
-	bool opened();
+	bool opened() override;
 	void initializeView();
 	void openedInBackground();
-	void focusRegained();
+	void focusRegained() override;
 
 	// called by ui_timer_manager - might need to revise this routine for automation clip view since it references notes
-	void graphicsRoutine();
+	void graphicsRoutine() override;
 
 	// ui
-	UIType getUIType() { return UIType::AUTOMATION_VIEW; }
+	UIType getUIType() override { return UIType::AUTOMATION; }
 	AutomationSubType getAutomationSubType();
-	const char* getName() { return "automation_view"; }
+	const char* getName() override { return "automation_view"; }
 
 	// rendering
 	bool possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind, int32_t paramID);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
 	                   bool modEncoderAction = false);
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
@@ -78,15 +78,15 @@ public:
 	}
 
 	// button action
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 
 	// pad action
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	// horizontal encoder action
-	ActionResult horizontalEncoderAction(int32_t offset);
-	uint32_t getMaxLength();
-	uint32_t getMaxZoom();
+	ActionResult horizontalEncoderAction(int32_t offset) override;
+	uint32_t getMaxLength() override;
+	uint32_t getMaxZoom() override;
 	[[nodiscard]] int32_t getNavSysId() const override;
 	int32_t navSysId;
 
@@ -95,24 +95,24 @@ public:
 	ActionResult scrollVertical(int32_t scrollAmount);
 
 	// mod encoder action
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	CopiedParamAutomation copiedParamAutomation;
 
 	// Select encoder action
-	void selectEncoderAction(int8_t offset);
+	void selectEncoderAction(int8_t offset) override;
 	void getLastSelectedParamShortcut(Clip* clip);      // public so menu can access it
 	void getLastSelectedParamArrayPosition(Clip* clip); // public so menu can access it
 	bool multiPadPressSelected;                         // public so menu can access it
 
 	// called by melodic_instrument.cpp or kit.cpp
-	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
+	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
 
 	// called by playback_handler.cpp
-	void notifyPlaybackBegun();
+	void notifyPlaybackBegun() override;
 
 	// used to identify the UI as a clip UI or not.
-	ClipMinder* toClipMinder() { return getAutomationSubType() == AutomationSubType::ARRANGER ? NULL : this; }
+	ClipMinder* toClipMinder() override { return getAutomationSubType() == AutomationSubType::ARRANGER ? NULL : this; }
 
 	void setAutomationParamType();
 
@@ -150,7 +150,7 @@ public:
 	void resetPadSelectionShortcutBlinking();
 	void resetSelectedNoteRowBlinking();
 	AutomationParamType automationParamType;
-	bool getAffectEntire();
+	bool getAffectEntire() override;
 
 private:
 	// button action functions
@@ -296,7 +296,7 @@ private:
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 	uint32_t getMiddlePosFromSquare(int32_t xDisplay, int32_t effectiveLength, int32_t xScroll, int32_t xZoom);
 
-	void getAutomationParameterName(Clip* clip, OutputType outputType, char* parameterName);
+	void getAutomationParameterName(Clip* clip, OutputType outputType, StringBuf& parameterName);
 
 	bool getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack, int32_t pos, bool reversed);
 	void setAutomationParameterValue(ModelStackWithAutoParam* modelStack, int32_t knobPos, int32_t squareStart,

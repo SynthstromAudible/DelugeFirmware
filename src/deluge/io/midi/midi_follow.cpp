@@ -147,20 +147,20 @@ Clip* MidiFollow::getSelectedClip() {
 	}
 
 	switch (uiType) {
-	case UIType::SESSION_VIEW:
+	case UIType::SESSION:
 		// if you're in session view, check if you're pressing a clip to control that clip
 		clip = sessionView.getClipForLayout();
 		break;
-	case UIType::ARRANGER_VIEW:
+	case UIType::ARRANGER:
 		clip = arrangerView.getClipForSelection();
 		break;
-	case UIType::PERFORMANCE_SESSION_VIEW:
+	case UIType::PERFORMANCE_SESSION:
 		// if you're in the arranger performance view, check if you're holding audition pad
 		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 			clip = arrangerView.getClipForSelection();
 		}
 		break;
-	case UIType::AUTOMATION_VIEW:
+	case UIType::AUTOMATION:
 		// if you're in the arranger automation view, check if you're holding audition pad
 		if (automationView.onArrangerView) {
 			clip = arrangerView.getClipForSelection();

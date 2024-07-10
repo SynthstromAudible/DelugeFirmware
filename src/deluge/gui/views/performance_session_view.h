@@ -65,7 +65,7 @@ public:
 	ActionResult timerCallback() override;
 
 	// ui
-	UIType getUIType() { return UIType::PERFORMANCE_SESSION_VIEW; }
+	UIType getUIType() { return UIType::PERFORMANCE_SESSION; }
 	const char* getName() { return "performance_session_view"; }
 	// rendering
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
