@@ -90,6 +90,12 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 		updateScrollPosition(stemExportType, totalNumStemsToExport);
 	}
 
+	// turn off recording if it's still on
+	if (playbackHandler.recording != RecordingMode::OFF) {
+		playbackHandler.recording = RecordingMode::OFF;
+		playbackHandler.setLedStates();
+	}
+
 	// re-render UI because view scroll positions and mute statuses will have been updated
 	uiNeedsRendering(getCurrentUI());
 }
@@ -359,12 +365,6 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType) {
 
 	// reset scroll position
 	updateScrollPosition(stemExportType, totalNumStemsToExport);
-
-	// turn off recording if it's still on
-	if (playbackHandler.recording != RecordingMode::OFF) {
-		playbackHandler.recording = RecordingMode::OFF;
-		playbackHandler.setLedStates();
-	}
 
 	processStarted = false;
 
