@@ -322,9 +322,6 @@ void InstrumentClipMinder::setLedStates() {
 	playbackHandler.setLedStates();
 }
 
-void InstrumentClipMinder::opened() {
-}
-
 void InstrumentClipMinder::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip());

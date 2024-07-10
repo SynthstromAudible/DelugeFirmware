@@ -717,7 +717,6 @@ void KeyboardScreen::exitAuditionMode() {
 bool KeyboardScreen::opened() {
 	focusRegained();
 	openedInBackground();
-	InstrumentClipMinder::opened();
 	return true;
 }
 
