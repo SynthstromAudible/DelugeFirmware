@@ -30,7 +30,6 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/stem_export/stem_export.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
@@ -257,15 +256,8 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		return error;
 	}
 
-	// if stem export process has started and this function is called,
-	// then we want to export stem files to a specific stems folder
-	if (stemExport.processStarted) {
-		error = stemExport.getUnusedStemRecordingFilePath(filePath, folder);
-		if (error != Error::NONE) {
-			return error;
-		}
-	}
-	else if (highestUsedAudioRecordingNumberNeedsReChecking[folderID]) {
+	if (highestUsedAudioRecordingNumberNeedsReChecking[folderID]) {
+
 		FRESULT result = f_opendir(&staticDIR, audioRecordingFolderNames[folderID]);
 		if (result == FR_OK) {
 
@@ -303,53 +295,34 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 
 	D_PRINTLN("new file: --------------  %d", highestUsedAudioRecordingNumber[folderID]);
 
-	bool doingTempFolder = false;
+	error = filePath->set(audioRecordingFolderNames[folderID]);
+	if (error != Error::NONE) {
+		return error;
+	}
 
-	// filePath was already obtained above for the stem export process
-	if (!stemExport.processStarted) {
-		error = filePath->set(audioRecordingFolderNames[folderID]);
+	bool doingTempFolder = (folder == AudioRecordingFolder::CLIPS);
+	if (doingTempFolder) {
+		error = tempFilePathForRecording->set(audioRecordingFolderNames[folderID]);
 		if (error != Error::NONE) {
 			return error;
 		}
-
-		bool doingTempFolder = (folder == AudioRecordingFolder::CLIPS);
-		if (doingTempFolder) {
-			error = tempFilePathForRecording->set(audioRecordingFolderNames[folderID]);
-			if (error != Error::NONE) {
-				return error;
-			}
-			error = tempFilePathForRecording->concatenate("/TEMP");
-			if (error != Error::NONE) {
-				return error;
-			}
-		}
-	}
-
-	// wavFileName is uniquely set for each stem export
-	// when this flag is true, there is a valid wavFileName that has been set for stem exported
-	if (stemExport.wavFileNameForStemExportSet) {
-		// reset flag to false to ensure that next stem exported is valid
-		stemExport.wavFileNameForStemExportSet = false;
-
-		error = filePath->concatenate(stemExport.wavFileNameForStemExport.get());
+		error = tempFilePathForRecording->concatenate("/TEMP");
 		if (error != Error::NONE) {
 			return error;
 		}
 	}
-	// otherwise we default to regular /REC#####.WAV naming convention
-	else {
-		error = filePath->concatenate("/REC");
-		if (error != Error::NONE) {
-			return error;
-		}
-		error = filePath->concatenateInt(highestUsedAudioRecordingNumber[folderID], 5);
-		if (error != Error::NONE) {
-			return error;
-		}
-		error = filePath->concatenate(".WAV");
-		if (error != Error::NONE) {
-			return error;
-		}
+
+	error = filePath->concatenate("/REC");
+	if (error != Error::NONE) {
+		return error;
+	}
+	error = filePath->concatenateInt(highestUsedAudioRecordingNumber[folderID], 5);
+	if (error != Error::NONE) {
+		return error;
+	}
+	error = filePath->concatenate(".WAV");
+	if (error != Error::NONE) {
+		return error;
 	}
 
 	if (doingTempFolder) {

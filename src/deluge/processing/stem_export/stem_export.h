@@ -62,6 +62,7 @@ public:
 
 	// audio file management
 	Error getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder);
+	Error getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
 	String lastSongNameForStemExport;
 	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber);

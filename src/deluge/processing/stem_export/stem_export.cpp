@@ -427,84 +427,49 @@ void StemExport::displayStemExportProgress7SEG() {
 	display->setText(exportStatus.c_str(), true, 255, false);
 }
 
-/// based on Stem Export Type, will set a WAV file name in the format of:
-/// /OutputType_StemExportType_OutputName_IndexNumber.WAV
-/// example: /SYNTH_CLIP_BASS SYNTH_00000.WAV
-/// example: /SYNTH_TRACK_BASS SYNTH_00000.WAV
-/// this wavFileName is then concatenate to the filePath name to export the WAV file
-void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber) {
-	// wavFileNameForStemExport = "/"
-	Error error = wavFileNameForStemExport.set("/");
+// creates the full file path for stem exporting including the stem folder structure and wav file name
+Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder) {
+	const auto folderID = util::to_underlying(folder);
+
+	Error error = storageManager.initSD();
 	if (error != Error::NONE) {
-		return;
+		return error;
 	}
 
-	// wavFileNameForStemExport = "/OutputType
-	const char* outputType;
-	switch (output->type) {
-	case OutputType::AUDIO:
-		outputType = "AUDIO";
-		break;
-	case OutputType::SYNTH:
-		outputType = "SYNTH";
-		break;
-	case OutputType::KIT:
-		outputType = "KIT";
-		break;
-	default:
-		break;
-	}
-	error = wavFileNameForStemExport.concatenate(outputType);
+	error = stemExport.getUnusedStemRecordingFolderPath(filePath, folder);
 	if (error != Error::NONE) {
-		return;
+		return error;
 	}
 
-	// wavFileNameForStemExport = "/OutputType_
-	error = wavFileNameForStemExport.concatenate("_");
-	if (error != Error::NONE) {
-		return;
-	}
+	// wavFileName is uniquely set for each stem export
+	// when this flag is true, there is a valid wavFileName that has been set for stem exporting
+	if (stemExport.wavFileNameForStemExportSet) {
+		// reset flag to false to ensure that next stem exported is valid
+		stemExport.wavFileNameForStemExportSet = false;
 
-	// wavFileNameForStemExport = "/OutputType_StemExportType_
-	if (stemExportType == StemExportType::CLIP) {
-		error = wavFileNameForStemExport.concatenate("CLIP_");
+		error = filePath->concatenate(stemExport.wavFileNameForStemExport.get());
 		if (error != Error::NONE) {
-			return;
+			return error;
 		}
 	}
-	else if (stemExportType == StemExportType::TRACK) {
-		error = wavFileNameForStemExport.concatenate("TRACK_");
+	// otherwise we default to regular /REC#####.WAV naming convention
+	else {
+		error = filePath->concatenate("/REC");
 		if (error != Error::NONE) {
-			return;
+			return error;
+		}
+		audioFileManager.highestUsedAudioRecordingNumber[folderID]++;
+		error = filePath->concatenateInt(audioFileManager.highestUsedAudioRecordingNumber[folderID], 5);
+		if (error != Error::NONE) {
+			return error;
+		}
+		error = filePath->concatenate(".WAV");
+		if (error != Error::NONE) {
+			return error;
 		}
 	}
 
-	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName
-	error = wavFileNameForStemExport.concatenate(output->name.get());
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName_
-	error = wavFileNameForStemExport.concatenate("_");
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName_#####
-	error = wavFileNameForStemExport.concatenateInt(fileNumber, 5);
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName_#####.WAV
-	error = wavFileNameForStemExport.concatenate(".WAV");
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// set this flag to true so that the wavFileName set above is used when exporting
-	wavFileNameForStemExportSet = true;
+	return Error::NONE;
 }
 
 /// gets folder path in SAMPLES/STEMS to write stems to
@@ -515,7 +480,7 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 /// to avoid unecessary file system calls, it will save the last song name saved to a String
 /// including the last incremental folder number and use that to obtain the filePath for the next
 /// stem export job (e.g. if you are exporting the same song more than once)
-Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder) {
+Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder) {
 
 	const auto folderID = util::to_underlying(folder);
 
@@ -643,6 +608,86 @@ Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordin
 	}
 
 	return Error::NONE;
+}
+
+/// based on Stem Export Type, will set a WAV file name in the format of:
+/// /OutputType_StemExportType_OutputName_IndexNumber.WAV
+/// example: /SYNTH_CLIP_BASS SYNTH_00000.WAV
+/// example: /SYNTH_TRACK_BASS SYNTH_00000.WAV
+/// this wavFileName is then concatenate to the filePath name to export the WAV file
+void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber) {
+	// wavFileNameForStemExport = "/"
+	Error error = wavFileNameForStemExport.set("/");
+	if (error != Error::NONE) {
+		return;
+	}
+
+	// wavFileNameForStemExport = "/OutputType
+	const char* outputType;
+	switch (output->type) {
+	case OutputType::AUDIO:
+		outputType = "AUDIO";
+		break;
+	case OutputType::SYNTH:
+		outputType = "SYNTH";
+		break;
+	case OutputType::KIT:
+		outputType = "KIT";
+		break;
+	default:
+		break;
+	}
+	error = wavFileNameForStemExport.concatenate(outputType);
+	if (error != Error::NONE) {
+		return;
+	}
+
+	// wavFileNameForStemExport = "/OutputType_
+	error = wavFileNameForStemExport.concatenate("_");
+	if (error != Error::NONE) {
+		return;
+	}
+
+	// wavFileNameForStemExport = "/OutputType_StemExportType_
+	if (stemExportType == StemExportType::CLIP) {
+		error = wavFileNameForStemExport.concatenate("CLIP_");
+		if (error != Error::NONE) {
+			return;
+		}
+	}
+	else if (stemExportType == StemExportType::TRACK) {
+		error = wavFileNameForStemExport.concatenate("TRACK_");
+		if (error != Error::NONE) {
+			return;
+		}
+	}
+
+	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName
+	error = wavFileNameForStemExport.concatenate(output->name.get());
+	if (error != Error::NONE) {
+		return;
+	}
+
+	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName_
+	error = wavFileNameForStemExport.concatenate("_");
+	if (error != Error::NONE) {
+		return;
+	}
+
+	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName_#####
+	error = wavFileNameForStemExport.concatenateInt(fileNumber, 5);
+	if (error != Error::NONE) {
+		return;
+	}
+
+	// wavFileNameForStemExport = "/OutputType_StemExportType_OutputName_#####.WAV
+	error = wavFileNameForStemExport.concatenate(".WAV");
+	if (error != Error::NONE) {
+		return;
+	}
+
+	// set this flag to true so that the wavFileName set above is used when exporting
+	wavFileNameForStemExportSet = true;
 }
 
 /// used to check if we should exit out of context menu when recording ends
