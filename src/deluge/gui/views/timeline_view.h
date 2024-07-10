@@ -70,7 +70,7 @@ public:
 	[[nodiscard]] bool inTripletsView() const;
 
 	// ui
-	UIType getUIType() { return UIType::TIMELINE_VIEW; }
+	UIType getUIType() { return UIType::TIMELINE; }
 
 private:
 	/// Used when scrolling horizontally to briefly catch on clip's max zoom

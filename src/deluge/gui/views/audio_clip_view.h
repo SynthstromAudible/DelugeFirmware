@@ -58,7 +58,7 @@ public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	// ui
-	UIType getUIType() override { return UIType::AUDIO_CLIP_VIEW; }
+	UIType getUIType() override { return UIType::AUDIO_CLIP; }
 	const char* getName() { return "audio_clip_view"; }
 
 private:

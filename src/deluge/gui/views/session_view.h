@@ -119,7 +119,7 @@ public:
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 
 	// ui
-	UIType getUIType() { return UIType::SESSION_VIEW; }
+	UIType getUIType() { return UIType::SESSION; }
 
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain

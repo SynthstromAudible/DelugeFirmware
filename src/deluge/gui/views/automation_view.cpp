@@ -1211,9 +1211,9 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 	}
 	else {
 		// display parameter name
-		char parameterName[30];
+		DEF_STACK_STRING_BUF(parameterName, 30);
 		if (automationParamType == AutomationParamType::NOTE_VELOCITY) {
-			strncpy(parameterName, "Velocity", 29);
+			parameterName.append("Velocity");
 		}
 		else {
 			getAutomationParameterName(clip, outputType, parameterName);
@@ -1224,7 +1224,7 @@ void AutomationView::renderDisplayOLED(Clip* clip, OutputType outputType, int32_
 #else
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
-		canvas.drawStringCentredShrinkIfNecessary(parameterName, yPos, kTextSpacingX, kTextSpacingY);
+		canvas.drawStringCentredShrinkIfNecessary(parameterName.c_str(), yPos, kTextSpacingX, kTextSpacingY);
 
 		// display automation status
 		yPos = yPos + 12;
@@ -1430,9 +1430,9 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 		// display parameter name
 		else {
 			if (inAutomationEditor()) {
-				char parameterName[30];
+				DEF_STACK_STRING_BUF(parameterName, 30);
 				getAutomationParameterName(clip, outputType, parameterName);
-				display->setScrollingText(parameterName);
+				display->setScrollingText(parameterName.c_str());
 			}
 			else if (inNoteEditor()) {
 				char noteRowName[50];
@@ -1457,7 +1457,7 @@ void AutomationView::renderDisplay7SEG(Clip* clip, OutputType outputType, int32_
 }
 
 // get's the name of the Parameter being edited so it can be displayed on the screen
-void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputType, char* parameterName) {
+void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputType, StringBuf& parameterName) {
 	if (onArrangerView || outputType == OutputType::SYNTH || outputType == OutputType::KIT
 	    || outputType == OutputType::AUDIO) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
@@ -1480,67 +1480,51 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 				source2 = paramDescriptor.getTopLevelSource();
 			}
 
-			DEF_STACK_STRING_BUF(paramDisplayName, 30);
 			if (source2 == PatchSource::NONE) {
-				paramDisplayName.append(getSourceDisplayNameForOLED(lastSelectedPatchSource));
+				parameterName.append(getSourceDisplayNameForOLED(lastSelectedPatchSource));
 			}
 			else {
-				paramDisplayName.append(sourceToStringShort(lastSelectedPatchSource));
+				parameterName.append(sourceToStringShort(lastSelectedPatchSource));
 			}
 			if (display->haveOLED()) {
-				paramDisplayName.append(" -> ");
+				parameterName.append(" -> ");
 			}
 			else {
-				paramDisplayName.append(" - ");
+				parameterName.append(" - ");
 			}
 
 			if (source2 != PatchSource::NONE) {
-				paramDisplayName.append(sourceToStringShort(source2));
-				if (display->haveOLED()) {
-					paramDisplayName.append(" -> ");
-				}
-				else {
-					paramDisplayName.append(" - ");
-				}
+				parameterName.append(sourceToStringShort(source2));
+				parameterName.append(display->haveOLED() ? " -> " : " - ");
 			}
 
-			paramDisplayName.append(modulation::params::getPatchedParamShortName(lastSelectedParamID));
-			strncpy(parameterName, paramDisplayName.c_str(), 29);
+			parameterName.append(modulation::params::getPatchedParamShortName(lastSelectedParamID));
 		}
 		else {
-			strncpy(parameterName, getParamDisplayName(lastSelectedParamKind, lastSelectedParamID), 29);
+			parameterName.append(getParamDisplayName(lastSelectedParamKind, lastSelectedParamID));
 		}
 	}
 	else if (outputType == OutputType::MIDI_OUT) {
 		if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
-			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
+			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
 		}
 		else if (clip->lastSelectedParamID == CC_NUMBER_PITCH_BEND) {
-			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
 		}
 		else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
-			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 		}
 		else if (clip->lastSelectedParamID == CC_NUMBER_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
-			strcpy(parameterName, deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
 		else {
-			parameterName[0] = 'C';
-			parameterName[1] = 'C';
+			parameterName.append("CC");
 			if (display->haveOLED()) {
-				parameterName[2] = ' ';
-				intToString(clip->lastSelectedParamID, &parameterName[3]);
+				parameterName.append(' ');
+				parameterName.appendInt(clip->lastSelectedParamID);
 			}
 			else {
-				char* numberStartPos;
-				if (clip->lastSelectedParamID < 10) {
-					parameterName[2] = ' ';
-					numberStartPos = parameterName + 3;
-				}
-				else {
-					numberStartPos = (clip->lastSelectedParamID < 100) ? (parameterName + 2) : (parameterName + 1);
-				}
-				intToString(clip->lastSelectedParamID, numberStartPos);
+				parameterName.appendInt(clip->lastSelectedParamID, 3);
 			}
 		}
 	}

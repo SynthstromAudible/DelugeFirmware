@@ -1406,7 +1406,7 @@ void View::setModLedStates() {
 		uiType = rootUI->getUIType();
 	}
 	AutomationSubType automationSubType = AutomationSubType::NONE;
-	if (uiType == UIType::AUTOMATION_VIEW) {
+	if (uiType == UIType::AUTOMATION) {
 		automationSubType = automationView.getAutomationSubType();
 	}
 
@@ -1416,19 +1416,19 @@ void View::setModLedStates() {
 	// let's check if we're in any of the song UI's
 	if (!itsTheSong && !activeModControllableModelStack.timelineCounterIsSet()) {
 		switch (uiType) {
-		case UIType::SESSION_VIEW:
+		case UIType::SESSION:
 			itsTheSong = true;
 			break;
 
-		case UIType::ARRANGER_VIEW:
+		case UIType::ARRANGER:
 			itsTheSong = true;
 			break;
 
-		case UIType::PERFORMANCE_SESSION_VIEW:
+		case UIType::PERFORMANCE_SESSION:
 			itsTheSong = true;
 			break;
 
-		case UIType::AUTOMATION_VIEW:
+		case UIType::AUTOMATION:
 			if (automationSubType == AutomationSubType::ARRANGER) {
 				itsTheSong = true;
 			}
@@ -1453,13 +1453,13 @@ void View::setModLedStates() {
 		// otherwise you're in an audio clip or automation view for an audio clip, in which case affect entire is always
 		// enabled
 		switch (uiType) {
-		case UIType::INSTRUMENT_CLIP_VIEW:
+		case UIType::INSTRUMENT_CLIP:
 			affectEntire = ((InstrumentClip*)clip)->affectEntire;
 			break;
 		case UIType::KEYBOARD_SCREEN:
 			affectEntire = ((InstrumentClip*)clip)->affectEntire;
 			break;
-		case UIType::AUTOMATION_VIEW:
+		case UIType::AUTOMATION:
 			if (automationSubType == AutomationSubType::INSTRUMENT) {
 				affectEntire = ((InstrumentClip*)clip)->affectEntire;
 			}
@@ -1468,7 +1468,7 @@ void View::setModLedStates() {
 				affectEntire = true;
 			}
 			break;
-		case UIType::AUDIO_CLIP_VIEW:
+		case UIType::AUDIO_CLIP:
 			affectEntire = true;
 			break;
 		}
@@ -1486,7 +1486,7 @@ void View::setModLedStates() {
 	// or simply illuminate the CLIP LED if we're not in automation view
 	else {
 		switch (uiType) {
-		case UIType::SESSION_VIEW: {
+		case UIType::SESSION: {
 			Clip* clip = sessionView.getClipForLayout();
 
 			if (clip) {
@@ -1496,7 +1496,7 @@ void View::setModLedStates() {
 			}
 			break;
 		}
-		case UIType::ARRANGER_VIEW: {
+		case UIType::ARRANGER: {
 			Output* output = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
 
 			if (output) {
@@ -1511,7 +1511,7 @@ void View::setModLedStates() {
 				onAutomationClipView = true;
 			}
 			break;
-		case UIType::AUTOMATION_VIEW:
+		case UIType::AUTOMATION:
 			onAutomationClipView = true;
 			break;
 		}
@@ -1531,15 +1531,15 @@ void View::setModLedStates() {
 		}
 		else {
 			switch (uiType) {
-			case UIType::ARRANGER_VIEW:
+			case UIType::ARRANGER:
 				indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				break;
-			case UIType::AUTOMATION_VIEW:
+			case UIType::AUTOMATION:
 				if (automationSubType == AutomationSubType::ARRANGER) {
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				}
 				break;
-			case UIType::PERFORMANCE_SESSION_VIEW:
+			case UIType::PERFORMANCE_SESSION:
 				// if performanceSessionView was entered from arranger
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
@@ -1548,7 +1548,7 @@ void View::setModLedStates() {
 					indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
 				}
 				break;
-			case UIType::SESSION_VIEW:
+			case UIType::SESSION:
 				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
 				break;
 			}
