@@ -353,13 +353,8 @@ doChangeOutputType:
 
 	// Kit button
 	else if (b == KIT) {
-		if (instrumentClipToLoadFor && instrumentClipToLoadFor->onKeyboardScreen) {
-			indicator_leds::indicateAlertOnLed(IndicatorLED::KEYBOARD);
-		}
-		else {
-			newOutputType = OutputType::KIT;
-			goto doChangeOutputType;
-		}
+		newOutputType = OutputType::KIT;
+		goto doChangeOutputType;
 	}
 
 	// MIDI button
