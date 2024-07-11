@@ -2276,7 +2276,7 @@ void Song::loadCrucialSamplesOnly() {
 	// audio engine? Is the searching actually ok, and only the loadSample() counts should be considered
 	// for calling into the audio engine?
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->activeClip && isClipActive(thisOutput->activeClip)) {
+		if (thisOutput->getActiveClip() && isClipActive(thisOutput->getActiveClip())) {
 			thisOutput->loadCrucialAudioFilesOnly();
 		}
 	}
@@ -2354,7 +2354,8 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 			continue;
 		}
 
-		bool isClipActiveNow = (output->activeClip && isClipActive(output->activeClip->getClipBeingRecordedFrom()));
+		bool isClipActiveNow =
+		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		DISABLE_ALL_INTERRUPTS();
 		output->renderOutput(modelStack, outputBuffer, outputBuffer + numSamples, numSamples, reverbBuffer,
 		                     volumePostFX >> 1, sideChainHitPending, !isClipActiveNow, isClipActiveNow);
@@ -2457,7 +2458,7 @@ bool Song::hasAnySwing() {
 void Song::resyncLFOs() {
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput->activeClip) {
+		if (thisOutput->getActiveClip()) {
 			thisOutput->resyncLFOs();
 		}
 		// Yes, do it even for Clips that aren't actually "playing" / active in the Song
@@ -3533,7 +3534,7 @@ void Song::addInstrumentToHibernationList(Instrument* instrument) {
 	instrument->prepareForHibernationOrDeletion();
 	instrument->next = firstHibernatingInstrument;
 	firstHibernatingInstrument = instrument;
-	instrument->activeClip = NULL; // Just be sure!
+	instrument->setActiveClip(nullptr); // Just be sure!
 	instrument->inValidState = false;
 }
 
@@ -3559,7 +3560,7 @@ void Song::deleteOrHibernateOutputIfNoClips(Output* output) {
 	output->pickAnActiveClipIfPossible(modelStack, true, PgmChangeSend::ONCE, false);
 
 	// If no other Clips have this Output...
-	if (!output->activeClip) {
+	if (!output->getActiveClip()) {
 		deleteOrHibernateOutput(output);
 	}
 }
@@ -4199,7 +4200,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			if (isClipActive(clip)) {
 
 				// If the Instrument already had a Clip, we gotta be inactive...
-				if (clip->output->activeClip) {
+				if (clip->output->getActiveClip()) {
 					if (getAnyClipsSoloing()) {
 						clip->soloingInSessionMode = false;
 					}
@@ -4243,12 +4244,12 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 		if (playbackWillStartInArrangerAtPos != -1) {
 			clip->wasActiveBefore = clip->activeIfNoSolo;
 			clip->soloingInSessionMode = false;
-			if (!clip->output->activeClip) {
+			if (!clip->output->getActiveClip()) {
 				clip->activeIfNoSolo = false;
 			}
 		}
 
-		if (!clip->output->activeClip) {
+		if (!clip->output->getActiveClip()) {
 			clip->output->setActiveClip(modelStack->addTimelineCounter(clip), PgmChangeSend::NEVER);
 		}
 	}
@@ -4262,10 +4263,10 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 		Output* nextOutput = output->next;
 
 		// Also while we're at it, for SoundInstruments (Synths), get them to grab a copy of the arp settings
-		if (output->activeClip) {
+		if (output->getActiveClip()) {
 			if (output->type == OutputType::SYNTH) {
 				((SoundInstrument*)output)
-				    ->defaultArpSettings.cloneFrom(&((InstrumentClip*)output->activeClip)->arpSettings);
+				    ->defaultArpSettings.cloneFrom(&((InstrumentClip*)output->getActiveClip())->arpSettings);
 			}
 		}
 
@@ -4399,7 +4400,7 @@ MIDIInstrument* Song::grabHibernatingMIDIInstrument(int32_t channel, int32_t cha
 	MIDIInstrument* toReturn = hibernatingMIDIInstrument;
 	hibernatingMIDIInstrument = NULL;
 	if (toReturn) {
-		toReturn->activeClip = NULL; // Not really necessary?
+		toReturn->setActiveClip(nullptr, PgmChangeSend::NEVER); // Not really necessary?
 		toReturn->inValidState = false;
 
 		toReturn->channel = channel;
@@ -4550,7 +4551,7 @@ void Song::resumeClipsClonedForArrangementRecording() {
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* originalClip = sessionClips.getClipAtIndex(c);
 
-		Clip* clonedClip = originalClip->output->activeClip;
+		Clip* clonedClip = originalClip->output->getActiveClip();
 		if (clonedClip && clonedClip->beingRecordedFromClip == originalClip) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounterClone =
 			    modelStackClone->addTimelineCounter(clonedClip);
@@ -4790,8 +4791,8 @@ cantDoIt:
 			oldNonAudioInstrument->channel = oldChannel; // Put it back, before switching notes off etc
 		}
 
-		if (oldNonAudioInstrument->activeClip && playbackHandler.isEitherClockActive()) {
-			oldNonAudioInstrument->activeClip->expectNoFurtherTicks(currentSong);
+		if (oldNonAudioInstrument->getActiveClip() && playbackHandler.isEitherClockActive()) {
+			oldNonAudioInstrument->getActiveClip()->expectNoFurtherTicks(currentSong);
 		}
 
 		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change
@@ -5488,8 +5489,8 @@ int32_t Song::countAudioClips() const {
 	int32_t i = 0;
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
-			if (output->activeClip) {
-				AudioClip* clip = (AudioClip*)output->activeClip;
+			if (output->getActiveClip()) {
+				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				// this seems to be the only way to find whether the voice is sounding
 				if (isClipActive(clip)) {
 					i++;
@@ -5506,8 +5507,8 @@ void Song::cullAudioClipVoice() {
 
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
-			if (output->activeClip) {
-				AudioClip* clip = (AudioClip*)output->activeClip;
+			if (output->getActiveClip()) {
+				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				if (clip->voiceSample && clip->voiceSample->oscPos > 0) {
 					uint64_t immunity = clip->getCullImmunity();
 					lowestImmunity = immunity;

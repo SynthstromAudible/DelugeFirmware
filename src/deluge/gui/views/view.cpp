@@ -654,7 +654,7 @@ isMPEZone:
 				newBendRanges[BEND_RANGE_FINGER_LEVEL] = fromDevice->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 
 				if (newBendRanges[BEND_RANGE_FINGER_LEVEL]) {
-					InstrumentClip* clip = (InstrumentClip*)instrumentPressedForMIDILearn->activeClip;
+					InstrumentClip* clip = (InstrumentClip*)instrumentPressedForMIDILearn->getActiveClip();
 					if (!clip || !clip->hasAnyPitchExpressionAutomationOnNoteRows()) {
 						if (paramManager) { // Could be NULL, e.g. for CVInstruments with no Clips
 							ExpressionParamSet* expressionParams = paramManager->getOrCreateExpressionParamSet();
@@ -754,7 +754,7 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithParamCollection* modelStack =
 			    setupModelStackWithSong(modelStackMemory, currentSong)
-			        ->addTimelineCounter(instrumentPressedForMIDILearn->activeClip) // Could be NULL
+			        ->addTimelineCounter(instrumentPressedForMIDILearn->getActiveClip()) // Could be NULL
 			        ->addOtherTwoThingsButNoNoteRow(instrumentPressedForMIDILearn->toModControllable(), paramManager)
 			        ->addParamCollection(expressionParams, expressionParamsSummary);
 
@@ -2288,7 +2288,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		// If we want to "replace" the old Instrument, we can instead sneakily just modify its channel
 		if (shouldReplaceWholeInstrument) {
 			if (playbackHandler.isEitherClockActive()) {
-				clip->output->activeClip->expectNoFurtherTicks(modelStack->song);
+				clip->output->getActiveClip()->expectNoFurtherTicks(modelStack->song);
 			}
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];

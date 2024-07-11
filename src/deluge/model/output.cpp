@@ -51,7 +51,11 @@ void Output::setupWithoutActiveClip(ModelStack* modelStack) {
 
 // Returns whether Clip changed from before
 bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
-
+	if (!modelStack) {
+		activeClip = nullptr;
+		inValidState = false;
+		return true;
+	}
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
 	bool clipChanged = (activeClip != newClip);
@@ -547,6 +551,10 @@ void Output::endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t t
 	}
 
 	endAnyArrangementRecording(song, actualEndPos, timeRemainder);
+}
+
+Clip* Output::getActiveClip() const {
+	return activeClip;
 }
 
 /*

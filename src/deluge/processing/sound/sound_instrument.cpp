@@ -252,23 +252,26 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 	bool clipChanged = MelodicInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
 
 	if (clipChanged) {
-		ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
-		patcher.performInitialPatching(this, paramManager);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 
-		// Grab mono expression params
-		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-		if (expressionParams) {
-			for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-				monophonicExpressionValues[i] = expressionParams->params[i].getCurrentValue();
+		if (modelStack) {
+			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
+			patcher.performInitialPatching(this, paramManager);
+
+			// Grab mono expression params
+			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
+			if (expressionParams) {
+				for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
+					monophonicExpressionValues[i] = expressionParams->params[i].getCurrentValue();
+				}
 			}
-		}
-		else {
-			for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-				monophonicExpressionValues[i] = 0;
+			else {
+				for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
+					monophonicExpressionValues[i] = 0;
+				}
 			}
+			whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
 		}
-		whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
 	}
 	return clipChanged;
 }

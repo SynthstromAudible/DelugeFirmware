@@ -125,7 +125,7 @@ Clip* MidiFollow::getSelectedOrActiveClip() {
 		if (clip) {
 			Output* output = clip->output;
 			if (output) {
-				clip = output->activeClip;
+				clip = output->getActiveClip();
 			}
 		}
 	}
@@ -185,7 +185,7 @@ Clip* MidiFollow::getActiveClip(ModelStack* modelStack) {
 	if (currentClip && (currentClip->type == ClipType::INSTRUMENT)) {
 		if (currentClip->output) {
 			InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
-			return currentClip->output->activeClip;
+			return currentClip->output->getActiveClip();
 		}
 	}
 	return nullptr;
