@@ -164,10 +164,10 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 				}
 
 				// Tick forward the Clip being recorded to
-				output->activeClip->lastProcessedPos += posIncrement;
+				output->getActiveClip()->lastProcessedPos += posIncrement;
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-				    modelStack->addTimelineCounter(output->activeClip);
-				output->activeClip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+				    modelStack->addTimelineCounter(output->getActiveClip());
+				output->getActiveClip()->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
 			}
 
 			else {
@@ -300,8 +300,8 @@ notRecording:
 
 justDoArp:
 			int32_t posForArp;
-			if (output->activeClip && output->activeClip->activeIfNoSolo) {
-				posForArp = output->activeClip->lastProcessedPos;
+			if (output->getActiveClip() && output->getActiveClip()->activeIfNoSolo) {
+				posForArp = output->getActiveClip()->lastProcessedPos;
 			}
 			else {
 				posForArp = lastProcessedPos;
@@ -466,7 +466,7 @@ void Arrangement::reversionDone() {
 }
 
 bool Arrangement::isOutputAvailable(Output* output) {
-	if (!playbackHandler.playbackState || !output->activeClip) {
+	if (!playbackHandler.playbackState || !output->getActiveClip()) {
 		return true;
 	}
 

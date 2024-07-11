@@ -1005,7 +1005,7 @@ giveUsedError:
 	}
 	else {
 		currentSong->instrumentSwapped(newInstrument);
-		view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
+		view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 	}
 
 	instrumentToReplace = newInstrument;

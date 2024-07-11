@@ -588,7 +588,7 @@ doActualSimpleChange:
 								Instrument* newInstrument = currentSong->changeOutputType(instrument, newOutputType);
 								if (newInstrument) {
 									view.displayOutputName(newInstrument);
-									view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
+									view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 								}
 							}
 							break;
@@ -1237,7 +1237,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 			Output* oldOutput = clip->output;
 			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
 			if (oldOutput != newOutput) {
-				view.setActiveModControllableTimelineCounter(newOutput->activeClip);
+				view.setActiveModControllableTimelineCounter(newOutput->getActiveClip());
 				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 			}
 			break;
@@ -1648,7 +1648,7 @@ doGetInstrument:
 	}
 
 	// Possibly want to set this as the active Clip...
-	if (!newClip->output->activeClip) {
+	if (!newClip->output->getActiveClip()) {
 		newClip->output->setActiveClip(modelStackWithTimelineCounter);
 	}
 
@@ -3008,8 +3008,8 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 		}
 	}
 
-	if (sourceClip == nullptr && targetOutput->activeClip != nullptr) {
-		sourceClip = targetOutput->activeClip;
+	if (sourceClip == nullptr && targetOutput->getActiveClip() != nullptr) {
+		sourceClip = targetOutput->getActiveClip();
 	}
 
 	if (sourceClip == nullptr) {
@@ -3074,7 +3074,7 @@ bool SessionView::gridCreateNewTrackForClip(OutputType type, InstrumentClip* cli
 		currentSong->addOutput(clip->output);
 	}
 
-	if (!clip->output->activeClip) {
+	if (!clip->output->getActiveClip()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
@@ -3226,7 +3226,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	}
 
 	// Set to active for new tracks
-	if (targetOutput == nullptr && !newClip->output->activeClip) {
+	if (targetOutput == nullptr && !newClip->output->getActiveClip()) {
 		newClip->output->setActiveClip(modelStack);
 	}
 	// set it active in the song
@@ -3863,7 +3863,7 @@ const uint32_t SessionView::gridTrackCount() {
 	uint32_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
-		if (currentTrack->activeClip != nullptr) {
+		if (currentTrack->getActiveClip() != nullptr) {
 			++count;
 		}
 		currentTrack = currentTrack->next;
@@ -3894,7 +3894,7 @@ uint32_t SessionView::gridTrackIndexFromTrack(Output* track, uint32_t maxTrack) 
 		if (ptrOutput == track) {
 			return ((maxTrack - 1) - reverseOutputIndex);
 		}
-		if (ptrOutput->activeClip != nullptr) {
+		if (ptrOutput->getActiveClip() != nullptr) {
 			++reverseOutputIndex;
 		}
 	}
@@ -3905,7 +3905,7 @@ Output* SessionView::gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack) 
 	uint32_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
-		if (currentTrack->activeClip != nullptr) {
+		if (currentTrack->getActiveClip() != nullptr) {
 			if (((maxTrack - 1) - count) == trackIndex) {
 				return currentTrack;
 			}

@@ -1144,8 +1144,8 @@ void InstrumentClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, b
 void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 
 	// If it's actually another Clip, that we're recording into the arranger...
-	if (output->activeClip && output->activeClip->beingRecordedFromClip == this) {
-		output->activeClip->expectNoFurtherTicks(song, actuallySoundChange);
+	if (output->getActiveClip() && output->getActiveClip()->beingRecordedFromClip == this) {
+		output->getActiveClip()->expectNoFurtherTicks(song, actuallySoundChange);
 		return;
 	}
 
@@ -1736,7 +1736,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	// If newInstrument has no activeClip, we must set that right now before the audio routine is called - otherwise it
 	// won't be able to find its ParamManager. This prevents a crash if we just navigated this Clip into this Instrument
 	// and it already existed and had no Clips
-	if (!newInstrument->activeClip) {
+	if (!newInstrument->getActiveClip()) {
 		newInstrument->setActiveClip(modelStack, PgmChangeSend::NEVER);
 	}
 

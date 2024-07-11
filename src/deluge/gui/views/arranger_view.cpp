@@ -654,13 +654,13 @@ drawNormally:
 
 ModelStackWithNoteRow* ArrangerView::getNoteRowForAudition(ModelStack* modelStack, Kit* kit) {
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(kit->activeClip);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(kit->getActiveClip());
 
 	ModelStackWithNoteRow* modelStackWithNoteRow;
 
-	if (kit->activeClip) {
+	if (kit->getActiveClip()) {
 
-		InstrumentClip* instrumentClip = (InstrumentClip*)kit->activeClip;
+		InstrumentClip* instrumentClip = (InstrumentClip*)kit->getActiveClip();
 		modelStackWithNoteRow = instrumentClip->getNoteRowForDrumName(modelStackWithTimelineCounter, "SNAR");
 		if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 			if (kit->selectedDrum) {
@@ -885,8 +885,8 @@ doNewPress:
 
 			beginAudition(output);
 
-			if (output->activeClip) {
-				view.setActiveModControllableTimelineCounter(output->activeClip);
+			if (output->getActiveClip()) {
+				view.setActiveModControllableTimelineCounter(output->getActiveClip());
 			}
 			else {
 				view.setActiveModControllableWithoutTimelineCounter(output->toModControllable(),
@@ -1165,9 +1165,9 @@ void ArrangerView::outputDeactivated(Output* output) {
 	output->stopAnyAuditioning(modelStack);
 
 	if (arrangement.hasPlaybackActive()) {
-		if (output->activeClip && !output->recordingInArrangement) {
-			output->activeClip->expectNoFurtherTicks(currentSong);
-			output->activeClip->activeIfNoSolo = false;
+		if (output->getActiveClip() && !output->recordingInArrangement) {
+			output->getActiveClip()->expectNoFurtherTicks(currentSong);
+			output->getActiveClip()->activeIfNoSolo = false;
 		}
 	}
 }
@@ -1629,7 +1629,7 @@ justGetOut:
 								// Crucial that we do this not long after calling setInstrument, in case this is the
 								// first Clip with the Instrument and we just grabbed the backedUpParamManager for it,
 								// which it might go and look for again if the audio routine was called in the interim
-								if (!output->activeClip) {
+								if (!output->getActiveClip()) {
 									output->setActiveClip(modelStack);
 								}
 
@@ -2468,7 +2468,7 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 	outputsOnScreen[yPressedEffective] = output;
 
-	view.setActiveModControllableTimelineCounter(output->activeClip);
+	view.setActiveModControllableTimelineCounter(output->getActiveClip());
 
 	AudioEngine::routineWithClusterLoading();
 
@@ -2501,7 +2501,7 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	view.displayOutputName(newInstrument);
-	view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
+	view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 
 	beginAudition(newInstrument);
 }
@@ -3082,7 +3082,7 @@ void ArrangerView::graphicsRoutine() {
 
 void ArrangerView::notifyActiveClipChangedOnOutput(Output* output) {
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && outputsOnScreen[yPressedEffective] == output) {
-		view.setActiveModControllableTimelineCounter(output->activeClip);
+		view.setActiveModControllableTimelineCounter(output->getActiveClip());
 	}
 }
 

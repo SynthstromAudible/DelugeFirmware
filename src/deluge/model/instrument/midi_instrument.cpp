@@ -246,27 +246,41 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 }
 
 bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
+	bool shouldSendPGMs;
+	if (modelStack) {
+		InstrumentClip* newInstrumentClip = (InstrumentClip*)modelStack->getTimelineCounter();
+		InstrumentClip* oldInstrumentClip = (InstrumentClip*)activeClip;
 
-	InstrumentClip* newInstrumentClip = (InstrumentClip*)modelStack->getTimelineCounter();
-	InstrumentClip* oldInstrumentClip = (InstrumentClip*)activeClip;
-
-	bool shouldSendPGMs = (maySendMIDIPGMs != PgmChangeSend::NEVER && activeClip && activeClip != newInstrumentClip
-	                       && (newInstrumentClip->midiPGM != oldInstrumentClip->midiPGM
-	                           || newInstrumentClip->midiSub != oldInstrumentClip->midiSub
-	                           || newInstrumentClip->midiBank != oldInstrumentClip->midiBank));
-
+		shouldSendPGMs = (maySendMIDIPGMs != PgmChangeSend::NEVER && activeClip && activeClip != newInstrumentClip
+		                  && (newInstrumentClip->midiPGM != oldInstrumentClip->midiPGM
+		                      || newInstrumentClip->midiSub != oldInstrumentClip->midiSub
+		                      || newInstrumentClip->midiBank != oldInstrumentClip->midiBank));
+	}
+	else {
+		shouldSendPGMs = false;
+	}
 	bool clipChanged = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
 
 	if (shouldSendPGMs) {
 		sendMIDIPGM();
 	}
 	if (clipChanged) {
-		ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
-		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-		if (expressionParams) {
-			cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
-			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
-			ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
+		if (modelStack) {
+			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
+			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
+			if (expressionParams) {
+				cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
+				cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
+				ratio = float(cachedBendRanges[BEND_RANGE_FINGER_LEVEL]) / float(cachedBendRanges[BEND_RANGE_MAIN]);
+			}
+		}
+		else {
+			allNotesOff();
+			for (int i = 0; i < kNumExpressionDimensions; i++) {
+				lastMonoExpression[i] = 0;
+				lastCombinedPolyExpression[i] = 0;
+				sendMonophonicExpressionEvent(i);
+			}
 		}
 	}
 

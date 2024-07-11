@@ -394,7 +394,7 @@ bool AudioOutput::wantsToBeginArrangementRecording() {
 
 bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 	if (activeClip
-	    && (activeClip != modelStack->getTimelineCounter()
+	    && (!modelStack || activeClip != modelStack->getTimelineCounter()
 	        || (playbackHandler.playbackState && currentPlaybackMode == &arrangement))) {
 		((AudioClip*)activeClip)->unassignVoiceSample(false);
 	}
