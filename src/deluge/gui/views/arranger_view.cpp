@@ -1242,7 +1242,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 			if (currentUIMode == UI_MODE_NONE) {
 
 doNewPress:
-				output->clipInstances.testSequentiality("E117");
+				TEST_SEQUENTIALITY(output->clipInstances, "E117");
 
 				int32_t i = output->clipInstances.search(squareEnd, LESS);
 				ClipInstance* clipInstance = output->clipInstances.getElement(i);

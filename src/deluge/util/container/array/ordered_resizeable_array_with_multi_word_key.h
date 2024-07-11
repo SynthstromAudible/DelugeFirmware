@@ -31,6 +31,8 @@ public:
 	                             int32_t rangeBegin = 0);
 	int32_t insertAtKeyMultiWord(uint32_t* __restrict__ keyWords, int32_t rangeBegin = 0, int32_t rangeEnd = -1);
 	bool deleteAtKeyMultiWord(uint32_t* __restrict__ keyWords);
+#if ENABLE_SEQUENTIALITY_TESTS
 	void testSequentiality(char const* errorCode);
+#endif
 	int32_t numWordsInKey;
 };

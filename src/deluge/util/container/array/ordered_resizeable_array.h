@@ -36,7 +36,10 @@ public:
 	// TODO: move to unit tests
 	void test();
 #endif
+#if ENABLE_SEQUENTIALITY_TESTS
+	// This is used in assert-like fashion, so not for unit tests.
 	void testSequentiality(char const* errorCode);
+#endif
 	void testDuplicates();
 
 	inline int32_t getKeyAtIndex(int32_t i) { return getKeyAtMemoryLocation(getElementAddress(i)); }
