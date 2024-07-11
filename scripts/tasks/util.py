@@ -203,11 +203,14 @@ def get_dbt_version():
 
 def ensure_midi_port(type, midi, port):
     if port is None:
-        r = re.compile("MIDI(OUT|IN)3 \\(Deluge\\)")
+        deluge_ports = []
         for i, p in enumerate(midi.get_ports()):
-            if r.match(str(p)):
-                port = i
-                break
+            if "DELUGE" in str(p).upper():
+                deluge_ports.append(i)
+
+        if len(deluge_ports) > 0:
+            port = deluge_ports[-1]
+
     if port is None:
         note(
             f"Could not identify {type.strip()} port for Deluge. Aborting.",
@@ -216,6 +219,8 @@ def ensure_midi_port(type, midi, port):
     else:
         # Report ports to stderr so the logs remain separate.
         note(f"# MIDI {type} {port}: {midi.get_port_name(port)}")
+    # Guess that the last port will be port 3/sysex
+    port = deluge_ports[-1]
     return port
 
 
