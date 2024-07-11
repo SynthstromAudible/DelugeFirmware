@@ -49,7 +49,7 @@ public:
 	virtual ~Output();
 
 	ClipInstanceVector clipInstances;
-	Clip* activeClip;
+	[[nodiscard]] Clip* getActiveClip() const;
 	String name; // Contains the display name as the user sees it.
 	             // E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
 	             // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
@@ -162,4 +162,6 @@ public:
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
+
+	Clip* activeClip;
 };

@@ -858,34 +858,34 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 	if (clipChanged) {
 
 		resetDrumTempValues();
+		if (modelStack) {
+			int32_t count = 0;
+			NoteRowVector* noteRows = &((InstrumentClip*)modelStack->getTimelineCounter())->noteRows;
+			for (int32_t i = 0; i < noteRows->getNumElements(); i++) {
+				NoteRow* thisNoteRow = noteRows->getElement(i);
 
-		int32_t count = 0;
-		NoteRowVector* noteRows = &((InstrumentClip*)modelStack->getTimelineCounter())->noteRows;
-		for (int32_t i = 0; i < noteRows->getNumElements(); i++) {
-			NoteRow* thisNoteRow = noteRows->getElement(i);
+				if (thisNoteRow->drum) { // In a perfect world we'd do this for every Drum, even any without NoteRows in
+					                     // new Clip, but meh this'll be fine
 
-			if (thisNoteRow->drum) { // In a perfect world we'd do this for every Drum, even any without NoteRows in new
-				                     // Clip, but meh this'll be fine
+					thisNoteRow->drum->noteRowAssignedTemp = true;
+					thisNoteRow->drum->earlyNoteVelocity = 0;
 
-				thisNoteRow->drum->noteRowAssignedTemp = true;
-				thisNoteRow->drum->earlyNoteVelocity = 0;
+					if (thisNoteRow->drum->type == DrumType::SOUND) {
 
-				if (thisNoteRow->drum->type == DrumType::SOUND) {
+						if (!(count & 7)) {
+							AudioEngine::routineWithClusterLoading(); // ----------------------------------- I guess
+							                                          // very often this wouldn't work cos the audio
+							                                          // routine would be locked
+						}
+						count++;
 
-					if (!(count & 7)) {
-						AudioEngine::routineWithClusterLoading(); // ----------------------------------- I guess very
-						                                          // often this wouldn't work cos the audio routine
-						                                          // would be locked
+						SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
+
+						soundDrum->patcher.performInitialPatching(soundDrum, &thisNoteRow->paramManager);
 					}
-					count++;
-
-					SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
-
-					soundDrum->patcher.performInitialPatching(soundDrum, &thisNoteRow->paramManager);
 				}
 			}
 		}
-
 		for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 			if (!thisDrum->noteRowAssignedTemp) {
 				thisDrum->drumWontBeRenderedForAWhile();

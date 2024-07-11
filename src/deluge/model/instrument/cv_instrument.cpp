@@ -98,23 +98,27 @@ bool CVInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmC
 	bool clipChanged = NonAudioInstrument::setActiveClip(modelStack, maySendMIDIPGMs);
 
 	if (clipChanged) {
-		ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
-		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
-		if (expressionParams) {
-			monophonicPitchBendValue = expressionParams->params[0].getCurrentValue();
+		if (modelStack) {
 
-			cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
-			cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
+			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
+			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
+			if (expressionParams) {
+				monophonicPitchBendValue = expressionParams->params[0].getCurrentValue();
+
+				cachedBendRanges[BEND_RANGE_MAIN] = expressionParams->bendRanges[BEND_RANGE_MAIN];
+				cachedBendRanges[BEND_RANGE_FINGER_LEVEL] = expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL];
+			}
+			else {
+				monophonicPitchBendValue = 0;
+			}
 		}
 		else {
 			monophonicPitchBendValue = 0;
-			// TODO: grab bend ranges here too - when we've moved them to the ParamManager?
 		}
-
-		updatePitchBendOutput(
-		    false); // Don't change the CV output voltage right now (we could, but this Clip-change might come with a
-		            // note that's going to sound "now" anyway...)
-		            // - but make it so the next note which sounds will have our new correct bend value / range.
+		// Don't change the CV output voltage right now (we could, but this Clip-change might come with a
+		// note that's going to sound "now" anyway...)
+		// - but make it so the next note which sounds will have our new correct bend value / range.
+		updatePitchBendOutput(false);
 	}
 
 	return clipChanged;

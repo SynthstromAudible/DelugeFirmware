@@ -3355,13 +3355,13 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 		else {
 			// Kit
 			if (isKit) {
-				noteRowOnActiveClip = ((InstrumentClip*)output->activeClip)->getNoteRowForDrum(drum);
+				noteRowOnActiveClip = ((InstrumentClip*)output->getActiveClip())->getNoteRowForDrum(drum);
 			}
 
 			// Non-kit
 			else {
 				int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
-				noteRowOnActiveClip = ((InstrumentClip*)output->activeClip)->getNoteRowForYNote(yNote);
+				noteRowOnActiveClip = ((InstrumentClip*)output->getActiveClip())->getNoteRowForYNote(yNote);
 			}
 		}
 

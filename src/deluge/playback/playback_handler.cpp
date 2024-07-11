@@ -2691,7 +2691,7 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 		if (!on || currentSong->isOutputActiveInArrangement(thisOutput)) {
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(thisOutput->activeClip);
+			    modelStack->addTimelineCounter(thisOutput->getActiveClip());
 			// Output is a MIDI instrument, kit, or melodic instrument
 			// Midi instruments will hand control to NonAudioInstrument which inherits from melodic
 			thisOutput->offerReceivedNote(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
@@ -2807,7 +2807,7 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(thisOutput->activeClip);
+		    modelStack->addTimelineCounter(thisOutput->getActiveClip());
 
 		bool usedForParam = false;
 
@@ -2881,10 +2881,10 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 		// If it has an activeClip... (Hmm, interesting, we don't allow MIDI control of params when no activeClip? Yeah
 		// this checks out, as the various offerReceivedCCToLearnedParams()'s require a timelineCounter, but this seems
 		// restrictive for the user...)
-		if (thisOutput->activeClip) {
+		if (thisOutput->getActiveClip()) {
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(thisOutput->activeClip);
+			    modelStack->addTimelineCounter(thisOutput->getActiveClip());
 
 			if (!isMPE) {
 				// See if it's learned to a parameter
@@ -2923,7 +2923,7 @@ void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-		    modelStack->addTimelineCounter(thisOutput->activeClip);
+		    modelStack->addTimelineCounter(thisOutput->getActiveClip());
 
 		thisOutput->offerReceivedAftertouch(modelStackWithTimelineCounter, fromDevice, channel, value, noteCode,
 		                                    doingMidiThru);

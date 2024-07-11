@@ -3009,10 +3009,10 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 
 			if (drum) {
 
-				if (getCurrentClip() != instrument->activeClip) {
-					modelStackWithTimelineCounter->setTimelineCounter(instrument->activeClip);
+				if (getCurrentClip() != instrument->getActiveClip()) {
+					modelStackWithTimelineCounter->setTimelineCounter(instrument->getActiveClip());
 					modelStackWithNoteRow =
-					    ((InstrumentClip*)instrument->activeClip)
+					    ((InstrumentClip*)instrument->getActiveClip())
 					        ->getNoteRowForDrum(modelStackWithTimelineCounter, drum); // On *active* clip!
 					if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 						return;
@@ -3415,7 +3415,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 		// make sure we're dealing with the same clip that this kit is a part of
 		// if you selected a clip and then sent a midi note to a kit that is part of a different clip, well
 		// we don't need to do anything here because we're in a different clip
-		if (clip == kit->activeClip) {
+		if (clip == kit->getActiveClip()) {
 			// let's make sure that that the output type for that clip is a kit
 			//(if for some strange reason you changed the drum selection for a hibernated instrument...)
 			if (clip->output->type == OutputType::KIT) {
@@ -3713,13 +3713,13 @@ NoteRow* InstrumentClipView::getNoteRowOnActiveClip(int32_t yDisplay, Instrument
 	else {
 		// Kit
 		if (instrument->type == OutputType::KIT) {
-			noteRowOnActiveClip = ((InstrumentClip*)instrument->activeClip)->getNoteRowForDrum(drum);
+			noteRowOnActiveClip = ((InstrumentClip*)instrument->getActiveClip())->getNoteRowForDrum(drum);
 		}
 
 		// Non-kit
 		else {
 			int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-			noteRowOnActiveClip = ((InstrumentClip*)instrument->activeClip)->getNoteRowForYNote(yNote);
+			noteRowOnActiveClip = ((InstrumentClip*)instrument->getActiveClip())->getNoteRowForYNote(yNote);
 		}
 	}
 	return noteRowOnActiveClip;
@@ -5579,14 +5579,14 @@ void InstrumentClipView::modEncoderAction(int32_t whichModEncoder, int32_t offse
 
 		if (kit->selectedDrum && kit->selectedDrum->type != DrumType::SOUND) {
 
-			if (ALPHA_OR_BETA_VERSION && !kit->activeClip) {
+			if (ALPHA_OR_BETA_VERSION && !kit->getActiveClip()) {
 				FREEZE_WITH_ERROR("E381");
 			}
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    modelStack->addTimelineCounter(kit->activeClip);
+			    modelStack->addTimelineCounter(kit->getActiveClip());
 			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    ((InstrumentClip*)kit->activeClip)
+			    ((InstrumentClip*)kit->getActiveClip())
 			        ->getNoteRowForDrum(modelStackWithTimelineCounter,
 			                            kit->selectedDrum); // The NoteRow probably doesn't get referred to...
 
