@@ -2,6 +2,12 @@
 
 > To find a detailed list of how to use each feature, check here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
 
+## c1.1.1 Beethoven
+
+### User Interface
+
+- Added `BASS FREQUENCY` and `TREBLE FREQUENCY` parameters to the list of assignable parameters in `PERFORMANCE VIEW`.
+
 ## c1.1.0 Beethoven
 
 ### Sound Engine
