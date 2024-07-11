@@ -41,7 +41,9 @@ public:
 	void testDuplicates();
 #endif
 #if ENABLE_SEQUENTIALITY_TESTS
-	// This is used in assert-like fashion, so not for unit tests.
+	/// \brief test that the keys in this array are sorted in ascending order. 
+	///
+	/// This is used in assert-like fashion, so not for unit tests.
 	void testSequentiality(char const* errorCode);
 #endif
 
