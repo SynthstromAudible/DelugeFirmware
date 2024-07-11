@@ -77,7 +77,10 @@ public:
 	void searchDual(int32_t const* __restrict__ searchTerms, int32_t* __restrict__ resultingIndexes);
 	void searchMultiple(int32_t* __restrict__ searchTerms, int32_t numSearchTerms, int32_t rangeEnd = -1);
 	bool generateRepeats(int32_t wrapPoint, int32_t endPos);
+#if TEST_VECTOR_SEARCH_MULTIPLE
+	// TODO: move to unit tests
 	void testSearchMultiple();
+#endif
 
 	inline int32_t getKeyAtIndex(int32_t i) { return getKeyAtMemoryLocation(getElementAddress(i)); }
 
