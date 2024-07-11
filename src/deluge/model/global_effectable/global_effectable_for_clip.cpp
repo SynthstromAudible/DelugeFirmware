@@ -114,83 +114,42 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	compressor.setThreshold(compThreshold);
 	static StereoSample globalEffectableBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
 
-	bool canRenderDirectlyIntoSongBuffer =
-	    !isKit() && !filterSet.isOn() && compThreshold == 0 && !delayWorkingState.doDelay
-	    && (!pan || !AudioEngine::renderInStereo) && !clippingAmount && !hasBassAdjusted(paramManagerForClip)
-	    && !hasTrebleAdjusted(paramManagerForClip) && !reverbSendAmount && !isBitcrushingEnabled(paramManagerForClip)
-	    && !isSRREnabled(paramManagerForClip) && getActiveModFXType(paramManagerForClip) == ModFXType::NONE
-	    && stutterer.status == STUTTERER_STATUS_OFF;
+	memset(globalEffectableBuffer, 0, sizeof(StereoSample) * numSamples);
 
-	if (canRenderDirectlyIntoSongBuffer) {
+	// Render actual Drums / AudioClip
+	renderedLastTime = renderGlobalEffectableForClip(
+	    modelStack, globalEffectableBuffer, NULL, numSamples, reverbBuffer, reverbAmountAdjustForDrums,
+	    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
-		int32_t postFXAndReverbVolumeStart = (multiply_32x32_rshift32(postReverbVolumeLastTime, volumePostFX) << 5);
-		if (postFXAndReverbVolumeStart > 134217728) {
-			goto doNormal; // If it's too loud, this optimized routine can't handle it. This is a design flaw...
-		}
+	// Render saturation
+	if (clippingAmount) {
+		StereoSample const* const bufferEnd = globalEffectableBuffer + numSamples;
 
-		int32_t postFXAndReverbVolumeEnd = (multiply_32x32_rshift32(postReverbVolume, volumePostFX) << 5);
-		if (postFXAndReverbVolumeEnd > 134217728) {
-			goto doNormal;
-		}
-
-		// If it's a mono sample, that's going to have to get rendered into a mono buffer first before it can be copied
-		// out to the stereo song-level buffer
-		if (willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
-			memset(globalEffectableBuffer, 0, sizeof(int32_t) * numSamples);
-			renderedLastTime = renderGlobalEffectableForClip(
-			    modelStack, globalEffectableBuffer, (int32_t*)outputBuffer, numSamples, reverbBuffer,
-			    reverbAmountAdjustForDrums, sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust,
-			    postFXAndReverbVolumeStart, postFXAndReverbVolumeEnd);
-		}
-
-		// Or if it's a stereo sample, it can render directly into the song buffer
-		else {
-			renderedLastTime = renderGlobalEffectableForClip(modelStack, outputBuffer, NULL, numSamples, reverbBuffer,
-			                                                 reverbAmountAdjustForDrums, sideChainHitPending,
-			                                                 shouldLimitDelayFeedback, isClipActive, pitchAdjust,
-			                                                 postFXAndReverbVolumeStart, postFXAndReverbVolumeEnd);
-		}
+		StereoSample* __restrict__ currentSample = globalEffectableBuffer;
+		do {
+			saturate(&currentSample->l, &lastSaturationTanHWorkingValue[0]);
+			saturate(&currentSample->r, &lastSaturationTanHWorkingValue[1]);
+		} while (++currentSample != bufferEnd);
 	}
 
+	// Render filters
+	processFilters(globalEffectableBuffer, numSamples);
+
+	// Render FX
+	processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
+	processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
+	                             delayWorkingState, renderedLastTime);
+	processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
+
+	processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
+	                           reverbSendAmount, pan, true);
+	if (compThreshold > 0) {
+		compressor.renderVolNeutral(globalEffectableBuffer, numSamples, volumePostFX);
+	}
 	else {
-doNormal:
-		memset(globalEffectableBuffer, 0, sizeof(StereoSample) * numSamples);
-
-		// Render actual Drums / AudioClip
-		renderedLastTime = renderGlobalEffectableForClip(
-		    modelStack, globalEffectableBuffer, NULL, numSamples, reverbBuffer, reverbAmountAdjustForDrums,
-		    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
-
-		// Render saturation
-		if (clippingAmount) {
-			StereoSample const* const bufferEnd = globalEffectableBuffer + numSamples;
-
-			StereoSample* __restrict__ currentSample = globalEffectableBuffer;
-			do {
-				saturate(&currentSample->l, &lastSaturationTanHWorkingValue[0]);
-				saturate(&currentSample->r, &lastSaturationTanHWorkingValue[1]);
-			} while (++currentSample != bufferEnd);
-		}
-
-		// Render filters
-		processFilters(globalEffectableBuffer, numSamples);
-
-		// Render FX
-		processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
-		processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
-		                             delayWorkingState, renderedLastTime);
-		processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
-
-		processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
-		                           reverbSendAmount, pan, true);
-		if (compThreshold > 0) {
-			compressor.renderVolNeutral(globalEffectableBuffer, numSamples, volumePostFX);
-		}
-		else {
-			compressor.reset();
-		}
-		addAudio(globalEffectableBuffer, outputBuffer, numSamples);
+		compressor.reset();
 	}
+	addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 
 	postReverbVolumeLastTime = postReverbVolume;
 
