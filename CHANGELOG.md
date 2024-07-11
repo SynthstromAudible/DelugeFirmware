@@ -24,6 +24,12 @@
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
 
+## c1.1.1 Beethoven
+
+### User Interface
+
+- Added `BASS FREQUENCY` and `TREBLE FREQUENCY` parameters to the list of assignable parameters in `PERFORMANCE VIEW`.
+
 ## c1.1.0 Beethoven
 
 ### Sound Engine
