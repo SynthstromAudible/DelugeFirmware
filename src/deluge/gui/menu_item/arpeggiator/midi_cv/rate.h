@@ -25,10 +25,10 @@ class Rate final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForArpMidiCvRate(getCurrentInstrumentClip()->arpeggiatorRate));
+		this->setValue(computeCurrentValueForStandardMenuItem(getCurrentInstrumentClip()->arpeggiatorRate));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRate = computeFinalValueForArpMidiCvRate(this->getValue());
+		getCurrentInstrumentClip()->arpeggiatorRate = computeFinalValueForStandardMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
