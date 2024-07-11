@@ -289,8 +289,10 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	    || (getRootUI() == &arrangerView && recording == RecordingMode::NORMAL)) {
 
 		int32_t navSys;
-		if (getRootUI() && getRootUI()->isTimelineView()) {
-			navSys = ((TimelineView*)getRootUI())->getNavSysId();
+		if (getRootUI()) {
+			if (auto* timelineView = getRootUI()->toTimelineView()) {
+				navSys = timelineView->getNavSysId();
+			}
 		}
 		else {
 			navSys = NAVIGATION_CLIP; // Keyboard view will cause this case
