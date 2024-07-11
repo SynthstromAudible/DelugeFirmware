@@ -32,7 +32,10 @@ public:
 	int32_t insertAtKey(int32_t key, bool isDefinitelyLast = false);
 	void deleteAtKey(int32_t key);
 
+#if TEST_VECTOR
+	// TODO: move to unit tests
 	void test();
+#endif
 	void testSequentiality(char const* errorCode);
 	void testDuplicates();
 
