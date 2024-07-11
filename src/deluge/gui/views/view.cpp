@@ -112,7 +112,9 @@ View::View() {
 
 void View::focusRegained() {
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
-	setTripletsLedState();
+	if (auto* timeline = getCurrentUI()->toTimelineView()) {
+		timeline->setTripletsLEDState();
+	}
 
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::setLedState(IndicatorLED::SAVE, false);
@@ -123,13 +125,6 @@ void View::focusRegained() {
 	renderedVUMeter = false;
 	cachedMaxYDisplayForVUMeterL = 255;
 	cachedMaxYDisplayForVUMeterR = 255;
-}
-
-void View::setTripletsLedState() {
-	RootUI* rootUI = getRootUI();
-
-	indicator_leds::setLedState(IndicatorLED::TRIPLETS,
-	                            rootUI->isTimelineView() && ((TimelineView*)rootUI)->inTripletsView());
 }
 
 extern GlobalMIDICommand pendingGlobalMIDICommandNumClustersWritten;
@@ -940,7 +935,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 				    modelStackWithParam->modControllable->allowNoteTails(tempModelStack->addSoundFlags());
 
 				if (noteTailsAllowedBefore != noteTailsAllowedAfter) {
-					if (getRootUI() && getRootUI()->isTimelineView()) {
+					if (getRootUI() && getRootUI()->toTimelineView() != nullptr) {
 						uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 					}
 				}

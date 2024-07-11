@@ -30,6 +30,8 @@ public:
 
 	void scrollFinished();
 
+	TimelineView* toTimelineView() final { return this; }
+
 	const char* getName() { return "timeline_view"; }
 	virtual uint32_t getMaxZoom() = 0;
 	virtual bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom,
@@ -40,7 +42,6 @@ public:
 
 	virtual void tellMatrixDriverWhichRowsContainSomethingZoomable() {
 	} // SessionView doesn't have this because it does this a different way. Sorry, confusing I know
-	bool isTimelineView() { return true; }
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void displayZoomLevel(bool justPopup = false);
@@ -58,6 +59,7 @@ public:
 	bool scrollLeftIfTooFarRight(int32_t maxLength);
 
 	void tripletsButtonPressed();
+	void setTripletsLEDState();
 
 	[[nodiscard]] int32_t getPosFromSquare(int32_t square, int32_t localScroll = -1) const;
 	[[nodiscard]] int32_t getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) const;
