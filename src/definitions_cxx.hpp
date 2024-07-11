@@ -335,7 +335,7 @@ constexpr int32_t kParamNodeWidth = 3;
 //
 
 // Performance View constant
-constexpr int32_t kNumParamsForPerformance = 18;
+constexpr int32_t kNumParamsForPerformance = 20;
 constexpr int32_t kParamValueIncrementForDelayAmount = kParamValueIncrementForAutomationSinglePadPress / 2;
 constexpr int32_t kMaxKnobPosForDelayAmount = (kMaxKnobPos / 2) - 1;
 constexpr int32_t kParamValueIncrementForQuantizedStutter = 15;
