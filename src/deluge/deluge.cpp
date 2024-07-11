@@ -872,11 +872,6 @@ extern "C" int32_t deluge_main(void) {
 	noteVector.testDuplicates();
 #endif
 
-#ifdef TEST_OPEN_ADDRESSING_HASH_TABLE
-	OpenAddressingHashTableWith8bitKey table;
-	table.test();
-#endif
-
 #ifdef TEST_SD_WRITE
 
 	FIL fil; // File object
