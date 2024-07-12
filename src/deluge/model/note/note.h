@@ -42,10 +42,10 @@ public:
 	inline int32_t getProbability() { return probability; }
 
 	//	void writeToFile();
-
 	int32_t length;
 	uint8_t velocity;
 	uint8_t probability;
+	/// Lift is noteOff velocity.
 	uint8_t lift;
 
 	// Understanding the probability field: the first bit says whether it's based on a previous one.

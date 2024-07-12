@@ -32,9 +32,18 @@ public:
 	int32_t insertAtKey(int32_t key, bool isDefinitelyLast = false);
 	void deleteAtKey(int32_t key);
 
+#if TEST_VECTOR
+	// TODO: move to unit tests
 	void test();
-	void testSequentiality(char const* errorCode);
+#endif
+#if TEST_VECTOR_DUPLICATES
+	// TODO: move to unit tests
 	void testDuplicates();
+#endif
+	/// \brief test that the keys in this array are sorted in ascending order.
+	///
+	/// This is used in assert-like fashion, so not for unit tests.
+	void testSequentiality(char const* errorCode);
 
 	inline int32_t getKeyAtIndex(int32_t i) { return getKeyAtMemoryLocation(getElementAddress(i)); }
 
@@ -68,7 +77,10 @@ public:
 	void searchDual(int32_t const* __restrict__ searchTerms, int32_t* __restrict__ resultingIndexes);
 	void searchMultiple(int32_t* __restrict__ searchTerms, int32_t numSearchTerms, int32_t rangeEnd = -1);
 	bool generateRepeats(int32_t wrapPoint, int32_t endPos);
+#if TEST_VECTOR_SEARCH_MULTIPLE
+	// TODO: move to unit tests
 	void testSearchMultiple();
+#endif
 
 	inline int32_t getKeyAtIndex(int32_t i) { return getKeyAtMemoryLocation(getElementAddress(i)); }
 

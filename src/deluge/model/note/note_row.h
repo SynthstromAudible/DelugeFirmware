@@ -227,8 +227,6 @@ public:
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
 
 private:
-	void noteOn();
-	void noteOff();
 	void playNote(bool, ModelStackWithNoteRow* modelStack, Note*, int32_t ticksLate = 0, uint32_t samplesLate = 0,
 	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = NULL);
 	void playNextNote(InstrumentClip*, bool, bool noteMightBeConstant = false,
