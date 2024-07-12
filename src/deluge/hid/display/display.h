@@ -20,6 +20,8 @@ enum class PopupType {
 	PROBABILITY,
 	/// Swing amount and interval
 	SWING,
+	/// Tempo
+	TEMPO,
 	// Note: Add here more popup types
 };
 

@@ -2014,23 +2014,27 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	// Otherwise, change tempo
 	else {
 		if (!isExternalClockActive()) {
-			// Truth table for how we decide between adjusting coarse and fine tempo:
-			//
-			// Setting | Button | Mode
-			// -----------------------
-			//  On     | Off    | Fine
-			//  On     | On     | Coarse
-			//  Off    | Off    | Coarse
-			//  Off    |  On    | Fine
-			//
-			bool feature = runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-			     == RuntimeFeatureStateToggle::On;
-			bool button = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
+			if (display->hasPopupOfType(PopupType::TEMPO)) {
+				// Truth table for how we decide between adjusting coarse and fine tempo:
+				//
+				// Setting | Button | Mode
+				// -----------------------
+				//  On     | Off    | Fine
+				//  On     | On     | Coarse
+				//  Off    | Off    | Coarse
+				//  Off    |  On    | Fine
+				//
+				bool feature = runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+						== RuntimeFeatureStateToggle::On;
+				bool button = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 
-			if (feature == button) {
-				return commandEditTempoCoarse(offset);
+				if (feature == button) {
+					return commandEditTempoCoarse(offset);
+				} else {
+					return commandEditTempoFine(offset);
+				}
 			} else {
-				return commandEditTempoFine(offset);
+				commandDisplayTempo();
 			}
 		}
 	}
@@ -2173,21 +2177,21 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 }
 
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
+	// The 7-seg needs to work so much harder there's no point trying to share the code.
+	DEF_STACK_STRING_BUF(text, 27);
 	if (display->haveOLED()) {
-		char buffer[27];
-		strcpy(buffer, "Tempo: ");
+		text.append("Tempo: ");
 		if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
-			strcpy(&buffer[7], "FAST");
+			text.append("FAST");
 		}
 		else {
-			floatToString(tempoBPM, &buffer[7], 0, 3);
+			text.appendFloat(tempoBPM, 0, 3);
 		}
-		display->popupTextTemporary(buffer);
+		display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 	}
 	else {
 		if (tempoBPM >= 9999.5) {
-			display->displayPopup("FAST");
-			return;
+			return display->popupTextTemporary("FAST", PopupType::TEMPO);
 		}
 
 		int32_t divisor = 1;
@@ -2235,14 +2239,13 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 
 		// If perfect and integer...
 		if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
-			char buffer[12];
-			intToString(roundedTempoBPM, buffer);
-			display->displayPopup(buffer);
+			text.appendInt(roundedTempoBPM);
+			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 		}
 		else {
-			char buffer[12];
-			intToString(roundedBigger, buffer, 4);
-			display->displayPopup(buffer, 3, false, dotMask);
+			text.appendInt(roundedBigger, 4);
+			// This is what popupTextTemporary() does, except for passing in the dotMask
+			display->displayPopup(text.c_str(), 3, false, dotMask, 1, PopupType::TEMPO);
 		}
 	}
 }
