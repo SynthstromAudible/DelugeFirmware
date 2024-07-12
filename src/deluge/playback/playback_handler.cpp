@@ -1872,6 +1872,37 @@ void PlaybackHandler::commandEditSwingAmount(int8_t offset) {
 	commandDisplaySwingAmount();
 }
 
+void PlaybackHandler::commandNudgeClock(int8_t offset) {
+	if (!isEitherClockActive()) {
+		// Nothing to nudge
+		return;
+	}
+	if (isInternalClockActive()) {
+		if (currentlySendingMIDIOutputClocks()) {
+			// TODO: these should also affect trigger clock output. Currently they don't
+			if (offset < 0) {
+				midiEngine.sendClock(this); // Send one extra clock
+			}
+			else {
+				numOutputClocksWaitingToBeSent--; // Send one less clock
+			}
+		} else {
+			// Nothing to nudge? TODO: Should we instead nudge the internal clock? Could be
+			// useful for manual beat syncs.
+			return;
+		}
+	}
+	else if (isExternalClockActive()) {
+		if (offset < 0) {
+			inputTick(); // Perform extra tick
+		}
+		else {
+			numInputTicksToSkip++; // Perform one less tick
+		}
+	}
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_NUDGED));
+}
+
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
 
 	if (Buttons::isButtonPressed(deluge::hid::button::TAP_TEMPO)) {
@@ -1887,32 +1918,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 
 	// Nudging sync
 	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-
-		// If Deluge is using internal clock
-		if (isInternalClockActive()) {
-			if (currentlySendingMIDIOutputClocks()) {
-				// TODO: these should also affect trigger clock output. Currently they don't
-				if (offset < 0) {
-					midiEngine.sendClock(this); // Send one extra clock
-				}
-				else {
-					numOutputClocksWaitingToBeSent--; // Send one less clock
-				}
-displayNudge:
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_NUDGED));
-			}
-		}
-
-		// If Deluge is following external clock
-		else if (isExternalClockActive()) {
-			if (offset < 0) {
-				inputTick(); // Perform extra tick
-			}
-			else {
-				numInputTicksToSkip++; // Perform one less tick
-			}
-			goto displayNudge;
-		}
+		return commandNudgeClock(offset);
 	}
 
 	// Adjust swing

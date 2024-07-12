@@ -217,6 +217,7 @@ public:
 	void commandEditSwingAmount(int8_t offset);
 	void commandDisplaySwingInterval();
 	void commandEditSwingInterval(int8_t offset);
+	void commandNudgeClock(int8_t offset);
 
 private:
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);
