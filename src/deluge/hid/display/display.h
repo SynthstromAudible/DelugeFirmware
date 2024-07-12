@@ -42,8 +42,7 @@ public:
 	                     int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false){};
 
 	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false,
-	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1,
-	                          PopupType type = PopupType::GENERAL) = 0;
+	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) = 0;
 
 	virtual void displayPopup(uint8_t val, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
 	                          int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) {
@@ -53,8 +52,7 @@ public:
 	}
 
 	virtual void displayPopup(char const* shortLong[2], int8_t numFlashes = 3, bool alignRight = false,
-	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1,
-	                          PopupType type = PopupType::GENERAL) {
+	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) {
 		displayPopup(have7SEG() ? shortLong[0] : shortLong[1], numFlashes, alignRight, drawDot, blinkSpeed, type);
 	}
 

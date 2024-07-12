@@ -1886,7 +1886,8 @@ void PlaybackHandler::commandNudgeClock(int8_t offset) {
 			else {
 				numOutputClocksWaitingToBeSent--; // Send one less clock
 			}
-		} else {
+		}
+		else {
 			// Nothing to nudge? TODO: Should we instead nudge the internal clock? Could be
 			// useful for manual beat syncs.
 			return;
@@ -1985,7 +1986,8 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 		if (display->hasPopupOfType(PopupType::SWING)) {
 			// If not yet displaying, don't change the value
 			return commandEditSwingInterval(offset);
-		} else {
+		}
+		else {
 			return commandDisplaySwingInterval();
 		}
 	}
@@ -2001,7 +2003,8 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	else if (shiftButtonPressed) {
 		if (display->hasPopupOfType(PopupType::SWING)) {
 			return commandEditSwingAmount(offset);
-		} else {
+		}
+		else {
 			return commandDisplaySwingAmount();
 		}
 	}
@@ -2025,15 +2028,17 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 				//  Off    |  On    | Fine
 				//
 				bool feature = runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-						== RuntimeFeatureStateToggle::On;
+				               == RuntimeFeatureStateToggle::On;
 				bool button = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 
 				if (feature == button) {
 					return commandEditTempoCoarse(offset);
-				} else {
+				}
+				else {
 					return commandEditTempoFine(offset);
 				}
-			} else {
+			}
+			else {
 				commandDisplayTempo();
 			}
 		}

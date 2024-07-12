@@ -112,9 +112,7 @@ public:
 		popupText(newText, !numFlashes, type);
 	}
 
-	void popupText(char const* text, PopupType type = PopupType::GENERAL) override {
-		popupText(text, true, type);
-	}
+	void popupText(char const* text, PopupType type = PopupType::GENERAL) override { popupText(text, true, type); }
 	void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) override {
 		popupText(text, false, type);
 	}

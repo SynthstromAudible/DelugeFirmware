@@ -114,7 +114,9 @@ public:
 	// TODO: Validate buffer size. These can overflow
 	void appendInt(int i, int minChars = 1) { intToString(i, buf_ + size(), minChars); }
 	void appendHex(int i, int minChars = 1) { intToHex(i, buf_ + size(), minChars); }
-	void appendFloat(float f, int32_t minDecimals, int32_t maxDecimals) { floatToString(f, buf_ + size(), minDecimals, maxDecimals); }
+	void appendFloat(float f, int32_t minDecimals, int32_t maxDecimals) {
+		floatToString(f, buf_ + size(), minDecimals, maxDecimals);
+	}
 
 	[[nodiscard]] char* data() { return buf_; }
 	[[nodiscard]] const char* data() const { return buf_; }
