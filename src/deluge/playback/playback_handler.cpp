@@ -1948,6 +1948,37 @@ void PlaybackHandler::commandEditClockOutScale(int8_t offset) {
 	}
 }
 
+void PlaybackHandler::commandEditTempoCoarse(int8_t offset) {
+	// Get current tempo
+	int32_t magnitude;
+	int8_t whichValue;
+	getCurrentTempoParams(&magnitude, &whichValue);
+
+	whichValue += offset;
+
+	if (whichValue >= 16) {
+		whichValue -= 16;
+		magnitude--;
+	}
+	else if (whichValue < 0) {
+		whichValue += 16;
+		magnitude++;
+	}
+
+	currentSong->setTempoFromParams(magnitude, whichValue, true);
+
+	displayTempoFromParams(magnitude, whichValue);
+}
+
+void PlaybackHandler::commandEditTempoFine(int8_t offset) {
+	int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+	tempoBPM += offset;
+	if (tempoBPM > 0) {
+		currentSong->setBPM(tempoBPM, true);
+		displayTempoBPM(tempoBPM);
+	}
+}
+
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
 
 	if (Buttons::isButtonPressed(deluge::hid::button::TAP_TEMPO)) {
@@ -2004,38 +2035,6 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 		}
 	}
 }
-
-void PlaybackHandler::commandEditTempoCoarse(int8_t offset) {
-	// Get current tempo
-	int32_t magnitude;
-	int8_t whichValue;
-	getCurrentTempoParams(&magnitude, &whichValue);
-
-	whichValue += offset;
-
-	if (whichValue >= 16) {
-		whichValue -= 16;
-		magnitude--;
-	}
-	else if (whichValue < 0) {
-		whichValue += 16;
-		magnitude++;
-	}
-
-	currentSong->setTempoFromParams(magnitude, whichValue, true);
-
-	displayTempoFromParams(magnitude, whichValue);
-}
-
-void PlaybackHandler::commandEditTempoFine(int8_t offset) {
-	int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
-	tempoBPM += offset;
-	if (tempoBPM > 0) {
-		currentSong->setBPM(tempoBPM, true);
-		displayTempoBPM(tempoBPM);
-	}
-}
-
 
 void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessageToo) {
 	uint32_t newOutputTicksDone = timerTicksToOutputTicks(pos);
