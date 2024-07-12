@@ -276,9 +276,9 @@ void OrderedResizeableArray::testSequentiality(char const* errorCode) {
 #endif
 }
 
+#if TEST_VECTOR_SEARCH_MULTIPLE
 #define TEST_SEARCH_MULTIPLE_NUM_ITEMS 50000
 #define TEST_SEARCH_MULTIPLE_NUM_SEARCH_TERMS 10000
-
 void OrderedResizeableArrayWith32bitKey::testSearchMultiple() {
 	insertAtIndex(0, TEST_SEARCH_MULTIPLE_NUM_ITEMS);
 
@@ -323,6 +323,7 @@ thatsDone:
 		D_PRINTLN("search-multiple success. time taken: %d ", timeTaken);
 	}
 }
+#endif
 
 #if TEST_VECTOR
 #define NUM_TEST_INSERTIONS 10000
