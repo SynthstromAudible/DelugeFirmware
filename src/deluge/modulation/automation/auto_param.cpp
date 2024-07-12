@@ -210,9 +210,11 @@ investigatePrevNode:
 
 				bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
 
+#if ENABLE_SEQUENTIALITY_TESTS
 				// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
 				// March 2022.
-				TEST_SEQUENTIALITY(nodes, "E435");
+				nodes.testSequentiality("E435");
+#endif
 
 				leftI = homogenizeRegion(modelStack, livePos, ticksToClear, value, shouldInterpolateLeft, true,
 				                         effectiveLength, reversed, posAtWhichPlaybackWillCut);
@@ -253,7 +255,9 @@ investigatePrevNode:
 skipThat: {}
 			}
 
-			TEST_SEQUENTIALITY(nodes, "ffff");
+#if ENABLE_SEQUENTIALITY_TESTS
+			nodes.testSequentiality("ffff");
+#endif
 
 			if (!doMPEMode) {
 				renewedOverridingAtTime = 1; // Latch - until we come to the next node
@@ -711,7 +715,9 @@ adjustNodeJustReached:
 					nextNodeInOurDirection = nodes.getElement(iRight);
 				}
 
-				TEST_SEQUENTIALITY(nodes, "eeee");
+#if ENABLE_SEQUENTIALITY_TESTS
+				nodes.testSequentiality("eeee");
+#endif
 			}
 		}
 	}
@@ -980,9 +986,11 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 	// Or, normal case
 	else {
 
+#if ENABLE_SEQUENTIALITY_TESTS
 		// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
 		// March 2022. Sven got, oddly while editing note velocity. Then again by "Adding some snares while playing".
-		TEST_SEQUENTIALITY(nodes, "E441");
+		nodes.testSequentiality("E441");
+#endif
 
 		// automation interpolation
 		// when this feature is enabled, interpolation is enforced on manual automation editing in the automation
@@ -1042,7 +1050,9 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 		FREEZE_WITH_ERROR("E437");
 	}
 
-	// TEST_SEQUENTIALITY(nodes, "E435"); // drbourbon got! March 2022. Now moved check to each caller.
+	// #if ENABLE_SEQUENTIALITY_TESTS
+	//	// nodes.testSequentiality("E435"); // drbourbon got! March 2022. Now moved check to each caller.
+	// #endif
 
 	if (nodes.getNumElements() && nodes.getFirst()->pos < 0) {
 		FREEZE_WITH_ERROR("E436");
@@ -1246,10 +1256,10 @@ getValueNormalWay:
 		edgeIndexes[REGION_EDGE_LEFT] -= edgeIndexes[REGION_EDGE_RIGHT];
 	}
 
-	TEST_SEQUENTIALITY(
-	    nodes,
+#if ENABLE_SEQUENTIALITY_TESTS
+	nodes.testSequentiality(
 	    "E433"); // Was "GGGG". Leo got. Sven got. (Probably now solved). (Nope, Michael got on V4.1.0-alpha10 (OLED)!)
-
+#endif
 #if ALPHA_OR_BETA_VERSION
 	if (nodes.getNumElements()) {
 		ParamNode* rightmostNode = nodes.getElement(nodes.getNumElements() - 1);
@@ -1265,7 +1275,7 @@ getValueNormalWay:
 void AutoParam::homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int32_t startValue, bool interpolateStart,
                                             bool interpolateEnd) {
 
-	TEST_SEQUENTIALITY(nodes, "E317");
+	nodes.testSequentiality("E317");
 
 	int32_t startI = nodes.search(pos, GREATER_OR_EQUAL);
 	int32_t endI = nodes.search(regionEnd, GREATER_OR_EQUAL);
@@ -2163,7 +2173,8 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 	}
 
 	// TODO: should currentValue instantly change if we're playing?
-	TEST_SEQUENTIALITY(nodes, "E440");
+
+	nodes.testSequentiality("E440");
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, automatedBefore,
 	                                                          isAutomated());
@@ -2334,7 +2345,7 @@ Error AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantiza
 		}
 	}
 
-	TEST_SEQUENTIALITY(nodes, "E414");
+	nodes.testSequentiality("E414");
 
 	return Error::NONE;
 }
@@ -2728,7 +2739,7 @@ setNodeValue:
 		valueIncrementPerHalfTick = 0; // In case we were interpolating.
 	}
 
-	TEST_SEQUENTIALITY(nodes, "E334");
+	nodes.testSequentiality("E334");
 }
 
 void AutoParam::notifyPingpongOccurred() {
@@ -2807,7 +2818,7 @@ goAgain:
 		nodes.deleteAtIndex(0, numNodesToStealAfterWrap);
 	}
 
-	TEST_SEQUENTIALITY(nodes, "E424");
+	nodes.testSequentiality("E424");
 }
 
 void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
@@ -2847,7 +2858,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, wasAutomatedBefore,
 	                                                          isAutomated());
 
-	TEST_SEQUENTIALITY(nodes, "E423");
+	nodes.testSequentiality("E423");
 }
 
 // Disregards a node that's right at pos.

@@ -269,7 +269,7 @@ goingToReplaceOldRecord:
 	uint32_t headerData = SPACE_HEADER_EMPTY | spaceSize;
 	*header = headerData;
 	*footer = headerData;
-	TEST_SEQUENTIALITY(emptySpaces, "M005");
+	emptySpaces.testSequentiality("M005");
 }
 
 void* MemoryRegion::alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom) {

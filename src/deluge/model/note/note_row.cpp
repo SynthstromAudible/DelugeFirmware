@@ -662,7 +662,9 @@ addNewNote:
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-	TEST_SEQUENTIALITY(notes, "E318");
+#if ENABLE_SEQUENTIALITY_TESTS
+	notes.testSequentiality("E318");
+#endif
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
@@ -970,7 +972,9 @@ thatsDone:
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-	TEST_SEQUENTIALITY(notes, "E319");
+#if ENABLE_SEQUENTIALITY_TESTS
+	notes.testSequentiality("E319");
+#endif
 
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
@@ -1281,7 +1285,9 @@ Error NoteRow::editNoteRepeatAcrossAllScreens(int32_t editPos, int32_t squareWid
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-	TEST_SEQUENTIALITY(notes, "E328");
+#if ENABLE_SEQUENTIALITY_TESTS
+	notes.testSequentiality("E328");
+#endif
 
 	return Error::NONE;
 }
@@ -1578,7 +1584,9 @@ Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow
 	// Swap the new temporary note data into the permanent place
 	notes.swapStateWith(&newNotes);
 
-	TEST_SEQUENTIALITY(notes, "E327");
+#if ENABLE_SEQUENTIALITY_TESTS
+	notes.testSequentiality("E327");
+#endif
 
 	return Error::NONE;
 }
@@ -1698,7 +1706,9 @@ Error NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, in
 		curr->length = std::min(maxLength, curr->length);
 	}
 
-	TEST_SEQUENTIALITY(notes, "E452");
+#if ENABLE_SEQUENTIALITY_TESTS
+	notes.testSequentiality("E452");
+#endif
 	return Error::NONE;
 }
 

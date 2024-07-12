@@ -6,10 +6,8 @@
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
 #if !defined(NDEBUG)
-#define TEST_SEQUENTIALITY(array, code) array.testSequentiality(code)
 #define ENABLE_SEQUENTIALITY_TESTS 1
 #else
-#define TEST_SEQUENTIALITY(array, code) ;
 #define ENABLE_SEQUENTIALITY_TESTS 0
 #endif
 
