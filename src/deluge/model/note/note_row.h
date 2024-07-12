@@ -119,6 +119,7 @@ public:
 
 	int16_t y; // This has to be at the top
 	bool muted;
+	bool mutedBeforeStemExport;
 
 	int32_t loopLengthIfIndependent; // 0 means obeying parent
 	int32_t lastProcessedPosIfIndependent;

@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/colour/colour.h"
+#include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
@@ -82,6 +83,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multi_range.h"
@@ -350,6 +352,31 @@ doOther:
 				cancelAllAuditioning();
 
 				enterDrumCreator(modelStackWithNoteRow, true);
+			}
+		}
+	}
+
+	// trigger stem export when pressing record while holding save
+	else if (b == RECORD && currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON) {
+		if (on && getCurrentOutputType() == OutputType::KIT) {
+			if (playbackHandler.isEitherClockActive() || playbackHandler.recording != RecordingMode::OFF) {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
+			}
+			else {
+				stemExport.startStemExportProcess(StemExportType::DRUM);
+				return ActionResult::DEALT_WITH;
+			}
+		}
+	}
+
+	// cancel stem export process
+	else if (b == BACK && stemExport.processStarted) {
+		if (on) {
+			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
+
+			if (available) {
+				display->setNextTransitionDirection(1);
+				openUI(&context_menu::cancelStemExport);
 			}
 		}
 	}

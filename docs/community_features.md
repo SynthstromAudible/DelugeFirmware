@@ -267,8 +267,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 #### 3.23 Automated Stem Exporting
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Stem Export Documentation]
-- ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
-  - Note: in Arranger, any instruments that are muted will be excluded from the Instrument Stem Export
+- ([#2260], [#2285]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW`,  `INSTRUMENT STEMS` while in `ARRANGER VIEW` and `DRUM STEMS` while in `KIT CLIP VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
 
 ## 4. New Features Added
 
@@ -1367,6 +1366,8 @@ different firmware
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
+
+[#2285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2285
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

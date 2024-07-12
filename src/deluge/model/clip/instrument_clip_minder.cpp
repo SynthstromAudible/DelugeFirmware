@@ -46,6 +46,7 @@
 #include "playback/mode/arrangement.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/stem_export/stem_export.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 
@@ -99,6 +100,9 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 }
 
 void InstrumentClipMinder::redrawNumericDisplay() {
+	if (stemExport.processStarted) {
+		return;
+	}
 	if (display->have7SEG()) {
 		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
 			view.displayOutputName(getCurrentOutput(), false);
@@ -107,6 +111,10 @@ void InstrumentClipMinder::redrawNumericDisplay() {
 }
 
 void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (stemExport.processStarted) {
+		stemExport.displayStemExportProgressOLED(StemExportType::DRUM);
+		return;
+	}
 	view.displayOutputName(getCurrentOutput(), false);
 }
 

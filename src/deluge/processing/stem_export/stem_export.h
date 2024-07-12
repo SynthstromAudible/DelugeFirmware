@@ -18,10 +18,12 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "processing/sound/sound_drum.h"
 #include "util/d_string.h"
 #include <cstdint>
 
 class Output;
+class SoundDrum;
 
 class StemExport {
 public:
@@ -44,9 +46,14 @@ public:
 	void exportClipStems(StemExportType stemExportType);
 	void restoreAllClipMutes();
 
+	// export drums
+	void disarmAllDrumsForStemExport();
+	void exportDrumStems(StemExportType stemExportType);
+	void restoreAllDrumMutes();
+
 	// start exporting
 	bool startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType, bool& muteState,
-	                            int32_t fileNumber, bool isEmpty, bool isMuted = false);
+	                            int32_t fileNumber, bool isEmpty, bool isMuted = false, SoundDrum* drum = nullptr);
 
 	// finish exporting
 	void finishCurrentStemExport(StemExportType stemExportType, bool& muteState);
@@ -65,7 +72,8 @@ public:
 	Error getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
 	String lastSongNameForStemExport;
-	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber);
+	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,
+	                                 SoundDrum* drum = nullptr);
 	String wavFileNameForStemExport;
 	bool wavFileNameForStemExportSet;
 
