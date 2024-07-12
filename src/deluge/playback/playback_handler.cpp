@@ -1903,6 +1903,51 @@ void PlaybackHandler::commandNudgeClock(int8_t offset) {
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_NUDGED));
 }
 
+void PlaybackHandler::commandEditClockOutScale(int8_t offset) {
+	// If playing synced, double or halve our own playing speed relative to the outside world
+	if (isExternalClockActive()) {
+		if (offset < 0 || currentSong->mayDoubleTempo()) { // Know when to disallow tempo doubling
+
+			// Get current tempo
+			int32_t magnitude;
+			int8_t whichValue;
+			getCurrentTempoParams(&magnitude, &whichValue);
+
+			magnitude -= offset;
+
+			currentSong->setTempoFromParams(magnitude, whichValue, true);
+
+			// We need to speed up (and resync) relative to incoming clocks
+			currentSong->insideWorldTickMagnitude += offset;
+			resyncInternalTicksToInputTicks(currentSong);
+
+			// We do not need to call resyncAnalogOutTicksToInternalTicks(). Yes the insideWorldTickMagnitude has
+			// changed, but whatever effect this has on the scaling of input ticks to internal ticks, it has the
+			// opposite effect on the scaling of internal ticks to analog out ticks, so nothing needs to change
+		}
+	}
+
+	// Otherwise, change the output-tick scale - if we're actually sending out-ticks
+	else {
+
+		currentSong->insideWorldTickMagnitude -= offset;
+
+		if (isInternalClockActive()) {
+
+			// Fix MIDI beat clock output
+			if (currentlySendingMIDIOutputClocks()) {
+				resyncMIDIClockOutTicksToInternalTicks();
+				sendOutPositionViaMIDI(getCurrentInternalTickCount());
+			}
+
+			// Fix analog out clock
+			resyncAnalogOutTicksToInternalTicks();
+		}
+
+		displayTempoByCalculation();
+	}
+}
+
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
 
 	if (Buttons::isButtonPressed(deluge::hid::button::TAP_TEMPO)) {
@@ -1932,116 +1977,65 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 
 	// If MIDI learn button down, change clock out scale
 	else if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-
-		// If playing synced, double or halve our own playing speed relative to the outside world
-		if (isExternalClockActive()) {
-			if (offset < 0 || currentSong->mayDoubleTempo()) { // Know when to disallow tempo doubling
-
-				// Get current tempo
-				int32_t magnitude;
-				int8_t whichValue;
-				getCurrentTempoParams(&magnitude, &whichValue);
-
-				magnitude -= offset;
-
-				currentSong->setTempoFromParams(magnitude, whichValue, true);
-
-				// We need to speed up (and resync) relative to incoming clocks
-				currentSong->insideWorldTickMagnitude += offset;
-				resyncInternalTicksToInputTicks(currentSong);
-
-				// We do not need to call resyncAnalogOutTicksToInternalTicks(). Yes the insideWorldTickMagnitude has
-				// changed, but whatever effect this has on the scaling of input ticks to internal ticks, it has the
-				// opposite effect on the scaling of internal ticks to analog out ticks, so nothing needs to change
-			}
-		}
-
-		// Otherwise, change the output-tick scale - if we're actually sending out-ticks
-		else {
-
-			currentSong->insideWorldTickMagnitude -= offset;
-
-			if (isInternalClockActive()) {
-
-				// Fix MIDI beat clock output
-				if (currentlySendingMIDIOutputClocks()) {
-					resyncMIDIClockOutTicksToInternalTicks();
-					sendOutPositionViaMIDI(getCurrentInternalTickCount());
-				}
-
-				// Fix analog out clock
-				resyncAnalogOutTicksToInternalTicks();
-			}
-
-			displayTempoByCalculation();
-		}
+		return commandEditClockOutScale(offset);
 	}
 
 	// Otherwise, change tempo
 	else {
-
 		if (!isExternalClockActive()) {
+			// Truth table for how we decide between adjusting coarse and fine tempo:
+			//
+			// Setting | Button | Mode
+			// -----------------------
+			//  On     | Off    | Fine
+			//  On     | On     | Coarse
+			//  Off    | Off    | Coarse
+			//  Off    |  On    | Fine
+			//
+			bool feature = runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+			     == RuntimeFeatureStateToggle::On;
+			bool button = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 
-			// FimeTempoKnob logic
-			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-			     == RuntimeFeatureStateToggle::On)) { // feature on
-				tempoKnobMode = 2;
-			}
-			else {
-				tempoKnobMode = 1;
-			}
-
-			if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
-				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-				     == RuntimeFeatureStateToggle::On)) { // feature is on, tempo button push-turned
-					tempoKnobMode = 1;
-				}
-
-				else {
-					tempoKnobMode = 2;
-				}
-			}
-
-			switch (tempoKnobMode) {
-			case 1:
-				// Coarse tempo adjustment
-
-				// Get current tempo
-				int32_t magnitude;
-				int8_t whichValue;
-				getCurrentTempoParams(&magnitude, &whichValue);
-
-				whichValue += offset;
-
-				if (whichValue >= 16) {
-					whichValue -= 16;
-					magnitude--;
-				}
-				else if (whichValue < 0) {
-					whichValue += 16;
-					magnitude++;
-				}
-
-				currentSong->setTempoFromParams(magnitude, whichValue, true);
-
-				displayTempoFromParams(magnitude, whichValue);
-				break;
-
-			case 2:
-				// Fine tempo adjustment
-
-				int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
-				tempoBPM += offset;
-				if (tempoBPM > 0) {
-					currentSong->setBPM(tempoBPM, true);
-					displayTempoBPM(tempoBPM);
-				}
-
-				break;
+			if (feature == button) {
+				return commandEditTempoCoarse(offset);
+			} else {
+				return commandEditTempoFine(offset);
 			}
 		}
 	}
 }
+
+void PlaybackHandler::commandEditTempoCoarse(int8_t offset) {
+	// Get current tempo
+	int32_t magnitude;
+	int8_t whichValue;
+	getCurrentTempoParams(&magnitude, &whichValue);
+
+	whichValue += offset;
+
+	if (whichValue >= 16) {
+		whichValue -= 16;
+		magnitude--;
+	}
+	else if (whichValue < 0) {
+		whichValue += 16;
+		magnitude++;
+	}
+
+	currentSong->setTempoFromParams(magnitude, whichValue, true);
+
+	displayTempoFromParams(magnitude, whichValue);
+}
+
+void PlaybackHandler::commandEditTempoFine(int8_t offset) {
+	int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+	tempoBPM += offset;
+	if (tempoBPM > 0) {
+		currentSong->setBPM(tempoBPM, true);
+		displayTempoBPM(tempoBPM);
+	}
+}
+
 
 void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessageToo) {
 	uint32_t newOutputTicksDone = timerTicksToOutputTicks(pos);
