@@ -176,7 +176,7 @@ public:
 	void resyncMIDIClockOutTicksToInternalTicks();
 	void analogClockRisingEdge(uint32_t time);
 	void toggleMetronomeStatus();
-	void displayTempoByCalculation();
+	void commandDisplayTempo();
 	void setMidiOutClockMode(bool newValue);
 	void pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
@@ -221,6 +221,7 @@ public:
 	void commandEditClockOutScale(int8_t offset);
 	void commandEditTempoCoarse(int8_t offset);
 	void commandEditTempoFine(int8_t offset);
+	void commandDisplayTempo(int8_t offset);
 
 private:
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);

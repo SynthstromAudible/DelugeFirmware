@@ -1944,7 +1944,7 @@ void PlaybackHandler::commandEditClockOutScale(int8_t offset) {
 			resyncAnalogOutTicksToInternalTicks();
 		}
 
-		displayTempoByCalculation();
+		commandDisplayTempo();
 	}
 }
 
@@ -2155,7 +2155,7 @@ void PlaybackHandler::displayTempoFromParams(int32_t magnitude, int8_t whichValu
 	displayTempoBPM(tempoBPM);
 }
 
-void PlaybackHandler::displayTempoByCalculation() {
+void PlaybackHandler::commandDisplayTempo() {
 	float bpm = calculateBPM(getTimePerInternalTickFloat());
 	displayTempoBPM(bpm);
 }
@@ -2334,7 +2334,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 		}
 	}
 
-	displayTempoByCalculation();
+	commandDisplayTempo();
 }
 
 uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples, Action* action) {
@@ -2369,7 +2369,7 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 		}
 	}
 
-	displayTempoByCalculation();
+	commandDisplayTempo();
 
 	return ticksLong;
 }
@@ -2520,7 +2520,7 @@ void PlaybackHandler::tapTempoButtonPress() {
 		    true); // Put the fraction in the middle; it's more likely to be accurate since we've been rounding down
 		actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't allow next action to add to this one
 
-		displayTempoByCalculation();
+		commandDisplayTempo();
 	}
 	tapTempoNumPresses++;
 

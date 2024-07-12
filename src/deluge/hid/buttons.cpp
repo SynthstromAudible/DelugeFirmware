@@ -245,7 +245,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			}
 			else {
 				if (getCurrentUI() != &loadSongUI) {
-					playbackHandler.displayTempoByCalculation();
+					playbackHandler.commandDisplayTempo();
 				}
 			}
 		}
