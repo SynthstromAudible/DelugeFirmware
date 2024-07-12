@@ -209,6 +209,7 @@ def ensure_midi_port(type, midi, port):
                 deluge_ports.append(i)
 
         if len(deluge_ports) > 0:
+            # Guess that the last port will be port 3/sysex
             port = deluge_ports[-1]
 
     if port is None:
@@ -219,8 +220,6 @@ def ensure_midi_port(type, midi, port):
     else:
         # Report ports to stderr so the logs remain separate.
         note(f"# MIDI {type} {port}: {midi.get_port_name(port)}")
-    # Guess that the last port will be port 3/sysex
-    port = deluge_ports[-1]
     return port
 
 
