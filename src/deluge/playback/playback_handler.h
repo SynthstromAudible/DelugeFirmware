@@ -177,8 +177,6 @@ public:
 	void analogClockRisingEdge(uint32_t time);
 	void toggleMetronomeStatus();
 	void displayTempoByCalculation();
-	void displaySwingAmount();
-	void displaySwingInterval();
 	void setMidiOutClockMode(bool newValue);
 	void pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
@@ -213,6 +211,12 @@ public:
 	inline bool isExternalClockActive() { return (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE); }
 	inline bool isInternalClockActive() { return (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE); }
 	inline bool isEitherClockActive() { return (playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE); }
+
+	// TEMPO encoder commands
+	void commandDisplaySwingAmount();
+	void commandEditSwingAmount(int8_t offset);
+	void commandDisplaySwingInterval();
+	void commandEditSwingInterval(int8_t offset);
 
 private:
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);

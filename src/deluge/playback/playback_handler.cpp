@@ -1817,7 +1817,7 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 }
 
 /** On OLED displayes both Swing amount and interval, on 7seg only the interval. */
-void PlaybackHandler::displaySwingInterval() {
+void PlaybackHandler::commandDisplaySwingInterval() {
 	DEF_STACK_STRING_BUF(text, 30);
 	if (display->haveOLED()) {
 		text.append("Swing: ");
@@ -1834,7 +1834,7 @@ void PlaybackHandler::displaySwingInterval() {
 }
 
 /** On OLED displayes both Swing amount and interval, on 7seg only the amount. */
-void PlaybackHandler::displaySwingAmount() {
+void PlaybackHandler::commandDisplaySwingAmount() {
 	DEF_STACK_STRING_BUF(text, 30);
 	if (display->haveOLED()) {
 		text.append("Swing: ");
@@ -1858,14 +1858,29 @@ void PlaybackHandler::displaySwingAmount() {
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
+void PlaybackHandler::commandEditSwingInterval(int8_t offset) {
+	currentSong->changeSwingInterval(wrapSwingIntervalSyncLevel(currentSong->swingInterval + offset));
+	commandDisplaySwingInterval();
+}
+
+void PlaybackHandler::commandEditSwingAmount(int8_t offset) {
+	int32_t newSwingAmount = std::clamp(currentSong->swingAmount + offset, -49, 49);
+	if (newSwingAmount != currentSong->swingAmount) {
+		actionLogger.recordSwingChange(currentSong->swingAmount, newSwingAmount);
+		currentSong->swingAmount = newSwingAmount;
+	}
+	commandDisplaySwingAmount();
+}
+
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
 
 	if (Buttons::isButtonPressed(deluge::hid::button::TAP_TEMPO)) {
 		if (display->hasPopupOfType(PopupType::SWING)) {
 			// If not yet displaying, don't change the value
-			currentSong->changeSwingInterval(wrapSwingIntervalSyncLevel(currentSong->swingInterval + offset));
+			return commandEditSwingInterval(offset);
+		} else {
+			return commandDisplaySwingInterval();
 		}
-		return displaySwingInterval();
 	}
 
 	offset = std::max((int8_t)-1, std::min((int8_t)1, offset));
@@ -1900,17 +1915,13 @@ displayNudge:
 		}
 	}
 
-	// Otherwise, adjust swing
+	// Adjust swing
 	else if (shiftButtonPressed) {
 		if (display->hasPopupOfType(PopupType::SWING)) {
-			// Don't change if not yet displaying the amount
-			int32_t newSwingAmount = std::clamp(currentSong->swingAmount + offset, -49, 49);
-			if (newSwingAmount != currentSong->swingAmount) {
-				actionLogger.recordSwingChange(currentSong->swingAmount, newSwingAmount);
-				currentSong->swingAmount = newSwingAmount;
-			}
+			return commandEditSwingAmount(offset);
+		} else {
+			return commandDisplaySwingAmount();
 		}
-		displaySwingAmount();
 	}
 
 	// If MIDI learn button down, change clock out scale
