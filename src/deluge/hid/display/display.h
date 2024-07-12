@@ -10,7 +10,7 @@ extern "C" {
 class NumericLayer;
 class NumericLayerScrollingText;
 
-enum class DisplayPopupType {
+enum class PopupType {
 	NONE,
 	/// Default popup type, if not specified.
 	GENERAL,
@@ -41,10 +41,10 @@ public:
 
 	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false,
 	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1,
-	                          DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
+	                          PopupType type = PopupType::GENERAL) = 0;
 
 	virtual void displayPopup(uint8_t val, int8_t numFlashes = 3, bool alignRight = false, uint8_t drawDot = 255,
-	                          int32_t blinkSpeed = 1, DisplayPopupType type = DisplayPopupType::GENERAL) {
+	                          int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) {
 		char valStr[4] = {0};
 		intToString(val, valStr, 1);
 		displayPopup(valStr, numFlashes, alignRight, drawDot, blinkSpeed, type);
@@ -52,12 +52,12 @@ public:
 
 	virtual void displayPopup(char const* shortLong[2], int8_t numFlashes = 3, bool alignRight = false,
 	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1,
-	                          DisplayPopupType type = DisplayPopupType::GENERAL) {
+	                          PopupType type = PopupType::GENERAL) {
 		displayPopup(have7SEG() ? shortLong[0] : shortLong[1], numFlashes, alignRight, drawDot, blinkSpeed, type);
 	}
 
-	virtual void popupText(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
-	virtual void popupTextTemporary(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) = 0;
+	virtual void popupText(char const* text, PopupType type = PopupType::GENERAL) = 0;
+	virtual void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) = 0;
 
 	virtual void setNextTransitionDirection(int8_t thisDirection){};
 
@@ -74,7 +74,7 @@ public:
 	virtual void removeLoadingAnimation() = 0;
 
 	virtual bool hasPopup() = 0;
-	virtual bool hasPopupOfType(DisplayPopupType type) = 0;
+	virtual bool hasPopupOfType(PopupType type) = 0;
 
 	virtual void consoleText(char const* text) = 0;
 

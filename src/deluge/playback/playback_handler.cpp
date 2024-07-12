@@ -1830,7 +1830,7 @@ void PlaybackHandler::displaySwingInterval() {
 		text.append("\n");
 	}
 	syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
-	display->popupTextTemporary(text.c_str(), DisplayPopupType::SWING);
+	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
 /** On OLED displayes both Swing amount and interval, on 7seg only the amount. */
@@ -1855,13 +1855,13 @@ void PlaybackHandler::displaySwingAmount() {
 			text.appendInt(currentSong->swingAmount + 50);
 		}
 	}
-	display->popupTextTemporary(text.c_str(), DisplayPopupType::SWING);
+	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
 
 	if (Buttons::isButtonPressed(deluge::hid::button::TAP_TEMPO)) {
-		if (display->hasPopupOfType(DisplayPopupType::SWING)) {
+		if (display->hasPopupOfType(PopupType::SWING)) {
 			// If not yet displaying, don't change the value
 			currentSong->changeSwingInterval(wrapSwingIntervalSyncLevel(currentSong->swingInterval + offset));
 		}
@@ -1902,7 +1902,7 @@ displayNudge:
 
 	// Otherwise, adjust swing
 	else if (shiftButtonPressed) {
-		if (display->hasPopupOfType(DisplayPopupType::SWING)) {
+		if (display->hasPopupOfType(PopupType::SWING)) {
 			// Don't change if not yet displaying the amount
 			int32_t newSwingAmount = std::clamp(currentSong->swingAmount + offset, -49, 49);
 			if (newSwingAmount != currentSong->swingAmount) {

@@ -16,10 +16,10 @@ public:
 	             int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false){};
 
 	void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false, uint8_t = 255, int32_t = 1,
-	                  DisplayPopupType type = DisplayPopupType::GENERAL){};
+	                  PopupType type = PopupType::GENERAL){};
 
-	void popupText(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL){};
-	void popupTextTemporary(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL){};
+	void popupText(char const* text, PopupType type = PopupType::GENERAL){};
+	void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL){};
 
 	void setNextTransitionDirection(int8_t thisDirection){};
 
@@ -36,7 +36,7 @@ public:
 	void removeLoadingAnimation(){};
 
 	bool hasPopup() { return false; };
-	bool hasPopupOfType(DisplayPopupType type) { return false; };
+	bool hasPopupOfType(PopupType type) { return false; };
 
 	void consoleText(char const* text){};
 

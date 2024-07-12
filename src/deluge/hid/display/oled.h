@@ -52,9 +52,9 @@ public:
 
 	static void setupPopup(int32_t width, int32_t height);
 	static void removePopup();
-	static void popupText(char const* text, bool persistent = false, DisplayPopupType type = DisplayPopupType::GENERAL);
+	static void popupText(char const* text, bool persistent = false, PopupType type = PopupType::GENERAL);
 	static bool isPopupPresent();
-	static bool isPopupPresentOfType(DisplayPopupType type = DisplayPopupType::GENERAL);
+	static bool isPopupPresentOfType(PopupType type = PopupType::GENERAL);
 
 	static void displayWorkingAnimation(char const* word);
 
@@ -108,14 +108,14 @@ public:
 	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
 
 	void displayPopup(char const* newText, int8_t numFlashes = 3, bool = false, uint8_t = 255, int32_t = 1,
-	                  DisplayPopupType type = DisplayPopupType::GENERAL) override {
+	                  PopupType type = PopupType::GENERAL) override {
 		popupText(newText, !numFlashes, type);
 	}
 
-	void popupText(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) override {
+	void popupText(char const* text, PopupType type = PopupType::GENERAL) override {
 		popupText(text, true, type);
 	}
-	void popupTextTemporary(char const* text, DisplayPopupType type = DisplayPopupType::GENERAL) override {
+	void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) override {
 		popupText(text, false, type);
 	}
 
@@ -130,7 +130,7 @@ public:
 	void removeLoadingAnimation() override { removeWorkingAnimation(); }
 
 	bool hasPopup() override { return isPopupPresent(); }
-	bool hasPopupOfType(DisplayPopupType type) override { return isPopupPresentOfType(type); }
+	bool hasPopupOfType(PopupType type) override { return isPopupPresentOfType(type); }
 
 private:
 	static bool needsSending;
