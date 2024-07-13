@@ -46,7 +46,7 @@ For Drum exports, the stem's are given the following format for the file name:
 - Note 3: Instruments, Clips and Drums that are `EMPTY` (e.g. they have no Notes or Audio Files) are excluded from the stem export
 - Note 4: In Arranger View, any Instruments that are `MUTED` are excluded from the stem export
 - Note 5: In Kits, any Drums that are `MUTED` are excluded from the stem export.
-- `(NOT WORKING YET)` Note 6: Drum Stems are exported without Kit Affect Entire FX applied
+- Note 6: Drum Stems are exported without Kit Affect Entire FX applied (except for the Kit Affect Entire Pitch Adjustment which is still applied)
 
 ### Cancelling Stem Export
 

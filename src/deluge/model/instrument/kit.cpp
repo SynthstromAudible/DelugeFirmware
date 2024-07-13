@@ -39,6 +39,7 @@
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include <cstring>
@@ -655,9 +656,23 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
-	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT);
+	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
+	if (stemExport.processStarted) {
+		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+
+		int32_t pitchAdjust =
+		    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+
+		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
+		    modelStackWithTimelineCounter, outputBuffer, NULL, numSamples, reverbBuffer, reverbAmountAdjust,
+		    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+	}
+	// render kit row with kit affect entire FX
+	else {
+		GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
+		                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+		                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT);
+	}
 }
 
 // offer the CC to kit gold knobs without also offering to all drums
