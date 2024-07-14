@@ -20,9 +20,9 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/rename/rename_clipname_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
-#include "gui/ui/rename/rename_clipname_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -439,7 +439,8 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			if (x == 11 && y == 5 && Buttons::isShiftButtonPressed() && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+			if (x == 11 && y == 5 && Buttons::isShiftButtonPressed()
+			    && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
 
 				AudioClip* clip = getCurrentAudioClip();
 				currentUIMode = UI_MODE_NONE;
@@ -448,7 +449,6 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 
 				openUI(&renameClipNameUI);
 				uiNeedsRendering(this, 0, 0xFFFFFFFF);
-
 			}
 			// Maybe go to SoundEditor
 			ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);

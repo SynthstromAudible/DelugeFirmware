@@ -1288,7 +1288,6 @@ doNewPress:
 					pressedHead = (clipInstance->pos >= squareStart);
 
 					actionOnDepress = true;
-
 				}
 
 				// Or, if no ClipInstance anywhere to the left, make a new one
@@ -1545,8 +1544,7 @@ getItFromSection:
 				if (x == xPressed && y == yPressedEffective) {
 
 					hid::display::OLED::clearMainImage();
-					ClipInstance* clipInstance =
-						    output->clipInstances.getElement(pressedClipInstanceIndex);
+					ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
 					drawClipName(output, clipInstance->clip);
 
 					hid::display::OLED::markChanged();
@@ -3314,7 +3312,7 @@ void ArrangerView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whi
 	}
 }
 
-void ArrangerView::drawClipName(Output* output, Clip* clip){
+void ArrangerView::drawClipName(Output* output, Clip* clip) {
 
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 
@@ -3324,32 +3322,29 @@ void ArrangerView::drawClipName(Output* output, Clip* clip){
 
 	canvas.drawStringCentred("ARRANGER", yPos, kTextSpacingX, kTextSpacingY);
 
-	if (output->type == OutputType::AUDIO){
-			AudioClip* audioclip = (AudioClip*)clip;
-			clip->clipName.set(&audioclip->sampleHolder.filePath);
+	if (output->type == OutputType::AUDIO) {
+		AudioClip* audioclip = (AudioClip*)clip;
+		clip->clipName.set(&audioclip->sampleHolder.filePath);
 	}
 
 	yPos = OLED_MAIN_TOPMOST_PIXEL + 19;
-	//String* filen = (String*)output->name.get();
+	// String* filen = (String*)output->name.get();
 
 	int32_t textLength = strlen(output->name.get());
 	int32_t stringLengthPixels = textLength * textSpacingX;
 
 	if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
-				canvas.drawStringCentred(output->name.get(), yPos, textSpacingX, textSpacingY);
-
+		canvas.drawStringCentred(output->name.get(), yPos, textSpacingX, textSpacingY);
 	}
 	else {
 		canvas.drawString(output->name.get(), 0, yPos, textSpacingX, textSpacingY);
 		deluge::hid::display::OLED::setupSideScroller(0, output->name.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
-														yPos + textSpacingY, textSpacingX, textSpacingY, false);
-
+		                                              yPos + textSpacingY, textSpacingX, textSpacingY, false);
 	}
 
 	yPos = yPos + 13;
 
 	canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
 	deluge::hid::display::OLED::setupSideScroller(1, clip->clipName.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
-									yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY, false);
+	                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY, false);
 }
-

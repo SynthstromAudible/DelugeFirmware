@@ -34,8 +34,7 @@ RenameClipNameUI::RenameClipNameUI() {
 bool RenameClipNameUI::opened() {
 	if (display->haveOLED()) {
 
-			title = "Clip Name";
-
+		title = "Clip Name";
 	}
 	bool success = QwertyUI::opened();
 	if (!success) {

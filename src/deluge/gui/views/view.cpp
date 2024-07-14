@@ -1892,7 +1892,7 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 			break;
 		}
 	}
-	else if (output->type == OutputType::AUDIO){
+	else if (output->type == OutputType::AUDIO) {
 		if (clip) {
 			AudioClip* audioclip = (AudioClip*)clip;
 			clip->clipName.set(&audioclip->sampleHolder.filePath);
@@ -2026,18 +2026,18 @@ oledDrawString:
 				canvas.drawStringCentred(nameToDraw, yPos, textSpacingX, textSpacingY);
 			}
 			else {
-			    canvas.drawString(nameToDraw, 0, yPos, textSpacingX, textSpacingY);
+				canvas.drawString(nameToDraw, 0, yPos, textSpacingX, textSpacingY);
 				deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
 				                                              yPos + textSpacingY, textSpacingX, textSpacingY, false);
 			}
 
 			if (clip) {
 				yPos = yPos + 13;
-			 	canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
+				canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
 				deluge::hid::display::OLED::setupSideScroller(1, clip->clipName.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
-												yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY, false);
+				                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
+				                                              false);
 			}
-
 		}
 		else {
 			bool andAHalf;

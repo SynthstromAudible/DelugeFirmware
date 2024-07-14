@@ -11,9 +11,9 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/rename/rename_clipname_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/rename/rename_output_ui.h"
-#include "gui/ui/rename/rename_clipname_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -925,23 +925,22 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				Clip* clip = getCurrentClip();
 				Output* output = getCurrentOutput();
 
-				// Rename clip always for synth, for KIT clipname can be altered when Effect entire is on to keep it consistent
-				if (output->type == OutputType::SYNTH || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
+				// Rename clip always for synth, for KIT clipname can be altered when Effect entire is on to keep it
+				// consistent
+				if (output->type == OutputType::SYNTH
+				    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
 
 					if (clip) {
 						renameClipNameUI.clip = clip;
 						openUI(&renameClipNameUI);
 						return ActionResult::DEALT_WITH;
 					}
-
 				}
 				// if else then just keep it like the old way to rename the kit row item
 				else {
 
 					item = paramShortcutsForSounds[x][y];
-
 				}
-
 			}
 			else if (x <= 14) {
 				item = paramShortcutsForSounds[x][y];
