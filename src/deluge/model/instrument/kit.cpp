@@ -656,8 +656,9 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	// Beware - modelStackWithThreeMainThings might have a NULL timelineCounter
 
+	// if you're exporting drum stems
 	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
-	if (stemExport.processStarted) {
+	if (stemExport.processStarted && (stemExport.currentStemExportType == StemExportType::DRUM)) {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 		int32_t pitchAdjust =

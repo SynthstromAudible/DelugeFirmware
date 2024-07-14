@@ -35,6 +35,7 @@ public:
 	void startOutputRecordingUntilLoopEnd();
 	void stopOutputRecordingAndPlayback();
 	bool processStarted;
+	StemExportType currentStemExportType;
 
 	// export instruments
 	void disarmAllInstrumentsForStemExport();

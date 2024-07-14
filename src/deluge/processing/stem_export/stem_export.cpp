@@ -49,6 +49,7 @@ using namespace gui;
 StemExport stemExport{};
 
 StemExport::StemExport() {
+	currentStemExportType = StemExportType::CLIP;
 	processStarted = false;
 
 	highestUsedStemFolderNumber = -1;
@@ -61,6 +62,7 @@ StemExport::StemExport() {
 /// starts stem export process which includes setting up UI mode, timer, and preparing
 /// instruments / clips for exporting
 void StemExport::startStemExportProcess(StemExportType stemExportType) {
+	currentStemExportType = stemExportType;
 	processStarted = true;
 
 	// exit save UI mode and turn off save button LED
