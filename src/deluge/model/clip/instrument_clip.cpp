@@ -2288,6 +2288,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 
 void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
+	writer.writeAttribute("clipName", clipName.get());
 	writer.writeAttribute("inKeyMode", inScaleMode);
 	writer.writeAttribute("yScroll", yScroll);
 	writer.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
@@ -2475,6 +2476,10 @@ someError:
 		// D_PRINTLN(tagName); delayMS(30);
 
 		int32_t temp;
+
+		if (!strcmp(tagName, "clipName")) {
+			reader.readTagOrAttributeValueString(&clipName);
+		}
 
 		if (!strcmp(tagName, "inKeyMode")) {
 			inScaleMode = reader.readTagOrAttributeValueInt();
