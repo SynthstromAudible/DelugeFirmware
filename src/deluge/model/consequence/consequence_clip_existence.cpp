@@ -91,7 +91,7 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 			}
 		}
 
-		if (!clip->output->activeClip) {
+		if (!clip->output->getActiveClip()) {
 			clip->output->setActiveClip(
 			    modelStackWithTimelineCounter); // Must do this to avoid E170 error. If Instrument has no
 			                                    // backedUpParamManager, it must have an activeClip

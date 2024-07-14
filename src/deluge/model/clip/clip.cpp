@@ -43,6 +43,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 	soloingInSessionMode = false;
 	armState = ArmState::OFF;
 	activeIfNoSolo = true;
+	activeIfNoSoloBeforeStemExport = activeIfNoSolo;
 	wasActiveBefore = false; // Want to set this default in case a Clip was created during playback
 
 	section = 0;
@@ -205,7 +206,7 @@ bool Clip::isArrangementOnlyClip() const {
 }
 
 bool Clip::isActiveOnOutput() {
-	return (output->activeClip == this);
+	return (output->getActiveClip() == this);
 }
 
 // Note: it's now the caller's job to increment currentPos before calling this! But we check here whether it's looped
@@ -454,8 +455,8 @@ void Clip::setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, boo
 }
 
 Clip* Clip::getClipToRecordTo() {
-	if (output->activeClip && output->activeClip->beingRecordedFromClip == this) {
-		return output->activeClip;
+	if (output->getActiveClip() && output->getActiveClip()->beingRecordedFromClip == this) {
+		return output->getActiveClip();
 	}
 	else {
 		return this;
@@ -900,7 +901,7 @@ yesMakeItActive:
 	else {
 		// In any case, we want the newInstrument to have an activeClip, and if it doesn't yet have one, the supplied
 		// Clip makes a perfect candidate
-		if (!newOutput->activeClip) {
+		if (!newOutput->getActiveClip()) {
 			goto yesMakeItActive;
 		}
 	}
@@ -1056,8 +1057,8 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 	if (playbackHandler.recording == RecordingMode::ARRANGEMENT && playbackHandler.isEitherClockActive()
 	    && !isArrangementOnlyClip() && modelStack->song->isClipActive(this)) {
 
-		if (output->activeClip && output->activeClip->beingRecordedFromClip == this) {
-			modelStack->setTimelineCounter(output->activeClip);
+		if (output->getActiveClip() && output->getActiveClip()->beingRecordedFromClip == this) {
+			modelStack->setTimelineCounter(output->getActiveClip());
 		}
 
 		else {

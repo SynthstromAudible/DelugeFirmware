@@ -49,7 +49,7 @@ public:
 	virtual ~Output();
 
 	ClipInstanceVector clipInstances;
-	Clip* activeClip;
+	[[nodiscard]] Clip* getActiveClip() const;
 	String name; // Contains the display name as the user sees it.
 	             // E.g. on numeric Deluge, SYNT000 will be just "0". Definitely no leading zeros, so not "000".
 	             // On OLED Deluge I thiiink SYNT000 would be "SYNT000"?
@@ -57,6 +57,7 @@ public:
 	Output* next;
 	const OutputType type;
 	bool mutedInArrangementMode;
+	bool mutedInArrangementModeBeforeStemExport; // Used by stem export to restore previous state
 	bool soloingInArrangementMode;
 	bool inValidState;
 	bool wasCreatedForAutoOverdub;
@@ -91,7 +92,7 @@ public:
 	virtual ModControllable* toModControllable() { return nullptr; }
 	virtual bool isSkippingRendering() { return true; } // Not valid for Kits
 	bool clipHasInstance(Clip* clip);
-	bool isEmpty();
+	bool isEmpty(bool displayPopup = true);
 	void clipLengthChanged(Clip* clip, int32_t oldLength);
 	virtual void cutAllSound() {}
 	virtual void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
@@ -161,4 +162,6 @@ public:
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
+
+	Clip* activeClip;
 };

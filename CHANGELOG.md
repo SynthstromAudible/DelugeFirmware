@@ -20,9 +20,16 @@
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
+- Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
+
+## c1.1.1 Beethoven
+
+### User Interface
+
+- Added `BASS FREQUENCY` and `TREBLE FREQUENCY` parameters to the list of assignable parameters in `PERFORMANCE VIEW`.
 
 ## c1.1.0 Beethoven
 

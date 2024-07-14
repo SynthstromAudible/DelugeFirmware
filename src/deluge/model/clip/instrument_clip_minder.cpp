@@ -39,6 +39,7 @@
 #include "model/consequence/consequence.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"

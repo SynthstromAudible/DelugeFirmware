@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/clip/audio_clip.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
 #include "modulation/envelope.h"

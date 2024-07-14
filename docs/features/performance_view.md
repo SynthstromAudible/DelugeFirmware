@@ -100,6 +100,8 @@ Unassigned = HPF Morph
 Yellow:
 5 = Bass EQ
 6 = Treble EQ
+Unassigned = Bass Frequency
+Unassigned = Treble Frequency
 
 Light Green:
 7 = Reverb

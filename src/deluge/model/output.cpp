@@ -30,6 +30,7 @@
 
 Output::Output(OutputType newType) : type(newType) {
 	mutedInArrangementMode = false;
+	mutedInArrangementModeBeforeStemExport = mutedInArrangementMode;
 	soloingInArrangementMode = false;
 	activeClip = NULL;
 	inValidState = false;
@@ -50,7 +51,11 @@ void Output::setupWithoutActiveClip(ModelStack* modelStack) {
 
 // Returns whether Clip changed from before
 bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
-
+	if (!modelStack) {
+		activeClip = nullptr;
+		inValidState = false;
+		return true;
+	}
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
 	bool clipChanged = (activeClip != newClip);
@@ -140,14 +145,15 @@ bool Output::clipHasInstance(Clip* clip) {
 	return false;
 }
 
-// check all instrument clip instances belonging to an output to see if they have any notes
-// if so, then we need to check if there are other clip's assigned to that output which have notes
-// because we don't want to change the output type for all the clips assigned to that output if some have notes
-bool Output::isEmpty() {
+// check all instrument clip instances belonging to an output to see if they have any notes (for instrument clip) or
+// audio file (for audio clip) if so, then we need to check if there are other clip's assigned to that output which have
+// notes or audio files because we don't want to change the output type for all the clips assigned to that output if
+// some have notes / audio files
+bool Output::isEmpty(bool displayPopup) {
 	// loop through the output selected to see if any of the clips are not empty
 	for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
-		InstrumentClip* clip = (InstrumentClip*)clipInstances.getElement(i)->clip;
-		if (clip && !clip->isEmpty()) {
+		Clip* clip = clipInstances.getElement(i)->clip;
+		if (clip && !clip->isEmpty(displayPopup)) {
 			return false;
 		}
 	}
@@ -545,6 +551,10 @@ void Output::endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t t
 	}
 
 	endAnyArrangementRecording(song, actualEndPos, timeRemainder);
+}
+
+Clip* Output::getActiveClip() const {
+	return activeClip;
 }
 
 /*

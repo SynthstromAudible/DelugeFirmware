@@ -34,7 +34,6 @@ public:
 	virtual uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) { return 0; }
 	virtual void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) {}
 	virtual void playbackEnded() {}
-	virtual bool isTimelineView() { return false; }
 	virtual void clipNeedsReRendering(Clip* clip) {}
 	virtual void sampleNeedsReRendering(Sample* sample) {}
 	virtual void midiLearnFlash() {}

@@ -37,6 +37,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note.h"
 #include "model/scale/note_set.h"
+#include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -1143,8 +1144,8 @@ void InstrumentClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, b
 void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 
 	// If it's actually another Clip, that we're recording into the arranger...
-	if (output->activeClip && output->activeClip->beingRecordedFromClip == this) {
-		output->activeClip->expectNoFurtherTicks(song, actuallySoundChange);
+	if (output->getActiveClip() && output->getActiveClip()->beingRecordedFromClip == this) {
+		output->getActiveClip()->expectNoFurtherTicks(song, actuallySoundChange);
 		return;
 	}
 
@@ -1735,7 +1736,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	// If newInstrument has no activeClip, we must set that right now before the audio routine is called - otherwise it
 	// won't be able to find its ParamManager. This prevents a crash if we just navigated this Clip into this Instrument
 	// and it already existed and had no Clips
-	if (!newInstrument->activeClip) {
+	if (!newInstrument->getActiveClip()) {
 		newInstrument->setActiveClip(modelStack, PgmChangeSend::NEVER);
 	}
 
@@ -3738,10 +3739,12 @@ bool InstrumentClip::isScrollWithinRange(int32_t scrollAmount, int32_t newYNote)
 	return true;
 }
 
-bool InstrumentClip::isEmpty() {
+bool InstrumentClip::isEmpty(bool displayPopup) {
 	// does this clip have notes?
 	if (containsAnyNotes()) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
+		if (displayPopup) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
+		}
 		return false;
 	}
 	return true;

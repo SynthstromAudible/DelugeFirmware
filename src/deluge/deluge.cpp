@@ -857,11 +857,6 @@ extern "C" int32_t deluge_main(void) {
 	setupBlankSong(); // we always need to do this
 	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
 
-#ifdef TEST_BST
-	BST bst;
-	bst.test();
-#endif
-
 #ifdef TEST_VECTOR
 	NoteVector noteVector;
 	noteVector.test();
@@ -875,11 +870,6 @@ extern "C" int32_t deluge_main(void) {
 #ifdef TEST_VECTOR_DUPLICATES
 	NoteVector noteVector;
 	noteVector.testDuplicates();
-#endif
-
-#ifdef TEST_OPEN_ADDRESSING_HASH_TABLE
-	OpenAddressingHashTableWith8bitKey table;
-	table.test();
 #endif
 
 #ifdef TEST_SD_WRITE

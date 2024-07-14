@@ -37,6 +37,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
@@ -148,16 +149,22 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 }
 
 bool AudioRecorder::beginOutputRecording() {
-	bool success = setupRecordingToFile(AudioInputChannel::OUTPUT, 2, AudioRecordingFolder::RESAMPLE);
+	AudioRecordingFolder folder = AudioRecordingFolder::RESAMPLE;
+	AudioInputChannel channel = AudioInputChannel::OUTPUT;
+	if (stemExport.processStarted) {
+		folder = AudioRecordingFolder::STEMS;
+		channel = AudioInputChannel::MIX;
+	}
+	bool success = setupRecordingToFile(channel, 2, folder);
 
 	if (success) {
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
 	}
 
-	AudioEngine::bypassCulling =
-	    true; // Not 100% sure if this will help. Leo was getting culled voices right on beginning resampling
-	          // via an audition pad. But I'd more expect it to happen after the first render-window, which this
-	          // won't help. Anyway, I suppose this can't do any harm here.
+	// Rohan: Not 100% sure if this will help. Leo was getting culled voices right on beginning resampling
+	// via an audition pad. But I'd more expect it to happen after the first render-window, which this
+	// won't help. Anyway, I suppose this can't do any harm here.
+	AudioEngine::bypassCulling = true;
 
 	return success;
 }
@@ -172,7 +179,7 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 }
 
 void AudioRecorder::slowRoutine() {
-	if (recordingSource == AudioInputChannel::OUTPUT) {
+	if (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 		if (recorder->status >= RecorderStatus::COMPLETE) {
 			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RecordingMode::NORMAL));
 			finishRecording();

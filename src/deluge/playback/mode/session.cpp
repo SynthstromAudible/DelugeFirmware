@@ -32,6 +32,7 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
 #include "model/note/note_row.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -261,8 +262,8 @@ void Session::doLaunch(bool isFillLaunch) {
 
 			Output* output = clip->output;
 
-			if (isFillLaunch && clip->launchStyle == LaunchStyle::FILL && output->activeClip
-			    && output->activeClip->launchStyle != LaunchStyle::FILL) {
+			if (isFillLaunch && clip->launchStyle == LaunchStyle::FILL && output->getActiveClip()
+			    && output->getActiveClip()->launchStyle != LaunchStyle::FILL) {
 				/* There's a non fill clip already on this output, don't launch */
 				clip->armState = ArmState::OFF;
 				continue;
@@ -1768,8 +1769,8 @@ void Session::scheduleFillClip(Clip* clip) {
 			// and if closer than the fill clip length, do immediate launch */
 			// if (launchEventAtSwungTickCount < playbackHandler.getActualSwungTickCount() + clip->getMaxLength()) {
 			if (fillStartTime < playbackHandler.getActualSwungTickCount()) {
-				if (clip->output->activeClip) {
-					if (clip->output->activeClip->launchStyle == LaunchStyle::FILL) {
+				if (clip->output->getActiveClip()) {
+					if (clip->output->getActiveClip()->launchStyle == LaunchStyle::FILL) {
 						/* A fill clip is already here, steal the output */
 					}
 					else {
@@ -1833,7 +1834,7 @@ void Session::scheduleFillClips(uint8_t section) {
 		if (thisClip->section == section && thisClip->launchStyle == LaunchStyle::FILL) {
 
 			Output* output = thisClip->output;
-			if (output->activeClip && output->activeClip->launchStyle != LaunchStyle::FILL) {
+			if (output->getActiveClip() && output->getActiveClip()->launchStyle != LaunchStyle::FILL) {
 				/* Some non-fill already has this output. We can't steal it.*/
 				continue;
 			}
@@ -1940,12 +1941,7 @@ bool Session::areAnyClipsArmed() {
 // affected by each Action. This is only to be called if playbackHandler.isEitherClockActive().
 void Session::reversionDone() {
 
-	// For each Clip in session and arranger
-	ClipArray* clipArray = &currentSong->sessionClips;
-traverseClips:
-	for (int32_t c = 0; c < clipArray->getNumElements(); c++) {
-		Clip* clip = clipArray->getClipAtIndex(c);
-
+	for (Clip* clip : AllClips::everywhere(currentSong)) {
 		if (currentSong->isClipActive(clip)) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -1954,10 +1950,6 @@ traverseClips:
 			clip->reGetParameterAutomation(modelStackWithTimelineCounter);
 			clip->expectEvent();
 		}
-	}
-	if (clipArray != &currentSong->arrangementOnlyClips) {
-		clipArray = &currentSong->arrangementOnlyClips;
-		goto traverseClips;
 	}
 }
 
@@ -2161,8 +2153,8 @@ traverseClips:
 			continue;
 		}
 
-		if (clip->output->activeClip && clip->output->activeClip->beingRecordedFromClip == clip) {
-			clip = clip->output->activeClip;
+		if (clip->output->getActiveClip() && clip->output->getActiveClip()->beingRecordedFromClip == clip) {
+			clip = clip->output->getActiveClip();
 		}
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -2325,8 +2317,8 @@ void Session::doTickForward(int32_t posIncrement) {
 				continue;
 			}
 
-			if (clip->output->activeClip && clip->output->activeClip->beingRecordedFromClip == clip) {
-				clip = clip->output->activeClip;
+			if (clip->output->getActiveClip() && clip->output->getActiveClip()->beingRecordedFromClip == clip) {
+				clip = clip->output->getActiveClip();
 			}
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -2359,8 +2351,8 @@ void Session::doTickForward(int32_t posIncrement) {
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
 
 		int32_t posForArp;
-		if (thisOutput->activeClip && currentSong->isClipActive(thisOutput->activeClip)) {
-			posForArp = thisOutput->activeClip->lastProcessedPos;
+		if (thisOutput->getActiveClip() && currentSong->isClipActive(thisOutput->getActiveClip())) {
+			posForArp = thisOutput->getActiveClip()->lastProcessedPos;
 		}
 		else {
 			posForArp = playbackHandler.lastSwungTickActioned;
@@ -2500,7 +2492,7 @@ doAssertThisClip:
 }
 
 bool Session::isOutputAvailable(Output* output) {
-	if (!playbackHandler.playbackState || !output->activeClip) {
+	if (!playbackHandler.playbackState || !output->getActiveClip()) {
 		return true;
 	}
 

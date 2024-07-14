@@ -116,10 +116,14 @@ public:
 
 	ParamManagerForTimeline* getCurrentParamManager() override;
 
+	bool isEmpty(bool displayPopup = true);
+
 protected:
 	bool cloneOutput(ModelStackWithTimelineCounter* modelStack) override;
 
 private:
+	AudioClip* nextClipInSection;
+	void removeClipFromSection(AudioClip* clip);
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
 	LoopType getLoopingType(ModelStackWithTimelineCounter const* modelStack);
 };

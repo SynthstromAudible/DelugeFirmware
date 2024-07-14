@@ -23,6 +23,8 @@
 #include "gui/colour/palette.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/launch_style.h"
+#include "gui/context_menu/stem_export/cancel_stem_export.h"
+#include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -66,6 +68,7 @@
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
@@ -170,6 +173,12 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	using namespace deluge::hid::button;
 
 	OutputType newOutputType;
+
+	// when stem export process has started,
+	// do not action anybutton presses except BACK to cancel the process
+	if (b != BACK && stemExport.processStarted) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
@@ -357,6 +366,16 @@ moveAfterClipInstance:
 				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 				view.blinkOn = true;
 			}
+			// trigger stem export when pressing record while holding save
+			else if (isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
+				if (playbackHandler.isEitherClockActive() || playbackHandler.recording != RecordingMode::OFF) {
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
+				}
+				else {
+					stemExport.startStemExportProcess(StemExportType::CLIP);
+					return ActionResult::DEALT_WITH;
+				}
+			}
 			else {
 				goto notDealtWith;
 			}
@@ -373,6 +392,18 @@ moveAfterClipInstance:
 			}
 		}
 		return ActionResult::NOT_DEALT_WITH; // Make the MatrixDriver do its normal thing with it too
+	}
+
+	// cancel stem export process
+	else if (b == BACK && stemExport.processStarted) {
+		if (on) {
+			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
+
+			if (available) {
+				display->setNextTransitionDirection(1);
+				openUI(&context_menu::cancelStemExport);
+			}
+		}
 	}
 
 	// Overwrite to allow not showing zoom level in grid
@@ -557,7 +588,7 @@ doActualSimpleChange:
 								Instrument* newInstrument = currentSong->changeOutputType(instrument, newOutputType);
 								if (newInstrument) {
 									view.displayOutputName(newInstrument);
-									view.setActiveModControllableTimelineCounter(newInstrument->activeClip);
+									view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 								}
 							}
 							break;
@@ -1206,7 +1237,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 			Output* oldOutput = clip->output;
 			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
 			if (oldOutput != newOutput) {
-				view.setActiveModControllableTimelineCounter(newOutput->activeClip);
+				view.setActiveModControllableTimelineCounter(newOutput->getActiveClip());
 				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 			}
 			break;
@@ -1617,7 +1648,7 @@ doGetInstrument:
 	}
 
 	// Possibly want to set this as the active Clip...
-	if (!newClip->output->activeClip) {
+	if (!newClip->output->getActiveClip()) {
 		newClip->output->setActiveClip(modelStackWithTimelineCounter);
 	}
 
@@ -1737,6 +1768,11 @@ void SessionView::setLedStates() {
 extern char loopsRemainingText[];
 
 void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	if (stemExport.processStarted) {
+		stemExport.displayStemExportProgressOLED(StemExportType::CLIP);
+		return;
+	}
+
 	UI* currentUI = getCurrentUI();
 	if (currentUI != &performanceSessionView) {
 		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
@@ -1764,7 +1800,7 @@ yesDoIt:
 }
 
 void SessionView::redrawNumericDisplay() {
-	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+	if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || stemExport.processStarted)) {
 		return;
 	}
 
@@ -2329,8 +2365,8 @@ bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisIm
 		if (view.midiLearnFlashOn && ((Instrument*)clip->output)->midiInput.containsSomething()) {
 
 			for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it looks
-				// mental, and I think one user was having it cause his Deluge to freeze due to underpowering.
+				// We halve the intensity of the brightness in this case, because a lot of pads will be lit, it
+				// looks mental, and I think one user was having it cause his Deluge to freeze due to underpowering.
 				thisImage[xDisplay] = colours::midi_command.dim();
 			}
 		}
@@ -2972,8 +3008,8 @@ Clip* SessionView::gridCreateClipInTrack(Output* targetOutput) {
 		}
 	}
 
-	if (sourceClip == nullptr && targetOutput->activeClip != nullptr) {
-		sourceClip = targetOutput->activeClip;
+	if (sourceClip == nullptr && targetOutput->getActiveClip() != nullptr) {
+		sourceClip = targetOutput->getActiveClip();
 	}
 
 	if (sourceClip == nullptr) {
@@ -3038,7 +3074,7 @@ bool SessionView::gridCreateNewTrackForClip(OutputType type, InstrumentClip* cli
 		currentSong->addOutput(clip->output);
 	}
 
-	if (!clip->output->activeClip) {
+	if (!clip->output->getActiveClip()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
@@ -3190,7 +3226,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	}
 
 	// Set to active for new tracks
-	if (targetOutput == nullptr && !newClip->output->activeClip) {
+	if (targetOutput == nullptr && !newClip->output->getActiveClip()) {
 		newClip->output->setActiveClip(modelStack);
 	}
 	// set it active in the song
@@ -3247,8 +3283,8 @@ void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
 }
 
 ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
-	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably be
-	// refactored
+	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably
+	// be refactored
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
@@ -3827,7 +3863,7 @@ const uint32_t SessionView::gridTrackCount() {
 	uint32_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
-		if (currentTrack->activeClip != nullptr) {
+		if (currentTrack->getActiveClip() != nullptr) {
 			++count;
 		}
 		currentTrack = currentTrack->next;
@@ -3858,7 +3894,7 @@ uint32_t SessionView::gridTrackIndexFromTrack(Output* track, uint32_t maxTrack) 
 		if (ptrOutput == track) {
 			return ((maxTrack - 1) - reverseOutputIndex);
 		}
-		if (ptrOutput->activeClip != nullptr) {
+		if (ptrOutput->getActiveClip() != nullptr) {
 			++reverseOutputIndex;
 		}
 	}
@@ -3869,7 +3905,7 @@ Output* SessionView::gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack) 
 	uint32_t count = 0;
 	Output* currentTrack = currentSong->firstOutput;
 	while (currentTrack != nullptr) {
-		if (currentTrack->activeClip != nullptr) {
+		if (currentTrack->getActiveClip() != nullptr) {
 			if (((maxTrack - 1) - count) == trackIndex) {
 				return currentTrack;
 			}

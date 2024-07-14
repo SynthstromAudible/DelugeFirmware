@@ -170,8 +170,8 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 		}
 	}
 	else if (type == OutputType::CV) {
-		if (activeClip) {
-			newParamManager.cloneParamCollectionsFrom(&activeClip->paramManager, false,
+		if (getActiveClip()) {
+			newParamManager.cloneParamCollectionsFrom(&getActiveClip()->paramManager, false,
 			                                          true); // Because we want the bend ranges
 		}
 	}

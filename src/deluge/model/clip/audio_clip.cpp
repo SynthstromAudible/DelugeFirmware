@@ -768,8 +768,8 @@ void AudioClip::unassignVoiceSample(bool wontBeUsedAgain) {
 void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 
 	// If it's actually another Clip, that we're recording into the arranger...
-	if (output->activeClip && output->activeClip->beingRecordedFromClip == this) {
-		output->activeClip->expectNoFurtherTicks(song, actuallySoundChange);
+	if (output->getActiveClip() && output->getActiveClip()->beingRecordedFromClip == this) {
+		output->getActiveClip()->expectNoFurtherTicks(song, actuallySoundChange);
 		return;
 	}
 
@@ -1358,4 +1358,11 @@ uint64_t AudioClip::getCullImmunity() {
 
 ParamManagerForTimeline* AudioClip::getCurrentParamManager() {
 	return &paramManager;
+}
+
+bool AudioClip::isEmpty(bool displayPopup) {
+	if (sampleHolder.audioFile) {
+		return false;
+	}
+	return true;
 }

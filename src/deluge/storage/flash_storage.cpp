@@ -23,6 +23,7 @@
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
+#include "model/scale/preset_scales.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"

@@ -34,8 +34,6 @@
 // #define TEST_VECTOR_SEARCH_MULTIPLE 1
 #define TEST_GENERAL_MEMORY_ALLOCATION 0
 // #define TEST_VECTOR_DUPLICATES 1
-// #define TEST_BST 1
-// #define TEST_OPEN_ADDRESSING_HASH_TABLE 1
 // #define TEST_SD_WRITE 1
 // #define TEST_SAMPLE_LOOP_POINTS 1
 #endif
@@ -238,6 +236,11 @@ enum class OutputType : uint8_t {
 	CV,
 	AUDIO,
 	NONE = 255,
+};
+
+enum class StemExportType : uint8_t {
+	CLIP,
+	TRACK,
 };
 
 enum class ThingType : uint8_t {
@@ -830,8 +833,9 @@ enum class AudioRecordingFolder {
 	CLIPS,
 	RECORD,
 	RESAMPLE,
+	STEMS,
 };
-constexpr auto kNumAudioRecordingFolders = util::to_underlying(AudioRecordingFolder::RESAMPLE) + 1;
+constexpr auto kNumAudioRecordingFolders = util::to_underlying(AudioRecordingFolder::STEMS) + 1;
 
 enum class KeyboardLayout : uint8_t {
 	QWERTY,

@@ -275,7 +275,7 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 
 		// Ensure the note the user is trying to sound isn't already sounding
-		NoteRow* noteRow = ((InstrumentClip*)activeInstrument->activeClip)->getNoteRowForYNote(newNote);
+		NoteRow* noteRow = ((InstrumentClip*)activeInstrument->getActiveClip())->getNoteRowForYNote(newNote);
 		if (noteRow) {
 			if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
 				continue;
@@ -369,7 +369,7 @@ void KeyboardScreen::updateActiveNotes() {
 
 void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrument, bool clipIsActiveOnInstrument,
                              int32_t note) {
-	NoteRow* noteRow = (static_cast<InstrumentClip*>(activeInstrument.activeClip))->getNoteRowForYNote(note);
+	NoteRow* noteRow = (static_cast<InstrumentClip*>(activeInstrument.getActiveClip()))->getNoteRowForYNote(note);
 	if (noteRow) {
 		if (noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
 			return; // Note was activated by sequence

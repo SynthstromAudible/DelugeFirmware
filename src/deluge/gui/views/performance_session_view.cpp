@@ -69,7 +69,7 @@ using namespace gui;
 using namespace deluge::modulation::params;
 
 // Performance View constants
-constexpr int32_t kNumParamsForPerformance = 18;
+constexpr int32_t kNumParamsForPerformance = 20;
 
 // list of parameters available for assignment to FX columns in performance view
 constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsForPerformance = {{
@@ -82,6 +82,8 @@ constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsF
 
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_BASS_FREQ, 10, 7, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {Kind::UNPATCHED_GLOBAL, UNPATCHED_TREBLE_FREQ, 11, 7, colours::pastel::yellow, colours::pastel::yellow.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, colours::pastel::green,
      colours::pastel::green.forTail()},
     {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, colours::pastel::blue, colours::pastel::blue.forTail()},
@@ -130,8 +132,10 @@ constexpr Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeigh
      Kind::UNPATCHED_GLOBAL},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::UNPATCHED_GLOBAL,
      Kind::UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL,
+     Kind::UNPATCHED_GLOBAL},
+    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL,
+     Kind::UNPATCHED_GLOBAL},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::UNPATCHED_GLOBAL,
      Kind::UNPATCHED_GLOBAL, Kind::UNPATCHED_GLOBAL},
     {Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
@@ -155,8 +159,8 @@ constexpr uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHei
      UNPATCHED_LPF_FREQ},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_HPF_MORPH, kNoParamID, UNPATCHED_HPF_RES,
      UNPATCHED_HPF_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_BASS, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_TREBLE, kNoParamID},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_BASS, UNPATCHED_BASS_FREQ},
+    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_TREBLE, UNPATCHED_TREBLE_FREQ},
     {kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_MOD_FX_OFFSET, UNPATCHED_MOD_FX_FEEDBACK,
      UNPATCHED_MOD_FX_DEPTH, UNPATCHED_MOD_FX_RATE},
     {kNoParamID, kNoParamID, kNoParamID, UNPATCHED_REVERB_SEND_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
