@@ -658,7 +658,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 	// if you're exporting drum stems
 	// render kit row without kit affect entire FX (but leave in kit affect entire pitch adjustment)
-	if (stemExport.processStarted && (stemExport.currentStemExportType == StemExportType::DRUM)) {
+	if (stemExport.processStarted && (stemExport.currentStemExportType == StemExportType::DRUM)) [[unlikely]] {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 		int32_t pitchAdjust =
