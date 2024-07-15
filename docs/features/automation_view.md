@@ -281,7 +281,7 @@ The Automation Editor **will:**
 - enable you to record in automations live with either of the Mod Encoders (Gold Knobs) so that you can see your automations displayed on the grid
 - display the current parameter being edited on the grid by flashing the parameter shortcut pad white. you can also see the name of the parameter you are editing by holding shift + pressing the flashing shortcut pad to see the parameter name on the screen. Note: for 7seg, you will only cc the MIDI CC # on the screen, not the parameter names in a Synth or Kit as the names are too complicated to abbreviate for a 7seg display and they are not currently shown in the sound editor).
 - enable you to quickly turn interpolation on/off by using the shift + interpolation shortcut (the interpolation shortcut pad is the interpolation pad in the first column of the grid, second from the top). The interpolation shortcut pad will blink every few seconds to remind you that interpolation is on.
-- delete automation for the current parameter being edited using shift + press on either of the Mod Encoders (Gold Knobs)
+- delete automation for the current parameter being edited using shift + press on either of the Mod Encoders (Gold Knobs). You can also delete automation for the current parameter being edited by pressing down on Horizontal Encoder at the same time as pressing the Back button.
 
 > **Note:** When automation is deleted, the Parameter's value is reset to the current value in the Sound Editor. E.g. if an automation playing back and you deleted it mid playback, the parameter value would be set to the last played back value. Or if you just edited the automation by pressing on the grid, the last value would be the value corresponding to the last pad you pressed.
 
