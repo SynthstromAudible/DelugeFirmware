@@ -3572,6 +3572,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 			performActionOnPadRelease = false; // doing a copy paste, so don't launch clips
 			gridSecondPressedX = x;
 			gridSecondPressedY = y;
+			display->popupText("COPY CLIPS");
 		}
 		// clone clip on release of second pad
 		if (!on && gridSecondPressedX == x && gridSecondPressedY == y) {
