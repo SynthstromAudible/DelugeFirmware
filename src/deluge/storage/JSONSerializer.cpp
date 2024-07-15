@@ -49,13 +49,11 @@ extern "C" {
 #include "fatfs/ff.h"
 }
 
-
 /*******************************************************************************
 
     JSONSerializer
 
 ********************************************************************************/
-
 
 JSONSerializer::JSONSerializer() {
 	reset();
@@ -65,18 +63,15 @@ void JSONSerializer::reset() {
 	resetWriter();
 }
 
-
 void JSONSerializer::write(char const* output) {
 	writeChars(output);
 }
-
 
 void JSONSerializer::writeTag(char const* tag, int32_t number) {
 	char* buffer = shortStringBuffer;
 	intToString(number, buffer);
 	writeTag(tag, buffer);
 }
-
 
 void JSONSerializer::writeTag(char const* tag, char const* contents) {
 

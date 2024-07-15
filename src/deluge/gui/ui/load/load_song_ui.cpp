@@ -294,7 +294,6 @@ fail:
 			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 		}
 
-
 		// Otherwise, stay here in this UI
 
 		preLoadedSong = new (songMemory) Song();

@@ -670,7 +670,6 @@ void FileWriter::resetWriter() {
 	fileAccessFailedDuringWrite = false;
 }
 
-
 void FileWriter::writeChars(char const* output) {
 
 	while (*output) {
