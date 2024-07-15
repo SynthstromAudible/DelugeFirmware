@@ -446,11 +446,11 @@ These are the main button shortcuts/combos that will be used in the Automation C
 
 ## Automation Overview
 
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/108d68d6-b11e-431d-9910-454e1905eb7f)
+![Automation Overview Shortcuts](https://github.com/user-attachments/assets/a2a58c06-f094-49dc-913c-b32ac4137b34)
 
 ## Automation Editor
 
-![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/7c80679a-199e-482f-bfcd-7cb9bc48c623)
+![Automation Editor Shortcuts](https://github.com/user-attachments/assets/eff8f5d7-46dd-46da-b114-72b79ffdb076)
 
 ## Additional Shortcut Combos for Automation Arranger View
 
