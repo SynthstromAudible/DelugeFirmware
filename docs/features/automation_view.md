@@ -184,7 +184,7 @@ The Automation Editor **will:**
 
 ![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/1e4b3653-c1a1-4d21-bfa0-826df378b063)
 
-> Pad selection mode is accessed by pressing on either of the mod encoder buttons
+> Pad selection mode is accessed by pressing shift + waveform
 > 
 > In pad selection mode, you cannot edit the automation grid by pressing on the pads. 
 > 
