@@ -242,6 +242,26 @@ TEST(NoteSetTest, subscript4) {
 	CHECK_EQUAL(7, a[1]);
 }
 
+TEST(NoteSetTest, remove) {
+	NoteSet a;
+	for (int i = 0; i < 12; i++) {
+		a.remove(i);
+		CHECK_EQUAL(0, a.count());
+	}
+	a.fill();
+	for (int i = 0; i < 12; i++) {
+		CHECK_EQUAL(true, a.has(i));
+		a.remove(i);
+		CHECK_EQUAL(false, a.has(i));
+	}
+	a.fill();
+	for (int i = 11; i >= 0; i--) {
+		CHECK_EQUAL(true, a.has(i));
+		a.remove(i);
+		CHECK_EQUAL(false, a.has(i));
+	}
+}
+
 TEST(NoteSetTest, presetScaleId) {
 	CHECK_EQUAL(MAJOR_SCALE, presetScaleNotes[MAJOR_SCALE].presetScaleId());
 	CHECK_EQUAL(MINOR_SCALE, presetScaleNotes[MINOR_SCALE].presetScaleId());
