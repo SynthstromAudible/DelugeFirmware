@@ -670,6 +670,45 @@ void FileWriter::resetWriter() {
 	fileAccessFailedDuringWrite = false;
 }
 
+
+void FileWriter::writeChars(char const* output) {
+
+	while (*output) {
+
+		if (fileWriteBufferCurrentPos == audioFileManager.clusterSize) {
+
+			if (!fileAccessFailedDuringWrite) {
+				Error error = writeBufferToFile();
+				if (error != Error::NONE) {
+					fileAccessFailedDuringWrite = true;
+					return;
+				}
+			}
+
+			fileWriteBufferCurrentPos = 0;
+		}
+
+		writeClusterBuffer[fileWriteBufferCurrentPos] = *output;
+
+		output++;
+		fileWriteBufferCurrentPos++;
+
+		// Ensure we do some of the audio routine once in a while
+		if (!(fileWriteBufferCurrentPos & 0b11111111)) {
+			AudioEngine::logAction("writeCharsJSON");
+
+			// AudioEngine::routineWithClusterLoading();
+
+			uiTimerManager.routine();
+
+			if (display->haveOLED()) {
+				oledRoutine();
+			}
+			PIC::flush();
+		}
+	}
+}
+
 Error FileWriter::writeBufferToFile() {
 	UINT bytesWritten;
 	FRESULT result = f_write(&writeFIL, writeClusterBuffer, fileWriteBufferCurrentPos, &bytesWritten);

@@ -77,7 +77,7 @@ public:
 	virtual ~FileWriter();
 
 	Error closeAfterWriting(char const* path, char const* beginningString, char const* endString);
-
+	void writeChars(char const* output);
 protected:
 	void resetWriter();
 	Error writeBufferToFile();
@@ -264,6 +264,42 @@ public:
 private:
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 };
+
+
+
+
+class JSONSerializer : public Serializer, public FileWriter {
+public:
+	JSONSerializer();
+	~JSONSerializer() = default;
+
+	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
+	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
+	void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true) override;
+	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
+
+	void writeTag(char const* tag, int32_t number) override;
+	void writeTag(char const* tag, char const* contents) override;
+	void writeOpeningTag(char const* tag, bool startNewLineAfter = true) override;
+	void writeOpeningTagBeginning(char const* tag) override;
+	void writeOpeningTagEnd(bool startNewLineAfter = true) override;
+	void closeTag() override;
+	void writeClosingTag(char const* tag, bool shouldPrintIndents = true) override;
+	void printIndents() override;
+	void write(char const* output) override;
+	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
+	                            char const* endString = nullptr) override;
+	void reset() override;
+
+	FIL writeFIL;
+
+private:
+	uint8_t indentAmount;
+};
+
+
+
+
 
 extern StorageManager storageManager;
 extern FILINFO staticFNO;

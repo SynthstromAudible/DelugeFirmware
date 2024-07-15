@@ -49,39 +49,36 @@ extern "C" {
 #include "fatfs/ff.h"
 }
 
+
 /*******************************************************************************
 
-    XMLSerializer
+    JSONSerializer
 
 ********************************************************************************/
 
-void Serializer::writeAbsoluteSyncLevelToFile(Song* song, char const* name, SyncLevel internalValue, bool onNewLine) {
-	writeAttribute(name, song->convertSyncLevelFromInternalValueToFileValue(internalValue), onNewLine);
-}
 
-void Serializer::writeFirmwareVersion() {
-	writeAttribute("firmwareVersion", kFirmwareVersionStringShort);
-}
-
-XMLSerializer::XMLSerializer() {
+JSONSerializer::JSONSerializer() {
 	reset();
 }
 
-void XMLSerializer::reset() {
+void JSONSerializer::reset() {
 	resetWriter();
 }
 
-void XMLSerializer::write(char const* output) {
+
+void JSONSerializer::write(char const* output) {
 	writeChars(output);
 }
 
-void XMLSerializer::writeTag(char const* tag, int32_t number) {
+
+void JSONSerializer::writeTag(char const* tag, int32_t number) {
 	char* buffer = shortStringBuffer;
 	intToString(number, buffer);
 	writeTag(tag, buffer);
 }
 
-void XMLSerializer::writeTag(char const* tag, char const* contents) {
+
+void JSONSerializer::writeTag(char const* tag, char const* contents) {
 
 	printIndents();
 	write("<");
@@ -93,7 +90,7 @@ void XMLSerializer::writeTag(char const* tag, char const* contents) {
 	write(">\n");
 }
 
-void XMLSerializer::writeAttribute(char const* name, int32_t number, bool onNewLine) {
+void JSONSerializer::writeAttribute(char const* name, int32_t number, bool onNewLine) {
 
 	char buffer[12];
 	intToString(number, buffer);
@@ -102,7 +99,7 @@ void XMLSerializer::writeAttribute(char const* name, int32_t number, bool onNewL
 }
 
 // numChars may be up to 8
-void XMLSerializer::writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine) {
+void JSONSerializer::writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine) {
 
 	char buffer[11];
 	buffer[0] = '0';
@@ -113,7 +110,7 @@ void XMLSerializer::writeAttributeHex(char const* name, int32_t number, int32_t 
 }
 
 // numChars may be up to 8
-void XMLSerializer::writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine) {
+void JSONSerializer::writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine) {
 
 	if (onNewLine) {
 		write("\n");
@@ -133,7 +130,7 @@ void XMLSerializer::writeAttributeHexBytes(char const* name, uint8_t* data, int3
 	write("\"");
 }
 
-void XMLSerializer::writeAttribute(char const* name, char const* value, bool onNewLine) {
+void JSONSerializer::writeAttribute(char const* name, char const* value, bool onNewLine) {
 
 	if (onNewLine) {
 		write("\n");
@@ -149,25 +146,25 @@ void XMLSerializer::writeAttribute(char const* name, char const* value, bool onN
 	write("\"");
 }
 
-void XMLSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter) {
+void JSONSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter) {
 	writeOpeningTagBeginning(tag);
 	writeOpeningTagEnd(startNewLineAfter);
 }
 
-void XMLSerializer::writeOpeningTagBeginning(char const* tag) {
+void JSONSerializer::writeOpeningTagBeginning(char const* tag) {
 	printIndents();
 	write("<");
 	write(tag);
 	indentAmount++;
 }
 
-void XMLSerializer::closeTag() {
+void JSONSerializer::closeTag() {
 	write(" /");
 	writeOpeningTagEnd();
 	indentAmount--;
 }
 
-void XMLSerializer::writeOpeningTagEnd(bool startNewLineAfter) {
+void JSONSerializer::writeOpeningTagEnd(bool startNewLineAfter) {
 	if (startNewLineAfter) {
 		write(">\n");
 	}
@@ -176,7 +173,7 @@ void XMLSerializer::writeOpeningTagEnd(bool startNewLineAfter) {
 	}
 }
 
-void XMLSerializer::writeClosingTag(char const* tag, bool shouldPrintIndents) {
+void JSONSerializer::writeClosingTag(char const* tag, bool shouldPrintIndents) {
 	indentAmount--;
 	if (shouldPrintIndents) {
 		printIndents();
@@ -186,12 +183,12 @@ void XMLSerializer::writeClosingTag(char const* tag, bool shouldPrintIndents) {
 	write(">\n");
 }
 
-void XMLSerializer::printIndents() {
+void JSONSerializer::printIndents() {
 	for (int32_t i = 0; i < indentAmount; i++) {
 		write("\t");
 	}
 }
 
-Error XMLSerializer::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
+Error JSONSerializer::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
 	return closeAfterWriting(path, beginningString, endString);
 }
