@@ -147,6 +147,26 @@ TEST(NoteSetTest, subscript3) {
 	CHECK_EQUAL(11, a[7]);
 }
 
+TEST(NoteSetTest, remove) {
+	NoteSet a;
+	for (int i = 0; i < 12; i++) {
+		a.remove(i);
+		CHECK_EQUAL(0, a.count());
+	}
+	a.fill();
+	for (int i = 0; i < 12; i++) {
+		CHECK_EQUAL(true, a.has(i));
+		a.remove(i);
+		CHECK_EQUAL(false, a.has(i));
+	}
+	a.fill();
+	for (int i = 11; i >= 0; i--) {
+		CHECK_EQUAL(true, a.has(i));
+		a.remove(i);
+		CHECK_EQUAL(false, a.has(i));
+	}
+}
+
 TEST_GROUP(MusicalKeyTest){};
 
 TEST(MusicalKeyTest, ctor) {

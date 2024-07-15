@@ -27,6 +27,9 @@ public:
 	/** Add a note to NoteSet.
 	 */
 	void add(int8_t note) { bits = 0xfff & (bits | (1 << note)); }
+	/** Remove a note to NoteSet.
+	 */
+	void remove(int8_t note) { bits = 0xfff & (bits & ~(1 << note)); }
 	/** Returns true if note is part of the NoteSet.
 	 */
 	bool has(int8_t note) const { return (bits >> note) & 1; }
