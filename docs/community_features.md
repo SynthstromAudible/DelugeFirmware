@@ -291,6 +291,15 @@ as the micromonsta and the dreadbox nymphes.
  - Submenu's on OLED for automatable parameters (e.g. LPF Frequency) render the current parameter value at the end. You still need to click on `SELECT` to edit the parameters value / edit modulation depth and patch cables.
  - All other submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
+#### 3.27 Updated UI for Creating New Clips in New Tracks in Song View
+- ([#2299]) Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG VIEW` which enables you to select the type of clip before the clip is created.
+  - In `SONG (GRID) VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
+  - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
+- Removed the `SONG VIEW` shortcut of Pressing `CLIP` + `SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
+
+#### 3.28 Updated UI for Setting Clip Launch Style in Song View
+- ([#2299]) Pressing `CLIP` + `SELECT` in `SONG VIEW` will now always open the `LAUNCH STYLE` menu so you can change the Clip launch style between `DEFAULT`, `FILL` and `ONCE`.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -329,12 +338,11 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.3 - Fill Clips and Once Clips
 
-- ([#196] and [#1018]) In Song View (Rows mode), holding the status pad (mute pad) for a clip and pressing `SELECT`
-  brings up a clip type selection menu. For Grid Mode there is a dedicated Config Mode in which this menu can be
-  reached, see `Yellow Mode` in [Grid View](#415grid-view).
+- ([#196] and [#1018]) In Song View (Rows mode), holding a clip or the status pad (mute pad) for a clip and pressing `SELECT`
+  brings up a `LAUNCH STYLE` menu. For Grid Mode, only holding a clip and pressing `SELECT` will bring up the `LAUNCH STYLE` menu. 
   
-  The options are:
-    - **`Default (DEFA)`** - the default Deluge clip type.
+  The `LAUNCH STYLE` menu enables you the set the following launch style options for a clip:
+    - **`Default (DEFA)`** - the default Deluge launch style.
     - **`Fill (FILL)`** - Fill clip.
         - When inactive it appears orange on the status pads in rows view, or in Config Mode in grid view.
         - When active it will appear green.
@@ -401,16 +409,6 @@ Here is a list of features that have been added to the firmware as a list, group
             - Track color can be changed by holding any populated clip in a column and rotating `▼︎▲︎`. For fine changes
               to the color press `▼︎▲︎` while turning it.
             - Section pads (left sidebar column) will allow changing repeat count while held
-        - `Yellow mode`
-            - Clips can be configured by holding their pad and pressing the Select encoder to reach the launch style
-              menu, see [Fill Clips and Once Clips](#413fill-clips-and-once-clips)
-            - Pad colour in yellow mode indicates the clip type:
-              - If inactive
-                  - Fill clips are dim orange by default
-                  - Once clips are dim purple by default.
-                  - Normal clips are dull grey.
-              - Active clips are green, or whatever colour is set for active pads.
-              - The colours can be changed in `SETTINGS > PADS > COLOURS > FILL/ONCE`
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:
@@ -1390,6 +1388,8 @@ different firmware
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
+
+[#2299]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2299
 
 [#2315]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2315
 

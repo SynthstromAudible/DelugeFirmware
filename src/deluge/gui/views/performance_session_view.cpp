@@ -20,7 +20,7 @@
 #include "dsp/compressor/rms_feedback.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
-#include "gui/context_menu/launch_style.h"
+#include "gui/context_menu/clip_settings/launch_style.h"
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/ui.h"

@@ -396,9 +396,11 @@ public:
 	uint8_t chordMemNoteCount[kDisplayHeight] = {0};
 	uint8_t chordMem[kDisplayHeight][MAX_NOTES_CHORD_MEM] = {0};
 
+	// Tempo automation
 	void clearTempoAutomation();
-
 	void updateBPMFromAutomation();
+
+	int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
 
 private:
 	ScaleMapper scaleMapper;
@@ -423,4 +425,3 @@ private:
 
 extern Song* currentSong;
 extern Song* preLoadedSong;
-extern int8_t defaultAudioClipOverdubOutputCloning;

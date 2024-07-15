@@ -229,6 +229,9 @@ enum class AutomationParamType : uint8_t {
 	NOTE_VELOCITY,
 };
 
+// BEWARE! Something in Kit loading or InstrumentClip::changeOutputType() is sensitive to output type order. There's a
+// lot of casting to and from indexes, and the issue is non-obvious, but moving AUDIO first causes new song + pressing
+// kit to crash in changeOutputType()
 enum class OutputType : uint8_t {
 	SYNTH,
 	KIT,
