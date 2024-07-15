@@ -3253,6 +3253,7 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 	}
 
 	gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX, gridTrackCount()), sourceClip);
+	display->popupTextTemporary("COPIED");
 }
 
 void SessionView::gridStartSection(uint32_t section, bool instant) {
@@ -3564,6 +3565,19 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
+		}
+		// holding one clip, then pressing a second empty clip
+		if ((gridFirstPressedX != -1 && gridFirstPressedY != -1)
+		    && (gridSecondPressedX == -1 || gridSecondPressedY == -1)) {
+			performActionOnPadRelease = false; // doing a copy paste, so don't launch clips
+			gridSecondPressedX = x;
+			gridSecondPressedY = y;
+		}
+		// clone clip on release of second pad
+		if (!on && gridSecondPressedX == x && gridSecondPressedY == y) {
+			gridClonePad(gridFirstPressedX, gridFirstPressedY, gridSecondPressedX, gridSecondPressedY);
+			gridResetPresses(false, true);
+			return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 		}
 
 		return ActionResult::DEALT_WITH;
