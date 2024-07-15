@@ -300,7 +300,7 @@ fail:
 		preLoadedSong = new (songMemory) Song();
 		error = preLoadedSong->paramManager.setupUnpatched();
 		if (error != Error::NONE) {
-gotErrorAfterCreatingSong:
+
 			void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 			preLoadedSong->~Song(); // Will also delete paramManager
 			delugeDealloc(toDealloc);
@@ -320,7 +320,7 @@ gotErrorAfterCreatingSong:
 		}
 		AudioEngine::logAction("d");
 
-		bool success = bdsm->closeFile(smDeserializer.readFIL);
+		bool success = f_close(&smDeserializer.readFIL);
 
 		if (!success) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
