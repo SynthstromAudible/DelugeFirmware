@@ -1363,9 +1363,9 @@ different firmware
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
 
-[Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.1/docs/features/automation_view.md
+[Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
-[Velocity View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/release/1.0/docs/features/velocity_view.md
+[Velocity View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/velocity_view.md
 
 [Performance View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/performance_view.md
 
