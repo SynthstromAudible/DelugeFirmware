@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/sync.h"
 #include "util/waves.h"
 
 class LFOConfig {

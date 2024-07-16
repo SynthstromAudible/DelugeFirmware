@@ -19,7 +19,9 @@
 
 #include "definitions_cxx.hpp"
 #include "fatfs/fatfs.hpp"
+#include "model/sync.h"
 #include "util/firmware_version.h"
+
 #include <cstdint>
 #include <optional>
 

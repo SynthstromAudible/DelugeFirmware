@@ -10,7 +10,7 @@ extern "C" {
 class NumericLayer;
 class NumericLayerScrollingText;
 
-enum DisplayPopupType {
+enum class DisplayPopupType {
 	NONE,
 	/// Default popup type, if not specified.
 	GENERAL,
@@ -18,6 +18,8 @@ enum DisplayPopupType {
 	LOADING,
 	/// Popup shown when editing note or row probability.
 	PROBABILITY,
+	/// Swing amount and interval
+	SWING,
 	// Note: Add here more popup types
 };
 

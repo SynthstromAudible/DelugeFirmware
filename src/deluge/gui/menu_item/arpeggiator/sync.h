@@ -27,8 +27,8 @@ public:
 		                                            soundEditor.currentArpSettings->syncLevel));
 	}
 	void writeCurrentValue() {
-		soundEditor.currentArpSettings->syncType = menuOptionToSyncType(this->getValue());
-		soundEditor.currentArpSettings->syncLevel = menuOptionToSyncLevel(this->getValue());
+		soundEditor.currentArpSettings->syncType = syncValueToSyncType(this->getValue());
+		soundEditor.currentArpSettings->syncLevel = syncValueToSyncLevel(this->getValue());
 	}
 };
 

@@ -29,8 +29,8 @@ public:
 		                                            soundEditor.currentModControllable->delay.syncLevel));
 	}
 	void writeCurrentValue() override {
-		soundEditor.currentModControllable->delay.syncType = menuOptionToSyncType(this->getValue());
-		soundEditor.currentModControllable->delay.syncLevel = menuOptionToSyncLevel(this->getValue());
+		soundEditor.currentModControllable->delay.syncType = syncValueToSyncType(this->getValue());
+		soundEditor.currentModControllable->delay.syncLevel = syncValueToSyncLevel(this->getValue());
 	}
 };
 } // namespace deluge::gui::menu_item::delay
