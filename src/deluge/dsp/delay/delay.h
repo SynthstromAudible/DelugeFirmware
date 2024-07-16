@@ -20,6 +20,8 @@
 #include "definitions_cxx.hpp"
 #include "dsp/convolution/impulse_response_processor.h"
 #include "dsp/delay/delay_buffer.h"
+#include "model/sync.h"
+
 #include <cstdint>
 #include <span>
 

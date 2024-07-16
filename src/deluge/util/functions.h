@@ -438,6 +438,7 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b);
 void dimColour(uint8_t colour[3]);
 bool charCaseEqual(char firstChar, char secondChar);
 bool shouldAbortLoading();
+int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude);
 /// buffer must have at least 5 characters on 7seg, or 30 for OLED
 void getNoteLengthNameFromMagnitude(StringBuf& buf, int32_t magnitude, char const* durrationSuffix = "-notes",
                                     bool clarifyPerColumn = false);

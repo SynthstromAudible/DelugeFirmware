@@ -180,7 +180,8 @@ The Settings menu contains the following menu hierarchy:
 			- Disabled (OFF)
 			- Enabled (ON)
 	- Tempo (TEMP)
-	- Swing (SWIN)
+	- Swing Amount (SWIA)
+	- Swing Interval (SWII)
 	- Key
 	- Scale (SCAL)
 		- Major (MAJO)
@@ -222,7 +223,7 @@ The Settings menu contains the following menu hierarchy:
 	- Hold Press Time (HOLD)
 </details>
 
-<details><summary>Swing Interval (SWIN)</summary>
+<details><summary>Swing Interval (SWII)</summary>
 NOTE: These options can change depending on how your default resolution is set
 
 	- 2-Bar
@@ -503,6 +504,7 @@ The Song menu contains the following menu hierarchy:
 		- Decimation (DECI)
 		- Bitcrush (CRUS)
 </details>
+- SWING INTERVAL (SWII)
 <details><summary>MIDI Loopback (M LP)</summary>
 
 		- Disabled (OFF)

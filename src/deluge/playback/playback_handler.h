@@ -178,6 +178,7 @@ public:
 	void toggleMetronomeStatus();
 	void displayTempoByCalculation();
 	void displaySwingAmount();
+	void displaySwingInterval();
 	void setMidiOutClockMode(bool newValue);
 	void pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);

@@ -148,7 +148,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	swingAmount = 0;
 
-	swingInterval = 8 - insideWorldTickMagnitude; // 16th notes
+	swingInterval = FlashStorage::defaultSwingInterval;
 
 	songViewYScroll = 1 - kDisplayHeight;
 	arrangementYScroll = -kDisplayHeight;
@@ -232,7 +232,7 @@ Song::~Song() {
 #include "gui/menu_item/key_range.h"
 #include "timers_interrupts/timers_interrupts.h"
 extern gui::menu_item::IntegerRange defaultTempoMenu;
-extern gui::menu_item::IntegerRange defaultSwingMenu;
+extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
 
 Clip* Song::getCurrentClip() {
@@ -245,7 +245,7 @@ void Song::setupDefault() {
 	seedRandom();
 
 	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
-	swingAmount = defaultSwingMenu.getRandomValueInRange() - 50;
+	swingAmount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
 	key.rootNote = defaultKeyMenu.getRandomValueInRange();
 
 	// Do scale
@@ -1229,7 +1229,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("timePerTimerTick", timePerTimerTickBig >> 32);
 	writer.writeAttribute("timerTickFraction", (uint32_t)timePerTimerTickBig);
 	writer.writeAttribute("rootNote", key.rootNote);
-	writer.writeAttribute("inputTickMagnitude", insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
+	writer.writeAttribute("inputTickMagnitude", getInputTickMagnitude());
 	writer.writeAttribute("swingAmount", swingAmount);
 	writer.writeAbsoluteSyncLevelToFile(this, "swingInterval", (SyncLevel)swingInterval, true);
 
@@ -3125,7 +3125,7 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 
 void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldLogAction) {
 	float newBPM = metronomeValuesBPM[whichValue];
-	magnitude += insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM;
+	magnitude += getInputTickMagnitude();
 	if (magnitude > 0) {
 		newBPM /= ((uint32_t)1 << magnitude);
 	}
@@ -5190,15 +5190,8 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 void Song::getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* const notesString,
                              bool clarifyPerColumn) const {
-	int32_t magnitude = -5 - (insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
-	uint32_t level = 3;
-
-	while (level < noteLength) {
-		magnitude++;
-		level <<= 1;
-	}
-
-	getNoteLengthNameFromMagnitude(buffer, magnitude, notesString, clarifyPerColumn);
+	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, getInputTickMagnitude()),
+	                               notesString, clarifyPerColumn);
 }
 
 Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
@@ -5637,11 +5630,11 @@ void Song::changeSwingInterval(int32_t newValue) {
 }
 
 uint32_t Song::getQuarterNoteLength() {
-	return increaseMagnitude(24, insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
+	return increaseMagnitude(24, getInputTickMagnitude());
 }
 
 uint32_t Song::getBarLength() {
-	return increaseMagnitude(96, insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
+	return increaseMagnitude(96, getInputTickMagnitude());
 }
 
 // ----- PlayPositionCounter implementation -------
@@ -5723,7 +5716,7 @@ int32_t Song::convertSyncLevelFromFileValueToInternalValue(int32_t fileValue) {
 	if (fileValue == 0) {
 		return 0; // 0 means "off"
 	}
-	int32_t internalValue = fileValue + 1 - (insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
+	int32_t internalValue = fileValue + 1 - (getInputTickMagnitude());
 	if (internalValue < 1) {
 		internalValue = 1;
 	}
@@ -5739,7 +5732,7 @@ int32_t Song::convertSyncLevelFromInternalValueToFileValue(int32_t internalValue
 	if (internalValue == 0) {
 		return 0; // 0 means "off"
 	}
-	int32_t fileValue = internalValue - 1 + (insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM);
+	int32_t fileValue = internalValue - 1 + (getInputTickMagnitude());
 	if (fileValue < 1) {
 		fileValue = 1;
 	}

@@ -39,6 +39,7 @@
 #include "gui/menu_item/defaults/session_layout.h"
 #include "gui/menu_item/defaults/slice_mode.h"
 #include "gui/menu_item/defaults/startup_song_mode.h"
+#include "gui/menu_item/defaults/swing_interval.h"
 #include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
@@ -1000,7 +1001,8 @@ Submenu defaultAutomationMenu{
 };
 
 IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};
-IntegerRange defaultSwingMenu{STRING_FOR_SWING, STRING_FOR_DEFAULT_SWING, 1, 99};
+IntegerRange defaultSwingAmountMenu{STRING_FOR_SWING_AMOUNT, STRING_FOR_DEFAULT_SWING, 1, 99};
+defaults::SwingInterval defaultSwingIntervalMenu{STRING_FOR_SWING_INTERVAL, STRING_FOR_DEFAULT_SWING};
 KeyRange defaultKeyMenu{STRING_FOR_KEY, STRING_FOR_DEFAULT_KEY};
 defaults::Scale defaultScaleMenu{STRING_FOR_SCALE, STRING_FOR_DEFAULT_SCALE};
 defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_VELOC_MENU_TITLE};
@@ -1023,7 +1025,8 @@ Submenu defaultsSubmenu{
         &defaultUI,
         &defaultAutomationMenu,
         &defaultTempoMenu,
-        &defaultSwingMenu,
+        &defaultSwingAmountMenu,
+        &defaultSwingIntervalMenu,
         &defaultKeyMenu,
         &defaultScaleMenu,
         &defaultVelocityMenu,
@@ -1179,6 +1182,7 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &songMasterMenu,
         &globalFiltersMenu,
         &globalFXMenu,
+        &swingIntervalMenu,
         &midiLoopbackMenu,
     },
 };
@@ -1204,7 +1208,6 @@ Submenu settingsRootMenu{
         &triggerClockMenu,
         &midiMenu,
         &defaultsSubmenu,
-        &swingIntervalMenu,
         &padsSubmenu,
         &sampleBrowserPreviewModeMenu,
         &flashStatusMenu,

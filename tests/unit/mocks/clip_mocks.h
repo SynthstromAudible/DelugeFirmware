@@ -34,20 +34,3 @@ public:
 private:
 	std::vector<Clip*> data;
 };
-
-class Song {
-public:
-	void deleteClipObject(Clip* clip, bool x, InstrumentRemoval removal) {
-		(void)x;
-		(void)removal;
-		clip->deleted = true;
-	}
-	void clear() {
-		sessionClips.clear();
-		arrangementOnlyClips.clear();
-	}
-	ClipArray sessionClips;
-	ClipArray arrangementOnlyClips;
-};
-
-extern Song* currentSong;

@@ -1,8 +1,8 @@
 #include "CppUTest/TestHarness.h"
 #include "model/song/clip_iterators.h"
 
-Song testSong;
-Song* currentSong = &testSong;
+#include "clip_mocks.h"
+#include "song_mock.h"
 
 const int nSessionClips = 10;
 Clip sessionClips[nSessionClips];
@@ -22,7 +22,7 @@ void useSessionClips() {
 		else {
 			sessionClips[i].type = ClipType::INSTRUMENT;
 		}
-		testSong.sessionClips.push(&sessionClips[i]);
+		currentSong->sessionClips.push(&sessionClips[i]);
 	}
 }
 
@@ -35,11 +35,13 @@ void useArrangementOnlyClips() {
 		else {
 			arrangementOnlyClips[i].type = ClipType::INSTRUMENT;
 		}
-		testSong.arrangementOnlyClips.push(&arrangementOnlyClips[i]);
+		currentSong->arrangementOnlyClips.push(&arrangementOnlyClips[i]);
 	}
 }
 
-TEST_GROUP(ClipIteratorTests){void setup(){testSong.clear();
+TEST_GROUP(ClipIteratorTests){
+
+    void setup(){currentSong->clear();
 }
 }
 ;
