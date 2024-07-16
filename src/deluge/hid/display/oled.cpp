@@ -195,8 +195,27 @@ struct ConsoleItem {
 
 #define MAX_NUM_CONSOLE_ITEMS 4
 
-ConsoleItem consoleItems[MAX_NUM_CONSOLE_ITEMS] = {0};
+ConsoleItem consoleItemStoreDontAccessDirectly[MAX_NUM_CONSOLE_ITEMS] = {0};
 int32_t numConsoleItems = 0;
+
+// There is suspicion that we're under or overflowing the memory for the consoleItems
+// array: so we've renamed it to consoleItemStoreDontAccessDirectly, and have this class
+// act as a guard to catch out of bounds accesses.
+//
+// See: https://github.com/SynthstromAudible/DelugeFirmware/issues/2151
+//
+// D001 and D002 are trying to catch the same problem, but after it happens.
+class ConsoleItemAccessor {
+public:
+	ConsoleItem& operator[](size_t index) {
+		if (index < 0 | MAX_NUM_CONSOLE_ITEMS <= index) [[unlikely]] {
+			FREEZE_WITH_ERROR("D003");
+		}
+		return consoleItemStoreDontAccessDirectly[index];
+	}
+};
+
+ConsoleItemAccessor consoleItems;
 
 void OLED::drawConsoleTopLine() {
 	console.drawHorizontalLine(consoleItems[numConsoleItems - 1].minY - 1, consoleMinX + 1, consoleMaxX - 1);
