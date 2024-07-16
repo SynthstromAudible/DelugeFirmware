@@ -25,17 +25,20 @@
 ///     -> computeFinalValueForSomeClass()
 ///
 /// Done:
-/// - audio_compressor::CompParam
-/// - audio_clip::Attack
 /// - arpeggiator::midi_cv::Gate
 /// - arpeggiator::midi_cv::RatchetAmount
 /// - arpeggiator::midi_cv::RatchetProbability
 /// - arpeggiator::midi_cv::Rate
 /// - arpeggiator::midi_cv::Rhythm
+/// - audio_compressor::CompParam
+/// - audio_clip::Attack
+/// - cv::Transpose
+/// - modulator::Transpose
 /// - osc::PulseWidth
 /// - patched_param::Integer
 /// - patched_param::Pan
 /// - reverb::Pan
+/// - sample::Transpose
 /// - unpatched_param::Pan
 /// - unpatched_param::UnpatchedParam
 ///
@@ -49,6 +52,8 @@
 /// - arpeggiator::Octaves
 /// - arpeggiator::PresetMode
 /// - audio_clip::Reverse
+/// - midi::Transpose
+/// - MasterTranspose
 ///
 /// Special cases:
 /// - arpeggiator::Sync - uses syncTypeAndLevelToMenuOption() to pack two values,
@@ -112,3 +117,6 @@ int32_t computeCurrentValueForArpMidiCvRatchetsOrRhythm(uint32_t value);
  * See comment in the current value computation above for more.
  */
 uint32_t computeFinalValueForArpMidiCvRatchetsOrRhythm(int32_t value);
+
+int32_t computeCurrentValueForTranspose(int32_t transpose, int32_t cents);
+void computeFinalValuesForTranspose(int32_t current, int32_t* transpose, int32_t* cents);

@@ -58,3 +58,18 @@ TEST(ValueScalingTest, arpMidiCvRatchetOrRhytmValueScaling) {
 	// behaves well on the whole range
 	CHECK_EQUAL(50, computeCurrentValueForArpMidiCvRatchetsOrRhythm(UINT32_MAX));
 }
+
+TEST(ValueScalingTest, transpose) {
+	for (int i = -9600; i <= 9600; i++) {
+		int32_t transpose, cents;
+		computeFinalValuesForTranspose(i, &transpose, &cents);
+		int32_t current = computeCurrentValueForTranspose(transpose, cents);
+		CHECK_EQUAL(i, current);
+	}
+	CHECK_EQUAL(0, computeCurrentValueForTranspose(0, 0));
+	CHECK_EQUAL(110, computeCurrentValueForTranspose(1, 10));
+	int32_t transpose, cents;
+	computeFinalValuesForTranspose(110, &transpose, &cents);
+	CHECK_EQUAL(1, transpose);
+	CHECK_EQUAL(10, cents);
+}

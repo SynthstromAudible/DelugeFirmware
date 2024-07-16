@@ -32,16 +32,14 @@ public:
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 
 	void readCurrentValue() override {
-		this->setValue((int32_t)cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose * 100
-		               + cvEngine.cvChannels[soundEditor.currentSourceIndex].cents);
+		this->setValue(computeCurrentValueForTranspose(cvEngine.cvChannels[soundEditor.currentSourceIndex].transpose,
+		                                               cvEngine.cvChannels[soundEditor.currentSourceIndex].cents));
 	}
 
 	void writeCurrentValue() override {
-		int32_t currentValue = this->getValue() + 25600;
-
-		int32_t semitones = (currentValue + 50) / 100;
-		int32_t cents = currentValue - semitones * 100;
-		cvEngine.setCVTranspose(soundEditor.currentSourceIndex, semitones - 256, cents);
+		int32_t transpose, cents;
+		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
+		cvEngine.setCVTranspose(soundEditor.currentSourceIndex, transpose, cents);
 	}
 };
 } // namespace deluge::gui::menu_item::cv

@@ -40,16 +40,13 @@ public:
 			transpose = soundEditor.currentSource->transpose;
 			cents = soundEditor.currentSource->cents;
 		}
-		this->setValue(transpose * 100 + cents);
+		this->setValue(computeCurrentValueForTranspose(transpose, cents));
 	}
 
 	void writeCurrentValue() override {
-		int32_t currentValue = this->getValue() + 25600;
+		int32_t transpose, cents;
+		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 
-		int32_t semitones = (currentValue + 50) / 100;
-		int32_t cents = currentValue - semitones * 100;
-
-		int32_t transpose = semitones - 256;
 		if ((soundEditor.currentMultiRange != nullptr) && soundEditor.currentSound->getSynthMode() != SynthMode::FM
 		    && soundEditor.currentSource->oscType == OscType::SAMPLE) {
 			(static_cast<MultisampleRange*>(soundEditor.currentMultiRange))->sampleHolder.transpose = transpose;
