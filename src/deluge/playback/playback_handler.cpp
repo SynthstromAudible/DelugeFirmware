@@ -1829,7 +1829,7 @@ void PlaybackHandler::displaySwingInterval() {
 		}
 		text.append("\n");
 	}
-	syncValueToString(currentSong->swingInterval, text);
+	syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
 	display->popupTextTemporary(text.c_str(), DisplayPopupType::SWING);
 }
 
@@ -1845,7 +1845,7 @@ void PlaybackHandler::displaySwingAmount() {
 			text.appendInt(currentSong->swingAmount + 50);
 		}
 		text.append("\n");
-		syncValueToString(currentSong->swingInterval, text);
+		syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
 	}
 	else {
 		if (currentSong->swingAmount == 0) {

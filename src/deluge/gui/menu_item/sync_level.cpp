@@ -35,7 +35,7 @@ void SyncLevel::drawValue() {
 }
 
 void SyncLevel::getNoteLengthName(StringBuf& buffer) {
-	syncValueToString(this->getValue(), buffer);
+	syncValueToString(this->getValue(), buffer, currentSong->getInputTickMagnitude());
 }
 
 void SyncLevel::drawPixelsForOled() {

@@ -4,15 +4,29 @@
 
 #ifdef IN_UNIT_TESTS
 #include "display_mock.h"
+#include "function_mocks.h"
 #include "song_mock.h"
 #else
 #include "hid/display/display.h"
 #include "model/song/song.h"
+#include "util/functions.h"
 #endif
 
 int32_t wrapSwingIntervalSyncLevel(int32_t value) {
 	// This is tricky because we don't want zero: that would be "off".
 	return mod(value - 1, NUM_SWING_INTERVALS - 1) + 1;
+}
+
+int32_t clampSwingIntervalSyncLevel(int32_t value) {
+	if (value < MIN_SWING_INERVAL) {
+		return MIN_SWING_INERVAL;
+	}
+	else if (value > MAX_SWING_INTERVAL) {
+		return MAX_SWING_INTERVAL;
+	}
+	else {
+		return value;
+	}
 }
 
 enum SyncType syncValueToSyncType(int32_t value) {
@@ -39,7 +53,7 @@ enum SyncLevel syncValueToSyncLevel(int32_t option) {
 	}
 }
 
-void syncValueToString(uint32_t value, StringBuf& buffer) {
+void syncValueToString(uint32_t value, StringBuf& buffer, int32_t tickMagnitude) {
 	char const* typeStr = nullptr;
 	enum SyncType type { syncValueToSyncType(value) };
 	enum SyncLevel level { syncValueToSyncLevel(value) };
@@ -61,12 +75,13 @@ void syncValueToString(uint32_t value, StringBuf& buffer) {
 		break;
 	}
 
-	currentSong->getNoteLengthName(buffer, noteLength, typeStr);
+	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, tickMagnitude), typeStr, false);
 	if (typeStr != nullptr) {
-		int32_t magnitudeLevelBars = SYNC_LEVEL_8TH - currentSong->insideWorldTickMagnitude;
+		int32_t magnitudeLevelBars = SYNC_LEVEL_8TH - tickMagnitude;
 		if (((type == SYNC_TYPE_TRIPLET || type == SYNC_TYPE_DOTTED) && level <= magnitudeLevelBars)
 		    || display->have7SEG()) {
-			// On OLED, getNoteLengthName handles adding this for the non-bar levels. On 7seg, always append it
+			// On OLED, getNoteLengthNameForMagniture() handles adding this for the non-bar levels. On 7seg, always
+			// append it
 			buffer.append(typeStr);
 		}
 	}

@@ -147,6 +147,7 @@ public:
 	int32_t convertSyncLevelFromInternalValueToFileValue(int32_t internalValue);
 	String getSongFullPath();
 	void setSongFullPath(const char* fullPath);
+	int32_t getInputTickMagnitude() const { return insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM; }
 
 	GlobalEffectableForSong globalEffectable;
 

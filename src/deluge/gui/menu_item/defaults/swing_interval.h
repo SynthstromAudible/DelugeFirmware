@@ -32,6 +32,11 @@ public:
 		// eg. Velocity immediately changes the default velocity of the current song, but tempo
 		// and swing don't. So We don't either.
 	}
+
+protected:
+	void getNoteLengthName(StringBuf& buffer) override {
+		syncValueToString(this->getValue(), buffer, FlashStorage::defaultMagnitude);
+	}
 };
 
 } // namespace deluge::gui::menu_item::defaults

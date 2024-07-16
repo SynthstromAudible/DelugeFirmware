@@ -2005,8 +2005,21 @@ bool shouldAbortLoading() {
 	        && (encoders::getEncoder(encoders::EncoderName::SELECT).detentPos || QwertyUI::predictionInterrupted));
 }
 
+int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude) {
+	// Given a note length and a tick magnitude, figure out the _note magnitude_
+	int32_t noteMagnitude = -5 - tickMagnitude;
+	uint32_t level = 3;
+
+	while (level < noteLength) {
+		noteMagnitude++;
+		level <<= 1;
+	}
+	return noteMagnitude;
+}
+
 void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude, char const* const notesString,
                                     bool clarifyPerColumn) {
+	// Positive magnitudes are bars, negative magnitudes are divisions of bars.
 	uint32_t division = (uint32_t)1 << (0 - magnitude);
 
 	if (display->haveOLED()) {

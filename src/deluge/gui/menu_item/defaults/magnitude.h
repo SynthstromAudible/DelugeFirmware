@@ -18,6 +18,7 @@
 #include "gui/menu_item/enumeration.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "model/sync.h"
 #include "storage/flash_storage.h"
 #include "util/d_string.h"
 
@@ -26,8 +27,14 @@ class Magnitude final : public Enumeration {
 public:
 	using Enumeration::Enumeration;
 	void readCurrentValue() override { this->setValue(FlashStorage::defaultMagnitude); }
-	void writeCurrentValue() override { FlashStorage::defaultMagnitude = this->getValue(); }
-
+	void writeCurrentValue() override {
+		int32_t oldMagnitude = FlashStorage::defaultMagnitude;
+		FlashStorage::defaultMagnitude = this->getValue();
+		// Adjust swing interval to keep the same musical meaning if possible: magnitude affects its interpretation.
+		int32_t delta = FlashStorage::defaultMagnitude - oldMagnitude;
+		int32_t oldSwing = FlashStorage::defaultSwingInterval;
+		FlashStorage::defaultSwingInterval = clampSwingIntervalSyncLevel(FlashStorage::defaultSwingInterval - delta);
+	}
 	void drawPixelsForOled() override {
 		char buffer[12];
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
