@@ -572,7 +572,7 @@ void registerTasks() {
 	// this one runs quickly and frequently to check for encoder changes
 	addRepeatingTask([]() { encoders::readEncoders(); }, p++, 0.0005, 0.001, 0.001, "read encoders");
 	// formerly part of audio routine, updates midi and clock
-	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 8 / 44100., 16 / 44100, 32 / 44100., "playback routine");
+	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 2 / 44100., 16 / 44100, 32 / 44100., "playback routine");
 	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.00001, 0.00001, 0.00002,
 	                 "load clusters");
 	// handles sd card recorders
