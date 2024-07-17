@@ -925,9 +925,9 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				Clip* clip = getCurrentClip();
 				Output* output = getCurrentOutput();
 
-				// Rename clip always for synth, for KIT clipname can be altered when Effect entire is on to keep it
-				// consistent
-				if (output->type == OutputType::SYNTH
+				// Rename clip always for Synth & Midi Out, for KIT clipname can be altered when Effect entire is on to
+				// keep it consistent
+				if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
 				    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
 
 					if (clip) {
@@ -936,21 +936,13 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 						return ActionResult::DEALT_WITH;
 					}
 				}
-				// if else then just keep it like the old way to rename the kit row item
-				else {
-
-					item = paramShortcutsForSounds[x][y];
-				}
 			}
-			else if (x <= 14) {
-				item = paramShortcutsForSounds[x][y];
-			}
-
-			goto doSetup;
+			// if else then just keep it like the old way to rename the kit row item
+			goto doNextAfterName;
 		}
 
 		else {
-
+doNextAfterName:
 			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
 			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
 			           == RuntimeFeatureStateToggle::On) {

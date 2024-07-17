@@ -2434,13 +2434,11 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 		rememberInteractionWithClipInstance(yPressedEffective, clipInstance);
 
-		// Show the clipname in the arrangement if its not a white clip
+		// Show the clipname in the arrangement if its not a white clip - extra check
 		if (!newClip->isArrangementOnlyClip() || !clipInstance->clip->section == 255) {
 			drawClipName(output, newClip);
+			deluge::hid::display::OLED::markChanged();
 		}
-
-		deluge::hid::display::OLED::markChanged();
-
 		uiNeedsRendering(this, 1 << yPressedEffective, 0);
 	}
 
