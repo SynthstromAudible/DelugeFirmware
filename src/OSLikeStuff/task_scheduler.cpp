@@ -118,7 +118,7 @@ struct TaskManager {
 	std::array<SortedTask, kMaxTasks> sortedList;
 	uint8_t numActiveTasks = 0;
 	uint8_t numRegisteredTasks = 0;
-	double mustEndBefore = 128; // use for testing or I guess if you want a second temporary task manager?
+	double mustEndBefore = -1; // use for testing or I guess if you want a second temporary task manager?
 	bool running{false};
 	double cpuTime{0};
 	double overhead{0};
@@ -173,6 +173,7 @@ void TaskManager::createSortedList() {
 	}
 }
 
+// deadline < 0 means no deadline
 TaskID TaskManager::chooseBestTask(double deadline) {
 	double currentTime = getSecondsFromStart();
 	double nextFinishTime = currentTime;
@@ -192,7 +193,7 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 			return sortedList[i].task;
 		}
 		if (timeToCall < currentTime || maxTimeToCall < nextFinishTime) {
-			if (currentTime + t->durationStats.average < deadline) {
+			if (deadline < 0 || currentTime + t->durationStats.average < deadline) {
 
 				if (s->priority < bestPriority && t->handle) {
 					if (timeSinceFinish > s->backOffPeriod) {
@@ -385,6 +386,9 @@ void TaskManager::start(double duration) {
 	double lastLoop = startTime;
 	if (duration != 0) {
 		mustEndBefore = startTime + duration;
+	}
+	else {
+		mustEndBefore = -1;
 	}
 
 	while (duration == 0 || getSecondsFromStart() < startTime + duration) {
