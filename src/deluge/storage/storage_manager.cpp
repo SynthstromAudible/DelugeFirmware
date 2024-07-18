@@ -172,7 +172,6 @@ cutFolderPathAndTryCreating:
 
 Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer, bool mayOverwrite,
                                     bool displayErrors) {
-
 	auto created = createFile(filePath, mayOverwrite);
 	writer.reset();
 	if (!created) {
@@ -692,7 +691,6 @@ double nextWriteTime = 0;
 void FileWriter::writeChars(char const* output) {
 	while (*output) {
 		if (fileWriteBufferCurrentPos == audioFileManager.clusterSize) {
-
 			if (!fileAccessFailedDuringWrite) {
 				Error error = writeBufferToFile();
 				if (error != Error::NONE) {
