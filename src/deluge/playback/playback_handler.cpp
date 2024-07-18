@@ -629,7 +629,9 @@ void PlaybackHandler::actionTimerTickPart2() {
 			uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
 			uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
 
-			if (fractionNextAnalogOutTick <= fractionLastTimerTick) {
+			// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output immediately
+			// otherwise set it to be done by the audio engine
+			if (fractionNextAnalogOutTick < fractionLastTimerTick) {
 				doTriggerClockOutTick();
 				fractionNextAnalogOutTick += internalTicksPer;
 			}
@@ -646,8 +648,9 @@ void PlaybackHandler::actionTimerTickPart2() {
 			uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
 
 			uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
-
-			if (fractionNextMIDIClockOutTick <= fractionLastTimerTick) {
+			// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output immediately
+			// otherwise set it to be done by the audio engine
+			if (fractionNextMIDIClockOutTick < fractionLastTimerTick) {
 				doMIDIClockOutTick();
 				fractionNextMIDIClockOutTick += midiClockOutTicksPer;
 			}
