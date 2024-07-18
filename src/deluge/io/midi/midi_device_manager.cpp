@@ -486,7 +486,7 @@ worthIt:
 	}
 
 	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
-	Serializer& writer = smSerializer;
+	Serializer& writer = GetSerializer();
 	writer.writeOpeningTagBeginning("midiDevices");
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.0.0");

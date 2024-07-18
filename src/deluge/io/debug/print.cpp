@@ -23,6 +23,7 @@ extern "C" {
 #include "deluge/drivers/uart/uart.h"
 }
 
+#define JFTRACE 1
 namespace Debug {
 
 constexpr uint32_t kNumSamplesBetweenReports = kSampleRate;

@@ -64,6 +64,7 @@ void JSONSerializer::reset() {
 }
 
 void JSONSerializer::write(char const* output) {
+
 	writeChars(output);
 }
 

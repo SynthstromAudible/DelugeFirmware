@@ -229,6 +229,7 @@ private:
 
 extern XMLSerializer smSerializer;
 extern XMLDeserializer smDeserializer;
+extern Serializer& GetSerializer();
 
 class StorageManager {
 public:

@@ -247,7 +247,7 @@ void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = smSerializer;
+	Serializer& writer = GetSerializer();
 	writer.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.3");

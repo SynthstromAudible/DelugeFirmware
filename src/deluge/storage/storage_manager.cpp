@@ -47,6 +47,7 @@ extern "C" {
 #include "RZA1/oled/oled_low_level.h"
 #include "fatfs/diskio.h"
 #include "fatfs/ff.h"
+#include <task_scheduler.h>
 
 FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory object */
                                   FILINFO* fno, /* Pointer to file information to return */
@@ -60,6 +61,17 @@ FILINFO staticFNO;
 DIR staticDIR;
 XMLSerializer smSerializer;
 XMLDeserializer smDeserializer;
+JSONSerializer smJSONSerializer;
+
+bool writeJSONFlag = false;
+
+Serializer& GetSerializer() {
+	if (writeJSONFlag) {
+		return smJSONSerializer;
+	}else {
+		return smSerializer;
+	}
+}
 
 extern void initialiseConditions();
 extern void songLoaded(Song* song);
@@ -670,10 +682,14 @@ void FileWriter::resetWriter() {
 	fileAccessFailedDuringWrite = false;
 }
 
+char lineBuff[200];
+char* firstLine = &lineBuff[0];
+int lineX = 0;
+int64_t sum = 0;
+double nextWriteTime = 0;
+
 void FileWriter::writeChars(char const* output) {
-
 	while (*output) {
-
 		if (fileWriteBufferCurrentPos == audioFileManager.clusterSize) {
 
 			if (!fileAccessFailedDuringWrite) {
@@ -722,6 +738,7 @@ Error FileWriter::writeBufferToFile() {
 
 // Returns false if some error, including error while writing
 Error FileWriter::closeAfterWriting(char const* path, char const* beginningString, char const* endString) {
+	lineX = 0;
 	if (fileAccessFailedDuringWrite) {
 		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
 		                          // don't want it to flush any data to the card or anything

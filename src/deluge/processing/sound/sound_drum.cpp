@@ -155,7 +155,7 @@ void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
 void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
-	Serializer& writer = smSerializer;
+	Serializer& writer = GetSerializer();
 	writer.writeOpeningTagBeginning("sound");
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");

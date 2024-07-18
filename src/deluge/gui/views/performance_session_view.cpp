@@ -1672,7 +1672,7 @@ void PerformanceSessionView::writeDefaultsToFile(StorageManager& bdsm) {
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = smSerializer;
+	Serializer& writer = GetSerializer();
 	//<defaults>
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();

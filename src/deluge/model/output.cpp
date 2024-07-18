@@ -199,7 +199,7 @@ ParamManager* Output::getParamManager(Song* song) {
 
 void Output::writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song) {
 
-	Serializer& writer = smSerializer;
+	Serializer& writer = GetSerializer();
 	char const* tagName = getXMLTag();
 	writer.writeOpeningTagBeginning(tagName);
 
