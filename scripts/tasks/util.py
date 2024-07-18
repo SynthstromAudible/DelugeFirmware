@@ -201,7 +201,8 @@ def get_dbt_version():
     return open(get_git_root() / "toolchain" / "REQUIRED_VERSION").readline().rstrip()
 
 
-def ensure_midi_port(type, midi, port):
+def ensure_midi_port(type, midi, port, default_port_index=-1):
+    # We default to last port, since port 3 is reserved for sysex
     if port is None:
         deluge_ports = []
         for i, p in enumerate(midi.get_ports()):
@@ -209,8 +210,7 @@ def ensure_midi_port(type, midi, port):
                 deluge_ports.append(i)
 
         if len(deluge_ports) > 0:
-            # Guess that the last port will be port 3/sysex
-            port = deluge_ports[-1]
+            port = deluge_ports[default_port_index]
 
     if port is None:
         note(
