@@ -1817,7 +1817,7 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 }
 
 /** On OLED displayes both Swing amount and interval, on 7seg only the interval. */
-void PlaybackHandler::displaySwingInterval() {
+void PlaybackHandler::commandDisplaySwingInterval() {
 	DEF_STACK_STRING_BUF(text, 30);
 	if (display->haveOLED()) {
 		text.append("Swing: ");
@@ -1830,11 +1830,11 @@ void PlaybackHandler::displaySwingInterval() {
 		text.append("\n");
 	}
 	syncValueToString(currentSong->swingInterval, text, currentSong->getInputTickMagnitude());
-	display->popupTextTemporary(text.c_str(), DisplayPopupType::SWING);
+	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
 /** On OLED displayes both Swing amount and interval, on 7seg only the amount. */
-void PlaybackHandler::displaySwingAmount() {
+void PlaybackHandler::commandDisplaySwingAmount() {
 	DEF_STACK_STRING_BUF(text, 30);
 	if (display->haveOLED()) {
 		text.append("Swing: ");
@@ -1855,172 +1855,191 @@ void PlaybackHandler::displaySwingAmount() {
 			text.appendInt(currentSong->swingAmount + 50);
 		}
 	}
-	display->popupTextTemporary(text.c_str(), DisplayPopupType::SWING);
+	display->popupTextTemporary(text.c_str(), PopupType::SWING);
+}
+
+void PlaybackHandler::commandEditSwingInterval(int8_t offset) {
+	currentSong->changeSwingInterval(wrapSwingIntervalSyncLevel(currentSong->swingInterval + offset));
+	commandDisplaySwingInterval();
+}
+
+void PlaybackHandler::commandEditSwingAmount(int8_t offset) {
+	int32_t newSwingAmount = std::clamp(currentSong->swingAmount + offset, -49, 49);
+	if (newSwingAmount != currentSong->swingAmount) {
+		actionLogger.recordSwingChange(currentSong->swingAmount, newSwingAmount);
+		currentSong->swingAmount = newSwingAmount;
+	}
+	commandDisplaySwingAmount();
+}
+
+void PlaybackHandler::commandNudgeClock(int8_t offset) {
+	if (!isEitherClockActive()) {
+		// Nothing to nudge
+		return;
+	}
+	if (isInternalClockActive()) {
+		if (currentlySendingMIDIOutputClocks()) {
+			// TODO: these should also affect trigger clock output. Currently they don't
+			if (offset < 0) {
+				midiEngine.sendClock(this); // Send one extra clock
+			}
+			else {
+				numOutputClocksWaitingToBeSent--; // Send one less clock
+			}
+		}
+		else {
+			// Nothing to nudge? TODO: Should we instead nudge the internal clock? Could be
+			// useful for manual beat syncs.
+			return;
+		}
+	}
+	else if (isExternalClockActive()) {
+		if (offset < 0) {
+			inputTick(); // Perform extra tick
+		}
+		else {
+			numInputTicksToSkip++; // Perform one less tick
+		}
+	}
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_NUDGED));
+}
+
+void PlaybackHandler::commandEditClockOutScale(int8_t offset) {
+	// If playing synced, double or halve our own playing speed relative to the outside world
+	if (isExternalClockActive()) {
+		if (offset < 0 || currentSong->mayDoubleTempo()) { // Know when to disallow tempo doubling
+
+			// Get current tempo
+			int32_t magnitude;
+			int8_t whichValue;
+			getCurrentTempoParams(&magnitude, &whichValue);
+
+			magnitude -= offset;
+
+			currentSong->setTempoFromParams(magnitude, whichValue, true);
+
+			// We need to speed up (and resync) relative to incoming clocks
+			currentSong->insideWorldTickMagnitude += offset;
+			resyncInternalTicksToInputTicks(currentSong);
+
+			// We do not need to call resyncAnalogOutTicksToInternalTicks(). Yes the insideWorldTickMagnitude has
+			// changed, but whatever effect this has on the scaling of input ticks to internal ticks, it has the
+			// opposite effect on the scaling of internal ticks to analog out ticks, so nothing needs to change
+		}
+	}
+
+	// Otherwise, change the output-tick scale - if we're actually sending out-ticks
+	else {
+
+		currentSong->insideWorldTickMagnitude -= offset;
+
+		if (isInternalClockActive()) {
+
+			// Fix MIDI beat clock output
+			if (currentlySendingMIDIOutputClocks()) {
+				resyncMIDIClockOutTicksToInternalTicks();
+				sendOutPositionViaMIDI(getCurrentInternalTickCount());
+			}
+
+			// Fix analog out clock
+			resyncAnalogOutTicksToInternalTicks();
+		}
+
+		commandDisplayTempo();
+	}
+}
+
+void PlaybackHandler::commandEditTempoCoarse(int8_t offset) {
+	// Get current tempo
+	int32_t magnitude;
+	int8_t whichValue;
+	getCurrentTempoParams(&magnitude, &whichValue);
+
+	whichValue += offset;
+
+	if (whichValue >= 16) {
+		whichValue -= 16;
+		magnitude--;
+	}
+	else if (whichValue < 0) {
+		whichValue += 16;
+		magnitude++;
+	}
+
+	currentSong->setTempoFromParams(magnitude, whichValue, true);
+
+	displayTempoFromParams(magnitude, whichValue);
+}
+
+void PlaybackHandler::commandEditTempoFine(int8_t offset) {
+	int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+	tempoBPM += offset;
+	if (tempoBPM > 0) {
+		currentSong->setBPM(tempoBPM, true);
+		displayTempoBPM(tempoBPM);
+	}
 }
 
 void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
 
 	if (Buttons::isButtonPressed(deluge::hid::button::TAP_TEMPO)) {
-		if (display->hasPopupOfType(DisplayPopupType::SWING)) {
+		if (display->hasPopupOfType(PopupType::SWING)) {
 			// If not yet displaying, don't change the value
-			currentSong->changeSwingInterval(wrapSwingIntervalSyncLevel(currentSong->swingInterval + offset));
+			return commandEditSwingInterval(offset);
 		}
-		return displaySwingInterval();
+		else {
+			return commandDisplaySwingInterval();
+		}
 	}
 
 	offset = std::max((int8_t)-1, std::min((int8_t)1, offset));
 
 	// Nudging sync
 	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-
-		// If Deluge is using internal clock
-		if (isInternalClockActive()) {
-			if (currentlySendingMIDIOutputClocks()) {
-				// TODO: these should also affect trigger clock output. Currently they don't
-				if (offset < 0) {
-					midiEngine.sendClock(this); // Send one extra clock
-				}
-				else {
-					numOutputClocksWaitingToBeSent--; // Send one less clock
-				}
-displayNudge:
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_NUDGED));
-			}
-		}
-
-		// If Deluge is following external clock
-		else if (isExternalClockActive()) {
-			if (offset < 0) {
-				inputTick(); // Perform extra tick
-			}
-			else {
-				numInputTicksToSkip++; // Perform one less tick
-			}
-			goto displayNudge;
-		}
+		return commandNudgeClock(offset);
 	}
 
-	// Otherwise, adjust swing
+	// Adjust swing
 	else if (shiftButtonPressed) {
-		if (display->hasPopupOfType(DisplayPopupType::SWING)) {
-			// Don't change if not yet displaying the amount
-			int32_t newSwingAmount = std::clamp(currentSong->swingAmount + offset, -49, 49);
-			if (newSwingAmount != currentSong->swingAmount) {
-				actionLogger.recordSwingChange(currentSong->swingAmount, newSwingAmount);
-				currentSong->swingAmount = newSwingAmount;
-			}
+		if (display->hasPopupOfType(PopupType::SWING)) {
+			return commandEditSwingAmount(offset);
 		}
-		displaySwingAmount();
+		else {
+			return commandDisplaySwingAmount();
+		}
 	}
 
 	// If MIDI learn button down, change clock out scale
 	else if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-
-		// If playing synced, double or halve our own playing speed relative to the outside world
-		if (isExternalClockActive()) {
-			if (offset < 0 || currentSong->mayDoubleTempo()) { // Know when to disallow tempo doubling
-
-				// Get current tempo
-				int32_t magnitude;
-				int8_t whichValue;
-				getCurrentTempoParams(&magnitude, &whichValue);
-
-				magnitude -= offset;
-
-				currentSong->setTempoFromParams(magnitude, whichValue, true);
-
-				// We need to speed up (and resync) relative to incoming clocks
-				currentSong->insideWorldTickMagnitude += offset;
-				resyncInternalTicksToInputTicks(currentSong);
-
-				// We do not need to call resyncAnalogOutTicksToInternalTicks(). Yes the insideWorldTickMagnitude has
-				// changed, but whatever effect this has on the scaling of input ticks to internal ticks, it has the
-				// opposite effect on the scaling of internal ticks to analog out ticks, so nothing needs to change
-			}
-		}
-
-		// Otherwise, change the output-tick scale - if we're actually sending out-ticks
-		else {
-
-			currentSong->insideWorldTickMagnitude -= offset;
-
-			if (isInternalClockActive()) {
-
-				// Fix MIDI beat clock output
-				if (currentlySendingMIDIOutputClocks()) {
-					resyncMIDIClockOutTicksToInternalTicks();
-					sendOutPositionViaMIDI(getCurrentInternalTickCount());
-				}
-
-				// Fix analog out clock
-				resyncAnalogOutTicksToInternalTicks();
-			}
-
-			displayTempoByCalculation();
-		}
+		return commandEditClockOutScale(offset);
 	}
 
 	// Otherwise, change tempo
 	else {
-
 		if (!isExternalClockActive()) {
+			if (display->hasPopupOfType(PopupType::TEMPO)) {
+				// Truth table for how we decide between adjusting coarse and fine tempo:
+				//
+				// Setting | Button | Mode
+				// -----------------------
+				//  On     | Off    | Fine
+				//  On     | On     | Coarse
+				//  Off    | Off    | Coarse
+				//  Off    |  On    | Fine
+				//
+				bool feature = runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
+				               == RuntimeFeatureStateToggle::On;
+				bool button = Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC);
 
-			// FimeTempoKnob logic
-			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-			     == RuntimeFeatureStateToggle::On)) { // feature on
-				tempoKnobMode = 2;
+				if (feature == button) {
+					return commandEditTempoCoarse(offset);
+				}
+				else {
+					return commandEditTempoFine(offset);
+				}
 			}
 			else {
-				tempoKnobMode = 1;
-			}
-
-			if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
-				if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::FineTempoKnob)
-				     == RuntimeFeatureStateToggle::On)) { // feature is on, tempo button push-turned
-					tempoKnobMode = 1;
-				}
-
-				else {
-					tempoKnobMode = 2;
-				}
-			}
-
-			switch (tempoKnobMode) {
-			case 1:
-				// Coarse tempo adjustment
-
-				// Get current tempo
-				int32_t magnitude;
-				int8_t whichValue;
-				getCurrentTempoParams(&magnitude, &whichValue);
-
-				whichValue += offset;
-
-				if (whichValue >= 16) {
-					whichValue -= 16;
-					magnitude--;
-				}
-				else if (whichValue < 0) {
-					whichValue += 16;
-					magnitude++;
-				}
-
-				currentSong->setTempoFromParams(magnitude, whichValue, true);
-
-				displayTempoFromParams(magnitude, whichValue);
-				break;
-
-			case 2:
-				// Fine tempo adjustment
-
-				int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
-				tempoBPM += offset;
-				if (tempoBPM > 0) {
-					currentSong->setBPM(tempoBPM, true);
-					displayTempoBPM(tempoBPM);
-				}
-
-				break;
+				commandDisplayTempo();
 			}
 		}
 	}
@@ -2145,7 +2164,7 @@ void PlaybackHandler::displayTempoFromParams(int32_t magnitude, int8_t whichValu
 	displayTempoBPM(tempoBPM);
 }
 
-void PlaybackHandler::displayTempoByCalculation() {
+void PlaybackHandler::commandDisplayTempo() {
 	float bpm = calculateBPM(getTimePerInternalTickFloat());
 	displayTempoBPM(bpm);
 }
@@ -2163,21 +2182,21 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 }
 
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
+	// The 7-seg needs to work so much harder there's no point trying to share the code.
+	DEF_STACK_STRING_BUF(text, 27);
 	if (display->haveOLED()) {
-		char buffer[27];
-		strcpy(buffer, "Tempo: ");
+		text.append("Tempo: ");
 		if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
-			strcpy(&buffer[7], "FAST");
+			text.append("FAST");
 		}
 		else {
-			floatToString(tempoBPM, &buffer[7], 0, 3);
+			text.appendFloat(tempoBPM, 0, 3);
 		}
-		display->popupTextTemporary(buffer);
+		display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 	}
 	else {
 		if (tempoBPM >= 9999.5) {
-			display->displayPopup("FAST");
-			return;
+			return display->popupTextTemporary("FAST", PopupType::TEMPO);
 		}
 
 		int32_t divisor = 1;
@@ -2225,14 +2244,13 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 
 		// If perfect and integer...
 		if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
-			char buffer[12];
-			intToString(roundedTempoBPM, buffer);
-			display->displayPopup(buffer);
+			text.appendInt(roundedTempoBPM);
+			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 		}
 		else {
-			char buffer[12];
-			intToString(roundedBigger, buffer, 4);
-			display->displayPopup(buffer, 3, false, dotMask);
+			text.appendInt(roundedBigger, 4);
+			// This is what popupTextTemporary() does, except for passing in the dotMask
+			display->displayPopup(text.c_str(), 3, false, dotMask, 1, PopupType::TEMPO);
 		}
 	}
 }
@@ -2324,7 +2342,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 		}
 	}
 
-	displayTempoByCalculation();
+	commandDisplayTempo();
 }
 
 uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples, Action* action) {
@@ -2359,7 +2377,7 @@ uint32_t PlaybackHandler::setTempoFromAudioClipLength(uint64_t loopLengthSamples
 		}
 	}
 
-	displayTempoByCalculation();
+	commandDisplayTempo();
 
 	return ticksLong;
 }
@@ -2510,7 +2528,7 @@ void PlaybackHandler::tapTempoButtonPress() {
 		    true); // Put the fraction in the middle; it's more likely to be accurate since we've been rounding down
 		actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't allow next action to add to this one
 
-		displayTempoByCalculation();
+		commandDisplayTempo();
 	}
 	tapTempoNumPresses++;
 

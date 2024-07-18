@@ -2387,7 +2387,7 @@ multiplePresses:
 		prevBase = (probability & 128);
 
 		// If editing, continue edit
-		if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
+		if (display->hasPopupOfType(PopupType::PROBABILITY)) {
 			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 			if (!action) {
 				return;
@@ -3110,7 +3110,7 @@ void InstrumentClipView::setRowProbability(int32_t offset) {
 	bool prevBase = (probability & 128);
 
 	// If editing, continue edit
-	if (display->hasPopupOfType(DisplayPopupType::PROBABILITY)) {
+	if (display->hasPopupOfType(PopupType::PROBABILITY)) {
 		Action* action =
 		    actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED);
 		if (!action) {
@@ -3222,10 +3222,10 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	}
 
 	if (display->haveOLED()) {
-		display->popupText(buffer, DisplayPopupType::PROBABILITY);
+		display->popupText(buffer, PopupType::PROBABILITY);
 	}
 	if (display->have7SEG()) {
-		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, DisplayPopupType::PROBABILITY);
+		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
 	}
 }
 #pragma gcc pop
