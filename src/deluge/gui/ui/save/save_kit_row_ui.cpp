@@ -144,8 +144,8 @@ fail:
 
 	char const* endString = "\n</sound>\n";
 
-	error =
-	    GetSerializer().closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
+	error = GetSerializer().closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+	                                              endString);
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
 		goto fail;

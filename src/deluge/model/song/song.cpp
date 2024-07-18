@@ -1176,7 +1176,7 @@ void Song::writeTemplateSong(const char* templatePath) {
 	}
 	writeToFile(storageManager);
 	GetSerializer().closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
-	                                   "\n</song>\n");
+	                                      "\n</song>\n");
 }
 
 void Song::writeToFile(StorageManager& bdsm) {

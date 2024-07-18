@@ -68,7 +68,8 @@ bool writeJSONFlag = false;
 Serializer& GetSerializer() {
 	if (writeJSONFlag) {
 		return smJSONSerializer;
-	}else {
+	}
+	else {
 		return smSerializer;
 	}
 }

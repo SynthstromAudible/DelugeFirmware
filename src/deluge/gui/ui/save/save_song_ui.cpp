@@ -434,7 +434,7 @@ fail3:
 	currentSong->writeToFile(bdsm);
 
 	error = GetSerializer().closeFileAfterWriting(filePathDuringWrite.get(),
-	                                           "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
+	                                              "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
 	if (error != Error::NONE) {
 		goto gotError;
 	}
