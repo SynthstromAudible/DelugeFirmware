@@ -111,9 +111,12 @@ public:
 	void append(char c) { ::strncat(buf_, &c, 1); }
 	void clear() { buf_[0] = 0; }
 
-	// TODO: Validate buffer size. This will overflow
+	// TODO: Validate buffer size. These can overflow
 	void appendInt(int i, int minChars = 1) { intToString(i, buf_ + size(), minChars); }
 	void appendHex(int i, int minChars = 1) { intToHex(i, buf_ + size(), minChars); }
+	void appendFloat(float f, int32_t minDecimals, int32_t maxDecimals) {
+		floatToString(f, buf_ + size(), minDecimals, maxDecimals);
+	}
 
 	[[nodiscard]] char* data() { return buf_; }
 	[[nodiscard]] const char* data() const { return buf_; }

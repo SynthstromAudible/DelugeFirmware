@@ -238,14 +238,14 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == TEMPO_ENC) {
 		if (on) {
 			if (isShiftButtonPressed()) {
-				playbackHandler.displaySwingAmount();
+				playbackHandler.commandDisplaySwingAmount();
 			}
 			else if (isButtonPressed(TAP_TEMPO)) {
-				playbackHandler.displaySwingInterval();
+				playbackHandler.commandDisplaySwingInterval();
 			}
 			else {
 				if (getCurrentUI() != &loadSongUI) {
-					playbackHandler.displayTempoByCalculation();
+					playbackHandler.commandDisplayTempo();
 				}
 			}
 		}

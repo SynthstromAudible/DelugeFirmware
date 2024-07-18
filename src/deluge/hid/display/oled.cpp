@@ -148,7 +148,7 @@ void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int
 
 int32_t oledPopupWidth = 0; // If 0, means popup isn't present / active.
 int32_t popupHeight;
-DisplayPopupType popupType = DisplayPopupType::NONE;
+PopupType popupType = PopupType::NONE;
 
 int32_t popupMinX;
 int32_t popupMaxX;
@@ -299,7 +299,7 @@ void OLED::removePopup() {
 	// if (!oledPopupWidth) return;
 
 	oledPopupWidth = 0;
-	popupType = DisplayPopupType::NONE;
+	popupType = PopupType::NONE;
 	workingAnimationText = NULL;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	markChanged();
@@ -308,7 +308,7 @@ void OLED::removePopup() {
 bool OLED::isPopupPresent() {
 	return oledPopupWidth;
 }
-bool OLED::isPopupPresentOfType(DisplayPopupType type) {
+bool OLED::isPopupPresentOfType(PopupType type) {
 	return oledPopupWidth && popupType == type;
 }
 
@@ -509,7 +509,7 @@ void OLED::drawPermanentPopupLookingText(char const* text) {
 	}
 }
 
-void OLED::popupText(char const* text, bool persistent, DisplayPopupType type) {
+void OLED::popupText(char const* text, bool persistent, PopupType type) {
 
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
@@ -562,7 +562,7 @@ void updateWorkingAnimation() {
 	}
 
 	error = textNow.concatenate(buffer);
-	OLED::popupText(textNow.get(), true, DisplayPopupType::LOADING);
+	OLED::popupText(textNow.get(), true, PopupType::LOADING);
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
@@ -572,7 +572,7 @@ void OLED::displayWorkingAnimation(char const* word) {
 }
 
 void OLED::removeWorkingAnimation() {
-	if (hasPopupOfType(DisplayPopupType::LOADING)) {
+	if (hasPopupOfType(PopupType::LOADING)) {
 		removePopup();
 	}
 	else if (workingAnimationText) {
@@ -1008,7 +1008,7 @@ void OLED::freezeWithError(char const* text) {
 	spiTransferQueueCurrentlySending = false;
 
 	clearMainImage();
-	OLED::popupText("Operation resumed. Save to new file then reboot.", false, DisplayPopupType::GENERAL);
+	OLED::popupText("Operation resumed. Save to new file then reboot.", false, PopupType::GENERAL);
 }
 
 extern std::string_view getErrorMessage(Error);

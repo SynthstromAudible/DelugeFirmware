@@ -532,7 +532,7 @@ void SevenSegment::setNextTransitionDirection(int8_t thisDirection) {
 }
 
 void SevenSegment::displayPopup(char const* newText, int8_t numFlashes, bool alignRight, uint8_t drawDot,
-                                int32_t blinkSpeed, DisplayPopupType type) {
+                                int32_t blinkSpeed, PopupType type) {
 	encodeText(newText, popup.segments, alignRight, drawDot);
 	memset(&popup.blinkedSegments, 0, kNumericDisplayLength);
 	if (numFlashes == 0) {
