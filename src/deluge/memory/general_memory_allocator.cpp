@@ -58,8 +58,8 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
 	if (distance < closestDistance) {
 		closestDistance = distance;
-		D_PRINT("%d bytes in stack %d free bytes in stack at %x", (uint32_t)&program_stack_end - (int32_t)&a, distance,
-		        caller);
+		D_PRINTLN("%d bytes in stack %d free bytes in stack at %s", (uint32_t)&program_stack_end - (int32_t)&a,
+		          distance, caller);
 
 		if (distance < 200) {
 			FREEZE_WITH_ERROR("E338");
@@ -94,7 +94,7 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 	void* address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
 	lock = false;
 	if (!address) {
-		// FREEZE_WITH_ERROR("M998");
+		FREEZE_WITH_ERROR("M998");
 		return nullptr;
 	}
 	return address;

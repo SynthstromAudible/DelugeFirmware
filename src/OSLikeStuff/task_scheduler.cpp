@@ -18,6 +18,7 @@
 #include "task_scheduler.h"
 
 #include "io/debug/log.h"
+#include "memory/general_memory_allocator.h"
 #include "util/container/static_vector.hpp"
 #include <algorithm>
 #include <iostream>
@@ -145,12 +146,13 @@ struct TaskManager {
 	double getLastRunTimeforCurrentTask();
 
 private:
-	TaskID currentID;
+	TaskID currentID{std::numeric_limits<TaskID>::max()};
 	// for time tracking with rollover
 	double lastTime{0};
 	double runningTime{0};
 	void resetStats();
-	bool countThisTask{true};
+	// needs to be volatile, GCC misses that the handle call can call ignoreForStats and optimizes the check away
+	volatile bool countThisTask{true};
 	void startClock();
 };
 
@@ -339,6 +341,9 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 	if (!running) {
 		startClock();
 	}
+	D_PRINTLN("yielding");
+	GeneralMemoryAllocator::get().checkStack("ensure resizeable space");
+
 	auto yieldingTask = &list[currentID];
 	auto yieldingID = currentID;
 	bool taskRemoved = false;
@@ -370,10 +375,10 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 	} while (!until() && (skipTimeout || getSecondsFromStart() < timeNow + timeout));
 	if (!taskRemoved) {
 
-		auto timeNow = getSecondsFromStart();
-		yieldingTask->lastCallTime = timeNow; // hack so the time spent yielding doesn't get counted
+		auto finishTime = getSecondsFromStart();
+		yieldingTask->lastCallTime = finishTime; // hack so it won't get called again immediately
 	}
-
+	D_PRINTLN("done yielding");
 	return (getSecondsFromStart() < timeNow + timeout);
 }
 
