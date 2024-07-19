@@ -58,6 +58,7 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	Sound* currentSound;
 	ModControllableAudio* currentModControllable;
+	ModControllableAudio* currentGlobalEffectable;
 	int8_t currentSourceIndex;
 	Source* currentSource;
 	ParamManagerForTimeline* currentParamManager;

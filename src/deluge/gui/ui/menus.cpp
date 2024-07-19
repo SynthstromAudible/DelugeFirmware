@@ -55,6 +55,8 @@
 #include "gui/menu_item/filter/hpf_mode.h"
 #include "gui/menu_item/filter/lpf_freq.h"
 #include "gui/menu_item/filter/lpf_mode.h"
+#include "gui/menu_item/filter/global_lpf_mode.h"
+#include "gui/menu_item/filter/global_hpf_mode.h"
 #include "gui/menu_item/filter/morph.h"
 #include "gui/menu_item/filter_route.h"
 #include "gui/menu_item/firmware/version.h"
@@ -476,7 +478,7 @@ Submenu globalLPFMenu{
         &globalLPFFreqMenu,
         &globalLPFResMenu,
         &globalLPFMorphMenu,
-        &lpfModeMenu,
+        &globalLPFModeMenu,
     },
 };
 
@@ -491,12 +493,12 @@ Submenu globalHPFMenu{
         &globalHPFFreqMenu,
         &globalHPFResMenu,
         &globalHPFMorphMenu,
-        &hpfModeMenu,
+        &globalHPFModeMenu,
     },
 };
 
 Submenu globalFiltersMenu{
-    STRING_FOR_FILTERS,
+    STRING_FOR_GLOBAL_FILTERS,
     {
         &globalLPFMenu,
         &globalHPFMenu,
@@ -1108,6 +1110,7 @@ menu_item::Submenu soundEditorRootMenu{
         &arpMenu,
         &audioCompMenu,
         &soundFiltersMenu,
+		&globalFiltersMenu,
         &soundFXMenu,
         &sidechainMenu,
         &source0Menu,

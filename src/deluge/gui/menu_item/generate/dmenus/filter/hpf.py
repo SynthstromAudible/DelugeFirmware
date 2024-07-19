@@ -27,6 +27,15 @@ mode = Menu(
     title="STRING_FOR_HPF_MODE",
 )
 
+global_mode = Menu(
+    "filter::GlobalHPFMode",
+    "globalHPFModeMenu",
+    ["{name}", "{title}"],
+    "filter/hpf/resonance.md",
+    name="STRING_FOR_MODE",
+    title="STRING_FOR_HPF_MODE",
+)
+
 morph = MultiModeMenu(
     "filter::FilterMorph",
     "hpfMorphMenu",

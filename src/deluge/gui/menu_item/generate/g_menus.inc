@@ -28,6 +28,8 @@ std::array<MenuItem*, 3> child2 = {
     &filterRoutingMenu,
 };
 submenu::Filter soundFiltersMenu{STRING_FOR_FILTERS, child2};
+filter::GlobalHPFMode globalHPFModeMenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE};
+filter::GlobalLPFMode globalLPFModeMenu{STRING_FOR_MODE, STRING_FOR_LPF_MODE};
 audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_THRESHOLD, params::UNPATCHED_COMPRESSOR_THRESHOLD};
 audio_compressor::Ratio compRatio{STRING_FOR_RATIO, STRING_FOR_RATIO};
 audio_compressor::Attack compAttack{STRING_FOR_ATTACK, STRING_FOR_ATTACK};

@@ -27,6 +27,15 @@ mode = Menu(
     title="STRING_FOR_LPF_MODE",
 )
 
+global_mode = Menu(
+    "filter::GlobalLPFMode",
+    "globalLPFModeMenu",
+    ["{name}", "{title}"],
+    "filter/lpf/resonance.md",
+    name="STRING_FOR_MODE",
+    title="STRING_FOR_LPF_MODE",
+)
+
 morph = MultiModeMenu(
     "filter::FilterMorph",
     "lpfMorphMenu",

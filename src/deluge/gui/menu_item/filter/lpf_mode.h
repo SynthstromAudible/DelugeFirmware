@@ -23,7 +23,7 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::filter {
-class LPFMode final : public Selection {
+class LPFMode : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->lpfMode); }

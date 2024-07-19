@@ -1314,6 +1314,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	ParamManagerForTimeline* newParamManager = nullptr;
 	ArpeggiatorSettings* newArpSettings = nullptr;
 	ModControllableAudio* newModControllable = nullptr;
+	ModControllableAudio* newGlobalEffectable = nullptr;
 
 	InstrumentClip* instrumentClip = nullptr;
 
@@ -1393,7 +1394,8 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 				// Synth
 				if (outputType == OutputType::SYNTH) {
-					newSound = (SoundInstrument*)output;
+					newSound = (Sound*)output;
+					newGlobalEffectable = &((SoundInstrument*)newSound)->fx;
 					newModControllable = newSound;
 				}
 
@@ -1492,6 +1494,11 @@ doMIDIOrCV:
 	currentArpSettings = newArpSettings;
 	currentMultiRange = newRange;
 	currentModControllable = newModControllable;
+	if (newGlobalEffectable) {
+		currentGlobalEffectable = newGlobalEffectable;
+	} else {
+		currentGlobalEffectable = newModControllable;
+	}
 
 	if (currentModControllable) {
 		currentSidechain = &currentModControllable->sidechain;

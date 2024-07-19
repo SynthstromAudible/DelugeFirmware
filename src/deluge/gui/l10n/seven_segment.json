@@ -439,6 +439,7 @@
 
         "STRING_FOR_MASTER": "MSTR",
         "STRING_FOR_FILTERS": "FLTR",
+        "STRING_FOR_FILTERS": "GFLT",
 
         "STRING_FOR_CANT_TRANSPOSE": "CANT",
 

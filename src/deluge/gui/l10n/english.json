@@ -818,6 +818,7 @@
 
         "STRING_FOR_MASTER": "Master",
         "STRING_FOR_FILTERS": "Filters",
+        "STRING_FOR_GLOBAL_FILTERS": "Global Filters",
 
         "STRING_FOR_CANT_TRANSPOSE": "Can't Transpose: No Scale Mode Clips",
 

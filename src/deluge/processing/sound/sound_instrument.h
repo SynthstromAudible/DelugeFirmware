@@ -21,6 +21,7 @@
 #include "model/instrument/melodic_instrument.h"
 #include "modulation/arpeggiator.h"
 #include "processing/sound/sound.h"
+#include "model/global_effectable/global_effectable.h"
 
 class ParamManagerForTimeline;
 class ParamManagerForTimeline;
@@ -82,4 +83,5 @@ public:
 	ArpeggiatorBase* getArp();
 	char const* getXMLTag() { return "sound"; }
 	ArpeggiatorSettings defaultArpSettings;
+	GlobalEffectable fx;
 };

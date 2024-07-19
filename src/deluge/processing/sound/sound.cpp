@@ -2180,7 +2180,7 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 
 void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int32_t numSamples,
                    int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust,
-                   bool shouldLimitDelayFeedback, int32_t pitchAdjust) {
+                   bool shouldLimitDelayFeedback, int32_t pitchAdjust, GlobalEffectable* fx) {
 
 	if (skippingRendering) {
 		compressor.gainReduction = 0;
@@ -2415,6 +2415,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	processSRRAndBitcrushing((StereoSample*)soundBuffer, numSamples, &postFXVolume, paramManager);
 	processFX((StereoSample*)soundBuffer, numSamples, modFXType, modFXRate, modFXDepth, delayWorkingState,
 	          &postFXVolume, paramManager);
+	if (fx) {
+		fx->setupFilterSetConfig(&postFXVolume, paramManager);
+		fx->processFilters((StereoSample*)soundBuffer, numSamples);
+	}
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
 	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume, postReverbVolume,

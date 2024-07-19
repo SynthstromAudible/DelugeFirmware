@@ -24,7 +24,7 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::filter {
-class HPFMode final : public Selection {
+class HPFMode : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override {
