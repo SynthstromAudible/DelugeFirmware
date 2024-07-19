@@ -18,10 +18,13 @@
 #include "task_scheduler.h"
 
 #include "io/debug/log.h"
-#include "memory/general_memory_allocator.h"
 #include "util/container/static_vector.hpp"
 #include <algorithm>
 #include <iostream>
+
+#if !IN_UNIT_TESTS
+#include "memory/general_memory_allocator.h"
+#endif
 
 extern "C" {
 #include "RZA1/ostm/ostm.h"
@@ -342,8 +345,9 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 		startClock();
 	}
 	D_PRINTLN("yielding");
+#if !IN_UNIT_TESTS
 	GeneralMemoryAllocator::get().checkStack("ensure resizeable space");
-
+#endif
 	auto yieldingTask = &list[currentID];
 	auto yieldingID = currentID;
 	bool taskRemoved = false;

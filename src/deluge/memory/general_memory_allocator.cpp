@@ -94,7 +94,7 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 	void* address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
 	lock = false;
 	if (!address) {
-		FREEZE_WITH_ERROR("M998");
+		// FREEZE_WITH_ERROR("M998");
 		return nullptr;
 	}
 	return address;
