@@ -200,10 +200,9 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 			newValue = ((newValue % kNumPatchSources) + kNumPatchSources) % kNumPatchSources;
 		}
 
-		s = sourceMenuContents[newValue];
+	} while (!sourceIsAllowed(sourceMenuContents[newValue]));
 
-	} while (!sourceIsAllowed(s));
-
+	s = sourceMenuContents[newValue];
 	this->setValue(newValue);
 
 	if (display->haveOLED()) {
