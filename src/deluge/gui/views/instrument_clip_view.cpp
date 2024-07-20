@@ -665,9 +665,11 @@ doOther:
 			copyNotes();
 		}
 	}
-	else if (b == TEMPO_ENC && isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
+	else if (b == TEMPO_ENC && isUIModeActive(UI_MODE_AUDITIONING)
 	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize) == RuntimeFeatureStateToggle::On) {
-		// prevent Tempo pop-up , when note is pressed
+		// Prevent Tempo pop-up when auditioning: audition + tempo press is how quantize/humanize all starts.
+		// Intentionally not using PopupType::QUANITZE, so we display the info for the direction on first detent.
+		display->popupTextTemporary(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HUMANIZE_OR_QUANTIZE_ALL));
 	}
 	// Horizontal encoder button
 	else if (b == X_ENC) {
@@ -1613,13 +1615,20 @@ possiblyAuditionPad:
 				}
 			}
 
+			// We're quantizing: either adding a new note to the set being quantized, or removing.
+			// In the first case we simply defer to auditionPadAction.
+			else if (isUIModeActive(UI_MODE_QUANTIZE)) {
+				if (velocity) {
+					return auditionPadAction(velocity, y, true);
+				}
+				else {
+					return commandStopQuantize(y);
+				}
+			}
+
 			// Actual basic audition pad press:
 			else if (!velocity || isUIModeWithinRange(auditionPadActionUIModes)) {
-				exitUIMode(UI_MODE_DRAGGING_KIT_NOTEROW);
-				if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allowable sometimes if in card routine.
-				}
-				auditionPadAction(velocity, y, Buttons::isShiftButtonPressed());
+				return auditionPadAction(velocity, y, Buttons::isShiftButtonPressed());
 			}
 		}
 	}
@@ -3462,9 +3471,13 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 	}
 }
 
-void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
+ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
+	exitUIMode(UI_MODE_DRAGGING_KIT_NOTEROW);
+	if (sdRoutineLock && !allowSomeUserActionsEvenWhenInCardRoutine) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allowable sometimes if in card routine.
+	}
+
 	if (editedAnyPerNoteRowStuffSinceAuditioningBegan && !velocity) {
-		// in case we were editing quantize/humanize
 		actionLogger.closeAction(ActionType::NOTE_NUDGE);
 	}
 
@@ -3488,7 +3501,8 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 		drum = getAuditionedDrum(velocity, yDisplay, shiftButtonDown, instrument, modelStackWithTimelineCounter,
 		                         modelStackWithNoteRowOnCurrentClip);
 		if (drum == nullptr) {
-			return; // don't continue auditioning if drum is null
+			return ActionResult::DEALT_WITH;
+			; // don't continue auditioning if drum is null
 		}
 	}
 
@@ -3545,6 +3559,8 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 	if (!clipIsActiveOnInstrument && velocity) {
 		indicator_leds::indicateAlertOnLed(IndicatorLED::SESSION_VIEW);
 	}
+
+	return ActionResult::DEALT_WITH;
 }
 
 // sub-function of AuditionPadAction
@@ -4766,37 +4782,69 @@ void InstrumentClipView::rotateNoteRowHorizontally(int32_t offset) {
 }
 
 void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
-
-	if (isUIModeActive(UI_MODE_AUDITIONING)
-	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
-	           == RuntimeFeatureStateToggle::On) { // quantize
-		if (encoderButtonPressed) {
-			quantizeNotes(offset, NUDGEMODE_QUANTIZE_ALL);
-		}
-		else {
-			quantizeNotes(offset, NUDGEMODE_QUANTIZE);
-		}
+	auto quantizeType = encoderButtonPressed ? NudgeMode::QUANTIZE_ALL : NudgeMode::QUANTIZE;
+	if (isUIModeActive(UI_MODE_QUANTIZE)) {
+		commandQuantizeNotes(offset, quantizeType);
+	}
+	else if (isUIModeActive(UI_MODE_AUDITIONING)
+	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::Quantize)
+	                == RuntimeFeatureStateToggle::On) { // quantize
+		commandStartQuantize(offset, quantizeType);
 	}
 	else {
 		playbackHandler.tempoEncoderAction(offset, encoderButtonPressed, shiftButtonPressed);
 	}
 }
 
-void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
-
-	shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
-
-	// just popping up
-	if (!offset) {
-		quantizeAmount = 0;
-		if (nudgeMode == NUDGEMODE_QUANTIZE) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_QUANTIZE));
+void appendQuantizeMode(StringBuf& text, int8_t direction, NudgeMode mode) {
+	switch (mode) {
+	case NudgeMode::QUANTIZE:
+		if (direction >= 0) {
+			text.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_QUANTIZE));
 		}
-		else if (nudgeMode == NUDGEMODE_QUANTIZE_ALL) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_QUANTIZE_ALL_ROW));
+		else {
+			text.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HUMANIZE));
 		}
-		return;
+		break;
+	case NudgeMode::QUANTIZE_ALL:
+		if (direction >= 0) {
+			text.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_QUANTIZE_ALL));
+		}
+		else {
+			text.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HUMANIZE_ALL));
+		}
+		break;
 	}
+}
+
+void InstrumentClipView::commandStartQuantize(int8_t offset, NudgeMode mode) {
+	auditioningSilently = true;
+	reassessAllAuditionStatus();
+	enterUIMode(UI_MODE_QUANTIZE);
+	quantizeAmount = 0;
+	DEF_STACK_STRING_BUF(text, 30);
+	appendQuantizeMode(text, offset, mode);
+	display->popupText(text.c_str(), PopupType::QUANTIZE);
+}
+
+ActionResult InstrumentClipView::commandStopQuantize(int32_t y) {
+	auto res = auditionPadAction(0, y, true);
+	if (res != ActionResult::DEALT_WITH) {
+		return res;
+	}
+	if (!getNumNoteRowsAuditioning()) {
+		// No pads pressed, can actually stop quantizing
+		if (display->hasPopupOfType(PopupType::QUANTIZE)) {
+			display->cancelPopup();
+		}
+		exitUIMode(UI_MODE_QUANTIZE);
+	}
+	return ActionResult::DEALT_WITH;
+	;
+}
+
+void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode) {
+	shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
 
 	int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
 
@@ -4815,17 +4863,21 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 	}
 
 	if (display->haveOLED()) {
-		char buffer[24];
-		snprintf(buffer, sizeof(buffer), "%s %s%d%%",             //<
-		         (quantizeAmount >= 0) ? "Quantize" : "Humanize", //<
-		         (nudgeMode == NUDGEMODE_QUANTIZE) ? "" : "All ", //<
-		         abs(quantizeAmount * 10));
-		display->popupTextTemporary(buffer);
+		DEF_STACK_STRING_BUF(text, 24);
+		appendQuantizeMode(text, quantizeAmount, nudgeMode);
+		text.append(" ");
+		text.appendInt(abs(quantizeAmount * 10));
+		text.append("%");
+		display->popupText(text.c_str(), PopupType::QUANTIZE);
 	}
 	else {
-		char buffer[5];
-		snprintf(buffer, sizeof(buffer), "%d", quantizeAmount * 10); // Negative means humanize
-		display->displayPopup(buffer, 0, true);
+		DEF_STACK_STRING_BUF(text, 6);
+		// Put A in front for QUANTIZE ALL if there's space for it.
+		if (nudgeMode == NudgeMode::QUANTIZE_ALL && quantizeAmount > -10) {
+			text.append("A");
+		}
+		text.appendInt(quantizeAmount * 10); // Negative means humanize
+		display->popupText(text.c_str(), PopupType::QUANTIZE);
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -4851,11 +4903,11 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 	uint32_t nRows{0};
 
 	switch (nudgeMode) {
-	case NUDGEMODE_QUANTIZE:
+	case NudgeMode::QUANTIZE:
 		nRows = kDisplayHeight;
 		quantizeAll = false;
 		break;
-	case NUDGEMODE_QUANTIZE_ALL:
+	case NudgeMode::QUANTIZE_ALL:
 		nRows = currentClip->noteRows.getNumElements();
 		quantizeAll = true;
 		break;
@@ -4865,7 +4917,7 @@ void InstrumentClipView::quantizeNotes(int32_t offset, int32_t nudgeMode) {
 
 	uint32_t rowUpdateMask = 0;
 
-	for (auto i = 0; i < nRows; ++i) {
+	for (int32_t i = 0; i < nRows; ++i) {
 		ModelStackWithNoteRow* modelStackWithNoteRow;
 		NoteRow* thisNoteRow{nullptr};
 		if (quantizeAll) {
