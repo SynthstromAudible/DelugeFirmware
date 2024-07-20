@@ -22,6 +22,8 @@ enum class PopupType {
 	SWING,
 	/// Tempo
 	TEMPO,
+	/// Quantize and humanize
+	QUANTIZE,
 	// Note: Add here more popup types
 };
 

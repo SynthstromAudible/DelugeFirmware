@@ -61,8 +61,7 @@ struct EditPadPress {
 #define MPE_RECORD_LENGTH_FOR_NOTE_EDITING 3
 #define MPE_RECORD_INTERVAL_TIME (kSampleRate >> 2) // 250ms
 
-#define NUDGEMODE_QUANTIZE 1
-#define NUDGEMODE_QUANTIZE_ALL 2
+enum class NudgeMode { QUANTIZE, QUANTIZE_ALL };
 
 class InstrumentClipView final : public ClipView, public InstrumentClipMinder {
 public:
@@ -92,7 +91,7 @@ public:
 	void offsetNoteCodeAction(int32_t newOffset);
 	int32_t getYVisualFromYDisplay(int32_t yDisplay);
 	int32_t getYVisualWithinOctaveFromYDisplay(int32_t yDisplay);
-	void auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
+	ActionResult auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown);
 	void potentiallyRefreshNoteRowMenu();
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
@@ -247,7 +246,11 @@ private:
 	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay,
 	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
 
-	void quantizeNotes(int32_t offset, int32_t nudgeMode);
+	// TEMPO encoder commands
+	void commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode);
+	void commandStartQuantize(int8_t offset, NudgeMode nudgeMode);
+	ActionResult commandStopQuantize(int32_t y);
+	void silenceAllAuditions();
 
 	// auditionPadAction functions
 	Drum* getAuditionedDrum(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, Instrument* instrument,

@@ -80,6 +80,7 @@ extern bool pendingUIRenderingLock;
 
 // Non-exclusive UI modes, which can (if the code allows) occur at the same time as other ones, including the
 // "exclusive" ones above.
+#define UI_MODE_QUANTIZE (1 << 27)
 #define UI_MODE_STUTTERING (1 << 28)
 #define UI_MODE_HORIZONTAL_SCROLL (1 << 29)
 #define UI_MODE_AUDITIONING (1 << 30)
