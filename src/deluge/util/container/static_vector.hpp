@@ -858,9 +858,8 @@ public:
 	}
 
 	/// Copy assignment.
-	constexpr static_vector&
-	operator=(static_vector const& other) noexcept(noexcept(clear())
-	                                               && noexcept(insert(begin(), other.begin(), other.end())))
+	constexpr static_vector& operator=(static_vector const& other) noexcept(
+	    noexcept(clear()) && noexcept(insert(begin(), other.begin(), other.end())))
 	requires std::assignable_from<reference, const_reference>
 	{
 		// nothin to assert: size of other cannot exceed capacity
@@ -871,9 +870,8 @@ public:
 	}
 
 	/// Move assignment.
-	constexpr static_vector&
-	operator=(static_vector&& other) noexcept(noexcept(clear())
-	                                          and noexcept(move_insert(begin(), other.begin(), other.end())))
+	constexpr static_vector& operator=(static_vector&& other) noexcept(
+	    noexcept(clear()) and noexcept(move_insert(begin(), other.begin(), other.end())))
 	requires std::move_constructible<value_type>
 	{
 		// nothin to assert: size of other cannot exceed capacity
