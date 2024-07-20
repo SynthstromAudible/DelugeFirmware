@@ -7,6 +7,9 @@ if (WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Gcc")
     set(CPPUTEST_PLATFORM VisualCpp)
 endif()
 
+set(DELUGE_C_STANDARD 23)
+set(DELUGE_CXX_STANDARD 23)
+
 enable_testing()
 #needs to support -m32 since the memory tests assume a 32 bit architecture
 if (UNIX AND NOT APPLE)
