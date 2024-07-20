@@ -149,7 +149,7 @@ struct TaskManager {
 	double getLastRunTimeforCurrentTask();
 
 private:
-	TaskID currentID{std::numeric_limits<TaskID>::max()};
+	TaskID currentID{0};
 	// for time tracking with rollover
 	double lastTime{0};
 	double runningTime{0};
@@ -344,8 +344,8 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 	if (!running) {
 		startClock();
 	}
-	D_PRINTLN("yielding");
 #if !IN_UNIT_TESTS
+	D_PRINTLN("yielding");
 	GeneralMemoryAllocator::get().checkStack("ensure resizeable space");
 #endif
 	auto yieldingTask = &list[currentID];
@@ -382,7 +382,9 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 		auto finishTime = getSecondsFromStart();
 		yieldingTask->lastCallTime = finishTime; // hack so it won't get called again immediately
 	}
+#if !IN_UNIT_TESTS
 	D_PRINTLN("done yielding");
+#endif
 	return (getSecondsFromStart() < timeNow + timeout);
 }
 
