@@ -702,27 +702,28 @@ startAgain:
 
 		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or
 		// MIDI clock out ticks during it
+		if (!stemExport.processStarted) {
+			if (playbackHandler.triggerClockOutTickScheduled) {
+				int32_t timeTilTriggerClockOutTick = playbackHandler.timeNextTriggerClockOutTick - audioSampleTimer;
+				if (timeTilTriggerClockOutTick < numSamples) {
+					playbackHandler.doTriggerClockOutTick();
+					playbackHandler.scheduleTriggerClockOutTick(); // Schedules another one
 
-		if (playbackHandler.triggerClockOutTickScheduled) {
-			int32_t timeTilTriggerClockOutTick = playbackHandler.timeNextTriggerClockOutTick - audioSampleTimer;
-			if (timeTilTriggerClockOutTick < numSamples) {
-				playbackHandler.doTriggerClockOutTick();
-				playbackHandler.scheduleTriggerClockOutTick(); // Schedules another one
-
-				if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-					timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilTriggerClockOutTick;
+					if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
+						timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilTriggerClockOutTick;
+					}
 				}
 			}
-		}
 
-		if (playbackHandler.midiClockOutTickScheduled) {
-			int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
-			if (timeTilMIDIClockOutTick < numSamples) {
-				playbackHandler.doMIDIClockOutTick();
-				playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
+			if (playbackHandler.midiClockOutTickScheduled) {
+				int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
+				if (timeTilMIDIClockOutTick < numSamples) {
+					playbackHandler.doMIDIClockOutTick();
+					playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
 
-				if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-					timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
+					if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
+						timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
+					}
 				}
 			}
 		}
@@ -971,9 +972,10 @@ void routine() {
 			renderAudio(numSamples);
 			audioSampleTimer += numSamples;
 			doSomeOutputting();
+			if (!sdRoutineLock) {
+				doRecorderCardRoutines();
+			}
 		}
-		// we're rendering fast so call the flush to sd more often
-		slowRoutine();
 	}
 	audioRoutineLocked = false;
 }
