@@ -345,7 +345,6 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 		startClock();
 	}
 #if !IN_UNIT_TESTS
-	D_PRINTLN("yielding");
 	GeneralMemoryAllocator::get().checkStack("ensure resizeable space");
 #endif
 	auto yieldingTask = &list[currentID];
@@ -382,9 +381,6 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 		auto finishTime = getSecondsFromStart();
 		yieldingTask->lastCallTime = finishTime; // hack so it won't get called again immediately
 	}
-#if !IN_UNIT_TESTS
-	D_PRINTLN("done yielding");
-#endif
 	return (getSecondsFromStart() < timeNow + timeout);
 }
 
