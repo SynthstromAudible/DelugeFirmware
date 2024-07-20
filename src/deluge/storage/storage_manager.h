@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "extern.h"
 #include "fatfs/fatfs.hpp"
 #include "model/sync.h"
 #include "util/firmware_version.h"
@@ -247,5 +248,5 @@ extern FILINFO staticFNO;
 extern DIR staticDIR;
 
 inline bool isCardReady() {
-	return Error::NONE == storageManager.initSD();
+	return !sdRoutineLock && Error::NONE == storageManager.initSD();
 }

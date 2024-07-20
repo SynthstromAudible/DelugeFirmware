@@ -135,7 +135,8 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 		FREEZE_WITH_ERROR("E242");
 	}
 
-	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, kInternalButtonPressLatency);
+	recorder =
+	    AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, false, kInternalButtonPressLatency);
 	if (!recorder) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return false;

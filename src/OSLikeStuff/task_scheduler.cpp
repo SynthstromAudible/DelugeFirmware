@@ -336,7 +336,7 @@ void TaskManager::runTask(TaskID id) {
 /// current task can be called again if it's repeating - this is to match behaviour of busy waiting with routineForSD
 /// returns whether the condition was met
 bool TaskManager::yield(RunCondition until, double timeout) {
-	if (!running) {
+	if (!running) [[unlikely]] {
 		startClock();
 	}
 	auto yieldingTask = &list[currentID];
@@ -362,10 +362,20 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 	}
 	// continue the main loop. The yielding task is still on the stack but that should be fine
 	// run at least once so this can be used for yielding a single call as well
+	double newTime = getSecondsFromStart();
 	do {
 		TaskID task = chooseBestTask(mustEndBefore);
 		if (task >= 0) {
 			runTask(task);
+		}
+		else {
+			bool addedTask = checkConditionalTasks();
+			// if we sorted our list then we should get back to running things and not print stats
+			if (!addedTask && newTime > lastPrintedStats + 10) {
+				lastPrintedStats = newTime;
+				// couldn't find anything so here we go
+				printStats();
+			}
 		}
 	} while (!until() && (skipTimeout || getSecondsFromStart() < timeNow + timeout));
 	if (!taskRemoved) {

@@ -50,6 +50,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
@@ -186,6 +187,7 @@ LiveInputBuffer* liveInputBuffers[3];
 uint16_t lastRoutineTime;
 
 std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
+std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> reverbBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
 
 StereoSample* renderingBufferOutputPos = renderingBuffer.begin();
 StereoSample* renderingBufferOutputEnd = renderingBuffer.begin();
@@ -514,6 +516,15 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 	}
 }
 
+void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSamplesBeforeLappingPlayHead,
+                            int32_t timeWithinWindowAtWhichMIDIOrGateOccurs);
+void setMonitoringMode();
+void renderSongFX(size_t numSamples);
+void renderSamplePreview(size_t numSamples);
+void renderReverb(size_t numSamples);
+void tickSongFinalizeWindows(size_t& numSamples, int32_t& timeWithinWindowAtWhichMIDIOrGateOccurs);
+void flushMIDIGateBuffers();
+void renderAudio(size_t numSamples);
 /// inner loop of audio rendering, deliberately not in header
 [[gnu::hot]] void routine_() {
 #if JFTRACE
@@ -541,48 +552,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::possiblyDoSomething();
 #endif
-
-	// Flush everything out of the MIDI buffer now. At this stage, it would only really have live user-triggered
-	// output and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and
-	// also want to give them a head-start being sent and out of the way so the clock messages can be sent on-time
-	bool anythingInMidiOutputBufferNow = midiEngine.anythingInOutputBuffer();
-	bool anythingInGateOutputBufferNow =
-	    cvEngine.gateOutputPending || cvEngine.clockOutputPending; // Not asapGateOutputPending (RUN)
-	if (anythingInMidiOutputBufferNow || anythingInGateOutputBufferNow) {
-
-		// We're only allowed to do this if the timer ISR isn't pending (i.e. we haven't enabled to timer to trigger
-		// it)
-		// - otherwise this will all get called soon anyway. I thiiiink this is 100% immune to any synchronization
-		// problems?
-		if (!isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
-			if (anythingInGateOutputBufferNow) {
-				cvEngine.updateGateOutputs();
-			}
-			if (anythingInMidiOutputBufferNow) {
-				midiEngine.flushMIDI();
-			}
-		}
-	}
-
-#ifdef REPORT_CPU_USAGE
-#define MINSAMPLES NUM_SAMPLES_FOR_CPU_USAGE_REPORT
-	if (numSamples < (MINSAMPLES)) {
-		return;
-	}
-
-	numSamples = NUM_SAMPLES_FOR_CPU_USAGE_REPORT;
-	int32_t unadjustedNumSamplesBeforeLappingPlayHead = numSamples;
-#else
-
-	// this is sometimes good for debugging but super spammy
-	// audiolog doesn't work because the render that notices the failure
-	// is one after the render with the problem
-	//  if (numSamplesLastTime < numSamples) {
-	//  	D_PRINTLN("rendered ");
-	//  	D_PRINTLN(numSamplesLastTime);
-	//  	D_PRINTLN(" samples but output ");
-	//  	D_PRINTLN(numSamples);
-	//  }
+	flushMIDIGateBuffers();
 
 	setDireness(numSamples);
 
@@ -607,9 +577,80 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 		numSamples = (numSamples + 2) & ~3;
 	}
 
+	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
+	tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
+
+	numSamplesLastTime = numSamples;
+	renderAudio(numSamples);
+
+	scheduleMidiGateOutISR(saddrPosAtStart, unadjustedNumSamplesBeforeLappingPlayHead,
+	                       timeWithinWindowAtWhichMIDIOrGateOccurs);
+
+#if DO_AUDIO_LOG
+	dumpAudioLog();
 #endif
 
-	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
+	sideChainHitPending = 0;
+	audioSampleTimer += numSamples;
+
+	bypassCulling = false;
+}
+void renderAudio(size_t numSamples) {
+	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
+	memset(&reverbBuffer, 0, numSamples * sizeof(StereoSample));
+
+	if (sideChainHitPending) {
+		timeLastSideChainHit = audioSampleTimer;
+		sizeLastSideChainHit = sideChainHitPending;
+	}
+
+	numHopsEndedThisRoutineCall = 0;
+
+	// Render audio for song
+	if (currentSong) {
+
+		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
+	}
+
+	renderReverb(numSamples);
+
+	renderSamplePreview(numSamples);
+
+	renderSongFX(numSamples);
+
+	metronome.render(renderingBuffer.data(), numSamples);
+
+	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), numSamples);
+	setMonitoringMode();
+
+	renderingBufferOutputPos = renderingBuffer.begin();
+	renderingBufferOutputEnd = renderingBuffer.begin() + numSamples;
+}
+void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At this stage, it would only really have
+	                          // live user-triggered
+	// output and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and
+	// also want to give them a head-start being sent and out of the way so the clock messages can be sent on-time
+	bool anythingInMidiOutputBufferNow = midiEngine.anythingInOutputBuffer();
+	bool anythingInGateOutputBufferNow =
+	    cvEngine.gateOutputPending || cvEngine.clockOutputPending; // Not asapGateOutputPending (RUN)
+	if (anythingInMidiOutputBufferNow || anythingInGateOutputBufferNow) {
+
+		// We're only allowed to do this if the timer ISR isn't pending (i.e. we haven't enabled to timer to trigger
+		// it)
+		// - otherwise this will all get called soon anyway. I thiiiink this is 100% immune to any synchronization
+		// problems?
+		if (!isTimerEnabled(TIMER_MIDI_GATE_OUTPUT)) {
+			if (anythingInGateOutputBufferNow) {
+				cvEngine.updateGateOutputs();
+			}
+			if (anythingInMidiOutputBufferNow) {
+				midiEngine.flushMIDI();
+			}
+		}
+	}
+}
+void tickSongFinalizeWindows(size_t& numSamples, int32_t& timeWithinWindowAtWhichMIDIOrGateOccurs) {
+	timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
 
 	// If a timer-tick is due during or directly after this window of audio samples...
 	if (playbackHandler.isEitherClockActive()) {
@@ -661,76 +702,34 @@ startAgain:
 
 		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or
 		// MIDI clock out ticks during it
+		if (!stemExport.processStarted) {
+			if (playbackHandler.triggerClockOutTickScheduled) {
+				int32_t timeTilTriggerClockOutTick = playbackHandler.timeNextTriggerClockOutTick - audioSampleTimer;
+				if (timeTilTriggerClockOutTick < numSamples) {
+					playbackHandler.doTriggerClockOutTick();
+					playbackHandler.scheduleTriggerClockOutTick(); // Schedules another one
 
-		if (playbackHandler.triggerClockOutTickScheduled) {
-			int32_t timeTilTriggerClockOutTick = playbackHandler.timeNextTriggerClockOutTick - audioSampleTimer;
-			if (timeTilTriggerClockOutTick < numSamples) {
-				playbackHandler.doTriggerClockOutTick();
-				playbackHandler.scheduleTriggerClockOutTick(); // Schedules another one
+					if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
+						timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilTriggerClockOutTick;
+					}
+				}
+			}
 
-				if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-					timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilTriggerClockOutTick;
+			if (playbackHandler.midiClockOutTickScheduled) {
+				int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
+				if (timeTilMIDIClockOutTick < numSamples) {
+					playbackHandler.doMIDIClockOutTick();
+					playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
+
+					if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
+						timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
+					}
 				}
 			}
 		}
-
-		if (playbackHandler.midiClockOutTickScheduled) {
-			int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
-			if (timeTilMIDIClockOutTick < numSamples) {
-				playbackHandler.doMIDIClockOutTick();
-				playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
-
-				if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-					timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
-				}
-			}
-		}
 	}
-
-	numSamplesLastTime = numSamples;
-	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
-
-	static std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> reverbBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
-	reverbBuffer.fill(0);
-
-#ifdef REPORT_CPU_USAGE
-	uint16_t startTime = MTU2.TCNT_0;
-#endif
-
-	if (sideChainHitPending) {
-		timeLastSideChainHit = audioSampleTimer;
-		sizeLastSideChainHit = sideChainHitPending;
-	}
-
-	numHopsEndedThisRoutineCall = 0;
-
-	// Render audio for song
-	if (currentSong) {
-
-		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
-	}
-
-#ifdef REPORT_CPU_USAGE
-	uint16_t endTime = MTU2.TCNT_0;
-
-	if (getRandom255() < 3) {
-
-		int32_t value = fastTimerCountToUS((endTime - startTime) * 10);
-
-		int32_t total = value;
-
-		for (int32_t i = 0; i < REPORT_AVERAGE_NUM - 1; i++) {
-			usageTimes[i] = usageTimes[i + 1];
-			total += usageTimes[i];
-		}
-
-		usageTimes[REPORT_AVERAGE_NUM - 1] = value;
-		if (total >= 0) { // avoid garbage times.
-			D_PRINTLN("uS  %d", total / REPORT_AVERAGE_NUM);
-		}
-	}
-#endif
-
+}
+void renderReverb(size_t numSamples) {
 	if (currentSong && mustUpdateReverbParamsBeforeNextRender) {
 		updateReverbParams();
 		mustUpdateReverbParamsBeforeNextRender = false;
@@ -785,8 +784,8 @@ startAgain:
 		reverb.process(reverb_buffer_slice, render_buffer_slice);
 		logAction("Reverb complete");
 	}
-
-	// Previewing sample
+}
+void renderSamplePreview(size_t numSamples) { // Previewing sample
 	if (getCurrentUI() == &sampleBrowser || getCurrentUI() == &gui::context_menu::sample_browser::kit
 	    || getCurrentUI() == &gui::context_menu::sample_browser::synth || getCurrentUI() == &slicer) {
 
@@ -797,8 +796,9 @@ startAgain:
 		sampleForPreview->render(modelStack, renderingBuffer.data(), numSamples, reverbBuffer.data(),
 		                         sideChainHitPending);
 	}
-
-	// LPF and stutter for song (must happen after reverb mixed in, which is why it's happening all the way out here
+}
+void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen after reverb mixed in, which is why it's
+	                                   // happening all the way out here
 	masterVolumeAdjustmentL = 167763968; // getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	masterVolumeAdjustmentR = 167763968; // getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	// 167763968 is 134217728 made a bit bigger so that default filter resonance doesn't reduce volume overall
@@ -832,8 +832,8 @@ startAgain:
 
 		int32_t songVolume =
 		    getFinalParameterValueVolume(
-		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
-		                       deluge::modulation::params::UNPATCHED_VOLUME)))
+		        134217728, cableToLinearParamShortcut(
+		                       currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
 		    >> 1;
 		// there used to be a static subtraction of 2 nepers (natural log based dB), this is the multiplicative
 		// equivalent
@@ -844,12 +844,8 @@ startAgain:
 		masterVolumeAdjustmentR = ONE_Q31;
 		logAction("mastercomp end");
 	}
-
-	metronome.render(renderingBuffer.data(), numSamples);
-
-	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), numSamples);
-
-	// Monitoring setup
+}
+void setMonitoringMode() { // Monitoring setup
 	doMonitoring = false;
 	if (audioRecorder.recordingSource == AudioInputChannel::STEREO
 	    || audioRecorder.recordingSource == AudioInputChannel::LEFT) {
@@ -882,10 +878,9 @@ startAgain:
 			monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 		}
 	}
-
-	renderingBufferOutputPos = renderingBuffer.begin();
-	renderingBufferOutputEnd = renderingBuffer.begin() + numSamples;
-
+}
+void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSamplesBeforeLappingPlayHead,
+                            int32_t timeWithinWindowAtWhichMIDIOrGateOccurs) {
 	bool anyGateOutputPending =
 	    cvEngine.gateOutputPending || cvEngine.clockOutputPending || cvEngine.asapGateOutputPending;
 
@@ -936,15 +931,6 @@ startAgain:
 		*TGRA[TIMER_MIDI_GATE_OUTPUT] = ((uint32_t)samplesTilMIDIOrGate * 766245) >> 16;
 		enableTimer(TIMER_MIDI_GATE_OUTPUT);
 	}
-
-#if DO_AUDIO_LOG
-	dumpAudioLog();
-#endif
-
-	sideChainHitPending = 0;
-	audioSampleTimer += numSamples;
-
-	bypassCulling = false;
 }
 
 void routine() {
@@ -961,17 +947,35 @@ void routine() {
 	audioRoutineLocked = true;
 
 	numRoutines = 0;
-	while (doSomeOutputting() && numRoutines < 2) {
+	if (!stemExport.processStarted) {
+		while (doSomeOutputting() && numRoutines < 2) {
 
 #ifndef USE_TASK_MANAGER
-		if (numRoutines > 0) {
-			deluge::hid::encoders::readEncoders();
-			deluge::hid::encoders::interpretEncoders(true);
-		}
+			if (numRoutines > 0) {
+				deluge::hid::encoders::readEncoders();
+				deluge::hid::encoders::interpretEncoders(true);
+			}
 #endif
-		routine_();
-		routineBeenCalled = true;
-		numRoutines += 1;
+			routine_();
+			routineBeenCalled = true;
+			numRoutines += 1;
+		}
+	}
+	else {
+		auto timeNow = getSystemTime();
+		while (getSystemTime() < timeNow + 32 / 44100.) {
+			size_t numSamples = 32;
+			int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
+			tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
+
+			numSamplesLastTime = numSamples;
+			renderAudio(numSamples);
+			audioSampleTimer += numSamples;
+			doSomeOutputting();
+			if (!sdRoutineLock) {
+				doRecorderCardRoutines();
+			}
+		}
 	}
 	audioRoutineLocked = false;
 }
@@ -1063,11 +1067,17 @@ bool doSomeOutputting() {
 		}
 
 #else
-		i2sTXBufferPosNow[0] = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
-		i2sTXBufferPosNow[1] = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
-
-		outputBufferForResampling[numSamplesOutputted].l = i2sTXBufferPosNow[0];
-		outputBufferForResampling[numSamplesOutputted].r = i2sTXBufferPosNow[1];
+		outputBufferForResampling[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
+		outputBufferForResampling[numSamplesOutputted].r = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
+		if (!stemExport.processStarted) {
+			i2sTXBufferPosNow[0] = outputBufferForResampling[numSamplesOutputted].l;
+			i2sTXBufferPosNow[1] = outputBufferForResampling[numSamplesOutputted].r;
+		}
+		// otherwise output 0 or 1 for silence, the DAC doesn't like all zeroes
+		else {
+			i2sTXBufferPosNow[0] = numSamplesOutputted % 2;
+			i2sTXBufferPosNow[1] = numSamplesOutputted % 2;
+		}
 #endif
 
 #if ALLOW_SPAM_MODE
