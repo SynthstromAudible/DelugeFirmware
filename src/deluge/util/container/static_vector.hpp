@@ -53,6 +53,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
+#include <algorithm>
 #include <array>
 #include <cstddef>     // for size_t
 #include <cstdint>     // for fixed-width integer types
