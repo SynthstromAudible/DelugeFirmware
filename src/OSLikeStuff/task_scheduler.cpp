@@ -328,7 +328,6 @@ void TaskManager::runTask(TaskID id) {
 			currentTask->latency.update(startTime - currentTask->lastCallTime);
 #endif
 			currentTask->lastCallTime = startTime;
-			currentTask->lastFinishTime = timeNow;
 
 			currentTask->durationStats.update(runtime);
 			currentTask->totalTime += runtime;
@@ -336,6 +335,8 @@ void TaskManager::runTask(TaskID id) {
 			currentTask->timesCalled += 1;
 		}
 	}
+	currentTask->lastFinishTime = timeNow;
+	
 	lastFinishTime = timeNow;
 }
 
