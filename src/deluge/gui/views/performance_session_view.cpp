@@ -40,6 +40,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "playback/mode/arrangement.h"
+#include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
@@ -308,13 +309,20 @@ void PerformanceSessionView::graphicsRoutine() {
 		}
 	}
 
-	uint8_t tickSquares[kDisplayHeight];
-	uint8_t colours[kDisplayHeight];
+	bool reallyNoTickSquare =
+	    (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
+	     || currentUIMode == UI_MODE_IMPLODE_ANIMATION || currentSong->lastClipInstanceEnteredStartPos != -1
+	     || !session.launchEventAtSwungTickCount);
 
-	// Nothing to do here but clear since we don't render playhead
-	memset(&tickSquares, 255, sizeof(tickSquares));
-	memset(&colours, 255, sizeof(colours));
-	PadLEDs::setTickSquares(tickSquares, colours);
+	int32_t sixteenthNotesRemaining = 0;
+
+	if (!reallyNoTickSquare) {
+		sixteenthNotesRemaining = sessionView.displayLoopsRemainingPopup();
+	}
+
+	// potentially render a playhead that displays
+	// when the next clip launch event is expected occur (e.g. when clips will start or end)
+	sessionView.potentiallyRenderClipLaunchPlayhead(reallyNoTickSquare, sixteenthNotesRemaining);
 }
 
 ActionResult PerformanceSessionView::timerCallback() {

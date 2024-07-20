@@ -33,6 +33,8 @@ public:
 	void armNextSection(int32_t oldSection, int32_t numRepetitions = -1);
 	void doLaunch(bool isFillLaunch);
 	void scheduleLaunchTiming(int64_t atTickCount, int32_t numRepeatsUntil, int32_t armedLaunchLengthForOneRepeat);
+	int32_t getNumSixteenthNotesRemainingTilLaunch();
+	int32_t getNumBarsRemainingTilLaunch();
 	void scheduleFillEvent(Clip* clip, int64_t atTickCount);
 	void cancelAllLaunchScheduling();
 	void launchSchedulingMightNeedCancelling();

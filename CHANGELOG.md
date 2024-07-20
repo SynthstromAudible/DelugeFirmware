@@ -22,6 +22,9 @@
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 - Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
 - Fixed a bug where instruments and kits wouldn't respect record arming state. They no longer record when not armed
+- A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
+  - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
+- The display now shows the number of Bars (or Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
