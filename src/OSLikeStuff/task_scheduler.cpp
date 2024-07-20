@@ -22,6 +22,10 @@
 #include <algorithm>
 #include <iostream>
 
+#if !IN_UNIT_TESTS
+#include "memory/general_memory_allocator.h"
+#endif
+
 extern "C" {
 #include "RZA1/ostm/ostm.h"
 }
@@ -145,12 +149,13 @@ struct TaskManager {
 	double getLastRunTimeforCurrentTask();
 
 private:
-	TaskID currentID;
+	TaskID currentID{0};
 	// for time tracking with rollover
 	double lastTime{0};
 	double runningTime{0};
 	void resetStats();
-	bool countThisTask{true};
+	// needs to be volatile, GCC misses that the handle call can call ignoreForStats and optimizes the check away
+	volatile bool countThisTask{true};
 	void startClock();
 };
 
@@ -339,6 +344,9 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 	if (!running) [[unlikely]] {
 		startClock();
 	}
+#if !IN_UNIT_TESTS
+	GeneralMemoryAllocator::get().checkStack("ensure resizeable space");
+#endif
 	auto yieldingTask = &list[currentID];
 	auto yieldingID = currentID;
 	bool taskRemoved = false;
@@ -380,10 +388,9 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 	} while (!until() && (skipTimeout || getSecondsFromStart() < timeNow + timeout));
 	if (!taskRemoved) {
 
-		auto timeNow = getSecondsFromStart();
-		yieldingTask->lastCallTime = timeNow; // hack so the time spent yielding doesn't get counted
+		auto finishTime = getSecondsFromStart();
+		yieldingTask->lastCallTime = finishTime; // hack so it won't get called again immediately
 	}
-
 	return (getSecondsFromStart() < timeNow + timeout);
 }
 
