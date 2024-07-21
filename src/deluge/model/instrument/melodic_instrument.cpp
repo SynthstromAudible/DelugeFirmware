@@ -139,7 +139,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 				if (instrumentClip) {
 
 					// If we wanna record...
-					if (shouldRecordNotes) {
+					if (shouldRecordNotes && instrumentClip->armedForRecording) {
 
 						bool forcePos0 = false;
 
