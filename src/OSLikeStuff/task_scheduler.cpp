@@ -336,7 +336,7 @@ void TaskManager::runTask(TaskID id) {
 		}
 	}
 	currentTask->lastFinishTime = timeNow;
-	
+
 	lastFinishTime = timeNow;
 }
 
