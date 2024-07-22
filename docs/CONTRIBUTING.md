@@ -219,6 +219,10 @@ The only build able to send debug messages via sysex is the "debug" build, so yo
 To make debug log prints in your code, which will be sent to the console, here is a code example:
 `D_PRINTLN("my log message which prints an integer value %d", theIntegerValue);`
 
+Similar functionality is available for popup windows
+
+`D_POPUP("%d bottles of beer on the wall.", 100/2);`
+
 ### Useful extra debug options
 
 Using the previously mentionned sysex debugging, the following option can be toggled to enable pad logging for the pad matrix driver:
@@ -236,6 +240,43 @@ This is a sample of the output:
 @matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=2,VEL=255
 @matrix_driver.cpp:71: UI=instrument_clip_view,PAD_X=17,PAD_Y=2,VEL=0
 ```
+
+### Automatically logging all function calls. 
+
+A task exists that will traverse through the source files in a path and annotate each function with a `D_PRINT` statement, revealing the line and the calling function call on each instance. 
+
+`dbt annotate add -p src/deluge/gui/views`
+
+This will add a logging line to every function invocation unless the function is in the blacklist in `scripts/tasks/task-annotate.py`
+
+```
+ArrangerView::ArrangerView() {
+	D_PRINTLN("ArrangerView"); // ArrangerView DBT:ANNOTATE
+	doingAutoScrollNow = false;
+
+	lastInteractedOutputIndex = 0;
+	lastInteractedPos = -1;
+	lastInteractedSection = 0;
+	lastInteractedClipInstance = nullptr;
+}
+
+void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	D_PRINTLN("renderOLED"); // renderOLED DBT:ANNOTATE
+	sessionView.renderOLED(canvas);
+}
+
+void ArrangerView::moveClipToSession() {
+	D_PRINTLN("moveClipToSession"); // moveClipToSession DBT:ANNOTATE
+	Output* output = outputsOnScreen[yPressedEffective];
+```
+
+To remove the potentially hundreds of added log invocations. simply call
+
+`dbt annotate rm -p src/deluge/ui/views`
+
+each logging call added during `dbt annotate add` has a string marker used to later remove the annotations
+
+
 
 ### Deluge Crash Reader Discord Bot
 
