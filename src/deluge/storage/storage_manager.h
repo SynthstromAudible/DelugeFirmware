@@ -225,8 +225,37 @@ private:
 	Error readAttributeValueString(String* string);
 };
 
+class JSONSerializer : public Serializer, public FileWriter {
+public:
+	JSONSerializer();
+	~JSONSerializer() = default;
+
+	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
+	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
+	void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true) override;
+	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
+
+	void writeTag(char const* tag, int32_t number) override;
+	void writeTag(char const* tag, char const* contents) override;
+	void writeOpeningTag(char const* tag, bool startNewLineAfter = true) override;
+	void writeOpeningTagBeginning(char const* tag) override;
+	void writeOpeningTagEnd(bool startNewLineAfter = true) override;
+	void closeTag() override;
+	void writeClosingTag(char const* tag, bool shouldPrintIndents = true) override;
+	void printIndents() override;
+	void write(char const* output) override;
+	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
+	                            char const* endString = nullptr) override;
+	void reset() override;
+
+private:
+	uint8_t indentAmount;
+};
+
 extern XMLSerializer smSerializer;
 extern XMLDeserializer smDeserializer;
+extern JSONSerializer smJSONSerializer;
+
 extern Serializer& GetSerializer();
 
 class StorageManager {
@@ -237,6 +266,8 @@ public:
 	std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
 	Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false,
 	                    bool displayErrors = true);
+	Error createJSONFile(char const* pathName, JSONSerializer& writer, bool mayOverwrite = false,
+	                     bool displayErrors = true);
 	Error openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const* firstTagName,
 	                  char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 
@@ -265,37 +296,10 @@ private:
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 };
 
-class JSONSerializer : public Serializer, public FileWriter {
-public:
-	JSONSerializer();
-	~JSONSerializer() = default;
-
-	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
-	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
-	void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true) override;
-	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
-
-	void writeTag(char const* tag, int32_t number) override;
-	void writeTag(char const* tag, char const* contents) override;
-	void writeOpeningTag(char const* tag, bool startNewLineAfter = true) override;
-	void writeOpeningTagBeginning(char const* tag) override;
-	void writeOpeningTagEnd(bool startNewLineAfter = true) override;
-	void closeTag() override;
-	void writeClosingTag(char const* tag, bool shouldPrintIndents = true) override;
-	void printIndents() override;
-	void write(char const* output) override;
-	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
-	                            char const* endString = nullptr) override;
-	void reset() override;
-
-private:
-	uint8_t indentAmount;
-};
-
 extern StorageManager storageManager;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
-
+extern bool writeJSONFlag;
 inline bool isCardReady() {
 	return !sdRoutineLock && Error::NONE == storageManager.initSD();
 }

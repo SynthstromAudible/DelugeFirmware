@@ -189,6 +189,22 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	return Error::NONE;
 }
 
+Error StorageManager::createJSONFile(char const* filePath, JSONSerializer& writer, bool mayOverwrite,
+                                     bool displayErrors) {
+	auto created = createFile(filePath, mayOverwrite);
+	writer.reset();
+	if (!created) {
+		if (displayErrors) {
+			display->removeWorkingAnimation();
+			display->displayError(created.error());
+		}
+		return created.error();
+	}
+	writer.writeFIL = created.value().inner();
+	writer.reset();
+	return Error::NONE;
+}
+
 bool StorageManager::fileExists(char const* pathName) {
 	Error error = initSD();
 	if (error != Error::NONE) {
@@ -682,12 +698,6 @@ void FileWriter::resetWriter() {
 	fileAccessFailedDuringWrite = false;
 }
 
-char lineBuff[200];
-char* firstLine = &lineBuff[0];
-int lineX = 0;
-int64_t sum = 0;
-double nextWriteTime = 0;
-
 void FileWriter::writeChars(char const* output) {
 	while (*output) {
 		if (fileWriteBufferCurrentPos == audioFileManager.clusterSize) {
@@ -737,7 +747,6 @@ Error FileWriter::writeBufferToFile() {
 
 // Returns false if some error, including error while writing
 Error FileWriter::closeAfterWriting(char const* path, char const* beginningString, char const* endString) {
-	lineX = 0;
 	if (fileAccessFailedDuringWrite) {
 		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
 		                          // don't want it to flush any data to the card or anything

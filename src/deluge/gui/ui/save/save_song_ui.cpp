@@ -67,7 +67,12 @@ doReturnFalse:
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
 	if (!searchFilename.isEmpty()) {
-		error = searchFilename.concatenate(".XML");
+		if (writeJSONFlag) {
+			error = searchFilename.concatenate(".JSON");
+		}
+		else {
+			error = searchFilename.concatenate(".XML");
+		}
 		if (error != Error::NONE) {
 gotError:
 			display->displayError(error);
@@ -237,7 +242,14 @@ gotError:
 				// converted
 
 				// Open file to read
-				FRESULT result = f_open(&smSerializer.writeFIL, sourceFilePath, FA_READ);
+				FRESULT result = FRESULT::FR_OK;
+				if (writeJSONFlag) {
+					result = f_open(&smJSONSerializer.writeFIL, sourceFilePath, FA_READ);
+				}
+				else {
+					result = f_open(&smSerializer.writeFIL, sourceFilePath, FA_READ);
+				}
+
 				if (result != FR_OK) {
 					D_PRINTLN("open fail %s", sourceFilePath);
 					error = Error::UNSPECIFIED;
@@ -404,7 +416,12 @@ fail3:
 			if (error != Error::NONE) {
 				goto gotError;
 			}
-			error = filePathDuringWrite.concatenate(".XML");
+			if (writeJSONFlag) {
+				error = filePathDuringWrite.concatenate(".JSON");
+			}
+			else {
+				error = filePathDuringWrite.concatenate(".XML");
+			}
 			if (error != Error::NONE) {
 				goto gotError;
 			}
@@ -422,10 +439,18 @@ fail3:
 
 	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
 
-	// Write the actual song file
-	error = bdsm.createXMLFile(filePathDuringWrite.get(), smSerializer, false, false);
-	if (error != Error::NONE) {
-		goto gotError;
+	if (writeJSONFlag) {
+		// Write the actual song file
+		error = bdsm.createJSONFile(filePathDuringWrite.get(), smJSONSerializer, false, false);
+		if (error != Error::NONE) {
+			goto gotError;
+		}
+	}
+	else {
+		error = bdsm.createXMLFile(filePathDuringWrite.get(), smSerializer, false, false);
+		if (error != Error::NONE) {
+			goto gotError;
+		}
 	}
 
 	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be
@@ -433,8 +458,9 @@ fail3:
 
 	currentSong->writeToFile(bdsm);
 
-	error = GetSerializer().closeFileAfterWriting(filePathDuringWrite.get(),
-	                                              "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
+	error = GetSerializer().closeFileAfterWriting(
+	    filePathDuringWrite.get(), writeJSONFlag ? "<song\n" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
+	    "\n</song>\n");
 	if (error != Error::NONE) {
 		goto gotError;
 	}
