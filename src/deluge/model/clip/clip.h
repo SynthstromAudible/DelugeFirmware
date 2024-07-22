@@ -37,6 +37,8 @@ class StorageManager;
 class Serializer;
 class Deserializer;
 
+enum class ClipGroupType { NONE, EXCLUSIVE, SHARED };
+
 class Clip : public TimelineCounter {
 public:
 	Clip(ClipType newType);
@@ -205,6 +207,8 @@ public:
 
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
+	Clip* getNextClipOrNull() { return next; }
+	Clip* getHeadOfGroup() { return first; }
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
@@ -214,4 +218,37 @@ protected:
 	Error solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
 	                          Clip* favourClipForCloningParamManager = NULL);
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
+
+	ClipGroupType groupType;
+
+private:
+	void removeFromGroup() {
+		// set first to the new first node for all nodes in list
+		if (first == this) {
+			Clip* newFirst = next;
+			Clip* current = newFirst;
+			while (current) {
+				current->first = newFirst;
+				current = current->next;
+			}
+		}
+		prev->next = next;
+		next->prev = prev;
+		next = nullptr;
+		prev = nullptr;
+		first = nullptr;
+	};
+
+	void insertAfter(Clip* newNextNode) {
+		if (first == nullptr) {
+			first = this;
+		}
+		newNextNode->next = next;
+		next = newNextNode;
+	}
+	// for overdubs and clip groups
+	// modified via cloneAsNewOverdub and associated functions
+	Clip* next{nullptr};
+	Clip* prev{nullptr};
+	Clip* first{nullptr};
 };
