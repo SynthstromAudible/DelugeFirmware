@@ -139,6 +139,7 @@
 #include "gui/menu_item/sidechain/sync.h"
 #include "gui/menu_item/sidechain/volume.h"
 #include "gui/menu_item/source/patched_param/fm.h"
+#include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
@@ -1175,6 +1176,17 @@ bool* getSongMidiLoopback() {
 
 ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};
 
+// Sub menu for Stem Export
+
+menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT_STEMS};
+
+menu_item::Submenu stemExportMenu{
+    STRING_FOR_EXPORT_STEMS,
+    {
+        &startStemExportMenu,
+    },
+};
+
 // Root menu for Song View
 menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
@@ -1184,6 +1196,7 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalFXMenu,
         &swingIntervalMenu,
         &midiLoopbackMenu,
+        &stemExportMenu,
     },
 };
 

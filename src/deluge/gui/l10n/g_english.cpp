@@ -763,6 +763,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CANT_ENTER_SCALE, "Can't enter scale mode, MIDI transpose is chromatic"},
         {STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR, "High CPU Indicator"},
         {STRING_FOR_HOLD_TIME, "Hold Press Time"},
+        {STRING_FOR_EXPORT_STEMS, "Export Stems"},
+        {STRING_FOR_START_EXPORT_STEMS, "Start Export"},
         {STRING_FOR_CANT_EXPORT_STEMS, "Turn off playback and/or recording"},
         {STRING_FOR_STOP_EXPORT_STEMS_QMARK, "Cancel Export?"},
         {STRING_FOR_STOP_EXPORT_STEMS, "Export Cancelled"},
