@@ -59,6 +59,9 @@ StemExport::StemExport() {
 
 	numStemsExported = 0;
 	totalNumStemsToExport = 0;
+
+	loopLengthToStopStemExport = 0;
+	loopEndPointInSamplesForAudioFile = 0;
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
@@ -121,7 +124,7 @@ void StemExport::stopStemExportProcess() {
 void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 	playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	if (playbackHandler.isEitherClockActive()) {
-		audioRecorder.beginOutputRecording();
+		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, AudioInputChannel::MIX, writeLoopEndPos());
 		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
 			stopOutputRecordingAtSilence = true;
 		}
@@ -140,22 +143,24 @@ void StemExport::stopOutputRecordingAndPlayback() {
 /// we want to export up to length of the longest sequence in the clip (clip or note row loop length)
 /// when we reach longest loop length, we stop playback and allow recording to continue until silence
 bool StemExport::checkForLoopEnd() {
-	int32_t currentPos =
-	    playbackHandler.lastSwungTickActioned + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
+	if (processStarted && currentStemExportType != StemExportType::TRACK) {
+		int32_t currentPos =
+		    playbackHandler.lastSwungTickActioned + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick();
 
-	/* For debugging in case this stops working
-	    DEF_STACK_STRING_BUF(popupMsg, 40);
-	    popupMsg.append("Current Pos: ");
-	    popupMsg.appendInt(currentPos);
-	    popupMsg.append("/n");
-	    popupMsg.append("Length: ");
-	    popupMsg.appendInt(loopLength);
-	    display->displayPopup(popupMsg.c_str());
-	*/
+		/* For debugging in case this stops working
+		    DEF_STACK_STRING_BUF(popupMsg, 40);
+		    popupMsg.append("Current Pos: ");
+		    popupMsg.appendInt(currentPos);
+		    popupMsg.append("/n");
+		    popupMsg.append("Length: ");
+		    popupMsg.appendInt(loopLength);
+		    display->displayPopup(popupMsg.c_str());
+		*/
 
-	if (currentPos == loopLengthToStopStemExport) {
-		playbackHandler.endPlayback();
-		return true;
+		if (currentPos == loopLengthToStopStemExport) {
+			playbackHandler.endPlayback();
+			return true;
+		}
 	}
 	return false;
 }
@@ -344,6 +349,20 @@ void StemExport::getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip) {
 	}
 }
 
+/// converts clip loop length into samples so that clip end position can be written to clip stem
+void StemExport::getLoopEndPointInSamplesForAudioFile(int32_t loopLength) {
+	loopEndPointInSamplesForAudioFile = loopLength * playbackHandler.getTimePerInternalTick();
+}
+
+/// determines whether or not you should write loop end position in samples to the stem file
+/// we're only writing loop end marker to clip stems
+bool StemExport::writeLoopEndPos() {
+	if (processStarted && currentStemExportType == StemExportType::CLIP) {
+		return true;
+	}
+	return false;
+}
+
 /// iterates through all clips, arming one clip at a time for recording
 /// simulates the button combo action of pressing record + play twice to enable resample
 /// and stop recording at the end of the clip's loop length
@@ -357,6 +376,7 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
 			if (clip) {
 				getLoopLengthOfLongestNotEmptyNoteRow(clip);
+				getLoopEndPointInSamplesForAudioFile(clip->loopLength);
 
 				bool started = startCurrentStemExport(stemExportType, clip->output, clip->activeIfNoSolo, idxClip,
 				                                      clip->exportStem);

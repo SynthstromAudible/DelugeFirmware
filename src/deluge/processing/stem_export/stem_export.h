@@ -49,7 +49,10 @@ public:
 	int32_t exportClipStems(StemExportType stemExportType);
 	void restoreAllClipMutes(int32_t totalNumClips);
 	void getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip);
+	void getLoopEndPointInSamplesForAudioFile(int32_t loopLength);
+	bool writeLoopEndPos();
 	int32_t loopLengthToStopStemExport;
+	int32_t loopEndPointInSamplesForAudioFile;
 
 	// start exporting
 	bool startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState, int32_t fileNumber,

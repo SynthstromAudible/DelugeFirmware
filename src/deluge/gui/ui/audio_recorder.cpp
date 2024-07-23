@@ -129,14 +129,14 @@ void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas
 }
 
 bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
-                                         AudioRecordingFolder folderID) {
+                                         AudioRecordingFolder folderID, bool writeLoopPoints) {
 
 	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
 		FREEZE_WITH_ERROR("E242");
 	}
 
-	recorder =
-	    AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, false, kInternalButtonPressLatency);
+	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, writeLoopPoints,
+	                                       kInternalButtonPressLatency);
 	if (!recorder) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return false;
@@ -149,14 +149,8 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 	return true;
 }
 
-bool AudioRecorder::beginOutputRecording() {
-	AudioRecordingFolder folder = AudioRecordingFolder::RESAMPLE;
-	AudioInputChannel channel = AudioInputChannel::OUTPUT;
-	if (stemExport.processStarted) {
-		folder = AudioRecordingFolder::STEMS;
-		channel = AudioInputChannel::MIX;
-	}
-	bool success = setupRecordingToFile(channel, 2, folder);
+bool AudioRecorder::beginOutputRecording(AudioRecordingFolder folder, AudioInputChannel channel, bool writeLoopPoints) {
+	bool success = setupRecordingToFile(channel, 2, folder, writeLoopPoints);
 
 	if (success) {
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
