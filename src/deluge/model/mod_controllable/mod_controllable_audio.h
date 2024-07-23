@@ -21,25 +21,13 @@
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
 #include "hid/button.h"
+#include "model/fx/stutterer.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/sidechain/sidechain.h"
-
-#define STUTTERER_STATUS_OFF 0
-#define STUTTERER_STATUS_RECORDING 1
-#define STUTTERER_STATUS_PLAYING 2
-
-struct Stutterer {
-	DelayBuffer buffer;
-	uint8_t status;
-	uint8_t sync;
-	int32_t sizeLeftUntilRecordFinished;
-	int32_t valueBeforeStuttering;
-	int32_t lastQuantizedKnobDiff;
-};
 
 struct Grain {
 	int32_t length;     // in samples 0=OFF
@@ -155,8 +143,6 @@ public:
 	bool grainLastTickCountIsZero;
 	bool grainInitialized;
 
-	Stutterer stutterer;
-
 	uint32_t lowSampleRatePos;
 	uint32_t highSampleRatePos;
 	StereoSample lastSample;
@@ -171,7 +157,6 @@ public:
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
 	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager);
-	int32_t getStutterRate(ParamManager* paramManager);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
 	void switchDelaySyncType();

@@ -71,9 +71,7 @@ ModControllableAudio::ModControllableAudio() {
 	withoutTrebleR = 0;
 	bassOnlyR = 0;
 
-	// Stutter
-	stutterer.sync = 7;
-	stutterer.status = STUTTERER_STATUS_OFF;
+	// Filters
 	lpfMode = FilterMode::TRANSISTOR_24DB;
 	hpfMode = FilterMode::HPLADDER;
 	filterRoute = FilterRoute::HIGH_TO_LOW;
@@ -132,7 +130,7 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_BASS_FREQ].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ].setCurrentValueBasicForSetup(0);
 
-	unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+	Stutterer::initParams(paramManager);
 
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(0);
 
@@ -710,135 +708,6 @@ void ModControllableAudio::processSRRAndBitcrushing(StereoSample* buffer, int32_
 	else {
 		sampleRateReductionOnLastTime = false;
 	}
-}
-
-void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager) {
-	if (stutterer.status == STUTTERER_STATUS_OFF) {
-		return;
-	}
-
-	StereoSample* bufferEnd = buffer + numSamples;
-
-	StereoSample* thisSample = buffer;
-
-	int32_t rate = getStutterRate(paramManager);
-
-	stutterer.buffer.setupForRender(rate);
-
-	if (stutterer.status == STUTTERER_STATUS_RECORDING) {
-
-		do {
-
-			int32_t strength1;
-			int32_t strength2;
-
-			// First, tick it along, as if we were reading from it
-
-			// Non-resampling tick-along
-			if (stutterer.buffer.isNative()) {
-				stutterer.buffer.clearAndMoveOn();
-				stutterer.sizeLeftUntilRecordFinished--;
-
-				// stutterer.buffer.writeNative(thisSample->l, thisSample->r);
-			}
-
-			// Or, resampling tick-along
-			else {
-				// Move forward, and clear buffer as we go
-				strength2 = stutterer.buffer.advance([&] {
-					stutterer.buffer.clearAndMoveOn(); //<
-					stutterer.sizeLeftUntilRecordFinished--;
-				});
-				strength1 = 65536 - strength2;
-
-				// stutterer.buffer.writeResampled(thisSample->l, thisSample->r, strength1, strength2,
-				// &delayBufferSetup);
-			}
-
-			stutterer.buffer.write(*thisSample, strength1, strength2);
-
-		} while (++thisSample != bufferEnd);
-
-		// If we've finished recording, remember to play next time instead
-		if (stutterer.sizeLeftUntilRecordFinished < 0) {
-			stutterer.status = STUTTERER_STATUS_PLAYING;
-		}
-	}
-
-	else { // PLAYING
-
-		do {
-			int32_t strength1;
-			int32_t strength2;
-
-			// Non-resampling read
-			if (stutterer.buffer.isNative()) {
-				stutterer.buffer.moveOn();
-				thisSample->l = stutterer.buffer.current().l;
-				thisSample->r = stutterer.buffer.current().r;
-			}
-
-			// Or, resampling read
-			else {
-				// Move forward
-				strength2 = stutterer.buffer.advance([&] {
-					stutterer.buffer.moveOn(); //<
-				});
-				strength1 = 65536 - strength2;
-
-				StereoSample* nextPos = &stutterer.buffer.current() + 1;
-				if (nextPos == stutterer.buffer.end()) {
-					nextPos = stutterer.buffer.begin();
-				}
-				StereoSample& fromDelay1 = stutterer.buffer.current();
-				StereoSample& fromDelay2 = *nextPos;
-
-				thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
-				                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
-				                << 2;
-				thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-				                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
-				                << 2;
-			}
-		} while (++thisSample != bufferEnd);
-	}
-}
-
-int32_t ModControllableAudio::getStutterRate(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
-
-	// Quantized Stutter diff
-	// Convert to knobPos (range -64 to 64) for easy operation
-	int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
-	// Add diff "lastQuantizedKnobDiff" (this value will be set if Quantized Stutter is On, zero if not so this will be
-	// a no-op)
-	knobPos = knobPos + stutterer.lastQuantizedKnobDiff;
-	// Avoid the param to go beyond limits
-	if (knobPos < -64) {
-		knobPos = -64;
-	}
-	else if (knobPos > 64) {
-		knobPos = 64;
-	}
-	// Convert back to value range
-	paramValue = unpatchedParams->knobPosToParamValue(knobPos, nullptr);
-
-	int32_t rate =
-	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(paramValue));
-
-	if (stutterer.sync != 0) {
-		rate = multiply_32x32_rshift32(rate, playbackHandler.getTimePerInternalTickInverse());
-
-		// Limit to the biggest number we can store...
-		int32_t lShiftAmount =
-		    stutterer.sync + 6
-		    - (currentSong->insideWorldTickMagnitude + currentSong->insideWorldTickMagnitudeOffsetFromBPM);
-		int32_t limit = 2147483647 >> lShiftAmount;
-		rate = std::min(rate, limit);
-		rate <<= lShiftAmount;
-	}
-	return rate;
 }
 
 inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount,
@@ -1551,77 +1420,31 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	    && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 		return;
 	}
-
-	// Quantized Stutter FX
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) == RuntimeFeatureStateToggle::On) {
-		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-		int32_t paramValue = unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE);
-		int32_t knobPos = unpatchedParams->paramValueToKnobPos(paramValue, nullptr);
-		if (knobPos < -39) {
-			knobPos = -16; // 4ths
-		}
-		else if (knobPos < -14) {
-			knobPos = -8; // 8ths
-		}
-		else if (knobPos < 14) {
-			knobPos = 0; // 16ths
-		}
-		else if (knobPos < 39) {
-			knobPos = 8; // 32nds
-		}
-		else {
-			knobPos = 16; // 64ths
-		}
-		// Save current values for later recovering them
-		stutterer.valueBeforeStuttering = paramValue;
-		stutterer.lastQuantizedKnobDiff = knobPos;
-
-		// When stuttering, we center the value at 0, so the center is the reference for the stutter rate that we
-		// selected just before pressing the knob and we use the lastQuantizedKnobDiff value to calculate the relative
-		// (real) value
-		unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+	if (Error::NONE
+	    == stutterer.beginStutter(
+	        this, paramManager, runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::QuantizedStutterRate),
+	        currentSong->getInputTickMagnitude(), playbackHandler.getTimePerInternalTickInverse())) {
+		// Redraw the LEDs. Really only for quantized stutter, but doing it for unquantized won't hurt.
 		view.notifyParamAutomationOccurred(paramManager);
-	}
-
-	// You'd think I should apply "false" here, to make it not add extra space to the buffer, but somehow this seems to
-	// sound as good if not better (in terms of ticking / crackling)...
-	Error error = stutterer.buffer.init(getStutterRate(paramManager), 0, true);
-	if (error == Error::NONE) {
-		stutterer.status = STUTTERER_STATUS_RECORDING;
-		stutterer.sizeLeftUntilRecordFinished = stutterer.buffer.size();
 		enterUIMode(UI_MODE_STUTTERING);
 	}
 }
 
-// paramManager is optional - if you don't send it, it won't change the stutter rate
-void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
-	stutterer.buffer.discard();
-	stutterer.status = STUTTERER_STATUS_OFF;
-	exitUIMode(UI_MODE_STUTTERING);
-
-	if (paramManager) {
-
-		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate)
-		    == RuntimeFeatureStateToggle::On) {
-			// Quantized Stutter FX (set back the value it had just before stuttering so orange LEDs are redrawn)
-			unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
-			    stutterer.valueBeforeStuttering);
-			view.notifyParamAutomationOccurred(paramManager);
-		}
-		else {
-			// Regular Stutter FX (if below middle value, reset it back to middle)
-			// Normally we shouldn't call this directly, but it's ok because automation isn't allowed for stutter anyway
-			if (unpatchedParams->getValue(params::UNPATCHED_STUTTER_RATE) < 0) {
-				unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
-				view.notifyParamAutomationOccurred(paramManager);
-			}
-		}
+void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager) {
+	if (stutterer.isStuttering(this)) {
+		stutterer.processStutter(buffer, numSamples, paramManager, currentSong->getInputTickMagnitude(),
+		                         playbackHandler.getTimePerInternalTickInverse());
 	}
-	// Reset temporary and diff values for Quantized stutter
-	stutterer.lastQuantizedKnobDiff = 0;
-	stutterer.valueBeforeStuttering = 0;
+}
+
+// paramManager is optional - if you don't send it, it won't restore the stutter rate and we won't redraw the LEDs
+void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
+	stutterer.endStutter(paramManager);
+	if (paramManager) {
+		// Redraw the LEDs.
+		view.notifyParamAutomationOccurred(paramManager);
+	}
+	exitUIMode(UI_MODE_STUTTERING);
 }
 
 void ModControllableAudio::switchDelayPingPong() {
