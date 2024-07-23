@@ -118,6 +118,7 @@ public:
 
 	uint32_t clusterObjectSize;
 
+	bool cardReadOnce{false};
 	bool cardEjected;
 	bool cardDisabled;
 
