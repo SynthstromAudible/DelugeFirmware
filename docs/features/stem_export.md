@@ -57,6 +57,17 @@ Stem's are given a meaningful name in the following format:
 
 - For clip stems, a loop point marker is saved with the stem file to mark the clip's loop length. This makes it easy to reload your stems and they will play back and loop as if you were playing those clip's on the deluge.
 
+## Stem Export Menu
+
+A new `EXPORT STEMS` menu has been added to the `SONG` menu accessible in Song and Arranger Views. 
+
+This menu allows you to start a stem export and configure various settings related to the stem export.
+
+- Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+
+- Configure settings for the stem export by entering the `SONG\EXPORT STEMS\CONFIGURE EXPORT\` menu.
+    - Currently only one configuration object has been added (`NORMALIZATION`) but more will be added in the near future.
+
 ## Videos
 
 https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/77bb8dfc-8b39-408d-8688-fc43eb7be593

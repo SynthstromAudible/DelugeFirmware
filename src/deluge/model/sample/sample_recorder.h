@@ -94,6 +94,7 @@ public:
 	bool haveAddedSampleToArray = false;
 
 	bool allowFileAlterationAfter = false;
+	bool allowNormalization = true;
 	bool autoDeleteWhenDone = false;
 	bool keepingReasonsForFirstClusters;
 	uint8_t recordingNumChannels;

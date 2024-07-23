@@ -630,7 +630,9 @@ Error SampleRecorder::finalizeRecordedFile() {
 			maxPeak = -1 - std::min(recordPeakL, recordPeakR);
 		}
 
-		for (lshiftAmount = 0; ((uint32_t)2147483648 >> (lshiftAmount + 1)) > maxPeak; lshiftAmount++) {}
+		if (allowNormalization) {
+			for (lshiftAmount = 0; ((uint32_t)2147483648 >> (lshiftAmount + 1)) > maxPeak; lshiftAmount++) {}
+		}
 	}
 	uint32_t dataLengthAfterAction =
 	    action != MonitoringAction::NONE ? (dataLengthBeforeAction >> 1) : dataLengthBeforeAction;
