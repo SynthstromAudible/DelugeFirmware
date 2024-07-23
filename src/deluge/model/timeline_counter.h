@@ -49,4 +49,5 @@ public:
 	virtual void instrumentBeenEdited() {}
 
 	ParamManagerForTimeline paramManager;
+	bool armedForRecording{true};
 };

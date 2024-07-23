@@ -111,7 +111,8 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 	if (isPlaying) {
 
 		// If recording...
-		if (playbackHandler.recording != RecordingMode::OFF && modelStack->timelineCounterIsSet()) {
+		if (playbackHandler.recording != RecordingMode::OFF && modelStack->timelineCounterIsSet()
+		    && modelStack->getTimelineCounter()->armedForRecording) {
 
 			// If in record mode and shift button held down, delete automation
 			if (Buttons::isShiftButtonPressed()) {
