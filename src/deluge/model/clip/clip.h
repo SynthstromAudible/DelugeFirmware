@@ -160,7 +160,6 @@ public:
 
 	bool isPendingOverdub;
 	bool isUnfinishedAutoOverdub;
-	bool armedForRecording;
 	bool wasWantingToDoLinearRecordingBeforeCountIn; // Only valid during a count-in
 	OverDubType overdubNature;
 
