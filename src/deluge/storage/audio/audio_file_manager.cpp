@@ -894,9 +894,7 @@ void AudioFileManager::testQueue() {
 
 // Caller must initialize() the Cluster after getting it from this function
 Cluster* AudioFileManager::allocateCluster(ClusterType type, bool shouldAddReasons, void* dontStealFromThing) {
-	if (!cardReadOnce) {
-		FREEZE_WITH_ERROR("M006");
-	}
+	cardReadOnce = true; // even if it hasn't been we're now commited to the cluster size
 	void* clusterMemory = GeneralMemoryAllocator::get().allocStealable(clusterObjectSize, dontStealFromThing);
 	if (!clusterMemory) {
 		return NULL;
