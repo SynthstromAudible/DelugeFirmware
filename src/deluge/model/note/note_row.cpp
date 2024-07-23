@@ -58,6 +58,7 @@ NoteRow::NoteRow(int16_t newY) {
 	probabilityValue = kNumProbabilityValues;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
+	exportStem = false;
 }
 
 NoteRow::~NoteRow() {

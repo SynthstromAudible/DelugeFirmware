@@ -155,8 +155,9 @@ public:
 	ArmState armState;
 	bool activeIfNoSolo;
 	bool activeIfNoSoloBeforeStemExport; // Used by stem export to restore previous state
-	bool wasActiveBefore;                // A temporary thing used by Song::doLaunch()
-	bool gotInstanceYet;                 // For use only while loading song
+	bool exportStem; // Used by stem export to flag if this note row should be exported
+	bool wasActiveBefore; // A temporary thing used by Song::doLaunch()
+	bool gotInstanceYet;  // For use only while loading song
 
 	bool isPendingOverdub;
 	bool isUnfinishedAutoOverdub;

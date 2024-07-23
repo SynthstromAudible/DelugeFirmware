@@ -32,33 +32,38 @@ public:
 	// start & stop process
 	void startStemExportProcess(StemExportType stemExportType);
 	void stopStemExportProcess();
-	void startOutputRecordingUntilLoopEnd();
+	void startOutputRecordingUntilLoopEndAndSilence();
 	void stopOutputRecordingAndPlayback();
+	bool checkForLoopEnd();
+	void checkForSilence();
 	bool processStarted;
+	bool stopOutputRecordingAtSilence;
 	StemExportType currentStemExportType;
 
 	// export instruments
-	void disarmAllInstrumentsForStemExport();
-	void exportInstrumentStems(StemExportType stemExportType);
-	void restoreAllInstrumentMutes();
+	int32_t disarmAllInstrumentsForStemExport();
+	int32_t exportInstrumentStems(StemExportType stemExportType);
+	void restoreAllInstrumentMutes(int32_t totalNumOutputs);
 
 	// export clips
-	void disarmAllClipsForStemExport();
-	void exportClipStems(StemExportType stemExportType);
-	void restoreAllClipMutes();
+	int32_t disarmAllClipsForStemExport();
+	int32_t exportClipStems(StemExportType stemExportType);
+	void restoreAllClipMutes(int32_t totalNumClips);
+	void getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip);
+	int32_t loopLengthToStopStemExport;
 
 	// export drums
-	void disarmAllDrumsForStemExport();
-	void exportDrumStems(StemExportType stemExportType);
-	void restoreAllDrumMutes();
+	int32_t disarmAllDrumsForStemExport();
+	int32_t exportDrumStems(StemExportType stemExportType);
+	void restoreAllDrumMutes(int32_t totalNumNoteRows);
 
 	// start exporting
-	bool startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType, bool& muteState,
-	                            int32_t fileNumber, bool isEmpty, bool isMuted = false, SoundDrum* drum = nullptr);
+	bool startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState, int32_t fileNumber,
+	                            bool exportStem, SoundDrum* drum = nullptr);
 
 	// finish exporting
 	void finishCurrentStemExport(StemExportType stemExportType, bool& muteState);
-	void finishStemExportProcess(StemExportType stemExportType);
+	void finishStemExportProcess(StemExportType stemExportType, int32_t elementsProcessed);
 	void updateScrollPosition(StemExportType stemExportType, int32_t indexNumber);
 
 	// export status

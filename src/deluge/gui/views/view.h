@@ -142,6 +142,7 @@ public:
 	// vu meter rendering
 	bool displayVUMeter;
 	bool potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]);
+	int32_t getMaxYDisplayForVUMeter(float level);
 
 	void getParameterNameFromModEncoder(int32_t whichModEncoder, char* parameterName);
 
@@ -153,7 +154,6 @@ private:
 	void clearMelodicInstrumentMonoExpressionIfPossible();
 
 	// vu meter rendering
-	int32_t getMaxYDisplayForVUMeter(float level);
 	int32_t cachedMaxYDisplayForVUMeterL;
 	int32_t cachedMaxYDisplayForVUMeterR;
 	void renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]);

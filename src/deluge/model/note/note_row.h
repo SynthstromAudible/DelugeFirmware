@@ -156,6 +156,9 @@ public:
 	/// compared with the time since this NoteRow started (i.e., time from the end during reversed playback).
 	uint32_t ignoreNoteOnsBefore_;
 
+	/// flag used for stem exporting to indicate if this note row's stem should be exported
+	bool exportStem;
+
 	int32_t getDefaultProbability(ModelStackWithNoteRow* ModelStack);
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
 	                       ModelStackWithNoteRow* modelStack, Action* action);
