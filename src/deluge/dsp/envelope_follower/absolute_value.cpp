@@ -18,12 +18,6 @@
 #include "absolute_value.h"
 #include <cmath>
 
-AbsValueFollower::AbsValueFollower() {
-
-	a_ = (-1000.0f / kSampleRate) / attackMS;
-	r_ = (-1000.0f / kSampleRate) / releaseMS;
-}
-
 float AbsValueFollower::runEnvelope(float current, float desired, float numSamples) {
 	float s;
 	if (desired > current) {
