@@ -126,6 +126,7 @@ struct TaskManager {
 	bool running{false};
 	double cpuTime{0};
 	double overhead{0};
+	double lastFinishTime{0};
 	double lastPrintedStats{0};
 	void start(double duration = 0);
 	void removeTask(TaskID id);
@@ -310,12 +311,14 @@ void TaskManager::runTask(TaskID id) {
 	auto timeNow = getSecondsFromStart();
 	double startTime = timeNow;
 	// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
-	overhead += timeNow - list[currentID].lastFinishTime;
+	overhead += timeNow - lastFinishTime;
 	currentID = id;
 	auto currentTask = &list[currentID];
 
 	currentTask->handle();
 	timeNow = getSecondsFromStart();
+	double runtime = (timeNow - startTime);
+	cpuTime += runtime;
 	if (currentTask->removeAfterUse) {
 		removeTask(id);
 	}
@@ -325,9 +328,6 @@ void TaskManager::runTask(TaskID id) {
 			currentTask->latency.update(startTime - currentTask->lastCallTime);
 #endif
 			currentTask->lastCallTime = startTime;
-			currentTask->lastFinishTime = timeNow;
-			double runtime = (currentTask->lastFinishTime - currentTask->lastCallTime);
-			cpuTime += runtime;
 
 			currentTask->durationStats.update(runtime);
 			currentTask->totalTime += runtime;
@@ -335,6 +335,9 @@ void TaskManager::runTask(TaskID id) {
 			currentTask->timesCalled += 1;
 		}
 	}
+	currentTask->lastFinishTime = timeNow;
+
+	lastFinishTime = timeNow;
 }
 
 /// pause current task, continue to run scheduler loop until a condition is met, then return to it
@@ -496,8 +499,9 @@ void TaskManager::printStats() {
 #endif
 		}
 	}
-	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds", 10 * cpuTime, 10 * overhead,
-	          runningTime);
+	auto totalTime = cpuTime + overhead;
+	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds", 100 * cpuTime / totalTime,
+	          100 * overhead / totalTime, runningTime);
 	resetStats();
 }
 /// return a monotonic timer value in seconds from when the task manager started
