@@ -220,8 +220,6 @@ protected:
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
 
 	ClipGroupType groupType;
-
-private:
 	void removeFromGroup() {
 		// set first to the new first node for all nodes in list
 		if (first == this) {
@@ -243,12 +241,16 @@ private:
 		if (first == nullptr) {
 			first = this;
 		}
+		newNextNode->first = first;
 		newNextNode->next = next;
 		next = newNextNode;
 	}
+
+private:
 	// for overdubs and clip groups
 	// modified via cloneAsNewOverdub and associated functions
 	Clip* next{nullptr};
 	Clip* prev{nullptr};
+	// to find the head of the list quickly
 	Clip* first{nullptr};
 };
