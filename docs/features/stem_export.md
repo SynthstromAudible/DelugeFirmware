@@ -38,6 +38,12 @@ Stem's are given a meaningful name in the following format:
 - Note 3: Instruments and Clips that are `EMPTY` (e.g. they have no Notes or Audio Files) are excluded from the stem export
 - Note 4: In Arranger View, any Instruments that are `MUTED` are excluded from the stem export
 
+### Cancelling Stem Export
+
+- Press `BACK` to cancel Stem Export process
+- When you cancel stem export, a dialog will appear on the screen asking you to confirm if you want to cancel the export. Press on the `SELECT` encoder to confirm that you want to cancel. Press `BACK` or any `PAD` on the grid to exit out of the dialog and continue with stem export process.
+- Note: When you press `BACK`, the stem export still continues in the background until you confirm you want to stop.
+
 ## Recording Length and Silence
 
 - Stems are recorded until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured
@@ -48,12 +54,6 @@ Stem's are given a meaningful name in the following format:
 ## Clip Stem Loop Points
 
 - For clip stems, a loop point marker is saved with the stem file to mark the clip's loop length. This makes it easy to reload your stems and they will play back and loop as if you were playing those clip's on the deluge.
-
-### Cancelling Stem Export
-
-- Press `BACK` to cancel Stem Export process
-- When you cancel stem export, a dialog will appear on the screen asking you to confirm if you want to cancel the export. Press on the `SELECT` encoder to confirm that you want to cancel. Press `BACK` or any `PAD` on the grid to exit out of the dialog and continue with stem export process.
-- Note: When you press `BACK`, the stem export still continues in the background until you confirm you want to stop.
 
 ## Videos
 
