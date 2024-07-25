@@ -56,14 +56,31 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
                                int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
                                int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
+	if (!activeClip) [[unlikely]] {
+		return;
+	}
 
-	ParamManager* paramManager = getParamManager(modelStack->song);
+	if (!activeClip->isInGroup()) {
+		ParamManager* paramManager = getParamManager(modelStack->song);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
+		GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
+		                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+		                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO);
+	}
+	else {
+		Clip* clipToRender = activeClip->getHeadOfGroup();
+		while (clipToRender) {
+			ParamManager* paramManager = currentSong->getBackedUpParamManagerPreferablyWithClip(
+			    (ModControllableAudio*)toModControllable(), clipToRender);
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clipToRender);
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
-	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO);
+			GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
+			                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+			                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO);
+			clipToRender = clipToRender->getNextClipOrNull();
+		}
+	}
 }
 
 void AudioOutput::resetEnvelope() {
@@ -86,7 +103,7 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 	bool rendered = false;
 	// audio outputs can have an activeClip while being muted
 	if (isClipActive) {
-		AudioClip* activeAudioClip = (AudioClip*)activeClip;
+		auto* activeAudioClip = (AudioClip*)modelStack->getTimelineCounter();
 		if (activeAudioClip->voiceSample) {
 
 			int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];

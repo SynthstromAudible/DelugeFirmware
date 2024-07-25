@@ -401,7 +401,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 
 		if (isPendingOverdub) {
-			*newOutputCreated = cloneOutput(modelStack);
+			//			*newOutputCreated = cloneOutput(modelStack);
 
 			if (action != nullptr) {
 				action->recordClipExistenceChange(modelStack->song, &modelStack->song->sessionClips, this,

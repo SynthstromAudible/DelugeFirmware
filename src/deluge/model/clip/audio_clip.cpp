@@ -246,6 +246,15 @@ ramError:
 		FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
 	}
 #endif
+	ClipGroupType gt;
+	switch (newOverdubNature) {
+	case OverDubType::ContinuousLayering:
+		gt = ClipGroupType::SHARED;
+		break;
+	case OverDubType::Normal:
+		gt = ClipGroupType::EXCLUSIVE;
+	}
+	insertAfter(newClip, gt);
 
 	return newClip;
 }
