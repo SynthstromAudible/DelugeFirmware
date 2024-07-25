@@ -209,6 +209,7 @@ public:
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 	Clip* getNextClipOrNull() { return next; }
 	Clip* getHeadOfGroup() { return first; }
+	bool isInGroup() { return groupType == ClipGroupType::NONE; }
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
@@ -230,20 +231,32 @@ protected:
 				current = current->next;
 			}
 		}
-		prev->next = next;
-		next->prev = prev;
+		if (prev)
+			prev->next = next;
+		if (next)
+			next->prev = prev;
 		next = nullptr;
 		prev = nullptr;
 		first = nullptr;
 	};
 
-	void insertAfter(Clip* newNextNode) {
+	void insertAfter(Clip* newNextNode, ClipGroupType type) {
 		if (first == nullptr) {
 			first = this;
+			groupType = type;
 		}
+		newNextNode->groupType = type;
 		newNextNode->first = first;
 		newNextNode->next = next;
 		next = newNextNode;
+		if (type != groupType) {
+			// iterate through the group and set them all to match
+			Clip* nextClip = getHeadOfGroup();
+			while (nextClip) {
+				nextClip->groupType = type;
+				nextClip = nextClip->getNextClipOrNull();
+			}
+		}
 	}
 
 private:
