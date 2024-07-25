@@ -64,6 +64,11 @@ public:
 	/** Returns the highest note that has been added to the NoteSet.
 	 */
 	uint8_t highest() const { return 15 - std::countl_zero(bits); }
+	/** Returns the highest note present in this NoteSet not present in the other.
+	 *
+	 * Returns -1 if there are no notes present unused in the other NoteSet..
+	 */
+	int8_t highestNotIn(NoteSet used) const;
 	/** If this is a preset scale, returns the preset scale id.
 	 *
 	 * Otherwise returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES

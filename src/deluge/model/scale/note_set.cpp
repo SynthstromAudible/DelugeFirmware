@@ -41,6 +41,15 @@ int8_t NoteSet::operator[](uint8_t index) const {
 	return note;
 }
 
+int8_t NoteSet::highestNotIn(NoteSet other) const {
+	for (int8_t i = highest(); i >= 0; i--) {
+		if (has(i) && !other.has(i)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 int8_t NoteSet::degreeOf(uint8_t note) const {
 	if (has(note)) {
 		// Mask everything before the note
