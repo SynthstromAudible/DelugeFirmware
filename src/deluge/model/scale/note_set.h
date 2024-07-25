@@ -107,6 +107,8 @@ private:
 	uint16_t bits;
 };
 
+const uint8_t kMaxScaleSize = NoteSet::size;
+
 #ifdef IN_UNIT_TESTS
 // For CppUTest CHECK_EQUAL() and debugging convenience
 

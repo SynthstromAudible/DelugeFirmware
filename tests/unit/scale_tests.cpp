@@ -2,7 +2,13 @@
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
+#include "model/scale/scale_change.h"
+#include "model/scale/scale_mapper.h"
 #include "model/scale/utils.h"
+
+#include <algorithm>
+#include <random>
+#include <vector>
 
 TEST_GROUP(NoteSetTest){};
 
@@ -382,16 +388,16 @@ TEST(NoteSetTest, highestNotIn) {
 	b.fill();
 	CHECK_EQUAL(-1, a.highestNotIn(b));
 	// Major scale in A, one less note in B
-	uint8_t major[] = {0, 2, 4, 5, 7, 9, 11};
-	a.fromScaleNotes(major);
+	const NoteSet major{0, 2, 4, 5, 7, 9, 11};
+	a = major;
 	for (int i = 0; i < sizeof(major); i++) {
-		b.fromScaleNotes(major);
+		b = major;
 		b.remove(major[i]);
 		CHECK_EQUAL(major[i], a.highestNotIn(b));
 	}
 	// Major scale in A, three missing notes in B
-	a.fromScaleNotes(major);
-	b.fromScaleNotes(major);
+	a = major;
+	b = major;
 	b.remove(4);
 	b.remove(7);
 	b.remove(11);
@@ -473,4 +479,261 @@ TEST(UtilTest, isSameNote) {
 	int legacy2 = (uint16_t)(a - b + 120) % (uint8_t)12 == 0;
 	CHECK(!legacy2);
 	CHECK(isSameNote(a, b));
+}
+
+TEST_GROUP(ScaleMapperTest){};
+
+TEST(ScaleMapperTest, smallerTargetScaleExactlyUsed) {
+	ScaleMapper scaleMapper;
+	// clang-format off
+	const NoteSet diatonicMajor =   NoteSet{0, 2, 4, 5, 7, 9, 11};
+	const NoteSet pentatonicMajor = NoteSet{0, 2, 4,    7, 9};
+	// clang-format on
+	NoteSet notes = pentatonicMajor;
+
+	ScaleChange changes;
+	bool ok = scaleMapper.computeChangeFrom(notes, diatonicMajor, pentatonicMajor, changes);
+	CHECK(ok);
+	NoteSet targetNotes = changes.applyTo(notes);
+	// only legal transformation!
+	CHECK_EQUAL(pentatonicMajor, targetNotes);
+
+	// Now reverse
+
+	ok = scaleMapper.computeChangeFrom(targetNotes, pentatonicMajor, diatonicMajor, changes);
+	CHECK(ok);
+	NoteSet reverseNotes = changes.applyTo(targetNotes);
+	CHECK_EQUAL(notes, reverseNotes);
+}
+
+TEST(ScaleMapperTest, smallerTargetScalePartiallyUsed) {
+	ScaleMapper scaleMapper;
+	// clang-format off
+	const NoteSet diatonicMajor =   NoteSet{0, 2, 4, 5, 7, 9, 11};
+	const NoteSet pentatonicMajor = NoteSet{0, 2, 4,    7, 9};
+	const NoteSet notes =           NoteSet{0,    4,    7};
+	// clang-format on
+
+	ScaleChange changes;
+	bool ok = scaleMapper.computeChangeFrom(notes, diatonicMajor, pentatonicMajor, changes);
+	CHECK(ok);
+	NoteSet targetNotes = changes.applyTo(notes);
+	// one possible transformation
+	CHECK_EQUAL(notes, targetNotes);
+
+	// Now reverse
+
+	ok = scaleMapper.computeChangeFrom(targetNotes, pentatonicMajor, diatonicMajor, changes);
+	CHECK(ok);
+	NoteSet reverseNotes = changes.applyTo(targetNotes);
+	CHECK_EQUAL(notes, reverseNotes);
+}
+
+TEST(ScaleMapperTest, notesOutsideSmallerTargetScale) {
+	ScaleMapper scaleMapper;
+	// clang-format off
+	const NoteSet diatonicMajor =   NoteSet{0, 2, 4, 5, 7, 9, 11};
+	const NoteSet pentatonicMajor = NoteSet{0, 2, 4,    7, 9};
+	const NoteSet notes =           NoteSet{0,    4,    7, 9, 11};
+	// clang-format on
+
+	ScaleChange changes;
+	bool ok = scaleMapper.computeChangeFrom(notes, diatonicMajor, pentatonicMajor, changes);
+	CHECK(ok);
+	NoteSet targetNotes = changes.applyTo(notes);
+	// only legal transformation!
+	CHECK_EQUAL(pentatonicMajor, targetNotes);
+
+	// Now reverse
+
+	ok = scaleMapper.computeChangeFrom(targetNotes, pentatonicMajor, diatonicMajor, changes);
+	CHECK(ok);
+	NoteSet reverseNotes = changes.applyTo(targetNotes);
+	CHECK_EQUAL(notes, reverseNotes);
+}
+
+TEST(ScaleMapperTest, willRefuseIfDoesNotFitTarget) {
+	// This specific case has five notes, but root is always implied: if we transpose something else to root,
+	// we get a many to one mapping, and cannot recover.
+	ScaleMapper scaleMapper;
+	// clang-format off
+	const NoteSet diatonicMajor =   NoteSet{0, 2, 4, 5, 7, 9, 11};
+	const NoteSet pentatonicMajor = NoteSet{0, 2, 4,    7, 9};
+	const NoteSet notes =           NoteSet{   2, 4,    7, 9, 11};
+	// clang-format on
+
+	ScaleChange changes;
+	bool ok = scaleMapper.computeChangeFrom(notes, diatonicMajor, pentatonicMajor, changes);
+	CHECK(!ok);
+}
+
+TEST(ScaleMapperTest, willRefuseIfSourceNotesNotInScale) {
+	ScaleMapper scaleMapper;
+	// clang-format off
+	const NoteSet diatonicMajor =   NoteSet{0,    2,    4, 5, 7, 9, 11};
+	const NoteSet pentatonicMajor = NoteSet{0,    2,    4,    7, 9};
+	const NoteSet notes =           NoteSet{         3};
+	// clang-format on
+
+	ScaleChange changes;
+	bool ok = scaleMapper.computeChangeFrom(notes, diatonicMajor, pentatonicMajor, changes);
+	CHECK(!ok);
+}
+
+TEST(ScaleMapperTest, notesDontMatchTargetScale_plusNoRootInUse) {
+	// Check that we're not counting root as used if it's not, and still get the right answer
+	ScaleMapper scaleMapper;
+	// clang-format off
+	const NoteSet diatonicMajor =   NoteSet{0, 2, 4, 5, 7, 9, 11};
+	const NoteSet pentatonicMajor = NoteSet{0, 2, 4,    7, 9};
+	const NoteSet notes =           NoteSet{   2, 4,    7,    11};
+	const NoteSet want =            NoteSet{   2, 4,    7, 9};
+	// clang-format on
+
+	ScaleChange changes;
+	bool ok = scaleMapper.computeChangeFrom(notes, diatonicMajor, pentatonicMajor, changes);
+	CHECK(ok);
+	NoteSet targetNotes = changes.applyTo(notes);
+	// the only legal transformation - assuming we don't transpose non-root notes to root.
+	CHECK_EQUAL(want, targetNotes);
+
+	// Now reverse
+
+	ok = scaleMapper.computeChangeFrom(targetNotes, pentatonicMajor, diatonicMajor, changes);
+	CHECK(ok);
+	NoteSet reverseNotes = changes.applyTo(targetNotes);
+	CHECK_EQUAL(notes, reverseNotes);
+}
+
+TEST(ScaleMapperTest, pentatonicMinorToDiatonicMajor) {
+	ScaleMapper scaleMapper;
+	// clang-format off
+	const NoteSet pentatonicMinor = NoteSet{0, 2, 3,    7, 9};
+	const NoteSet diatonicMajor =   NoteSet{0, 2, 4, 5, 7, 9, 11};
+	const NoteSet notes =           NoteSet{0,    3,    7, 9};
+	const NoteSet want =            NoteSet{0,    4,    7, 9};
+	// clang-format on
+
+	ScaleChange changes;
+	bool ok = scaleMapper.computeChangeFrom(notes, pentatonicMinor, diatonicMajor, changes);
+	CHECK(ok);
+	NoteSet targetNotes = changes.applyTo(notes);
+	// not the only legal transformation, but certainly the most intuitive one...
+	CHECK_EQUAL(want, targetNotes);
+
+	// Now reverse
+
+	ok = scaleMapper.computeChangeFrom(targetNotes, diatonicMajor, pentatonicMinor, changes);
+	CHECK(ok);
+	NoteSet reverseNotes = changes.applyTo(targetNotes);
+	CHECK_EQUAL(notes, reverseNotes);
+}
+
+std::uniform_int_distribution<int> randomNonRoot(1, 11);
+std::uniform_int_distribution<int> randomCoin(0, 1);
+
+NoteSet randomScale(uint8_t size, std::mt19937& engine) {
+	NoteSet scale;
+	scale.add(0);
+	if (size > 6) {
+		scale.fill();
+	}
+	while (scale.count() != size) {
+		uint8_t note = randomNonRoot(engine);
+		if (scale.count() < size && !scale.has(note)) {
+			scale.add(note);
+		}
+		else if (scale.count() > size && scale.has(note)) {
+			scale.remove(note);
+		}
+	}
+	return scale;
+}
+
+NoteSet randomNotesIn(NoteSet scale, std::mt19937& engine) {
+	NoteSet notes;
+	// At least one note!
+	while (notes.isEmpty()) {
+		for (uint8_t n = 0; n < scale.count(); n++) {
+			if (randomCoin(engine)) {
+				notes.add(scale[n]);
+			}
+		}
+	}
+	return notes;
+}
+
+std::vector<int> randomWorklist(int start, int end, std::mt19937& engine) {
+	std::vector<int> worklist(end - start);
+	for (int i = start; i < end; i++) {
+		worklist[i - start] = i;
+	}
+	std::shuffle(worklist.begin(), worklist.end(), engine);
+	return worklist;
+}
+
+TEST(ScaleMapperTest, randomTest) {
+	std::random_device r;
+	int s1 = r();
+	int s2 = r();
+	// Output this so it's accessible in case of failure.
+	std::cerr << "RANDOM TEST SEEDS = { " << s1 << ", " << s2 << " }" << std::endl;
+	std::seed_seq seeds{s1, s2};
+	std::mt19937 engine(seeds);
+
+	// random scales in increasing size order (multiple of each size)
+	std::vector<NoteSet> scales;
+	// scaleRange[size] --> index of smallest scale of size or greater
+	std::vector<int> scaleRanges;
+
+	scaleRanges.push_back(0); // empty
+	scaleRanges.push_back(0); // just the root
+
+	const int nScalesPerSize = 2;
+
+	for (int s = scaleRanges.size(); s < kMaxScaleSize; s++) {
+		int base = scales.size();
+		scaleRanges.push_back(base);
+		while (scales.size() - base < nScalesPerSize) {
+			NoteSet newScale = randomScale(s, engine);
+			if (std::find(scales.begin() + base, scales.end(), newScale) == std::end(scales)) {
+				scales.push_back(newScale);
+			}
+		}
+	}
+
+	// For each generated scale:
+	//   Create a random set of notes in that scale
+	//   For each scale of appropriate size for the notes, in random order
+	//      Transform the notes to the scale, save the result for the scale.
+	//      Transform back to original scale, verify that notes match.
+	//      Keep going using transformed notes.
+
+	// Having the same scale mapper for all cases is important: this tests the transitition
+	// scale flushing logic.
+	ScaleMapper scaleMapper;
+	for (auto& sourceScale : scales) {
+		ScaleChange changes;
+		NoteSet sourceNotes = randomNotesIn(sourceScale, engine);
+		// std::cerr << "TESTING SCALE " << sourceScale << " WITH " << sourceNotes << std::endl;
+		int size = sourceNotes.scaleSize();
+		int start = scaleRanges[size];
+		CHECK(start >= 0);
+		int end = scales.size();
+		NoteSet testScale = sourceScale;
+		NoteSet testNotes = sourceNotes;
+		for (int n : randomWorklist(start, end, engine)) {
+			NoteSet targetScale = scales[n];
+			bool ok = scaleMapper.computeChangeFrom(testNotes, testScale, targetScale, changes);
+			CHECK(ok);
+			testNotes = changes.applyTo(testNotes);
+			testScale = targetScale;
+			// std::cerr << "-> " << testScale << " AS " << testNotes << " @" << n << std::endl << std::flush;
+			CHECK(testNotes.isSubsetOf(testScale));
+			ok = scaleMapper.computeChangeFrom(testNotes, testScale, sourceScale, changes);
+			CHECK(ok);
+			NoteSet reverse = changes.applyTo(testNotes);
+			CHECK_EQUAL(sourceNotes, reverse);
+		}
+	}
 }
