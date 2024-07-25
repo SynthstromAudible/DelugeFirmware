@@ -635,19 +635,24 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		return error;
 	}
 
+	String songNameToCompare;
+	const char* unsavedSongName = "UNSAVED";
+
 	// tempPath = SAMPLES/STEMS/*INSERT SONG NAME*
 	if (currentSong->name.isEmpty()) { // if you have saved song yet
-		error = tempPath.concatenate("UNSAVED");
+		error = tempPath.concatenate(unsavedSongName);
+		songNameToCompare.set(unsavedSongName);
 	}
 	else {
 		error = tempPath.concatenate(currentSong->name.get());
+		songNameToCompare.set(currentSong->name.get());
 	}
 	if (error != Error::NONE) {
 		return error;
 	}
 
 	// did we just export this song? if yes, no need to find folder number to append (we have it)
-	if (strcmp(currentSong->name.get(), lastSongNameForStemExport.get())) {
+	if (strcmp(songNameToCompare.get(), lastSongNameForStemExport.get())) {
 		// if we're here we didn't just export this song
 		String tempPathForSearch;
 
@@ -728,7 +733,12 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 	}
 
 	// save current song name as last song name exported
-	error = lastSongNameForStemExport.set(currentSong->name.get());
+	if (currentSong->name.isEmpty()) { // if you have saved song yet
+		error = lastSongNameForStemExport.set(unsavedSongName);
+	}
+	else {
+		error = lastSongNameForStemExport.set(currentSong->name.get());
+	}
 	if (error != Error::NONE) {
 		return error;
 	}
