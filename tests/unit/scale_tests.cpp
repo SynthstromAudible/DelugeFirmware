@@ -167,6 +167,47 @@ TEST(NoteSetTest, remove) {
 	}
 }
 
+TEST(NoteSetTest, highestNotIn) {
+	// A is aways the receiver and B the argument in these tests.
+	NoteSet a;
+	NoteSet b;
+	// First the edge cases: empty or full notesets
+	//
+	//    A     B      result
+	//    empty empty  -1
+	//    empty full   -1
+	//    full  empty  11
+	//    full  full   -1
+	//
+	a.clear();
+	b.clear();
+	CHECK_EQUAL(-1, a.highestNotIn(b));
+	a.clear();
+	b.fill();
+	CHECK_EQUAL(-1, a.highestNotIn(b));
+	a.fill();
+	b.clear();
+	CHECK_EQUAL(11, a.highestNotIn(b));
+	a.fill();
+	b.fill();
+	CHECK_EQUAL(-1, a.highestNotIn(b));
+	// Major scale in A, one less note in B
+	const NoteSet major{0, 2, 4, 5, 7, 9, 11};
+	a = major;
+	for (int i = 0; i < sizeof(major); i++) {
+		b = major;
+		b.remove(major[i]);
+		CHECK_EQUAL(major[i], a.highestNotIn(b));
+	}
+	// Major scale in A, three missing notes in B
+	a = major;
+	b = major;
+	b.remove(4);
+	b.remove(7);
+	b.remove(11);
+	CHECK_EQUAL(11, a.highestNotIn(b));
+}
+
 TEST_GROUP(MusicalKeyTest){};
 
 TEST(MusicalKeyTest, ctor) {

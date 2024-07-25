@@ -42,6 +42,15 @@ uint8_t NoteSet::operator[](uint8_t index) const {
 	return note;
 }
 
+int8_t NoteSet::highestNotIn(NoteSet other) const {
+	for (int8_t i = highest(); i >= 0; i--) {
+		if (has(i) && !other.has(i)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 void NoteSet::applyChanges(int8_t changes[12]) {
 	NoteSet newSet;
 	uint8_t n = 1;
