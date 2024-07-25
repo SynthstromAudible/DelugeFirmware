@@ -247,5 +247,9 @@ public:
 	/// @brief Check if selecting this menu item (with select encoder) should enter a submenu
 	virtual bool shouldEnterSubmenu() { return true; }
 
+	/// @brief Handle rendering of submenu item types
+	virtual int32_t getSubmenuItemTypeRenderLength() { return (3 + (kTextSpacingX * 3) + kTextSpacingX); }
+	virtual void renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel);
+
 	/// @}
 };
