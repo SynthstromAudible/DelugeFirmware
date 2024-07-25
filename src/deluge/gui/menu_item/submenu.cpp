@@ -46,30 +46,58 @@ void Submenu::drawPixelsForOled() {
 
 	// This finds the next relevant submenu item
 	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> nextItemNames = {};
+	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> nextItemTypes = {};
+	std::string_view stringForNextItemType;
 	int32_t idx = selectedRow;
 	for (auto it = current_item_; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible; it++) {
-		if ((*it)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			nextItemNames.push_back((*it)->getName());
+		MenuItem* menuItem = (*it);
+		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+			nextItemNames.push_back(menuItem->getName());
+			getStringForItemType(menuItem, stringForNextItemType);
+			nextItemTypes.push_back(stringForNextItemType);
 			idx++;
 		}
 	}
 
 	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> prevItemNames = {};
+	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> prevItemTypes = {};
+	std::string_view stringForPrevItemType;
 	idx = selectedRow - 1;
 	for (auto it = current_item_ - 1; it != this->items.begin() - 1 && idx >= 0; it--) {
-		if ((*it)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			prevItemNames.push_back((*it)->getName());
+		MenuItem* menuItem = (*it);
+		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+			prevItemNames.push_back(menuItem->getName());
+			getStringForItemType(menuItem, stringForPrevItemType);
+			prevItemTypes.push_back(stringForPrevItemType);
 			idx--;
 		}
 	}
 	std::reverse(prevItemNames.begin(), prevItemNames.end());
+	std::reverse(prevItemTypes.begin(), prevItemTypes.end());
 
 	if (!prevItemNames.empty()) {
 		prevItemNames.insert(prevItemNames.end(), nextItemNames.begin(), nextItemNames.end());
-		drawItemsForOled(prevItemNames, selectedRow);
+		prevItemTypes.insert(prevItemTypes.end(), nextItemTypes.begin(), nextItemTypes.end());
+		drawItemsForOled(prevItemNames, selectedRow, 0, true, prevItemTypes);
 	}
 	else {
-		drawItemsForOled(nextItemNames, selectedRow);
+		drawItemsForOled(nextItemNames, selectedRow, 0, true, nextItemTypes);
+	}
+}
+
+void Submenu::getStringForItemType(MenuItem* menuItem, std::string_view& stringForItemType) {
+	if (menuItem->shouldEnterSubmenu()) {
+		stringForItemType = "  >";
+	}
+	else {
+		if (menuItem->shouldDisplayToggle()) {
+			if (menuItem->getToggleValue()) {
+				stringForItemType = "[x]";
+			}
+			else {
+				stringForItemType = "[ ]";
+			}
+		}
 	}
 }
 

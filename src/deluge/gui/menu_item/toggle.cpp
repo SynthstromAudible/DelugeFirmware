@@ -63,4 +63,15 @@ void Toggle::drawPixelsForOled() {
 		}
 	}
 }
+
+// renders check box on OLED and dot on 7seg
+void Toggle::displayToggleValue() {
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		drawName();
+	}
+}
+
 } // namespace deluge::gui::menu_item

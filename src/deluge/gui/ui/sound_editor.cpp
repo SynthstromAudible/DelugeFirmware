@@ -1639,6 +1639,7 @@ void SoundEditor::mpeZonesPotentiallyUpdated() {
 }
 
 void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	if (currentMenuItem == static_cast<void*>(&drumNameMenu)) {

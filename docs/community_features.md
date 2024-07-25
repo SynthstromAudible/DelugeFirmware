@@ -281,6 +281,12 @@ as the micromonsta and the dreadbox nymphes.
 #### 3.25 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
 - ([#2315]) The display now shows the number of Bars (or Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
 
+#### 3.26 Updated UI for Interacting with Toggle Menu's and Sub Menu's
+- ([#2331]) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
+ - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
+ - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
+ - Submenu's on OLED are also now rendered with a ">" at the end to indicate that it is a submenu.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1386,6 +1392,8 @@ different firmware
 [#2327]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2327
 
 [#2330]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2330
+
+[#2331]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2331
 
 [#2343]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2343
 
