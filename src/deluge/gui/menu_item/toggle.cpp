@@ -63,4 +63,30 @@ void Toggle::drawPixelsForOled() {
 		}
 	}
 }
+
+// renders check box on OLED and dot on 7seg
+void Toggle::displayToggleValue() {
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		drawName();
+	}
+}
+
+void Toggle::renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	std::string stringForSubmenuItemType;
+
+	if (getToggleValue()) {
+		stringForSubmenuItemType.append("[x]");
+	}
+	else {
+		stringForSubmenuItemType.append("[ ]");
+	}
+
+	image.drawString(stringForSubmenuItemType, xPixel, yPixel, kTextSpacingX, kTextSpacingY);
+}
+
 } // namespace deluge::gui::menu_item
