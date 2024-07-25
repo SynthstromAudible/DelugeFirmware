@@ -78,6 +78,7 @@ void AudioFileManager::init() {
 
 		D_PRINTLN("clusterSize  %d clusterSizeMagnitude  %d", clusterSize, clusterSizeMagnitude);
 		cardEjected = false;
+		cardReadOnce = true;
 	}
 
 	else {
@@ -893,7 +894,7 @@ void AudioFileManager::testQueue() {
 
 // Caller must initialize() the Cluster after getting it from this function
 Cluster* AudioFileManager::allocateCluster(ClusterType type, bool shouldAddReasons, void* dontStealFromThing) {
-
+	cardReadOnce = true; // even if it hasn't been we're now commited to the cluster size
 	void* clusterMemory = GeneralMemoryAllocator::get().allocStealable(clusterObjectSize, dontStealFromThing);
 	if (!clusterMemory) {
 		return NULL;
@@ -1255,7 +1256,12 @@ void AudioFileManager::slowRoutine() {
 			Error error = storageManager.initSD();
 			if (error == Error::NONE) {
 				cardEjected = false;
-				cardReinserted();
+				if (cardReadOnce) {
+					cardReinserted();
+				}
+				else {
+					init();
+				}
 			}
 		}
 	}
