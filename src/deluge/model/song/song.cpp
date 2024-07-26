@@ -4205,6 +4205,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 						clip->soloingInSessionMode = false;
 					}
 					else {
+						// todo: add save/loading group code
 						clip->activeIfNoSolo = false;
 					}
 				}

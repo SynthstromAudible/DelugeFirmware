@@ -209,7 +209,7 @@ public:
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 	Clip* getNextClipOrNull() { return next; }
 	// returns the first clip in the group, or the clip itself if there's no group
-	Clip* getHeadOfGroup() { return first ? first : this; }
+	Clip* getHeadOfGroup() { return first; }
 	bool isInGroup() { return groupType == ClipGroupType::SHARED; }
 	bool isInGroupWith(Clip* clip) { return isInGroup() && clip->output == output && clip->section == section; }
 
@@ -239,7 +239,7 @@ protected:
 			next->prev = prev;
 		next = nullptr;
 		prev = nullptr;
-		first = nullptr;
+		first = this;
 	};
 
 	Clip* findActiveClipOrNull() {
@@ -252,7 +252,7 @@ protected:
 	}
 
 	void insertAfter(Clip* newNextNode, ClipGroupType type) {
-		if (first == nullptr) {
+		if (groupType == ClipGroupType::NONE) {
 			first = this;
 			groupType = type;
 		}
@@ -278,6 +278,6 @@ private:
 	// modified via cloneAsNewOverdub and associated functions
 	Clip* next{nullptr};
 	Clip* prev{nullptr};
-	// to find the head of the list quickly
-	Clip* first{nullptr};
+	// to find the head of the list quickly - if no group it's just the clip itself
+	Clip* first{this};
 };

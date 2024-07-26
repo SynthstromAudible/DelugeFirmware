@@ -82,6 +82,8 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 		auto* activeAudioClip = (AudioClip*)((Clip*)modelStack->getTimelineCounter())->getHeadOfGroup();
 		while (activeAudioClip) {
 			if (activeAudioClip->voiceSample) {
+				modelStack->setTimelineCounter(activeAudioClip); // used to find loop times and stuff
+
 				memset(audioOutputBuffer, 0, sizeof(StereoSample) * numSamples);
 				rendered |= renderActiveAudioClip(modelStack, audioOutputBuffer, bufferToTransferTo, numSamples,
 				                                  pitchAdjust, amplitudeAtStart, amplitudeAtEnd, activeAudioClip);
