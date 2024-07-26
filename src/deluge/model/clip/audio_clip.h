@@ -25,6 +25,8 @@
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
 #include "modulation/envelope.h"
+#include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file.h"
 #include "util/d_string.h"
 
 class VoiceSample;
@@ -87,7 +89,9 @@ public:
 	Error readFromFile(Deserializer& reader, Song* song) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;
 	char const* getXMLTag() override { return "audioClip"; }
-
+	bool willRenderInMono() {
+		return (voiceSample && sampleHolder.audioFile->numChannels == 1) || !AudioEngine::renderInStereo;
+	}
 	SampleControls sampleControls;
 
 	SampleHolderForClip sampleHolder;

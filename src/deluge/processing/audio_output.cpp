@@ -77,12 +77,15 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 	bool rendered = false;
 	// render all of the samples for this audio output - there are potentially many if recordings are layered
 	if (isClipActive) {
+		static StereoSample audioOutputBuffer[SSI_TX_BUFFER_NUM_SAMPLES] __attribute__((aligned(CACHE_LINE_SIZE)));
+
 		auto* activeAudioClip = (AudioClip*)((Clip*)modelStack->getTimelineCounter())->getHeadOfGroup();
 		while (activeAudioClip) {
 			if (activeAudioClip->voiceSample) {
-
-				rendered |= renderActiveAudioClip(modelStack, renderBuffer, bufferToTransferTo, numSamples, pitchAdjust,
-				                                  amplitudeAtStart, amplitudeAtEnd, activeAudioClip);
+				memset(audioOutputBuffer, 0, sizeof(StereoSample) * numSamples);
+				rendered |= renderActiveAudioClip(modelStack, audioOutputBuffer, bufferToTransferTo, numSamples,
+				                                  pitchAdjust, amplitudeAtStart, amplitudeAtEnd, activeAudioClip);
+				addAudio(audioOutputBuffer, renderBuffer, numSamples);
 			}
 			activeAudioClip = (AudioClip*)activeAudioClip->getNextClipOrNull();
 		}
@@ -198,7 +201,7 @@ renderEnvelope:
 		activeAudioClip->amplitudeLastTime = amplitudeLocal;
 
 		// If we need to duplicate mono to stereo...
-		if (willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
+		if (activeAudioClip->willRenderInMono()) {
 
 			// If can write directly into Song buffer...
 			if (bufferToTransferTo) {
@@ -281,8 +284,7 @@ renderEnvelope:
 }
 
 bool AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying() {
-	return (activeClip && ((AudioClip*)activeClip)->voiceSample
-	        && (((AudioClip*)activeClip)->sampleHolder.audioFile->numChannels == 1 || !AudioEngine::renderInStereo));
+	return (activeClip && ((AudioClip*)activeClip)->willRenderInMono());
 }
 
 void AudioOutput::cutAllSound() {
