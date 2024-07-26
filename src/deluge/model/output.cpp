@@ -554,7 +554,16 @@ void Output::endArrangementPlayback(Song* song, int32_t actualEndPos, uint32_t t
 }
 
 Clip* Output::getActiveClip() const {
-	return activeClip;
+	if (activeClip && activeClip->isInGroup()) {
+		auto nextClip = activeClip->getHeadOfGroup();
+		while (nextClip) {
+			if (nextClip->activeIfNoSolo) {
+				return nextClip;
+			}
+			nextClip = nextClip->getNextClipOrNull();
+		}
+	}
+	return activeClip ? activeClip->getHeadOfGroup() : nullptr;
 }
 
 /*
