@@ -93,6 +93,27 @@ TEST(NoteSetTest, applyChanges) {
 	CHECK_EQUAL(4, a.count());
 }
 
+TEST(NoteSetTest, degreeOfBasic) {
+	NoteSet a;
+	a.add(0);
+	a.add(2);
+	a.add(4);
+	CHECK_EQUAL(0, a.degreeOf(0));
+	CHECK_EQUAL(1, a.degreeOf(2));
+	CHECK_EQUAL(2, a.degreeOf(4));
+}
+
+TEST(NoteSetTest, degreeOfNotAScale) {
+	NoteSet a;
+	a.add(1);
+	a.add(2);
+	a.add(4);
+	CHECK_EQUAL(-1, a.degreeOf(0));
+	CHECK_EQUAL(0, a.degreeOf(1));
+	CHECK_EQUAL(1, a.degreeOf(2));
+	CHECK_EQUAL(2, a.degreeOf(4));
+}
+
 TEST(NoteSetTest, subscript1) {
 	NoteSet a;
 	for (int i = 0; i < NoteSet::size; i++) {
