@@ -695,6 +695,17 @@ void Session::scheduleLaunchTiming(int64_t atTickCount, int32_t numRepeatsUntil,
 	}
 }
 
+int32_t Session::getNumSixteenthNotesRemainingTilLaunch() {
+	float ticksRemaining = static_cast<float>(launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned
+	                                          - playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick());
+	float sixteenthNotesRemaining = std::round(ticksRemaining / currentSong->getSixteenthNoteLength());
+	return static_cast<int32_t>(sixteenthNotesRemaining);
+}
+
+int32_t Session::getNumBarsRemainingTilLaunch() {
+	return getNumSixteenthNotesRemainingTilLaunch() / 16;
+}
+
 void Session::scheduleFillEvent(Clip* clip, int64_t atTickCount) {
 	clip->fillEventAtTickCount = atTickCount;
 	int32_t ticksTilFillEvent = atTickCount - playbackHandler.lastSwungTickActioned;

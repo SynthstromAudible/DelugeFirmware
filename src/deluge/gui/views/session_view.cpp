@@ -1784,7 +1784,6 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		// Session playback
 		if (currentPlaybackMode == &session) {
 			if (session.launchEventAtSwungTickCount) {
-yesDoIt:
 				intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
 				deluge::hid::display::OLED::clearMainImage();
 				deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
@@ -1994,16 +1993,27 @@ void SessionView::graphicsRoutine() {
 		PadLEDs::sendOutSidebarColours();
 	}
 
-	uint8_t tickSquares[kDisplayHeight];
-	uint8_t colours[kDisplayHeight];
+	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
+	                           || currentUIMode == UI_MODE_IMPLODE_ANIMATION || !session.launchEventAtSwungTickCount);
 
+	int32_t sixteenthNotesRemaining = 0;
+
+	// display bars / notes remaining until launch event
+	if (!reallyNoTickSquare) {
+		sixteenthNotesRemaining = displayLoopsRemainingPopup();
+	}
+
+	// in grid view, the only playhead we potentially render a playhead that displays
+	// when the next clip launch event is expected occur (e.g. when clips will start or end)
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		// Nothing to do here but clear since we don't render playhead
-		memset(&tickSquares, 255, sizeof(tickSquares));
-		memset(&colours, 255, sizeof(colours));
-		PadLEDs::setTickSquares(tickSquares, colours);
+		potentiallyRenderClipLaunchPlayhead(reallyNoTickSquare, sixteenthNotesRemaining);
+
 		return;
 	}
+
+	uint8_t tickSquares[kDisplayHeight];
+	uint8_t colours[kDisplayHeight];
+	int32_t newTickSquare;
 
 	bool anyLinearRecordingOnThisScreen = false;
 	bool anyLinearRecordingOnNextScreen = false;
@@ -2125,6 +2135,64 @@ void SessionView::graphicsRoutine() {
 	}
 
 	PadLEDs::setTickSquares(tickSquares, colours);
+}
+
+/// display number of bars or notes remaining until a launch event
+int32_t SessionView::displayLoopsRemainingPopup() {
+	int32_t sixteenthNotesRemaining = session.getNumSixteenthNotesRemainingTilLaunch();
+	if (sixteenthNotesRemaining > 0) {
+		int32_t barsRemaining = sixteenthNotesRemaining / 16;
+
+		DEF_STACK_STRING_BUF(popupMsg, 40);
+		if (sixteenthNotesRemaining > 16) {
+			if (display->haveOLED()) {
+				popupMsg.append("Bars Remaining: ");
+			}
+			popupMsg.appendInt(barsRemaining);
+		}
+		else {
+			if (display->haveOLED()) {
+				popupMsg.append("Notes Remaining: ");
+			}
+			popupMsg.appendInt(sixteenthNotesRemaining);
+		}
+		if (display->haveOLED()) {
+			deluge::hid::display::OLED::clearMainImage();
+			deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
+			deluge::hid::display::OLED::sendMainImage();
+		}
+		else {
+			display->displayPopup(popupMsg.c_str(), 1, true);
+		}
+	}
+	return sixteenthNotesRemaining;
+}
+
+uint8_t launchTickSquares[kDisplayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};
+const uint8_t launchTickColours[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+// potentially render a playhead in top row of main grid that displays
+// when the next clip launch event is expected occur (e.g. when clips will start or end)
+void SessionView::potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining) {
+	int32_t newTickSquare;
+	const uint8_t* colours = launchTickColours;
+
+	bool renderPlayhead = !reallyNoTickSquare
+	                      && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableLaunchEventPlayhead)
+	                             == RuntimeFeatureStateToggle::On;
+
+	// render last 16 notes
+	if (renderPlayhead && (sixteenthNotesRemaining > 0 && sixteenthNotesRemaining <= kDisplayWidth)) {
+		newTickSquare = kDisplayWidth - sixteenthNotesRemaining;
+
+		launchTickSquares[kDisplayHeight - 1] = newTickSquare;
+	}
+	// don't render playhead
+	else {
+		launchTickSquares[kDisplayHeight - 1] = 255;
+	}
+
+	PadLEDs::setTickSquares(launchTickSquares, launchTickColours);
 }
 
 void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
