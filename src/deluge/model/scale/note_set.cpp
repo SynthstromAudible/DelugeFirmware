@@ -20,16 +20,14 @@ void NoteSet::addUntrusted(uint8_t note) {
 	add(note);
 }
 
-uint8_t NoteSet::operator[](uint8_t index) const {
-	// Shift out the root note bit, ie. scale degree zero. We don't
-	// actually check it it's set, because counting scale degrees
-	// doesn't make sense if the root is not set.
-	uint16_t wip = bits >> 1;
-	uint8_t note = 0;
-	while (index--) {
+int8_t NoteSet::operator[](uint8_t index) const {
+	uint16_t wip = bits;
+	int8_t note = -1;
+	int8_t n = -1;
+	while (index > n++) {
 		if (!wip) {
 			// The desired degree does not exist.
-			return 0;
+			return -1;
 		}
 		// For each subsequent scale degree, find the number
 		// of semitones, increment the note counter
