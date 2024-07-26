@@ -162,7 +162,7 @@ TEST(NoteSetTest, checkEqualAllowed) {
 TEST(NoteSetTest, subscript1) {
 	NoteSet a;
 	for (int i = 0; i < NoteSet::size; i++) {
-		CHECK_EQUAL(0, a[i]);
+		CHECK_EQUAL(-1, a[i]);
 	}
 }
 
@@ -211,6 +211,14 @@ TEST(NoteSetTest, subscript3) {
 	CHECK_EQUAL(7, a[5]);
 	CHECK_EQUAL(9, a[6]);
 	CHECK_EQUAL(11, a[7]);
+}
+
+TEST(NoteSetTest, subscript4) {
+	NoteSet a;
+	a.add(4);
+	a.add(7);
+	CHECK_EQUAL(4, a[0]);
+	CHECK_EQUAL(7, a[1]);
 }
 
 TEST(NoteSetTest, presetScaleId) {
