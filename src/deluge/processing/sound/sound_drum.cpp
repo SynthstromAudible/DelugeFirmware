@@ -156,20 +156,18 @@ void SoundDrum::prepareForHibernation() {
 }
 void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
 	Serializer& writer = GetSerializer();
-	writer.writeOpeningTagBeginning("sound");
+	writer.writeOpeningTagBeginning("sound", true);
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, NULL);
 
-	if (savingSong) {
-		Drum::writeMIDICommandsToFile(writer);
-	}
+	if (savingSong) {}
 
-	writer.writeClosingTag("sound");
+	writer.writeClosingTag("sound", true, true);
 }
 
 void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
-	writer.writeOpeningTagBeginning("sound");
+	writer.writeOpeningTagBeginning("sound", true);
 	writer.writeAttribute("name", name.get());
 
 	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.get());
@@ -178,7 +176,7 @@ void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* p
 		Drum::writeMIDICommandsToFile(writer);
 	}
 
-	writer.writeClosingTag("sound");
+	writer.writeClosingTag("sound", true, true);
 }
 
 void SoundDrum::getName(char* buffer) {

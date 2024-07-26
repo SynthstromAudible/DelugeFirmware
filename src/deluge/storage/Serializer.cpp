@@ -75,13 +75,13 @@ void XMLSerializer::write(char const* output) {
 	writeChars(output);
 }
 
-void XMLSerializer::writeTag(char const* tag, int32_t number) {
+void XMLSerializer::writeTag(char const* tag, int32_t number, bool box) {
 	char* buffer = shortStringBuffer;
 	intToString(number, buffer);
-	writeTag(tag, buffer);
+	writeTag(tag, buffer, box);
 }
 
-void XMLSerializer::writeTag(char const* tag, char const* contents) {
+void XMLSerializer::writeTag(char const* tag, char const* contents, bool box) {
 
 	printIndents();
 	write("<");
@@ -149,19 +149,24 @@ void XMLSerializer::writeAttribute(char const* name, char const* value, bool onN
 	write("\"");
 }
 
-void XMLSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter) {
+void XMLSerializer::writeTagNameAndSeperator(char const* tag) {
+	write(tag);
+	write("=");
+}
+
+void XMLSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter, bool box) {
 	writeOpeningTagBeginning(tag);
 	writeOpeningTagEnd(startNewLineAfter);
 }
 
-void XMLSerializer::writeOpeningTagBeginning(char const* tag) {
+void XMLSerializer::writeOpeningTagBeginning(char const* tag, bool box) {
 	printIndents();
 	write("<");
 	write(tag);
 	indentAmount++;
 }
 
-void XMLSerializer::closeTag() {
+void XMLSerializer::closeTag(bool box) {
 	write(" /");
 	writeOpeningTagEnd();
 	indentAmount--;
@@ -176,7 +181,7 @@ void XMLSerializer::writeOpeningTagEnd(bool startNewLineAfter) {
 	}
 }
 
-void XMLSerializer::writeClosingTag(char const* tag, bool shouldPrintIndents) {
+void XMLSerializer::writeClosingTag(char const* tag, bool shouldPrintIndents, bool box) {
 	indentAmount--;
 	if (shouldPrintIndents) {
 		printIndents();
@@ -190,6 +195,14 @@ void XMLSerializer::printIndents() {
 	for (int32_t i = 0; i < indentAmount; i++) {
 		write("\t");
 	}
+}
+
+void XMLSerializer::writeArrayStart(char const* tag, bool startNewLineAfter, bool box) {
+	writeOpeningTag(tag, startNewLineAfter);
+}
+
+void XMLSerializer::writeArrayEnding(char const* tag, bool shouldPrintIndents, bool box) {
+	writeClosingTag(tag, shouldPrintIndents);
 }
 
 Error XMLSerializer::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {

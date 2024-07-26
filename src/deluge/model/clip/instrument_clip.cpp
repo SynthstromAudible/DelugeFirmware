@@ -2391,14 +2391,14 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	}
 
 	if (output->type == OutputType::KIT) {
-		writer.writeOpeningTagBeginning("kitParams");
+		writer.writeOpeningTag("kitParams");
 		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true);
 		writer.writeOpeningTagEnd();
 		GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true);
 		writer.writeClosingTag("kitParams");
 	}
 	else if (output->type == OutputType::SYNTH) {
-		writer.writeOpeningTagBeginning("soundParams");
+		writer.writeOpeningTag("soundParams");
 		Sound::writeParamsToFile(writer, &paramManager, true);
 		writer.writeClosingTag("soundParams");
 	}
@@ -2420,7 +2420,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeClosingTag("columnControls");
 
 	if (noteRows.getNumElements()) {
-		writer.writeOpeningTag("noteRows");
+		writer.writeArrayStart("noteRows");
 
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
@@ -2436,7 +2436,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			}
 		}
 
-		writer.writeClosingTag("noteRows");
+		writer.writeArrayEnding("noteRows");
 	}
 }
 

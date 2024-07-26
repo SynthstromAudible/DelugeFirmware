@@ -1183,16 +1183,18 @@ void Song::writeToFile(StorageManager& bdsm) {
 
 	setupClipIndexesForSaving();
 	Serializer& writer = GetSerializer();
-	writer.writeOpeningTagBeginning("song");
+	writer.writeOpeningTagBeginning("song", true);
 
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 
 	writer.writeAttribute("previewNumPads", "144");
-
+	writer.insertCommaIfNeeded();
 	writer.write("\n");
 	writer.printIndents();
-	writer.write("preview=\"");
+
+	writer.writeTagNameAndSeperator("preview");
+	writer.write("\"");
 
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
@@ -1258,11 +1260,11 @@ weAreInArrangementEditorOrInClipInstance:
 
 	writer.writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
 
-	writer.writeOpeningTag("modeNotes");
+	writer.writeArrayStart("modeNotes");
 	for (int32_t i = 0; i < key.modeNotes.count(); i++) {
-		writer.writeTag("modeNote", key.modeNotes[i]);
+		writer.writeTag("modeNote", key.modeNotes[i], true);
 	}
-	writer.writeClosingTag("modeNotes");
+	writer.writeArrayEnding("modeNotes");
 
 	writer.writeOpeningTagBeginning("reverb");
 	deluge::dsp::Reverb::Model model = AudioEngine::reverb.getModel();
@@ -1301,16 +1303,15 @@ weAreInArrangementEditorOrInClipInstance:
 	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
 	writer.writeClosingTag("songParams");
 
-	writer.writeOpeningTag("instruments");
+	writer.writeArrayStart("instruments");
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->writeToFile(bdsm, NULL, this);
 	}
-	writer.writeClosingTag("instruments");
-
-	writer.writeOpeningTag("sections");
+	writer.writeArrayEnding("instruments");
+	writer.writeArrayStart("sections");
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
 		if (true || sections[s].launchMIDICommand.containsSomething() || sections[s].numRepetitions) {
-			writer.writeOpeningTagBeginning("section");
+			writer.writeOpeningTagBeginning("section", true);
 			writer.writeAttribute("id", s, false);
 			if (true || sections[s].numRepetitions) {
 				writer.writeAttribute("numRepeats", sections[s].numRepetitions, false);
@@ -1323,25 +1324,25 @@ weAreInArrangementEditorOrInClipInstance:
 				if (sections[s].launchMIDICommand.device) {
 					writer.writeOpeningTagEnd();
 					sections[s].launchMIDICommand.device->writeReferenceToFile(writer, "midiCommandDevice");
-					writer.writeClosingTag("section");
+					writer.writeClosingTag("section", true, true);
 					continue; // We now don't need to close the tag.
 				}
 			}
-			writer.closeTag();
+			writer.closeTag(true);
 		}
 	}
-	writer.writeClosingTag("sections");
+	writer.writeArrayEnding("sections");
 
-	writer.writeOpeningTag("sessionClips");
+	writer.writeArrayStart("sessionClips");
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 		clip->writeToFile(writer, this);
 	}
-	writer.writeClosingTag("sessionClips");
+	writer.writeArrayEnding("sessionClips");
 
 	if (arrangementOnlyClips.getNumElements()) {
 
-		writer.writeOpeningTag("arrangementOnlyTracks");
+		writer.writeArrayStart("arrangementOnlyTracks");
 		for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
 			Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
 			if (!clip->output->clipHasInstance(clip)) {
@@ -1350,7 +1351,7 @@ weAreInArrangementEditorOrInClipInstance:
 			}
 			clip->writeToFile(writer, this);
 		}
-		writer.writeClosingTag("arrangementOnlyTracks");
+		writer.writeArrayEnding("arrangementOnlyTracks");
 	}
 
 	// Chord mem
@@ -1363,20 +1364,20 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 	if (maxChordPosToSave > 0) {
 		// some chords to save
-		writer.writeOpeningTag("chordMem");
+		writer.writeArrayStart("chordMem");
 		for (int32_t y = 0; y < maxChordPosToSave; y++) {
-			writer.writeOpeningTag("chord");
+			writer.writeArrayStart("chord", true, true);
 			for (int i = 0; i < chordMemNoteCount[y]; i++) {
 				writer.writeOpeningTagBeginning("note");
 				writer.writeAttribute("code", chordMem[y][i]);
-				writer.closeTag();
+				writer.closeTag(true);
 			}
-			writer.writeClosingTag("chord");
+			writer.writeArrayEnding("chord", true, true);
 		}
-		writer.writeClosingTag("chordMem");
+		writer.writeArrayEnding("chordMem");
 	}
 
-	writer.writeClosingTag("song");
+	writer.writeClosingTag("song", true, true);
 }
 
 Error Song::readFromFile(Deserializer& reader) {

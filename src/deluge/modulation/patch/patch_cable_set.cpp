@@ -932,7 +932,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 	}
 
 	// Patch cables
-	writer.writeOpeningTag("patchCables");
+	writer.writeArrayStart("patchCables");
 	for (int32_t c = 0; c < numPatchCables;
 	     c++) { // I have a feeling this should actually only do up to "numUsablePatchCables"... otherwise we end up
 		        // with like FM-related cables written to file for a subtractive preset... etc.
@@ -940,15 +940,16 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 			continue; // If it's a depth-controlling cable, we'll deal with that separately, below.
 		}
 
-		writer.writeOpeningTagBeginning("patchCable");
+		writer.writeOpeningTagBeginning("patchCable", true);
 		writer.writeAttribute("source", sourceToString(patchCables[c].from));
 		writer.writeAttribute("destination",
 		                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
 		                                               patchCables[c].destinationParamDescriptor.getJustTheParam()));
-
+		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
-		writer.write("amount=\"");
+		writer.writeTagNameAndSeperator("amount");
+		writer.write("\"");
 		patchCables[c].param.writeToFile(writer, writeAutomation);
 		writer.write("\"");
 
@@ -969,7 +970,8 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 
 				writer.write("\n");
 				writer.printIndents();
-				writer.write("amount=\"");
+				writer.writeTagNameAndSeperator("amount");
+				writer.write("\"");
 				patchCables[d].param.writeToFile(writer, writeAutomation);
 				writer.write("\"");
 				writer.closeTag();
@@ -981,10 +983,10 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 			writer.writeClosingTag("patchCable");
 		}
 		else {
-			writer.closeTag();
+			writer.closeTag(true);
 		}
 	}
-	writer.writeClosingTag("patchCables");
+	writer.writeArrayEnding("patchCables");
 }
 
 int32_t PatchCableSet::getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s) {

@@ -51,42 +51,46 @@ extern "C" {
 
 /*******************************************************************************
 
-    JSONSerializer
+    JsonSerializer
 
 ********************************************************************************/
 
-JSONSerializer::JSONSerializer() {
+JsonSerializer::JsonSerializer() {
 	reset();
 }
 
-void JSONSerializer::reset() {
+void JsonSerializer::reset() {
 	resetWriter();
 }
 
-void JSONSerializer::write(char const* output) {
+void JsonSerializer::write(char const* output) {
 
 	writeChars(output);
 }
 
-void JSONSerializer::writeTag(char const* tag, int32_t number) {
+void JsonSerializer::writeTag(char const* tag, int32_t number, bool box) {
 	char* buffer = shortStringBuffer;
 	intToString(number, buffer);
-	writeTag(tag, buffer);
+	writeTag(tag, buffer, box);
 }
 
-void JSONSerializer::writeTag(char const* tag, char const* contents) {
-
+void JsonSerializer::writeTag(char const* tag, char const* contents, bool box) {
+	insertCommaIfNeeded();
+	write("\n");
 	printIndents();
-	write("<");
+	if (box)
+		write("{");
+	write("\"");
 	write(tag);
-	write(">");
+	write("\": \"");
 	write(contents);
-	write("</");
-	write(tag);
-	write(">\n");
+	write("\"");
+	if (box)
+		write("}");
+	firstItemHasBeenWritten = true;
 }
 
-void JSONSerializer::writeAttribute(char const* name, int32_t number, bool onNewLine) {
+void JsonSerializer::writeAttribute(char const* name, int32_t number, bool onNewLine) {
 
 	char buffer[12];
 	intToString(number, buffer);
@@ -95,7 +99,7 @@ void JSONSerializer::writeAttribute(char const* name, int32_t number, bool onNew
 }
 
 // numChars may be up to 8
-void JSONSerializer::writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine) {
+void JsonSerializer::writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine) {
 
 	char buffer[11];
 	buffer[0] = '0';
@@ -106,7 +110,9 @@ void JSONSerializer::writeAttributeHex(char const* name, int32_t number, int32_t
 }
 
 // numChars may be up to 8
-void JSONSerializer::writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine) {
+void JsonSerializer::writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine) {
+
+	insertCommaIfNeeded();
 
 	if (onNewLine) {
 		write("\n");
@@ -116,7 +122,7 @@ void JSONSerializer::writeAttributeHexBytes(char const* name, uint8_t* data, int
 		write(" ");
 	}
 	write(name);
-	write("=\"");
+	write(":\"");
 
 	char buffer[3];
 	for (int i = 0; i < numBytes; i++) {
@@ -124,10 +130,12 @@ void JSONSerializer::writeAttributeHexBytes(char const* name, uint8_t* data, int
 		write(buffer);
 	}
 	write("\"");
+	firstItemHasBeenWritten = true;
 }
 
-void JSONSerializer::writeAttribute(char const* name, char const* value, bool onNewLine) {
+void JsonSerializer::writeAttribute(char const* name, char const* value, bool onNewLine) {
 
+	insertCommaIfNeeded();
 	if (onNewLine) {
 		write("\n");
 		printIndents();
@@ -135,56 +143,102 @@ void JSONSerializer::writeAttribute(char const* name, char const* value, bool on
 	else {
 		write(" ");
 	}
-
+	write("\"");
 	write(name);
-	write("=\"");
+	write("\": \"");
 	write(value);
 	write("\"");
+	firstItemHasBeenWritten = true;
 }
 
-void JSONSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter) {
-	writeOpeningTagBeginning(tag);
+void JsonSerializer::writeTagNameAndSeperator(char const* tag) {
+	write("\"");
+	write(tag);
+	write("\":");
+}
+
+void JsonSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter, bool box) {
+	writeOpeningTagBeginning(tag, box);
 	writeOpeningTagEnd(startNewLineAfter);
 }
 
-void JSONSerializer::writeOpeningTagBeginning(char const* tag) {
+void JsonSerializer::writeOpeningTagBeginning(char const* tag, bool box) {
+	insertCommaIfNeeded();
+	write("\n");
+
 	printIndents();
-	write("<");
+	if (box)
+		write("{");
+	write("\"");
 	write(tag);
+	write("\": {");
 	indentAmount++;
+	firstItemHasBeenWritten = false;
 }
 
-void JSONSerializer::closeTag() {
-	write(" /");
-	writeOpeningTagEnd();
+void JsonSerializer::closeTag(bool box) {
+	// printIndents();
+	write("}");
+	if (box)
+		write(" }");
 	indentAmount--;
+	firstItemHasBeenWritten = true;
 }
 
-void JSONSerializer::writeOpeningTagEnd(bool startNewLineAfter) {
-	if (startNewLineAfter) {
-		write(">\n");
-	}
-	else {
-		write(">");
-	}
+void JsonSerializer::writeOpeningTagEnd(bool startNewLineAfter) {
 }
 
-void JSONSerializer::writeClosingTag(char const* tag, bool shouldPrintIndents) {
+void JsonSerializer::writeClosingTag(char const* tag, bool shouldPrintIndents, bool box) {
 	indentAmount--;
+	firstItemHasBeenWritten = true;
 	if (shouldPrintIndents) {
 		printIndents();
 	}
-	write("</");
-	write(tag);
-	write(">\n");
+	write("}");
+	if (box)
+		write("}");
 }
 
-void JSONSerializer::printIndents() {
+void JsonSerializer::printIndents() {
 	for (int32_t i = 0; i < indentAmount; i++) {
 		write("\t");
 	}
 }
 
-Error JSONSerializer::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
+Error JsonSerializer::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
 	return closeAfterWriting(path, beginningString, endString);
+}
+
+void JsonSerializer::writeArrayStart(char const* tag, bool startNewLineAfter, bool box) {
+
+	insertCommaIfNeeded();
+	write("\n");
+	printIndents();
+	if (box)
+		write("{");
+	write("\"");
+	write(tag);
+	write("\": [");
+	indentAmount++;
+	firstItemHasBeenWritten = false;
+}
+
+void JsonSerializer::writeArrayEnding(char const* tag, bool shouldPrintIndents, bool box) {
+	indentAmount--;
+	if (shouldPrintIndents) {
+		write("\n");
+		printIndents();
+	}
+	write("]");
+	if (box)
+		write("}");
+}
+
+void JsonSerializer::insertCommaIfNeeded() {
+	if (firstItemHasBeenWritten) {
+		write(",");
+	}
+	else {
+		firstItemHasBeenWritten = true;
+	}
 }

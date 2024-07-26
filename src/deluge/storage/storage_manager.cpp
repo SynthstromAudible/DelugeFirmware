@@ -61,13 +61,13 @@ FILINFO staticFNO;
 DIR staticDIR;
 XMLSerializer smSerializer;
 XMLDeserializer smDeserializer;
-JSONSerializer smJSONSerializer;
+JsonSerializer smJsonSerializer;
 
-bool writeJSONFlag = false;
+bool writeJsonFlag = true;
 
 Serializer& GetSerializer() {
-	if (writeJSONFlag) {
-		return smJSONSerializer;
+	if (writeJsonFlag) {
+		return smJsonSerializer;
 	}
 	else {
 		return smSerializer;
@@ -189,7 +189,7 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	return Error::NONE;
 }
 
-Error StorageManager::createJSONFile(char const* filePath, JSONSerializer& writer, bool mayOverwrite,
+Error StorageManager::createJsonFile(char const* filePath, JsonSerializer& writer, bool mayOverwrite,
                                      bool displayErrors) {
 	auto created = createFile(filePath, mayOverwrite);
 	writer.reset();
@@ -719,7 +719,7 @@ void FileWriter::writeChars(char const* output) {
 
 		// Ensure we do some of the audio routine once in a while
 		if (!(fileWriteBufferCurrentPos & 0b11111111)) {
-			AudioEngine::logAction("writeCharsJSON");
+			AudioEngine::logAction("writeCharsJson");
 
 			// AudioEngine::routineWithClusterLoading();
 

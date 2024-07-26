@@ -119,7 +119,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 	}
 	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, clipForSavingOutputOnly == NULL);
 
-	writer.writeOpeningTag("soundSources"); // TODO: change this?
+	writer.writeArrayStart("soundSources"); // TODO: change this?
 	int32_t selectedDrumIndex = -1;
 	int32_t drumIndex = 0;
 
@@ -228,7 +228,7 @@ moveOn:
 		prevPointer = &thisDrum->next;
 	}
 
-	writer.writeClosingTag("soundSources");
+	writer.writeArrayEnding("soundSources");
 
 	*newLastDrum = firstDrum;
 	firstDrum = newFirstDrum;

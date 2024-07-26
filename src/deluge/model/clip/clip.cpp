@@ -648,13 +648,13 @@ void Clip::writeToFile(Serializer& writer, Song* song) {
 
 	char const* xmlTag = getXMLTag();
 
-	writer.writeOpeningTagBeginning(xmlTag);
+	writer.writeOpeningTagBeginning(xmlTag, true);
 
 	writeDataToFile(writer, song);
 
 	Clip::writeMidiCommandsToFile(writer, song);
 
-	writer.writeClosingTag(xmlTag);
+	writer.writeClosingTag(xmlTag, true, true);
 }
 
 void Clip::writeDataToFile(Serializer& writer, Song* song) {

@@ -67,8 +67,8 @@ doReturnFalse:
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
 	if (!searchFilename.isEmpty()) {
-		if (writeJSONFlag) {
-			error = searchFilename.concatenate(".JSON");
+		if (writeJsonFlag) {
+			error = searchFilename.concatenate(".Json");
 		}
 		else {
 			error = searchFilename.concatenate(".XML");
@@ -243,8 +243,8 @@ gotError:
 
 				// Open file to read
 				FRESULT result = FRESULT::FR_OK;
-				if (writeJSONFlag) {
-					result = f_open(&smJSONSerializer.writeFIL, sourceFilePath, FA_READ);
+				if (writeJsonFlag) {
+					result = f_open(&smJsonSerializer.writeFIL, sourceFilePath, FA_READ);
 				}
 				else {
 					result = f_open(&smSerializer.writeFIL, sourceFilePath, FA_READ);
@@ -416,8 +416,8 @@ fail3:
 			if (error != Error::NONE) {
 				goto gotError;
 			}
-			if (writeJSONFlag) {
-				error = filePathDuringWrite.concatenate(".JSON");
+			if (writeJsonFlag) {
+				error = filePathDuringWrite.concatenate(".Json");
 			}
 			else {
 				error = filePathDuringWrite.concatenate(".XML");
@@ -439,9 +439,9 @@ fail3:
 
 	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
 
-	if (writeJSONFlag) {
+	if (writeJsonFlag) {
 		// Write the actual song file
-		error = bdsm.createJSONFile(filePathDuringWrite.get(), smJSONSerializer, false, false);
+		error = bdsm.createJsonFile(filePathDuringWrite.get(), smJsonSerializer, false, false);
 		if (error != Error::NONE) {
 			goto gotError;
 		}
@@ -459,7 +459,7 @@ fail3:
 	currentSong->writeToFile(bdsm);
 
 	error = GetSerializer().closeFileAfterWriting(
-	    filePathDuringWrite.get(), writeJSONFlag ? "<song\n" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
+	    filePathDuringWrite.get(), writeJsonFlag ? "<song\n" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
 	    "\n</song>\n");
 	if (error != Error::NONE) {
 		goto gotError;

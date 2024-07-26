@@ -96,15 +96,18 @@ public:
 	virtual void writeAttribute(char const* name, char const* value, bool onNewLine = true) = 0;
 	virtual void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true) = 0;
 	virtual void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true) = 0;
-
-	virtual void writeTag(char const* tag, int32_t number) = 0;
-	virtual void writeTag(char const* tag, char const* contents) = 0;
-	virtual void writeOpeningTag(char const* tag, bool startNewLineAfter = true) = 0;
-	virtual void writeOpeningTagBeginning(char const* tag) = 0;
+	virtual void writeTagNameAndSeperator(char const* tag) = 0;
+	virtual void writeTag(char const* tag, int32_t number, bool box = false) = 0;
+	virtual void writeTag(char const* tag, char const* contents, bool box = false) = 0;
+	virtual void writeOpeningTag(char const* tag, bool startNewLineAfter = true, bool box = false) = 0;
+	virtual void writeOpeningTagBeginning(char const* tag, bool box = false) = 0;
 	virtual void writeOpeningTagEnd(bool startNewLineAfter = true) = 0;
-	virtual void closeTag() = 0;
-	virtual void writeClosingTag(char const* tag, bool shouldPrintIndents = true) = 0;
+	virtual void closeTag(bool box = false) = 0;
+	virtual void writeClosingTag(char const* tag, bool shouldPrintIndents = true, bool box = false) = 0;
+	virtual void writeArrayStart(char const* tag, bool startNewLineAfter = true, bool box = false) = 0;
+	virtual void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = false) = 0;
 	virtual void printIndents() = 0;
+	virtual void insertCommaIfNeeded() = 0;
 	virtual void write(char const* output) = 0;
 	virtual Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                                    char const* endString = nullptr) = 0;
@@ -132,14 +135,17 @@ public:
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
 	void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true) override;
 	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
-
-	void writeTag(char const* tag, int32_t number) override;
-	void writeTag(char const* tag, char const* contents) override;
-	void writeOpeningTag(char const* tag, bool startNewLineAfter = true) override;
-	void writeOpeningTagBeginning(char const* tag) override;
+	void writeTagNameAndSeperator(char const* tag) override;
+	void writeTag(char const* tag, int32_t number, bool box = false) override;
+	void writeTag(char const* tag, char const* contents, bool box = false) override;
+	void writeOpeningTag(char const* tag, bool startNewLineAfter = true, bool box = false) override;
+	void writeOpeningTagBeginning(char const* tag, bool box = false) override;
 	void writeOpeningTagEnd(bool startNewLineAfter = true) override;
-	void closeTag() override;
-	void writeClosingTag(char const* tag, bool shouldPrintIndents = true) override;
+	void closeTag(bool box = false) override;
+	void writeClosingTag(char const* tag, bool shouldPrintIndents = true, bool box = false) override;
+	void writeArrayStart(char const* tag, bool shouldPrintIndents = true, bool box = true) override;
+	void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = true) override;
+	void insertCommaIfNeeded() {}
 	void printIndents() override;
 	void write(char const* output) override;
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
@@ -225,24 +231,27 @@ private:
 	Error readAttributeValueString(String* string);
 };
 
-class JSONSerializer : public Serializer, public FileWriter {
+class JsonSerializer : public Serializer, public FileWriter {
 public:
-	JSONSerializer();
-	~JSONSerializer() = default;
+	JsonSerializer();
+	~JsonSerializer() = default;
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
 	void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true) override;
 	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
-
-	void writeTag(char const* tag, int32_t number) override;
-	void writeTag(char const* tag, char const* contents) override;
-	void writeOpeningTag(char const* tag, bool startNewLineAfter = true) override;
-	void writeOpeningTagBeginning(char const* tag) override;
+	void writeTagNameAndSeperator(char const* tag) override;
+	void writeTag(char const* tag, int32_t number, bool box = false) override;
+	void writeTag(char const* tag, char const* contents, bool box = false) override;
+	void writeOpeningTag(char const* tag, bool startNewLineAfter = true, bool box = false) override;
+	void writeOpeningTagBeginning(char const* tag, bool box = false) override;
 	void writeOpeningTagEnd(bool startNewLineAfter = true) override;
-	void closeTag() override;
-	void writeClosingTag(char const* tag, bool shouldPrintIndents = true) override;
+	void closeTag(bool box = false) override;
+	void writeClosingTag(char const* tag, bool shouldPrintIndents = true, bool box = false) override;
+	void writeArrayStart(char const* tag, bool shouldPrintIndents = true, bool box = false) override;
+	void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = false) override;
 	void printIndents() override;
+	void insertCommaIfNeeded() override;
 	void write(char const* output) override;
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr) override;
@@ -250,11 +259,12 @@ public:
 
 private:
 	uint8_t indentAmount;
+	bool firstItemHasBeenWritten = false;
 };
 
 extern XMLSerializer smSerializer;
 extern XMLDeserializer smDeserializer;
-extern JSONSerializer smJSONSerializer;
+extern JsonSerializer smJsonSerializer;
 
 extern Serializer& GetSerializer();
 
@@ -266,7 +276,7 @@ public:
 	std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
 	Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false,
 	                    bool displayErrors = true);
-	Error createJSONFile(char const* pathName, JSONSerializer& writer, bool mayOverwrite = false,
+	Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverwrite = false,
 	                     bool displayErrors = true);
 	Error openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const* firstTagName,
 	                  char const* altTagName = "", bool ignoreIncorrectFirmware = false);
@@ -299,7 +309,7 @@ private:
 extern StorageManager storageManager;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
-extern bool writeJSONFlag;
+extern bool writeJsonFlag;
 inline bool isCardReady() {
 	return !sdRoutineLock && Error::NONE == storageManager.initSD();
 }

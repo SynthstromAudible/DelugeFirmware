@@ -201,7 +201,7 @@ void Output::writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, So
 
 	Serializer& writer = GetSerializer();
 	char const* tagName = getXMLTag();
-	writer.writeOpeningTagBeginning(tagName);
+	writer.writeOpeningTagBeginning(tagName, true);
 
 	if (clipForSavingOutputOnly) {
 		writer.writeFirmwareVersion();
@@ -211,10 +211,10 @@ void Output::writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, So
 	bool endedOpeningTag = writeDataToFile(writer, clipForSavingOutputOnly, song);
 
 	if (endedOpeningTag) {
-		writer.writeClosingTag(tagName);
+		writer.writeClosingTag(tagName, true, true);
 	}
 	else {
-		writer.closeTag();
+		writer.closeTag(true);
 	}
 }
 
@@ -231,10 +231,11 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 		writer.writeAttribute("activeModFunction", modKnobMode);
 
 		if (clipInstances.getNumElements()) {
+			writer.insertCommaIfNeeded();
 			writer.write("\n");
 			writer.printIndents();
-			writer.write("clipInstances=\"0x");
-
+			writer.writeTagNameAndSeperator("clipInstances");
+			writer.write("\"0x");
 			for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
 				ClipInstance* thisInstance = clipInstances.getElement(i);
 

@@ -228,8 +228,8 @@ Error SlotBrowser::getCurrentFilePath(String* path) {
 	if (error != Error::NONE) {
 		return error;
 	}
-	if (writeJSONFlag) {
-		error = path->concatenate(".JSON");
+	if (writeJsonFlag) {
+		error = path->concatenate(".Json");
 	}
 	else {
 		error = path->concatenate(".XML");

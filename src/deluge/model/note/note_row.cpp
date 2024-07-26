@@ -3369,7 +3369,7 @@ getOut: {}
 }
 
 void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip) {
-	writer.writeOpeningTagBeginning("noteRow");
+	writer.writeOpeningTagBeginning("noteRow", true);
 
 	bool forKit = (clip->output->type == OutputType::KIT);
 
@@ -3392,10 +3392,11 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	}
 
 	if (notes.getNumElements()) {
+		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
-		writer.write("noteDataWithLift=\"0x");
-
+		writer.writeTagNameAndSeperator("noteDataWithLift");
+		writer.write("\"0x");
 		for (int32_t n = 0; n < notes.getNumElements(); n++) {
 			Note* thisNote = notes.getElement(n);
 
@@ -3445,11 +3446,11 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	}
 
 	if (closedOurTagYet) {
-		writer.writeClosingTag("noteRow");
+		writer.writeClosingTag("noteRow", true, true);
 	}
 
 	else {
-		writer.closeTag();
+		writer.closeTag(true);
 	}
 }
 

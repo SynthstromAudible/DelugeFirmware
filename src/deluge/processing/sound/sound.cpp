@@ -4052,11 +4052,11 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	}
 
 	// Mod knobs
-	writer.writeOpeningTag("modKnobs");
+	writer.writeArrayStart("modKnobs");
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
 			ModKnob* knob = &modKnobs[k][w];
-			writer.writeOpeningTagBeginning("modKnob");
+			writer.writeOpeningTagBeginning("modKnob", true);
 			writer.writeAttribute(
 			    "controlsParam",
 			    params::paramNameForFile(params::Kind::UNPATCHED_SOUND, knob->paramDescriptor.getJustTheParam()),
@@ -4070,10 +4070,10 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 					                      sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
 				}
 			}
-			writer.closeTag();
+			writer.closeTag(true);
 		}
 	}
-	writer.writeClosingTag("modKnobs");
+	writer.writeArrayEnding("modKnobs");
 
 	ModControllableAudio::writeTagsToFile(writer);
 }
