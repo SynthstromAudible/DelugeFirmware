@@ -34,7 +34,8 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	bool beginOutputRecording();
+	bool beginOutputRecording(AudioRecordingFolder folder = AudioRecordingFolder::RESAMPLE,
+	                          AudioInputChannel channel = AudioInputChannel::OUTPUT, bool writeLoopPoints = false);
 	void process();
 	void slowRoutine();
 	bool isCurrentlyResampling();
@@ -53,7 +54,8 @@ public:
 
 private:
 	void finishRecording();
-	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID);
+	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
+	                          bool writeLoopPoints = false);
 };
 
 extern AudioRecorder audioRecorder;

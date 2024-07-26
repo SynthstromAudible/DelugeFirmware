@@ -48,8 +48,6 @@ Sized<char const**> CancelStemExport::getOptions() {
 }
 
 bool CancelStemExport::acceptCurrentOption() {
-	using enum l10n::String;
-
 	stemExport.stopStemExportProcess();
 
 	return false; // return false so you exit out of the context menu
