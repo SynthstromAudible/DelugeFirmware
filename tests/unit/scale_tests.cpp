@@ -114,6 +114,13 @@ TEST(NoteSetTest, degreeOfNotAScale) {
 	CHECK_EQUAL(2, a.degreeOf(4));
 }
 
+TEST(NoteSetTest, isEmpty) {
+	NoteSet a;
+	CHECK_EQUAL(true, a.isEmpty());
+	a.add(0);
+	CHECK_EQUAL(false, a.isEmpty());
+}
+
 TEST(NoteSetTest, subscript1) {
 	NoteSet a;
 	for (int i = 0; i < NoteSet::size; i++) {

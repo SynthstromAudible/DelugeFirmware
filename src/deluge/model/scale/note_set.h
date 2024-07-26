@@ -64,6 +64,8 @@ public:
 	/** Removes all semitones from the NoteSet.
 	 */
 	void clear() { bits = 0; }
+	/** Returns true if the NoteSet is empty */
+	bool isEmpty() const { return bits == 0; }
 	/** Returns the highest note that has been added to the NoteSet.
 	 */
 	uint8_t highest() const { return 15 - std::countl_zero(bits); }
