@@ -121,6 +121,14 @@ TEST(NoteSetTest, isEmpty) {
 	CHECK_EQUAL(false, a.isEmpty());
 }
 
+TEST(NoteSetTest, equality) {
+	NoteSet a;
+	NoteSet b;
+	CHECK(a == b);
+	a.add(0);
+	CHECK(a != b);
+}
+
 TEST(NoteSetTest, subscript1) {
 	NoteSet a;
 	for (int i = 0; i < NoteSet::size; i++) {

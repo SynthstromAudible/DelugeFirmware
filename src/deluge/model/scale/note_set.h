@@ -77,6 +77,8 @@ public:
 	/** Returns number of notes in the NoteSet.
 	 */
 	int count() const { return std::popcount(bits); }
+	/** True if two NoteSets are identical. */
+	bool operator==(const NoteSet& other) const { return bits == other.bits; }
 	/** Size of NoteSet, ie. the maximum number of notes it can hold.
 	 */
 	static const int8_t size = 12;
