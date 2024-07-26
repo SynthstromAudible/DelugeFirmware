@@ -24,7 +24,6 @@
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/launch_style.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
-#include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
