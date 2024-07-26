@@ -129,6 +129,27 @@ TEST(NoteSetTest, equality) {
 	CHECK(a != b);
 }
 
+TEST(NoteSetTest, isSubsetOf) {
+	NoteSet a;
+	NoteSet b;
+	CHECK(a.isSubsetOf(b));
+	CHECK(b.isSubsetOf(a));
+	a.add(3);
+	b.add(3);
+	CHECK(a.isSubsetOf(b));
+	CHECK(b.isSubsetOf(a));
+	a.add(0);
+	CHECK(!a.isSubsetOf(b));
+	CHECK(b.isSubsetOf(a));
+	b.add(0);
+	b.add(11);
+	CHECK(a.isSubsetOf(b));
+	CHECK(!b.isSubsetOf(a));
+	a.add(7);
+	CHECK(!a.isSubsetOf(b));
+	CHECK(!b.isSubsetOf(a));
+}
+
 TEST(NoteSetTest, subscript1) {
 	NoteSet a;
 	for (int i = 0; i < NoteSet::size; i++) {

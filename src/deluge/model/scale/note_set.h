@@ -79,6 +79,8 @@ public:
 	int count() const { return std::popcount(bits); }
 	/** True if two NoteSets are identical. */
 	bool operator==(const NoteSet& other) const { return bits == other.bits; }
+	/** True if this is a subset of the other NoteSet. */
+	bool isSubsetOf(NoteSet other) const { return (other.bits & bits) == bits; }
 	/** Size of NoteSet, ie. the maximum number of notes it can hold.
 	 */
 	static const int8_t size = 12;
