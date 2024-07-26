@@ -303,30 +303,30 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 
 			// Obviously if no voiceSample yet, need to reset envelope for first usage. Otherwise,
 			// If the envelope's now releasing (e.g. from playback just being stopped and then restarted, e.g. by
-			// pressing <> + play), and if not doing a late start (which would cause more sound to start happening after
-			// the envelope finishes releasing), then we'd absolutely better reset that envelope because there's no
-			// other way any sound's going to come out!
+			// pressing <> + play), and if not doing a late start (which would cause more sound to start happening
+			// after the envelope finishes releasing), then we'd absolutely better reset that envelope because
+			// there's no other way any sound's going to come out!
 			bool shouldResetEnvelope = !voiceSample
-			                           || (((AudioOutput*)output)->envelope.state >= EnvelopeStage::RELEASE
-			                               && !doingLateStart); // Come to think of it, would doingLateStart ever (or
-			                                                    // normally) be true if we're at play pos 0?
+			                           || (envelope.state >= EnvelopeStage::RELEASE
+			                               && !doingLateStart); // Come to think of it, would doingLateStart ever
+			                                                    // (or normally) be true if we're at play pos 0?
 
 			// If already had a VoiceSample, everything's probably all fine...
 			if (voiceSample) {
 
-				// But, if it's reading from (or writing to) a cache, we have to manually cut it out right now and tell
-				// it to restart, so the new play-through will remain perfectly synced up to this start-tick we're at
-				// now.
+				// But, if it's reading from (or writing to) a cache, we have to manually cut it out right now and
+				// tell it to restart, so the new play-through will remain perfectly synced up to this start-tick
+				// we're at now.
 				if (voiceSample->cache
 
-				    // Or, if no time-stretcher, which also means we're not "fudging" - probably because there was no
-				    // pre-margin - then yup we'll wanna force restart now too - because AudioClip VoiceSamples don't
-				    // obey their loop points, so it won't have happened otherwise.
+				    // Or, if no time-stretcher, which also means we're not "fudging" - probably because there was
+				    // no pre-margin - then yup we'll wanna force restart now too - because AudioClip VoiceSamples
+				    // don't obey their loop points, so it won't have happened otherwise.
 				    || !voiceSample->timeStretcher
 
-				    // Or, if time stretching is on but the "newer" play-head is no longer active - because it's shot
-				    // past the end of the waveform, and this waveform didn't have an extra "margin" at the end, then we
-				    // want to just cut everything and start from scratch again.
+				    // Or, if time stretching is on but the "newer" play-head is no longer active - because it's
+				    // shot past the end of the waveform, and this waveform didn't have an extra "margin" at the
+				    // end, then we want to just cut everything and start from scratch again.
 				    || !voiceSample->timeStretcher->playHeadStillActive[PLAY_HEAD_NEWER]) {
 
 					// Yup, do that unassignment
@@ -339,16 +339,16 @@ doUnassignment:
 					// If here, we know time stretching is on.
 
 					// If no pre-margin, then still do go and do the unassignment and start afresh - cos we'll wanna
-					// hear that sharp start-point perfectly rather than just fading into it after a play-head reaches
-					// its end
+					// hear that sharp start-point perfectly rather than just fading into it after a play-head
+					// reaches its end
 					uint32_t waveformStartByte = ((Sample*)sampleHolder.audioFile)->audioDataStartPosBytes;
 					if (sampleControls.reversed) {
 						waveformStartByte +=
 						    ((Sample*)sampleHolder.audioFile)->audioDataLengthBytes
 						    - sampleHolder.audioFile->numChannels
 						          * ((Sample*)sampleHolder.audioFile)
-						                ->byteDepth; // The actual first sample of the waveform in our given direction,
-						                             // regardless of our elected start-point
+						                ->byteDepth; // The actual first sample of the waveform in our given
+						                             // direction, regardless of our elected start-point
 					}
 					int32_t numBytesOfPreMarginAvailable =
 					    (int32_t)(guide.getBytePosToStartPlayback(true) - waveformStartByte);
@@ -359,15 +359,15 @@ doUnassignment:
 						goto doUnassignment;
 					}
 
-					// If we were "fudging" a time-stretch just to get a free crossfade, then we can now stop doing all
-					// of that. (It should automatically stop eventually anyway, but let's be clean and efficient and
-					// just kill it now.)
+					// If we were "fudging" a time-stretch just to get a free crossfade, then we can now stop doing
+					// all of that. (It should automatically stop eventually anyway, but let's be clean and
+					// efficient and just kill it now.)
 					if (voiceSample->fudging) {
 						voiceSample->endTimeStretching();
 					}
 					// Otherwise, if we're just regular time-stretching (not for mere "fudging" reasons), don't do
-					// anything and just get out. The regular time-stretching algorithm takes care of causing playback
-					// to jump back to the start of the Sample.
+					// anything and just get out. The regular time-stretching algorithm takes care of causing
+					// playback to jump back to the start of the Sample.
 
 					goto possiblyResetEnvelopeAndGetOut;
 				}
@@ -393,7 +393,7 @@ doUnassignment:
 
 possiblyResetEnvelopeAndGetOut:
 			if (shouldResetEnvelope) {
-				((AudioOutput*)output)->resetEnvelope();
+				resetEnvelope();
 			}
 		}
 	}
@@ -454,7 +454,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	// If already time stretching, no need to do anything - that'll take care of the new play-position.
 	// Also can only do this if envelope not releasing, which (possibly not anymore since I fixed other bug) it can
 	// still be if this is our second quick successive <>+play starting playback partway through Clip
-	if (voiceSample && voiceSample->timeStretcher && ((AudioOutput*)output)->envelope.state < EnvelopeStage::RELEASE) {
+	if (voiceSample && voiceSample->timeStretcher && (envelope.state < EnvelopeStage::RELEASE)) {
 		return;
 	}
 
@@ -464,12 +464,11 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 
 	// If already had a VoiceSample, we can reuse it
 	if (voiceSample) {
-
 		// But we're gonna do a nice quick fade-out first.
 		// TODO: probably not super necessary now we've got time-stretching taking care of sorta doing a crossfade,
 		// above. We'd only actually need to do any such fade manually if we weren't time-stretching before, and we're
 		// also not going to be after (though it'd be hard to predict whether we're going to be after)
-		((AudioOutput*)output)->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+		envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
 	}
 
 	// Otherwise, get a new VoiceSample
@@ -481,7 +480,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 
 		voiceSample->noteOn(&guide, 0, 1);
 		voiceSample->forAudioClip = true;
-		((AudioOutput*)output)->resetEnvelope();
+		resetEnvelope();
 	}
 }
 
@@ -525,7 +524,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, int32_t* outpu
 
 	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data
 	// hasn't loaded yet)
-	if (doingLateStart && ((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+	if (doingLateStart && envelope.state < EnvelopeStage::FAST_RELEASE) {
 		uint64_t numSamplesIn = guide.getSyncedNumSamplesIn();
 
 		LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
@@ -602,7 +601,6 @@ justDontTimeStretch:
 
 	// Or if we're squishing pitch...
 	else {
-
 		// If no prior pitch adjustment, we play back 100% natively, with no pitch shifting / time stretching. Just with
 		// pitch / speed changed like speeding/slowing a record
 		if (!sampleHolder.transpose && !sampleHolder.cents) {
@@ -632,7 +630,6 @@ justDontTimeStretch:
 
 	// If Clip will loop at end...
 	if (clipWillLoopAtEnd) {
-
 		// If no time-stretcher, and not reading cache, we might want to "fudge" to eliminate the click at the loop
 		// point (if it's gonna loop)
 		if (timeStretchRatio == kMaxSampleValue && !voiceSample->timeStretcher
@@ -689,7 +686,6 @@ justDontTimeStretch:
 
 	// Or if Clip won't loop at any point...
 	else {
-
 		// We want to do a fast release *before* the end, to finish right as the end is reached. So that any waveform
 		// after the end isn't heard.
 		// TODO: in an ideal world, would we only do this if there actually is some waveform "margin" after the end that
@@ -697,7 +693,7 @@ justDontTimeStretch:
 		// forgot?) It's perhaps a little bit surprising, but this even works and sounds perfect (you never hear any of
 		// the margin) when time-stretching is happening! Down to about half speed. Below that, you hear some of the
 		// margin.
-		if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+		if (envelope.state < EnvelopeStage::FAST_RELEASE) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
 
@@ -710,8 +706,7 @@ justDontTimeStretch:
 				int32_t timeTilLoop = loopTime - AudioEngine::audioSampleTimer;
 
 				if (timeTilLoop < 1024) {
-					((AudioOutput*)output)
-					    ->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE, 8192); // Let's make it extra fast?
+					envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE, 8192); // Let's make it extra fast?
 				}
 			}
 		}
@@ -789,7 +784,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 			if (doingLateStart) {
 				// If waiting to do a late start, and we're not waiting for a past bit to fade out, well there's no
 				// sound right now, so just cut out.
-				if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+				if (envelope.state < EnvelopeStage::FAST_RELEASE) {
 					unassignVoiceSample(false);
 				}
 
@@ -801,7 +796,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 			}
 			else {
 				// Or normal case - do a fade when we weren't going to before. And no late start is or was happening.
-				((AudioOutput*)output)->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+				envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
 			}
 		}
 	}
@@ -1374,4 +1369,11 @@ bool AudioClip::isEmpty(bool displayPopup) {
 		return false;
 	}
 	return true;
+}
+void AudioClip::resetEnvelope() {
+
+	bool directlyToDecay = (attack == -2147483648);
+	envelope.noteOn(directlyToDecay);
+
+	amplitudeLastTime = 0;
 }

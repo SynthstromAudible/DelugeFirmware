@@ -4118,7 +4118,7 @@ traverseClips:
 			clip = clipInstance->clip;
 		}
 
-		if (clip != theActiveClip && isClipActive(clip)) {
+		if (clip != theActiveClip && isClipActive(clip) && (!clip->isInGroupWith(theActiveClip))) {
 
 			if (playbackHandler.isEitherClockActive() && currentSong == this) {
 				clip->expectNoFurtherTicks(this, true);

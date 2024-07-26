@@ -433,7 +433,8 @@ stopOnlyIfOutputTaken:
 				}
 
 				// If some other Clip is launching for this Output, we gotta stop
-				if (outputsLaunchedFor.lookup((uint32_t)output)) {
+				Clip* launching = static_cast<Clip*>(outputsLaunchedFor.lookup((uint32_t)output));
+				if (launching && !clip->isInGroupWith(launching)) {
 
 					if (clip->launchStyle == LaunchStyle::FILL) {
 						// Must also disarm it if a fill clip to avoid it

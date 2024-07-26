@@ -24,6 +24,7 @@
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
+#include "modulation/envelope.h"
 #include "util/d_string.h"
 
 class VoiceSample;
@@ -117,6 +118,9 @@ public:
 	ParamManagerForTimeline* getCurrentParamManager() override;
 
 	bool isEmpty(bool displayPopup = true);
+	void resetEnvelope();
+	Envelope envelope;
+	int32_t amplitudeLastTime;
 
 protected:
 	bool cloneOutput(ModelStackWithTimelineCounter* modelStack) override;
@@ -126,4 +130,5 @@ private:
 	void removeClipFromSection(AudioClip* clip);
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
 	LoopType getLoopingType(ModelStackWithTimelineCounter const* modelStack);
+	void processCurrentPositionThisClipOnly(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast);
 };

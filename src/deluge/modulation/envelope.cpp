@@ -24,6 +24,7 @@
 namespace params = deluge::modulation::params;
 
 Envelope::Envelope() {
+	ignoredNoteOff = false;
 }
 
 int32_t Envelope::render(uint32_t numSamples, uint32_t attack, uint32_t decay, uint32_t sustain, uint32_t release,

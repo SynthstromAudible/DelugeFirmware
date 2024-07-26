@@ -60,38 +60,12 @@ void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffe
 		return;
 	}
 
-	if (!activeClip->isInGroup()) {
-		ParamManager* paramManager = getParamManager(modelStack->song);
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
+	ParamManager* paramManager = getParamManager(modelStack->song);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
-		GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
-		                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-		                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO);
-	}
-	else {
-		Clip* clipToRender = activeClip->getHeadOfGroup();
-		while (clipToRender) {
-			ParamManager* paramManager = currentSong->getBackedUpParamManagerPreferablyWithClip(
-			    (ModControllableAudio*)toModControllable(), clipToRender);
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clipToRender);
-
-			GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
-			                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-			                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO);
-			clipToRender = clipToRender->getNextClipOrNull();
-		}
-	}
-}
-
-void AudioOutput::resetEnvelope() {
-	if (activeClip) {
-		AudioClip* activeAudioClip = (AudioClip*)activeClip;
-
-		bool directlyToDecay = (activeAudioClip->attack == -2147483648);
-		envelope.noteOn(directlyToDecay);
-	}
-	amplitudeLastTime = 0;
-	overrideAmplitudeEnvelopeReleaseRate = 0;
+	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
+	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO);
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
@@ -101,129 +75,16 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
                                                 bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                                 int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
-	// audio outputs can have an activeClip while being muted
+	// render all of the samples for this audio output - there are potentially many if recordings are layered
 	if (isClipActive) {
-		auto* activeAudioClip = (AudioClip*)modelStack->getTimelineCounter();
-		if (activeAudioClip->voiceSample) {
+		auto* activeAudioClip = (AudioClip*)((Clip*)modelStack->getTimelineCounter())->getHeadOfGroup();
+		while (activeAudioClip) {
+			if (activeAudioClip->voiceSample) {
 
-			int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];
-			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip->attack >> 2));
-
-renderEnvelope:
-			int32_t amplitudeLocal =
-			    (envelope.render(numSamples, attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
-
-			if (envelope.state >= EnvelopeStage::OFF) {
-				if (activeAudioClip->doingLateStart) {
-					resetEnvelope();
-					goto renderEnvelope;
-				}
-
-				else {
-					// I think we can only be here for one shot audio clips, so maybe we shouldn't keep it?
-					activeAudioClip->unassignVoiceSample(false);
-				}
+				rendered |= renderActiveAudioClip(modelStack, renderBuffer, bufferToTransferTo, numSamples, pitchAdjust,
+				                                  amplitudeAtStart, amplitudeAtEnd, activeAudioClip);
 			}
-
-			else {
-
-				if (!amplitudeLastTime && attack > 245632) {
-					amplitudeLastTime = amplitudeLocal;
-				}
-
-				int32_t amplitudeEffectiveStart =
-				    multiply_32x32_rshift32(amplitudeLastTime, amplitudeAtStart); // Reduces amplitude another >>1
-				int32_t amplitudeEffectiveEnd =
-				    multiply_32x32_rshift32(amplitudeLocal, amplitudeAtEnd); // Reduces amplitude another >>1
-
-				int32_t amplitudeIncrementEffective = (amplitudeEffectiveEnd - amplitudeEffectiveStart) / numSamples;
-
-				int32_t* intBuffer = (int32_t*)renderBuffer;
-				activeAudioClip->render(modelStack, intBuffer, numSamples, amplitudeEffectiveStart,
-				                        amplitudeIncrementEffective, pitchAdjust);
-				rendered = true;
-				amplitudeLastTime = amplitudeLocal;
-
-				// If we need to duplicate mono to stereo...
-				if (AudioOutput::willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
-
-					// If can write directly into Song buffer...
-					if (bufferToTransferTo) {
-						int32_t const* __restrict__ input = intBuffer;
-						int32_t const* const inputBufferEnd = input + numSamples;
-						int32_t* __restrict__ output = bufferToTransferTo;
-
-						int32_t const* const remainderEnd = input + (numSamples & 1);
-
-						while (input != remainderEnd) {
-							*output += *input;
-							output++;
-							*output += *input;
-							output++;
-
-							input++;
-						}
-
-						while (input != inputBufferEnd) {
-							*output += *input;
-							output++;
-							*output += *input;
-							output++;
-							input++;
-
-							*output += *input;
-							output++;
-							*output += *input;
-							output++;
-							input++;
-						}
-					}
-
-					// Or, if duplicating within same rendering buffer (cos there's FX to be applied)
-					else {
-						int32_t i = numSamples - 1;
-
-						int32_t firstStopAt = numSamples & ~3;
-
-						while (i >= firstStopAt) {
-							int32_t sampleValue = intBuffer[i];
-							intBuffer[(i << 1)] = sampleValue;
-							intBuffer[(i << 1) + 1] = sampleValue;
-							i--;
-						}
-
-						while (i >= 0) {
-							{
-								int32_t sampleValue = intBuffer[i];
-								intBuffer[(i << 1)] = sampleValue;
-								intBuffer[(i << 1) + 1] = sampleValue;
-								i--;
-							}
-
-							{
-								int32_t sampleValue = intBuffer[i];
-								intBuffer[(i << 1)] = sampleValue;
-								intBuffer[(i << 1) + 1] = sampleValue;
-								i--;
-							}
-
-							{
-								int32_t sampleValue = intBuffer[i];
-								intBuffer[(i << 1)] = sampleValue;
-								intBuffer[(i << 1) + 1] = sampleValue;
-								i--;
-							}
-
-							{
-								int32_t sampleValue = intBuffer[i];
-								intBuffer[(i << 1)] = sampleValue;
-								intBuffer[(i << 1) + 1] = sampleValue;
-								i--;
-							}
-						}
-					}
-				}
-			}
+			activeAudioClip = (AudioClip*)activeAudioClip->getNextClipOrNull();
 		}
 	}
 
@@ -290,6 +151,131 @@ renderEnvelope:
 				inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		} while (outputPos < outputPosEnd);
+	}
+	return rendered;
+}
+bool AudioOutput::renderActiveAudioClip(ModelStackWithTimelineCounter* modelStack, const StereoSample* renderBuffer,
+                                        int32_t* bufferToTransferTo, int32_t numSamples, int32_t pitchAdjust,
+                                        int32_t amplitudeAtStart, int32_t amplitudeAtEnd, AudioClip* activeAudioClip) {
+	bool rendered;
+	int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];
+	int32_t attack = getExp(attackNeutralValue, -(activeAudioClip->attack >> 2));
+
+renderEnvelope:
+	int32_t amplitudeLocal =
+	    (activeAudioClip->envelope.render(numSamples, attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1)
+	    + 1073741824;
+
+	if (activeAudioClip->envelope.state >= EnvelopeStage::OFF) {
+		if (activeAudioClip->doingLateStart) {
+			activeAudioClip->resetEnvelope();
+			goto renderEnvelope;
+		}
+
+		else {
+			// I think we can only be here for one shot audio clips, so maybe we shouldn't keep it?
+			activeAudioClip->unassignVoiceSample(false);
+		}
+	}
+
+	else {
+
+		if (!activeAudioClip->amplitudeLastTime && attack > 245632) {
+			activeAudioClip->amplitudeLastTime = amplitudeLocal;
+		}
+
+		int32_t amplitudeEffectiveStart = multiply_32x32_rshift32(activeAudioClip->amplitudeLastTime,
+		                                                          amplitudeAtStart); // Reduces amplitude another >>1
+		int32_t amplitudeEffectiveEnd =
+		    multiply_32x32_rshift32(amplitudeLocal, amplitudeAtEnd); // Reduces amplitude another >>1
+
+		int32_t amplitudeIncrementEffective = (amplitudeEffectiveEnd - amplitudeEffectiveStart) / numSamples;
+
+		int32_t* intBuffer = (int32_t*)renderBuffer;
+		activeAudioClip->render(modelStack, intBuffer, numSamples, amplitudeEffectiveStart, amplitudeIncrementEffective,
+		                        pitchAdjust);
+		rendered = true;
+		activeAudioClip->amplitudeLastTime = amplitudeLocal;
+
+		// If we need to duplicate mono to stereo...
+		if (willRenderAsOneChannelOnlyWhichWillNeedCopying()) {
+
+			// If can write directly into Song buffer...
+			if (bufferToTransferTo) {
+				int32_t const* __restrict__ input = intBuffer;
+				int32_t const* const inputBufferEnd = input + numSamples;
+				int32_t* __restrict__ output = bufferToTransferTo;
+
+				int32_t const* const remainderEnd = input + (numSamples & 1);
+
+				while (input != remainderEnd) {
+					*output += *input;
+					output++;
+					*output += *input;
+					output++;
+
+					input++;
+				}
+
+				while (input != inputBufferEnd) {
+					*output += *input;
+					output++;
+					*output += *input;
+					output++;
+					input++;
+
+					*output += *input;
+					output++;
+					*output += *input;
+					output++;
+					input++;
+				}
+			}
+
+			// Or, if duplicating within same rendering buffer (cos there's FX to be applied)
+			else {
+				int32_t i = numSamples - 1;
+
+				int32_t firstStopAt = numSamples & ~3;
+
+				while (i >= firstStopAt) {
+					int32_t sampleValue = intBuffer[i];
+					intBuffer[(i << 1)] = sampleValue;
+					intBuffer[(i << 1) + 1] = sampleValue;
+					i--;
+				}
+
+				while (i >= 0) {
+					{
+						int32_t sampleValue = intBuffer[i];
+						intBuffer[(i << 1)] = sampleValue;
+						intBuffer[(i << 1) + 1] = sampleValue;
+						i--;
+					}
+
+					{
+						int32_t sampleValue = intBuffer[i];
+						intBuffer[(i << 1)] = sampleValue;
+						intBuffer[(i << 1) + 1] = sampleValue;
+						i--;
+					}
+
+					{
+						int32_t sampleValue = intBuffer[i];
+						intBuffer[(i << 1)] = sampleValue;
+						intBuffer[(i << 1) + 1] = sampleValue;
+						i--;
+					}
+
+					{
+						int32_t sampleValue = intBuffer[i];
+						intBuffer[(i << 1)] = sampleValue;
+						intBuffer[(i << 1) + 1] = sampleValue;
+						i--;
+					}
+				}
+			}
+		}
 	}
 	return rendered;
 }
@@ -410,10 +396,15 @@ bool AudioOutput::wantsToBeginArrangementRecording() {
 }
 
 bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
+	// if the clip is different from the current active clip
 	if (activeClip
 	    && (!modelStack || activeClip != modelStack->getTimelineCounter()
 	        || (playbackHandler.playbackState && currentPlaybackMode == &arrangement))) {
-		((AudioClip*)activeClip)->unassignVoiceSample(false);
+		// if the new clip isn't in a grouped section with the current one
+		if (!modelStack || !activeClip->isInGroupWith((AudioClip*)modelStack->getTimelineCounter())) {
+			// unassign the sample
+			((AudioClip*)activeClip)->unassignVoiceSample(false);
+		}
 	}
 	bool clipChanged = Output::setActiveClip(modelStack, maySendMIDIPGMs);
 

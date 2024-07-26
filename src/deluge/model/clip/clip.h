@@ -208,8 +208,10 @@ public:
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 	Clip* getNextClipOrNull() { return next; }
-	Clip* getHeadOfGroup() { return first; }
-	bool isInGroup() { return groupType != ClipGroupType::NONE; }
+	// returns the first clip in the group, or the clip itself if there's no group
+	Clip* getHeadOfGroup() { return first ? first : this; }
+	bool isInGroup() { return groupType == ClipGroupType::SHARED; }
+	bool isInGroupWith(Clip* clip) { return isInGroup() && clip->output == output && clip->section == section; }
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
@@ -239,6 +241,15 @@ protected:
 		prev = nullptr;
 		first = nullptr;
 	};
+
+	Clip* findActiveClipOrNull() {
+		Clip* next = getHeadOfGroup();
+		while (next) {
+			if (next->activeIfNoSolo)
+				return next;
+		}
+		return nullptr;
+	}
 
 	void insertAfter(Clip* newNextNode, ClipGroupType type) {
 		if (first == nullptr) {

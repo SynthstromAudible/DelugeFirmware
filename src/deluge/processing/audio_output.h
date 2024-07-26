@@ -41,8 +41,6 @@ public:
 	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
 	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
 
-	void resetEnvelope();
-
 	ModControllable* toModControllable() { return this; }
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 
@@ -74,12 +72,6 @@ public:
 
 	char const* getXMLTag() { return "audioTrack"; }
 
-	Envelope envelope;
-
-	int32_t amplitudeLastTime;
-
-	int32_t overrideAmplitudeEnvelopeReleaseRate;
-
 	AudioInputChannel inputChannel;
 	bool echoing; // Doesn't get cloned - we wouldn't want that!
 
@@ -91,4 +83,7 @@ protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);
 	bool wantsToBeginArrangementRecording();
 	bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
+	bool renderActiveAudioClip(ModelStackWithTimelineCounter* modelStack, const StereoSample* renderBuffer,
+	                           int32_t* bufferToTransferTo, int32_t numSamples, int32_t pitchAdjust,
+	                           int32_t amplitudeAtStart, int32_t amplitudeAtEnd, AudioClip* activeAudioClip);
 };
