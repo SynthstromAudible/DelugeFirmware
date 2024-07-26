@@ -258,7 +258,8 @@ void Session::doLaunch(bool isFillLaunch) {
 		// If this one's gonna launch to become active on its output (i.e. not gonna clone its output) when it wasn't
 		// before...
 		if (clip->armState != ArmState::OFF && !currentSong->isClipActive(clip)
-		    && (!clip->isPendingOverdub || !clip->willCloneOutputForOverdub())) {
+		    && (!clip->isPendingOverdub || !clip->willCloneOutputForOverdub())
+		    && !clip->isInGroupWith(clip->output->getActiveClip())) {
 
 			Output* output = clip->output;
 
@@ -433,8 +434,7 @@ stopOnlyIfOutputTaken:
 				}
 
 				// If some other Clip is launching for this Output, we gotta stop
-				Clip* launching = static_cast<Clip*>(outputsLaunchedFor.lookup((uint32_t)output));
-				if (launching && !clip->isInGroupWith(launching)) {
+				if (outputsLaunchedFor.lookup((uint32_t)output)) {
 
 					if (clip->launchStyle == LaunchStyle::FILL) {
 						// Must also disarm it if a fill clip to avoid it
@@ -514,7 +514,8 @@ probablyBecomeActive:
 					// This clip is not the solo clip
 
 					// But, if we're a pending overdub that's going to clone its Output...
-					if (clip->isPendingOverdub && clip->willCloneOutputForOverdub()) {
+					if (clip->isPendingOverdub && clip->willCloneOutputForOverdub()
+					    || clip->isInGroupWith(output->getActiveClip())) {
 						goto doNormalLaunch;
 					}
 
