@@ -1,5 +1,11 @@
 #include "model/scale/note_set.h"
 
+NoteSet::NoteSet(std::initializer_list<uint8_t> notes) : bits{0} {
+	for (uint8_t note : notes) {
+		add(note);
+	}
+}
+
 void NoteSet::addUntrusted(uint8_t note) {
 	// Constrain added note to be strictly increasing, and < 12.
 	//
@@ -34,16 +40,6 @@ uint8_t NoteSet::operator[](uint8_t index) const {
 	}
 	// Return the note
 	return note;
-}
-
-void NoteSet::fromScaleNotes(const uint8_t scaleNotes[7]) {
-	clear();
-	for (int32_t n = 0; n < 7; n++) {
-		int32_t newNote = scaleNotes[n];
-		// Non-diatonic scales have trailing zero notes
-		// but adding zero to the set again doesn't hurt.
-		add(newNote);
-	}
 }
 
 void NoteSet::applyChanges(int8_t changes[12]) {
