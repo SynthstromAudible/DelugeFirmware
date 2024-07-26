@@ -180,6 +180,13 @@ TEST(NoteSetTest, checkEqualAllowed) {
 	CHECK_EQUAL(NoteSet(), NoteSet());
 }
 
+TEST(NoteSetTest, isEmpty) {
+	NoteSet a;
+	CHECK_EQUAL(true, a.isEmpty());
+	a.add(0);
+	CHECK_EQUAL(false, a.isEmpty());
+}
+
 TEST(NoteSetTest, subscript1) {
 	NoteSet a;
 	for (int i = 0; i < NoteSet::size; i++) {
