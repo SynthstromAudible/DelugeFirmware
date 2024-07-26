@@ -62,7 +62,25 @@ public:
 	/** Size of NoteSet, ie. the maximum number of notes it can hold.
 	 */
 	static const int8_t size = 12;
-
 private:
 	uint16_t bits;
 };
+
+#ifdef IN_UNIT_TESTS
+// For CppUTest CHECK_EQUAL() and debugging convenience
+
+#include <iostream>
+#include <string>
+
+std::ostream& operator<<(std::ostream& output, const NoteSet& set);
+
+class TestString {
+	public:
+		TestString(std::string string_) : string(string_) {}
+		const char* asCharString() const { return string.c_str(); }
+	private:
+	std::string string;
+};
+
+const TestString StringFrom(const NoteSet&);
+#endif
