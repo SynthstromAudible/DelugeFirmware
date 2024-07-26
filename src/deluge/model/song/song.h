@@ -340,6 +340,7 @@ public:
 
 	uint32_t getQuarterNoteLength();
 	uint32_t getBarLength();
+	uint32_t getSixteenthNoteLength();
 	ModelStackWithThreeMainThings* setupModelStackWithSongAsTimelineCounter(void* memory);
 	ModelStackWithTimelineCounter* setupModelStackWithCurrentClip(void* memory);
 	ModelStackWithThreeMainThings* addToModelStack(ModelStack* modelStack);

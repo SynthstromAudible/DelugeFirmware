@@ -270,6 +270,13 @@ Here is a list of general improvements that have been made, ordered from newest 
 - ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
   - Note: in Arranger, any instruments that are muted will be excluded from the Instrument Stem Export
 
+#### 3.24 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
+- ([#2315]) A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
+  - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
+
+#### 3.25 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
+- ([#2315]) The display now shows the number of Bars (or Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1122,6 +1129,8 @@ list of all options as listed in OLED and 7SEG displays and what they do:
       render the OLED screen, it is of more limited use.
 * `Enable KB View Sidebar Menu Exit (EXIT)`
     * When On, while in the `SETTINGS` or `SOUND` menu of `KEYBOARD VIEW`, pressing the top left sidebar pad will immediately exit the menu.
+* `Enable Launch Event Playhead (PLAY)`
+    * When On, a red and white playhead will be rendered in Song Grid and Performance Views that let's you know that a maximum of one bar (16 notes) is remaining before a clip or section launch event is scheduled to occur.
 
 ## 6. Sysex Handling
 
@@ -1367,6 +1376,8 @@ different firmware
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
+
+[#2315]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2315
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
