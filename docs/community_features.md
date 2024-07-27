@@ -268,6 +268,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Stem Export Documentation]
 - ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
+- ([#2327]) You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
 #### 3.24 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
 - ([#2315]) A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
@@ -1377,6 +1378,8 @@ different firmware
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
 
 [#2315]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2315
+
+[#2327]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2327
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

@@ -504,14 +504,16 @@ The Song menu contains the following menu hierarchy:
 		- Decimation (DECI)
 		- Bitcrush (CRUS)
 </details>
-- SWING INTERVAL (SWII)
+<details><summary>Swing Interval (SWII)</summary></details>
 <details><summary>MIDI Loopback (M LP)</summary>
 
-		- Disabled (OFF)
-		- Enabled (ON)
+	- Disabled (OFF)
+	- Enabled (ON)
+</details>	
+<details><summary>Stem Export (STEM)</summary>
 
-</details>		
-
+	- Start Export (STEM)
+</details>
 </details>
 
 <details>
