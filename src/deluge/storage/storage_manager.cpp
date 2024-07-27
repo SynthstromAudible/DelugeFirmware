@@ -251,6 +251,7 @@ Error StorageManager::initSD() {
 		return error; //<
 	});
 	if (success) {
+		audioFileManager.firstCardRead(); // tell the audio file manager that we have a new card
 		return Error::NONE;
 	}
 	return Error::SD_CARD;
