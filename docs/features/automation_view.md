@@ -3,7 +3,7 @@
 Automation View is a new view that complements the existing Arranger and Clip Views. 
 - The Automation Arranger View is accessed from within Arranger View by pressing the Shift + Song buttons
     - Note: the automation arranger view editor for a specific parameter can be accessed directly from the arranger song menu for that parameter (e.g. the one you would access by pressing on select encoder or by using the shift + shortcut buttom combo) by pressing the Song button while in the parameter value.
-- In Automation Clip View is accessed from within the Clip View by pressing the Clip button
+- The Automation Clip View is accessed from within the Clip View by pressing the Clip button
     - Note: the automation clip view editor for a specific parameter can be accessed directly from the clip sound menu for that parameter (e.g. the one you would access by pressing on select encoder or by using the shift + shortcut buttom combo) by pressing the Clip button while in the parameter value.
 
 It allows you to edit automatable parameters on a per step basis at any zoom level.
