@@ -212,6 +212,10 @@ public:
 	Clip* getHeadOfGroup() { return first; }
 	bool isInGroup() { return groupType == ClipGroupType::SHARED; }
 	bool isInGroupWith(Clip* clip) { return isInGroup() && clip->output == output && clip->section == section; }
+	Clip* getFirstActive() {
+		auto active = findActiveClipOrNull();
+		return active ? active : this;
+	}
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
