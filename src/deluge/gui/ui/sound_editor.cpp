@@ -917,32 +917,18 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			goto doSetup;
 		}
 
-		// Name shortcut setup
-		else if (getCurrentClip()->type == ClipType::INSTRUMENT) {
-			if (x == 11 && y == 5) {
+		else if (x == 11 && y == 5) {
 
-				// Renames the clip for instrument SYNTH or KIT
-				Clip* clip = getCurrentClip();
-				Output* output = getCurrentOutput();
-
-				// Rename clip always for Synth & Midi Out, for KIT clipname can be altered when Effect entire is on to
-				// keep it consistent
-				if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
-				    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
-
-					if (clip) {
-						renameClipNameUI.clip = clip;
-						openUI(&renameClipNameUI);
-						return ActionResult::DEALT_WITH;
-					}
-				}
+			if (handleClipName()) {
+				ActionResult::DEALT_WITH;
 			}
-			// if else then just keep it like the old way to rename the kit row item
-			goto doNextAfterName;
+			else {
+				item = paramShortcutsForSounds[x][y];
+				goto doSetup;
+			}
 		}
 
 		else {
-doNextAfterName:
 			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
 			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
 			           == RuntimeFeatureStateToggle::On) {
@@ -1666,6 +1652,32 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	currentMenuItem->renderOLED();
 }
 
+bool SoundEditor::handleClipName() {
+
+	Clip* clip = getCurrentClip();
+	Output* output = getCurrentOutput();
+
+	switch (clip->type) {
+
+	case ClipType::INSTRUMENT:
+
+		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
+		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
+			if (clip) {
+				renameClipNameUI.clip = clip;
+				openUI(&renameClipNameUI);
+				return true;
+			}
+		}
+		else {
+
+			return false;
+		}
+
+	default:
+		return false;
+	}
+}
 /*
 char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);

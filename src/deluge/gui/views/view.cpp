@@ -1892,12 +1892,6 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 			break;
 		}
 	}
-	else if (output->type == OutputType::AUDIO) {
-		if (clip) {
-			AudioClip* audioclip = (AudioClip*)clip;
-			clip->clipName.set(&audioclip->sampleHolder.filePath);
-		}
-	}
 
 	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), editedByUser, doBlink, clip);
 	deluge::hid::display::OLED::markChanged();

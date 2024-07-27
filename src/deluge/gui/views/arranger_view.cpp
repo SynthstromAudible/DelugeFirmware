@@ -1546,7 +1546,6 @@ getItFromSection:
 					hid::display::OLED::clearMainImage();
 					ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
 					drawClipName(output, clipInstance->clip);
-
 					hid::display::OLED::markChanged();
 
 					// If no action to perform...
@@ -2439,6 +2438,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 			drawClipName(output, newClip);
 			deluge::hid::display::OLED::markChanged();
 		}
+
 		uiNeedsRendering(this, 1 << yPressedEffective, 0);
 	}
 
@@ -3320,13 +3320,7 @@ void ArrangerView::drawClipName(Output* output, Clip* clip) {
 
 	canvas.drawStringCentred("ARRANGER", yPos, kTextSpacingX, kTextSpacingY);
 
-	if (output->type == OutputType::AUDIO) {
-		AudioClip* audioclip = (AudioClip*)clip;
-		clip->clipName.set(&audioclip->sampleHolder.filePath);
-	}
-
 	yPos = OLED_MAIN_TOPMOST_PIXEL + 19;
-	// String* filen = (String*)output->name.get();
 
 	int32_t textLength = strlen(output->name.get());
 	int32_t stringLengthPixels = textLength * textSpacingX;
