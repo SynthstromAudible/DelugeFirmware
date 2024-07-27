@@ -153,6 +153,7 @@ private:
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
 	                        int32_t imageWidth);
+	void drawClipName(Output* output, Clip* clip);
 };
 
 extern ArrangerView arrangerView;

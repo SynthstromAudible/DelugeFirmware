@@ -1250,6 +1250,11 @@ doNewPress:
 				if (clipInstance) {
 
 					Clip* clip = clipInstance->clip;
+					deluge::hid::display::OLED::clearMainImage();
+
+					drawClipName(output, clip);
+
+					deluge::hid::display::OLED::markChanged();
 
 					// If it's being recorded to, some special instructions
 					if (clip) {
@@ -1537,6 +1542,11 @@ getItFromSection:
 
 				if (x == xPressed && y == yPressedEffective) {
 
+					hid::display::OLED::clearMainImage();
+					ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
+					drawClipName(output, clipInstance->clip);
+					hid::display::OLED::markChanged();
+
 					// If no action to perform...
 					if (!actionOnDepress || (int32_t)(AudioEngine::audioSampleTimer - pressTime) >= kShortPressTime) {
 justGetOut:
@@ -1561,6 +1571,8 @@ justGetOut:
 							Action* action =
 							    actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 							deleteClipInstance(output, pressedClipInstanceIndex, clipInstance, action);
+
+							deluge::hid::display::OLED::clearMainImage();
 							goto justGetOut;
 						}
 
@@ -2359,6 +2371,7 @@ ActionResult ArrangerView::timerCallback() {
 void ArrangerView::selectEncoderAction(int8_t offset) {
 
 	Output* output = outputsOnScreen[yPressedEffective];
+	hid::display::OLED::clearMainImage();
 
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 
@@ -2418,6 +2431,12 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
 
 		rememberInteractionWithClipInstance(yPressedEffective, clipInstance);
+
+		// Show the clipname in the arrangement if its not a white clip - extra check
+		if (!newClip->isArrangementOnlyClip() || !clipInstance->clip->section == 255) {
+			drawClipName(output, newClip);
+			deluge::hid::display::OLED::markChanged();
+		}
 
 		uiNeedsRendering(this, 1 << yPressedEffective, 0);
 	}
@@ -3288,4 +3307,35 @@ void ArrangerView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whi
 	else if (ui == &arrangerView) {
 		uiNeedsRendering(ui, whichMainRows, whichSideRows);
 	}
+}
+
+void ArrangerView::drawClipName(Output* output, Clip* clip) {
+
+	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+	int32_t textSpacingX = kTextTitleSpacingX;
+	int32_t textSpacingY = kTextTitleSizeY;
+
+	canvas.drawStringCentred("ARRANGER", yPos, kTextSpacingX, kTextSpacingY);
+
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 19;
+
+	int32_t textLength = strlen(output->name.get());
+	int32_t stringLengthPixels = textLength * textSpacingX;
+
+	if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
+		canvas.drawStringCentred(output->name.get(), yPos, textSpacingX, textSpacingY);
+	}
+	else {
+		canvas.drawString(output->name.get(), 0, yPos, textSpacingX, textSpacingY);
+		deluge::hid::display::OLED::setupSideScroller(0, output->name.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+		                                              yPos + textSpacingY, textSpacingX, textSpacingY, false);
+	}
+
+	yPos = yPos + 13;
+
+	canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
+	deluge::hid::display::OLED::setupSideScroller(1, clip->clipName.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+	                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY, false);
 }

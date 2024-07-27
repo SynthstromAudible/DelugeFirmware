@@ -95,7 +95,7 @@ void AudioClipView::focusRegained() {
 }
 
 void AudioClipView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
-	view.displayOutputName(getCurrentOutput(), false);
+	view.displayOutputName(getCurrentOutput(), false, getCurrentClip());
 }
 
 bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],

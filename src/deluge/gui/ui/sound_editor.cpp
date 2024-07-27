@@ -11,6 +11,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/rename/rename_clipname_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/sample_marker_editor.h"
@@ -916,8 +917,18 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			goto doSetup;
 		}
 
-		else {
+		else if (x == 11 && y == 5) {
 
+			if (handleClipName()) {
+				ActionResult::DEALT_WITH;
+			}
+			else {
+				item = paramShortcutsForSounds[x][y];
+				goto doSetup;
+			}
+		}
+
+		else {
 			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
 			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
 			           == RuntimeFeatureStateToggle::On) {
@@ -1641,6 +1652,32 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	currentMenuItem->renderOLED();
 }
 
+bool SoundEditor::handleClipName() {
+
+	Clip* clip = getCurrentClip();
+	Output* output = getCurrentOutput();
+
+	switch (clip->type) {
+
+	case ClipType::INSTRUMENT:
+
+		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
+		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
+			if (clip) {
+				renameClipNameUI.clip = clip;
+				openUI(&renameClipNameUI);
+				return true;
+			}
+		}
+		else {
+
+			return false;
+		}
+
+	default:
+		return false;
+	}
+}
 /*
 char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
