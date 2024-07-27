@@ -213,6 +213,8 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	isUnfinishedAutoOverdub = false;
 
 	recorder = NULL;
+
+	clipName.set(sampleHolder.filePath.get());
 }
 
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
@@ -1177,6 +1179,7 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
 	Error error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
+	clipName.set(sampleHolder.filePath.get());
 	if (error != Error::NONE) {
 		display->displayError(error);
 	}
@@ -1253,6 +1256,7 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 
 			sampleHolder.filePath.clear();
 			sampleHolder.setAudioFile(NULL);
+			clipName.set("");
 		}
 
 		renderData.xScroll = -1;

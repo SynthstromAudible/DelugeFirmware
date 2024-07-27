@@ -2008,7 +2008,7 @@ oledDrawString:
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 #else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 21;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 19;
 #endif
 
 			int32_t textSpacingX = kTextTitleSpacingX;
@@ -2023,6 +2023,14 @@ oledDrawString:
 				canvas.drawString(nameToDraw, 0, yPos, textSpacingX, textSpacingY);
 				deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
 				                                              yPos + textSpacingY, textSpacingX, textSpacingY, false);
+			}
+
+			if (clip) {
+				yPos = yPos + 13;
+				canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::setupSideScroller(1, clip->clipName.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+				                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
+				                                              false);
 			}
 		}
 		else {
@@ -2497,7 +2505,7 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 
 	// Do a redraw. Obviously the Clip is the same
 	setActiveModControllableTimelineCounter(clip);
-	displayOutputName(newInstrument, doBlink);
+	displayOutputName(newInstrument, doBlink, clip);
 
 	return true;
 }

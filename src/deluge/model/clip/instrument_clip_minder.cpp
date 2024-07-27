@@ -107,7 +107,7 @@ void InstrumentClipMinder::redrawNumericDisplay() {
 }
 
 void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
-	view.displayOutputName(getCurrentOutput(), false);
+	view.displayOutputName(getCurrentOutput(), false, getCurrentClip());
 }
 
 // GCC is fine with 29 or 5 for the size, but does not like that it could be either
