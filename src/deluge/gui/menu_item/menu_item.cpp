@@ -48,7 +48,7 @@ void MenuItem::drawName() {
 // (currently this is only used by submenu's to display ">" to indicate that you can enter the menu
 // and also toggle menu's to display a "[x]" checkbox that you can toggle without entering the submenu)
 void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32_t selectedOption, const int32_t offset,
-                                bool renderTypes, std::span<std::string_view> types) {
+                                bool renderTypes, std::span<std::string> types) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;

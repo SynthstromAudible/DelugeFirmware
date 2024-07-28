@@ -57,6 +57,12 @@ public:
 	ParamSet* getParamSet() final;
 	ModelStackWithAutoParam* getModelStack(void* memory) final;
 
+	bool shouldDisplayParamValue() override { return true; }
+	int32_t getParamValue() override {
+		readCurrentValue();
+		return getValue();
+	}
+
 protected:
 	virtual int32_t getFinalValue();
 };

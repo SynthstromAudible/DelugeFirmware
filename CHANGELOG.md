@@ -29,7 +29,8 @@
 - For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
  - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
-- Submenu's on OLED are now rendered with a ">" at the end to indicate that it is a submenu.
+- Submenu's on OLED for automatable parameters (e.g. LPF Frequency) render the current parameter value at the end. You still need to click on `SELECT` to edit the parameters value / edit modulation depth and patch cables.
+ - All other submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.

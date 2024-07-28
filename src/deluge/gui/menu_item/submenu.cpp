@@ -46,8 +46,8 @@ void Submenu::drawPixelsForOled() {
 
 	// This finds the next relevant submenu item
 	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> nextItemNames = {};
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> nextItemTypes = {};
-	std::string_view stringForNextItemType;
+	static_vector<std::string, kOLEDMenuNumOptionsVisible> nextItemTypes = {};
+	std::string stringForNextItemType;
 	int32_t idx = selectedRow;
 	for (auto it = current_item_; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible; it++) {
 		MenuItem* menuItem = (*it);
@@ -60,8 +60,8 @@ void Submenu::drawPixelsForOled() {
 	}
 
 	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> prevItemNames = {};
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> prevItemTypes = {};
-	std::string_view stringForPrevItemType;
+	static_vector<std::string, kOLEDMenuNumOptionsVisible> prevItemTypes = {};
+	std::string stringForPrevItemType;
 	idx = selectedRow - 1;
 	for (auto it = current_item_ - 1; it != this->items.begin() - 1 && idx >= 0; it--) {
 		MenuItem* menuItem = (*it);
@@ -85,17 +85,30 @@ void Submenu::drawPixelsForOled() {
 	}
 }
 
-void Submenu::getStringForItemType(MenuItem* menuItem, std::string_view& stringForItemType) {
+void Submenu::getStringForItemType(MenuItem* menuItem, std::string& stringForItemType) {
+	stringForItemType.clear();
 	if (menuItem->shouldEnterSubmenu()) {
-		stringForItemType = "  >";
+		if (menuItem->shouldDisplayParamValue()) {
+			DEF_STACK_STRING_BUF(paramValue, 10);
+			int32_t value = menuItem->getParamValue();
+			if (value != 255) {
+				paramValue.appendInt(value);
+				stringForItemType.append(paramValue.c_str());
+				// pad value string so it's 3 characters long
+				padStringTo(stringForItemType, 3);
+			}
+		}
+		else {
+			stringForItemType.append("  >");
+		}
 	}
 	else {
 		if (menuItem->shouldDisplayToggle()) {
 			if (menuItem->getToggleValue()) {
-				stringForItemType = "[x]";
+				stringForItemType.append("[x]");
 			}
 			else {
-				stringForItemType = "[ ]";
+				stringForItemType.append("[ ]");
 			}
 		}
 	}

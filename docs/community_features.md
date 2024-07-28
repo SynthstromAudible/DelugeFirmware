@@ -285,7 +285,8 @@ as the micromonsta and the dreadbox nymphes.
 - ([#2331]) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
  - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
- - Submenu's on OLED are also now rendered with a ">" at the end to indicate that it is a submenu.
+- ([#2339]) Submenu's on OLED for automatable parameters (e.g. LPF Frequency) render the current parameter value at the end. You still need to click on `SELECT` to edit the parameters value / edit modulation depth and patch cables.
+ - ([#2331]) All other submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
 ## 4. New Features Added
 
@@ -1394,6 +1395,8 @@ different firmware
 [#2330]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2330
 
 [#2331]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2331
+
+[#2339]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2339
 
 [#2343]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2343
 

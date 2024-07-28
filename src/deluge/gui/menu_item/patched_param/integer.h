@@ -57,6 +57,12 @@ public:
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
+	bool shouldDisplayParamValue() override { return true; }
+	int32_t getParamValue() override {
+		readCurrentValue();
+		return getValue();
+	}
+
 protected:
 	void readCurrentValue() override;
 	void writeCurrentValue() final;
