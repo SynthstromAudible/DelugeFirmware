@@ -230,7 +230,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
 
-		midiEngine.sendCC(this, masterChannel, CC_NUMBER_MOD_WHEEL, newValue, channel);
+		midiEngine.sendCC(this, masterChannel, CC_EXTERNAL_MOD_WHEEL, newValue, channel);
 		break;
 	}
 	case Z_PRESSURE: {
@@ -325,6 +325,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeOpeningTagBeginning("polyToMonoConversion");
 		writer.writeAttribute("aftertouch", (int32_t)collapseAftertouch);
 		writer.writeAttribute("mpe", (int32_t)collapseMPE);
+		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
 	}
 	else {
@@ -358,6 +359,10 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 			}
 			else if (!strcmp(tagName, "mpe")) {
 				collapseMPE = (bool)reader.readTagOrAttributeValueInt();
+				editedByUser = true;
+			}
+			else if (!strcmp(tagName, "yCC")) {
+				outputMPEY = static_cast<CCNumber>(reader.readTagOrAttributeValueInt());
 				editedByUser = true;
 			}
 			else
@@ -454,7 +459,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 				cc = stringToInt(contents);
 			}
 			// will be sent as mod wheel and also map to internal mono expression
-			if (cc == CC_NUMBER_MOD_WHEEL) {
+			if (cc == CC_EXTERNAL_MOD_WHEEL) {
 				cc = CC_NUMBER_Y_AXIS;
 			}
 
@@ -843,7 +848,7 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 	{ // Y
 		int32_t outputValue7 = mpeValuesToUse[1] >> 9;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[0] = outputValue7;
-		midiEngine.sendCC(this, outputMemberChannel, 74, outputValue7 + 64, channel);
+		midiEngine.sendCC(this, outputMemberChannel, outputMPEY, outputValue7 + 64, channel);
 	}
 
 	{ // Z
@@ -1017,7 +1022,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 		case 1: { // Y
 			int32_t value7 = value32 >> 25;
 			mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[0] = value7;
-			midiEngine.sendCC(this, memberChannel, 74, value7 + 64, channel);
+			midiEngine.sendCC(this, memberChannel, outputMPEY, value7 + 64, channel);
 			break;
 		}
 

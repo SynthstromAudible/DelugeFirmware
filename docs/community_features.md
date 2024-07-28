@@ -45,6 +45,9 @@ Here is a list of general improvements that have been made, ordered from newest 
   converts poly y-axis to mod wheel and poly pitch bend to an average monophonic pitch bend. For y axis and aftertouch
   the highest value wins.
 
+- ([#2343]) Allow converting output Y axis to mod wheel (cc1) to support synths with a limited MPE implementation, such 
+as the micromonsta and the dreadbox nymphes.
+
 #### 3.3 - MIDI
 
 - ([#47]) `Extra MIDI ports on the USB interface for MPE.` Port 2 shows in the MIDI device menu, and improves the
@@ -1383,6 +1386,8 @@ different firmware
 [#2327]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2327
 
 [#2330]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2330
+
+[#2343]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2343
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
