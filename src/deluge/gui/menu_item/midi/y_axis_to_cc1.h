@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/toggle.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/song/song.h"
 
 extern Output* getCurrentOutput();
 extern Instrument* getCurrentInstrument();
@@ -34,6 +35,11 @@ public:
 		((MIDIInstrument*)getCurrentOutput())->outputMPEY =
 		    this->getValue() ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y;
 		getCurrentInstrument()->editedByUser = true;
+	}
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		// not relevant for cv
+		const auto type = getCurrentOutputType();
+		return (type == OutputType::MIDI_OUT);
 	}
 };
 } // namespace deluge::gui::menu_item::midi
