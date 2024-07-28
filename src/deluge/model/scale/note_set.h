@@ -84,6 +84,11 @@ public:
 	bool operator==(const NoteSet& other) const { return bits == other.bits; }
 	/** True if this is a subset of the other NoteSet. */
 	bool isSubsetOf(NoteSet other) const { return (other.bits & bits) == bits; }
+	NoteSet operator|(const NoteSet& other) {
+		NoteSet newSet = other;
+		newSet.bits |= bits;
+		return newSet;
+	}
 	/** Size of NoteSet, ie. the maximum number of notes it can hold.
 	 */
 	static const int8_t size = 12;
