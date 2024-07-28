@@ -73,6 +73,10 @@ public:
 	/** Union of two NoteSets
 	 */
 	NoteSet operator|(const NoteSet& other);
+	/** Adds a mode-note to NoteSet, optionally specifying that we prefer it a semitone higher, although this may be
+	 * overridden by what actual note is present
+	 */
+	void addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet notesWithinOctavePresent);
 	/** Size of NoteSet, ie. the maximum number of notes it can hold.
 	 */
 	static const int8_t size = 12;

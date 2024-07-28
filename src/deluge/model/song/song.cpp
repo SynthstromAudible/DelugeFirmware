@@ -584,10 +584,10 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 		key.modeNotes.add(0);
 
 		// 2nd
-		addMajorDependentModeNotes(1, true, notesWithinOctavePresent);
+		key.modeNotes.addMajorDependentModeNotes(1, true, notesWithinOctavePresent);
 
 		// 3rd
-		addMajorDependentModeNotes(3, moreMajor, notesWithinOctavePresent);
+		key.modeNotes.addMajorDependentModeNotes(3, moreMajor, notesWithinOctavePresent);
 
 		// 4th, 5th
 		if (notesWithinOctavePresent.has(5)) {
@@ -620,10 +620,10 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 		}
 
 		// 6th
-		addMajorDependentModeNotes(8, moreMajor, notesWithinOctavePresent);
+		key.modeNotes.addMajorDependentModeNotes(8, moreMajor, notesWithinOctavePresent);
 
 		// 7th
-		addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
+		key.modeNotes.addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
 	}
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed
@@ -643,34 +643,6 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 			int32_t numOctaves = oldScrollRelativeToRootNote / oldNumModeNotes;
 
 			instrumentClip->yScroll += numMoreNotes * numOctaves + rootNoteChangeEffect;
-		}
-	}
-}
-
-// Sets up a mode-note, optionally specifying that we prefer it a semitone higher, although this may be overridden
-// by what actual note is present
-void Song::addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& notesWithinOctavePresent) {
-	// If lower one present...
-	if (notesWithinOctavePresent.has(i)) {
-		// If higher one present as well...
-		if (notesWithinOctavePresent.has(i + 1)) {
-			key.modeNotes.add(i);
-			key.modeNotes.add(i + 1);
-		}
-		// Or if just the lower one
-		else {
-			key.modeNotes.add(i);
-		}
-	}
-	// Or, if lower one absent...
-	else {
-		// We probably want the higher one
-		if (notesWithinOctavePresent.has(i + 1) || preferHigher) {
-			key.modeNotes.add(i + 1);
-			// Or if neither present and we prefer the lower one, do that
-		}
-		else {
-			key.modeNotes.add(i);
 		}
 	}
 }

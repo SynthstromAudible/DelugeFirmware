@@ -98,6 +98,32 @@ int8_t NoteSet::majorness() const {
 	return majorness;
 }
 
+void NoteSet::addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet notesWithinOctavePresent) {
+	// If lower one present...
+	if (notesWithinOctavePresent.has(i)) {
+		// If higher one present as well...
+		if (notesWithinOctavePresent.has(i + 1)) {
+			add(i);
+			add(i + 1);
+		}
+		// Or if just the lower one
+		else {
+			add(i);
+		}
+	}
+	// Or, if lower one absent...
+	else {
+		// We probably want the higher one
+		if (notesWithinOctavePresent.has(i + 1) || preferHigher) {
+			add(i + 1);
+			// Or if neither present and we prefer the lower one, do that
+		}
+		else {
+			add(i);
+		}
+	}
+}
+
 #ifdef IN_UNIT_TESTS
 const TestString StringFrom(const NoteSet& set) {
 	// We print out as chromatic notes across C, even though NoteSet does _not_ specify the root.

@@ -227,6 +227,41 @@ TEST(NoteSetTest, majorness) {
 	CHECK_EQUAL(1, NoteSet({0, 9, 3, 4}).majorness());
 }
 
+TEST(NoteSetTest, addMajorDependentModeNotes) {
+	NoteSet a;
+	// Case 1: the lower interval is present -> preferHigher does not matter
+	a.addMajorDependentModeNotes(1, false, NoteSet{1});
+	CHECK_EQUAL(NoteSet({1}), a);
+	a.clear();
+	a.addMajorDependentModeNotes(1, true, NoteSet{1});
+	CHECK_EQUAL(NoteSet({1}), a);
+
+	// Case 2: the higher interval is present -> preferHigher does not matter
+	a.clear();
+	a.addMajorDependentModeNotes(1, false, NoteSet{2});
+	CHECK_EQUAL(NoteSet({2}), a);
+	a.clear();
+	a.addMajorDependentModeNotes(1, true, NoteSet{2});
+	CHECK_EQUAL(NoteSet({2}), a);
+
+	// Case 3: both intervals are present -> preferHigher does not matter
+	a.clear();
+	a.addMajorDependentModeNotes(1, false, NoteSet{1, 2});
+	CHECK_EQUAL(NoteSet({1, 2}), a);
+	// Case 3: both intervals are present -> preferHigher does not matter
+	a.clear();
+	a.addMajorDependentModeNotes(1, true, NoteSet{1, 2});
+	CHECK_EQUAL(NoteSet({1, 2}), a);
+
+	// Case 4: neither interval is not present -> prefer higher determines
+	a.clear();
+	a.addMajorDependentModeNotes(1, false, NoteSet{});
+	CHECK_EQUAL(NoteSet({1}), a);
+	a.clear();
+	a.addMajorDependentModeNotes(1, true, NoteSet{});
+	CHECK_EQUAL(NoteSet({2}), a);
+}
+
 TEST_GROUP(MusicalKeyTest){};
 
 TEST(MusicalKeyTest, ctor) {
