@@ -3656,8 +3656,11 @@ FRESULT f_mount (
 	int vol;
 	FRESULT res;
 	const TCHAR *rp = path;
-cfs = FatFs[vol];
-if (cfs && opt==0) return FR_OK;/* Pointer to fs object */
+        /* Pointer to fs object */
+        cfs = FatFs[vol];
+        if (cfs && opt==0) {
+          return FR_OK; //this is a dirty hack, only works because we're never doing a delayed mount over a different filesystem
+        }
 	/* Get logical drive number */
 	vol = get_ldnumber(&rp);
 	if (vol < 0) return FR_INVALID_DRIVE;
