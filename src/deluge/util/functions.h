@@ -29,6 +29,7 @@
 #include <bit>
 #include <cstdint>
 #include <cstring>
+#include <string>
 
 class UI;
 
@@ -127,6 +128,13 @@ template <uint8_t lshift>
 }
 
 char* replace_char(const char* str, char find, char replace);
+
+/// pads a string up to a num of characters if the current string size is shorter than num
+[[gnu::always_inline]] constexpr void padStringTo(std::string& str, const size_t num) {
+	if (num > str.size()) {
+		str.insert(0, num - str.size(), ' ');
+	}
+}
 
 int32_t stringToInt(char const* string);
 int32_t stringToUIntOrError(char const* mem);
