@@ -62,6 +62,8 @@ StemExport::StemExport() {
 
 	loopLengthToStopStemExport = 0;
 	loopEndPointInSamplesForAudioFile = 0;
+
+	allowNormalization = false;
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
@@ -124,7 +126,8 @@ void StemExport::stopStemExportProcess() {
 void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 	playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	if (playbackHandler.isEitherClockActive()) {
-		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, AudioInputChannel::MIX, writeLoopEndPos());
+		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, AudioInputChannel::MIX, writeLoopEndPos(),
+		                                   allowNormalization);
 		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
 			stopOutputRecordingAtSilence = true;
 		}

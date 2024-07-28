@@ -39,6 +39,9 @@ public:
 	bool stopOutputRecordingAtSilence;
 	StemExportType currentStemExportType;
 
+	// export config variables
+	bool allowNormalization;
+
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport();
 	int32_t exportInstrumentStems(StemExportType stemExportType);

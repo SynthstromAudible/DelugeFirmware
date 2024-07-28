@@ -1177,13 +1177,20 @@ bool* getSongMidiLoopback() {
 ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};
 
 // Sub menu for Stem Export
-
 menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT_STEMS};
+
+ToggleBool configureNormalizationMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
+                                      STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, stemExport.allowNormalization};
+menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
+                                           {
+                                               &configureNormalizationMenu,
+                                           }};
 
 menu_item::Submenu stemExportMenu{
     STRING_FOR_EXPORT_STEMS,
     {
         &startStemExportMenu,
+        &configureStemExportMenu,
     },
 };
 
