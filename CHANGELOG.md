@@ -30,6 +30,7 @@
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
 - Allow changing MPE y output to CC1 to support more synths
+- Removed MPE zone auto learn as a huge source of midi bugs, MPE must now be configured in the menu
 
 ## c1.1.1 Beethoven
 
