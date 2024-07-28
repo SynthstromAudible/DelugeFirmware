@@ -29,6 +29,7 @@
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
+- Allow changing MPE y output to CC1 to support more synths
 
 ## c1.1.1 Beethoven
 

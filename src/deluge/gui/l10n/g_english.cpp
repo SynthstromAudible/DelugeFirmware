@@ -301,6 +301,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CHANNEL_PRESSURE, "Channel pressure"},
         {STRING_FOR_PITCH_BEND, "Pitch bend"},
         {STRING_FOR_MOD_WHEEL, "Mod wheel"},
+        {STRING_FOR_Y_AXIS_CONVERSION, "Send Y as CC1"},
         {STRING_FOR_NO_PARAM, "No param"},
         {STRING_FOR_NO_FURTHER_UNUSED_MIDI_PARAMS, "No further unused MIDI params"},
         {STRING_FOR_DIGITAL_DELAY, "Digital delay"},
