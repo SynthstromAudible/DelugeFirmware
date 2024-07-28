@@ -117,6 +117,27 @@ TEST(NoteSetTest, applyChanges) {
 	CHECK_EQUAL(4, a.count());
 }
 
+TEST(NoteSetTest, isSubsetOf) {
+	NoteSet a;
+	NoteSet b;
+	CHECK(a.isSubsetOf(b));
+	CHECK(b.isSubsetOf(a));
+	a.add(3);
+	b.add(3);
+	CHECK(a.isSubsetOf(b));
+	CHECK(b.isSubsetOf(a));
+	a.add(0);
+	CHECK(!a.isSubsetOf(b));
+	CHECK(b.isSubsetOf(a));
+	b.add(0);
+	b.add(11);
+	CHECK(a.isSubsetOf(b));
+	CHECK(!b.isSubsetOf(a));
+	a.add(7);
+	CHECK(!a.isSubsetOf(b));
+	CHECK(!b.isSubsetOf(a));
+}
+
 TEST(NoteSetTest, equality) {
 	NoteSet a;
 	NoteSet b;
