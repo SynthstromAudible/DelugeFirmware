@@ -48,6 +48,28 @@ TEST(NoteSetTest, count) {
 	CHECK(notes.count() == 12);
 }
 
+TEST(NoteSetTest, union) {
+	NoteSet a;
+	NoteSet b;
+	NoteSet c;
+	CHECK_EQUAL(c, a | b);
+	CHECK_EQUAL(c, b | a);
+	a.fill();
+	c.fill();
+	CHECK_EQUAL(c, a | b);
+	CHECK_EQUAL(c, b | a);
+	a.clear();
+	c.clear();
+	a.add(0);
+	b.add(7);
+	c.add(0);
+	c.add(7);
+	CHECK_EQUAL(c, a | b);
+	CHECK_EQUAL(c, b | a);
+	CHECK_EQUAL(1, a.count());
+	CHECK_EQUAL(1, b.count());
+}
+
 TEST(NoteSetTest, clear) {
 	NoteSet notes;
 	notes.add(1);

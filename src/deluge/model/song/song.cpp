@@ -553,19 +553,23 @@ bool Song::anyScaleModeClips() {
 	return false;
 }
 
+NoteSet Song::notesInScaleModeClips() {
+	NoteSet notes;
+	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
+		if (instrumentClip->isScaleModeClip()) {
+			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key.rootNote, this);
+		}
+	}
+	return notes;
+}
+
 void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
 
 	int32_t oldRootNote = key.rootNote;
 	key.rootNote = newRootNote;
 
 	int32_t oldNumModeNotes = key.modeNotes.count();
-	NoteSet notesWithinOctavePresent;
-
-	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
-		if (instrumentClip->isScaleModeClip()) {
-			instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, key.rootNote, this);
-		}
-	}
+	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
 
 	bool previousScaleFits = true;
 	if (getCurrentPresetScale() >= NUM_PRESET_SCALES) {
@@ -2878,18 +2882,12 @@ int32_t Song::setPresetScale(int32_t newScale) {
 	}
 
 	// Always count the root note as present, to avoid changing the root note when cycling scales.
-	NoteSet notesWithinOctavePresent;
-	notesWithinOctavePresent.add(0);
+	NoteSet notesWithinOctavePresent{0};
 
 	if (numNotesInCurrentScale > numNotesInNewScale) {
 		// We are trying to pass from source scale with more notes than the target scale.
 		// We need to check the real number of notes used to see if we can convert it.
-
-		for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
-			if (instrumentClip->isScaleModeClip()) {
-				instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, key.rootNote, this);
-			}
-		}
+		notesWithinOctavePresent = notesWithinOctavePresent | notesInScaleModeClips();
 	}
 
 	int32_t notesWithinOctavePresentCount = notesWithinOctavePresent.count();

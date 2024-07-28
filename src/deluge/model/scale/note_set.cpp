@@ -66,6 +66,12 @@ uint8_t NoteSet::presetScaleId() const {
 	return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
 }
 
+NoteSet NoteSet::operator|(const NoteSet& other) {
+	NoteSet newSet = other;
+	newSet.bits |= bits;
+	return newSet;
+}
+
 #ifdef IN_UNIT_TESTS
 const TestString StringFrom(const NoteSet& set) {
 	// We print out as chromatic notes across C, even though NoteSet does _not_ specify the root.
