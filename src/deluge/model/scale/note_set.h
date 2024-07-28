@@ -56,9 +56,16 @@ public:
 	/** Returns the highest note that has been added to the NoteSet.
 	 */
 	uint8_t highest() const { return 15 - std::countl_zero(bits); }
+	/** If this is a preset scale, returns the preset scale id.
+	 *
+	 * Otherwise returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES
+	 */
+	uint8_t presetScaleId() const;
 	/** Returns number of notes in the NoteSet.
 	 */
 	int count() const { return std::popcount(bits); }
+	/** True if two NoteSets are identical. */
+	bool operator==(const NoteSet& other) const { return bits == other.bits; }
 	/** Size of NoteSet, ie. the maximum number of notes it can hold.
 	 */
 	static const int8_t size = 12;
@@ -66,3 +73,23 @@ public:
 private:
 	uint16_t bits;
 };
+
+#ifdef IN_UNIT_TESTS
+// For CppUTest CHECK_EQUAL() and debugging convenience
+
+#include <iostream>
+#include <string>
+
+std::ostream& operator<<(std::ostream& output, const NoteSet& set);
+
+class TestString {
+public:
+	TestString(std::string string_) : string(string_) {}
+	const char* asCharString() const { return string.c_str(); }
+
+private:
+	std::string string;
+};
+
+const TestString StringFrom(const NoteSet&);
+#endif

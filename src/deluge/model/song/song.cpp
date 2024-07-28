@@ -3043,31 +3043,8 @@ int32_t Song::setPresetScale(int32_t newScale) {
 	return newScale;
 }
 
-// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if no preset matches current notes
-int32_t Song::getCurrentPresetScale() {
-	if (key.modeNotes.count() > 7) {
-		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
-	}
-
-	int32_t numPresetScales = NUM_PRESET_SCALES;
-	for (int32_t p = 0; p < numPresetScales; p++) {
-		for (int32_t n = 1; n < 7; n++) {
-			int32_t newNote = presetScaleNotes[p][n];
-			if (newNote == 0) {
-				continue;
-			}
-			if (key.modeNotes[n] != newNote) {
-				goto notThisOne;
-			}
-		}
-
-		// If we're here, must be this one!
-		return p;
-
-notThisOne: {}
-	}
-
-	return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+int8_t Song::getCurrentPresetScale() {
+	return key.modeNotes.presetScaleId();
 }
 
 // What does this do exactly, again?

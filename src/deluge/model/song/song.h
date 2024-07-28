@@ -114,7 +114,8 @@ public:
 	void displayCurrentRootNoteAndScaleName();
 	const char* getScaleName(int32_t scale);
 	int32_t cycleThroughScales();
-	int32_t getCurrentPresetScale();
+	// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if no preset matches current notes
+	int8_t getCurrentPresetScale();
 	int32_t setPresetScale(int32_t newScale);
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
