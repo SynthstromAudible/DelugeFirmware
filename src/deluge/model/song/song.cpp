@@ -578,31 +578,7 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	    getCurrentPresetScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
 
 	if (!previousScaleFits) {
-		// Determine the majorness or minorness of the scale
-		int32_t majorness = 0;
-
-		// The 3rd is the main indicator of majorness, to my ear
-		if (notesWithinOctavePresent.has(4)) {
-			majorness++;
-		}
-		if (notesWithinOctavePresent.has(3)) {
-			majorness--;
-		}
-
-		// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
-		if (majorness == 0) {
-			if (notesWithinOctavePresent.has(1)) {
-				majorness--;
-			}
-			if (notesWithinOctavePresent.has(8)) {
-				majorness--;
-			}
-			if (notesWithinOctavePresent.has(9)) {
-				majorness++;
-			}
-		}
-
-		bool moreMajor = (majorness >= 0);
+		bool moreMajor = (notesWithinOctavePresent.majorness() >= 0);
 
 		key.modeNotes.clear();
 		key.modeNotes.add(0);

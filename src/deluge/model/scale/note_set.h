@@ -66,6 +66,8 @@ public:
 	int count() const { return std::popcount(bits); }
 	/** True if two NoteSets are identical. */
 	bool operator==(const NoteSet& other) const { return bits == other.bits; }
+	/** Determines the majorness of the NoteSet. Positive is major, negative is minor. */
+	int8_t majorness() const;
 	/** True if this is a subset of the other NoteSet. */
 	bool isSubsetOf(NoteSet other) const { return (other.bits & bits) == bits; }
 	/** Union of two NoteSets

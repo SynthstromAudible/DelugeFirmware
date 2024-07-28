@@ -210,6 +210,23 @@ TEST(NoteSetTest, presetScaleId) {
 	CHECK_EQUAL(CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES, NoteSet().presetScaleId());
 }
 
+TEST(NoteSetTest, majorness) {
+	// Thirds?
+	CHECK_EQUAL(0, NoteSet({0}).majorness());
+	CHECK_EQUAL(-1, NoteSet({0, 3}).majorness());
+	CHECK_EQUAL(1, NoteSet({0, 4}).majorness());
+	CHECK_EQUAL(0, NoteSet({0, 3, 4}).majorness());
+	// Indeterminate after third, what about 2nd?
+	CHECK_EQUAL(-1, NoteSet({0, 1}).majorness());
+	CHECK_EQUAL(-1, NoteSet({0, 1, 3, 4}).majorness());
+	// Indeterminate after third, what about 6th?
+	CHECK_EQUAL(-1, NoteSet({0, 8}).majorness());
+	CHECK_EQUAL(-1, NoteSet({0, 8, 3, 4}).majorness());
+	// Indeterminate after third, what about 7th?
+	CHECK_EQUAL(1, NoteSet({0, 9}).majorness());
+	CHECK_EQUAL(1, NoteSet({0, 9, 3, 4}).majorness());
+}
+
 TEST_GROUP(MusicalKeyTest){};
 
 TEST(MusicalKeyTest, ctor) {

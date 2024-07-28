@@ -72,6 +72,32 @@ NoteSet NoteSet::operator|(const NoteSet& other) {
 	return newSet;
 }
 
+int8_t NoteSet::majorness() const {
+	int8_t majorness = 0;
+
+	// The 3rd is the main indicator of majorness, to my ear
+	if (has(4)) {
+		majorness++;
+	}
+	if (has(3)) {
+		majorness--;
+	}
+
+	// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
+	if (majorness == 0) {
+		if (has(1)) {
+			majorness--;
+		}
+		if (has(8)) {
+			majorness--;
+		}
+		if (has(9)) {
+			majorness++;
+		}
+	}
+	return majorness;
+}
+
 #ifdef IN_UNIT_TESTS
 const TestString StringFrom(const NoteSet& set) {
 	// We print out as chromatic notes across C, even though NoteSet does _not_ specify the root.
