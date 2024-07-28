@@ -241,7 +241,7 @@ void L2CacheEnable(void)
 {
     L2C.REG2_INT_CLEAR   = 0x000001FFuL; /* Clear the reg2_int_raw_status register */
     L2C.REG9_D_LOCKDOWN0 = 0x00000000uL;
-
+    L2C.REG1_AUX_CONTROL |= 0x30000000uL;
     L2C.REG1_CONTROL = 0x00000001uL; /* Enable L2 cache */
 }
 

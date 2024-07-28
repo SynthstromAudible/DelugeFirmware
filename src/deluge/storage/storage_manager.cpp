@@ -593,7 +593,7 @@ void Serializer::writeFirmwareVersion() {
 
 XMLSerializer::XMLSerializer() : fileWriteBufferCurrentPos(0), ms(NULL) {
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
-	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE + UNCACHED_MIRROR_OFFSET;
 }
 
 XMLSerializer::~XMLSerializer() {
@@ -856,7 +856,7 @@ XMLDeserializer::XMLDeserializer()
     : xmlArea(BETWEEN_TAGS), xmlReachedEnd(false), tagDepthCaller(0), tagDepthFile(0), xmlReadCount(0), msd(NULL) {
 
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
-	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE + UNCACHED_MIRROR_OFFSET;
 }
 
 XMLDeserializer::~XMLDeserializer() {
