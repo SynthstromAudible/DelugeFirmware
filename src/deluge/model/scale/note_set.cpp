@@ -75,6 +75,13 @@ void NoteSet::applyChanges(int8_t changes[12]) {
 	newSet.add(0);
 	bits = newSet.bits;
 }
+
+int NoteSet::scaleSize() const {
+	NoteSet tmp = *this;
+	tmp.add(0);
+	return tmp.count();
+}
+
 #ifdef IN_UNIT_TESTS
 const TestString StringFrom(const NoteSet& set) {
 	// We print out as chromatic notes across C, even though NoteSet does _not_ specify the root.

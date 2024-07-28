@@ -46,6 +46,15 @@ TEST(NoteSetTest, count) {
 	CHECK(notes.count() == 12);
 }
 
+TEST(NoteSetTest, scaleSize) {
+	NoteSet notes;
+	CHECK_EQUAL(1, notes.scaleSize());
+	notes.add(0);
+	CHECK_EQUAL(1, notes.scaleSize());
+	notes.add(3);
+	CHECK_EQUAL(2, notes.scaleSize());
+}
+
 TEST(NoteSetTest, clear) {
 	NoteSet notes;
 	notes.add(1);

@@ -77,6 +77,9 @@ public:
 	/** Returns number of notes in the NoteSet.
 	 */
 	int count() const { return std::popcount(bits); }
+	/** Returns the size of the scale needed for this NoteSet.
+	 */
+	int scaleSize() const;
 	/** True if two NoteSets are identical. */
 	bool operator==(const NoteSet& other) const { return bits == other.bits; }
 	/** True if this is a subset of the other NoteSet. */
