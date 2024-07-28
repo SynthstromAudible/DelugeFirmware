@@ -19,6 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
+#include "hid/display/oled.h"
 #include "model/clip/clip.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -53,6 +54,21 @@ void Integer::writeCurrentValue() {
 
 int32_t Integer::getFinalValue() {
 	return computeFinalValueForStandardMenuItem(this->getValue());
+}
+
+void Integer::renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	DEF_STACK_STRING_BUF(paramValue, 10);
+	paramValue.appendInt(getParamValue());
+
+	std::string stringForSubmenuItemType;
+	stringForSubmenuItemType.append(paramValue.c_str());
+
+	// pad value string so it's 3 characters long
+	padStringTo(stringForSubmenuItemType, 3);
+
+	image.drawString(stringForSubmenuItemType, xPixel, yPixel, kTextSpacingX, kTextSpacingY);
 }
 
 } // namespace deluge::gui::menu_item::patched_param
