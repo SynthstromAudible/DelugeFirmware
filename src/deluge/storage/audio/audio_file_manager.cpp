@@ -1254,7 +1254,7 @@ copy7ToMe:
 void AudioFileManager::slowRoutine() {
 
 	// If we know the card's been ejected...
-	if (cardEjected) {
+	if (cardEjected && !sdRoutineLock) {
 		Error error = storageManager.initSD();
 		if (error == Error::NONE) {
 			cardEjected = false;

@@ -461,7 +461,7 @@ typedef struct {
 #if FF_VOLUMES < 1 || FF_VOLUMES > 10
 #error Wrong FF_VOLUMES setting
 #endif
-static FATFS* FatFs[FF_VOLUMES];	/* Pointer to the filesystem objects (logical drives) */
+static FATFS* FatFs[FF_VOLUMES] = {0};	/* Pointer to the filesystem objects (logical drives) */
 static WORD Fsid;					/* Filesystem mount ID */
 
 #if FF_FS_RPATH != 0
@@ -3656,11 +3656,12 @@ FRESULT f_mount (
 	int vol;
 	FRESULT res;
 	const TCHAR *rp = path;
-
+cfs = FatFs[vol];
+if (cfs && opt==0) return FR_OK;/* Pointer to fs object */
 	/* Get logical drive number */
 	vol = get_ldnumber(&rp);
 	if (vol < 0) return FR_INVALID_DRIVE;
-	cfs = FatFs[vol];					/* Pointer to fs object */
+
 	if (cfs) {
 #if FF_FS_LOCK != 0
 		clear_lock(cfs);
