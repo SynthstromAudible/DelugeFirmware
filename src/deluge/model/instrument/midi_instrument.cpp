@@ -843,7 +843,7 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 	{ // Y
 		int32_t outputValue7 = mpeValuesToUse[1] >> 9;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[0] = outputValue7;
-		midiEngine.sendCC(this, outputMemberChannel, 74, outputValue7 + 64, channel);
+		midiEngine.sendCC(this, outputMemberChannel, outputMPEY, outputValue7 + 64, channel);
 	}
 
 	{ // Z
