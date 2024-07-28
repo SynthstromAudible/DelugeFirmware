@@ -325,6 +325,7 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeOpeningTagBeginning("polyToMonoConversion");
 		writer.writeAttribute("aftertouch", (int32_t)collapseAftertouch);
 		writer.writeAttribute("mpe", (int32_t)collapseMPE);
+		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
 	}
 	else {
@@ -358,6 +359,10 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 			}
 			else if (!strcmp(tagName, "mpe")) {
 				collapseMPE = (bool)reader.readTagOrAttributeValueInt();
+				editedByUser = true;
+			}
+			else if (!strcmp(tagName, "yCC")) {
+				outputMPEY = static_cast<CCNumber>(reader.readTagOrAttributeValueInt());
 				editedByUser = true;
 			}
 			else

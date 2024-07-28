@@ -432,7 +432,7 @@ Submenu soundDistortionMenu{
 midi::Bank midiBankMenu{STRING_FOR_BANK, STRING_FOR_MIDI_BANK};
 midi::Sub midiSubMenu{STRING_FOR_SUB_BANK, STRING_FOR_MIDI_SUB_BANK};
 midi::PGM midiPGMMenu{STRING_FOR_PGM, STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE};
-midi::MPEYToModWheel mpeyToModWheel{STRING_FOR_MOD_WHEEL, STRING_FOR_MOD_WHEEL};
+midi::MPEYToModWheel mpeyToModWheelMenu{STRING_FOR_Y_AXIS_CONVERSION, STRING_FOR_Y_AXIS_CONVERSION};
 midi::AftertouchToMono midiAftertouchCollapseMenu{STRING_FOR_PATCH_SOURCE_AFTERTOUCH,
                                                   STRING_FOR_PATCH_SOURCE_AFTERTOUCH};
 midi::MPEToMono midiMPECollapseMenu{STRING_FOR_MPE, STRING_FOR_MPE};
@@ -1138,7 +1138,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &midiSubMenu,
         &arpMenu,
         &bendMenu,
-        &mpeyToModWheel,
+        &mpeyToModWheelMenu,
         &midiMPEMenu,
         &sequenceDirectionMenu,
     },
