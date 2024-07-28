@@ -68,6 +68,15 @@ AudioFileManager::AudioFileManager() {
 	}
 }
 
+void AudioFileManager::firstCardRead() {
+	if (cardReadOnce) {
+		cardReinserted();
+	}
+	else {
+		init();
+	}
+}
+
 void AudioFileManager::init() {
 
 	clusterBeingLoaded = NULL;
@@ -1246,23 +1255,9 @@ void AudioFileManager::slowRoutine() {
 
 	// If we know the card's been ejected...
 	if (cardEjected) {
-		// If it's still ejected, get out
-		if (!storageManager.checkSDPresent()) {
-			return;
-
-			// Otherwise, see if we can get it
-		}
-		else {
-			Error error = storageManager.initSD();
-			if (error == Error::NONE) {
-				cardEjected = false;
-				if (cardReadOnce) {
-					cardReinserted();
-				}
-				else {
-					init();
-				}
-			}
+		Error error = storageManager.initSD();
+		if (error == Error::NONE) {
+			cardEjected = false;
 		}
 	}
 
