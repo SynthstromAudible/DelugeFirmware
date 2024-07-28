@@ -3372,7 +3372,7 @@ static UINT find_volume (	/* Returns BS status found in the hosting drive */
 /*-----------------------------------------------------------------------*/
 /* Determine logical drive number and mount the volume if needed         */
 /*-----------------------------------------------------------------------*/
-
+// safe to call repeatedly, caches whether it's initialized already
 static FRESULT mount_volume (	/* FR_OK(0): successful, !=0: an error occurred */
 	const TCHAR** path,			/* Pointer to pointer to the path name (drive number) */
 	FATFS** rfs,				/* Pointer to pointer to the found filesystem object */
@@ -3657,12 +3657,10 @@ FRESULT f_mount (
 	FRESULT res;
 	const TCHAR *rp = path;
 
-
 	/* Get logical drive number */
 	vol = get_ldnumber(&rp);
 	if (vol < 0) return FR_INVALID_DRIVE;
 	cfs = FatFs[vol];					/* Pointer to fs object */
-
 	if (cfs) {
 #if FF_FS_LOCK != 0
 		clear_lock(cfs);
