@@ -1556,7 +1556,8 @@ void slowRoutine() {
 }
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
-                               bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency) {
+                               bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency,
+                               bool shouldNormalize) {
 	Error error;
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));

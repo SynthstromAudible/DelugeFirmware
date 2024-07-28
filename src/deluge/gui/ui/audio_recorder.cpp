@@ -129,7 +129,7 @@ void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas
 }
 
 bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
-                                         AudioRecordingFolder folderID, bool writeLoopPoints) {
+                                         AudioRecordingFolder folderID, bool writeLoopPoints, bool shouldNormalize) {
 
 	if (ALPHA_OR_BETA_VERSION && recordingSource > AudioInputChannel::NONE) {
 		FREEZE_WITH_ERROR("E242");
@@ -143,14 +143,16 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 	}
 
 	recorder->allowFileAlterationAfter = true;
+	recorder->allowNormalization = shouldNormalize;
 
 	recordingSource = newMode; // This sets recording to begin happening even as the file is created, below
 
 	return true;
 }
 
-bool AudioRecorder::beginOutputRecording(AudioRecordingFolder folder, AudioInputChannel channel, bool writeLoopPoints) {
-	bool success = setupRecordingToFile(channel, 2, folder, writeLoopPoints);
+bool AudioRecorder::beginOutputRecording(AudioRecordingFolder folder, AudioInputChannel channel, bool writeLoopPoints,
+                                         bool shouldNormalize) {
+	bool success = setupRecordingToFile(channel, 2, folder, writeLoopPoints, shouldNormalize);
 
 	if (success) {
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);

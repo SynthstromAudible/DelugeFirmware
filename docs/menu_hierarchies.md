@@ -513,6 +513,10 @@ The Song menu contains the following menu hierarchy:
 <details><summary>Stem Export (STEM)</summary>
 
 	- Start Export (STEM)
+	- Configure Export (CONF)
+		- Normalization (NORM)
+			- Disabled (OFF)
+			- Enabled (ON)
 </details>
 </details>
 
