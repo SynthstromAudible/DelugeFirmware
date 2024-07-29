@@ -249,7 +249,7 @@ Error StorageManager::initSD() {
 	// If we know the SD card is still initialised, no need to actually initialise
 	DSTATUS status = disk_status(SD_PORT);
 	if ((status & STA_NOINIT) == 0) {
-		auto _ = fileSystemStuff.fileSystem.mount(0); // check that it's mounted but don't block if not
+		auto _ = fileSystem.mount(0); // check that it's mounted but don't block if not
 		return Error::NONE;
 	}
 
