@@ -564,19 +564,19 @@ NoteSet Song::notesInScaleModeClips() {
 }
 
 void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
-
+	// Setting the new root affects interpretation of existing notes done by notesInScaleModeClips(),
+	// so we need to do it before anything else.
 	int32_t oldRootNote = key.rootNote;
 	key.rootNote = newRootNote;
 
 	int32_t oldNumModeNotes = key.modeNotes.count();
 	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
 
-	// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale
+	// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale.
 	// Check if the previously set scale could fit the notes present in the clips
 	// If so, we need no check at all, we can directly go back to previous scale safely
 	bool previousScaleFits =
 	    getCurrentPresetScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
-
 	if (!previousScaleFits) {
 		key.modeNotes = notesWithinOctavePresent.toImpliedScale();
 	}
