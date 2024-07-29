@@ -248,8 +248,23 @@ public:
 	virtual bool shouldEnterSubmenu() { return true; }
 
 	/// @brief Handle rendering of submenu item types
-	virtual int32_t getSubmenuItemTypeRenderLength() { return (3 + (kTextSpacingX * 3) + kTextSpacingX); }
-	virtual void renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel);
+	// length = spacing before (6 pixels)
+	//			+ width of 3 characters (3 * 6 pixels - to accomodate rendering of 3 digit param values)
+	//          + spacing after (3 pixels)
+	// spacing before is to ensure that menu item text doesn't overlap and can scroll
+	// length = 6 pixels before + (3 characters * 6 pixels per character) + 3 pixels after
+	virtual int32_t getSubmenuItemTypeRenderLength() { return (3 + (3 * kTextSpacingX) + 3); }
+	// push the start x over so it aligns with the right most character drawn for param value menus
+	// startX = end pixel of menu item string + 3px spacing after it + spacing for 2 characters +
+	// 			shift icon left 1 pixel (it's 1px wider than a regular character)
+	virtual int32_t getSubmenuItemTypeRenderIconStart() { return (OLED_MAIN_WIDTH_PIXELS - 3 - kTextSpacingX - 1); }
+	// push the start x over 3 characters which is the spacing between the end of the menu item text and the first
+	// value character drawn
+	virtual int32_t getSubmenuItemTypeRenderValueStart() {
+		return (OLED_MAIN_WIDTH_PIXELS - getSubmenuItemTypeRenderLength() + 3);
+	}
+	// render the submenu item type (icon or value)
+	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
 
 	/// @}
 };

@@ -42,11 +42,10 @@ void Selection::displayToggleValue() {
 }
 
 // handles rendering of the community features menu items that are identified as toggles
-void Selection::renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel) {
+void Selection::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
-	// push the start x over so it aligns with the right most character drawn for param value menus
-	int32_t startX = xPixel + kTextSpacingX * 2 - 1;
+	int32_t startX = getSubmenuItemTypeRenderIconStart();
 
 	if (isToggle()) {
 		if (getToggleValue()) {
