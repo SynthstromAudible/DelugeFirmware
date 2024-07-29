@@ -45,10 +45,10 @@ void Selection::displayToggleValue() {
 void Selection::renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
+	// push the start x over so it aligns with the right most character drawn for param value menus
+	int32_t startX = xPixel + kTextSpacingX * 2 - 1;
+
 	if (isToggle()) {
-		// the icon is the equivalent of 1 character width so need to push the start x over so it aligns with the ">"
-		// icon
-		int32_t startX = xPixel + kTextSpacingX * 2 - 1;
 		if (getToggleValue()) {
 			image.drawGraphicMultiLine(deluge::hid::display::OLED::checkedBoxIcon, startX, yPixel, 7);
 		}
@@ -57,9 +57,7 @@ void Selection::renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel) {
 		}
 	}
 	else {
-		std::string stringForSubmenuItemType;
-		stringForSubmenuItemType.append("  >");
-		image.drawString(stringForSubmenuItemType, xPixel, yPixel, kTextSpacingX, kTextSpacingY);
+		image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, 7);
 	}
 }
 

@@ -120,6 +120,16 @@ const uint8_t OLED::uncheckedBoxIcon[] = {
     0b11111110, //<
 };
 
+const uint8_t OLED::submenuArrowIcon[] = {
+    0b00000000, //<
+    0b00000000, //<
+    0b01000100, //<
+    0b00101000, //<
+    0b00010000, //<
+    0b00000000, //<
+    0b00000000, //<
+};
+
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
 #endif
