@@ -2743,54 +2743,46 @@ const char* Song::getScaleName(int32_t scale) {
 }
 
 int32_t Song::cycleThroughScales() {
-	int32_t currentScale = getCurrentPresetScale();
-	int32_t newScale = currentScale + 1; // next scale
-	if (newScale >= NUM_PRESET_SCALES) {
-		// If past the last scale, start from the beginning
-		newScale = 0;
-	}
-	return setPresetScale(newScale);
+	int8_t startScale = getCurrentPresetScale();
+	int8_t currentScale = startScale;
+	int8_t newScale = currentScale;
+	// Try next scale until one works, or we've tried all.
+	do {
+		newScale = mod(newScale + 1, NUM_PRESET_SCALES);
+		currentScale = setPresetScale(newScale);
+	} while (newScale != currentScale && newScale != startScale);
+	return newScale;
 }
 
 /// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if there are more than 7 notes and no preset is possible.
 int32_t Song::setPresetScale(int32_t newScale) {
-	int32_t numNotesInCurrentScale = key.modeNotes.count();
-	int32_t numNotesInNewScale = 7;
+	// Make sure newScale is a legal one
+	if (newScale < 0 || NUM_PRESET_SCALES <= newScale) {
+		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+	}
+	// Grab the actual new scale
+	NoteSet newScaleNotes = presetScaleNotes[newScale];
 
-	// Get num of notes of new scale
-	if (newScale >= FIRST_5_NOTE_SCALE_INDEX) {
-		numNotesInNewScale = 5;
-	}
-	else if (newScale >= FIRST_6_NOTE_SCALE_INDEX) {
-		numNotesInNewScale = 6;
-	}
+	int32_t numNotesInCurrentScale = key.modeNotes.scaleSize();
+	int32_t numNotesInNewScale = newScaleNotes.scaleSize();
 
 	// Always count the root note as present, to avoid changing the root note when cycling scales.
 	NoteSet notesWithinOctavePresent{0};
 
+	// If w're trying to pass from source scale with more notes than the target scale,
+	// then we need to check the real number of notes used to see if we can convert it.
+	//
+	// Otherwise we can just pretend the whole scale is used without that causing issues.
 	if (numNotesInCurrentScale > numNotesInNewScale) {
-		// We are trying to pass from source scale with more notes than the target scale.
-		// We need to check the real number of notes used to see if we can convert it.
 		notesWithinOctavePresent = notesWithinOctavePresent | notesInScaleModeClips();
 	}
-
-	int32_t notesWithinOctavePresentCount = notesWithinOctavePresent.count();
+	else {
+		notesWithinOctavePresent = key.modeNotes;
+	}
 
 	// If the new scale cannot fit the notes from the old one, we can't change scale
-	if ((newScale >= 0 && notesWithinOctavePresentCount > 7) // More than 7 notes (no scale is possible)
-	    || (newScale >= FIRST_6_NOTE_SCALE_INDEX
-	        && notesWithinOctavePresentCount > 6) // 6-note scale, but more than 6 notes
-	    || (newScale >= FIRST_5_NOTE_SCALE_INDEX
-	        && notesWithinOctavePresentCount > 5)) { // 5-note scale, but more than 5 notes
-		if (notesWithinOctavePresentCount <= 7) {
-			// If the total number of notes present is still 7 or less,
-			// we can fall back to Major scale
-			newScale = 0;
-			numNotesInNewScale = 7;
-		}
-		else {
-			return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
-		}
+	if (notesWithinOctavePresent.scaleSize() > numNotesInNewScale) {
+		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
 	}
 
 	// If going from scale with more notes to a scale with less notes,
@@ -2846,7 +2838,6 @@ int32_t Song::setPresetScale(int32_t newScale) {
 	if (numNotesInCurrentScale <= numNotesInNewScale) {
 		// The new scale can perfectly fit all notes from the old one, so mark all notes as transposable
 		notesWithinOctavePresent.fill();
-		notesWithinOctavePresentCount = 12;
 	}
 
 	bool modeNoteNeedsTransposition;
@@ -2864,7 +2855,7 @@ int32_t Song::setPresetScale(int32_t newScale) {
 				continue;
 			}
 
-			int32_t newNote = presetScaleNotes[newScale][n - offset];
+			int32_t newNote = newScaleNotes[n - offset];
 			int32_t oldNote = key.modeNotes[n];
 			if (modeNoteNeedsTransposition && oldNote != newNote) {
 				changes[n] = newNote - oldNote;
@@ -2884,7 +2875,7 @@ int32_t Song::setPresetScale(int32_t newScale) {
 				if (n == indexLastUnusedScaleDegreeFrom7To6) {
 					offset++;
 				}
-				transitionPresetScale[n] = presetScaleNotes[newScale][n + offset];
+				transitionPresetScale[n] = newScaleNotes[n + offset];
 			}
 			// Move from our 5-note scale to our transitional 6-note scale (after that the notes are already in the
 			// right place!)
@@ -2902,14 +2893,14 @@ int32_t Song::setPresetScale(int32_t newScale) {
 		}
 		else {
 			// From 5 to 6 or from 6 to 7, no need for transitional scale,
-			// directly use the presetScaleNotes and the corresponding indexLastUnusedScaleDegree* variable
+			// directly use the newScaleNotes and the corresponding indexLastUnusedScaleDegree* variable
 			int32_t offset = 0;
 			for (int32_t n = 1; n < 6; n++) {
 				if ((numNotesInCurrentScale == 5 && n == indexLastUnusedScaleDegreeFrom6To5)
 				    || (numNotesInCurrentScale == 6 && n == indexLastUnusedScaleDegreeFrom7To6)) {
 					offset++;
 				}
-				int32_t newNote = presetScaleNotes[newScale][n + offset];
+				int32_t newNote = newScaleNotes[n + offset];
 				int32_t oldNote = key.modeNotes[n];
 				if (oldNote != newNote) {
 					changes[n] = newNote - oldNote;
@@ -2920,7 +2911,7 @@ int32_t Song::setPresetScale(int32_t newScale) {
 
 	replaceMusicalMode(changes, true);
 
-	key.modeNotes = presetScaleNotes[newScale];
+	key.modeNotes = newScaleNotes;
 
 	return newScale;
 }
