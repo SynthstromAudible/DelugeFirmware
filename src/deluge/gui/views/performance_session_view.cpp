@@ -654,7 +654,6 @@ void PerformanceSessionView::renderOLED(deluge::hid::display::oled_canvas::Canva
 }
 
 void PerformanceSessionView::redrawNumericDisplay() {
-	renderViewDisplay();
 	sessionView.redrawNumericDisplay();
 }
 

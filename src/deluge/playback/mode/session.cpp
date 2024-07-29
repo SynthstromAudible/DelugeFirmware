@@ -700,6 +700,12 @@ int32_t Session::getNumSixteenthNotesRemainingTilLaunch() {
 	float ticksRemaining = static_cast<float>(launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned
 	                                          - playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick());
 	float sixteenthNotesRemaining = std::round(ticksRemaining / currentSong->getSixteenthNoteLength());
+	// if there is more than 1 repeat remaining, we need to adjust the number of sixteenth notes remaining
+	// as number of ticksRemaining is only accurate for 1 repeat
+	if (numRepeatsTilLaunch > 1) {
+		sixteenthNotesRemaining += (((numRepeatsTilLaunch - 1) * currentArmedLaunchLengthForOneRepeat)
+		                            / currentSong->getSixteenthNoteLength());
+	}
 	return static_cast<int32_t>(sixteenthNotesRemaining);
 }
 
