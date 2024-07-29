@@ -262,6 +262,36 @@ TEST(NoteSetTest, addMajorDependentModeNotes) {
 	CHECK_EQUAL(NoteSet({2}), a);
 }
 
+TEST(NoteSetTest, toImpliedScale) {
+	// There's thousands of combinations to test - for sake of making sense what's
+    // going on, just going through each semitone on it's own.
+
+	// Major scale is the default
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({}).toImpliedScale());
+	// Minor second gets us the phrygian
+	CHECK_EQUAL(presetScaleNotes[PHRYGIAN_SCALE], NoteSet({1}).toImpliedScale());
+	// Major second gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({2}).toImpliedScale());
+	// Minor third gets us the minor
+	CHECK_EQUAL(presetScaleNotes[MINOR_SCALE], NoteSet({3}).toImpliedScale());
+	// Major third gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({4}).toImpliedScale());
+	// Perfect fourth gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({5}).toImpliedScale());
+	// Tritone gets us the lydian scale
+	CHECK_EQUAL(presetScaleNotes[LYDIAN_SCALE], NoteSet({6}).toImpliedScale());
+	// Perfeft fifth gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({7}).toImpliedScale());
+	// Minor sixth gets us the minor
+	CHECK_EQUAL(presetScaleNotes[MINOR_SCALE], NoteSet({8}).toImpliedScale());
+	// Major sixth gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({9}).toImpliedScale());
+	// Minor seventh gets us the mixolydian
+	CHECK_EQUAL(presetScaleNotes[MIXOLYDIAN_SCALE], NoteSet({10}).toImpliedScale());
+	// Major seventh gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({11}).toImpliedScale());
+}
+
 TEST_GROUP(MusicalKeyTest){};
 
 TEST(MusicalKeyTest, ctor) {

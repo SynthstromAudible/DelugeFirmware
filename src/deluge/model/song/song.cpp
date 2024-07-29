@@ -578,52 +578,7 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	    getCurrentPresetScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
 
 	if (!previousScaleFits) {
-		bool moreMajor = (notesWithinOctavePresent.majorness() >= 0);
-
-		key.modeNotes.clear();
-		key.modeNotes.add(0);
-
-		// 2nd
-		key.modeNotes.addMajorDependentModeNotes(1, true, notesWithinOctavePresent);
-
-		// 3rd
-		key.modeNotes.addMajorDependentModeNotes(3, moreMajor, notesWithinOctavePresent);
-
-		// 4th, 5th
-		if (notesWithinOctavePresent.has(5)) {
-			key.modeNotes.add(5);
-			if (notesWithinOctavePresent.has(6)) {
-				key.modeNotes.add(6);
-				if (notesWithinOctavePresent.has(7)) {
-					key.modeNotes.add(7);
-				}
-			}
-			else {
-				key.modeNotes.add(7);
-			}
-		}
-		else {
-			if (notesWithinOctavePresent.has(6)) {
-				if (notesWithinOctavePresent.has(7) || moreMajor) {
-					key.modeNotes.add(6);
-					key.modeNotes.add(7);
-				}
-				else {
-					key.modeNotes.add(5);
-					key.modeNotes.add(6);
-				}
-			}
-			else {
-				key.modeNotes.add(5);
-				key.modeNotes.add(7);
-			}
-		}
-
-		// 6th
-		key.modeNotes.addMajorDependentModeNotes(8, moreMajor, notesWithinOctavePresent);
-
-		// 7th
-		key.modeNotes.addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
+		key.modeNotes = notesWithinOctavePresent.toImpliedScale();
 	}
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed
