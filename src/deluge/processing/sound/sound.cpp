@@ -2004,7 +2004,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	bool skippingStatusNow =
-	    ((numVoicesAssigned == 0) && (delay.repeatsUntilAbandon == 0u) && (stutterer.status == 0u)
+	    ((numVoicesAssigned == 0) && (delay.repeatsUntilAbandon == 0u) && !stutterer.isStuttering(this)
 	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF));
 
 	if (skippingStatusNow != skippingRendering) {

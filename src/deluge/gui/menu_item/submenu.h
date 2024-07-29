@@ -48,6 +48,7 @@ public:
 	void learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber);
 	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
 	void drawPixelsForOled() override;
+	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
 
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;

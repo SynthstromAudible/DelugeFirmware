@@ -549,8 +549,6 @@ void View::instrumentMidiLearnPadPressed(bool on, Instrument* instrument) {
 		deleteMidiCommandOnRelease = true;
 		learnedThing = &instrument->midiInput;
 		instrumentPressedForMIDILearn = instrument;
-		highestMIDIChannelSeenWhileLearning = -1;
-		lowestMIDIChannelSeenWhileLearning = 16;
 	}
 
 	else if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
@@ -669,43 +667,6 @@ isMPEZone:
 
 			// Or if we don't already know this is an MPE zone...
 			else {
-				if (learnedThing->device == fromDevice) {
-
-					if (channelOrZone > highestMIDIChannelSeenWhileLearning) {
-						highestMIDIChannelSeenWhileLearning = channelOrZone;
-					}
-					if (channelOrZone < lowestMIDIChannelSeenWhileLearning) {
-						lowestMIDIChannelSeenWhileLearning = channelOrZone;
-					}
-
-					// If multiple channels seen, that's a shortcut for setting up MPE zones for the device in question
-					// note - I think this leads to confusion more than any deliberate use
-					if (highestMIDIChannelSeenWhileLearning != lowestMIDIChannelSeenWhileLearning) {
-						if (lowestMIDIChannelSeenWhileLearning == 1) {
-							fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel =
-							    highestMIDIChannelSeenWhileLearning;
-							fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].moveUpperZoneOutOfWayOfLowerZone();
-							channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
-							MIDIDeviceManager::anyChangesToSave = true;
-							goto isMPEZone;
-						}
-						else if (highestMIDIChannelSeenWhileLearning == 14) {
-							fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel =
-							    lowestMIDIChannelSeenWhileLearning;
-							fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].moveLowerZoneOutOfWayOfUpperZone();
-							channelOrZone = MIDI_CHANNEL_MPE_UPPER_ZONE;
-							MIDIDeviceManager::anyChangesToSave = true;
-							goto isMPEZone;
-						}
-					}
-				}
-
-				else { // Or if different device...
-					   // Reset our assumptions about MPE
-					highestMIDIChannelSeenWhileLearning = channelOrZone;
-					lowestMIDIChannelSeenWhileLearning = channelOrZone;
-				}
-
 				// If still here, it's not MPE. Now that we know that, see if we want to apply a stored bend range for
 				// the input MIDI channel of the device
 				newBendRanges[BEND_RANGE_MAIN] = fromDevice->inputChannels[channelOrZone].bendRange;
@@ -771,11 +732,10 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 		if (thingPressedForMidiLearn == MidiLearn::INSTRUMENT_INPUT) {
 
 			// Special case for MIDIInstruments - CCs can learn the input MIDI channel
-			// note - I think this is probably the source of a lot of bugs around MPE
 			if (getCurrentOutputType() == OutputType::MIDI_OUT) {
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
-				if (highestMIDIChannelSeenWhileLearning < lowestMIDIChannelSeenWhileLearning) {
+				if (learnedThing->channelOrZone == MIDI_CHANNEL_NONE) {
 					learnedThing->device = fromDevice;
 					learnedThing->channelOrZone = channel;
 					getCurrentInstrument()->beenEdited(false);
@@ -2008,7 +1968,7 @@ oledDrawString:
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 #else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 21;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 19;
 #endif
 
 			int32_t textSpacingX = kTextTitleSpacingX;
@@ -2023,6 +1983,14 @@ oledDrawString:
 				canvas.drawString(nameToDraw, 0, yPos, textSpacingX, textSpacingY);
 				deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
 				                                              yPos + textSpacingY, textSpacingX, textSpacingY, false);
+			}
+
+			if (clip) {
+				yPos = yPos + 13;
+				canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
+				deluge::hid::display::OLED::setupSideScroller(1, clip->clipName.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+				                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
+				                                              false);
 			}
 		}
 		else {
@@ -2497,7 +2465,7 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 
 	// Do a redraw. Obviously the Clip is the same
 	setActiveModControllableTimelineCounter(clip);
-	displayOutputName(newInstrument, doBlink);
+	displayOutputName(newInstrument, doBlink, clip);
 
 	return true;
 }

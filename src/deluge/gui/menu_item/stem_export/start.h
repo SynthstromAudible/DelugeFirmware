@@ -15,22 +15,30 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/context_menu/audio_input_selector.h"
 #include "gui/menu_item/menu_item.h"
-#include "model/song/song.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
+#include "gui/views/session_view.h"
+#include "processing/stem_export/stem_export.h"
 
-namespace deluge::gui::menu_item::audio_clip {
-class AudioSourceSelector final : public MenuItem {
+namespace deluge::gui::menu_item::stem_export {
+class Start final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 
 	MenuItem* selectButtonPress() override {
-		gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)getCurrentOutput();
-		gui::context_menu::audioInputSelector.setupAndCheckAvailability();
-		openUI(&gui::context_menu::audioInputSelector);
+		soundEditor.exitCompletely();
+		RootUI* rootUI = getRootUI();
+		if (rootUI == &arrangerView) {
+			stemExport.startStemExportProcess(StemExportType::TRACK);
+		}
+		else if (rootUI == &sessionView) {
+			stemExport.startStemExportProcess(StemExportType::CLIP);
+		}
 		return (MenuItem*)0xFFFFFFFF; // no navigation
 	}
 
 	bool shouldEnterSubmenu() override { return false; }
 };
-} // namespace deluge::gui::menu_item::audio_clip
+} // namespace deluge::gui::menu_item::stem_export

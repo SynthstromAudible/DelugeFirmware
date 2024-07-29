@@ -501,7 +501,13 @@ void PlaybackHandler::endPlayback() {
 
 	// Or if not doing a song swap, some UI stuff to do
 	else {
-		if (wasRecordingArrangement) {
+		// if we're exporting stems, just turn recording mode off
+		// we don't want to stop active clip instances because we want to let tails ring out
+		if (stemExport.processStarted) {
+			recording = RecordingMode::OFF;
+			view.setModLedStates();
+		}
+		else if (wasRecordingArrangement) {
 			currentSong->endInstancesOfActiveClips(getActualArrangementRecordPos(), true);
 			recording = RecordingMode::OFF;
 			view.setModLedStates();

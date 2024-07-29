@@ -39,6 +39,7 @@
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
 #include <cstring>
@@ -1043,10 +1044,10 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDIDev
 
 	bool recordingNoteOnEarly = false;
 
-	bool shouldRecordNoteOn = shouldRecordNotes && instrumentClip
-	                          && currentSong->isClipActive(instrumentClip); // Even if this comes out as false here,
-	                                                                        // there are some special cases below where
-	                                                                        // we might insist on making it true
+	bool shouldRecordNoteOn = shouldRecordNotes && instrumentClip && currentSong->isClipActive(instrumentClip)
+	                          && instrumentClip->armedForRecording; // Even if this comes out as false here,
+	                                                                // there are some special cases below where
+	                                                                // we might insist on making it true
 	// If MIDIDrum, outputting same note, then don't additionally do thru
 	if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel == channel
 	    && ((MIDIDrum*)thisDrum)->note == note) {

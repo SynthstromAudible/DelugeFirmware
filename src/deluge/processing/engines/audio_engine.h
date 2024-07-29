@@ -161,7 +161,7 @@ void registerSideChainHit(int32_t strength);
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons = false, bool writeLoopPoints = false,
-                               int32_t buttonPressLatency = 0);
+                               int32_t buttonPressLatency = 0, bool shouldNormalize = true);
 void discardRecorder(SampleRecorder* recorder);
 bool isAnyInternalRecordingHappening();
 

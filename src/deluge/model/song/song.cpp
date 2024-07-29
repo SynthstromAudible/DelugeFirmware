@@ -5630,6 +5630,10 @@ void Song::changeSwingInterval(int32_t newValue) {
 	}
 }
 
+uint32_t Song::getSixteenthNoteLength() {
+	return increaseMagnitude(6, getInputTickMagnitude());
+}
+
 uint32_t Song::getQuarterNoteLength() {
 	return increaseMagnitude(24, getInputTickMagnitude());
 }

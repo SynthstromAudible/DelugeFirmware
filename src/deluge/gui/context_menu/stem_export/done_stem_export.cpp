@@ -47,8 +47,6 @@ Sized<char const**> DoneStemExport::getOptions() {
 }
 
 bool DoneStemExport::acceptCurrentOption() {
-	using enum l10n::String;
-
 	return false; // return false so you exit out of the context menu
 }
 } // namespace deluge::gui::context_menu

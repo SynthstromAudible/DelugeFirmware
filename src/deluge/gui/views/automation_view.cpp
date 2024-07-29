@@ -1514,7 +1514,7 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 		else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 		}
-		else if (clip->lastSelectedParamID == CC_NUMBER_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
+		else if (clip->lastSelectedParamID == CC_EXTERNAL_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
 		else {
@@ -4615,7 +4615,7 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	else if (newCC >= kNumCCExpression) {
 		newCC = 0;
 	}
-	if (newCC == CC_NUMBER_MOD_WHEEL) {
+	if (newCC == CC_EXTERNAL_MOD_WHEEL) {
 		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
 		newCC += offset;
 	}

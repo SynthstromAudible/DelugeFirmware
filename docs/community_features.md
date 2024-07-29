@@ -45,6 +45,9 @@ Here is a list of general improvements that have been made, ordered from newest 
   converts poly y-axis to mod wheel and poly pitch bend to an average monophonic pitch bend. For y axis and aftertouch
   the highest value wins.
 
+- ([#2343]) Allow converting output Y axis to mod wheel (cc1) to support synths with a limited MPE implementation, such 
+as the micromonsta and the dreadbox nymphes.
+
 #### 3.3 - MIDI
 
 - ([#47]) `Extra MIDI ports on the USB interface for MPE.` Port 2 shows in the MIDI device menu, and improves the
@@ -268,7 +271,22 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Stem Export Documentation]
 - ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
-  - Note: in Arranger, any instruments that are muted will be excluded from the Instrument Stem Export
+- ([#2327]) You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+- ([#2330]) You can configure settings for the stem export via the `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT STEMS\CONFIGURE EXPORT\` to configure various stem export settings. Currently only one configuration object has been added (`NORMALIZATION`) but more will be added in the near future.
+
+#### 3.24 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
+- ([#2315]) A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
+  - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
+
+#### 3.25 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
+- ([#2315]) The display now shows the number of Bars (or Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
+
+#### 3.26 Updated UI for Interacting with Toggle Menu's and Sub Menu's
+- ([#2345]) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
+ - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
+ - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
+ - Submenu's on OLED for automatable parameters (e.g. LPF Frequency) render the current parameter value at the end. You still need to click on `SELECT` to edit the parameters value / edit modulation depth and patch cables.
+ - All other submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
 ## 4. New Features Added
 
@@ -1122,6 +1140,8 @@ list of all options as listed in OLED and 7SEG displays and what they do:
       render the OLED screen, it is of more limited use.
 * `Enable KB View Sidebar Menu Exit (EXIT)`
     * When On, while in the `SETTINGS` or `SOUND` menu of `KEYBOARD VIEW`, pressing the top left sidebar pad will immediately exit the menu.
+* `Enable Launch Event Playhead (PLAY)`
+    * When On, a red and white playhead will be rendered in Song Grid and Performance Views that let's you know that a maximum of one bar (16 notes) is remaining before a clip or section launch event is scheduled to occur.
 
 ## 6. Sysex Handling
 
@@ -1367,6 +1387,16 @@ different firmware
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
+
+[#2315]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2315
+
+[#2327]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2327
+
+[#2330]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2330
+
+[#2343]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2343
+
+[#2345]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2345
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

@@ -21,7 +21,7 @@
 #include <cmath>
 class AbsValueFollower {
 public:
-	AbsValueFollower();
+	AbsValueFollower() = default;
 	void setup(q31_t attack, q31_t release);
 
 	// attack/release in range 0 to 2^31
@@ -49,10 +49,13 @@ public:
 
 private:
 	float runEnvelope(float current, float desired, float numSamples);
-
+	// for display
+	float attackMS{1};
+	float releaseMS{10};
 	// parameters in use
-	float a_;
-	float r_;
+	float a_ = a_ = (-1000.0f / kSampleRate) / attackMS;
+
+	float r_ = (-1000.0f / kSampleRate) / releaseMS;
 
 	// state
 	float state{0};
@@ -61,10 +64,6 @@ private:
 	float lastMeanL{0};
 	float meanR{0};
 	float lastMeanR{0};
-
-	// for display
-	float attackMS{1};
-	float releaseMS{10};
 
 	// raw knob positions
 	q31_t attackKnobPos{0};

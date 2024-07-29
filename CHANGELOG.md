@@ -21,9 +21,21 @@
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 - Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
+  - You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+- Fixed a bug where instruments and kits wouldn't respect record arming state. They no longer record when not armed
+- A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
+  - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
+- The display now shows the number of Bars (or Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
+- For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
+ - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
+ - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
+- Submenu's on OLED for automatable parameters (e.g. LPF Frequency) render the current parameter value at the end. You still need to click on `SELECT` to edit the parameters value / edit modulation depth and patch cables.
+ - All other submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
+- Allow changing MPE y output to CC1 to support more synths
+- Removed MPE zone auto learn as a huge source of midi bugs, MPE must now be configured in the menu
 
 ## c1.1.1 Beethoven
 

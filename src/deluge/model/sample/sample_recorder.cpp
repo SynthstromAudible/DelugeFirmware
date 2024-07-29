@@ -630,7 +630,9 @@ Error SampleRecorder::finalizeRecordedFile() {
 			maxPeak = -1 - std::min(recordPeakL, recordPeakR);
 		}
 
-		for (lshiftAmount = 0; ((uint32_t)2147483648 >> (lshiftAmount + 1)) > maxPeak; lshiftAmount++) {}
+		if (allowNormalization) {
+			for (lshiftAmount = 0; ((uint32_t)2147483648 >> (lshiftAmount + 1)) > maxPeak; lshiftAmount++) {}
+		}
 	}
 	uint32_t dataLengthAfterAction =
 	    action != MonitoringAction::NONE ? (dataLengthBeforeAction >> 1) : dataLengthBeforeAction;
@@ -770,9 +772,9 @@ Error SampleRecorder::createNextCluster() {
 
 	currentRecordClusterIndex++; // Mark record-cluster we were on as finished
 
-	currentRecordCluster = NULL; // Note that we haven't yet created our next record-cluster - we'll do that below if no
-	                             // error first; and if there is an error and we don't create one, this has to remain
-	                             // NULL to indicate that we never created one
+	currentRecordCluster = NULL; // Note that we haven't yet created our next record-cluster - we'll do that below
+	                             // if no error first; and if there is an error and we don't create one, this has to
+	                             // remain NULL to indicate that we never created one
 
 	// If this new cluster would actually put us past the 4GB limit...
 	if (currentRecordClusterIndex >= (1 << (MAX_FILE_SIZE_MAGNITUDE - audioFileManager.clusterSizeMagnitude))) {
@@ -826,8 +828,8 @@ Error SampleRecorder::createNextCluster() {
 	return Error::NONE;
 }
 
-// Gets called when we've captured all the samples of audio that we wanted - either as a direct result of user action,
-// or after being fed a few more samples to make up for latency.
+// Gets called when we've captured all the samples of audio that we wanted - either as a direct result of user
+// action, or after being fed a few more samples to make up for latency.
 void SampleRecorder::finishCapturing() {
 	status = RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING;
 	if (getRootUI()) {
@@ -1085,7 +1087,14 @@ void SampleRecorder::totalSampleLengthNowKnown(uint32_t totalLengthSamples, uint
 	sample->lengthInSamples = totalLengthSamples;
 	sample->audioDataLengthBytes = totalLengthSamples * sample->byteDepth * sample->numChannels;
 
-	sample->fileLoopEndSamples = loopEndPointSamples;
+	// when stem recording is done, we want to update the sample loop end position in the sample holder
+	// so that that loop end marker is available right away if you want to load that sample into a kit
+	if (stemExport.writeLoopEndPos()) {
+		sample->fileLoopEndSamples = stemExport.loopEndPointInSamplesForAudioFile;
+	}
+	else {
+		sample->fileLoopEndSamples = loopEndPointSamples;
+	}
 
 	// If we haven't written the first cluster yet, quick - update it with the actual length
 	if (firstUnwrittenClusterIndex == 0) {
@@ -1097,8 +1106,8 @@ void SampleRecorder::totalSampleLengthNowKnown(uint32_t totalLengthSamples, uint
 		}
 
 		audioDataLengthBytesAsWrittenToFile = sample->audioDataLengthBytes;
-		loopEndSampleAsWrittenToFile =
-		    sample->fileLoopEndSamples; // Even if we're not actually writing loop points to the file, this is harmless
+		loopEndSampleAsWrittenToFile = sample->fileLoopEndSamples; // Even if we're not actually writing loop points
+		                                                           // to the file, this is harmless
 		updateDataLengthInFirstCluster(cluster);
 	}
 }
@@ -1206,8 +1215,8 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 
 	uint32_t count = 0;
 
-	// TODO: this is really inefficient - checks a bunch of stuff for every single audio sample. Should check in advance
-	// how many samples we can process at a time
+	// TODO: this is really inefficient - checks a bunch of stuff for every single audio sample. Should check in
+	// advance how many samples we can process at a time
 
 	while (true) {
 
@@ -1241,8 +1250,8 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 		*(writePos++) = *(processedPos++);
 		*(writePos++) = *(processedPos++);
 
-		// If need to advance write-head past the end of a cluster, then we'll write that current cluster to disk and
-		// carry on
+		// If need to advance write-head past the end of a cluster, then we'll write that current cluster to disk
+		// and carry on
 		int32_t writeOvershot = (uint32_t)writePos - (uint32_t)&currentWriteCluster->data[audioFileManager.clusterSize];
 		if (writeOvershot >= 0) {
 
@@ -1317,11 +1326,11 @@ writeFailed:
 			// Ok, move on and start thinking about the next Cluster now
 			currentWriteClusterIndex++;
 
-			// Get the new / next Cluster, but don't insist on actually reading from the card, cos we're gonna overwrite
-			// it with new data anyway
-			currentWriteCluster =
-			    sample->clusters.getElement(currentWriteClusterIndex)
-			        ->getCluster(sample, currentWriteClusterIndex, CLUSTER_DONT_LOAD); // Remember, this adds a "reason"
+			// Get the new / next Cluster, but don't insist on actually reading from the card, cos we're gonna
+			// overwrite it with new data anyway
+			currentWriteCluster = sample->clusters.getElement(currentWriteClusterIndex)
+			                          ->getCluster(sample, currentWriteClusterIndex,
+			                                       CLUSTER_DONT_LOAD); // Remember, this adds a "reason"
 
 			// That could only fail if no RAM, but juuuust in case...
 			if (!currentWriteCluster) {
@@ -1337,13 +1346,13 @@ writeFailed:
 				memcpy(currentWriteCluster->data, extraBytes, writeOvershot);
 			}
 
-			// And get ready to write to the new current Cluster - from the next sample, which might not be perfectly
-			// aligned to the Cluster start
+			// And get ready to write to the new current Cluster - from the next sample, which might not be
+			// perfectly aligned to the Cluster start
 			writePos = &currentWriteCluster->data[writeOvershot];
 		}
 
-		// If we're in the final read-Cluster and reached the end, then all that's left to do is flush out what we have
-		// left to write (max 1 cluster), and get out.
+		// If we're in the final read-Cluster and reached the end, then all that's left to do is flush out what we
+		// have left to write (max 1 cluster), and get out.
 		if (currentReadClusterIndex == numClustersBeforeAction - 1
 		    && readPos >= &currentReadCluster->data[bytesFinalCluster]) {
 			break;

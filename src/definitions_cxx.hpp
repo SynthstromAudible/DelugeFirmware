@@ -213,6 +213,7 @@ enum class UIType : uint8_t {
 	SLICER,
 	SOUND_EDITOR,
 	TIMELINE,
+	RENAME_CLIPNAME,
 	NONE = 255,
 };
 
@@ -664,7 +665,8 @@ enum class ExistenceChangeType {
 
 enum CCNumber {
 	/// note - only for incoming/outgoing midi. Internally use CC_NUMBER_Y_AXIS
-	CC_NUMBER_MOD_WHEEL = 1,
+	CC_EXTERNAL_MOD_WHEEL = 1,
+	CC_EXTERNAL_MPE_Y = 74,
 	CC_NUMBER_PITCH_BEND = 120,
 	CC_NUMBER_AFTERTOUCH = 121,
 	CC_NUMBER_Y_AXIS = 122,

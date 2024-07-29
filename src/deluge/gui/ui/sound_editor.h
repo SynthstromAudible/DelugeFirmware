@@ -165,6 +165,7 @@ private:
 	bool isEditingAutomationViewParam();
 	void handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine, MenuItem* previousItem,
 	                                    MenuItem* currentItem);
+	bool handleClipName();
 };
 
 extern SoundEditor soundEditor;
