@@ -97,6 +97,8 @@ public:
 	static const uint8_t downArrowIcon[];
 	static const uint8_t rightArrowIcon[];
 	static const uint8_t lockIcon[];
+	static const uint8_t checkedBoxIcon[];
+	static const uint8_t uncheckedBoxIcon[];
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
