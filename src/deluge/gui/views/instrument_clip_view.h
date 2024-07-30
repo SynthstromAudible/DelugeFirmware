@@ -72,6 +72,25 @@ public:
 	const char* getName() { return "instrument_clip_view"; }
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+
+	// SCALE MODE related commands.
+
+	/// Learn notes from current clip + scale mode clips as USER scale.
+	/// Enters scale mode if wasn't in it already. LEARN + SCALE.
+	ActionResult commandLearnUserScale();
+	/// Cycle through preset scales. SHIFT + SCALE in scale mode.
+	ActionResult commandCycleThroughScales();
+	/// Flash the current root note. Part of SCALE down.
+	ActionResult commandFlashRootNote();
+	/// Enter scale mode with selected root. AUDITION + SCALE or SCALE + AUDITION in schromatic mode.
+	ActionResult commandEnterScaleModeWithRoot(uint8_t root);
+	/// Enter scale mode. SCALE when in chromatic mode.
+	ActionResult commandEnterScaleMode();
+	/// Exit scale mdoe. SCALE when in scale mode.
+	ActionResult commandExitScaleMode();
+	/// Change current root note. AUDITION + SCALE or SCALE + AUDITION in scale mod.
+	ActionResult commandChangeRootNote(uint8_t yDisplay);
+
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
 	void adjustVelocity(int32_t velocityChange);
@@ -95,7 +114,6 @@ public:
 	void potentiallyRefreshNoteRowMenu();
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
-	void changeRootNote(uint8_t yDisplay);
 	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
 	void cutAuditionedNotesToOne();
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;

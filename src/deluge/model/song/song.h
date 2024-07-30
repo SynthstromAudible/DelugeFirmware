@@ -118,6 +118,7 @@ public:
 	int8_t getCurrentPresetScale();
 	int32_t setPresetScale(int32_t newScale);
 	bool setScale(NoteSet newScale);
+	void learnScaleFromCurrentNotes();
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
 	void setBPM(float tempoBPM, bool shouldLogAction);
@@ -381,6 +382,9 @@ public:
 	int32_t lastSelectedParamArrayPosition;
 	// END ~ new Automation Arranger View Variables
 
+	/// Returns a NoteSet with all notes currently in used in scale mdoe clips.
+	NoteSet notesInScaleModeClips();
+
 	// Song level transpose control (encoder actions)
 	int32_t masterTransposeInterval;
 	void transpose(int32_t interval);
@@ -417,9 +421,6 @@ private:
 	void setBPMInner(float tempoBPM, bool shouldLogAction);
 	void clearTempoAutomation(float tempoBPM);
 	int32_t intBPM;
-	/** Returns a NoteSet with all notes currently in used in scale mdoe clips.
-	 */
-	NoteSet notesInScaleModeClips();
 };
 
 extern Song* currentSong;

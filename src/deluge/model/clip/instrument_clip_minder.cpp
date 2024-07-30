@@ -54,7 +54,7 @@ extern "C" {
 }
 
 int16_t InstrumentClipMinder::defaultRootNote;
-bool InstrumentClipMinder::exitScaleModeOnButtonRelease;
+bool InstrumentClipMinder::toggleScaleModeOnButtonRelease;
 bool InstrumentClipMinder::flashDefaultRootNoteOn;
 uint8_t InstrumentClipMinder::editingMIDICCForWhichModKnob;
 

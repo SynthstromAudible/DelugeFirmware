@@ -163,7 +163,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 		// We probably couldn't have got this far if it was a Kit, but let's just check
 		if (getCurrentOutputType() != OutputType::KIT && lastNotesState.count == 0 && currentNotesState.count == 1) {
-			exitScaleModeOnButtonRelease = false;
+			toggleScaleModeOnButtonRelease = false;
 			if (getCurrentInstrumentClip()->inScaleMode) {
 				instrumentClipView.setupChangingOfRootNote(currentNotesState.notes[0].note);
 				requestRendering();
@@ -423,7 +423,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 				// Or, no shift button - normal behaviour
 				else {
 					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
-					exitScaleModeOnButtonRelease = true;
+					toggleScaleModeOnButtonRelease = true;
 					// if (!getCurrentInstrumentClip()->inScaleMode) {
 					// 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
 					// released the button 	flashDefaultRootNoteOn = false; 	flashDefaultRootNote();
@@ -442,7 +442,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 				currentUIMode = UI_MODE_NONE;
 				if (getCurrentInstrumentClip()->inScaleMode) {
-					if (exitScaleModeOnButtonRelease) {
+					if (toggleScaleModeOnButtonRelease) {
 						exitScaleMode();
 					}
 				}
@@ -554,7 +554,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	else if (b == SELECT_ENC && on && getCurrentInstrumentClip()->inScaleMode
 	         && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-		exitScaleModeOnButtonRelease = false;
+		toggleScaleModeOnButtonRelease = false;
 		cycleThroughScales();
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
@@ -679,7 +679,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	}
 	else if (getCurrentOutputType() != OutputType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
 	         && getCurrentInstrumentClip()->inScaleMode) {
-		exitScaleModeOnButtonRelease = false;
+		toggleScaleModeOnButtonRelease = false;
 		int32_t newRootNote = ((currentSong->key.rootNote + kOctaveSize) + offset) % kOctaveSize;
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
