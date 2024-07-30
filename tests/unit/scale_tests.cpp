@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
+#include "model/scale/preset_scales.h"
 #include "model/scale/utils.h"
 
 TEST_GROUP(NoteSetTest){};
@@ -94,6 +95,18 @@ TEST(NoteSetTest, applyChanges) {
 	CHECK_EQUAL(4, a.count());
 }
 
+TEST(NoteSetTest, equality) {
+	NoteSet a;
+	NoteSet b;
+	CHECK(a == b);
+	a.add(0);
+	CHECK(a != b);
+}
+
+TEST(NoteSetTest, checkEqualAllowed) {
+	CHECK_EQUAL(NoteSet(), NoteSet());
+}
+
 TEST(NoteSetTest, subscript1) {
 	NoteSet a;
 	for (int i = 0; i < NoteSet::size; i++) {
@@ -146,6 +159,12 @@ TEST(NoteSetTest, subscript3) {
 	CHECK_EQUAL(7, a[5]);
 	CHECK_EQUAL(9, a[6]);
 	CHECK_EQUAL(11, a[7]);
+}
+
+TEST(NoteSetTest, presetScaleId) {
+	CHECK_EQUAL(MAJOR_SCALE, presetScaleNotes[MAJOR_SCALE].presetScaleId());
+	CHECK_EQUAL(MINOR_SCALE, presetScaleNotes[MINOR_SCALE].presetScaleId());
+	CHECK_EQUAL(CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES, NoteSet().presetScaleId());
 }
 
 TEST_GROUP(MusicalKeyTest){};
