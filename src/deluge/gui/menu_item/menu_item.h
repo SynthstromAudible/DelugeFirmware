@@ -248,7 +248,7 @@ public:
 	virtual bool shouldEnterSubmenu() { return true; }
 
 	/// @brief Handle rendering of submenu item types
-	// length = spacing before (6 pixels)
+	// length = spacing before (3 pixels)
 	//			+ width of 3 characters (3 * 6 pixels - to accomodate rendering of 3 digit param values)
 	//          + spacing after (3 pixels)
 	// spacing before is to ensure that menu item text doesn't overlap and can scroll
