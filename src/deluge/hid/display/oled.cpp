@@ -312,13 +312,16 @@ void OLED::removePopup() {
 }
 
 bool OLED::isPopupPresent() {
+	D_PRINTLN("OLED::isPopupPresent");
 	return oledPopupWidth;
 }
 bool OLED::isPopupPresentOfType(PopupType type) {
+	D_PRINTLN("OLED::isPopupPresentOfType");
 	return oledPopupWidth && popupType == type;
 }
 
 void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], int32_t minX, int32_t maxX) {
+	D_PRINTLN("start OLED::copyRowWithMask");
 	uint8_t sourceMask = ~destMask;
 	uint8_t* __restrict__ source = &sourceRow[minX];
 	uint8_t* __restrict__ dest = &destRow[minX];
@@ -329,10 +332,12 @@ void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], i
 		dest++;
 		source++;
 	} while (source <= sourceStop);
+	D_PRINTLN("finish OLED::copyRowWithMask");
 }
 
 void copyBackgroundAroundForeground(ImageStore backgroundImage, ImageStore foregroundImage, int32_t minX, int32_t minY,
                                     int32_t maxX, int32_t maxY) {
+	D_PRINTLN("start OLED::copyBackgroundAroundForeground");
 	if (maxX < 0 || minX < 0 || maxX < minX || minX > OLED_MAIN_WIDTH_PIXELS || maxX > OLED_MAIN_WIDTH_PIXELS)
 	    [[unlikely]] {
 		// D for Display
@@ -374,13 +379,15 @@ void copyBackgroundAroundForeground(ImageStore backgroundImage, ImageStore foreg
 	if (numMoreRows > 0) {
 		memcpy(foregroundImage[lastRow + 1], backgroundImage[lastRow + 1], OLED_MAIN_WIDTH_PIXELS * numMoreRows);
 	}
+	D_PRINTLN("finish OLED::copyBackgroundAroundForeground");
 }
 
 void OLED::sendMainImage() {
-	D_PRINTLN("start OLED::sendMainImage");
 	if (!needsSending) {
 		return;
 	}
+
+	D_PRINTLN("start OLED::sendMainImage");
 
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
@@ -419,6 +426,7 @@ struct TextLineBreakdown {
 };
 
 void breakStringIntoLines(char const* text, TextLineBreakdown* textLineBreakdown) {
+	D_PRINTLN("start OLED::breakStringIntoLines");
 	textLineBreakdown->numLines = 0;
 	textLineBreakdown->longestLineLength = 0;
 
@@ -484,6 +492,7 @@ lookAtNextSpace:
 		lineEnd = lineStart + textLineBreakdown->maxCharsPerLine;
 		goto lookAtNextSpace;
 	}
+	D_PRINTLN("finish OLED::breakStringIntoLines");
 }
 
 void OLED::drawPermanentPopupLookingText(char const* text) {
@@ -590,7 +599,7 @@ void OLED::displayWorkingAnimation(char const* word) {
 	workingAnimationCount = 0;
 	updateWorkingAnimation();
 
-	D_PRINTLN("finish OLED::updateWorkingAnimation");	
+	D_PRINTLN("finish OLED::displayWorkingAnimation");	
 }
 
 void OLED::removeWorkingAnimation() {
@@ -690,9 +699,11 @@ union {
 } blinkArea;
 
 void performBlink() {
+	D_PRINTLN("start OLED::performBlink");
 	OLED::main.invertArea(blinkArea.minX, blinkArea.width, blinkArea.minY, blinkArea.maxY);
 	OLED::markChanged();
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kFlashTime);
+	D_PRINTLN("finish OLED::performBlink");
 }
 
 void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately) {
@@ -751,6 +762,7 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	scroller->stringLengthPixels = scroller->textLength * textSpacingX;
 	scroller->boxLengthPixels = endX - startX;
 	if (scroller->stringLengthPixels <= scroller->boxLengthPixels) {
+		D_PRINTLN("finish OLED::setupSideScroller");
 		return;
 	}
 
