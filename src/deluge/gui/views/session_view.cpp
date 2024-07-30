@@ -2136,24 +2136,25 @@ void SessionView::graphicsRoutine() {
 	PadLEDs::setTickSquares(tickSquares, colours);
 }
 
-/// display number of bars or notes remaining until a launch event
+/// display number of bars or quarter notes remaining until a launch event
 int32_t SessionView::displayLoopsRemainingPopup() {
 	int32_t sixteenthNotesRemaining = session.getNumSixteenthNotesRemainingTilLaunch();
 	if (sixteenthNotesRemaining > 0) {
-		int32_t barsRemaining = sixteenthNotesRemaining / 16;
-
 		DEF_STACK_STRING_BUF(popupMsg, 40);
 		if (sixteenthNotesRemaining > 16) {
+			int32_t barsRemaining = static_cast<int32_t>(std::round(static_cast<float>(sixteenthNotesRemaining) / 16));
 			if (display->haveOLED()) {
 				popupMsg.append("Bars Remaining: ");
 			}
 			popupMsg.appendInt(barsRemaining);
 		}
 		else {
+			int32_t quarterNotesRemaining =
+			    static_cast<int32_t>(std::round(static_cast<float>(sixteenthNotesRemaining) / 4));
 			if (display->haveOLED()) {
-				popupMsg.append("Notes Remaining: ");
+				popupMsg.append("Beats Remaining: ");
 			}
-			popupMsg.appendInt(sixteenthNotesRemaining);
+			popupMsg.appendInt(quarterNotesRemaining);
 		}
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::clearMainImage();

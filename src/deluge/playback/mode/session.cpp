@@ -709,10 +709,6 @@ int32_t Session::getNumSixteenthNotesRemainingTilLaunch() {
 	return static_cast<int32_t>(sixteenthNotesRemaining);
 }
 
-int32_t Session::getNumBarsRemainingTilLaunch() {
-	return getNumSixteenthNotesRemainingTilLaunch() / 16;
-}
-
 void Session::scheduleFillEvent(Clip* clip, int64_t atTickCount) {
 	clip->fillEventAtTickCount = atTickCount;
 	int32_t ticksTilFillEvent = atTickCount - playbackHandler.lastSwungTickActioned;
