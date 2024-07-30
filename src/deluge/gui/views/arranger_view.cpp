@@ -1167,7 +1167,7 @@ void ArrangerView::outputDeactivated(Output* output) {
 	if (arrangement.hasPlaybackActive()) {
 		if (output->getActiveClip() && !output->recordingInArrangement) {
 			output->getActiveClip()->expectNoFurtherTicks(currentSong);
-			output->getActiveClip()->activeIfNoSolo = false;
+			output->getActiveClip()->setGroupInactive();
 		}
 	}
 }

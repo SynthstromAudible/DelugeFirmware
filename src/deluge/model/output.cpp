@@ -108,7 +108,7 @@ void Output::pickAnActiveClipForArrangementPos(ModelStack* modelStack, int32_t a
 	int32_t i = clipInstances.search(arrangementPos + 1, LESS);
 	ClipInstance* instance = clipInstances.getElement(i);
 	if (instance && instance->clip && instance->pos + instance->length > arrangementPos) {
-		instance->clip->activeIfNoSolo = true;
+		instance->clip->setGroupActive();
 yesSetActiveClip:
 		setActiveClip(modelStack->addTimelineCounter(instance->clip), maySendMIDIPGMs);
 	}
@@ -465,7 +465,7 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 		activeClip->finishLinearRecording(modelStack);
 
 		activeClip->expectNoFurtherTicks(song);
-		activeClip->activeIfNoSolo = false;
+		activeClip->setGroupInactive();
 
 		uint32_t xZoom = song->xZoom[NAVIGATION_ARRANGEMENT];
 

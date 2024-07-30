@@ -33,9 +33,18 @@
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "util/container/enum_to_string_map.hpp"
 #include <new>
 
 namespace params = deluge::modulation::params;
+
+// templated function to go type to string and string to type
+EnumStringMap<ClipGroupType, kNumClipGroupTypes> clipGroupMap({{
+    {ClipGroupType::NONE, "none"},
+    {ClipGroupType::SHARED, "shared"},
+    {ClipGroupType::EXCLUSIVE, "exclusive"},
+    {ClipGroupType::SEQUENTIAL, "sequential"},
+}});
 
 uint32_t loopRecordingCandidateRecentnessNextValue = 1;
 
@@ -494,8 +503,8 @@ Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* model
 	beingRecordedFromClip = NULL; // This now just gets set by endInstancesOfActiveClips()
 
 	Clip* originalClip = (Clip*)modelStackOriginal->getTimelineCounter();
-	originalClip->activeIfNoSolo =
-	    true; // Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
+	originalClip
+	    ->setGroupActive(); // Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
 
 	// Deliberately leave lastProcessedPos as a pos potentially far beyond the length of the original Clip. setPos()
 	// will see this and wrap the position itself - including for individual NoteRows with independent length.
@@ -692,6 +701,7 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (launchStyle != LaunchStyle::DEFAULT) {
 		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
+	writer.writeAttribute("groupType", clipGroupMap(groupType));
 }
 
 void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
@@ -767,6 +777,10 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 
 	else if (!strcmp(tagName, "launchStyle")) {
 		launchStyle = stringToLaunchStyle(reader.readTagOrAttributeValue());
+	}
+
+	else if (!strcmp(tagName, "groupType")) {
+		groupType = clipGroupMap(reader.readTagOrAttributeValue());
 	}
 
 	/*
@@ -1174,4 +1188,23 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 		numTicks = -numTicks;
 	}
 	lastProcessedPos += numTicks;
+}
+void Clip::setGroupActive() {
+	activeIfNoSolo = true;
+	for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
+		nextClip->activeIfNoSolo = true;
+	}
+}
+
+void Clip::setGroupInactive() {
+	activeIfNoSolo = false;
+	for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
+		nextClip->activeIfNoSolo = false;
+	}
+}
+
+void Clip::armGroup(ArmState newArmState) {
+	for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
+		nextClip->armState = newArmState;
+	}
 }

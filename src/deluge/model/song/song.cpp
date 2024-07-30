@@ -2228,6 +2228,17 @@ readClip:
 				delugeDealloc(memory);
 				return error;
 			}
+			// find and link to its group if needed
+			if (newClip->isInGroup()) {
+				auto c = clipArray->getNumElements();
+				for (c; c >= 0; c--) {
+					auto prevClip = clipArray->getClipAtIndex(c);
+					if (newClip->isInGroupWith(prevClip)) {
+						prevClip->insertAfter(newClip, newClip->getGroupType());
+						break;
+					}
+				}
+			}
 
 			clipArray->insertClipAtIndex(newClip, clipArray->getNumElements()); // We made sure enough space, above
 
@@ -4132,7 +4143,7 @@ traverseClips:
 				anyClipStoppedSoloing = true;
 			}
 			else {
-				clip->activeIfNoSolo = false;
+				clip->setGroupInactive();
 			}
 		}
 	}
@@ -4200,7 +4211,8 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			if (isClipActive(clip)) {
 
 				// If the Instrument already had a Clip, we gotta be inactive...
-				if (clip->output->getActiveClip()) {
+				auto activeClip = clip->output->getActiveClip();
+				if (activeClip && !clip->isInGroupWith(activeClip)) {
 					if (getAnyClipsSoloing()) {
 						clip->soloingInSessionMode = false;
 					}

@@ -514,7 +514,7 @@ probablyBecomeActive:
 				if (output->alreadyGotItsNewClip || (output->isGettingSoloingClip && !wasArmedToStartSoloing)) {
 					// This clip is not the solo clip
 
-					// But, if we're a pending overdub that's going to clone its Output...
+					// But, if we're a pending overdub that's going to clone its Output, or a grouped clip
 					if (clip->isPendingOverdub && clip->willCloneOutputForOverdub()
 					    || clip->isInGroupWith(output->getActiveClip())) {
 						goto doNormalLaunch;
@@ -879,7 +879,7 @@ doTempolessRecording:
 			else {
 
 				// armClips0(0, clip, false, forceLateStart); // Force "late start" if user holding shift button
-				clip->armState = ArmState::ON_NORMAL;
+				clip->armGroup(ArmState::ON_NORMAL);
 				int64_t wantToStopAtTime =
 				    playbackHandler.getActualSwungTickCount()
 				    - clip->getClipToRecordTo()->getActualCurrentPosAsIfPlayingInForwardDirection() + clip->loopLength;
@@ -957,7 +957,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 
 			// If Deluge not playing, easy
 			if (!playbackHandler.isEitherClockActive()) {
-				clip->activeIfNoSolo = true;
+				clip->setGroupActive();
 
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
@@ -1055,7 +1055,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 
 			// Playback off
 			else {
-				clip->activeIfNoSolo = false;
+				clip->setGroupInactive();
 			}
 		}
 	}
@@ -1065,7 +1065,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 
 // Beware - calling this might insert a Clip!
 void Session::armClipToStopAction(Clip* clip) {
-	clip->armState = ArmState::ON_NORMAL;
+	clip->armGroup(ArmState::ON_NORMAL);
 
 	int32_t actualCurrentPos = (uint32_t)clip->getClipToRecordTo()->getActualCurrentPosAsIfPlayingInForwardDirection()
 	                           % (uint32_t)clip->loopLength;
@@ -1185,7 +1185,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 		Clip* clip = modelStack->song->sessionClips.getClipAtIndex(c);
 
 		if (clip->section == section && !clip->activeIfNoSolo) {
-			clip->activeIfNoSolo = true;
+			clip->setGroupActive();
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
@@ -1287,7 +1287,7 @@ void Session::armClipsWithNothingToSyncTo(uint8_t section, Clip* clip) {
 	// Restart playback.
 	// If just one Clip...
 	if (clip) {
-		clip->activeIfNoSolo = true;
+		clip->setGroupActive();
 		currentSong->assertActiveness(modelStack->addTimelineCounter(clip));
 	}
 	else // Or, if a whole section...
@@ -1725,7 +1725,7 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 				launchSchedulingMightNeedCancelling();
 			}
 
-			thisClip->activeIfNoSolo = true;
+			thisClip->setGroupActive();
 
 			// Must call this before setPos, because that does stuff with ParamManagers
 			currentSong->assertActiveness(modelStack, playbackHandler.getActualArrangementRecordPos() - pos);
@@ -1855,7 +1855,7 @@ void Session::cancelAllArming() {
 
 void Session::armClipLowLevel(Clip* clipToArm, ArmState armState, bool mustUnarmOtherClipsWithSameOutput) {
 
-	clipToArm->armState = armState;
+	clipToArm->armGroup(armState);
 
 	// Unarm any armed Clips with same Output, if we're doing that
 	if (mustUnarmOtherClipsWithSameOutput) {
@@ -1864,7 +1864,8 @@ void Session::armClipLowLevel(Clip* clipToArm, ArmState armState, bool mustUnarm
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
 			if (clip != clipToArm && !clip->soloingInSessionMode && !clip->activeIfNoSolo
-			    && clip->armState != ArmState::OFF && clip->output == clipToArm->output) {
+			    && clip->armState != ArmState::OFF && clip->output == clipToArm->output
+			    && !clip->isInGroupWith(clipToArm)) {
 				clip->armState = ArmState::OFF;
 			}
 		}

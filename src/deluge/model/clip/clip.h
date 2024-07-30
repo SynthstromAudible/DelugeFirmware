@@ -37,8 +37,10 @@ class StorageManager;
 class Serializer;
 class Deserializer;
 
-enum class ClipGroupType { NONE, EXCLUSIVE, SHARED };
-
+// Only shared is implemented, plan is exclusive would act like the official behaviour and select one clip, sequential
+// would play through them one after another
+enum class ClipGroupType { NONE, EXCLUSIVE, SHARED, SEQUENTIAL };
+constexpr size_t kNumClipGroupTypes = 4;
 class Clip : public TimelineCounter {
 public:
 	Clip(ClipType newType);
@@ -146,6 +148,9 @@ public:
 	TimelineCounter* getTimelineCounterToRecordTo() override;
 	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) override;
 	void expectEvent() override;
+	void setGroupActive();
+	void setGroupInactive();
+	void armGroup(ArmState newArmState);
 
 	Output* output;
 
@@ -210,8 +215,43 @@ public:
 	Clip* getNextClipOrNull() { return next; }
 	// returns the first clip in the group, or the clip itself if there's no group
 	Clip* getHeadOfGroup() { return head; }
-	bool isInGroup() { return groupType == ClipGroupType::SHARED; }
+	bool isInGroup() { return groupType != ClipGroupType::NONE; }
+	// deliberately doesn't check the list - there can only be one per section per output to not break grid view
+	// this allows it to be used to relink clips on load
 	bool isInGroupWith(Clip* clip) { return isInGroup() && clip->output == output && clip->section == section; }
+	ClipGroupType getGroupType() { return groupType; };
+
+	void insertAfter(Clip* newNextNode, ClipGroupType type) {
+		// if we're not currently in a group then this is the new group head
+		if (groupType == ClipGroupType::NONE) {
+			head = this;
+			groupType = type;
+		}
+		// set the new clips grouptype and head to match the current clip
+		newNextNode->groupType = type;
+		newNextNode->head = head;
+
+		// Just to avoid making a loop
+		if (next != newNextNode) {
+			// make the new node point to the current node's next node
+			newNextNode->next = next;
+		}
+
+		// make the new node link back to this one
+		newNextNode->prev = this;
+		// make the current node link to the new one
+		next = newNextNode;
+
+		// currently not possible but I want to allow making them exclusive in the future
+		// iterate through the group and set them all to the new type
+		if (type != groupType) {
+			Clip* nextClip = getHeadOfGroup();
+			while (nextClip) {
+				nextClip->groupType = type;
+				nextClip = nextClip->getNextClipOrNull();
+			}
+		}
+	}
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
@@ -254,38 +294,6 @@ protected:
 			next = getNextClipOrNull();
 		}
 		return nullptr;
-	}
-
-	void insertAfter(Clip* newNextNode, ClipGroupType type) {
-		// if we're not currently in a group then this is the new group head
-		if (groupType == ClipGroupType::NONE) {
-			head = this;
-			groupType = type;
-		}
-		// set the new clips grouptype and head to match the current clip
-		newNextNode->groupType = type;
-		newNextNode->head = head;
-
-		// Just to avoid making a loop
-		if (next != newNextNode) {
-			// make the new node point to the current node's next node
-			newNextNode->next = next;
-		}
-
-		// make the new node link back to this one
-		newNextNode->prev = this;
-		// make the current node link to the new one
-		next = newNextNode;
-
-		// currently not possible but I want to allow making them exclusive in the future
-		// iterate through the group and set them all to the new type
-		if (type != groupType) {
-			Clip* nextClip = getHeadOfGroup();
-			while (nextClip) {
-				nextClip->groupType = type;
-				nextClip = nextClip->getNextClipOrNull();
-			}
-		}
 	}
 
 private:

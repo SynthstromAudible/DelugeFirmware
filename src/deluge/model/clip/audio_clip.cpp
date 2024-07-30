@@ -246,9 +246,8 @@ ramError:
 		FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
 	}
 #endif
-	if (overdubsShouldCloneOutput) {
-		insertAfter(newClip, ClipGroupType::SHARED);
-	}
+
+	insertAfter(newClip, ClipGroupType::SHARED);
 
 	return newClip;
 }
@@ -871,12 +870,12 @@ void AudioClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool
                                  bool keepNoteRowsWithMIDIInput, bool shouldGrabMidiCommands,
                                  bool shouldBackUpExpressionParamsToo) {
 	detachAudioClipFromOutput(modelStack->song, shouldRetainLinksToOutput);
-	removeFromGroup();
 }
 
 void AudioClip::detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith) {
 	// detaching from output, so don't need it anymore
 	unassignVoiceSample(true);
+	removeFromGroup();
 
 	if (isActiveOnOutput()) {
 		output->detachActiveClip(song);
