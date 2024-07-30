@@ -103,7 +103,6 @@ public:
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key);
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
-	bool modeContainsYNote(int32_t yNote);
 	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
 	void setupPatchingForAllParamManagersForDrum(SoundDrum* drum);
 	void setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound);
@@ -240,7 +239,6 @@ public:
 	Error readFromFile(Deserializer& reader);
 	void writeToFile(StorageManager& bdsm);
 	void loadAllSamples(bool mayActuallyReadFiles = true);
-	bool modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave);
 	uint8_t getYNoteIndexInMode(int32_t yNote);
 	void renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
 	                 int32_t sideChainHitPending);

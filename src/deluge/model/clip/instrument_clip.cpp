@@ -3211,7 +3211,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 					uint8_t yNoteWithinOctave = song->getYNoteWithinOctaveFromYNote(thisNoteRow->y);
 
 					// Make sure this yNote fits the scale/mode
-					if (!song->modeContainsYNoteWithinOctave(yNoteWithinOctave)) {
+					if (!song->key.modeNotes.has(yNoteWithinOctave)) {
 						goto noteRowFailed;
 					}
 				}
