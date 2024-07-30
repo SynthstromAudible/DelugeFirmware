@@ -122,6 +122,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 			if (clip->section == oldSection) {
 				int32_t newSection =
 				    currentSong->sessionClips.getClipAtIndex(c - 1)->section; // Grab section from next Clip down
+				// note this is the source of the bug in #2335
 				userWantsToArmClipsToStartOrSolo(newSection, NULL, true, false, false, numRepetitions, false);
 				lastSectionArmed = newSection;
 				return;
