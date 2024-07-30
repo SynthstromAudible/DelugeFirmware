@@ -1936,8 +1936,7 @@ void SessionView::graphicsRoutine() {
 		}
 	}
 
-	// if we're not currently selecting a clip
-	if (!getClipForLayout() && view.potentiallyRenderVUMeter(PadLEDs::image)) {
+	if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 		PadLEDs::sendOutSidebarColours();
 	}
 
@@ -2807,8 +2806,12 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
-	// We currently assume sidebar is rendered after main pads
-	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+	// Clear just the main pads
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			image[yDisplay][xDisplay] = {0, 0, 0};
+		}
+	}
 
 	// Iterate over all clips and render them where they are
 	auto trackCount = gridTrackCount();
