@@ -144,7 +144,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	fillModeActive = false;
 
-	key.modeNotes.fromScaleNotes(presetScaleNotes[MAJOR_SCALE]);
+	key.modeNotes = presetScaleNotes[MAJOR_SCALE];
 
 	swingAmount = 0;
 
@@ -271,7 +271,7 @@ void Song::setupDefault() {
 		}
 	}
 
-	key.modeNotes.fromScaleNotes(presetScaleNotes[whichScale]);
+	key.modeNotes = presetScaleNotes[whichScale];
 }
 
 void Song::deleteAllOutputs(Output** prevPointer) {
@@ -3038,7 +3038,7 @@ int32_t Song::setPresetScale(int32_t newScale) {
 
 	replaceMusicalMode(changes, true);
 
-	key.modeNotes.fromScaleNotes(presetScaleNotes[newScale]);
+	key.modeNotes = presetScaleNotes[newScale];
 
 	return newScale;
 }

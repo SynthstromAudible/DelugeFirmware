@@ -13,6 +13,15 @@ TEST(NoteSetTest, init) {
 	}
 }
 
+TEST(NoteSetTest, listConstructor) {
+	NoteSet notes = NoteSet({0, 1, 4, 11});
+	CHECK_EQUAL(4, notes.count());
+	CHECK_EQUAL(0, notes[0]);
+	CHECK_EQUAL(1, notes[1]);
+	CHECK_EQUAL(4, notes[2]);
+	CHECK_EQUAL(11, notes[3]);
+}
+
 TEST(NoteSetTest, add) {
 	NoteSet notes;
 	notes.add(7);
@@ -68,17 +77,6 @@ TEST(NoteSetTest, addUntrusted) {
 	CHECK_EQUAL(1, a[1]);
 	CHECK_EQUAL(11, a[2]);
 	CHECK_EQUAL(3, a.count());
-}
-
-TEST(NoteSetTest, fromScaleNotes) {
-	NoteSet a;
-	uint8_t scale[7] = {0, 2, 4, 6, 0, 0, 0};
-	a.fromScaleNotes(scale);
-	CHECK_EQUAL(0, a[0]);
-	CHECK_EQUAL(2, a[1]);
-	CHECK_EQUAL(4, a[2]);
-	CHECK_EQUAL(6, a[3]);
-	CHECK_EQUAL(4, a.count());
 }
 
 TEST(NoteSetTest, applyChanges) {
