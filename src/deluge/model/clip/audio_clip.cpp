@@ -214,7 +214,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 	recorder = NULL;
 }
-
+// overdubtype reflects layer vs loop,
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
 
 	// Allocate memory for audio clip
@@ -246,20 +246,14 @@ ramError:
 		FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
 	}
 #endif
-	ClipGroupType gt;
-	switch (newOverdubNature) {
-	case OverDubType::ContinuousLayering:
-		gt = ClipGroupType::SHARED;
-		break;
-	case OverDubType::Normal:
-		gt = ClipGroupType::EXCLUSIVE;
-	}
-	insertAfter(newClip, gt);
+
+	insertAfter(newClip, ClipGroupType::SHARED);
 
 	return newClip;
 }
 
 bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
+	return false;
 	// don't clone for loop commands in red mode
 	if (!overdubsShouldCloneOutput) {
 		return false;
@@ -1361,7 +1355,11 @@ uint64_t AudioClip::getCullImmunity() {
 }
 
 ParamManagerForTimeline* AudioClip::getCurrentParamManager() {
-	return &paramManager;
+	return &getHeadOfGroup()->paramManager;
+}
+
+void AudioClip::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
+	modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), getCurrentParamManager());
 }
 
 bool AudioClip::isEmpty(bool displayPopup) {

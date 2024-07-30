@@ -120,7 +120,7 @@ public:
 	};
 
 	ParamManagerForTimeline* getCurrentParamManager() override;
-
+	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) override;
 	bool isEmpty(bool displayPopup = true);
 	void resetEnvelope();
 	Envelope envelope;
