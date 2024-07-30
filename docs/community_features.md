@@ -279,7 +279,7 @@ as the micromonsta and the dreadbox nymphes.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 
 #### 3.25 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
-- ([#2315]) The display now shows the number of Bars (or Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
+- ([#2315]) The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
 
 #### 3.26 Updated UI for Interacting with Toggle Menu's and Sub Menu's
 - ([#2345]) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
