@@ -1264,6 +1264,15 @@ void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWi
 			thisNoteRow->y += changes[degree];
 		}
 	}
+
+	uint8_t oldSize = changes.source.scaleSize();
+	uint8_t newSize = changes.target.scaleSize();
+
+	// Which octave & scale degree was at the bottom of the view before scale change?
+	int yOctave = yScroll / oldSize;
+	int yDegree = yScroll - (yOctave * oldSize);
+	// Take scale size changes into account and adjust yScroll to keep same octave visible
+	yScroll = yOctave * newSize + yDegree;
 }
 
 void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) {
