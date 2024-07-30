@@ -62,8 +62,13 @@ public:
 
 	// get's toggle status for rendering dot on 7SEG
 	uint8_t shouldDrawDotOnName() override {
-		readCurrentValue();
-		return this->getValue() ? 3 : 255;
+		if (isToggle()) {
+			readCurrentValue();
+			return this->getValue() ? 3 : 255;
+		}
+		else {
+			return 255;
+		}
 	}
 };
 } // namespace deluge::gui::menu_item
