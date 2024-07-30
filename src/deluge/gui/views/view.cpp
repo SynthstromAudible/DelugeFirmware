@@ -1614,8 +1614,15 @@ void View::displayAutomation() {
 /// and the current mod button selected is the volume/pan button
 /// render VU meter on the grid
 bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	if (displayVUMeter && view.activeModControllableModelStack.modControllable
-	    && *activeModControllableModelStack.modControllable->getModKnobMode() == 0) {
+	// if VU meter is toggled on and
+	// 1) mod controllable is active and we've selected the level / pan mod knob button
+	// or
+	// 2) we've pressed a clip while vu meter was active
+	// then let's continue to render VU meter
+	if (displayVUMeter
+	    && ((activeModControllableModelStack.modControllable
+	         && *activeModControllableModelStack.modControllable->getModKnobMode() == 0)
+	        || (isClipContext() && renderedVUMeter))) {
 		PadLEDs::renderingLock = true;
 
 		// get max Y display that would be rendered based on AudioEngine::approxRMSLevel
