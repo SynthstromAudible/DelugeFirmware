@@ -1248,19 +1248,20 @@ void InstrumentClip::replaceMusicalMode(uint8_t numModeNotes, int8_t changes[12]
 	if (!isScaleModeClip()) {
 		return;
 	}
-	// Find all NoteRows which belong to this yVisualWithinOctave, and change their note
+	// Find all NoteRows which belong to this scale, and change their note
+	//
+	// TODO: There probably should not be _any_ rows which don't below to the
+	// current scale? FREEZE_WITH_ERROR?
+	MusicalKey key = modelStack->song->key;
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
-		for (int32_t yVisualWithinOctave = 0; yVisualWithinOctave < numModeNotes; yVisualWithinOctave++) {
-			if (modelStack->song->yNoteIsYVisualWithinOctave(thisNoteRow->y, yVisualWithinOctave)) {
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+		int8_t degree = key.degreeOf(thisNoteRow->y);
+		if (degree >= 0) {
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 
-				thisNoteRow->stopCurrentlyPlayingNote(
-				    modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
-				thisNoteRow->y += changes[yVisualWithinOctave];
-				break;
-			}
+			thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
+			thisNoteRow->y += changes[degree];
 		}
 	}
 }

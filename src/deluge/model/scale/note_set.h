@@ -42,6 +42,11 @@ public:
 	 * added, notesSet[2] will return 4.
 	 */
 	int8_t operator[](uint8_t index) const;
+	/** Returns number of notes lower than the note given, or -1 if the note is not present.
+	 *
+	 * This is the scale degree of the note if the NoteSet represents a scale and has a root.
+	 */
+	int8_t degreeOf(uint8_t note) const;
 	/** Applies changes specified by the array.
 	 *
 	 * Each element of the array describes a semitone offset

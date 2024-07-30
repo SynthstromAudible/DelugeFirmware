@@ -93,7 +93,6 @@ public:
 	bool anyScaleModeClips();
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
 	void addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& notesWithinOctavePresent);
-	bool yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave);
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
 	void rotateMusicalMode(int8_t change);
 	void replaceMusicalMode(int8_t changes[], bool affectMIDITranspose);
@@ -239,7 +238,6 @@ public:
 	Error readFromFile(Deserializer& reader);
 	void writeToFile(StorageManager& bdsm);
 	void loadAllSamples(bool mayActuallyReadFiles = true);
-	uint8_t getYNoteIndexInMode(int32_t yNote);
 	void renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
 	                 int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);

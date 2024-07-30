@@ -126,6 +126,27 @@ TEST(NoteSetTest, applyChanges) {
 	CHECK_EQUAL(4, a.count());
 }
 
+TEST(NoteSetTest, degreeOfBasic) {
+	NoteSet a;
+	a.add(0);
+	a.add(2);
+	a.add(4);
+	CHECK_EQUAL(0, a.degreeOf(0));
+	CHECK_EQUAL(1, a.degreeOf(2));
+	CHECK_EQUAL(2, a.degreeOf(4));
+}
+
+TEST(NoteSetTest, degreeOfNotAScale) {
+	NoteSet a;
+	a.add(1);
+	a.add(2);
+	a.add(4);
+	CHECK_EQUAL(-1, a.degreeOf(0));
+	CHECK_EQUAL(0, a.degreeOf(1));
+	CHECK_EQUAL(1, a.degreeOf(2));
+	CHECK_EQUAL(2, a.degreeOf(4));
+}
+
 TEST(NoteSetTest, isSubsetOf) {
 	NoteSet a;
 	NoteSet b;
@@ -333,6 +354,29 @@ TEST(MusicalKeyTest, intervalOf) {
 				}
 			}
 		}
+	}
+}
+
+TEST(MusicalKeyTest, degreeOf) {
+	MusicalKey key;
+	key.rootNote = 9; // A
+	key.modeNotes = presetScaleNotes[MINOR_SCALE];
+
+	for (int octave = -2; octave <= 2; octave++) {
+		// In key
+		CHECK_EQUAL(0, key.degreeOf(9 + octave * 12));  // A
+		CHECK_EQUAL(1, key.degreeOf(11 + octave * 12)); // B
+		CHECK_EQUAL(2, key.degreeOf(0 + octave * 12));  // C
+		CHECK_EQUAL(3, key.degreeOf(2 + octave * 12));  // D
+		CHECK_EQUAL(4, key.degreeOf(4 + octave * 12));  // E
+		CHECK_EQUAL(5, key.degreeOf(5 + octave * 12));  // F
+		CHECK_EQUAL(6, key.degreeOf(7 + octave * 12));  // G
+		// Out of key
+		CHECK_EQUAL(-1, key.degreeOf(10 + octave * 12)); // A#
+		CHECK_EQUAL(-1, key.degreeOf(1 + octave * 12));  // C#
+		CHECK_EQUAL(-1, key.degreeOf(3 + octave * 12));  // D#
+		CHECK_EQUAL(-1, key.degreeOf(6 + octave * 12));  // F#
+		CHECK_EQUAL(-1, key.degreeOf(8 + octave * 12));  // G#
 	}
 }
 

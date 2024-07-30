@@ -41,6 +41,19 @@ int8_t NoteSet::operator[](uint8_t index) const {
 	return note;
 }
 
+int8_t NoteSet::degreeOf(uint8_t note) const {
+	if (has(note)) {
+		// Mask everything before the note
+		uint16_t mask = ~(0xffff << note);
+		// How many notes under mask?
+		uint16_t under = bits & mask;
+		return std::popcount(under);
+	}
+	else {
+		return -1;
+	}
+}
+
 void NoteSet::applyChanges(int8_t changes[12]) {
 	NoteSet newSet;
 	uint8_t n = 1;

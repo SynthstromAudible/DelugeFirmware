@@ -603,21 +603,6 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	}
 }
 
-bool Song::yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave) {
-	int32_t yNoteWithinOctave = key.intervalOf(yNote);
-	return (key.modeNotes[yVisualWithinOctave] == yNoteWithinOctave);
-}
-
-uint8_t Song::getYNoteIndexInMode(int32_t yNote) {
-	uint8_t yNoteWithinOctave = (uint8_t)(yNote - key.rootNote + 132) % 12;
-	for (uint8_t i = 0; i < key.modeNotes.count(); i++) {
-		if (key.modeNotes[i] == yNoteWithinOctave) {
-			return i;
-		}
-	}
-	return 255;
-}
-
 /* Moves the intervals in the current modeNotes by some number of steps
     in a circular way. For example, starting in major
     and going up one step (change == 1) results in Dorian:
