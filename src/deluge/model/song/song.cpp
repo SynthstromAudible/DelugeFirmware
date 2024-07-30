@@ -725,20 +725,6 @@ uint8_t Song::getYNoteWithinOctaveFromYNote(int32_t yNote) {
 	return yNoteWithinOctave;
 }
 
-bool Song::modeContainsYNote(int32_t yNote) {
-	int32_t yNoteWithinOctave = (uint16_t)(yNote - key.rootNote + 132) % 12;
-	return modeContainsYNoteWithinOctave(yNoteWithinOctave);
-}
-
-bool Song::modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave) {
-	for (int32_t i = 0; i < key.modeNotes.count(); i++) {
-		if (key.modeNotes[i] == yNoteWithinOctave) {
-			return true;
-		}
-	}
-	return false;
-}
-
 uint8_t Song::getYNoteIndexInMode(int32_t yNote) {
 	uint8_t yNoteWithinOctave = (uint8_t)(yNote - key.rootNote + 132) % 12;
 	for (uint8_t i = 0; i < key.modeNotes.count(); i++) {
@@ -809,7 +795,7 @@ bool Song::isYNoteAllowed(int32_t yNote, bool inKeyMode) {
 	if (!inKeyMode) {
 		return true;
 	}
-	return modeContainsYNoteWithinOctave(getYNoteWithinOctaveFromYNote(yNote));
+	return key.modeNotes.has(getYNoteWithinOctaveFromYNote(yNote));
 }
 
 int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode) {
