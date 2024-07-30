@@ -61,7 +61,7 @@ char const* Browser::filenameToStartSearchAt;
 int8_t Browser::numberEditPos;
 NumericLayerScrollingText* Browser::scrollingText;
 
-char const* allowedFileExtensionsXML[] = {"XML", NULL};
+char const* allowedFileExtensionsXML[] = {"XML", "Json", NULL};
 
 Browser::Browser() {
 	fileIcon = deluge::hid::display::OLED::songIcon;

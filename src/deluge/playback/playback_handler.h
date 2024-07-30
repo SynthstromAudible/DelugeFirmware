@@ -191,7 +191,6 @@ public:
 	                         bool* doingMidiThru);
 	bool subModeAllowsRecording();
 
-	void songSelectReceived(uint8_t songId);
 	float calculateBPM(float timePerInternalTick);
 	void switchToArrangement();
 	void switchToSession();

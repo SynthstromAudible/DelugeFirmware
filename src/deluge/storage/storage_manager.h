@@ -262,11 +262,68 @@ private:
 	bool firstItemHasBeenWritten = false;
 };
 
+class JsonDeserializer : public Deserializer, public FileReader {
+public:
+	JsonDeserializer();
+	~JsonDeserializer() = default;
+
+	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
+	char const* readNextTagOrAttributeName() override;
+	char readNextCharOfTagOrAttributeValue() override;
+	int32_t getNumCharsRemainingInValue() override;
+
+	int32_t readTagOrAttributeValueInt() override;
+	int32_t readTagOrAttributeValueHex(int32_t errorValue) override;
+	int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) override;
+
+	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos) override;
+	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) override;
+	Error readTagOrAttributeValueString(String* string) override;
+	char const* readTagOrAttributeValue() override;
+	void exitTag(char const* exitTagName = NULL) override;
+
+	Error openJsonFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
+	                  bool ignoreIncorrectFirmware = false);
+	void reset() override;
+	/*
+	    FIL	 readFIL;
+	    char* fileClusterBuffer; // This buffer is reused in various places outside of StorageManager proper.
+	*/
+	FirmwareVersion firmware_version = FirmwareVersion::current();
+
+	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
+
+private:
+	char charAtEndOfValue;
+	uint8_t xmlArea; // state variable for tokenizer
+
+	int32_t tagDepthCaller; // How deeply indented in XML the main Deluge classes think we are, as data being read.
+	int32_t tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way
+	                      // to finding next useful data.
+
+	char stringBuffer[kFilenameBufferSize];
+
+	void skipUntilChar(char endChar);
+
+	char const* readTagName();
+	char const* readNextAttributeName();
+	char const* readUntilChar(char endChar);
+	char const* readAttributeValue();
+
+	int32_t readIntUntilChar(char endChar);
+	bool getIntoAttributeValue();
+	int32_t readAttributeValueInt();
+
+	Error readStringUntilChar(String* string, char endChar);
+	Error readAttributeValueString(String* string);
+};
+
 extern XMLSerializer smSerializer;
 extern XMLDeserializer smDeserializer;
 extern JsonSerializer smJsonSerializer;
-
+extern JsonDeserializer smJsonDeserializer;
 extern Serializer& GetSerializer();
+extern Deserializer& GetDeserializer();
 
 class StorageManager {
 public:
@@ -310,6 +367,7 @@ extern StorageManager storageManager;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
 extern bool writeJsonFlag;
+extern bool readJsonFlag;
 inline bool isCardReady() {
 	return !sdRoutineLock && Error::NONE == storageManager.initSD();
 }

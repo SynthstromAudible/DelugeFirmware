@@ -62,8 +62,10 @@ DIR staticDIR;
 XMLSerializer smSerializer;
 XMLDeserializer smDeserializer;
 JsonSerializer smJsonSerializer;
+JsonDeserializer smJsonDeserializer;
 
 bool writeJsonFlag = true;
+bool readJsonFlag = false;
 
 Serializer& GetSerializer() {
 	if (writeJsonFlag) {
@@ -71,6 +73,15 @@ Serializer& GetSerializer() {
 	}
 	else {
 		return smSerializer;
+	}
+}
+
+Deserializer& GetDeserializer() {
+	if (readJsonFlag) {
+		return smJsonDeserializer;
+	}
+	else {
+		return smDeserializer;
 	}
 }
 
