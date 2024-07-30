@@ -43,6 +43,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/sample/sample_recorder.h"
 #include "model/scale/preset_scales.h"
+#include "model/scale/utils.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
 #include "model/voice/voice_sample.h"
@@ -603,14 +604,8 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 }
 
 bool Song::yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave) {
-	int32_t yNoteWithinOctave = getYNoteWithinOctaveFromYNote(yNote);
+	int32_t yNoteWithinOctave = key.intervalOf(yNote);
 	return (key.modeNotes[yVisualWithinOctave] == yNoteWithinOctave);
-}
-
-uint8_t Song::getYNoteWithinOctaveFromYNote(int32_t yNote) {
-	uint16_t yNoteRelativeToRoot = yNote - key.rootNote + 132;
-	int32_t yNoteWithinOctave = yNoteRelativeToRoot % 12;
-	return yNoteWithinOctave;
 }
 
 uint8_t Song::getYNoteIndexInMode(int32_t yNote) {
@@ -683,7 +678,7 @@ bool Song::isYNoteAllowed(int32_t yNote, bool inKeyMode) {
 	if (!inKeyMode) {
 		return true;
 	}
-	return key.modeNotes.has(getYNoteWithinOctaveFromYNote(yNote));
+	return key.modeNotes.has(key.intervalOf(yNote));
 }
 
 int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode) {

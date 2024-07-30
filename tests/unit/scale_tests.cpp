@@ -310,6 +310,24 @@ TEST(MusicalKeyTest, ctor) {
 	CHECK_EQUAL(true, k.modeNotes.has(0));
 }
 
+TEST(MusicalKeyTest, intervalOf) {
+	MusicalKey key;
+	for (int8_t octave = -10; octave <= 10; octave++) {
+		for (uint8_t note = 0; note < 12; note++) {
+			for (uint8_t root = 0; root < 12; root++) {
+				key.rootNote = root;
+				if (root <= note) {
+					CHECK_EQUAL(note - root, key.intervalOf(note + octave * 12));
+				}
+				else {
+					// Consider: root B==11, note D=2, offset=3
+					CHECK_EQUAL(12 - root + note, key.intervalOf(note + octave * 12));
+				}
+			}
+		}
+	}
+}
+
 TEST_GROUP(UtilTest){};
 
 TEST(UtilTest, isSameNote) {

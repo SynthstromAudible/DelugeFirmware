@@ -10,6 +10,8 @@
 class MusicalKey {
 public:
 	MusicalKey();
+	/** Returns semitone offset from root below the noteCode. */
+	uint8_t intervalOf(int32_t noteCode) const;
 	void applyChanges(int8_t changes[12]);
 	// TODO: make these priviate later, and maybe rename modeNotes
 	NoteSet modeNotes;

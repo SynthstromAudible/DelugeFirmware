@@ -94,7 +94,6 @@ public:
 	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
 	void addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& notesWithinOctavePresent);
 	bool yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave);
-	uint8_t getYNoteWithinOctaveFromYNote(int32_t yNote);
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
 	void rotateMusicalMode(int8_t change);
 	void replaceMusicalMode(int8_t changes[], bool affectMIDITranspose);
