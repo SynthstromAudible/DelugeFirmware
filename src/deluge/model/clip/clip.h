@@ -251,6 +251,7 @@ protected:
 		while (next) {
 			if (next->activeIfNoSolo)
 				return next;
+			next = getNextClipOrNull();
 		}
 		return nullptr;
 	}

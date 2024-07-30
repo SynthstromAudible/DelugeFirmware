@@ -246,18 +246,14 @@ ramError:
 		FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
 	}
 #endif
-
-	insertAfter(newClip, ClipGroupType::SHARED);
+	if (overdubsShouldCloneOutput) {
+		insertAfter(newClip, ClipGroupType::SHARED);
+	}
 
 	return newClip;
 }
 
 bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
-	return false;
-	// don't clone for loop commands in red mode
-	if (!overdubsShouldCloneOutput) {
-		return false;
-	}
 
 	AudioOutput* newOutput = modelStack->song->createNewAudioOutput();
 	if (!newOutput) {

@@ -3916,7 +3916,7 @@ ParamManagerForTimeline* InstrumentClip::getCurrentParamManager() {
 		}
 	}
 	else {
-		currentParamManager = &paramManager;
+		currentParamManager = &getHeadOfGroup()->paramManager;
 	}
 
 	return currentParamManager;
