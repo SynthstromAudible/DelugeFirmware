@@ -196,28 +196,40 @@ To use this feature, you will need to first flash a build via the SD card that h
 ```
 
 You can load the firmware over USB. As this could be a security risk, it must be enabled in community feature settings
-on the Deluge. There you will see a key that you need to use in the command to authenticate with the Deluge.
-`./dbt loadfw <port_number> <hex_key> <firmware_file_path>`
+on the Deluge: `COMMUNITY FEATURES > ALLOW INSECURE DEVELOP SYSEX FEATURES`, after enabling you will see a key that you
+need to use in the command to authenticate with the Deluge.
 
-You can check which port number was assigned to each port by executing:
+`./dbt loadfw release` (Or whichever build you want to upload instead of "release".)
+
+The `loadfw` command should automatically identify the correct MIDI port, as long as you are connected directly via USB.
+
+The first time you run it, the command will ask you for the key code you from the Deluge menu. The code is cached in
+`.deluge_hex_key` file in the DelugeFirmware directory, if it changes delete the file to have `loadfw` ask again for the key. 
+
+More instructions available via:
 `./dbt loadfw -h`
-
-The only port that accepts firmware files is "Deluge Port 3" so make sure you select its port number when loading the
-firmware.
 
 ### Printing debug log messages on the console
 
 While the Deluge is connected over USB, you can print the messages it produces to the console. In order to do that
 execute this command:
-`./dbt sysex-logging <port_number>`
 
-You can check which port number was assigned to each port by executing:
+`./dbt sysex-logging`
+
+Same as with `loadfw`, the command should auto-identify the correct MIDI port.
+
+More instructions available via:
 `./dbt sysex-logging -h`
 
-The only build able to send debug messages via sysex is the "debug" build, so you will need to flash that one.
+Release builds do not send debug messages over sysex, so you need to build and fliash either "relwithdebinfo" or "debug".
 
 To make debug log prints in your code, which will be sent to the console, here is a code example:
-`D_PRINTLN("my log message which prints an integer value %d", theIntegerValue);`
+
+```
+#include "io/debug/log.h" // at the top of the file
+
+D_PRINTLN("my log message which prints an integer value %d", theIntegerValue);
+```
 
 ### Useful extra debug options
 
