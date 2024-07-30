@@ -258,11 +258,6 @@ public:
 	// startX = end pixel of menu item string + 3px spacing after it + spacing for 2 characters +
 	// 			shift icon left 1 pixel (it's 1px wider than a regular character)
 	virtual int32_t getSubmenuItemTypeRenderIconStart() { return (OLED_MAIN_WIDTH_PIXELS - 3 - kTextSpacingX - 1); }
-	// push the start x over 3 characters which is the spacing between the end of the menu item text and the first
-	// value character drawn
-	virtual int32_t getSubmenuItemTypeRenderValueStart() {
-		return (OLED_MAIN_WIDTH_PIXELS - getSubmenuItemTypeRenderLength() + 3);
-	}
 	// render the submenu item type (icon or value)
 	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
 

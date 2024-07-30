@@ -121,31 +121,70 @@ void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t max
 
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                         int32_t scrollPos, int32_t endX) {
+	int32_t stringLength = string.length();
+	int32_t charIdx = 0;
+	// if the string is currently scrolling we want to identify the number of characters
+	// that should be visible on the screen based on the current scroll position
+	// to do iterate through each character in the string, based on its size in pixels
+	// and compare that to the scroll position (which is also in pixels)
+	// any characters before the scroll position are chopped off;
 	if (scrollPos) {
-		int32_t numCharsToChopOff = (uint16_t)scrollPos / (uint8_t)textWidth;
-		if (numCharsToChopOff) {
-			if (numCharsToChopOff >= string.length()) {
-				return;
+		int32_t numCharsToChopOff = 0;
+		int32_t widthOfCharsToChopOff = 0;
+		int32_t charStartX = 0;
+		for (char const c : string) {
+			int32_t charSpacing = getCharSpacingInPixels(c, charIdx == stringLength);
+			int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+			charStartX += charWidth;
+			// are we past the scroll position?
+			// if so no more characters to chop off
+			if (scrollPos < charStartX) {
+				break;
 			}
-
-			string = string.substr(numCharsToChopOff);
-			scrollPos -= numCharsToChopOff * textWidth;
+			// we haven't reached scroll position yet, so chop off these characters
+			else {
+				numCharsToChopOff++;
+				widthOfCharsToChopOff += charWidth;
+			}
+			charIdx++;
 		}
+
+		// chop off the characters before the scroll position
+		string = string.substr(numCharsToChopOff);
+		// adjust scroll position to indicate how far we've scrolled
+		scrollPos -= widthOfCharsToChopOff;
+		// calculate new string length
+		stringLength = string.length();
+		// reset index
+		charIdx = 0;
 	}
+
+	// if we scrolled above, then the string, ScrollPos, stringLength will have been adjusted
+	// here we're going to draw the remaining characters in the string
 	for (char const c : string) {
-		drawChar(c, pixelX, pixelY, textWidth, textHeight, scrollPos, endX);
-		pixelX += textWidth - scrollPos;
+		int32_t charSpacing = getCharSpacingInPixels(c, charIdx == stringLength);
+		int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+		drawChar(c, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
+
+		// calculate the X coordinate to draw the next character
+		pixelX += (charWidth - scrollPos);
+
+		// if we've reached the endX coordinate then we won't draw anymore characters
 		if (pixelX >= endX) {
 			break;
 		}
+
+		// no more scrolling
 		scrollPos = 0;
+		charIdx++;
 	}
 }
 
 void Canvas::drawStringCentred(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                                int32_t centrePos) {
 	std::string_view str{string};
-	int32_t pixelX = centrePos - ((textWidth * str.length()) >> 1);
+	int32_t stringWidth = getStringWidthInPixels(string, textHeight);
+	int32_t pixelX = centrePos - (stringWidth >> 1);
 	drawString(str, pixelX, pixelY, textWidth, textHeight);
 }
 
@@ -187,7 +226,8 @@ void Canvas::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixe
 void Canvas::drawStringAlignRight(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                                   int32_t rightPos) {
 	std::string_view str{string};
-	int32_t pixelX = rightPos - (textWidth * str.length());
+	int32_t stringWidth = getStringWidthInPixels(string, textHeight);
+	int32_t pixelX = rightPos - (stringWidth);
 	drawString(str, pixelX, pixelY, textWidth, textHeight);
 }
 
@@ -195,21 +235,7 @@ void Canvas::drawStringAlignRight(char const* string, int32_t pixelY, int32_t te
 
 void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t spacingX, int32_t textHeight,
                       int32_t scrollPos, int32_t endX) {
-
-	if (theChar > '~') {
-		return;
-	}
-
-	if (theChar >= 'a') {
-		if (theChar <= 'z') {
-			theChar -= 32;
-		}
-		else {
-			theChar -= 26; // Lowercase chars have been snipped out of the tables.
-		}
-	}
-
-	int32_t charIndex = theChar - 0x20;
+	int32_t charIndex = getCharIndex(theChar);
 	if (charIndex <= 0) {
 		return;
 	}
@@ -270,6 +296,86 @@ void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t s
 	int32_t textWidth = descriptor->w_px - scrollPos;
 	drawGraphicMultiLine(&font[descriptor->glyph_index + scrollPos * bytesPerCol], pixelX, pixelY, textWidth,
 	                     textHeight, bytesPerCol);
+}
+
+int32_t Canvas::getCharIndex(uint8_t theChar) {
+	if (theChar > '~') {
+		return 0;
+	}
+
+	if (theChar >= 'a') {
+		if (theChar <= 'z') {
+			theChar -= 32;
+		}
+		else {
+			theChar -= 26; // Lowercase chars have been snipped out of the tables.
+		}
+	}
+
+	int32_t charIndex = theChar - 0x20;
+	return charIndex;
+}
+
+int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
+	int32_t charIndex = getCharIndex(theChar);
+	if (charIndex <= 0) {
+		return 0;
+	}
+
+	lv_font_glyph_dsc_t const* descriptor;
+	switch (textHeight) {
+	case 9:
+		[[fallthrough]];
+	case 7:
+		[[fallthrough]];
+	case 8:
+		descriptor = font_apple_desc;
+		break;
+	case 10:
+		descriptor = font_metric_bold_9px_desc;
+		break;
+	case 13:
+		descriptor = font_metric_bold_13px_desc;
+		break;
+	case 20:
+		[[fallthrough]];
+	default:
+		descriptor = font_metric_bold_20px_desc;
+		break;
+	}
+
+	descriptor += charIndex;
+	return descriptor->w_px;
+}
+
+int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, bool isLastChar) {
+	// don't add space to the last character
+	if (isLastChar) {
+		return 0;
+	}
+	// if character is a space, make spacing 6px instead
+	// (just need to add 5 since previous character added 1 after it)
+	else if (theChar == ' ') {
+		return 5;
+	}
+	// default spacing is 1 pixel
+	else {
+		return 1;
+	}
+}
+
+int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
+	std::string_view str{string};
+	int32_t stringLength = str.length();
+	int32_t stringWidth = 0;
+	int32_t charIdx = 0;
+	for (char const c : str) {
+		int32_t charSpacing = getCharSpacingInPixels(c, charIdx == stringLength);
+		int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+		stringWidth += charWidth;
+		charIdx++;
+	}
+	return stringWidth;
 }
 
 void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height,

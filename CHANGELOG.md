@@ -39,6 +39,7 @@ use the TRACK menu to select the specific track to record from
   - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
 - Removed the `SONG VIEW` shortcut of Pressing `CLIP` + `SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
 - Pressing `CLIP` + `SELECT` in `SONG VIEW` will now always open the `LAUNCH STYLE` menu so you can change the Clip launch style between `DEFAULT`, `FILL` and `ONCE`.
+- Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.

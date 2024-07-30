@@ -245,15 +245,13 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 	}
 
 	if (display->haveOLED()) {
-		char text[15];
-		intToString(whichBar, text);
-		char* pos = strchr(text, 0);
-		*(pos++) = ':';
-		intToString(whichBeat, pos);
-		pos = strchr(pos, 0);
-		*(pos++) = ':';
-		intToString(whichSubBeat, pos);
-		display->popupTextTemporary(text);
+		DEF_STACK_STRING_BUF(popupMsg, 15);
+		popupMsg.appendInt(whichBar);
+		popupMsg.append(" : ");
+		popupMsg.appendInt(whichBeat);
+		popupMsg.append(" : ");
+		popupMsg.appendInt(whichSubBeat);
+		display->popupTextTemporary(popupMsg.c_str());
 	}
 	else {
 		char text[5];

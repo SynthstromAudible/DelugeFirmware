@@ -128,6 +128,29 @@ public:
 	void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
 	              int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS);
 
+	/// Returns index for character so it can be looked up
+	///
+	/// @param theChar A single character
+	int32_t getCharIndex(uint8_t theChar);
+
+	/// Return width of a single character with a given character height
+	///
+	/// @param theChar A single character
+	/// @param textHeight The height of the character
+	int32_t getCharWidthInPixels(uint8_t theChar, int32_t textHeight);
+
+	/// Returns spacing in pixels between characters drawn in a string
+	///
+	/// @param theChar A single character
+	/// @param isLastChar a boolean to specify whether any char's follow this char
+	int32_t getCharSpacingInPixels(uint8_t theChar, bool isLastChar);
+
+	/// Returns width of a string in pixels
+	///
+	/// @param string A null-terminated C string
+	/// @param textHeight The height for each character in the string
+	int32_t getStringWidthInPixels(char const* string, int32_t textHeight);
+
 	/// Draw a "graphic".
 	///
 	/// The provided \ref graphic array is used as a bit mask and added to the existing content.
