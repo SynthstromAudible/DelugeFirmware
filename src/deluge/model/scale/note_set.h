@@ -2,6 +2,7 @@
 
 #include <bit>
 #include <cstdint>
+#include <initializer_list>
 
 /** Set of chromatic notes.
  *
@@ -18,7 +19,11 @@
  */
 class NoteSet {
 public:
+	/** Default constructor for an empty NoteSet. */
 	NoteSet() : bits(0) {}
+	/** Constructs a NoteSet from notes.
+	 */
+	NoteSet(std::initializer_list<uint8_t> notes);
 	/** Add a note to NoteSet.
 	 */
 	void add(int8_t note) { bits = 0xfff & (bits | (1 << note)); }
@@ -34,9 +39,6 @@ public:
 	 * added, notesSet[2] will return 4.
 	 */
 	uint8_t operator[](uint8_t index) const;
-	/** Clears existing notes and adds notes from the scaleNotes[] array.
-	 */
-	void fromScaleNotes(const uint8_t scaleNotes[7]);
 	/** Applies changes specified by the array.
 	 *
 	 * Each element of the array describes a semitone offset
