@@ -50,14 +50,6 @@ public:
 	 * This is the scale degree of the note if the NoteSet represents a scale and has a root.
 	 */
 	int8_t degreeOf(uint8_t note) const;
-	/** Applies changes specified by the array.
-	 *
-	 * Each element of the array describes a semitone offset
-	 * to a scale degree.
-	 *
-	 * Root offset is applied relative to the other notes.
-	 */
-	void applyChanges(int8_t changes[12]);
 	/** Marks all semitones as being part of the NoteSet.
 	 */
 	void fill() { bits = 0xfff; }

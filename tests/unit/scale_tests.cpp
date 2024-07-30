@@ -117,21 +117,6 @@ TEST(NoteSetTest, addUntrusted) {
 	CHECK_EQUAL(3, a.count());
 }
 
-TEST(NoteSetTest, applyChanges) {
-	NoteSet a;
-	a.add(0);
-	a.add(2);
-	a.add(4);
-	a.add(5);
-	int8_t changes[12] = {-1, -1, +1, +2, 0, 0, 0, 0, 0, 0, 0, 0};
-	a.applyChanges(changes);
-	CHECK_EQUAL(0, a[0]);
-	CHECK_EQUAL(2, a[1]);
-	CHECK_EQUAL(6, a[2]);
-	CHECK_EQUAL(8, a[3]);
-	CHECK_EQUAL(4, a.count());
-}
-
 TEST(NoteSetTest, degreeOfBasic) {
 	NoteSet a;
 	a.add(0);

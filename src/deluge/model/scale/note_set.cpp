@@ -63,20 +63,6 @@ int8_t NoteSet::degreeOf(uint8_t note) const {
 	}
 }
 
-void NoteSet::applyChanges(int8_t changes[12]) {
-	NoteSet newSet;
-	uint8_t n = 1;
-	for (int note = 1; note < 12; note++) {
-		if (has(note)) {
-			// n'th degree has semitone t, compute
-			// the transpose and save to new noteset
-			newSet.add(note + changes[n++] - changes[0]);
-		}
-	}
-	newSet.add(0);
-	bits = newSet.bits;
-}
-
 uint8_t NoteSet::presetScaleId() const {
 	for (int32_t p = 0; p < NUM_PRESET_SCALES; p++) {
 		if (*this == presetScaleNotes[p]) {

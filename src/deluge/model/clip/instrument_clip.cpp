@@ -38,6 +38,7 @@
 #include "model/note/note.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
+#include "model/scale/scale_change.h"
 #include "model/scale/utils.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
@@ -1243,8 +1244,7 @@ RGB InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset
 	return RGB::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
 }
 
-void InstrumentClip::replaceMusicalMode(uint8_t numModeNotes, int8_t changes[12],
-                                        ModelStackWithTimelineCounter* modelStack) {
+void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack) {
 	if (!isScaleModeClip()) {
 		return;
 	}
