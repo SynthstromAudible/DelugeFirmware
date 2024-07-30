@@ -2225,6 +2225,7 @@ void InstrumentClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack,
 	if (!shouldRetainLinksToOutput) {
 		output = NULL;
 	}
+	removeFromGroup();
 }
 
 // Returns error code
