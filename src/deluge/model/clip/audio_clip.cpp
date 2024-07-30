@@ -254,6 +254,10 @@ ramError:
 }
 
 bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
+	// don't clone for loop commands in red mode
+	if (!overdubsShouldCloneOutput) {
+		return false;
+	}
 
 	AudioOutput* newOutput = modelStack->song->createNewAudioOutput();
 	if (!newOutput) {
@@ -867,6 +871,7 @@ void AudioClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack, bool
                                  bool keepNoteRowsWithMIDIInput, bool shouldGrabMidiCommands,
                                  bool shouldBackUpExpressionParamsToo) {
 	detachAudioClipFromOutput(modelStack->song, shouldRetainLinksToOutput);
+	removeFromGroup();
 }
 
 void AudioClip::detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith) {
