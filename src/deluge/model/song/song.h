@@ -117,6 +117,7 @@ public:
 	// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if no preset matches current notes
 	int8_t getCurrentPresetScale();
 	int32_t setPresetScale(int32_t newScale);
+	bool setScale(NoteSet newScale);
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
 	void setBPM(float tempoBPM, bool shouldLogAction);

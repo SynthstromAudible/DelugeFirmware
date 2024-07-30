@@ -2743,9 +2743,15 @@ int32_t Song::setPresetScale(int32_t newScale) {
 	if (newScale < 0 || NUM_PRESET_SCALES <= newScale) {
 		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
 	}
-	// Grab the actual new scale
-	NoteSet newScaleNotes = presetScaleNotes[newScale];
+	if (setScale(presetScaleNotes[newScale])) {
+		return newScale;
+	}
+	else {
+		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+	}
+}
 
+bool Song::setScale(NoteSet newScaleNotes) {
 	// Always count the root note as present, to avoid changing the root note when cycling scales.
 	//
 	// Note: it is important we always use the actual notes, instead of eg. picking all scale notes
@@ -2756,7 +2762,7 @@ int32_t Song::setPresetScale(int32_t newScale) {
 
 	// If the new scale cannot fit the notes from the old one, we can't change scale
 	if (notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize()) {
-		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+		return false;
 	}
 
 	ScaleChange changes;
@@ -2766,7 +2772,7 @@ int32_t Song::setPresetScale(int32_t newScale) {
 
 	key.modeNotes = newScaleNotes;
 
-	return newScale;
+	return true;
 }
 
 int8_t Song::getCurrentPresetScale() {
