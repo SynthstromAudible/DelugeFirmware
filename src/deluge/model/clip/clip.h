@@ -209,13 +209,9 @@ public:
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 	Clip* getNextClipOrNull() { return next; }
 	// returns the first clip in the group, or the clip itself if there's no group
-	Clip* getHeadOfGroup() { return first; }
+	Clip* getHeadOfGroup() { return head; }
 	bool isInGroup() { return groupType == ClipGroupType::SHARED; }
 	bool isInGroupWith(Clip* clip) { return isInGroup() && clip->output == output && clip->section == section; }
-	Clip* getFirstActive() {
-		auto active = findActiveClipOrNull();
-		return active ? active : this;
-	}
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
@@ -228,22 +224,26 @@ protected:
 
 	ClipGroupType groupType;
 	void removeFromGroup() {
-		// set first to the new first node for all nodes in list
-		if (first == this) {
+		// If this node was the head then we need to reset it everywhere
+		if (head == this) {
 			Clip* newFirst = next;
 			Clip* current = newFirst;
 			while (current) {
-				current->first = newFirst;
+				current->head = newFirst;
 				current = current->next;
 			}
 		}
+		// make the previous node point to this nodes next node
 		if (prev)
 			prev->next = next;
+		// make the next node point to this nodes previous node
 		if (next)
 			next->prev = prev;
+		// clear this nodes group info
 		next = nullptr;
 		prev = nullptr;
-		first = this;
+		head = this;
+		groupType = ClipGroupType::NONE;
 	};
 
 	Clip* findActiveClipOrNull() {
@@ -257,19 +257,29 @@ protected:
 	}
 
 	void insertAfter(Clip* newNextNode, ClipGroupType type) {
+		// if we're not currently in a group then this is the new group head
 		if (groupType == ClipGroupType::NONE) {
-			first = this;
+			head = this;
 			groupType = type;
 		}
+		// set the new clips grouptype and head to match the current clip
 		newNextNode->groupType = type;
-		newNextNode->first = first;
+		newNextNode->head = head;
+
+		// Just to avoid making a loop
 		if (next != newNextNode) {
+			// make the new node point to the current node's next node
 			newNextNode->next = next;
 		}
+
+		// make the new node link back to this one
 		newNextNode->prev = this;
+		// make the current node link to the new one
 		next = newNextNode;
+
+		// currently not possible but I want to allow making them exclusive in the future
+		// iterate through the group and set them all to the new type
 		if (type != groupType) {
-			// iterate through the group and set them all to match
 			Clip* nextClip = getHeadOfGroup();
 			while (nextClip) {
 				nextClip->groupType = type;
@@ -284,5 +294,5 @@ private:
 	Clip* next{nullptr};
 	Clip* prev{nullptr};
 	// to find the head of the list quickly - if no group it's just the clip itself
-	Clip* first{this};
+	Clip* head{this};
 };
