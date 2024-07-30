@@ -156,6 +156,8 @@ int32_t popupMinY;
 int32_t popupMaxY;
 
 void OLED::setupPopup(int32_t width, int32_t height) {
+	D_PRINT("start OLED::setupPopup");
+	
 	if (height > OLED_MAIN_HEIGHT_PIXELS) {
 		height = OLED_MAIN_HEIGHT_PIXELS;
 	}
@@ -181,6 +183,8 @@ void OLED::setupPopup(int32_t width, int32_t height) {
 
 	popup.clearAreaExact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 	popup.drawRectangle(popupMinX, popupMinY, popupMaxX, popupMaxY);
+
+	D_PRINT("finish OLED::setupPopup");
 }
 
 int32_t consoleMaxX;
@@ -296,6 +300,7 @@ int32_t OLED::setupConsole(int32_t height) {
 }
 
 void OLED::removePopup() {
+	D_PRINT("start OLED::removePopup");
 	// if (!oledPopupWidth) return;
 
 	oledPopupWidth = 0;
@@ -303,6 +308,7 @@ void OLED::removePopup() {
 	workingAnimationText = NULL;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	markChanged();
+	D_PRINT("finish OLED::removePopup");
 }
 
 bool OLED::isPopupPresent() {
@@ -371,6 +377,7 @@ void copyBackgroundAroundForeground(ImageStore backgroundImage, ImageStore foreg
 }
 
 void OLED::sendMainImage() {
+	D_PRINT("start OLED::sendMainImage");
 	if (!needsSending) {
 		return;
 	}
@@ -398,6 +405,8 @@ void OLED::sendMainImage() {
 	enqueueSPITransfer(0, oledCurrentImage[0]);
 	HIDSysex::sendDisplayIfChanged();
 	needsSending = false;
+
+	D_PRINT("finish OLED::sendMainImage");
 }
 
 #define TEXT_MAX_NUM_LINES 8
@@ -478,6 +487,7 @@ lookAtNextSpace:
 }
 
 void OLED::drawPermanentPopupLookingText(char const* text) {
+	D_PRINT("start OLED::drawPermanentPopupLookingText");
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
 
@@ -507,9 +517,11 @@ void OLED::drawPermanentPopupLookingText(char const* text) {
 		                textPixelY, kTextSpacingX, kTextSpacingY);
 		textPixelY += kTextSpacingY;
 	}
+	D_PRINT("finish OLED::drawPermanentPopupLookingText");
 }
 
 void OLED::popupText(char const* text, bool persistent, PopupType type) {
+	D_PRINT("start OLED::popupText");
 
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
@@ -545,9 +557,13 @@ void OLED::popupText(char const* text, bool persistent, PopupType type) {
 	else {
 		uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	}
+
+	D_PRINT("finish OLED::popupText");	
 }
 
 void updateWorkingAnimation() {
+	D_PRINT("start OLED::updateWorkingAnimation");
+
 	String textNow;
 	Error error = textNow.set(workingAnimationText);
 	if (error != Error::NONE) {
@@ -563,24 +579,36 @@ void updateWorkingAnimation() {
 
 	error = textNow.concatenate(buffer);
 	OLED::popupText(textNow.get(), true, PopupType::LOADING);
+
+	D_PRINT("finish OLED::updateWorkingAnimation");	
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
+	D_PRINT("start OLED::displayWorkingAnimation");
+
 	workingAnimationText = word;
 	workingAnimationCount = 0;
 	updateWorkingAnimation();
+
+	D_PRINT("finish OLED::updateWorkingAnimation");	
 }
 
 void OLED::removeWorkingAnimation() {
+	D_PRINT("start OLED::removeWorkingAnimation");
+
 	if (hasPopupOfType(PopupType::LOADING)) {
 		removePopup();
 	}
 	else if (workingAnimationText) {
 		workingAnimationText = NULL;
 	}
+
+	D_PRINT("finish OLED::updateWorkingAnimation");	
 }
 
 void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {
+	D_PRINT("start OLED::renderEmulated7Seg");	
+	
 	clearMainImage();
 	for (int i = 0; i < 4; i++) {
 		int ix = 33 * i + 1;
@@ -616,11 +644,15 @@ void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& 
 		}
 	}
 	markChanged();
+
+		D_PRINT("finish OLED::renderEmulated7Seg");
 }
 
 #define CONSOLE_ANIMATION_FRAME_TIME_SAMPLES (6 * 44) // 6
 
 void OLED::consoleText(char const* text) {
+	D_PRINT("start OLED::consoleText");
+
 	TextLineBreakdown textLineBreakdown;
 	textLineBreakdown.maxCharsPerLine = 19;
 
@@ -643,6 +675,8 @@ void OLED::consoleText(char const* text) {
 	markChanged();
 
 	uiTimerManager.setTimerSamples(TimerName::OLED_CONSOLE, CONSOLE_ANIMATION_FRAME_TIME_SAMPLES);
+
+	D_PRINT("finish OLED::consoleText");
 }
 
 union {
@@ -662,6 +696,8 @@ void performBlink() {
 }
 
 void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, bool shouldBlinkImmediately) {
+	D_PRINT("start OLED::setupBlink");
+	
 	blinkArea.minX = minX;
 	blinkArea.width = width;
 	blinkArea.minY = minY;
@@ -671,13 +707,19 @@ void OLED::setupBlink(int32_t minX, int32_t width, int32_t minY, int32_t maxY, b
 	}
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kFlashTime);
 	markChanged();
+
+	D_PRINT("finish OLED::setupBlink");
 }
 
 void OLED::stopBlink() {
+	D_PRINT("start OLED::stopBlink");
+
 	if (blinkArea.u32) {
 		blinkArea.u32 = 0;
 		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
 	}
+
+	D_PRINT("finish OLED::stopBlink");
 }
 
 struct SideScroller {
@@ -702,7 +744,8 @@ SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
 
 void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight) {
-
+	D_PRINT("start OLED::setupSideScroller");
+	
 	SideScroller* scroller = &sideScrollers[index];
 	scroller->textLength = text.size();
 	scroller->stringLengthPixels = scroller->textLength * textSpacingX;
@@ -724,9 +767,12 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 
 	sideScrollerDirection = 1;
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kScrollTime);
+
+	D_PRINT("finish OLED::setupSideScroller");
 }
 
 void OLED::stopScrollingAnimation() {
+	D_PRINT("start OLED::stopScrollingAnimation");
 	if (sideScrollerDirection) {
 		sideScrollerDirection = 0;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
@@ -735,9 +781,11 @@ void OLED::stopScrollingAnimation() {
 		}
 		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
 	}
+	D_PRINT("finish OLED::stopScrollingAnimation");
 }
 
 void OLED::timerRoutine() {
+	D_PRINT("start OLED::timerRoutine");
 
 	if (workingAnimationText) {
 		workingAnimationCount = (workingAnimationCount + 1) & 3;
@@ -747,10 +795,12 @@ void OLED::timerRoutine() {
 	else {
 		removePopup();
 	}
+
+	D_PRINT("finish OLED::timerRoutine");
 }
 
 void OLED::scrollingAndBlinkingTimerEvent() {
-
+	D_PRINT("start OLED::scrollingAndBlinkingTimerEvent");
 	if (blinkArea.u32) {
 		performBlink();
 		return;
@@ -805,9 +855,11 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		}
 	}
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, timeInterval);
+	D_PRINT("finish OLED::scrollingAndBlinkingTimerEvent");
 }
 
 void OLED::consoleTimerEvent() {
+	D_PRINT("start OLED::consoleTimerEvent");
 	// If console active
 	if (!numConsoleItems) {
 		return;
@@ -924,9 +976,12 @@ checkTimeTilTimeout:
 	}
 
 	markChanged();
+
+	D_PRINT("finish OLED::consoleTimerEvent");
 }
 
 void OLED::freezeWithError(char const* text) {
+	D_PRINT("start OLED::freezeWithError");	
 	OLED::clearMainImage();
 	int32_t yPixel = OLED_MAIN_TOPMOST_PIXEL;
 	main.drawString("Error:", 0, yPixel, kTextSpacingX, kTextSizeYUpdated, 0, OLED_MAIN_WIDTH_PIXELS);
@@ -1009,11 +1064,13 @@ void OLED::freezeWithError(char const* text) {
 
 	clearMainImage();
 	OLED::popupText("Operation resumed. Save to new file then reboot.", false, PopupType::GENERAL);
+	D_PRINT("finish OLED::freezeWithError");	
 }
 
 extern std::string_view getErrorMessage(Error);
 
 void OLED::displayError(Error error) {
+	D_PRINT("start OLED::displayError");		
 	char const* message = nullptr;
 	switch (error) {
 	case Error::NONE:
@@ -1024,6 +1081,7 @@ void OLED::displayError(Error error) {
 		break;
 	}
 	displayPopup(message);
+	D_PRINT("finish OLED::displayError");	
 }
 
 } // namespace deluge::hid::display
