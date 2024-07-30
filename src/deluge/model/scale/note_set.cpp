@@ -1,4 +1,5 @@
 #include "model/scale/note_set.h"
+#include "model/scale/preset_scales.h"
 
 NoteSet::NoteSet(std::initializer_list<uint8_t> notes) : bits{0} {
 	for (uint8_t note : notes) {
@@ -55,3 +56,41 @@ void NoteSet::applyChanges(int8_t changes[12]) {
 	newSet.add(0);
 	bits = newSet.bits;
 }
+
+uint8_t NoteSet::presetScaleId() const {
+	for (int32_t p = 0; p < NUM_PRESET_SCALES; p++) {
+		if (*this == presetScaleNotes[p]) {
+			return p;
+		}
+	}
+	return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+}
+
+#ifdef IN_UNIT_TESTS
+const TestString StringFrom(const NoteSet& set) {
+	// We print out as chromatic notes across C, even though NoteSet does _not_ specify the root.
+	// This is just easier to read and think about when debugging.
+	std::string out;
+	static const char* names[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+	out.append("NoteSet(");
+	bool first = true;
+	for (int i = 0; i < NoteSet::size; i++) {
+		if (set.has(i)) {
+			if (!first) {
+				out.append(", ");
+			}
+			else {
+				first = false;
+			}
+			out.append(names[i]);
+		}
+	}
+	out.append(")");
+	return TestString(out);
+}
+
+std::ostream& operator<<(std::ostream& output, const NoteSet& set) {
+	output << StringFrom(set).asCharString();
+	return output;
+}
+#endif
