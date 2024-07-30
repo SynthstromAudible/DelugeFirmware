@@ -2776,7 +2776,6 @@ bool PlaybackHandler::subModeAllowsRecording() {
 	        || currentUIMode == UI_MODE_HORIZONTAL_SCROLL);
 }
 
-
 bool PlaybackHandler::isCurrentlyRecording() {
 	return (playbackState && recording != RecordingMode::OFF);
 }

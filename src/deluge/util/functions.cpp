@@ -1282,7 +1282,6 @@ char const* getInstrumentFolder(OutputType outputType) {
 	}
 }
 
-
 bool isAudioFilename(char const* filename) {
 	char* dotPos = strrchr(filename, '.');
 	return (dotPos != 0

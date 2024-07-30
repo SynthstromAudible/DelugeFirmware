@@ -821,7 +821,7 @@ void JsonDeserializer::exitTag(char const* exitTagName) {
 }
 
 Error JsonDeserializer::openJsonFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
-                                   bool ignoreIncorrectFirmware) {
+                                     bool ignoreIncorrectFirmware) {
 
 	AudioEngine::logAction("openJsonFile");
 

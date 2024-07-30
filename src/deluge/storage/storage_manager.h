@@ -283,7 +283,7 @@ public:
 	void exitTag(char const* exitTagName = NULL) override;
 
 	Error openJsonFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
-	                  bool ignoreIncorrectFirmware = false);
+	                   bool ignoreIncorrectFirmware = false);
 	void reset() override;
 	/*
 	    FIL	 readFIL;
