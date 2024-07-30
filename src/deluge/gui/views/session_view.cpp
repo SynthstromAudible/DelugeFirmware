@@ -2142,15 +2142,14 @@ int32_t SessionView::displayLoopsRemainingPopup() {
 	if (sixteenthNotesRemaining > 0) {
 		DEF_STACK_STRING_BUF(popupMsg, 40);
 		if (sixteenthNotesRemaining > 16) {
-			int32_t barsRemaining = static_cast<int32_t>(std::round(static_cast<float>(sixteenthNotesRemaining) / 16));
+			int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
 			if (display->haveOLED()) {
 				popupMsg.append("Bars Remaining: ");
 			}
 			popupMsg.appendInt(barsRemaining);
 		}
 		else {
-			int32_t quarterNotesRemaining =
-			    static_cast<int32_t>(std::round(static_cast<float>(sixteenthNotesRemaining) / 4));
+			int32_t quarterNotesRemaining = ((sixteenthNotesRemaining - 1) / 4) + 1;
 			if (display->haveOLED()) {
 				popupMsg.append("Beats Remaining: ");
 			}
