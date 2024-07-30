@@ -3012,8 +3012,7 @@ void ArrangerView::graphicsRoutine() {
 		}
 	}
 
-	// if we're not currently selecting a clip
-	if (!getClipForSelection() && view.potentiallyRenderVUMeter(PadLEDs::image)) {
+	if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 		PadLEDs::sendOutSidebarColours();
 	}
 
