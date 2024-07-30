@@ -559,7 +559,7 @@ NoteSet Song::notesInScaleModeClips() {
 	NoteSet notes;
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
 		if (instrumentClip->isScaleModeClip()) {
-			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key.rootNote, this);
+			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key);
 		}
 	}
 	return notes;
