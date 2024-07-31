@@ -199,10 +199,19 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth 
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 		return true;
 	}
-
+	Clip* base = getCurrentAudioClip()->getHeadOfGroup();
+	uint8_t numLayers = base->getGroupSize();
+	Clip* next = base;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		RGB* const start = &image[y][kDisplayWidth];
-		std::fill(start, start + kSideBarWidth, colours::black);
+		RGB layerColour = colours::black;
+		RGB selectedColour = colours::black;
+		if (next) {
+			layerColour = next->mutedInGroup() ? colours::yellow : colours::green;
+			selectedColour = next == getCurrentClip() ? colours::green : colours::black;
+			next = next->getNextClipOrNull();
+		}
+		image[y][kDisplayWidth] = layerColour;
+		image[y][kDisplayWidth + 1] = selectedColour;
 	}
 
 	return true;
