@@ -185,7 +185,7 @@ void Output::clipLengthChanged(Clip* clip, int32_t oldLength) {
 ParamManager* Output::getParamManager(Song* song) {
 
 	if (activeClip) {
-		return activeClip->getCurrentParamManager();
+		return &activeClip->getHeadOfGroup()->paramManager;
 	}
 	else {
 		ParamManager* paramManager =
