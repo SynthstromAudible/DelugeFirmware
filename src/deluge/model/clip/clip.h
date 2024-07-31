@@ -212,6 +212,8 @@ public:
 
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
+
+	// clip group functions
 	Clip* getNextClipOrNull() { return next; }
 	// returns the first clip in the group, or the clip itself if there's no group
 	Clip* getHeadOfGroup() { return head; }
@@ -220,47 +222,11 @@ public:
 	// this allows it to be used to relink clips on load
 	bool isInGroupWith(Clip* clip) { return isInGroup() && clip->output == output && clip->section == section; }
 	ClipGroupType getGroupType() { return groupType; };
-
-	void insertAfter(Clip* newNextNode, ClipGroupType newGroupType) {
-		if (newNextNode == this) {
-			return;
-		}
-		// if we're not currently in a group then this is the new group head
-		if (groupType == ClipGroupType::NONE) {
-			head = this;
-			groupType = newGroupType;
-		}
-		// set the new clips grouptype and head to match the current clip
-		newNextNode->groupType = newGroupType;
-		newNextNode->head = head;
-
-		// Just to avoid making a loop
-		if (next != newNextNode) {
-			// make the new node point to the current node's next node
-			newNextNode->next = next;
-		}
-		else {
-			newNextNode->next = nullptr;
-		}
-
-		// make the new node link back to this one
-		newNextNode->prev = this;
-		// make the current node link to the new one
-		next = newNextNode;
-
-		// currently not possible but I want to allow more types in the future
-		// iterate through the group and set them all to the new newGroupType
-		if (newGroupType != groupType) {
-			Clip* nextClip = getHeadOfGroup();
-			while (nextClip) {
-				nextClip->groupType = newGroupType;
-				nextClip = nextClip->getNextClipOrNull();
-			}
-		}
-		head->groupSize++;
-	}
+	void insertAfter(Clip* newNextNode, ClipGroupType newGroupType);
+	Clip* getClipByIndex(uint8_t index);
 	uint8_t getGroupSize() { return groupSize; }
 	uint8_t mutedInGroup() { return muted; }
+	void toggleMute() { muted = !muted; }
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
@@ -272,40 +238,7 @@ protected:
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
 
 	ClipGroupType groupType{ClipGroupType::NONE};
-	void removeFromGroup() {
-		if (head->groupSize != 0) {
-			head->groupSize--;
-		}
-		// If this node was the head then we need to reset it everywhere
-		if (head == this && next) {
-			Clip* newFirst = next;
-			for (Clip* current = newFirst; current; current = current->next) {
-				current->head = newFirst;
-			}
-			newFirst->groupSize = groupSize;
-		}
-		// make the previous node point to this nodes next node
-		if (prev)
-			prev->next = next;
-		// make the next node point to this nodes previous node
-		if (next)
-			next->prev = prev;
-		// clear this nodes group info
-		next = nullptr;
-		prev = nullptr;
-		head = this;
-		groupType = ClipGroupType::NONE;
-	};
-
-	Clip* findActiveClipOrNull() {
-		Clip* next = getHeadOfGroup();
-		while (next) {
-			if (next->activeIfNoSolo)
-				return next;
-			next = getNextClipOrNull();
-		}
-		return nullptr;
-	}
+	void removeFromGroup();
 
 private:
 	// for overdubs and clip groups

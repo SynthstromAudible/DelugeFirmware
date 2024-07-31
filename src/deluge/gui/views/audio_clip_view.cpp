@@ -512,6 +512,28 @@ needRendering:
 		}
 	}
 
+	// mute/launch pad
+	else if (x == kDisplayWidth) {
+		if (on) {
+			auto currentClip = getCurrentClip();
+			auto newClip = currentClip->getClipByIndex(y);
+			if (newClip) {
+				newClip->toggleMute();
+				uiNeedsRendering(this, 0);
+			}
+		}
+	}
+	// audition pad
+	else {
+		if (on) {
+			auto currentClip = getCurrentClip();
+			auto newClip = currentClip->getClipByIndex(y);
+			if (newClip) {
+				currentSong->setCurrentClip(newClip);
+				uiNeedsRendering(this);
+			}
+		}
+	}
 	return ActionResult::DEALT_WITH;
 }
 void AudioClipView::changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength,

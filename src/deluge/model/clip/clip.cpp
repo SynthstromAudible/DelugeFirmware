@@ -1208,3 +1208,75 @@ void Clip::armGroup(ArmState newArmState) {
 		nextClip->armState = newArmState;
 	}
 }
+void Clip::insertAfter(Clip* newNextNode, ClipGroupType newGroupType) {
+	if (newNextNode == this) {
+		return;
+	}
+	// if we're not currently in a group then this is the new group head
+	if (groupType == ClipGroupType::NONE) {
+		head = this;
+		groupType = newGroupType;
+	}
+	// set the new clips grouptype and head to match the current clip
+	newNextNode->groupType = newGroupType;
+	newNextNode->head = head;
+
+	// Just to avoid making a loop
+	if (next != newNextNode) {
+		// make the new node point to the current node's next node
+		newNextNode->next = next;
+	}
+	else {
+		newNextNode->next = nullptr;
+	}
+
+	// make the new node link back to this one
+	newNextNode->prev = this;
+	// make the current node link to the new one
+	next = newNextNode;
+
+	// currently not possible but I want to allow more types in the future
+	// iterate through the group and set them all to the new newGroupType
+	if (newGroupType != groupType) {
+		Clip* nextClip = getHeadOfGroup();
+		while (nextClip) {
+			nextClip->groupType = newGroupType;
+			nextClip = nextClip->getNextClipOrNull();
+		}
+	}
+	head->groupSize++;
+}
+void Clip::removeFromGroup() {
+	if (head->groupSize != 0) {
+		head->groupSize--;
+	}
+	// If this node was the head then we need to reset it everywhere
+	if (head == this && next) {
+		Clip* newFirst = next;
+		for (Clip* current = newFirst; current; current = current->next) {
+			current->head = newFirst;
+		}
+		newFirst->groupSize = groupSize;
+	}
+	// make the previous node point to this nodes next node
+	if (prev)
+		prev->next = next;
+	// make the next node point to this nodes previous node
+	if (next)
+		next->prev = prev;
+	// clear this nodes group info
+	next = nullptr;
+	prev = nullptr;
+	head = this;
+	groupType = ClipGroupType::NONE;
+}
+Clip* Clip::getClipByIndex(uint8_t index) {
+	if (index > getHeadOfGroup()->groupSize) {
+		return nullptr;
+	}
+	Clip* toReturn = getHeadOfGroup();
+	for (int i = 0; toReturn && i < index; i++) {
+		toReturn = toReturn->getNextClipOrNull();
+	}
+	return toReturn;
+};
