@@ -43,7 +43,7 @@ public:
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();
 	bool setScale(int32_t newScale);
-	void displayScaleName(int32_t scale);
+	void displayScaleName(uint8_t scale);
 	void displayCurrentScaleName();
 	void selectEncoderAction(int32_t offset);
 	static void drawMIDIControlNumber(int32_t controlNumber, bool automationExists);

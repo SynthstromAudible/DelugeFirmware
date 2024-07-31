@@ -112,11 +112,10 @@ public:
 	                                                                                 SoundDrum* drum, Kit* kit);
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
 	void displayCurrentRootNoteAndScaleName();
-	const char* getScaleName(int32_t scale);
 	int32_t cycleThroughScales();
-	// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if no preset matches current notes
-	int8_t getCurrentPresetScale();
-	int32_t setPresetScale(int32_t newScale);
+	// Returns NUM_PRESET_SCALES if no preset matches current notes
+	uint8_t getCurrentPresetScale();
+	uint8_t setPresetScale(uint8_t newScale);
 	bool setScale(NoteSet newScale);
 	void learnScaleFromCurrentNotes();
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
@@ -407,6 +406,7 @@ public:
 
 private:
 	ScaleMapper scaleMapper;
+	NoteSet userScale;
 	bool fillModeActive;
 	Clip* currentClip = nullptr;
 	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something

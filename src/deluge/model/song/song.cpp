@@ -581,6 +581,10 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	    getCurrentPresetScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
 	if (!previousScaleFits) {
 		key.modeNotes = notesWithinOctavePresent.toImpliedScale();
+		// If this is not a preset, save as the current user scale.
+		if (key.modeNotes.scaleId() == NUM_PRESET_SCALES) {
+			userScale = key.modeNotes;
+		}
 	}
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed
@@ -2714,44 +2718,36 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDe
 	}
 }
 
-const char* Song::getScaleName(int32_t scale) {
-	if (scale >= NUM_PRESET_SCALES) {
-		// Other scale
-		return deluge::l10n::get(deluge::l10n::String::STRING_FOR_OTHER_SCALE);
-	}
-	else {
-		// Preset scale
-		return presetScaleNames[scale];
-	}
-}
-
 int32_t Song::cycleThroughScales() {
-	int8_t startScale = getCurrentPresetScale();
-	int8_t currentScale = startScale;
-	int8_t newScale = currentScale;
+	uint8_t startScale = getCurrentPresetScale();
+	uint8_t currentScale = startScale;
+	uint8_t newScale = currentScale;
 	// Try next scale until one works, or we've tried all.
+	// NUM_PRESET_SCALES stands for the user scale.
 	do {
-		newScale = mod(newScale + 1, NUM_PRESET_SCALES);
+		newScale = mod(newScale + 1, NUM_PRESET_SCALES + 1);
 		currentScale = setPresetScale(newScale);
 	} while (newScale != currentScale && newScale != startScale);
 	return newScale;
 }
 
-/// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if there are more than 7 notes and no preset is possible.
-int32_t Song::setPresetScale(int32_t newScale) {
+/// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES we can't use the newScale
+uint8_t Song::setPresetScale(uint8_t newScale) {
 	// Make sure newScale is a legal one
-	if (newScale < 0 || NUM_PRESET_SCALES <= newScale) {
-		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+	if (0 <= newScale && newScale < NUM_PRESET_SCALES && setScale(presetScaleNotes[newScale])) {
+		return newScale;
 	}
-	if (setScale(presetScaleNotes[newScale])) {
+	else if (newScale == NUM_PRESET_SCALES && !userScale.isEmpty() && setScale(userScale)) {
 		return newScale;
 	}
 	else {
-		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+		return CANT_CHANGE_SCALE;
 	}
 }
 
 bool Song::setScale(NoteSet newScaleNotes) {
+	newScaleNotes.add(0); // ensure root
+
 	// Always count the root note as present, to avoid changing the root note when cycling scales.
 	//
 	// Note: it is important we always use the actual notes, instead of eg. picking all scale notes
@@ -2772,11 +2768,16 @@ bool Song::setScale(NoteSet newScaleNotes) {
 
 	key.modeNotes = newScaleNotes;
 
+	// Save possible user scale
+	if (newScaleNotes.scaleId() == NUM_PRESET_SCALES) {
+		userScale = newScaleNotes;
+	}
+
 	return true;
 }
 
-int8_t Song::getCurrentPresetScale() {
-	return key.modeNotes.presetScaleId();
+uint8_t Song::getCurrentPresetScale() {
+	return key.modeNotes.scaleId();
 }
 
 // What does this do exactly, again?
