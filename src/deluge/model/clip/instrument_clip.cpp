@@ -4687,6 +4687,30 @@ doHomogenize:
 	}
 }
 
+bool InstrumentClip::stepRecordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity,
+                                      int32_t xZoom) {
+
+	NoteRow* noteRow = modelStack->getNoteRow();
+
+	int32_t effectiveLength = modelStack->getLoopLength();
+	if (stepRecordingPos >= effectiveLength) {
+		display->displayPopup("oopsie");
+	}
+
+	int32_t probability = noteRow->getDefaultProbability(modelStack);
+	// Don't supply Action, cos sin tan
+	return noteRow->attemptNoteAdd(stepRecordingPos, xZoom, velocity, probability, modelStack, nullptr);
+}
+
+void InstrumentClip::stepRecordAdvance( int32_t xZoom) {
+	stepRecordingPos += xZoom;
+	// TODO: expand instead?
+	if (stepRecordingPos >= getLoopLength()) {
+		stepRecordingPos = 0;
+	}
+}
+
+
 void InstrumentClip::recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t velocity) {
 
 	if (!allowNoteTails(modelStack)) {
@@ -4765,6 +4789,13 @@ void InstrumentClip::incrementPos(ModelStackWithTimelineCounter* modelStack, int
 				thisNoteRow->lastProcessedPosIfIndependent += movement;
 			}
 		}
+	}
+}
+
+void InstrumentClip::toggleStepRecording() {
+	isStepRecording = !isStepRecording;
+	if (isStepRecording) {
+		stepRecordingPos = 0;
 	}
 }
 

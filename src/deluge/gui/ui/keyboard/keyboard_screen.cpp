@@ -269,6 +269,7 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 		else {
 			NoteState& oldNote = lastNotesState.notes[currentToLastIdx[idx]];
+			newNoteState.stepRec = oldNote.stepRec;
 			if (oldNote.activationCount >= newNoteState.activationCount) {
 				continue;
 			}
@@ -342,6 +343,19 @@ void KeyboardScreen::updateActiveNotes() {
 					}
 				}
 			}
+		} else if (getCurrentInstrumentClip()->isStepRecording) {
+				Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
+
+				bool scaleAltered = false;
+
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+					modelStack->addTimelineCounter(getCurrentClip());
+				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentInstrumentClip()->getOrCreateNoteRowForYNote(
+				    newNote, modelStackWithTimelineCounter, action, &scaleAltered);
+				bool added = getCurrentInstrumentClip()->stepRecordNoteOn(modelStackWithNoteRow,
+							currentNotesState.notes[idx].velocity, currentSong->xZoom[NAVIGATION_CLIP]);
+				newNoteState.stepRec = added;
+
 		}
 	}
 
@@ -357,6 +371,7 @@ void KeyboardScreen::updateActiveNotes() {
 
 	if (lastNotesState.count != 0 && currentNotesState.count == 0) {
 		exitUIMode(UI_MODE_AUDITIONING);
+		getCurrentInstrumentClip()->stepRecordAdvance(currentSong->xZoom[NAVIGATION_CLIP]);
 
 		if (display->haveOLED()) {
 			deluge::hid::display::OLED::removePopup();
@@ -365,6 +380,27 @@ void KeyboardScreen::updateActiveNotes() {
 			redrawNumericDisplay();
 		}
 	}
+}
+
+void KeyboardScreen::stepRecordAdvance() {
+	// if notes are held, try to prolong them
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	int32_t nextEndPos = getCurrentInstrumentClip()->stepRecordingPos+2*currentSong->xZoom[NAVIGATION_CLIP];
+	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
+		auto& noteState = currentNotesState.notes[idx];
+		if (noteState.stepRec) {
+				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+					modelStack->addTimelineCounter(getCurrentClip());
+				ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentInstrumentClip()->getNoteRowForYNote(
+				    noteState.note, modelStackWithTimelineCounter);
+				NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
+			noteRow->stepRecordExtend(nextEndPos, modelStackWithNoteRow);
+		}
+	}
+
+	// finally, (you can) advance
+	getCurrentInstrumentClip()->stepRecordAdvance(currentSong->xZoom[NAVIGATION_CLIP]);
 }
 
 void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrument, bool clipIsActiveOnInstrument,
@@ -558,8 +594,14 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
 	}
-
-	else {
+    else if (b == SELECT_ENC && on && Buttons::isButtonPressed(RECORD)) {
+		Buttons::recordButtonPressUsedUp = true;
+		getCurrentInstrumentClip()->toggleStepRecording();
+		requestRendering();
+	} else if (b == AFFECT_ENTIRE && on && getCurrentInstrumentClip()->isStepRecording) {
+		stepRecordAdvance();
+		requestRendering();
+	} else {
 		requestRendering();
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
 		if (result != ActionResult::NOT_DEALT_WITH) {
@@ -761,6 +803,10 @@ bool KeyboardScreen::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidt
 	memset(occupancyMask, 64, sizeof(uint8_t) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
 
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->renderPads(image);
+	if (getCurrentInstrumentClip()->isStepRecording) {
+		uint32_t steppy = getCurrentInstrumentClip()->stepRecordingPos / currentSong->xZoom[NAVIGATION_CLIP];
+		image[0][steppy%16] = colours::red;
+	}
 
 	PadLEDs::renderingLock = false;
 

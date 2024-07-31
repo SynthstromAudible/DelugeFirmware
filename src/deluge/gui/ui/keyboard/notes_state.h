@@ -48,6 +48,7 @@ struct NoteState {
 	int16_t mpeValues[3] = {0};
 	/// Generated notes will only create sound and not be used for interaction (e.g. setting root note)
 	bool generatedNote = false;
+	bool stepRec = false;
 };
 
 // Always needs to be 0 currently for the math to math

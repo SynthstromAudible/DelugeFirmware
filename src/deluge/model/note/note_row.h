@@ -178,6 +178,7 @@ public:
 	void trimToLength(uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action);
 	void trimNoteDataToNewClipLength(uint32_t newLength, InstrumentClip* clip, Action* action, int32_t noteRowId);
 	void recordNoteOff(uint32_t pos, ModelStackWithNoteRow* modelStack, Action* action, int32_t velocity);
+	void stepRecordExtend(uint32_t noteOffPos, ModelStackWithNoteRow* modelStack);
 	int8_t getColourOffset(InstrumentClip* clip);
 	void rememberDrumName();
 	void shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStack, bool shiftAutomation,
