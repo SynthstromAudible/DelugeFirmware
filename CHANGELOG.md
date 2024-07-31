@@ -22,6 +22,7 @@
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 - Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
 - Fixed a bug where instruments and kits wouldn't respect record arming state. They no longer record when not armed
+- Changed live looping so that all loops remain on one track. This brings compatibility with grid view
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.

@@ -1049,6 +1049,12 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument
   clips.
 
+#### 4.8.2 - Layers
+- ([#2333]) Audio looping now works in layers on one track rather than creating more tracks. For looping in rows mode the 
+UI is largely unchanged, however all layers in one track now arm/stop together. From grid mode this now creates a much 
+cleaner looping workflow as the loops can be properly launched. Entering an audio clip will show any extra layers on the sidebar, 
+the mute pad will mute/unmute the specific layer and the audition pad allows selecting a layer to edit it.
+
 ### 4.9 Third Party Device Integration
 
 This is largely on the development side and created the start of a system of modules and hook points for enabling
@@ -1367,6 +1373,8 @@ different firmware
 [#2174]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2166
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
+
+[#2333]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2333
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
