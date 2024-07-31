@@ -214,7 +214,8 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 	recorder = NULL;
 }
-// overdubtype reflects layer vs loop,
+// overdubtype reflects layer vs loop. At the moment it doesn't matter, in the future I'd like layers to remain entirely
+// within the clip and not clone at all. That requires clip specific resampling though so it's a little bit off
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
 
 	// Allocate memory for audio clip

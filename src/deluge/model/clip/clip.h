@@ -221,14 +221,17 @@ public:
 	bool isInGroupWith(Clip* clip) { return isInGroup() && clip->output == output && clip->section == section; }
 	ClipGroupType getGroupType() { return groupType; };
 
-	void insertAfter(Clip* newNextNode, ClipGroupType type) {
+	void insertAfter(Clip* newNextNode, ClipGroupType newGroupType) {
+		if (newNextNode == this) {
+			return;
+		}
 		// if we're not currently in a group then this is the new group head
 		if (groupType == ClipGroupType::NONE) {
 			head = this;
-			groupType = type;
+			groupType = newGroupType;
 		}
 		// set the new clips grouptype and head to match the current clip
-		newNextNode->groupType = type;
+		newNextNode->groupType = newGroupType;
 		newNextNode->head = head;
 
 		// Just to avoid making a loop
@@ -236,22 +239,28 @@ public:
 			// make the new node point to the current node's next node
 			newNextNode->next = next;
 		}
+		else {
+			newNextNode->next = nullptr;
+		}
 
 		// make the new node link back to this one
 		newNextNode->prev = this;
 		// make the current node link to the new one
 		next = newNextNode;
 
-		// currently not possible but I want to allow making them exclusive in the future
-		// iterate through the group and set them all to the new type
-		if (type != groupType) {
+		// currently not possible but I want to allow more types in the future
+		// iterate through the group and set them all to the new newGroupType
+		if (newGroupType != groupType) {
 			Clip* nextClip = getHeadOfGroup();
 			while (nextClip) {
-				nextClip->groupType = type;
+				nextClip->groupType = newGroupType;
 				nextClip = nextClip->getNextClipOrNull();
 			}
 		}
+		head->groupSize++;
 	}
+	uint8_t getGroupSize() { return groupSize; }
+	uint8_t mutedInGroup() { return muted; }
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
@@ -262,16 +271,18 @@ protected:
 	                          Clip* favourClipForCloningParamManager = NULL);
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
 
-	ClipGroupType groupType;
+	ClipGroupType groupType{ClipGroupType::NONE};
 	void removeFromGroup() {
+		if (head->groupSize != 0) {
+			head->groupSize--;
+		}
 		// If this node was the head then we need to reset it everywhere
-		if (head == this) {
+		if (head == this && next) {
 			Clip* newFirst = next;
-			Clip* current = newFirst;
-			while (current) {
+			for (Clip* current = newFirst; current; current = current->next) {
 				current->head = newFirst;
-				current = current->next;
 			}
+			newFirst->groupSize = groupSize;
 		}
 		// make the previous node point to this nodes next node
 		if (prev)
@@ -303,4 +314,6 @@ private:
 	Clip* prev{nullptr};
 	// to find the head of the list quickly - if no group it's just the clip itself
 	Clip* head{this};
+	uint8_t groupSize{0}; // not counting this clip
+	bool muted{false};    // whether it's muted within its group
 };

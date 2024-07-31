@@ -2019,6 +2019,17 @@ loadOutput:
 			if (error != Error::NONE) {
 				return error;
 			}
+			// find and link to its group if needed
+			if (thisClip->isInGroup()) {
+				// look backwards for a previous clip to link on to
+				for (long lookBackIndex = c - 1; lookBackIndex >= 0; lookBackIndex--) {
+					auto prevClip = clipArray->getClipAtIndex(lookBackIndex);
+					if (thisClip->isInGroupWith(prevClip)) {
+						prevClip->insertAfter(thisClip, thisClip->getGroupType());
+						break;
+					}
+				}
+			}
 
 			// Correct different non-synced rates of old song files
 			// In a perfect world, we'd do this for Kits, MIDI and CV too
@@ -2227,17 +2238,6 @@ readClip:
 				newClip->~Clip();
 				delugeDealloc(memory);
 				return error;
-			}
-			// find and link to its group if needed
-			if (newClip->isInGroup()) {
-				auto c = clipArray->getNumElements();
-				for (c; c >= 0; c--) {
-					auto prevClip = clipArray->getClipAtIndex(c);
-					if (newClip->isInGroupWith(prevClip)) {
-						prevClip->insertAfter(newClip, newClip->getGroupType());
-						break;
-					}
-				}
 			}
 
 			clipArray->insertClipAtIndex(newClip, clipArray->getNumElements()); // We made sure enough space, above
