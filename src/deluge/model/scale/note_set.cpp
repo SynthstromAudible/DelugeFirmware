@@ -66,6 +66,115 @@ uint8_t NoteSet::presetScaleId() const {
 	return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
 }
 
+NoteSet NoteSet::operator|(const NoteSet& other) {
+	NoteSet newSet = other;
+	newSet.bits |= bits;
+	return newSet;
+}
+
+int8_t NoteSet::majorness() const {
+	int8_t majorness = 0;
+
+	// The 3rd is the main indicator of majorness, to my ear
+	if (has(4)) {
+		majorness++;
+	}
+	if (has(3)) {
+		majorness--;
+	}
+
+	// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
+	if (majorness == 0) {
+		if (has(1)) {
+			majorness--;
+		}
+		if (has(8)) {
+			majorness--;
+		}
+		if (has(9)) {
+			majorness++;
+		}
+	}
+	return majorness;
+}
+
+void NoteSet::addMajorDependentModeNotes(uint8_t i, bool preferHigher, const NoteSet notesWithinOctavePresent) {
+	// If lower one present...
+	if (notesWithinOctavePresent.has(i)) {
+		// If higher one present as well...
+		if (notesWithinOctavePresent.has(i + 1)) {
+			add(i);
+			add(i + 1);
+		}
+		// Or if just the lower one
+		else {
+			add(i);
+		}
+	}
+	// Or, if lower one absent...
+	else {
+		// We probably want the higher one
+		if (notesWithinOctavePresent.has(i + 1) || preferHigher) {
+			add(i + 1);
+			// Or if neither present and we prefer the lower one, do that
+		}
+		else {
+			add(i);
+		}
+	}
+}
+
+NoteSet NoteSet::toImpliedScale() const {
+	bool moreMajor = (majorness() >= 0);
+
+	NoteSet scale;
+	scale.add(0);
+
+	// 2nd
+	scale.addMajorDependentModeNotes(1, true, *this);
+
+	// 3rd
+	scale.addMajorDependentModeNotes(3, moreMajor, *this);
+
+	// 4th, 5th
+	if (has(5)) {
+		scale.add(5);
+		if (has(6)) {
+			scale.add(6);
+			if (has(7)) {
+				scale.add(7);
+			}
+		}
+		else {
+			scale.add(7);
+		}
+	}
+	else {
+		if (has(6)) {
+			if (has(7) || moreMajor) {
+				scale.add(6);
+				scale.add(7);
+			}
+			else {
+				scale.add(5);
+				scale.add(6);
+			}
+		}
+		else {
+			scale.add(5);
+			scale.add(7);
+		}
+	}
+
+	// 6th
+	scale.addMajorDependentModeNotes(8, moreMajor, *this);
+
+	// 7th
+	scale.addMajorDependentModeNotes(10, moreMajor, *this);
+
+	return scale;
+}
+
 #ifdef IN_UNIT_TESTS
 const TestString StringFrom(const NoteSet& set) {
 	// We print out as chromatic notes across C, even though NoteSet does _not_ specify the root.
