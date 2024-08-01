@@ -24,6 +24,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/sample/sample.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
@@ -386,7 +387,7 @@ aborted:
 			}
 			else {
 				error = audioFileManager.getUnusedAudioRecordingFilePath(&filePath, &tempFilePathForRecording, folderID,
-				                                                         &audioFileNumber);
+				                                                         &audioFileNumber, mode, &currentSong->name);
 			}
 			if (status == RecorderStatus::ABORTED) {
 				goto aborted; // In case aborted during

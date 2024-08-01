@@ -101,7 +101,8 @@ public:
 	Error setupAlternateAudioFileDir(String* newPath, char const* rootDir, String* songFilenameWithoutExtension);
 	bool loadingQueueHasAnyLowestPriorityElements();
 	Error getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
-	                                      AudioRecordingFolder folder, uint32_t* getNumber);
+	                                      AudioRecordingFolder folder, uint32_t* getNumber,
+	                                      AudioInputChannel recordingFrom, String* songName);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int32_t i);
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile);
