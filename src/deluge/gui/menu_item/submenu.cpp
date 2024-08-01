@@ -95,7 +95,7 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 		image.drawString(menuItem->getName(), kTextSpacingX, yPixel, kTextSpacingX, kTextSpacingY, 0, endX);
 
 		// draw the menu item type after the menu item string
-		menuItem->renderSubmenuItemTypeForOled(endX + kTextSpacingX, yPixel);
+		menuItem->renderSubmenuItemTypeForOled(yPixel);
 
 		// if you've selected a menu item, invert the area to show that it is selected
 		// and setup scrolling in case that menu item is too long to display fully

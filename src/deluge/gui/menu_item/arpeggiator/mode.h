@@ -62,5 +62,11 @@ public:
 		    l10n::getView(STRING_FOR_ARP), //<
 		};
 	}
+
+	// flag this selection menu as a toggle menu so we can use a checkbox to toggle value
+	bool isToggle() override { return true; }
+
+	// don't enter menu on select button press
+	bool shouldEnterSubmenu() override { return false; }
 };
 } // namespace deluge::gui::menu_item::arpeggiator
