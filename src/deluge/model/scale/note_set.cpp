@@ -175,6 +175,12 @@ NoteSet NoteSet::toImpliedScale() const {
 	return scale;
 }
 
+int NoteSet::scaleSize() const {
+	NoteSet tmp = *this;
+	tmp.add(0);
+	return tmp.count();
+}
+
 #ifdef IN_UNIT_TESTS
 const TestString StringFrom(const NoteSet& set) {
 	// We print out as chromatic notes across C, even though NoteSet does _not_ specify the root.
