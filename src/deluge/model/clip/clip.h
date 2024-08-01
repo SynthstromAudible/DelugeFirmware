@@ -245,7 +245,9 @@ public:
 	bool isInGroup() { return groupType != ClipGroupType::NONE; }
 	// deliberately doesn't check the list - there can only be one per section per output to not break grid view
 	// this allows it to be used to relink clips on load
-	bool isInGroupWith(Clip* clip) { return isInGroup() && clip->output == output && clip->section == section; }
+	bool isInGroupWith(Clip* clip) {
+		return clip == this || isInGroup() && clip->output == output && clip->section == section;
+	}
 	ClipGroupType getGroupType() { return groupType; };
 	void insertAfter(Clip* newNextNode, ClipGroupType newGroupType);
 	Clip* getClipByIndex(uint8_t index);
