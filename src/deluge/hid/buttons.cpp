@@ -238,7 +238,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	else if (b == TEMPO_ENC) {
 		if (on) {
 			if (isShiftButtonPressed()) {
-				playbackHandler.commandDisplaySwingAmount();
+				playbackHandler.commandClearTempoAutomation();
 			}
 			else if (isButtonPressed(TAP_TEMPO)) {
 				playbackHandler.commandDisplaySwingInterval();

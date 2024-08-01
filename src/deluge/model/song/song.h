@@ -397,6 +397,10 @@ public:
 	uint8_t chordMemNoteCount[kDisplayHeight] = {0};
 	uint8_t chordMem[kDisplayHeight][MAX_NOTES_CHORD_MEM] = {0};
 
+	void clearTempoAutomation();
+
+	void updateBPMFromAutomation();
+
 private:
 	uint8_t indexLastUnusedScaleDegreeFrom7To6 = 0;
 	uint8_t indexLastUnusedScaleDegreeFrom6To5 = 0;
@@ -410,6 +414,9 @@ private:
 	void deleteAllBackedUpParamManagersWithClips();
 	void deleteAllOutputs(Output** prevPointer);
 	void setupClipIndexesForSaving();
+	void setBPMInner(float tempoBPM, bool shouldLogAction);
+	void clearTempoAutomation(float tempoBPM);
+	int32_t intBPM;
 };
 
 extern Song* currentSong;
