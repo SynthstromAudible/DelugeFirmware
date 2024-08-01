@@ -27,25 +27,25 @@ extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMen
 namespace deluge::gui::menu_item::runtime_feature {
 
 // Generic menu item instances
-Setting menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
-Setting menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
-Setting menuQuantize(RuntimeFeatureSettingType::Quantize);
-Setting menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
-Setting menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
-Setting menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
-Setting menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
-Setting menuQuantizedStutterRate(RuntimeFeatureSettingType::QuantizedStutterRate);
-Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
+SettingToggle menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
+SettingToggle menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
+SettingToggle menuQuantize(RuntimeFeatureSettingType::Quantize);
+SettingToggle menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
+SettingToggle menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
+SettingToggle menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
+SettingToggle menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
+SettingToggle menuQuantizedStutterRate(RuntimeFeatureSettingType::QuantizedStutterRate);
+SettingToggle menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
-Setting menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
-Setting menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
+SettingToggle menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
+SettingToggle menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 ShiftIsSticky menuShiftIsSticky{};
-Setting menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
-Setting menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
-Setting menuEnableDxShortcuts(RuntimeFeatureSettingType::EnableDxShortcuts);
+SettingToggle menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
+SettingToggle menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
+SettingToggle menuEnableDxShortcuts(RuntimeFeatureSettingType::EnableDxShortcuts);
 EmulatedDisplay menuEmulatedDisplay{};
-Setting menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
-Setting menuEnableLaunchEventPlayhead(RuntimeFeatureSettingType::EnableLaunchEventPlayhead);
+SettingToggle menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
+SettingToggle menuEnableLaunchEventPlayhead(RuntimeFeatureSettingType::EnableLaunchEventPlayhead);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,

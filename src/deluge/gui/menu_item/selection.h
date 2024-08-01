@@ -32,5 +32,43 @@ public:
 
 	void drawPixelsForOled() override;
 	size_t size() override { return this->getOptions().size(); }
+
+	virtual bool isToggle() { return false; }
+
+	void displayToggleValue();
+
+	// renders toggle item type in submenus after the item name
+	void renderSubmenuItemTypeForOled(int32_t yPixel) override;
+
+	// toggles boolean ON / OFF
+	void toggleValue() {
+		readCurrentValue();
+		setValue(!getValue());
+		writeCurrentValue();
+	};
+
+	// handles changing bool setting without entering menu and updating the display
+	MenuItem* selectButtonPress() override {
+		toggleValue();
+		displayToggleValue();
+		return (MenuItem*)0xFFFFFFFF; // no navigation
+	}
+
+	// get's toggle status for rendering checkbox on OLED
+	bool getToggleValue() {
+		readCurrentValue();
+		return this->getValue();
+	}
+
+	// get's toggle status for rendering dot on 7SEG
+	uint8_t shouldDrawDotOnName() override {
+		if (isToggle()) {
+			readCurrentValue();
+			return this->getValue() ? 3 : 255;
+		}
+		else {
+			return 255;
+		}
+	}
 };
 } // namespace deluge::gui::menu_item

@@ -36,4 +36,15 @@ private:
 	friend class Settings;
 	uint32_t currentSettingIndex;
 };
+
+class SettingToggle : public Setting {
+public:
+	using Setting::Setting;
+
+	// flag this selection menu as a toggle menu so we can use a checkbox to toggle value
+	bool isToggle() override { return true; }
+
+	// don't enter menu on select button press
+	bool shouldEnterSubmenu() override { return false; }
+};
 } // namespace deluge::gui::menu_item::runtime_feature
