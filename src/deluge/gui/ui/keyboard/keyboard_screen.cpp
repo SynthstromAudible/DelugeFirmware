@@ -47,6 +47,7 @@
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
+#include "gui/ui/keyboard/layout/chord_keyboard.h"
 
 deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
 
@@ -56,6 +57,7 @@ layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
 layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
 layout::KeyboardLayoutInKey keyboardLayoutInKey{};
 layout::KeyboardLayoutNorns keyboardLayoutNorns{};
+layout::KeyboardLayoutChord keyboardLayoutChord{};
 KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
 
 KeyboardScreen::KeyboardScreen() {
@@ -63,6 +65,7 @@ KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeDrums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeInKey] = (KeyboardLayout*)&keyboardLayoutInKey;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeNorns] = (KeyboardLayout*)&keyboardLayoutNorns;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChords] = (KeyboardLayout*)&keyboardLayoutChord;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	currentNotesState = {0};
