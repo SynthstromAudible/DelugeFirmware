@@ -184,6 +184,7 @@ public:
 	ArmState armState;
 	bool activeIfNoSolo;
 	bool activeIfNoSoloBeforeStemExport; // Used by stem export to restore previous state
+	bool exportStem;                     // Used by stem export to flag if this note row should be exported
 	bool wasActiveBefore;                // A temporary thing used by Song::doLaunch()
 	bool gotInstanceYet;                 // For use only while loading song
 
@@ -234,6 +235,8 @@ public:
 
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
+	// Setup the name per clip on session/song/grid view and to be selectable on the arranger
+	String clipName;
 
 	// clip group functions
 	Clip* getNextClipOrNull() { return next; }

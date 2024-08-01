@@ -1,4 +1,5 @@
 #include "model/scale/preset_scales.h"
+#include "model/scale/note_set.h"
 
 std::array<char const*, NUM_PRESET_SCALES> presetScaleNames = {
 #define DEF(id, name, notes) name,
@@ -6,7 +7,7 @@ std::array<char const*, NUM_PRESET_SCALES> presetScaleNames = {
 #undef DEF
 };
 
-const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7] = {
+const NoteSet presetScaleNotes[NUM_PRESET_SCALES] = {
 #define DEF(id, name, notes) notes,
     DEF_SCALES()
 #undef DEF

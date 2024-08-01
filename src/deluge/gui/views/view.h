@@ -104,9 +104,6 @@ public:
 	bool midiLearnFlashOn;
 	bool shouldSaveSettingsAfterMidiLearn;
 
-	int8_t highestMIDIChannelSeenWhileLearning;
-	int8_t lowestMIDIChannelSeenWhileLearning;
-
 	LearnedMIDI* learnedThing;
 	Instrument* instrumentPressedForMIDILearn;
 	Drum* drumPressedForMIDILearn;

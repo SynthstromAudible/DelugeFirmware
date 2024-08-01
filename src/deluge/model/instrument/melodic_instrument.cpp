@@ -364,18 +364,18 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 		}
 	}
 }
+// match external mod wheel to mono expression y, mpe cc74 to poly expression y
 void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
                                    MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                    bool* doingMidiThru) {
-	// ideally this would be configurable
-	int yCC = 1;
 	int32_t value32 = 0;
 	switch (match) {
 
 	case MIDIMatchType::NO_MATCH:
 		return;
 	case MIDIMatchType::MPE_MEMBER:
-		if (ccNumber == 74) { // All other CCs are not supposed to be used for Member Channels, for anything.
+		if (ccNumber
+		    == CC_EXTERNAL_MPE_Y) { // All other CCs are not supposed to be used for Member Channels, for anything.
 			int32_t value32 = (value - 64) << 25;
 			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, Y_SLIDE_TIMBRE, channel,
 			                                          MIDICharacteristic::CHANNEL);
@@ -394,7 +394,7 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 				*doingMidiThru = false;
 			}
 		}
-		if (ccNumber == yCC) {
+		if (ccNumber == CC_EXTERNAL_MOD_WHEEL) {
 			// this is the same range as mpe Y axis but unipolar
 			value32 = (value) << 24;
 			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);

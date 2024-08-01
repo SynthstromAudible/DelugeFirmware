@@ -112,12 +112,13 @@ public:
 
 	ClusterPriorityQueue loadingQueue;
 
-	uint32_t clusterSize;
-	uint32_t clusterSizeAtBoot;
+	uint32_t clusterSize{32768};
+	uint32_t clusterSizeAtBoot{0};
 	int32_t clusterSizeMagnitude;
 
 	uint32_t clusterObjectSize;
 
+	bool cardReadOnce{false};
 	bool cardEjected;
 	bool cardDisabled;
 
@@ -132,6 +133,7 @@ public:
 
 	int32_t highestUsedAudioRecordingNumber[kNumAudioRecordingFolders];
 	bool highestUsedAudioRecordingNumberNeedsReChecking[kNumAudioRecordingFolders];
+	void firstCardRead();
 
 private:
 	void setClusterSize(uint32_t newSize);

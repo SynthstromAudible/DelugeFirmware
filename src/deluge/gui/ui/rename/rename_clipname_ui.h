@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2019-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,23 +14,34 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+
 #pragma once
-#include "gui/context_menu/audio_input_selector.h"
-#include "gui/menu_item/menu_item.h"
-#include "model/song/song.h"
 
-namespace deluge::gui::menu_item::audio_clip {
-class AudioSourceSelector final : public MenuItem {
+#include "gui/ui/rename/rename_ui.h"
+#include "hid/button.h"
+
+class Output;
+class Clip;
+
+class RenameClipNameUI final : public RenameUI {
 public:
-	using MenuItem::MenuItem;
+	RenameClipNameUI();
+	bool opened();
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 
-	MenuItem* selectButtonPress() override {
-		gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)getCurrentOutput();
-		gui::context_menu::audioInputSelector.setupAndCheckAvailability();
-		openUI(&gui::context_menu::audioInputSelector);
-		return (MenuItem*)0xFFFFFFFF; // no navigation
-	}
+	Output* output;
+	Clip* clip;
 
-	bool shouldEnterSubmenu() override { return false; }
+	// ui
+	UIType getUIType() { return UIType::RENAME_CLIPNAME; }
+	const char* getName() { return "rename_clipname_ui"; }
+	bool exitUI() override;
+
+protected:
+	void enterKeyPress();
 };
-} // namespace deluge::gui::menu_item::audio_clip
+
+extern RenameClipNameUI renameClipNameUI;

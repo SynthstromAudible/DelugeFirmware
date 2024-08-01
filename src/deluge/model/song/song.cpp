@@ -144,7 +144,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	fillModeActive = false;
 
-	key.modeNotes.fromScaleNotes(presetScaleNotes[MAJOR_SCALE]);
+	key.modeNotes = presetScaleNotes[MAJOR_SCALE];
 
 	swingAmount = 0;
 
@@ -271,7 +271,7 @@ void Song::setupDefault() {
 		}
 	}
 
-	key.modeNotes.fromScaleNotes(presetScaleNotes[whichScale]);
+	key.modeNotes = presetScaleNotes[whichScale];
 }
 
 void Song::deleteAllOutputs(Output** prevPointer) {
@@ -725,20 +725,6 @@ uint8_t Song::getYNoteWithinOctaveFromYNote(int32_t yNote) {
 	return yNoteWithinOctave;
 }
 
-bool Song::modeContainsYNote(int32_t yNote) {
-	int32_t yNoteWithinOctave = (uint16_t)(yNote - key.rootNote + 132) % 12;
-	return modeContainsYNoteWithinOctave(yNoteWithinOctave);
-}
-
-bool Song::modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave) {
-	for (int32_t i = 0; i < key.modeNotes.count(); i++) {
-		if (key.modeNotes[i] == yNoteWithinOctave) {
-			return true;
-		}
-	}
-	return false;
-}
-
 uint8_t Song::getYNoteIndexInMode(int32_t yNote) {
 	uint8_t yNoteWithinOctave = (uint8_t)(yNote - key.rootNote + 132) % 12;
 	for (uint8_t i = 0; i < key.modeNotes.count(); i++) {
@@ -809,7 +795,7 @@ bool Song::isYNoteAllowed(int32_t yNote, bool inKeyMode) {
 	if (!inKeyMode) {
 		return true;
 	}
-	return modeContainsYNoteWithinOctave(getYNoteWithinOctaveFromYNote(yNote));
+	return key.modeNotes.has(getYNoteWithinOctaveFromYNote(yNote));
 }
 
 int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode) {
@@ -3063,36 +3049,13 @@ int32_t Song::setPresetScale(int32_t newScale) {
 
 	replaceMusicalMode(changes, true);
 
-	key.modeNotes.fromScaleNotes(presetScaleNotes[newScale]);
+	key.modeNotes = presetScaleNotes[newScale];
 
 	return newScale;
 }
 
-// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if no preset matches current notes
-int32_t Song::getCurrentPresetScale() {
-	if (key.modeNotes.count() > 7) {
-		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
-	}
-
-	int32_t numPresetScales = NUM_PRESET_SCALES;
-	for (int32_t p = 0; p < numPresetScales; p++) {
-		for (int32_t n = 1; n < 7; n++) {
-			int32_t newNote = presetScaleNotes[p][n];
-			if (newNote == 0) {
-				continue;
-			}
-			if (key.modeNotes[n] != newNote) {
-				goto notThisOne;
-			}
-		}
-
-		// If we're here, must be this one!
-		return p;
-
-notThisOne: {}
-	}
-
-	return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+int8_t Song::getCurrentPresetScale() {
+	return key.modeNotes.presetScaleId();
 }
 
 // What does this do exactly, again?
@@ -5640,6 +5603,10 @@ void Song::changeSwingInterval(int32_t newValue) {
 			playbackHandler.scheduleTriggerClockOutTick();
 		}
 	}
+}
+
+uint32_t Song::getSixteenthNoteLength() {
+	return increaseMagnitude(6, getInputTickMagnitude());
 }
 
 uint32_t Song::getQuarterNoteLength() {

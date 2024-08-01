@@ -81,6 +81,7 @@ public:
 	int32_t lastNoteCode{32767};
 	bool collapseAftertouch{false};
 	bool collapseMPE{true};
+	CCNumber outputMPEY{CC_EXTERNAL_MPE_Y};
 	float ratio; // for combining per finger and global bend
 
 	std::array<int8_t, kNumModButtons * kNumPhysicalModKnobs> modKnobCCAssignments;

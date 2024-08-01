@@ -1,5 +1,6 @@
 #include "submenu.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h" //todo: this probably shouldn't be needed
 #include "util/container/static_vector.hpp"
 
 namespace deluge::gui::menu_item {
@@ -45,31 +46,64 @@ void Submenu::drawPixelsForOled() {
 	int32_t selectedRow = soundEditor.menuCurrentScroll;
 
 	// This finds the next relevant submenu item
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> nextItemNames = {};
+	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> nextMenuItem = {};
 	int32_t idx = selectedRow;
 	for (auto it = current_item_; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible; it++) {
-		if ((*it)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			nextItemNames.push_back((*it)->getName());
+		MenuItem* menuItem = (*it);
+		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+			nextMenuItem.push_back(menuItem);
 			idx++;
 		}
 	}
 
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> prevItemNames = {};
+	// This finds the previous relevant submenu item
+	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> prevMenuItem = {};
 	idx = selectedRow - 1;
 	for (auto it = current_item_ - 1; it != this->items.begin() - 1 && idx >= 0; it--) {
-		if ((*it)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			prevItemNames.push_back((*it)->getName());
+		MenuItem* menuItem = (*it);
+		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+			prevMenuItem.push_back(menuItem);
 			idx--;
 		}
 	}
-	std::reverse(prevItemNames.begin(), prevItemNames.end());
+	std::reverse(prevMenuItem.begin(), prevMenuItem.end());
 
-	if (!prevItemNames.empty()) {
-		prevItemNames.insert(prevItemNames.end(), nextItemNames.begin(), nextItemNames.end());
-		drawItemsForOled(prevItemNames, selectedRow);
+	if (!prevMenuItem.empty()) {
+		prevMenuItem.insert(prevMenuItem.end(), nextMenuItem.begin(), nextMenuItem.end());
+		drawSubmenuItemsForOled(prevMenuItem, selectedRow);
 	}
 	else {
-		drawItemsForOled(nextItemNames, selectedRow);
+		drawSubmenuItemsForOled(nextMenuItem, selectedRow);
+	}
+}
+
+void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	baseY += OLED_MAIN_TOPMOST_PIXEL;
+
+	for (int32_t o = 0; o < OLED_HEIGHT_CHARS - 1 && o < options.size(); o++) {
+		auto* menuItem = options[o];
+		int32_t yPixel = o * kTextSpacingY + baseY;
+
+		int32_t endX = OLED_MAIN_WIDTH_PIXELS - menuItem->getSubmenuItemTypeRenderLength();
+
+		// draw menu item string
+		// if we're rendering type the menu item string will be cut off (so it doesn't overlap)
+		// it will scroll below whenever you select that menu item
+		image.drawString(menuItem->getName(), kTextSpacingX, yPixel, kTextSpacingX, kTextSpacingY, 0, endX);
+
+		// draw the menu item type after the menu item string
+		menuItem->renderSubmenuItemTypeForOled(endX + kTextSpacingX, yPixel);
+
+		// if you've selected a menu item, invert the area to show that it is selected
+		// and setup scrolling in case that menu item is too long to display fully
+		if (o == selectedOption) {
+			image.invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
+			deluge::hid::display::OLED::setupSideScroller(0, menuItem->getName(), kTextSpacingX, endX, yPixel,
+			                                              yPixel + 8, kTextSpacingX, kTextSpacingY, true);
+		}
 	}
 }
 

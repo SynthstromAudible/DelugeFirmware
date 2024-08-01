@@ -22,6 +22,7 @@
 #include <cstdint>
 
 class Output;
+class Clip;
 
 class StemExport {
 public:
@@ -30,27 +31,39 @@ public:
 	// start & stop process
 	void startStemExportProcess(StemExportType stemExportType);
 	void stopStemExportProcess();
-	void startOutputRecordingUntilLoopEnd();
+	void startOutputRecordingUntilLoopEndAndSilence();
 	void stopOutputRecordingAndPlayback();
+	bool checkForLoopEnd();
+	void checkForSilence();
 	bool processStarted;
+	bool stopOutputRecordingAtSilence;
+	StemExportType currentStemExportType;
+
+	// export config variables
+	bool allowNormalization;
 
 	// export instruments
-	void disarmAllInstrumentsForStemExport();
-	void exportInstrumentStems(StemExportType stemExportType);
-	void restoreAllInstrumentMutes();
+	int32_t disarmAllInstrumentsForStemExport();
+	int32_t exportInstrumentStems(StemExportType stemExportType);
+	void restoreAllInstrumentMutes(int32_t totalNumOutputs);
 
 	// export clips
-	void disarmAllClipsForStemExport();
-	void exportClipStems(StemExportType stemExportType);
-	void restoreAllClipMutes();
+	int32_t disarmAllClipsForStemExport();
+	int32_t exportClipStems(StemExportType stemExportType);
+	void restoreAllClipMutes(int32_t totalNumClips);
+	void getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip);
+	void getLoopEndPointInSamplesForAudioFile(int32_t loopLength);
+	bool writeLoopEndPos();
+	int32_t loopLengthToStopStemExport;
+	int32_t loopEndPointInSamplesForAudioFile;
 
 	// start exporting
-	bool startCurrentStemExport(StemExportType stemExportType, Output* output, OutputType outputType, bool& muteState,
-	                            int32_t fileNumber, bool isEmpty, bool isMuted = false);
+	bool startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState, int32_t fileNumber,
+	                            bool exportStem);
 
 	// finish exporting
 	void finishCurrentStemExport(StemExportType stemExportType, bool& muteState);
-	void finishStemExportProcess(StemExportType stemExportType);
+	void finishStemExportProcess(StemExportType stemExportType, int32_t elementsProcessed);
 	void updateScrollPosition(StemExportType stemExportType, int32_t indexNumber);
 
 	// export status

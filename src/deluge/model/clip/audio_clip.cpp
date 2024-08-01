@@ -213,6 +213,8 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	isUnfinishedAutoOverdub = false;
 
 	recorder = NULL;
+
+	clipName.set(sampleHolder.filePath.get());
 }
 // overdubtype reflects layer vs loop. At the moment it doesn't matter, in the future I'd like layers to remain entirely
 // within the clip and not clone at all. That requires clip specific resampling though so it's a little bit off
@@ -1176,6 +1178,7 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
 	Error error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
+	clipName.set(sampleHolder.filePath.get());
 	if (error != Error::NONE) {
 		display->displayError(error);
 	}
@@ -1252,6 +1255,7 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 
 			sampleHolder.filePath.clear();
 			sampleHolder.setAudioFile(NULL);
+			clipName.set("");
 		}
 
 		renderData.xScroll = -1;

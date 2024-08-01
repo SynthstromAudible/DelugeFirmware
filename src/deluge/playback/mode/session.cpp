@@ -38,6 +38,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/stem_export/stem_export.h"
 #include <string.h>
 // #include <algorithm>
 #include "gui/ui/load/load_song_ui.h"
@@ -696,6 +697,19 @@ void Session::scheduleLaunchTiming(int64_t atTickCount, int32_t numRepeatsUntil,
 			playbackHandler.scheduleSwungTick();
 		}
 	}
+}
+
+int32_t Session::getNumSixteenthNotesRemainingTilLaunch() {
+	float ticksRemaining = static_cast<float>(launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned
+	                                          - playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick());
+	float sixteenthNotesRemaining = std::round(ticksRemaining / currentSong->getSixteenthNoteLength());
+	// if there is more than 1 repeat remaining, we need to adjust the number of sixteenth notes remaining
+	// as number of ticksRemaining is only accurate for 1 repeat
+	if (numRepeatsTilLaunch > 1) {
+		sixteenthNotesRemaining += (((numRepeatsTilLaunch - 1) * currentArmedLaunchLengthForOneRepeat)
+		                            / currentSong->getSixteenthNoteLength());
+	}
+	return static_cast<int32_t>(sixteenthNotesRemaining);
 }
 
 void Session::scheduleFillEvent(Clip* clip, int64_t atTickCount) {
@@ -2272,6 +2286,15 @@ traverseClips:
 }
 
 void Session::doTickForward(int32_t posIncrement) {
+	// if we're exporting clip stems in song view (e.g. not arrangement tracks)
+	// we want to export up to length of the longest sequence in the clip (clip or note row loop length)
+	// when we reach longest loop length, we stop playback and allow recording to continue until silence
+	if (stemExport.checkForLoopEnd()) [[unlikely]] {
+		// if true, then stem export is running, we've already processed the full sequence,
+		// and we've stopped playback
+		// return as there is nothing else to process
+		return;
+	}
 
 	if (launchEventAtSwungTickCount) {
 		int32_t ticksTilLaunchEvent = launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned;

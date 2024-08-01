@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
+#include "model/scale/preset_scales.h"
 #include "model/scale/utils.h"
 
 TEST_GROUP(NoteSetTest){};
@@ -11,6 +12,15 @@ TEST(NoteSetTest, init) {
 	for (int i = 0; i < notes.size; i++) {
 		CHECK(!notes.has(i));
 	}
+}
+
+TEST(NoteSetTest, listConstructor) {
+	NoteSet notes = NoteSet({0, 1, 4, 11});
+	CHECK_EQUAL(4, notes.count());
+	CHECK_EQUAL(0, notes[0]);
+	CHECK_EQUAL(1, notes[1]);
+	CHECK_EQUAL(4, notes[2]);
+	CHECK_EQUAL(11, notes[3]);
 }
 
 TEST(NoteSetTest, add) {
@@ -70,17 +80,6 @@ TEST(NoteSetTest, addUntrusted) {
 	CHECK_EQUAL(3, a.count());
 }
 
-TEST(NoteSetTest, fromScaleNotes) {
-	NoteSet a;
-	uint8_t scale[7] = {0, 2, 4, 6, 0, 0, 0};
-	a.fromScaleNotes(scale);
-	CHECK_EQUAL(0, a[0]);
-	CHECK_EQUAL(2, a[1]);
-	CHECK_EQUAL(4, a[2]);
-	CHECK_EQUAL(6, a[3]);
-	CHECK_EQUAL(4, a.count());
-}
-
 TEST(NoteSetTest, applyChanges) {
 	NoteSet a;
 	a.add(0);
@@ -94,6 +93,18 @@ TEST(NoteSetTest, applyChanges) {
 	CHECK_EQUAL(6, a[2]);
 	CHECK_EQUAL(8, a[3]);
 	CHECK_EQUAL(4, a.count());
+}
+
+TEST(NoteSetTest, equality) {
+	NoteSet a;
+	NoteSet b;
+	CHECK(a == b);
+	a.add(0);
+	CHECK(a != b);
+}
+
+TEST(NoteSetTest, checkEqualAllowed) {
+	CHECK_EQUAL(NoteSet(), NoteSet());
 }
 
 TEST(NoteSetTest, subscript1) {
@@ -148,6 +159,12 @@ TEST(NoteSetTest, subscript3) {
 	CHECK_EQUAL(7, a[5]);
 	CHECK_EQUAL(9, a[6]);
 	CHECK_EQUAL(11, a[7]);
+}
+
+TEST(NoteSetTest, presetScaleId) {
+	CHECK_EQUAL(MAJOR_SCALE, presetScaleNotes[MAJOR_SCALE].presetScaleId());
+	CHECK_EQUAL(MINOR_SCALE, presetScaleNotes[MINOR_SCALE].presetScaleId());
+	CHECK_EQUAL(CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES, NoteSet().presetScaleId());
 }
 
 TEST_GROUP(MusicalKeyTest){};

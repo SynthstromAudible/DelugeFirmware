@@ -2290,6 +2290,7 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 
 void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
+	writer.writeAttribute("clipName", clipName.get());
 	writer.writeAttribute("inKeyMode", inScaleMode);
 	writer.writeAttribute("yScroll", yScroll);
 	writer.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
@@ -2477,6 +2478,10 @@ someError:
 		// D_PRINTLN(tagName); delayMS(30);
 
 		int32_t temp;
+
+		if (!strcmp(tagName, "clipName")) {
+			reader.readTagOrAttributeValueString(&clipName);
+		}
 
 		if (!strcmp(tagName, "inKeyMode")) {
 			inScaleMode = reader.readTagOrAttributeValueInt();
@@ -3102,7 +3107,7 @@ expressionParam:
 					else {
 						paramId = stringToInt(contents);
 						if (paramId < kNumRealCCNumbers) {
-							if (paramId == CC_NUMBER_MOD_WHEEL) {
+							if (paramId == CC_EXTERNAL_MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
 								if (smDeserializer.firmware_version < FirmwareVersion::community({1, 1, 0})) {
@@ -3207,7 +3212,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 					uint8_t yNoteWithinOctave = song->getYNoteWithinOctaveFromYNote(thisNoteRow->y);
 
 					// Make sure this yNote fits the scale/mode
-					if (!song->modeContainsYNoteWithinOctave(yNoteWithinOctave)) {
+					if (!song->key.modeNotes.has(yNoteWithinOctave)) {
 						goto noteRowFailed;
 					}
 				}

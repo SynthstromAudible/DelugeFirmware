@@ -61,6 +61,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	EnableDxShortcuts,
 	EmulatedDisplay,
 	EnableKeyboardViewSidebarMenuExit,
+	EnableLaunchEventPlayhead,
 	MaxElement // Keep as boundary
 };
 

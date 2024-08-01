@@ -142,6 +142,7 @@ std::expected<bool, Error> Filesystem::mount(BYTE opt, char const* path) {
   if (error == FR_NOT_READY && opt == 1) {
     return false;
   }
+// at this point we'd have no filesystem, but the only possible error is an invalid path and our null string is valid
   return std::unexpected(FatFS::Error(error));
 }
 

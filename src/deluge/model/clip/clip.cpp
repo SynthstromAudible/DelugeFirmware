@@ -53,6 +53,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 	armState = ArmState::OFF;
 	activeIfNoSolo = true;
 	activeIfNoSoloBeforeStemExport = activeIfNoSolo;
+	exportStem = false;
 	wasActiveBefore = false; // Want to set this default in case a Clip was created during playback
 
 	section = 0;

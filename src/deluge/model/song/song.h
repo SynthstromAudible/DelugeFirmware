@@ -103,7 +103,6 @@ public:
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key);
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
-	bool modeContainsYNote(int32_t yNote);
 	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
 	void setupPatchingForAllParamManagersForDrum(SoundDrum* drum);
 	void setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound);
@@ -115,7 +114,8 @@ public:
 	void displayCurrentRootNoteAndScaleName();
 	const char* getScaleName(int32_t scale);
 	int32_t cycleThroughScales();
-	int32_t getCurrentPresetScale();
+	// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if no preset matches current notes
+	int8_t getCurrentPresetScale();
 	int32_t setPresetScale(int32_t newScale);
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
@@ -240,7 +240,6 @@ public:
 	Error readFromFile(Deserializer& reader);
 	void writeToFile(StorageManager& bdsm);
 	void loadAllSamples(bool mayActuallyReadFiles = true);
-	bool modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave);
 	uint8_t getYNoteIndexInMode(int32_t yNote);
 	void renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
 	                 int32_t sideChainHitPending);
@@ -340,6 +339,7 @@ public:
 
 	uint32_t getQuarterNoteLength();
 	uint32_t getBarLength();
+	uint32_t getSixteenthNoteLength();
 	ModelStackWithThreeMainThings* setupModelStackWithSongAsTimelineCounter(void* memory);
 	ModelStackWithTimelineCounter* setupModelStackWithCurrentClip(void* memory);
 	ModelStackWithThreeMainThings* addToModelStack(ModelStack* modelStack);

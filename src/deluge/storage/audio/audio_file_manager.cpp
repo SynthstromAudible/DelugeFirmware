@@ -68,6 +68,15 @@ AudioFileManager::AudioFileManager() {
 	}
 }
 
+void AudioFileManager::firstCardRead() {
+	if (cardReadOnce) {
+		cardReinserted();
+	}
+	else {
+		init();
+	}
+}
+
 void AudioFileManager::init() {
 
 	clusterBeingLoaded = NULL;
@@ -78,6 +87,7 @@ void AudioFileManager::init() {
 
 		D_PRINTLN("clusterSize  %d clusterSizeMagnitude  %d", clusterSize, clusterSizeMagnitude);
 		cardEjected = false;
+		cardReadOnce = true;
 	}
 
 	else {
@@ -893,7 +903,7 @@ void AudioFileManager::testQueue() {
 
 // Caller must initialize() the Cluster after getting it from this function
 Cluster* AudioFileManager::allocateCluster(ClusterType type, bool shouldAddReasons, void* dontStealFromThing) {
-
+	cardReadOnce = true; // even if it hasn't been we're now commited to the cluster size
 	void* clusterMemory = GeneralMemoryAllocator::get().allocStealable(clusterObjectSize, dontStealFromThing);
 	if (!clusterMemory) {
 		return NULL;
@@ -1244,19 +1254,10 @@ copy7ToMe:
 void AudioFileManager::slowRoutine() {
 
 	// If we know the card's been ejected...
-	if (cardEjected) {
-		// If it's still ejected, get out
-		if (!storageManager.checkSDPresent()) {
-			return;
-
-			// Otherwise, see if we can get it
-		}
-		else {
-			Error error = storageManager.initSD();
-			if (error == Error::NONE) {
-				cardEjected = false;
-				cardReinserted();
-			}
+	if (cardEjected && !sdRoutineLock) {
+		Error error = storageManager.initSD();
+		if (error == Error::NONE) {
+			cardEjected = false;
 		}
 	}
 

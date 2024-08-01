@@ -24,7 +24,6 @@
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/launch_style.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
-#include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -1784,7 +1783,6 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		// Session playback
 		if (currentPlaybackMode == &session) {
 			if (session.launchEventAtSwungTickCount) {
-yesDoIt:
 				intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
 				deluge::hid::display::OLED::clearMainImage();
 				deluge::hid::display::OLED::drawPermanentPopupLookingText(loopsRemainingText);
@@ -1989,21 +1987,31 @@ void SessionView::graphicsRoutine() {
 		}
 	}
 
-	// if we're not currently selecting a clip
-	if (!getClipForLayout() && view.potentiallyRenderVUMeter(PadLEDs::image)) {
+	if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 		PadLEDs::sendOutSidebarColours();
+	}
+
+	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
+	                           || currentUIMode == UI_MODE_IMPLODE_ANIMATION || !session.launchEventAtSwungTickCount);
+
+	int32_t sixteenthNotesRemaining = 0;
+
+	// display bars / notes remaining until launch event
+	if (!reallyNoTickSquare) {
+		sixteenthNotesRemaining = displayLoopsRemainingPopup();
+	}
+
+	// in grid view, the only playhead we potentially render a playhead that displays
+	// when the next clip launch event is expected occur (e.g. when clips will start or end)
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		potentiallyRenderClipLaunchPlayhead(reallyNoTickSquare, sixteenthNotesRemaining);
+
+		return;
 	}
 
 	uint8_t tickSquares[kDisplayHeight];
 	uint8_t colours[kDisplayHeight];
-
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		// Nothing to do here but clear since we don't render playhead
-		memset(&tickSquares, 255, sizeof(tickSquares));
-		memset(&colours, 255, sizeof(colours));
-		PadLEDs::setTickSquares(tickSquares, colours);
-		return;
-	}
+	int32_t newTickSquare;
 
 	bool anyLinearRecordingOnThisScreen = false;
 	bool anyLinearRecordingOnNextScreen = false;
@@ -2125,6 +2133,64 @@ void SessionView::graphicsRoutine() {
 	}
 
 	PadLEDs::setTickSquares(tickSquares, colours);
+}
+
+/// display number of bars or quarter notes remaining until a launch event
+int32_t SessionView::displayLoopsRemainingPopup() {
+	int32_t sixteenthNotesRemaining = session.getNumSixteenthNotesRemainingTilLaunch();
+	if (sixteenthNotesRemaining > 0) {
+		DEF_STACK_STRING_BUF(popupMsg, 40);
+		if (sixteenthNotesRemaining > 16) {
+			int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
+			if (display->haveOLED()) {
+				popupMsg.append("Bars Remaining: ");
+			}
+			popupMsg.appendInt(barsRemaining);
+		}
+		else {
+			int32_t quarterNotesRemaining = ((sixteenthNotesRemaining - 1) / 4) + 1;
+			if (display->haveOLED()) {
+				popupMsg.append("Beats Remaining: ");
+			}
+			popupMsg.appendInt(quarterNotesRemaining);
+		}
+		if (display->haveOLED()) {
+			deluge::hid::display::OLED::clearMainImage();
+			deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
+			deluge::hid::display::OLED::sendMainImage();
+		}
+		else {
+			display->displayPopup(popupMsg.c_str(), 1, true);
+		}
+	}
+	return sixteenthNotesRemaining;
+}
+
+uint8_t launchTickSquares[kDisplayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};
+const uint8_t launchTickColours[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+// potentially render a playhead in top row of main grid that displays
+// when the next clip launch event is expected occur (e.g. when clips will start or end)
+void SessionView::potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining) {
+	int32_t newTickSquare;
+	const uint8_t* colours = launchTickColours;
+
+	bool renderPlayhead = !reallyNoTickSquare
+	                      && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableLaunchEventPlayhead)
+	                             == RuntimeFeatureStateToggle::On;
+
+	// render last 16 notes
+	if (renderPlayhead && (sixteenthNotesRemaining > 0 && sixteenthNotesRemaining <= kDisplayWidth)) {
+		newTickSquare = kDisplayWidth - sixteenthNotesRemaining;
+
+		launchTickSquares[kDisplayHeight - 1] = newTickSquare;
+	}
+	// don't render playhead
+	else {
+		launchTickSquares[kDisplayHeight - 1] = 255;
+	}
+
+	PadLEDs::setTickSquares(launchTickSquares, launchTickColours);
 }
 
 void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
@@ -2865,8 +2931,12 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                      uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 
-	// We currently assume sidebar is rendered after main pads
-	memset(image, 0, sizeof(RGB) * kDisplayHeight * (kDisplayWidth + kSideBarWidth));
+	// Clear just the main pads
+	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			image[yDisplay][xDisplay] = {0, 0, 0};
+		}
+	}
 
 	// Iterate over all clips and render them where they are
 	auto trackCount = gridTrackCount();

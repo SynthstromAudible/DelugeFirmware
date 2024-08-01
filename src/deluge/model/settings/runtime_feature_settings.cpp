@@ -170,6 +170,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit],
 	                  STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT, "enableKeyboardViewSidebarMenuExit",
 	                  RuntimeFeatureStateToggle::Off);
+
+	// EnableLaunchEventPlayhead
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableLaunchEventPlayhead],
+	                  STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD, "enableLaunchEventPlayhead",
+	                  RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
