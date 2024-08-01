@@ -933,7 +933,12 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 
 	// Or, if some other Clip is soloed, just toggle the playing status - it won't make a difference
 	else if (currentSong->getAnyClipsSoloing()) {
-		clip->activeIfNoSolo = !clip->activeIfNoSolo;
+		if (clip->isClipOrGroupActive()) {
+			clip->setGroupActive();
+		}
+		else {
+			clip->setGroupInactive();
+		}
 
 		// If became "active" (in background behind soloing), need to "deactivate" any other Clips - still talking about
 		// in the "background" here.
@@ -953,7 +958,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 	else {
 
 		// If Clip STOPPED
-		if (!clip->activeIfNoSolo) {
+		if (!clip->isClipOrGroupActive()) {
 
 			// If Deluge not playing, easy
 			if (!playbackHandler.isEitherClockActive()) {

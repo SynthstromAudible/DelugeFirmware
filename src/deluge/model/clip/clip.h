@@ -83,6 +83,7 @@ public:
 	Clip* getClipToRecordTo();
 	[[nodiscard]] bool isArrangementOnlyClip() const;
 	bool isActiveOnOutput();
+	bool isClipOrGroupActive() { return groupActive || activeIfNoSolo; }
 	virtual bool deleteSoundsWhichWontSound(Song* song);
 	virtual Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
 	                         ModelStackWithTimelineCounter* otherModelStack);
@@ -270,4 +271,5 @@ private:
 	Clip* head{this};
 	uint8_t groupSize{0}; // not counting this clip
 	bool muted{false};    // whether it's muted within its group
+	bool groupActive{false};
 };

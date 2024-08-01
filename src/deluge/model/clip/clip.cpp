@@ -1191,15 +1191,19 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 }
 void Clip::setGroupActive() {
 	activeIfNoSolo = true;
+	groupActive = true;
 	for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
 		nextClip->activeIfNoSolo = !nextClip->muted;
+		nextClip->groupActive = true;
 	}
 }
 
 void Clip::setGroupInactive() {
 	activeIfNoSolo = false;
+	groupActive = false;
 	for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
 		nextClip->activeIfNoSolo = false;
+		nextClip->groupActive = false;
 	}
 }
 
