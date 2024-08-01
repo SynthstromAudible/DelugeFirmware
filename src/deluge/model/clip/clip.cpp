@@ -1194,7 +1194,7 @@ void Clip::setGroupActive() {
 	activeIfNoSolo = true;
 	groupActive = true;
 	for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
-		nextClip->activeIfNoSolo = !nextClip->muted;
+		nextClip->activeIfNoSolo = nextClip->activeWithinGroup;
 		nextClip->groupActive = true;
 	}
 }

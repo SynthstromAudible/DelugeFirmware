@@ -250,8 +250,8 @@ public:
 	void insertAfter(Clip* newNextNode, ClipGroupType newGroupType);
 	Clip* getClipByIndex(uint8_t index);
 	uint8_t getGroupSize() { return groupSize; }
-	uint8_t mutedInGroup() { return muted; }
-	void toggleMute() { muted = !muted; }
+	uint8_t mutedInGroup() { return !activeWithinGroup; }
+	void toggleMute() { activeWithinGroup = !activeWithinGroup; }
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the
@@ -272,7 +272,7 @@ private:
 	Clip* prev{nullptr};
 	// to find the head of the list quickly - if no group it's just the clip itself
 	Clip* head{this};
-	uint8_t groupSize{0}; // not counting this clip
-	bool muted{false};    // whether it's muted within its group
+	uint8_t groupSize{0};         // not counting this clip
+	bool activeWithinGroup{true}; // whether it's muted within its group
 	bool groupActive{false};
 };
