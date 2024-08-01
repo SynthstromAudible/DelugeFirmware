@@ -167,7 +167,7 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 				output->getActiveClip()->lastProcessedPos += posIncrement;
 				ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 				    modelStack->addTimelineCounter(output->getActiveClip());
-				output->getActiveClip()->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+				output->getActiveClip()->processCurrentPosForGroup(modelStackWithTimelineCounter, posIncrement);
 			}
 
 			else {
@@ -206,8 +206,8 @@ notRecording:
 							if (endPos == lastProcessedPos) {
 
 								if (posIncrement) { // Don't deactivate any Clips on the first, 0-length tick, or else!
-									thisClip->expectNoFurtherTicks(currentSong);
-									thisClip->activeIfNoSolo = false;
+									thisClip->expectNoFurtherTicksForGroup(currentSong);
+									thisClip->setGroupInactive();
 
 									if (!thisClip->isArrangementOnlyClip()) {
 										anyChangeToSessionClipsPlaying = true;
@@ -222,8 +222,8 @@ notRecording:
 								    modelStack->addTimelineCounter(thisClip);
 
 								// Tick it forward and process it
-								thisClip->incrementPos(modelStackWithTimelineCounter, posIncrement);
-								thisClip->processCurrentPos(modelStackWithTimelineCounter, posIncrement);
+								thisClip->incrementPosForGroup(modelStackWithTimelineCounter, posIncrement);
+								thisClip->processCurrentPosForGroup(modelStackWithTimelineCounter, posIncrement);
 
 								// Make sure we come back here when the clipInstance ends
 								int32_t ticksTilEnd = endPos - lastProcessedPos;
@@ -261,8 +261,8 @@ notRecording:
 
 						if (posIncrement) { // If posIncrement is 0, it means this is the very first tick of playback,
 							                // in which case this has just been set up already. But otherwise...
-							thisClip->activeIfNoSolo = true;
-							thisClip->setPos(modelStackWithTimelineCounter, 0);
+							thisClip->setGroupActive();
+							thisClip->setPosForGroup(modelStackWithTimelineCounter, 0);
 							// Rohan: used to call assertActiveness(), but that's actually
 							// unnecessary - because we're playing in arrangement,
 							// setActiveClip() is actually the only relevant bit
@@ -275,7 +275,7 @@ notRecording:
 							}
 						}
 
-						thisClip->processCurrentPos(modelStackWithTimelineCounter, 0);
+						thisClip->processCurrentPosForGroup(modelStackWithTimelineCounter, 0);
 
 						if (!thisClip->isArrangementOnlyClip()) {
 							anyChangeToSessionClipsPlaying = true;
@@ -396,7 +396,7 @@ void Arrangement::resumeClipInstancePlayback(ClipInstance* clipInstance, bool do
 		                                                        // because a multi-tick-forward is probably coming
 
 		// Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
-		thisClip->activeIfNoSolo = true;
+		thisClip->setGroupActive();
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =

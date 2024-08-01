@@ -1263,7 +1263,10 @@ bool AudioClip::getCurrentlyRecordingLinearly() {
 }
 
 void AudioClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos, bool useActualPosForParamManagers) {
-
+	// if we're in a group then set them all to process
+	for (Clip* nextClip = getNextClipOrNull(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
+		nextClip->setPos(modelStack, newPos, useActualPosForParamManagers);
+	}
 	Clip::setPos(modelStack, newPos, useActualPosForParamManagers);
 
 	setPosForParamManagers(modelStack, useActualPosForParamManagers);

@@ -134,5 +134,4 @@ private:
 	void removeClipFromSection(AudioClip* clip);
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
 	LoopType getLoopingType(ModelStackWithTimelineCounter const* modelStack);
-	void processCurrentPositionThisClipOnly(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast);
 };

@@ -216,7 +216,7 @@ bool Clip::isArrangementOnlyClip() const {
 }
 
 bool Clip::isActiveOnOutput() {
-	return (output->getActiveClip() == this);
+	return (output->getActiveClip()->isInGroupWith(this));
 }
 
 // Note: it's now the caller's job to increment currentPos before calling this! But we check here whether it's looped
@@ -1192,7 +1192,7 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 void Clip::setGroupActive() {
 	activeIfNoSolo = true;
 	for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
-		nextClip->activeIfNoSolo = true;
+		nextClip->activeIfNoSolo = !nextClip->muted;
 	}
 }
 

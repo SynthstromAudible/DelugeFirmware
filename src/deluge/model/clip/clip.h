@@ -37,8 +37,8 @@ class StorageManager;
 class Serializer;
 class Deserializer;
 
-// Only shared is implemented, plan is exclusive would act like the official behaviour and select one clip, sequential
-// would play through them one after another
+// Shared clips all launch/stop together. The plan is exclusive would act like the official behaviour and select one
+// clip, sequential would play through them one after another
 enum class ClipGroupType { NONE, EXCLUSIVE, SHARED, SEQUENTIAL };
 constexpr size_t kNumClipGroupTypes = 4;
 class Clip : public TimelineCounter {
@@ -54,11 +54,27 @@ public:
 	void endInstance(int32_t arrangementRecordPos, bool evenIfOtherClip = false);
 	virtual void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos,
 	                    bool useActualPosForParamManagers = true);
+	void setPosForGroup(ModelStackWithTimelineCounter* modelStack, int32_t newPos,
+	                    bool useActualPosForParamManagers = true) {
+		for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
+			nextClip->setPos(modelStack, newPos, useActualPosForParamManagers);
+		}
+	}
 	virtual void setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, bool useActualPos = true);
 	virtual void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) = 0;
+	void expectNoFurtherTicksForGroup(Song* song, bool actuallySoundChange = true) {
+		for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
+			nextClip->expectNoFurtherTicks(song, actuallySoundChange);
+		}
+	}
 	virtual void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true) = 0;
 	virtual void reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack);
 	virtual void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast);
+	void processCurrentPosForGroup(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) {
+		for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
+			nextClip->processCurrentPos(modelStack, ticksSinceLast);
+		}
+	}
 	void prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
 	                           InstrumentRemoval instrumentRemovalInstruction);
 	uint32_t getActualCurrentPosAsIfPlayingInForwardDirection();
@@ -133,6 +149,11 @@ public:
 	virtual bool willCloneOutputForOverdub() { return false; }
 	void setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newSequenceDirection);
 	virtual void incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTicks);
+	void incrementPosForGroup(ModelStackWithTimelineCounter* modelStack, int32_t numTicks) {
+		for (Clip* nextClip = getHeadOfGroup(); nextClip; nextClip = nextClip->getNextClipOrNull()) {
+			nextClip->incrementPos(modelStack, numTicks);
+		}
+	}
 	/// Return true if successfully shifted
 	virtual bool shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
 	                               bool shiftSequenceAndMPE) = 0;
