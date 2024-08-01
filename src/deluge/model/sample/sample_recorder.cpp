@@ -386,8 +386,20 @@ aborted:
 				error = stemExport.getUnusedStemRecordingFilePath(&filePath, folderID);
 			}
 			else {
+				const char* name;
+				if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && !AudioEngine::lineInPluggedIn) {
+					if (AudioEngine::micPluggedIn) {
+						name = "ExtMic";
+					}
+					else {
+						name = "IntMic";
+					}
+				}
+				else {
+					name = inputChannelToString(mode);
+				}
 				error = audioFileManager.getUnusedAudioRecordingFilePath(&filePath, &tempFilePathForRecording, folderID,
-				                                                         &audioFileNumber, mode, &currentSong->name);
+				                                                         &audioFileNumber, name, &currentSong->name);
 			}
 			if (status == RecorderStatus::ABORTED) {
 				goto aborted; // In case aborted during

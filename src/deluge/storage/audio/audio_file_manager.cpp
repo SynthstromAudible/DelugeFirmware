@@ -259,7 +259,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 // the card access.
 Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
                                                         AudioRecordingFolder folder, uint32_t* getNumber,
-                                                        AudioInputChannel recordingFrom, String* songName) {
+                                                        const char* channelName, String* songName) {
 	const auto folderID = util::to_underlying(folder);
 
 	Error error = storageManager.initSD();
@@ -339,12 +339,10 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 	}
 	else {
 		char namedPath[255]{0};
-		snprintf(namedPath, sizeof(namedPath), "%s/%s/%s.wav", filePath->get(), songName->get(),
-		         inputChannelToString(recordingFrom));
+		snprintf(namedPath, sizeof(namedPath), "%s/%s/%s.wav", filePath->get(), songName->get(), channelName);
 		int i = 1;
 		while (storageManager.fileExists(namedPath)) {
-			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%d.wav", filePath->get(), songName->get(),
-			         inputChannelToString(recordingFrom), i);
+			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%d.wav", filePath->get(), songName->get(), channelName, i);
 		}
 		error = filePath->set(namedPath);
 		if (error != Error::NONE) {
