@@ -70,6 +70,15 @@ TEST(NoteSetTest, union) {
 	CHECK_EQUAL(1, b.count());
 }
 
+TEST(NoteSetTest, scaleSize) {
+	NoteSet notes;
+	CHECK_EQUAL(1, notes.scaleSize());
+	notes.add(0);
+	CHECK_EQUAL(1, notes.scaleSize());
+	notes.add(3);
+	CHECK_EQUAL(2, notes.scaleSize());
+}
+
 TEST(NoteSetTest, clear) {
 	NoteSet notes;
 	notes.add(1);
@@ -264,7 +273,7 @@ TEST(NoteSetTest, addMajorDependentModeNotes) {
 
 TEST(NoteSetTest, toImpliedScale) {
 	// There's thousands of combinations to test - for sake of making sense what's
-    // going on, just going through each semitone on it's own.
+	// going on, just going through each semitone on it's own.
 
 	// Major scale is the default
 	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({}).toImpliedScale());
