@@ -553,116 +553,32 @@ bool Song::anyScaleModeClips() {
 	return false;
 }
 
-void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
+NoteSet Song::notesInScaleModeClips() {
+	NoteSet notes;
+	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
+		if (instrumentClip->isScaleModeClip()) {
+			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key.rootNote, this);
+		}
+	}
+	return notes;
+}
 
+void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
+	// Setting the new root affects interpretation of existing notes done by notesInScaleModeClips(),
+	// so we need to do it before anything else.
 	int32_t oldRootNote = key.rootNote;
 	key.rootNote = newRootNote;
 
 	int32_t oldNumModeNotes = key.modeNotes.count();
-	NoteSet notesWithinOctavePresent;
+	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
 
-	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
-		if (instrumentClip->isScaleModeClip()) {
-			instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, key.rootNote, this);
-		}
-	}
-
-	bool previousScaleFits = true;
-	if (getCurrentPresetScale() >= NUM_PRESET_SCALES) {
-		// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale
-		previousScaleFits = false;
-	}
+	// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale.
 	// Check if the previously set scale could fit the notes present in the clips
 	// If so, we need no check at all, we can directly go back to previous scale safely
-	else {
-		for (int32_t i = 1; i < 12; i++) {
-			if (notesWithinOctavePresent.has(i)) {
-				bool checkPassed = false;
-				for (int32_t n = 1; n < key.modeNotes.count(); n++) {
-					if (key.modeNotes[n] == i) {
-						checkPassed = true;
-						break;
-					}
-				}
-				if (!checkPassed) {
-					previousScaleFits = false;
-					break;
-				}
-			}
-		}
-	}
-
+	bool previousScaleFits =
+	    getCurrentPresetScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
 	if (!previousScaleFits) {
-		// Determine the majorness or minorness of the scale
-		int32_t majorness = 0;
-
-		// The 3rd is the main indicator of majorness, to my ear
-		if (notesWithinOctavePresent.has(4)) {
-			majorness++;
-		}
-		if (notesWithinOctavePresent.has(3)) {
-			majorness--;
-		}
-
-		// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
-		if (majorness == 0) {
-			if (notesWithinOctavePresent.has(1)) {
-				majorness--;
-			}
-			if (notesWithinOctavePresent.has(8)) {
-				majorness--;
-			}
-			if (notesWithinOctavePresent.has(9)) {
-				majorness++;
-			}
-		}
-
-		bool moreMajor = (majorness >= 0);
-
-		key.modeNotes.clear();
-		key.modeNotes.add(0);
-
-		// 2nd
-		addMajorDependentModeNotes(1, true, notesWithinOctavePresent);
-
-		// 3rd
-		addMajorDependentModeNotes(3, moreMajor, notesWithinOctavePresent);
-
-		// 4th, 5th
-		if (notesWithinOctavePresent.has(5)) {
-			key.modeNotes.add(5);
-			if (notesWithinOctavePresent.has(6)) {
-				key.modeNotes.add(6);
-				if (notesWithinOctavePresent.has(7)) {
-					key.modeNotes.add(7);
-				}
-			}
-			else {
-				key.modeNotes.add(7);
-			}
-		}
-		else {
-			if (notesWithinOctavePresent.has(6)) {
-				if (notesWithinOctavePresent.has(7) || moreMajor) {
-					key.modeNotes.add(6);
-					key.modeNotes.add(7);
-				}
-				else {
-					key.modeNotes.add(5);
-					key.modeNotes.add(6);
-				}
-			}
-			else {
-				key.modeNotes.add(5);
-				key.modeNotes.add(7);
-			}
-		}
-
-		// 6th
-		addMajorDependentModeNotes(8, moreMajor, notesWithinOctavePresent);
-
-		// 7th
-		addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
+		key.modeNotes = notesWithinOctavePresent.toImpliedScale();
 	}
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed
@@ -682,34 +598,6 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 			int32_t numOctaves = oldScrollRelativeToRootNote / oldNumModeNotes;
 
 			instrumentClip->yScroll += numMoreNotes * numOctaves + rootNoteChangeEffect;
-		}
-	}
-}
-
-// Sets up a mode-note, optionally specifying that we prefer it a semitone higher, although this may be overridden
-// by what actual note is present
-void Song::addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& notesWithinOctavePresent) {
-	// If lower one present...
-	if (notesWithinOctavePresent.has(i)) {
-		// If higher one present as well...
-		if (notesWithinOctavePresent.has(i + 1)) {
-			key.modeNotes.add(i);
-			key.modeNotes.add(i + 1);
-		}
-		// Or if just the lower one
-		else {
-			key.modeNotes.add(i);
-		}
-	}
-	// Or, if lower one absent...
-	else {
-		// We probably want the higher one
-		if (notesWithinOctavePresent.has(i + 1) || preferHigher) {
-			key.modeNotes.add(i + 1);
-			// Or if neither present and we prefer the lower one, do that
-		}
-		else {
-			key.modeNotes.add(i);
 		}
 	}
 }
@@ -2878,18 +2766,12 @@ int32_t Song::setPresetScale(int32_t newScale) {
 	}
 
 	// Always count the root note as present, to avoid changing the root note when cycling scales.
-	NoteSet notesWithinOctavePresent;
-	notesWithinOctavePresent.add(0);
+	NoteSet notesWithinOctavePresent{0};
 
 	if (numNotesInCurrentScale > numNotesInNewScale) {
 		// We are trying to pass from source scale with more notes than the target scale.
 		// We need to check the real number of notes used to see if we can convert it.
-
-		for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
-			if (instrumentClip->isScaleModeClip()) {
-				instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, key.rootNote, this);
-			}
-		}
+		notesWithinOctavePresent = notesWithinOctavePresent | notesInScaleModeClips();
 	}
 
 	int32_t notesWithinOctavePresentCount = notesWithinOctavePresent.count();

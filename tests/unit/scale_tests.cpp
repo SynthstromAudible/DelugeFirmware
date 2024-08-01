@@ -48,6 +48,28 @@ TEST(NoteSetTest, count) {
 	CHECK(notes.count() == 12);
 }
 
+TEST(NoteSetTest, union) {
+	NoteSet a;
+	NoteSet b;
+	NoteSet c;
+	CHECK_EQUAL(c, a | b);
+	CHECK_EQUAL(c, b | a);
+	a.fill();
+	c.fill();
+	CHECK_EQUAL(c, a | b);
+	CHECK_EQUAL(c, b | a);
+	a.clear();
+	c.clear();
+	a.add(0);
+	b.add(7);
+	c.add(0);
+	c.add(7);
+	CHECK_EQUAL(c, a | b);
+	CHECK_EQUAL(c, b | a);
+	CHECK_EQUAL(1, a.count());
+	CHECK_EQUAL(1, b.count());
+}
+
 TEST(NoteSetTest, clear) {
 	NoteSet notes;
 	notes.add(1);
@@ -93,6 +115,27 @@ TEST(NoteSetTest, applyChanges) {
 	CHECK_EQUAL(6, a[2]);
 	CHECK_EQUAL(8, a[3]);
 	CHECK_EQUAL(4, a.count());
+}
+
+TEST(NoteSetTest, isSubsetOf) {
+	NoteSet a;
+	NoteSet b;
+	CHECK(a.isSubsetOf(b));
+	CHECK(b.isSubsetOf(a));
+	a.add(3);
+	b.add(3);
+	CHECK(a.isSubsetOf(b));
+	CHECK(b.isSubsetOf(a));
+	a.add(0);
+	CHECK(!a.isSubsetOf(b));
+	CHECK(b.isSubsetOf(a));
+	b.add(0);
+	b.add(11);
+	CHECK(a.isSubsetOf(b));
+	CHECK(!b.isSubsetOf(a));
+	a.add(7);
+	CHECK(!a.isSubsetOf(b));
+	CHECK(!b.isSubsetOf(a));
 }
 
 TEST(NoteSetTest, equality) {
@@ -165,6 +208,88 @@ TEST(NoteSetTest, presetScaleId) {
 	CHECK_EQUAL(MAJOR_SCALE, presetScaleNotes[MAJOR_SCALE].presetScaleId());
 	CHECK_EQUAL(MINOR_SCALE, presetScaleNotes[MINOR_SCALE].presetScaleId());
 	CHECK_EQUAL(CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES, NoteSet().presetScaleId());
+}
+
+TEST(NoteSetTest, majorness) {
+	// Thirds?
+	CHECK_EQUAL(0, NoteSet({0}).majorness());
+	CHECK_EQUAL(-1, NoteSet({0, 3}).majorness());
+	CHECK_EQUAL(1, NoteSet({0, 4}).majorness());
+	CHECK_EQUAL(0, NoteSet({0, 3, 4}).majorness());
+	// Indeterminate after third, what about 2nd?
+	CHECK_EQUAL(-1, NoteSet({0, 1}).majorness());
+	CHECK_EQUAL(-1, NoteSet({0, 1, 3, 4}).majorness());
+	// Indeterminate after third, what about 6th?
+	CHECK_EQUAL(-1, NoteSet({0, 8}).majorness());
+	CHECK_EQUAL(-1, NoteSet({0, 8, 3, 4}).majorness());
+	// Indeterminate after third, what about 7th?
+	CHECK_EQUAL(1, NoteSet({0, 9}).majorness());
+	CHECK_EQUAL(1, NoteSet({0, 9, 3, 4}).majorness());
+}
+
+TEST(NoteSetTest, addMajorDependentModeNotes) {
+	NoteSet a;
+	// Case 1: the lower interval is present -> preferHigher does not matter
+	a.addMajorDependentModeNotes(1, false, NoteSet{1});
+	CHECK_EQUAL(NoteSet({1}), a);
+	a.clear();
+	a.addMajorDependentModeNotes(1, true, NoteSet{1});
+	CHECK_EQUAL(NoteSet({1}), a);
+
+	// Case 2: the higher interval is present -> preferHigher does not matter
+	a.clear();
+	a.addMajorDependentModeNotes(1, false, NoteSet{2});
+	CHECK_EQUAL(NoteSet({2}), a);
+	a.clear();
+	a.addMajorDependentModeNotes(1, true, NoteSet{2});
+	CHECK_EQUAL(NoteSet({2}), a);
+
+	// Case 3: both intervals are present -> preferHigher does not matter
+	a.clear();
+	a.addMajorDependentModeNotes(1, false, NoteSet{1, 2});
+	CHECK_EQUAL(NoteSet({1, 2}), a);
+	// Case 3: both intervals are present -> preferHigher does not matter
+	a.clear();
+	a.addMajorDependentModeNotes(1, true, NoteSet{1, 2});
+	CHECK_EQUAL(NoteSet({1, 2}), a);
+
+	// Case 4: neither interval is not present -> prefer higher determines
+	a.clear();
+	a.addMajorDependentModeNotes(1, false, NoteSet{});
+	CHECK_EQUAL(NoteSet({1}), a);
+	a.clear();
+	a.addMajorDependentModeNotes(1, true, NoteSet{});
+	CHECK_EQUAL(NoteSet({2}), a);
+}
+
+TEST(NoteSetTest, toImpliedScale) {
+	// There's thousands of combinations to test - for sake of making sense what's
+    // going on, just going through each semitone on it's own.
+
+	// Major scale is the default
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({}).toImpliedScale());
+	// Minor second gets us the phrygian
+	CHECK_EQUAL(presetScaleNotes[PHRYGIAN_SCALE], NoteSet({1}).toImpliedScale());
+	// Major second gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({2}).toImpliedScale());
+	// Minor third gets us the minor
+	CHECK_EQUAL(presetScaleNotes[MINOR_SCALE], NoteSet({3}).toImpliedScale());
+	// Major third gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({4}).toImpliedScale());
+	// Perfect fourth gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({5}).toImpliedScale());
+	// Tritone gets us the lydian scale
+	CHECK_EQUAL(presetScaleNotes[LYDIAN_SCALE], NoteSet({6}).toImpliedScale());
+	// Perfeft fifth gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({7}).toImpliedScale());
+	// Minor sixth gets us the minor
+	CHECK_EQUAL(presetScaleNotes[MINOR_SCALE], NoteSet({8}).toImpliedScale());
+	// Major sixth gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({9}).toImpliedScale());
+	// Minor seventh gets us the mixolydian
+	CHECK_EQUAL(presetScaleNotes[MIXOLYDIAN_SCALE], NoteSet({10}).toImpliedScale());
+	// Major seventh gets us the major
+	CHECK_EQUAL(presetScaleNotes[MAJOR_SCALE], NoteSet({11}).toImpliedScale());
 }
 
 TEST_GROUP(MusicalKeyTest){};

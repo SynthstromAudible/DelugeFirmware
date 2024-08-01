@@ -410,6 +410,9 @@ private:
 	void deleteAllBackedUpParamManagersWithClips();
 	void deleteAllOutputs(Output** prevPointer);
 	void setupClipIndexesForSaving();
+	/** Returns a NoteSet with all notes currently in used in scale mdoe clips.
+	 */
+	NoteSet notesInScaleModeClips();
 };
 
 extern Song* currentSong;
