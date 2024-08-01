@@ -302,8 +302,6 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		highestUsedAudioRecordingNumberNeedsReChecking[folderID] = false;
 	}
 
-	highestUsedAudioRecordingNumber[folderID]++;
-
 	D_PRINTLN("new file: --------------  %d", highestUsedAudioRecordingNumber[folderID]);
 
 	error = filePath->set(audioRecordingFolderNames[folderID]);
@@ -337,6 +335,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		if (error != Error::NONE) {
 			return error;
 		}
+		highestUsedAudioRecordingNumber[folderID]++;
 	}
 	else {
 		char namedPath[255]{0};
@@ -344,10 +343,10 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		         inputChannelToString(recordingFrom));
 		int i = 1;
 		while (storageManager.fileExists(namedPath)) {
-			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s%d.wav", filePath->get(), songName->get(),
+			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%d.wav", filePath->get(), songName->get(),
 			         inputChannelToString(recordingFrom), i);
 		}
-		error = filePath->concatenate(namedPath);
+		error = filePath->set(namedPath);
 		if (error != Error::NONE) {
 			return error;
 		}
