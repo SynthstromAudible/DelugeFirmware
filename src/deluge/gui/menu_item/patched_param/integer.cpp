@@ -68,7 +68,7 @@ void Integer::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	// pad value string so it's 3 characters long
 	padStringTo(stringForSubmenuItemType, 3);
 
-	int32_t startX = getSubmenuItemTypeRenderIconStart();
+	int32_t startX = getSubmenuItemTypeRenderValueStart();
 
 	image.drawString(stringForSubmenuItemType, startX, yPixel, kTextSpacingX, kTextSpacingY);
 }
