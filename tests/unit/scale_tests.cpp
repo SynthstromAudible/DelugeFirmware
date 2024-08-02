@@ -126,6 +126,27 @@ TEST(NoteSetTest, applyChanges) {
 	CHECK_EQUAL(4, a.count());
 }
 
+TEST(NoteSetTest, degreeOfBasic) {
+	NoteSet a;
+	a.add(0);
+	a.add(2);
+	a.add(4);
+	CHECK_EQUAL(0, a.degreeOf(0));
+	CHECK_EQUAL(1, a.degreeOf(2));
+	CHECK_EQUAL(2, a.degreeOf(4));
+}
+
+TEST(NoteSetTest, degreeOfNotAScale) {
+	NoteSet a;
+	a.add(1);
+	a.add(2);
+	a.add(4);
+	CHECK_EQUAL(-1, a.degreeOf(0));
+	CHECK_EQUAL(0, a.degreeOf(1));
+	CHECK_EQUAL(1, a.degreeOf(2));
+	CHECK_EQUAL(2, a.degreeOf(4));
+}
+
 TEST(NoteSetTest, isSubsetOf) {
 	NoteSet a;
 	NoteSet b;
@@ -162,7 +183,7 @@ TEST(NoteSetTest, checkEqualAllowed) {
 TEST(NoteSetTest, subscript1) {
 	NoteSet a;
 	for (int i = 0; i < NoteSet::size; i++) {
-		CHECK_EQUAL(0, a[i]);
+		CHECK_EQUAL(-1, a[i]);
 	}
 }
 
@@ -211,6 +232,14 @@ TEST(NoteSetTest, subscript3) {
 	CHECK_EQUAL(7, a[5]);
 	CHECK_EQUAL(9, a[6]);
 	CHECK_EQUAL(11, a[7]);
+}
+
+TEST(NoteSetTest, subscript4) {
+	NoteSet a;
+	a.add(4);
+	a.add(7);
+	CHECK_EQUAL(4, a[0]);
+	CHECK_EQUAL(7, a[1]);
 }
 
 TEST(NoteSetTest, presetScaleId) {
@@ -308,6 +337,47 @@ TEST(MusicalKeyTest, ctor) {
 	CHECK_EQUAL(0, k.rootNote);
 	CHECK_EQUAL(1, k.modeNotes.count());
 	CHECK_EQUAL(true, k.modeNotes.has(0));
+}
+
+TEST(MusicalKeyTest, intervalOf) {
+	MusicalKey key;
+	for (int8_t octave = -10; octave <= 10; octave++) {
+		for (uint8_t note = 0; note < 12; note++) {
+			for (uint8_t root = 0; root < 12; root++) {
+				key.rootNote = root;
+				if (root <= note) {
+					CHECK_EQUAL(note - root, key.intervalOf(note + octave * 12));
+				}
+				else {
+					// Consider: root B==11, note D=2, offset=3
+					CHECK_EQUAL(12 - root + note, key.intervalOf(note + octave * 12));
+				}
+			}
+		}
+	}
+}
+
+TEST(MusicalKeyTest, degreeOf) {
+	MusicalKey key;
+	key.rootNote = 9; // A
+	key.modeNotes = presetScaleNotes[MINOR_SCALE];
+
+	for (int octave = -2; octave <= 2; octave++) {
+		// In key
+		CHECK_EQUAL(0, key.degreeOf(9 + octave * 12));  // A
+		CHECK_EQUAL(1, key.degreeOf(11 + octave * 12)); // B
+		CHECK_EQUAL(2, key.degreeOf(0 + octave * 12));  // C
+		CHECK_EQUAL(3, key.degreeOf(2 + octave * 12));  // D
+		CHECK_EQUAL(4, key.degreeOf(4 + octave * 12));  // E
+		CHECK_EQUAL(5, key.degreeOf(5 + octave * 12));  // F
+		CHECK_EQUAL(6, key.degreeOf(7 + octave * 12));  // G
+		// Out of key
+		CHECK_EQUAL(-1, key.degreeOf(10 + octave * 12)); // A#
+		CHECK_EQUAL(-1, key.degreeOf(1 + octave * 12));  // C#
+		CHECK_EQUAL(-1, key.degreeOf(3 + octave * 12));  // D#
+		CHECK_EQUAL(-1, key.degreeOf(6 + octave * 12));  // F#
+		CHECK_EQUAL(-1, key.degreeOf(8 + octave * 12));  // G#
+	}
 }
 
 TEST_GROUP(UtilTest){};
