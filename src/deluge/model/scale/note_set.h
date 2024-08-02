@@ -33,12 +33,20 @@ public:
 	/** Like add(), but ensures note is in range and higher than previous notes.
 	 */
 	void addUntrusted(uint8_t note);
-	/** Return the note at specified scale degree as semitone offset from root.
+	/** Return the index'th note, or -1 if there aren't that many notes present.
+	 *
+	 * If the NoteSet has a 0 and represents a scale, then is a scale degree as
+	 * semitone offset from root.
 	 *
 	 * Ie. if a NoteSet has add(0), add(1), add(4), and optionally higher notes
 	 * added, notesSet[2] will return 4.
 	 */
-	uint8_t operator[](uint8_t index) const;
+	int8_t operator[](uint8_t index) const;
+	/** Returns number of notes lower than the note given, or -1 if the note is not present.
+	 *
+	 * This is the scale degree of the note if the NoteSet represents a scale and has a root.
+	 */
+	int8_t degreeOf(uint8_t note) const;
 	/** Applies changes specified by the array.
 	 *
 	 * Each element of the array describes a semitone offset

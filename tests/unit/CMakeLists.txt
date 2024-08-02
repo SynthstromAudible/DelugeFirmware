@@ -40,6 +40,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # For scale tests
         ../../src/deluge/model/scale/musical_key.cpp
         ../../src/deluge/model/scale/note_set.cpp
+        ../../src/deluge/model/scale/preset_scales.cpp
         ../../src/deluge/model/scale/utils.cpp
         ../../src/deluge/model/scale/preset_scales.cpp
         # For clip iterator tests
