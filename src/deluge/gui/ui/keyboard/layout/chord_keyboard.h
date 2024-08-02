@@ -23,21 +23,9 @@
 namespace deluge::gui::ui::keyboard::layout {
 
 
-
-enum ChordKeyboardChord {
-	NO_CHORD = 0,
-	FIFTH,
-	SUS2,
-	MINOR,
-	MAJOR,
-	SUS4,
-	MINOR7,
-	DOMINANT7,
-	MAJOR7,
-	CHORD_MODE_CHORD_MAX, /* should be 9, 8 chord pads plus NO_CHORD */
-};
-
 constexpr int32_t kMaxChordKeyboardSize = 4;
+
+constexpr int32_t kMaxNumChords = 1;
 
 
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
@@ -52,6 +40,8 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
+	void drawChordName(int16_t noteCode, const char* chordName);
+
 	char const* name() override { return "Chord"; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
@@ -59,9 +49,6 @@ public:
 	uint8_t chordSemitoneOffsets[kMaxChordKeyboardSize] = {0};
 
 private:
-	ChordKeyboardChord activeChord = NO_CHORD;
-	ChordKeyboardChord defaultChord = NO_CHORD;
-
 	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
 		return getState().chord.VoiceOffset + x + y * getState().chord.rowInterval;
 	}

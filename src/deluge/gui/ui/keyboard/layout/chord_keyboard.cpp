@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "io/debug/log.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/colour/colour.h"
 #include "hid/display/display.h"
@@ -22,52 +23,85 @@
 #include "gui/ui/sound_editor.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "util/functions.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
 
 uint8_t chordTypeSemitoneOffsets[][kMaxChordKeyboardSize] = {
     /* NO_CHORD  */ {0, 0, 0, 0},
-    /* FIFTH     */ {7, 0, 0, 0},
-    /* SUS2      */ {2, 7, 0, 0},
-    /* MINOR     */ {3, 7, 0, 0},
     /* MAJOR     */ {4, 7, 0, 0},
+    /* MINOR     */ {3, 7, 0, 0},
+    /* SUS2      */ {2, 7, 0, 0},
     /* SUS4      */ {5, 7, 0, 0},
-    /* MINOR7    */ {3, 7, 10, 0},
     /* DOMINANT7 */ {4, 7, 10, 0},
     /* MAJOR7    */ {4, 7, 11, 0},
+    /* MINOR7    */ {3, 7, 10, 0},
 };
 
+const char* chordNames[] = {
+    /* NO_CHORD  */ "",
+    /* MAJOR     */ "MAJ",
+    /* MINOR     */ "MIN",
+    /* SUS2      */ "SUS2",
+    /* SUS4      */ "SUS4",
+    /* DOMINANT7 */ "DOM7",
+    /* MAJOR7    */ "MAJ7",
+    /* MINOR7    */ "MIN7",
+};
 
-// void KeyboardLayoutChord::setActiveChord(ChordKeyboardChord chord) {
-// 	activeChord = chord;
-// 	chordSemitoneOffsets[0] = chordTypeSemitoneOffsets[activeChord][0];
-// 	chordSemitoneOffsets[1] = chordTypeSemitoneOffsets[activeChord][1];
-// 	chordSemitoneOffsets[2] = chordTypeSemitoneOffsets[activeChord][2];
-// 	chordSemitoneOffsets[3] = chordTypeSemitoneOffsets[activeChord][3];
-// }
+struct Chord {
+	const char* name;
+	int32_t offsets[4];
+};
+
+struct Chords {
+	Chord chords[8];
+};
+
+Chords chords = {
+	{
+		{"", {0, 0, 0, 0}},
+		{"MAJ", {4, 7, 0, 0}},
+		{"MIN", {3, 7, 0, 0}},
+		{"SUS2", {2, 7, 0, 0}},
+		{"SUS4", {5, 7, 0, 0}},
+		{"DOM7", {4, 7, 10, 0}},
+		{"MAJ7", {4, 7, 11, 0}},
+		{"MIN7", {3, 7, 10, 0}},
+	}
+};
 
 void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
 
+	// We run through the presses in reverse order to display the most recent pressed chord on top
+	for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
 
-	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
-		auto pressed = presses[idxPress];
+		PressedPad pressed = presses[idxPress];
 		if (pressed.active && pressed.x < kDisplayWidth) {
 
+			D_PRINTLN("pressed x: %d pressed y: %d", pressed.x, pressed.y);
 
+			Chord chord = chords.chords[pressed.y];
+
+			// We need to play the root, but only once
+			enableNote(noteFromCoords(pressed.x), velocity);
+
+			drawChordName(noteFromCoords(pressed.x), chord.name);
+			D_PRINTLN("Root x: %d Root y: %d", pressed.x, pressed.y);
 
 			for (int i = 0; i < kMaxChordKeyboardSize; i++) {
-				auto offset = chordTypeSemitoneOffsets[pressed.y][i];
+				auto offset = chord.offsets[i];
 				if (!offset) {
 					break;
 				}
+				// D_PRINTLN("Offset: %d, Note: %d", offset, note);
 				enableNote(noteFromCoords(pressed.x) + offset, velocity);
 			}
 		}
 	}
 
-	// Should be called last so currentNotesState can be read
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
@@ -88,7 +122,7 @@ void KeyboardLayoutChord::precalculate() {
 
 	// Pre-Buffer colours for next renderings
 	for (int32_t i = 0; i < (kOctaveSize + kDisplayWidth); ++i) {
-		noteColours[i] = getNoteColour((i % state.rowInterval) * state.rowColorMultiplier);
+		noteColours[i] = getNoteColour(((state.VoiceOffset + i) % state.rowInterval) * state.rowColorMultiplier);
 	}
 }
 
@@ -129,6 +163,46 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			//  Dim note pad if a browser is open with the note highlighted
 
 		}
+	}
+}
+
+
+void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName) {
+	// We a modified version of reimplement noteCodeToString here
+	// Because sometimes the note name is not displayed correctly
+	// and we need to add a null terminator to the note name string
+	// TODO: work out how to fix this with the noteCodeToString function
+	char noteName[3];
+	uint8_t drawDot;
+	char* thisChar = noteName;
+	D_PRINTLN("Note Name: %s, size of note name: %d", noteName, strlen(noteName));
+
+	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
+	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
+	thisChar++;
+
+	if (noteCodeIsSharp[noteCodeWithinOctave]) {
+		*thisChar = display->haveOLED() ? '#' : '.';
+		thisChar++;
+		drawDot = 255;
+	}
+	else {
+		drawDot = 0;
+	}
+
+	*thisChar = '\0';
+
+	// noteName[2] = '\0';
+
+	// noteCodeToString(noteCode, noteName, &isNatural, false);
+
+	D_PRINTLN("Note Name: %s, size of note name: %d", noteName, strlen(noteName));
+
+	if (display->haveOLED()) {
+		display->popupTextTemporary(strcat(noteName, chordName));
+	}
+	else {
+		display->setText(strcat(noteName, chordName), false, drawDot, true);
 	}
 }
 
