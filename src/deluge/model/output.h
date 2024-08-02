@@ -182,6 +182,6 @@ public:
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
 
-	Clip* activeClip;
-	SampleRecorder* recorder;
+	Clip* activeClip{nullptr};
+	SampleRecorder* recorder{nullptr};
 };
