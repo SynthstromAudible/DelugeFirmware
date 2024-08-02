@@ -26,6 +26,8 @@
 #include "model/output.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
+#include "model/scale/scale_change.h"
+#include "model/scale/scale_mapper.h"
 #include "model/sync.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
@@ -95,7 +97,7 @@ public:
 	void addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& notesWithinOctavePresent);
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
 	void rotateMusicalMode(int8_t change);
-	void replaceMusicalMode(int8_t changes[], bool affectMIDITranspose);
+	void replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
@@ -395,8 +397,7 @@ public:
 	uint8_t chordMem[kDisplayHeight][MAX_NOTES_CHORD_MEM] = {0};
 
 private:
-	uint8_t indexLastUnusedScaleDegreeFrom7To6 = 0;
-	uint8_t indexLastUnusedScaleDegreeFrom6To5 = 0;
+	ScaleMapper scaleMapper;
 	bool fillModeActive;
 	Clip* currentClip = nullptr;
 	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something

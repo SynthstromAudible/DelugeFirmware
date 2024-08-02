@@ -27,6 +27,9 @@ public:
 	/** Add a note to NoteSet.
 	 */
 	void add(int8_t note) { bits = 0xfff & (bits | (1 << note)); }
+	/** Remove a note to NoteSet.
+	 */
+	void remove(int8_t note) { bits = 0xfff & (bits & ~(1 << note)); }
 	/** Returns true if note is part of the NoteSet.
 	 */
 	bool has(int8_t note) const { return (bits >> note) & 1; }
@@ -47,23 +50,22 @@ public:
 	 * This is the scale degree of the note if the NoteSet represents a scale and has a root.
 	 */
 	int8_t degreeOf(uint8_t note) const;
-	/** Applies changes specified by the array.
-	 *
-	 * Each element of the array describes a semitone offset
-	 * to a scale degree.
-	 *
-	 * Root offset is applied relative to the other notes.
-	 */
-	void applyChanges(int8_t changes[12]);
 	/** Marks all semitones as being part of the NoteSet.
 	 */
 	void fill() { bits = 0xfff; }
 	/** Removes all semitones from the NoteSet.
 	 */
 	void clear() { bits = 0; }
+	/** Returns true if the NoteSet is empty */
+	bool isEmpty() const { return bits == 0; }
 	/** Returns the highest note that has been added to the NoteSet.
 	 */
 	uint8_t highest() const { return 15 - std::countl_zero(bits); }
+	/** Returns the highest note present in this NoteSet not present in the other.
+	 *
+	 * Returns -1 if there are no notes present unused in the other NoteSet..
+	 */
+	int8_t highestNotIn(NoteSet used) const;
 	/** If this is a preset scale, returns the preset scale id.
 	 *
 	 * Otherwise returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES
@@ -96,6 +98,8 @@ public:
 private:
 	uint16_t bits;
 };
+
+const uint8_t kMaxScaleSize = NoteSet::size;
 
 #ifdef IN_UNIT_TESTS
 // For CppUTest CHECK_EQUAL() and debugging convenience

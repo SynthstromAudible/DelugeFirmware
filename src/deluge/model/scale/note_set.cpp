@@ -41,6 +41,15 @@ int8_t NoteSet::operator[](uint8_t index) const {
 	return note;
 }
 
+int8_t NoteSet::highestNotIn(NoteSet other) const {
+	for (int8_t i = highest(); i >= 0; i--) {
+		if (has(i) && !other.has(i)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 int8_t NoteSet::degreeOf(uint8_t note) const {
 	if (has(note)) {
 		// Mask everything before the note
@@ -52,20 +61,6 @@ int8_t NoteSet::degreeOf(uint8_t note) const {
 	else {
 		return -1;
 	}
-}
-
-void NoteSet::applyChanges(int8_t changes[12]) {
-	NoteSet newSet;
-	uint8_t n = 1;
-	for (int note = 1; note < 12; note++) {
-		if (has(note)) {
-			// n'th degree has semitone t, compute
-			// the transpose and save to new noteset
-			newSet.add(note + changes[n++] - changes[0]);
-		}
-	}
-	newSet.add(0);
-	bits = newSet.bits;
 }
 
 uint8_t NoteSet::presetScaleId() const {
