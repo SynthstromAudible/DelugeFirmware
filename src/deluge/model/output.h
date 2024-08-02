@@ -172,6 +172,7 @@ public:
 	// returns whether a recorder was removed
 	bool removeRecorder() {
 		if (recorder) {
+			recorder->removeFromOutput();
 			recorder = nullptr;
 			return true;
 		}
@@ -182,7 +183,5 @@ protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
 
 	Clip* activeClip;
-
-private:
 	SampleRecorder* recorder;
 };

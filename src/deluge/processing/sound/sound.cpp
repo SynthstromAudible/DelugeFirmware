@@ -2180,7 +2180,7 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 
 void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int32_t numSamples,
                    int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust,
-                   bool shouldLimitDelayFeedback, int32_t pitchAdjust) {
+                   bool shouldLimitDelayFeedback, int32_t pitchAdjust, SampleRecorder* recorder) {
 
 	if (skippingRendering) {
 		compressor.gainReduction = 0;
@@ -2427,6 +2427,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	}
 	else {
 		compressor.reset();
+	}
+
+	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+		recorder->feedAudio(soundBuffer, numSamples, true);
 	}
 	addAudio((StereoSample*)soundBuffer, outputBuffer, numSamples);
 

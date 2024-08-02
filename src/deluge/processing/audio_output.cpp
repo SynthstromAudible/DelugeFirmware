@@ -63,7 +63,7 @@ void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffe
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO, recorder);
 }
 
 void AudioOutput::resetEnvelope() {

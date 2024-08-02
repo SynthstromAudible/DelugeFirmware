@@ -854,6 +854,9 @@ void SampleRecorder::finishCapturing() {
 	if (getRootUI()) {
 		getRootUI()->sampleNeedsReRendering(sample);
 	}
+	if (outputRecordingFrom) {
+		outputRecordingFrom->removeRecorder();
+	}
 }
 
 // Only call this after checking that status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING

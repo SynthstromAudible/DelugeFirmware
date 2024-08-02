@@ -55,6 +55,12 @@ public:
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
 	bool inputLooksDifferential();
 	bool inputHasNoRightChannel();
+	void removeFromOutput() {
+		if (status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			abort();
+		}
+		outputRecordingFrom = nullptr;
+	};
 	void abort();
 
 	SampleRecorder* next;
