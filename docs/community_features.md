@@ -953,7 +953,7 @@ to each individual note onset. ([#1978])
       can't fit/transpose the existing notes from your clips, screen will show `Can't`.
 - ([#2174]) With the addition of the new Keyboard Sidebar Controls, the default behaviour of being able to immediately exit the menu by pressing a sidebar pad while in Keyboard View was removed. To accomodate users that still wish to be able to exit the menus immediately by pressing a sidebar pad, a new community feature toggle has been added (`Enable KB View Sidebar Menu Exit (EXIT)`) which will enable you to immediately exit the menu using the top left sidebar pad if you are in the `SETTINGS` or `SOUND` menu for `KEYBOARD VIEW`.
 
-#### 4.4.2 - New scales
+#### 4.4.2 - Scales
 
 - ([#991]) Added new scales for instrument clips.
     - The new set of scales is:
@@ -972,6 +972,14 @@ to each individual note onset. ([#1978])
       all clips in the song must fit the new scale. If you have added more notes that what can fit in the new scale, the
       Deluge will omit those scales, and cycle back to the beginning of the Scales list (that is, going back to the
       Major scale).
+
+- ([#2365]) Added support for learning a user specified scale.
+    - Hold `LEARN` and press `SCALE` while in clip view. Notes from current clip & all scale mode clips are learned as the "USER"
+      scale. This scale is part of the normal scale rotation, accessible with `SHIFT` + `SCALE`. If another user scale is learned,
+      the previous one is discarded.
+    - Additionally, if you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
+      preset scales, it will be learned as a user scale - similarly overwriting the previous `USER` scale.
+    - NOTE: extended support for user scales is planned, allowing multiple user scales to be learned, saved, and loaded.
 
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
