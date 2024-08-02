@@ -16,8 +16,7 @@ public:
 	 * -1 if the noteCode is note in key.
 	 */
 	int8_t degreeOf(int32_t nodeCode) const;
-	void applyChanges(int8_t changes[12]);
-	// TODO: make these priviate later, and maybe rename modeNotes
+	// TODO: make these private later, and maybe rename modeNotes
 	NoteSet modeNotes;
 	int16_t rootNote;
 };
