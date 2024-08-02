@@ -21,6 +21,7 @@
 #include "dsp/stereo_sample.h"
 #include "fatfs/fatfs.hpp"
 #include <cstddef>
+#include <optional>
 
 enum class MonitoringAction {
 	NONE = 0,
