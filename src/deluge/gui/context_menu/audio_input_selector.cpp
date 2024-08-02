@@ -101,6 +101,10 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 		valueOption = Value::OUTPUT;
 		break;
 
+	case AudioInputChannel::SPECIFIC_OUTPUT:
+		valueOption = Value::TRACK;
+		break;
+
 	default:
 		valueOption = Value::OFF;
 	}

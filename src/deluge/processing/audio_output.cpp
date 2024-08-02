@@ -305,7 +305,7 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 		writer.writeAttribute("echoingInput", "1");
 	}
 	writer.writeAttribute("inputChannel", inputChannelToString(inputChannel));
-
+	writer.writeAttribute("outputRecordingIndex", currentSong->getOutputIndex(outputRecordingFrom));
 	Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
 
 	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == NULL);
@@ -340,6 +340,10 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 		else if (!strcmp(tagName, "inputChannel")) {
 			inputChannel = stringToInputChannel(reader.readTagOrAttributeValue());
 			reader.exitTag("inputChannel");
+		}
+
+		else if (!strcmp(tagName, "outputRecordingIndex")) {
+			outputRecordingFromIndex = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (Output::readTagFromFile(reader, tagName)) {}

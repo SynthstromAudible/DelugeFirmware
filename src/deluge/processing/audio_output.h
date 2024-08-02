@@ -82,7 +82,10 @@ public:
 
 	AudioInputChannel inputChannel{AudioInputChannel::UNSET};
 	Output* outputRecordingFrom{nullptr};
-	bool echoing; // Doesn't get cloned - we wouldn't want that!
+	// only used during loading - index changes as outputs are added/removed and this won't get updated. Pointer stays
+	// accurate through those changes
+	int16_t outputRecordingFromIndex{-1}; // int16 so it fits with the bool and because that should be enough outputs
+	bool echoing;                         // Doesn't get cloned - we wouldn't want that!
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
