@@ -148,6 +148,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_BALANCED_INPUT_MONITORING, "Bal. input (monitoring)"},
         {STRING_FOR_MIX_PRE_FX, "Deluge mix (pre fx)"},
         {STRING_FOR_MIX_POST_FX, "Deluge output (post fx)"},
+        {STRING_FOR_TRACK, "Specific Track"},
         {STRING_FOR_DEFAULT_LAUNCH, "Default Clip"},
         {STRING_FOR_FILL_LAUNCH, "Fill Clip"},
         {STRING_FOR_ONCE_LAUNCH, "Once Clip"},

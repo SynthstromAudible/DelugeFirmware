@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
+#include "model/song/song.h"
 #include "processing/audio_output.h"
 
 extern AudioInputChannel defaultAudioOutputInputChannel;
@@ -43,8 +44,10 @@ enum class AudioInputSelector::Value {
 	MASTER,
 
 	OUTPUT,
+
+	TRACK,
 };
-constexpr size_t kNumValues = 11;
+constexpr size_t kNumValues = 12;
 
 AudioInputSelector audioInputSelector{};
 
@@ -55,19 +58,18 @@ char const* AudioInputSelector::getTitle() {
 
 Sized<const char**> AudioInputSelector::getOptions() {
 	using enum l10n::String;
-	static const char* options[] = {
-	    l10n::get(STRING_FOR_DISABLED),
-	    l10n::get(STRING_FOR_LEFT_INPUT),
-	    l10n::get(STRING_FOR_LEFT_INPUT_MONITORING),
-	    l10n::get(STRING_FOR_RIGHT_INPUT),
-	    l10n::get(STRING_FOR_RIGHT_INPUT_MONITORING),
-	    l10n::get(STRING_FOR_STEREO_INPUT),
-	    l10n::get(STRING_FOR_STEREO_INPUT_MONITORING),
-	    l10n::get(STRING_FOR_BALANCED_INPUT),
-	    l10n::get(STRING_FOR_BALANCED_INPUT_MONITORING),
-	    l10n::get(STRING_FOR_MIX_PRE_FX),
-	    l10n::get(STRING_FOR_MIX_POST_FX),
-	};
+	static const char* options[] = {l10n::get(STRING_FOR_DISABLED),
+	                                l10n::get(STRING_FOR_LEFT_INPUT),
+	                                l10n::get(STRING_FOR_LEFT_INPUT_MONITORING),
+	                                l10n::get(STRING_FOR_RIGHT_INPUT),
+	                                l10n::get(STRING_FOR_RIGHT_INPUT_MONITORING),
+	                                l10n::get(STRING_FOR_STEREO_INPUT),
+	                                l10n::get(STRING_FOR_STEREO_INPUT_MONITORING),
+	                                l10n::get(STRING_FOR_BALANCED_INPUT),
+	                                l10n::get(STRING_FOR_BALANCED_INPUT_MONITORING),
+	                                l10n::get(STRING_FOR_MIX_PRE_FX),
+	                                l10n::get(STRING_FOR_MIX_POST_FX),
+	                                l10n::get(STRING_FOR_TRACK)};
 	return {options, kNumValues};
 }
 
@@ -159,6 +161,10 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	case Value::OUTPUT:
 		audioOutput->inputChannel = AudioInputChannel::OUTPUT;
+		break;
+	case Value::TRACK:
+		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		audioOutput->outputRecordingFrom = currentSong->getOutputFromIndex(0);
 		break;
 
 	default:
