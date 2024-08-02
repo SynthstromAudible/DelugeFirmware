@@ -8,6 +8,8 @@
 
 - Added DX7 compatible synth type with support for importing patches from DX7 patch banks in syx format, as well as editing of patch parameters.
 - Added blend control to compressors
+- Added ability to record from a specific track's output. Set an audio clips input to TRACK, then in the audio clip menu
+use the TRACK menu to select the specific track to record from
 
 ### User Interface
 
