@@ -80,7 +80,8 @@ public:
 
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
 
-	AudioInputChannel inputChannel;
+	AudioInputChannel inputChannel{AudioInputChannel::UNSET};
+	Output* outputRecordingFrom{nullptr};
 	bool echoing; // Doesn't get cloned - we wouldn't want that!
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
