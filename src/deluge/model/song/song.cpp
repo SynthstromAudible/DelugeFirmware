@@ -2747,18 +2747,12 @@ int32_t Song::setPresetScale(int32_t newScale) {
 	NoteSet newScaleNotes = presetScaleNotes[newScale];
 
 	// Always count the root note as present, to avoid changing the root note when cycling scales.
-	NoteSet notesWithinOctavePresent{0};
-
-	// If w're trying to pass from source scale with more notes than the target scale,
-	// then we need to check the real number of notes used to see if we can convert it.
 	//
-	// Otherwise we can just pretend the whole scale is used without that causing issues.
-	if (key.modeNotes.scaleSize() > newScaleNotes.scaleSize()) {
-		notesWithinOctavePresent = notesWithinOctavePresent | notesInScaleModeClips();
-	}
-	else {
-		notesWithinOctavePresent = key.modeNotes;
-	}
+	// Note: it is important we always use the actual notes, instead of eg. picking all scale notes
+	// when transforming between scales of same size - otherwise scale transformations don't necessarily
+	// remain reversible across sizes, even if the user didn't change the notes used.
+	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
+	notesWithinOctavePresent.add(0);
 
 	// If the new scale cannot fit the notes from the old one, we can't change scale
 	if (notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize()) {
