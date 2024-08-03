@@ -309,7 +309,8 @@ void KeyboardScreen::updateActiveNotes() {
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
 		if (activeInstrument->type != OutputType::KIT && clipIsActiveOnInstrument
-		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())) {
+		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())
+		    && getCurrentClip()->armedForRecording) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(getCurrentClip());
 
