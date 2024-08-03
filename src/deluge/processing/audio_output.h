@@ -91,7 +91,8 @@ public:
 	int16_t outputRecordingFromIndex{-1}; // int16 so it fits with the bool and because that should be enough outputs
 	/// When true, this output is monitoring its input.
 	///
-	/// Does not get copied when this Output is cloned, as that would result in undesirable doubling of the monitored audio.
+	/// Does not get copied when this Output is cloned, as that would result in undesirable doubling of the monitored
+	/// audio.
 	bool echoing;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
