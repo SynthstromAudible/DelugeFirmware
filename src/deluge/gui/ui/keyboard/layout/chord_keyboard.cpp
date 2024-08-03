@@ -24,53 +24,11 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "util/functions.h"
+#include "gui/ui/keyboard/chords.h"
+
 
 namespace deluge::gui::ui::keyboard::layout {
 
-
-uint8_t chordTypeSemitoneOffsets[][kMaxChordKeyboardSize] = {
-    /* NO_CHORD  */ {0, 0, 0, 0},
-    /* MAJOR     */ {4, 7, 0, 0},
-    /* MINOR     */ {3, 7, 0, 0},
-    /* SUS2      */ {2, 7, 0, 0},
-    /* SUS4      */ {5, 7, 0, 0},
-    /* DOMINANT7 */ {4, 7, 10, 0},
-    /* MAJOR7    */ {4, 7, 11, 0},
-    /* MINOR7    */ {3, 7, 10, 0},
-};
-
-const char* chordNames[] = {
-    /* NO_CHORD  */ "",
-    /* MAJOR     */ "MAJ",
-    /* MINOR     */ "MIN",
-    /* SUS2      */ "SUS2",
-    /* SUS4      */ "SUS4",
-    /* DOMINANT7 */ "DOM7",
-    /* MAJOR7    */ "MAJ7",
-    /* MINOR7    */ "MIN7",
-};
-
-struct Chord {
-	const char* name;
-	int32_t offsets[4];
-};
-
-struct Chords {
-	Chord chords[8];
-};
-
-Chords chords = {
-	{
-		{"", {0, 0, 0, 0}},
-		{"MAJ", {4, 7, 0, 0}},
-		{"MIN", {3, 7, 0, 0}},
-		{"SUS2", {2, 7, 0, 0}},
-		{"SUS4", {5, 7, 0, 0}},
-		{"DOM7", {4, 7, 10, 0}},
-		{"MAJ7", {4, 7, 11, 0}},
-		{"MIN7", {3, 7, 10, 0}},
-	}
-};
 
 void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes

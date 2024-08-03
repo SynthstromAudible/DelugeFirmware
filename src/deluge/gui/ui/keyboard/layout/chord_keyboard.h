@@ -19,13 +19,10 @@
 
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "definitions.h"
+#include "gui/ui/keyboard/chords.h"
+
 
 namespace deluge::gui::ui::keyboard::layout {
-
-
-constexpr int32_t kMaxChordKeyboardSize = 4;
-
-constexpr int32_t kMaxNumChords = 1;
 
 
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
