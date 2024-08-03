@@ -30,8 +30,8 @@ constexpr int32_t kMaxNumChords = 1;
 
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
 public:
-	KeyboardLayoutChord() {}
-	~KeyboardLayoutChord() override {}
+	KeyboardLayoutChord() = default;
+	~KeyboardLayoutChord() override = default;
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
