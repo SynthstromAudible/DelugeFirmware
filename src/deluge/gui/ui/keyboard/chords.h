@@ -19,8 +19,8 @@
 
 #include "definitions_cxx.hpp"
 
-constexpr int32_t kMaxChordKeyboardSize = 4;
-constexpr int32_t kUniqueChords = 8;
+constexpr int32_t kMaxChordKeyboardSize = 6;
+constexpr int32_t kUniqueChords = 11;
 
 namespace deluge::gui::ui::keyboard {
 
@@ -36,14 +36,17 @@ struct Chords {
 
 const Chords chords = {
 	{
-		{"", {0, 0, 0, 0}},
-		{"MAJ", {4, 7, 0, 0}},
-		{"MIN", {3, 7, 0, 0}},
-		{"SUS2", {2, 7, 0, 0}},
-		{"SUS4", {5, 7, 0, 0}},
-		{"DOM7", {4, 7, 10, 0}},
-		{"MAJ7", {4, 7, 11, 0}},
-		{"MIN7", {3, 7, 10, 0}},
+		{"", {0, 0, 0, 0, 0, 0}},
+		{"M", {4, 7, 0, 0, 0, 0}},
+		{"-", {3, 7, 0, 0, 0, 0}},
+		{"SUS2", {2, 7, 0, 0, 0, 0}},
+		{"SUS4", {5, 7, 0, 0, 0, 0}},
+		{"7", {4, 7, 10, 0, 0, 0}},
+		{"M7", {4, 7, 11, 0, 0, 0}},
+		{"-7", {3, 7, 10, 0, 0, 0}},
+		{"9", {4, 7, 10, 14, 0, 0}},
+		{"M9", {4, 7, 11, 14, 0, 0}},
+		{"-9", {3, 7, 10, 14, 0, 0}},
 	}
 };
 

@@ -32,6 +32,7 @@ namespace deluge::gui::ui::keyboard::layout {
 
 void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
+	KeyboardStateChord& state = getState().chord;
 
 	// We run through the presses in reverse order to display the most recent pressed chord on top
 	for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
@@ -41,18 +42,23 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 
 			D_PRINTLN("pressed x: %d pressed y: %d", pressed.x, pressed.y);
 
-			Chord chord = chords.chords[pressed.y];
+			Chord chord = chords.chords[pressed.y + state.chordRowOffset];
+
+			bool rootPlayed = false;
 
 			// We need to play the root, but only once
-			enableNote(noteFromCoords(pressed.x), velocity);
+			// enableNote(noteFromCoords(pressed.x), velocity);
 
 			drawChordName(noteFromCoords(pressed.x), chord.name);
 			D_PRINTLN("Root x: %d Root y: %d", pressed.x, pressed.y);
 
 			for (int i = 0; i < kMaxChordKeyboardSize; i++) {
 				auto offset = chord.offsets[i];
-				if (!offset) {
-					break;
+				if (!offset && !rootPlayed) {
+					rootPlayed = true;
+				}
+				else if (!offset) {
+					continue;
 				}
 				// D_PRINTLN("Offset: %d, Note: %d", offset, note);
 				enableNote(noteFromCoords(pressed.x) + offset, velocity);
@@ -64,6 +70,26 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 }
 
 void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
+	KeyboardStateChord& state = getState().chord;
+
+	if (offset > 0) {
+		if (state.chordRowOffset + kDisplayHeight + offset >= kUniqueChords) {
+			state.chordRowOffset = kUniqueChords - kDisplayHeight;
+		}
+		else {
+			state.chordRowOffset += offset;
+		}
+	}
+	else {
+		if (state.chordRowOffset + offset < 0) {
+			state.chordRowOffset = 0;
+		}
+		else {
+			state.chordRowOffset += offset;
+		}
+	}
+	precalculate();
+
 }
 
 void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {

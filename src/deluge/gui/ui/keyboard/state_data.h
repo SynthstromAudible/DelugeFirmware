@@ -43,6 +43,7 @@ struct KeyboardStateInKey {
 struct KeyboardStateChord {
 	int32_t rowInterval = kOctaveSize;
 	int32_t scrollOffset = 0;
+	int32_t chordRowOffset = 0;
 	int32_t VoiceOffset = (rowInterval * 4);
 	int32_t rowColorMultiplier = 5;
 };
