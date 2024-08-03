@@ -125,6 +125,7 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 		        ->addOtherTwoThingsButNoNoteRow(&modelStack->song->globalEffectable, &modelStack->song->paramManager);
 
 		currentSong->paramManager.processCurrentPos(modelStackStackWithThreeMainThing, posIncrement, false);
+		currentSong->updateBPMFromAutomation();
 	}
 
 	int32_t nearestArpTickTime = 2147483647;

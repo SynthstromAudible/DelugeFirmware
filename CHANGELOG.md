@@ -31,6 +31,7 @@
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
 - Submenu's on OLED for automatable parameters (e.g. LPF Frequency) render the current parameter value at the end. You still need to click on `SELECT` to edit the parameters value / edit modulation depth and patch cables.
  - All other submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
+ - Added ability to automate tempo in arranger view
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
