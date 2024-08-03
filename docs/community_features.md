@@ -147,6 +147,8 @@ as the micromonsta and the dreadbox nymphes.
   `SETTINGS > SWING INTERVAL` to `SONG > SWING INTERVAL`. Additionally, when changing either swing amount or interval using the
   `TEMPO` encoder, first encoder detent shows the current swing without changing it, with subsequent ones editing it.
 
+- ([#2367]) Tempo changes can now be recorded to automation in arranger view
+
 #### 3.5 - Kits
 
 - ([#395]) Load synth presets into kit rows by holding the row's `AUDITION` + `SYNTH`. Saving can be done by holding the
@@ -1397,6 +1399,8 @@ different firmware
 [#2343]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2343
 
 [#2345]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2345
+
+[#2367]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2367
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
