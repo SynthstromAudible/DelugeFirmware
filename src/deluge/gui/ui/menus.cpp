@@ -1,4 +1,5 @@
 #include "gui/l10n/strings.h"
+#include "gui/menu_item/active_scales.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_probability.h"
@@ -1009,7 +1010,7 @@ IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 24
 IntegerRange defaultSwingAmountMenu{STRING_FOR_SWING_AMOUNT, STRING_FOR_DEFAULT_SWING, 1, 99};
 defaults::SwingInterval defaultSwingIntervalMenu{STRING_FOR_SWING_INTERVAL, STRING_FOR_DEFAULT_SWING};
 KeyRange defaultKeyMenu{STRING_FOR_KEY, STRING_FOR_DEFAULT_KEY};
-defaults::Scale defaultScaleMenu{STRING_FOR_SCALE, STRING_FOR_DEFAULT_SCALE};
+defaults::DefaultScale defaultScaleMenu{STRING_FOR_INIT_SCALE};
 defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_VELOC_MENU_TITLE};
 defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
 defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
@@ -1024,6 +1025,14 @@ ToggleBool defaultHighCPUUsageIndicatorMode{STRING_FOR_DEFAULT_HIGH_CPU_USAGE_IN
                                             FlashStorage::highCPUUsageIndicator};
 defaults::HoldTime defaultHoldTimeMenu{STRING_FOR_HOLD_TIME, STRING_FOR_HOLD_TIME};
 
+ActiveScaleMenu defaultActiveScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::DEFAULT};
+
+Submenu defaultScalesSubmenu{STRING_FOR_SCALE,
+                             {
+                                 &defaultScaleMenu,
+                                 &defaultActiveScaleMenu,
+                             }};
+
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1033,7 +1042,7 @@ Submenu defaultsSubmenu{
         &defaultSwingAmountMenu,
         &defaultSwingIntervalMenu,
         &defaultKeyMenu,
-        &defaultScaleMenu,
+        &defaultScalesSubmenu,
         &defaultVelocityMenu,
         &defaultMagnitudeMenu,
         &defaultBendRangeMenu,
@@ -1200,6 +1209,8 @@ menu_item::Submenu stemExportMenu{
     },
 };
 
+ActiveScaleMenu activeScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::SONG};
+
 song_macros::Configure configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
 
 // Root menu for Song View
@@ -1210,6 +1221,7 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalFiltersMenu,
         &globalFXMenu,
         &swingIntervalMenu,
+        &activeScaleMenu,
         &midiLoopbackMenu,
         &configureSongMacrosMenu,
         &stemExportMenu,

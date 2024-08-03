@@ -195,13 +195,13 @@ void SevenSegment::setText(std::string_view newText, bool alignRight, uint8_t dr
 }
 
 NumericLayerScrollingText* SevenSegment::setScrollingText(char const* newText, int32_t startAtTextPos,
-                                                          int32_t initialDelay, int count) {
+                                                          int32_t initialDelay, int count, uint8_t fixedDot) {
 	// Paul: Render time could be lower putting this into internal
 	void* layerSpace = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(NumericLayerScrollingText));
 	if (!layerSpace) {
 		return NULL;
 	}
-	NumericLayerScrollingText* newLayer = new (layerSpace) NumericLayerScrollingText();
+	NumericLayerScrollingText* newLayer = new (layerSpace) NumericLayerScrollingText(fixedDot);
 
 	newLayer->length = encodeText(newText, newLayer->text, false, 255, false);
 
@@ -313,6 +313,32 @@ int32_t SevenSegment::getEncodedPosFromLeft(int32_t textPos, char const* text, b
 	}
 
 	return encodedPos;
+}
+
+void putDot(uint8_t* destination, uint8_t drawDot) {
+	if (drawDot < kNumericDisplayLength) {
+		destination[drawDot] |= 128;
+	}
+	else if ((drawDot & 0b11110000) == 0b10000000) {
+		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
+			if ((drawDot >> (kNumericDisplayLength - 1 - i)) & 1) {
+				destination[i] |= 128;
+			}
+		}
+	}
+}
+
+void clearDot(uint8_t* destination, uint8_t drawDot) {
+	if (drawDot < kNumericDisplayLength) {
+		destination[drawDot] &= ~128;
+	}
+	else if ((drawDot & 0b11110000) == 0b10000000) {
+		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
+			if ((drawDot >> (kNumericDisplayLength - 1 - i)) & 1) {
+				destination[i] &= ~128;
+			}
+		}
+	}
 }
 
 // Returns encoded length
@@ -484,16 +510,7 @@ int32_t SevenSegment::encodeText(std::string_view newText, uint8_t* destination,
 			}
 		}
 
-		if (drawDot < kNumericDisplayLength) {
-			destination[drawDot] |= 128;
-		}
-		else if ((drawDot & 0b11110000) == 0b10000000) {
-			for (int32_t i = 0; i < kNumericDisplayLength; i++) {
-				if ((drawDot >> (kNumericDisplayLength - 1 - i)) & 1) {
-					destination[i] |= 128;
-				}
-			}
-		}
+		putDot(destination, drawDot);
 	}
 	return writePos;
 }
@@ -598,6 +615,13 @@ void SevenSegment::render() {
 	layer->render(segments.data());
 	lastDisplay_ = segments;
 
+	// In most cases dots are already encoded, but if we have scrolling
+	// text with dots in fixed screen positions, we need to put them in
+	// here, and take them out afterwards.
+	if (layer->fixedDot != 255) {
+		putDot(segments.data(), layer->fixedDot);
+	}
+
 	if (have_oled_screen) {
 		OLED::renderEmulated7Seg(segments);
 	}
@@ -605,6 +629,10 @@ void SevenSegment::render() {
 		PIC::update7SEG(segments);
 	}
 	HIDSysex::sendDisplayIfChanged();
+
+	if (layer->fixedDot != 255) {
+		clearDot(segments.data(), layer->fixedDot);
+	}
 }
 
 // Call this to make the loading animation happen
