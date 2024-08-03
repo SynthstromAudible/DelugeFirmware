@@ -21,9 +21,9 @@
 #include "model/settings/runtime_feature_settings.h"
 
 namespace deluge::gui::menu_item::runtime_feature {
-class ShiftIsSticky final : public Setting {
+class ShiftIsSticky final : public SettingToggle {
 public:
-	ShiftIsSticky() : Setting(RuntimeFeatureSettingType::ShiftIsSticky) {}
+	ShiftIsSticky() : SettingToggle(RuntimeFeatureSettingType::ShiftIsSticky) {}
 
 	void writeCurrentValue() override;
 };

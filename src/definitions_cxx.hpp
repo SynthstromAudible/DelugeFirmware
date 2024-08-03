@@ -907,10 +907,12 @@ constexpr int32_t kOLEDMenuNumOptionsVisible = (OLED_HEIGHT_CHARS - 1);
 constexpr int32_t kConsoleImageHeight = (OLED_MAIN_HEIGHT_PIXELS);
 constexpr int32_t kConsoleImageNumRows = (OLED_MAIN_HEIGHT_PIXELS >> 3);
 
-constexpr int32_t kTextSpacingX = 6;
-constexpr int32_t kTextSpacingY = 9;
+// non-title characters
+constexpr int32_t kTextSpacingX = 6; // the width of a character (5 px) + the space after it (1 px)
+constexpr int32_t kTextSpacingY = 9; // the height of a character (7 px) + the space above (1px) and below it (1px)
 constexpr int32_t kTextSizeYUpdated = 7;
 
+// title characters
 constexpr int32_t kTextTitleSpacingX = 9;
 constexpr int32_t kTextTitleSizeY = 10;
 

@@ -21,16 +21,14 @@ void NoteSet::addUntrusted(uint8_t note) {
 	add(note);
 }
 
-uint8_t NoteSet::operator[](uint8_t index) const {
-	// Shift out the root note bit, ie. scale degree zero. We don't
-	// actually check it it's set, because counting scale degrees
-	// doesn't make sense if the root is not set.
-	uint16_t wip = bits >> 1;
-	uint8_t note = 0;
-	while (index--) {
+int8_t NoteSet::operator[](uint8_t index) const {
+	uint16_t wip = bits;
+	int8_t note = -1;
+	int8_t n = -1;
+	while (index > n++) {
 		if (!wip) {
 			// The desired degree does not exist.
-			return 0;
+			return -1;
 		}
 		// For each subsequent scale degree, find the number
 		// of semitones, increment the note counter
@@ -43,18 +41,26 @@ uint8_t NoteSet::operator[](uint8_t index) const {
 	return note;
 }
 
-void NoteSet::applyChanges(int8_t changes[12]) {
-	NoteSet newSet;
-	uint8_t n = 1;
-	for (int note = 1; note < 12; note++) {
-		if (has(note)) {
-			// n'th degree has semitone t, compute
-			// the transpose and save to new noteset
-			newSet.add(note + changes[n++] - changes[0]);
+int8_t NoteSet::highestNotIn(NoteSet other) const {
+	for (int8_t i = highest(); i >= 0; i--) {
+		if (has(i) && !other.has(i)) {
+			return i;
 		}
 	}
-	newSet.add(0);
-	bits = newSet.bits;
+	return -1;
+}
+
+int8_t NoteSet::degreeOf(uint8_t note) const {
+	if (has(note)) {
+		// Mask everything before the note
+		uint16_t mask = ~(0xffff << note);
+		// How many notes under mask?
+		uint16_t under = bits & mask;
+		return std::popcount(under);
+	}
+	else {
+		return -1;
+	}
 }
 
 uint8_t NoteSet::presetScaleId() const {

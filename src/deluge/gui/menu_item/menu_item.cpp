@@ -66,8 +66,10 @@ void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32
 }
 
 // renders the default sub menu item type ("  >")
-void MenuItem::renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel) {
+void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
-	image.drawString("  >", xPixel, yPixel, kTextSpacingX, kTextSpacingY);
+	int32_t startX = getSubmenuItemTypeRenderIconStart();
+
+	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, 7);
 }

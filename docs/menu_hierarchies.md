@@ -372,17 +372,17 @@ NOTE: These options can change depending on how your default resolution is set
 	- Light Shift (LIGH)
 		- OFF
 		- ON
-	- Enable Grain FX (GRFX)
+	- Grain FX (GRFX)
 		- OFF
 		- ON
-	- Enable DX Shortcuts (DX7S)
+	- DX Shortcuts (DX7S)
 		- OFF
 		- ON
 	- Emulated Display (EMUL)
 		- OLED (OLED)
 		- Toggle (TOGL)
 		- 7SEG (7SEG)
-	- Enable KB View Sidebar Menu Exit (EXIT)
+	- KB View Sidebar Menu Exit (EXIT)
 		- OFF
 		- ON
 </details>
