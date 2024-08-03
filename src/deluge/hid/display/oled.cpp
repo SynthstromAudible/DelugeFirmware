@@ -238,7 +238,7 @@ int32_t numConsoleItems = 0;
 class ConsoleItemAccessor {
 public:
 	ConsoleItem& operator[](size_t index) {
-		if (index < 0 | MAX_NUM_CONSOLE_ITEMS <= index) [[unlikely]] {
+		if (index < 0 || MAX_NUM_CONSOLE_ITEMS <= index) [[unlikely]] {
 			FREEZE_WITH_ERROR("D003");
 		}
 		return consoleItemStoreDontAccessDirectly[index];
