@@ -396,6 +396,10 @@ public:
 	uint8_t chordMemNoteCount[kDisplayHeight] = {0};
 	uint8_t chordMem[kDisplayHeight][MAX_NOTES_CHORD_MEM] = {0};
 
+	void clearTempoAutomation();
+
+	void updateBPMFromAutomation();
+
 private:
 	ScaleMapper scaleMapper;
 	bool fillModeActive;
@@ -408,6 +412,10 @@ private:
 	void deleteAllBackedUpParamManagersWithClips();
 	void deleteAllOutputs(Output** prevPointer);
 	void setupClipIndexesForSaving();
+
+	void setBPMInner(float tempoBPM, bool shouldLogAction);
+	void clearTempoAutomation(float tempoBPM);
+	int32_t intBPM;
 	/** Returns a NoteSet with all notes currently in used in scale mdoe clips.
 	 */
 	NoteSet notesInScaleModeClips();
