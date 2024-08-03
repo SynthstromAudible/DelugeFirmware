@@ -38,6 +38,8 @@
 #include "model/note/note.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
+#include "model/scale/scale_change.h"
+#include "model/scale/utils.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -1242,26 +1244,35 @@ RGB InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset
 	return RGB::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
 }
 
-void InstrumentClip::replaceMusicalMode(uint8_t numModeNotes, int8_t changes[12],
-                                        ModelStackWithTimelineCounter* modelStack) {
+void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack) {
 	if (!isScaleModeClip()) {
 		return;
 	}
-	// Find all NoteRows which belong to this yVisualWithinOctave, and change their note
+	// Find all NoteRows which belong to this scale, and change their note
+	//
+	// TODO: There probably should not be _any_ rows which don't below to the
+	// current scale? FREEZE_WITH_ERROR?
+	MusicalKey key = modelStack->song->key;
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
-		for (int32_t yVisualWithinOctave = 0; yVisualWithinOctave < numModeNotes; yVisualWithinOctave++) {
-			if (modelStack->song->yNoteIsYVisualWithinOctave(thisNoteRow->y, yVisualWithinOctave)) {
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+		int8_t degree = key.degreeOf(thisNoteRow->y);
+		if (degree >= 0) {
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 
-				thisNoteRow->stopCurrentlyPlayingNote(
-				    modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
-				thisNoteRow->y += changes[yVisualWithinOctave];
-				break;
-			}
+			thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
+			thisNoteRow->y += changes[degree];
 		}
 	}
+
+	uint8_t oldSize = changes.source.scaleSize();
+	uint8_t newSize = changes.target.scaleSize();
+
+	// Which octave & scale degree was at the bottom of the view before scale change?
+	int yOctave = yScroll / oldSize;
+	int yDegree = yScroll - (yOctave * oldSize);
+	// Take scale size changes into account and adjust yScroll to keep same octave visible
+	yScroll = yOctave * newSize + yDegree;
 }
 
 void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) {
@@ -1290,7 +1301,7 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOcta
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!thisNoteRow->hasNoNotes()) {
-			notesWithinOctavePresent.add(song->getYNoteWithinOctaveFromYNote(thisNoteRow->getNoteCode()));
+			notesWithinOctavePresent.add(song->key.intervalOf(thisNoteRow->getNoteCode()));
 			i++;
 		}
 
@@ -1370,12 +1381,13 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		// wanting to change less than an octave
 		else {
 			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+				MusicalKey key = modelStack->song->key;
 				NoteRow* thisNoteRow = noteRows.getElement(i);
 				int32_t changeInSemitones = 0;
-				int32_t yNoteWithinOctave = modelStack->song->getYNoteWithinOctaveFromYNote(thisNoteRow->getNoteCode());
+				int32_t yNoteWithinOctave = key.intervalOf(thisNoteRow->getNoteCode());
 				int32_t oldModeNoteIndex = 0;
-				for (; oldModeNoteIndex < modelStack->song->key.modeNotes.count(); oldModeNoteIndex++) {
-					if (modelStack->song->key.modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
+				for (; oldModeNoteIndex < key.modeNotes.count(); oldModeNoteIndex++) {
+					if (key.modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
 						break;
 					}
 				}
@@ -3184,6 +3196,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 
 	NoteRow* chosenNoteRow = NULL;
 	int32_t chosenNoteRowIndex;
+	MusicalKey key = song->key;
 
 	// If we're in scale mode...
 	if (inScaleMode) {
@@ -3191,7 +3204,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 		// See if any NoteRows are a root note
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
-			if (thisNoteRow->y != -32768 && song->getYNoteWithinOctaveFromYNote(thisNoteRow->y) == 0) {
+			if (thisNoteRow->y != -32768 && key.intervalOf(thisNoteRow->y) == 0) {
 				chosenNoteRow = thisNoteRow;
 				chosenNoteRowIndex = i;
 				break;
@@ -3208,7 +3221,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 
 				// But, if we're in key-mode, make sure this yNote fits within the scale!
 				if (inScaleMode) {
-					uint8_t yNoteWithinOctave = song->getYNoteWithinOctaveFromYNote(thisNoteRow->y);
+					uint8_t yNoteWithinOctave = key.intervalOf(thisNoteRow->y);
 
 					// Make sure this yNote fits the scale/mode
 					if (!song->key.modeNotes.has(yNoteWithinOctave)) {

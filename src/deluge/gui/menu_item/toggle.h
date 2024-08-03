@@ -18,7 +18,7 @@ public:
 	bool shouldEnterSubmenu() override { return false; }
 
 	// renders toggle item type in submenus after the item name
-	void renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel) override;
+	void renderSubmenuItemTypeForOled(int32_t yPixel) override;
 
 	// toggles boolean ON / OFF
 	void toggleValue() {

@@ -43,6 +43,8 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/sample/sample_recorder.h"
 #include "model/scale/preset_scales.h"
+#include "model/scale/scale_change.h"
+#include "model/scale/utils.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
 #include "model/voice/voice_sample.h"
@@ -553,116 +555,32 @@ bool Song::anyScaleModeClips() {
 	return false;
 }
 
-void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
+NoteSet Song::notesInScaleModeClips() {
+	NoteSet notes;
+	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
+		if (instrumentClip->isScaleModeClip()) {
+			instrumentClip->seeWhatNotesWithinOctaveArePresent(notes, key.rootNote, this);
+		}
+	}
+	return notes;
+}
 
+void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor) {
+	// Setting the new root affects interpretation of existing notes done by notesInScaleModeClips(),
+	// so we need to do it before anything else.
 	int32_t oldRootNote = key.rootNote;
 	key.rootNote = newRootNote;
 
 	int32_t oldNumModeNotes = key.modeNotes.count();
-	NoteSet notesWithinOctavePresent;
+	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
 
-	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
-		if (instrumentClip->isScaleModeClip()) {
-			instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, key.rootNote, this);
-		}
-	}
-
-	bool previousScaleFits = true;
-	if (getCurrentPresetScale() >= NUM_PRESET_SCALES) {
-		// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale
-		previousScaleFits = false;
-	}
+	// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale.
 	// Check if the previously set scale could fit the notes present in the clips
 	// If so, we need no check at all, we can directly go back to previous scale safely
-	else {
-		for (int32_t i = 1; i < 12; i++) {
-			if (notesWithinOctavePresent.has(i)) {
-				bool checkPassed = false;
-				for (int32_t n = 1; n < key.modeNotes.count(); n++) {
-					if (key.modeNotes[n] == i) {
-						checkPassed = true;
-						break;
-					}
-				}
-				if (!checkPassed) {
-					previousScaleFits = false;
-					break;
-				}
-			}
-		}
-	}
-
+	bool previousScaleFits =
+	    getCurrentPresetScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
 	if (!previousScaleFits) {
-		// Determine the majorness or minorness of the scale
-		int32_t majorness = 0;
-
-		// The 3rd is the main indicator of majorness, to my ear
-		if (notesWithinOctavePresent.has(4)) {
-			majorness++;
-		}
-		if (notesWithinOctavePresent.has(3)) {
-			majorness--;
-		}
-
-		// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
-		if (majorness == 0) {
-			if (notesWithinOctavePresent.has(1)) {
-				majorness--;
-			}
-			if (notesWithinOctavePresent.has(8)) {
-				majorness--;
-			}
-			if (notesWithinOctavePresent.has(9)) {
-				majorness++;
-			}
-		}
-
-		bool moreMajor = (majorness >= 0);
-
-		key.modeNotes.clear();
-		key.modeNotes.add(0);
-
-		// 2nd
-		addMajorDependentModeNotes(1, true, notesWithinOctavePresent);
-
-		// 3rd
-		addMajorDependentModeNotes(3, moreMajor, notesWithinOctavePresent);
-
-		// 4th, 5th
-		if (notesWithinOctavePresent.has(5)) {
-			key.modeNotes.add(5);
-			if (notesWithinOctavePresent.has(6)) {
-				key.modeNotes.add(6);
-				if (notesWithinOctavePresent.has(7)) {
-					key.modeNotes.add(7);
-				}
-			}
-			else {
-				key.modeNotes.add(7);
-			}
-		}
-		else {
-			if (notesWithinOctavePresent.has(6)) {
-				if (notesWithinOctavePresent.has(7) || moreMajor) {
-					key.modeNotes.add(6);
-					key.modeNotes.add(7);
-				}
-				else {
-					key.modeNotes.add(5);
-					key.modeNotes.add(6);
-				}
-			}
-			else {
-				key.modeNotes.add(5);
-				key.modeNotes.add(7);
-			}
-		}
-
-		// 6th
-		addMajorDependentModeNotes(8, moreMajor, notesWithinOctavePresent);
-
-		// 7th
-		addMajorDependentModeNotes(10, moreMajor, notesWithinOctavePresent);
+		key.modeNotes = notesWithinOctavePresent.toImpliedScale();
 	}
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed
@@ -686,55 +604,6 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	}
 }
 
-// Sets up a mode-note, optionally specifying that we prefer it a semitone higher, although this may be overridden
-// by what actual note is present
-void Song::addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& notesWithinOctavePresent) {
-	// If lower one present...
-	if (notesWithinOctavePresent.has(i)) {
-		// If higher one present as well...
-		if (notesWithinOctavePresent.has(i + 1)) {
-			key.modeNotes.add(i);
-			key.modeNotes.add(i + 1);
-		}
-		// Or if just the lower one
-		else {
-			key.modeNotes.add(i);
-		}
-	}
-	// Or, if lower one absent...
-	else {
-		// We probably want the higher one
-		if (notesWithinOctavePresent.has(i + 1) || preferHigher) {
-			key.modeNotes.add(i + 1);
-			// Or if neither present and we prefer the lower one, do that
-		}
-		else {
-			key.modeNotes.add(i);
-		}
-	}
-}
-
-bool Song::yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave) {
-	int32_t yNoteWithinOctave = getYNoteWithinOctaveFromYNote(yNote);
-	return (key.modeNotes[yVisualWithinOctave] == yNoteWithinOctave);
-}
-
-uint8_t Song::getYNoteWithinOctaveFromYNote(int32_t yNote) {
-	uint16_t yNoteRelativeToRoot = yNote - key.rootNote + 132;
-	int32_t yNoteWithinOctave = yNoteRelativeToRoot % 12;
-	return yNoteWithinOctave;
-}
-
-uint8_t Song::getYNoteIndexInMode(int32_t yNote) {
-	uint8_t yNoteWithinOctave = (uint8_t)(yNote - key.rootNote + 132) % 12;
-	for (uint8_t i = 0; i < key.modeNotes.count(); i++) {
-		if (key.modeNotes[i] == yNoteWithinOctave) {
-			return i;
-		}
-	}
-	return 255;
-}
-
 /* Moves the intervals in the current modeNotes by some number of steps
     in a circular way. For example, starting in major
     and going up one step (change == 1) results in Dorian:
@@ -746,8 +615,9 @@ uint8_t Song::getYNoteIndexInMode(int32_t yNote) {
 void Song::rotateMusicalMode(int8_t change) {
 	int8_t j;
 	int16_t newRoot;
-	int8_t changes[12] = {0};
 	uint8_t noteCount = key.modeNotes.count();
+	ScaleChange changes;
+	changes.source = key.modeNotes;
 
 	int8_t steps = (change % noteCount + noteCount) % noteCount;
 	newRoot = key.modeNotes[steps];
@@ -763,7 +633,7 @@ void Song::rotateMusicalMode(int8_t change) {
 
 /* Changes the musical mode of all scale mode clips, by
    supplying an array of deltas in semitones */
-void Song::replaceMusicalMode(int8_t changes[], bool affectMIDITranspose) {
+void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -776,16 +646,17 @@ void Song::replaceMusicalMode(int8_t changes[], bool affectMIDITranspose) {
 		}
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(instrumentClip);
 
-		instrumentClip->replaceMusicalMode(key.modeNotes.count(), changes, modelStackWithTimelineCounter);
+		instrumentClip->replaceMusicalMode(changes, modelStackWithTimelineCounter);
 	}
 
-	key.applyChanges(changes);
+	key.modeNotes = changes.applyTo(key.modeNotes);
 }
 
 // Flattens or sharpens a given note-within-octave in the current scale
 void Song::changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change) {
 
-	int8_t changes[12] = {0};
+	ScaleChange changes;
+	changes.source = key.modeNotes;
 	changes[yVisualWithinOctave] += change;
 
 	replaceMusicalMode(changes, true);
@@ -795,7 +666,7 @@ bool Song::isYNoteAllowed(int32_t yNote, bool inKeyMode) {
 	if (!inKeyMode) {
 		return true;
 	}
-	return key.modeNotes.has(getYNoteWithinOctaveFromYNote(yNote));
+	return key.modeNotes.has(key.intervalOf(yNote));
 }
 
 int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode) {
@@ -2855,190 +2726,45 @@ const char* Song::getScaleName(int32_t scale) {
 }
 
 int32_t Song::cycleThroughScales() {
-	int32_t currentScale = getCurrentPresetScale();
-	int32_t newScale = currentScale + 1; // next scale
-	if (newScale >= NUM_PRESET_SCALES) {
-		// If past the last scale, start from the beginning
-		newScale = 0;
-	}
-	return setPresetScale(newScale);
+	int8_t startScale = getCurrentPresetScale();
+	int8_t currentScale = startScale;
+	int8_t newScale = currentScale;
+	// Try next scale until one works, or we've tried all.
+	do {
+		newScale = mod(newScale + 1, NUM_PRESET_SCALES);
+		currentScale = setPresetScale(newScale);
+	} while (newScale != currentScale && newScale != startScale);
+	return newScale;
 }
 
 /// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES if there are more than 7 notes and no preset is possible.
 int32_t Song::setPresetScale(int32_t newScale) {
-	int32_t numNotesInCurrentScale = key.modeNotes.count();
-	int32_t numNotesInNewScale = 7;
-
-	// Get num of notes of new scale
-	if (newScale >= FIRST_5_NOTE_SCALE_INDEX) {
-		numNotesInNewScale = 5;
+	// Make sure newScale is a legal one
+	if (newScale < 0 || NUM_PRESET_SCALES <= newScale) {
+		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
 	}
-	else if (newScale >= FIRST_6_NOTE_SCALE_INDEX) {
-		numNotesInNewScale = 6;
-	}
+	// Grab the actual new scale
+	NoteSet newScaleNotes = presetScaleNotes[newScale];
 
 	// Always count the root note as present, to avoid changing the root note when cycling scales.
-	NoteSet notesWithinOctavePresent;
+	//
+	// Note: it is important we always use the actual notes, instead of eg. picking all scale notes
+	// when transforming between scales of same size - otherwise scale transformations don't necessarily
+	// remain reversible across sizes, even if the user didn't change the notes used.
+	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
 	notesWithinOctavePresent.add(0);
 
-	if (numNotesInCurrentScale > numNotesInNewScale) {
-		// We are trying to pass from source scale with more notes than the target scale.
-		// We need to check the real number of notes used to see if we can convert it.
-
-		for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
-			if (instrumentClip->isScaleModeClip()) {
-				instrumentClip->seeWhatNotesWithinOctaveArePresent(notesWithinOctavePresent, key.rootNote, this);
-			}
-		}
-	}
-
-	int32_t notesWithinOctavePresentCount = notesWithinOctavePresent.count();
-
 	// If the new scale cannot fit the notes from the old one, we can't change scale
-	if ((newScale >= 0 && notesWithinOctavePresentCount > 7) // More than 7 notes (no scale is possible)
-	    || (newScale >= FIRST_6_NOTE_SCALE_INDEX
-	        && notesWithinOctavePresentCount > 6) // 6-note scale, but more than 6 notes
-	    || (newScale >= FIRST_5_NOTE_SCALE_INDEX
-	        && notesWithinOctavePresentCount > 5)) { // 5-note scale, but more than 5 notes
-		if (notesWithinOctavePresentCount <= 7) {
-			// If the total number of notes present is still 7 or less,
-			// we can fall back to Major scale
-			newScale = 0;
-			numNotesInNewScale = 7;
-		}
-		else {
-			return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
-		}
+	if (notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize()) {
+		return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
 	}
 
-	// If going from scale with more notes to a scale with less notes,
-	// find the highest unused degree indexes and save them in temporary variables
-	uint8_t transitionModeNotes[12] = {0};
-	if (numNotesInCurrentScale == 7 && numNotesInNewScale < 7) {
-		// First find the highest unused degree to jump from 7 to 6
-		indexLastUnusedScaleDegreeFrom7To6 = 0; // Reset
-		for (int32_t n = 6; n >= 1; n--) {
-			if (key.modeNotes[n] != 0 && !notesWithinOctavePresent.has(key.modeNotes[n])) {
-				indexLastUnusedScaleDegreeFrom7To6 = n;
-				break;
-			}
-		}
-		if (numNotesInNewScale == 5) {
-			// in case the target scale is 5 notes, we are gonna need the transitionModeNotes
-			// because it is going to be a 2-step jump!
-			int32_t offset = 0;
-			for (int32_t n = 1; n < 6; n++) {
-				if (n == indexLastUnusedScaleDegreeFrom7To6) {
-					offset++;
-				}
-				transitionModeNotes[n] = key.modeNotes[n + offset];
-			}
-		}
-	}
-	if (numNotesInCurrentScale > 5 && numNotesInNewScale == 5) {
-		// See if we use the real modeNotes, or the transition ones (in case we jump directly from 7 to 5)
-		uint8_t modeNotesToCompare[12] = {0};
-		if (numNotesInCurrentScale == 7) {
-			// If the source scale was 7 notes, use the transitionModeNotes (2-steps jump)
-			for (int32_t n = 1; n < 12; n++) {
-				modeNotesToCompare[n] = transitionModeNotes[n];
-			}
-		}
-		else {
-			// If the source scale was 6 notes, use the real modeNotes (1-step jump)
-			for (int32_t n = 1; n < 12; n++) {
-				modeNotesToCompare[n] = key.modeNotes[n];
-			}
-		}
-
-		// First find the highest unused degree to jump from 6 to 5
-		indexLastUnusedScaleDegreeFrom6To5 = 0; // Reset
-		for (int32_t n = 5; n >= 1; n--) {
-			if (modeNotesToCompare[n] != 0 && !notesWithinOctavePresent.has(modeNotesToCompare[n])) {
-				indexLastUnusedScaleDegreeFrom6To5 = n;
-				break;
-			}
-		}
-	}
-
-	if (numNotesInCurrentScale <= numNotesInNewScale) {
-		// The new scale can perfectly fit all notes from the old one, so mark all notes as transposable
-		notesWithinOctavePresent.fill();
-		notesWithinOctavePresentCount = 12;
-	}
-
-	bool modeNoteNeedsTransposition;
-	int8_t changes[12] = {0};
-	int32_t noteNumDiff = numNotesInCurrentScale - numNotesInNewScale;
-
-	if (numNotesInCurrentScale >= numNotesInNewScale) {
-		// If the new scale is smaller or equal to old scale
-		int32_t offset = noteNumDiff;
-		for (int32_t n = numNotesInCurrentScale - 1; n >= 1; n--) {
-			modeNoteNeedsTransposition = notesWithinOctavePresent.has(key.modeNotes[n]) && key.modeNotes[n] != 0;
-
-			if (!modeNoteNeedsTransposition && offset > 0) {
-				offset--;
-				continue;
-			}
-
-			int32_t newNote = presetScaleNotes[newScale][n - offset];
-			int32_t oldNote = key.modeNotes[n];
-			if (modeNoteNeedsTransposition && oldNote != newNote) {
-				changes[n] = newNote - oldNote;
-			}
-		}
-	}
-	else {
-		// If the new scale is bigger than old scale,
-		// we need to use the indexLastUnusedScaleDegree* variables to know which notes to skip
-		// We now undo the changes that were saved in those flags when going from 7 to 6 notes and from 6 to 5 notes
-		if (numNotesInCurrentScale == 5 && numNotesInNewScale == 7) {
-			// 2-step jump from 5 to 7
-			// We need to use the transition mode notes array to invert the change
-			uint8_t transitionPresetScale[7] = {0};
-			int32_t offset = 0;
-			for (int32_t n = 1; n < 6; n++) {
-				if (n == indexLastUnusedScaleDegreeFrom7To6) {
-					offset++;
-				}
-				transitionPresetScale[n] = presetScaleNotes[newScale][n + offset];
-			}
-			// Move from our 5-note scale to our transitional 6-note scale (after that the notes are already in the
-			// right place!)
-			offset = 0;
-			for (int32_t n = 1; n < 5; n++) {
-				if (n == indexLastUnusedScaleDegreeFrom6To5) {
-					offset++;
-				}
-				int32_t newNote = transitionPresetScale[n + offset];
-				int32_t oldNote = key.modeNotes[n];
-				if (oldNote != newNote) {
-					changes[n] = newNote - oldNote;
-				}
-			}
-		}
-		else {
-			// From 5 to 6 or from 6 to 7, no need for transitional scale,
-			// directly use the presetScaleNotes and the corresponding indexLastUnusedScaleDegree* variable
-			int32_t offset = 0;
-			for (int32_t n = 1; n < 6; n++) {
-				if ((numNotesInCurrentScale == 5 && n == indexLastUnusedScaleDegreeFrom6To5)
-				    || (numNotesInCurrentScale == 6 && n == indexLastUnusedScaleDegreeFrom7To6)) {
-					offset++;
-				}
-				int32_t newNote = presetScaleNotes[newScale][n + offset];
-				int32_t oldNote = key.modeNotes[n];
-				if (oldNote != newNote) {
-					changes[n] = newNote - oldNote;
-				}
-			}
-		}
-	}
+	ScaleChange changes;
+	scaleMapper.computeChangeFrom(notesWithinOctavePresent, key.modeNotes, newScaleNotes, changes);
 
 	replaceMusicalMode(changes, true);
 
-	key.modeNotes = presetScaleNotes[newScale];
+	key.modeNotes = newScaleNotes;
 
 	return newScale;
 }

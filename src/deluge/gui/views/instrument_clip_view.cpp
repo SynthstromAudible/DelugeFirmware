@@ -3514,7 +3514,7 @@ ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDi
 
 	// Recording - only allowed if currentClip is activeClip
 	if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
-	    && currentSong->isClipActive(getCurrentClip())) {
+	    && currentSong->isClipActive(getCurrentClip()) && getCurrentClip()->armedForRecording) {
 
 		// Note-on
 		if (velocity) {

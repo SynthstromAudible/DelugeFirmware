@@ -21,16 +21,14 @@ void NoteSet::addUntrusted(uint8_t note) {
 	add(note);
 }
 
-uint8_t NoteSet::operator[](uint8_t index) const {
-	// Shift out the root note bit, ie. scale degree zero. We don't
-	// actually check it it's set, because counting scale degrees
-	// doesn't make sense if the root is not set.
-	uint16_t wip = bits >> 1;
-	uint8_t note = 0;
-	while (index--) {
+int8_t NoteSet::operator[](uint8_t index) const {
+	uint16_t wip = bits;
+	int8_t note = -1;
+	int8_t n = -1;
+	while (index > n++) {
 		if (!wip) {
 			// The desired degree does not exist.
-			return 0;
+			return -1;
 		}
 		// For each subsequent scale degree, find the number
 		// of semitones, increment the note counter
@@ -43,18 +41,26 @@ uint8_t NoteSet::operator[](uint8_t index) const {
 	return note;
 }
 
-void NoteSet::applyChanges(int8_t changes[12]) {
-	NoteSet newSet;
-	uint8_t n = 1;
-	for (int note = 1; note < 12; note++) {
-		if (has(note)) {
-			// n'th degree has semitone t, compute
-			// the transpose and save to new noteset
-			newSet.add(note + changes[n++] - changes[0]);
+int8_t NoteSet::highestNotIn(NoteSet other) const {
+	for (int8_t i = highest(); i >= 0; i--) {
+		if (has(i) && !other.has(i)) {
+			return i;
 		}
 	}
-	newSet.add(0);
-	bits = newSet.bits;
+	return -1;
+}
+
+int8_t NoteSet::degreeOf(uint8_t note) const {
+	if (has(note)) {
+		// Mask everything before the note
+		uint16_t mask = ~(0xffff << note);
+		// How many notes under mask?
+		uint16_t under = bits & mask;
+		return std::popcount(under);
+	}
+	else {
+		return -1;
+	}
 }
 
 uint8_t NoteSet::presetScaleId() const {
@@ -64,6 +70,121 @@ uint8_t NoteSet::presetScaleId() const {
 		}
 	}
 	return CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES;
+}
+
+NoteSet NoteSet::operator|(const NoteSet& other) {
+	NoteSet newSet = other;
+	newSet.bits |= bits;
+	return newSet;
+}
+
+int8_t NoteSet::majorness() const {
+	int8_t majorness = 0;
+
+	// The 3rd is the main indicator of majorness, to my ear
+	if (has(4)) {
+		majorness++;
+	}
+	if (has(3)) {
+		majorness--;
+	}
+
+	// If it's still a tie, try the 2nd, 6th, and 7th to help us decide
+	if (majorness == 0) {
+		if (has(1)) {
+			majorness--;
+		}
+		if (has(8)) {
+			majorness--;
+		}
+		if (has(9)) {
+			majorness++;
+		}
+	}
+	return majorness;
+}
+
+void NoteSet::addMajorDependentModeNotes(uint8_t i, bool preferHigher, const NoteSet notesWithinOctavePresent) {
+	// If lower one present...
+	if (notesWithinOctavePresent.has(i)) {
+		// If higher one present as well...
+		if (notesWithinOctavePresent.has(i + 1)) {
+			add(i);
+			add(i + 1);
+		}
+		// Or if just the lower one
+		else {
+			add(i);
+		}
+	}
+	// Or, if lower one absent...
+	else {
+		// We probably want the higher one
+		if (notesWithinOctavePresent.has(i + 1) || preferHigher) {
+			add(i + 1);
+			// Or if neither present and we prefer the lower one, do that
+		}
+		else {
+			add(i);
+		}
+	}
+}
+
+NoteSet NoteSet::toImpliedScale() const {
+	bool moreMajor = (majorness() >= 0);
+
+	NoteSet scale;
+	scale.add(0);
+
+	// 2nd
+	scale.addMajorDependentModeNotes(1, true, *this);
+
+	// 3rd
+	scale.addMajorDependentModeNotes(3, moreMajor, *this);
+
+	// 4th, 5th
+	if (has(5)) {
+		scale.add(5);
+		if (has(6)) {
+			scale.add(6);
+			if (has(7)) {
+				scale.add(7);
+			}
+		}
+		else {
+			scale.add(7);
+		}
+	}
+	else {
+		if (has(6)) {
+			if (has(7) || moreMajor) {
+				scale.add(6);
+				scale.add(7);
+			}
+			else {
+				scale.add(5);
+				scale.add(6);
+			}
+		}
+		else {
+			scale.add(5);
+			scale.add(7);
+		}
+	}
+
+	// 6th
+	scale.addMajorDependentModeNotes(8, moreMajor, *this);
+
+	// 7th
+	scale.addMajorDependentModeNotes(10, moreMajor, *this);
+
+	return scale;
+}
+
+int NoteSet::scaleSize() const {
+	NoteSet tmp = *this;
+	tmp.add(0);
+	return tmp.count();
 }
 
 #ifdef IN_UNIT_TESTS

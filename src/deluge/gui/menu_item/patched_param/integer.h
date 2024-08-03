@@ -58,7 +58,7 @@ public:
 	};
 
 	// renders param value in submenus after the item name
-	void renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel) override;
+	void renderSubmenuItemTypeForOled(int32_t yPixel) override;
 
 	int32_t getParamValue() {
 		readCurrentValue();

@@ -33,8 +33,8 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 
 		if (controlMethod == MIDITransposeControlMethod::INKEY) {
 
-			uint8_t indexInMode = currentSong->getYNoteIndexInMode(newNoteOrCC);
-			if (indexInMode < 255) {
+			int8_t degree = currentSong->key.degreeOf(newNoteOrCC);
+			if (degree >= 0) {
 				int8_t octaves;
 				if (semitones < 0) {
 					octaves = ((semitones + 1) / 12) - 1;
@@ -42,7 +42,7 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 				else {
 					octaves = (semitones / 12);
 				}
-				int32_t steps = octaves * currentSong->key.modeNotes.count() + indexInMode;
+				int32_t steps = octaves * currentSong->key.modeNotes.count() + degree;
 
 				currentSong->transposeAllScaleModeClips(steps, false);
 

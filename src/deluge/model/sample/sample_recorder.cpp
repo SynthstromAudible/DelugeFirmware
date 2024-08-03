@@ -24,6 +24,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/sample/sample.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
@@ -385,8 +386,20 @@ aborted:
 				error = stemExport.getUnusedStemRecordingFilePath(&filePath, folderID);
 			}
 			else {
+				const char* name;
+				if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && !AudioEngine::lineInPluggedIn) {
+					if (AudioEngine::micPluggedIn) {
+						name = "ExtMic";
+					}
+					else {
+						name = "IntMic";
+					}
+				}
+				else {
+					name = inputChannelToString(mode);
+				}
 				error = audioFileManager.getUnusedAudioRecordingFilePath(&filePath, &tempFilePathForRecording, folderID,
-				                                                         &audioFileNumber);
+				                                                         &audioFileNumber, name, &currentSong->name);
 			}
 			if (status == RecorderStatus::ABORTED) {
 				goto aborted; // In case aborted during
