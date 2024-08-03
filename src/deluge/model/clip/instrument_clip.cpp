@@ -1500,12 +1500,9 @@ int32_t InstrumentClip::getYNoteFromYVisual(int32_t yVisual, Song* song) {
 int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
 	NoteSet notesPresent;
 
+	// It's important this comes before noteRows.getNumElements(), since fetching
+	// used notes also deletes empty note rows!
 	seeWhatNotesWithinOctaveArePresent(notesPresent, song->key);
-	// TODO: there used to be "deleteUnusedRows" argument, and this passed in false, but that
-	// didn't actually do anything. Check that it wasn't just a bug, and not deleting would make
-	// things right.
-	//
-	// "Don't delete anything yet, since we're still going to make use of the noteRowsOnScreen!"
 
 	// If no NoteRows, not much we can do
 	if (noteRows.getNumElements() == 0) {
