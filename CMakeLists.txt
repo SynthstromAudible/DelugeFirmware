@@ -229,6 +229,7 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<AND:$<BOOL:${MAINTAINER_MODE}>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
 
     # Warnings
+    -Wsequence-point
     $<$<BOOL:${MAINTAINER_MODE}>:-Wextra>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wall>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wabi>

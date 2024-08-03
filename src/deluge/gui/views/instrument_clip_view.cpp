@@ -4893,7 +4893,7 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 	}
 
 	// Get the action in to which we should back up the current state
-	Action* action = action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
 	if (action) {
 		// XXX(sapphire): the old QUANTIZE_ALL code used quantizeAmount here instead, but I don't think anything
 		// reads this so it's probably fine?
