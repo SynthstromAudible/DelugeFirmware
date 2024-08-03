@@ -1126,7 +1126,7 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with
       sticky
       shift.
-* `Enable Grain FX (GRFX)`
+* `Grain FX (GRFX)`
     * When On, `GRAIN` will be a selectable option in the `MOD FX TYPE` category. Resource intensive, recommended to
       only use one instance per song or resample and remove instance afterwards.
 * `Enable DX Shortcuts (DX7S)`
@@ -1138,9 +1138,9 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * With the "7SEG" mode, the deluge will boot with the emulated display.
     * This option is technically available also on deluge with 7SEG hardware. But as you need an external display to
       render the OLED screen, it is of more limited use.
-* `Enable KB View Sidebar Menu Exit (EXIT)`
+* `KB View Sidebar Menu Exit (EXIT)`
     * When On, while in the `SETTINGS` or `SOUND` menu of `KEYBOARD VIEW`, pressing the top left sidebar pad will immediately exit the menu.
-* `Enable Launch Event Playhead (PLAY)`
+* `Launch Event Playhead (PLAY)`
     * When On, a red and white playhead will be rendered in Song Grid and Performance Views that let's you know that a maximum of one bar (16 notes) is remaining before a clip or section launch event is scheduled to occur.
 
 ## 6. Sysex Handling
