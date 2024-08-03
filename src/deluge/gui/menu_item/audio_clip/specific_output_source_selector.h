@@ -27,10 +27,6 @@ class SpecificSourceOutputSelector final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 
-	//	MenuItem* selectButtonPress() override {
-	//
-	//		return (MenuItem*)0xFFFFFFFF; // no navigation
-	//	}
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		audioOutputBeingEdited = (AudioOutput*)getCurrentOutput();
 		if (audioOutputBeingEdited->outputRecordingFrom) {
