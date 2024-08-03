@@ -58,18 +58,20 @@ char const* AudioInputSelector::getTitle() {
 
 Sized<const char**> AudioInputSelector::getOptions() {
 	using enum l10n::String;
-	static const char* options[] = {l10n::get(STRING_FOR_DISABLED),
-	                                l10n::get(STRING_FOR_LEFT_INPUT),
-	                                l10n::get(STRING_FOR_LEFT_INPUT_MONITORING),
-	                                l10n::get(STRING_FOR_RIGHT_INPUT),
-	                                l10n::get(STRING_FOR_RIGHT_INPUT_MONITORING),
-	                                l10n::get(STRING_FOR_STEREO_INPUT),
-	                                l10n::get(STRING_FOR_STEREO_INPUT_MONITORING),
-	                                l10n::get(STRING_FOR_BALANCED_INPUT),
-	                                l10n::get(STRING_FOR_BALANCED_INPUT_MONITORING),
-	                                l10n::get(STRING_FOR_MIX_PRE_FX),
-	                                l10n::get(STRING_FOR_MIX_POST_FX),
-	                                l10n::get(STRING_FOR_TRACK)};
+	static const char* options[] = {
+	    l10n::get(STRING_FOR_DISABLED),
+	    l10n::get(STRING_FOR_LEFT_INPUT),
+	    l10n::get(STRING_FOR_LEFT_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_RIGHT_INPUT),
+	    l10n::get(STRING_FOR_RIGHT_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_STEREO_INPUT),
+	    l10n::get(STRING_FOR_STEREO_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_BALANCED_INPUT),
+	    l10n::get(STRING_FOR_BALANCED_INPUT_MONITORING),
+	    l10n::get(STRING_FOR_MIX_PRE_FX),
+	    l10n::get(STRING_FOR_MIX_POST_FX),
+	    l10n::get(STRING_FOR_TRACK),
+	};
 	return {options, kNumValues};
 }
 
