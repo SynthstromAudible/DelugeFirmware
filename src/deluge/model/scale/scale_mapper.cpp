@@ -15,6 +15,7 @@ bool ScaleMapper::computeChangeFrom(NoteSet notes, NoteSet sourceScale, NoteSet 
 		return oops("SM01");
 	}
 	changes.source = sourceScale;
+	changes.target = targetScale;
 	// If we've previously converted from a scale with different size, this is the scale in which we
 	// arrived at current scale size before converting to whatever scale we're in now. If we don't have
 	// a different scale size in our history, this is same as source scale.

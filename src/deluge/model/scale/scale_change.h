@@ -7,6 +7,7 @@ public:
 	/** The source scale to which the ScaleChange applies.
 	 */
 	NoteSet source;
+	NoteSet target;
 	/** Returns the number of semitones for a scale degree offset.
 	 */
 	int8_t operator[](uint8_t degree) const { return degreeOffset[degree]; }
