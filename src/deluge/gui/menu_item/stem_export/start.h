@@ -36,7 +36,7 @@ public:
 		else if (rootUI == &sessionView) {
 			stemExport.startStemExportProcess(StemExportType::CLIP);
 		}
-		return (MenuItem*)0xFFFFFFFF; // no navigation
+		return NO_NAVIGATION;
 	}
 
 	bool shouldEnterSubmenu() override { return false; }

@@ -34,7 +34,7 @@ MenuItem* Range::selectButtonPress() {
 }
 
 MenuItem* Range::patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) {
-	return (MenuItem*)0xFFFFFFFF;
+	return NO_NAVIGATION;
 }
 
 } // namespace deluge::gui::menu_item::source_selection
