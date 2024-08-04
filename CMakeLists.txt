@@ -209,12 +209,12 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
 
     # Warnings
     -Warray-bounds=1
+    -Wnull-dereference
     -Wsequence-point
     $<$<BOOL:${MAINTAINER_MODE}>:-Wextra>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wall>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wabi>
     $<$<BOOL:${MAINTAINER_MODE}>:-Wpedantic>
-    $<$<CONFIG:DEBUG>:-Wnull-dereference>
     $<$<CONFIG:DEBUG>:-Wno-psabi>
     $<$<CONFIG:DEBUG>:-Wno-unused-parameter>
 
