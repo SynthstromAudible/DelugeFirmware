@@ -26,6 +26,7 @@
 #include "model/output.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
+#include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
 #include "model/scale/scale_mapper.h"
 #include "model/sync.h"
@@ -93,8 +94,6 @@ public:
 	void transposeAllScaleModeClips(int32_t interval);
 	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();
-	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
-	void addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& notesWithinOctavePresent);
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
 	void rotateMusicalMode(int8_t change);
 	void replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose);
@@ -112,12 +111,29 @@ public:
 	                                                                                 SoundDrum* drum, Kit* kit);
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
 	void displayCurrentRootNoteAndScaleName();
-	int32_t cycleThroughScales();
-	// Returns NUM_PRESET_SCALES if no preset matches current notes
-	uint8_t getCurrentPresetScale();
-	uint8_t setPresetScale(uint8_t newScale);
-	bool setScale(NoteSet newScale);
+
+	// Scale-related methods
+
+	/// Changes to next applicable scale.
+	Scale cycleThroughScales();
+	/// Returns current scale
+	Scale getCurrentScale();
+	/// Changes to requested scale, will return the scale if successfull, or NO_SCALE if change
+	/// could not be completed.
+	Scale setScale(Scale newScale);
+	/// Changes scale to the requested notes. Returns true if successful. If the notes are not a preset
+	/// scale, defines the scale as the new user scale.
+	bool setScaleNotes(NoteSet newScale);
+	/// Learns a user scale from notes in scale mode clips.
 	void learnScaleFromCurrentNotes();
+	/// Returns true if the song has a user scale.
+	bool hasUserScale();
+	/// Sets root note of key. If the previous scale no longer fits, changes to a new implied scale, which
+	/// can result in a new user scale being set.
+	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
+	/// Returns a NoteSet with all notes currently in used in scale mdoe clips.
+	NoteSet notesInScaleModeClips();
+
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
 	void setBPM(float tempoBPM, bool shouldLogAction);
@@ -381,9 +397,6 @@ public:
 	int32_t lastSelectedParamArrayPosition;
 	// END ~ new Automation Arranger View Variables
 
-	/// Returns a NoteSet with all notes currently in used in scale mdoe clips.
-	NoteSet notesInScaleModeClips();
-
 	// Song level transpose control (encoder actions)
 	int32_t masterTransposeInterval;
 	void transpose(int32_t interval);
@@ -406,7 +419,7 @@ public:
 
 private:
 	ScaleMapper scaleMapper;
-	NoteSet userScale;
+	NoteSet userScaleNotes;
 	bool fillModeActive;
 	Clip* currentClip = nullptr;
 	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
@@ -417,7 +430,6 @@ private:
 	void deleteAllBackedUpParamManagersWithClips();
 	void deleteAllOutputs(Output** prevPointer);
 	void setupClipIndexesForSaving();
-
 	void setBPMInner(float tempoBPM, bool shouldLogAction);
 	void clearTempoAutomation(float tempoBPM);
 	int32_t intBPM;

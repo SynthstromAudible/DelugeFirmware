@@ -525,14 +525,13 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 }
 
 void InstrumentClipMinder::cycleThroughScales() {
-	int32_t newScale = currentSong->cycleThroughScales();
-	displayScaleName(newScale);
+	displayScaleName(currentSong->cycleThroughScales());
 }
 
 // Returns if the scale could be changed or not
-bool InstrumentClipMinder::setScale(int32_t newScale) {
-	int32_t result = currentSong->setPresetScale(newScale);
-	if (result == CANT_CHANGE_SCALE) {
+bool InstrumentClipMinder::setScale(Scale newScale) {
+	auto result = currentSong->setScale(newScale);
+	if (result == NO_SCALE) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
 		return false;
 	}
@@ -542,12 +541,12 @@ bool InstrumentClipMinder::setScale(int32_t newScale) {
 	}
 }
 
-void InstrumentClipMinder::displayScaleName(uint8_t scale) {
+void InstrumentClipMinder::displayScaleName(Scale scale) {
 	display->displayPopup(getScaleName(scale));
 }
 
 void InstrumentClipMinder::displayCurrentScaleName() {
-	displayScaleName(currentSong->getCurrentPresetScale());
+	displayScaleName(currentSong->getCurrentScale());
 }
 
 // Returns whether currentClip is now active on Output / Instrument
