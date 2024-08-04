@@ -21,6 +21,7 @@
 #include "dsp/stereo_sample.h"
 #include "fatfs/fatfs.hpp"
 #include <cstddef>
+#include <optional>
 
 enum class MonitoringAction {
 	NONE = 0,
@@ -42,18 +43,25 @@ enum class RecorderStatus {
 class Sample;
 class Cluster;
 class AudioClip;
-
+class Output;
 class SampleRecorder {
 public:
 	SampleRecorder() = default;
 	~SampleRecorder();
 	Error setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
-	            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency);
+	            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
+	            Output* outputRecordingFrom);
 	void feedAudio(int32_t* inputAddress, int32_t numSamples, bool applyGain = false);
 	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
 	bool inputLooksDifferential();
 	bool inputHasNoRightChannel();
+	void removeFromOutput() {
+		if (status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			abort();
+		}
+		outputRecordingFrom = nullptr;
+	};
 	void abort();
 
 	SampleRecorder* next;
@@ -88,6 +96,7 @@ public:
 
 	RecorderStatus status = RecorderStatus::CAPTURING_DATA;
 	AudioInputChannel mode;
+	Output* outputRecordingFrom; // for when recording from a specific output
 
 	// Need to keep track of this, so we know whether to remove it. Well I guess we could just look and see if it's
 	// there... but this is nice.

@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
+#include "model/sample/sample_recorder.h"
 
 class ParamManagerForTimeline;
 class TimelineCounter;
@@ -57,7 +58,7 @@ protected:
 	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
 	                  StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
 	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-	                  OutputType outputType);
+	                  OutputType outputType, SampleRecorder* recorder);
 
 	virtual bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
 	                                           StereoSample* globalEffectableBuffer, int32_t* bufferToTransferTo,

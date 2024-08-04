@@ -147,7 +147,7 @@ bool AudioClip::isAbandonedOverdub() {
 Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 
 	AudioInputChannel inputChannel = ((AudioOutput*)output)->inputChannel;
-
+	Output* outputRecordingFrom = ((AudioOutput*)output)->outputRecordingFrom;
 	int32_t numChannels =
 	    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO) ? 2
 	                                                                                                             : 1;
@@ -156,7 +156,7 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	    FlashStorage::audioClipRecordMargins && inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
 
 	recorder = AudioEngine::getNewRecorder(numChannels, AudioRecordingFolder::CLIPS, inputChannel, true,
-	                                       shouldRecordMarginsNow, buttonPressLatency);
+	                                       shouldRecordMarginsNow, buttonPressLatency, false, outputRecordingFrom);
 	if (!recorder) {
 		return Error::INSUFFICIENT_RAM;
 	}

@@ -101,7 +101,7 @@ void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPo
 	}
 	else {
 		Sound::render(modelStackWithThreeMainThings, startPos, numSamples, reverbBuffer, sideChainHitPending,
-		              reverbAmountAdjust, shouldLimitDelayFeedback);
+		              reverbAmountAdjust, shouldLimitDelayFeedback, kMaxSampleValue, recorder);
 	}
 
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {

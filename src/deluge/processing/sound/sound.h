@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/sample/sample_recorder.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
 #include "modulation/lfo.h"
@@ -145,7 +146,8 @@ public:
 	                                    int32_t newValue);
 	void render(ModelStackWithThreeMainThings* modelStack, StereoSample* outputBuffer, int32_t numSamples,
 	            int32_t* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
-	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue);
+	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue,
+	            SampleRecorder* recorder = nullptr);
 	void unassignAllVoices();
 
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) final; // Song may be NULL
