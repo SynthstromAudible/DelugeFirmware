@@ -2807,6 +2807,30 @@ void Song::setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction) 
 }
 
 void Song::setBPM(float tempoBPM, bool shouldLogAction) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
+	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
+	auto intTempo = (int32_t)(tempoBPM * 100);
+	int32_t pos = -1; // means use the live position
+	tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
+	setBPMInner(tempoBPM, shouldLogAction);
+}
+
+void Song::clearTempoAutomation() {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
+	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
+	int32_t pos = -1; // means use the live position
+	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
+	tempoParam->autoParam->deleteAutomation(action, tempoParam);
+	display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
+}
+
+void Song::setBPMInner(float tempoBPM, bool shouldLogAction) {
 	if (insideWorldTickMagnitude > 0) {
 		tempoBPM *= ((uint32_t)1 << (insideWorldTickMagnitude));
 	}
@@ -5598,6 +5622,13 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 	}
 
 	return modelStackWithParam;
+}
+void Song::updateBPMFromAutomation() {
+	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
+	if (currentTempo != intBPM) {
+		setBPMInner((float)currentTempo / 100, false);
+		intBPM = currentTempo;
+	}
 }
 
 /*

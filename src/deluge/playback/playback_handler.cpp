@@ -1845,6 +1845,10 @@ void PlaybackHandler::commandDisplaySwingInterval() {
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
+void PlaybackHandler::commandClearTempoAutomation() {
+	currentSong->clearTempoAutomation();
+}
+
 /** On OLED displayes both Swing amount and interval, on 7seg only the amount. */
 void PlaybackHandler::commandDisplaySwingAmount() {
 	DEF_STACK_STRING_BUF(text, 30);

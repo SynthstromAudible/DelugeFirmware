@@ -867,6 +867,8 @@ void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManag
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(writer, "hpfMorph", params::UNPATCHED_HPF_MORPH, writeAutomation, false,
 	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(writer, "tempo", params::UNPATCHED_TEMPO, writeAutomation, false,
+	                                       valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -990,6 +992,10 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 	else if (!strcmp(tagName, "hpfMorph")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_MORPH, readAutomationUpToPos);
 		reader.exitTag("hpfMorph");
+	}
+	else if (!strcmp(tagName, "tempo")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_TEMPO, readAutomationUpToPos);
+		reader.exitTag("tempo");
 	}
 
 	else if (!strcmp(tagName, "volume")) {
