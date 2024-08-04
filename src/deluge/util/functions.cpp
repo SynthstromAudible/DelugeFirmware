@@ -1174,6 +1174,9 @@ char const* inputChannelToString(AudioInputChannel inputChannel) {
 	case AudioInputChannel::OUTPUT:
 		return "output";
 
+	case AudioInputChannel::SPECIFIC_OUTPUT:
+		return "specificTrack";
+
 	default: // AudioInputChannel::NONE
 		return "none";
 	}
@@ -1198,6 +1201,10 @@ AudioInputChannel stringToInputChannel(char const* string) {
 	else if (!strcmp(string, "output")) {
 		return AudioInputChannel::OUTPUT;
 	}
+	else if (!strcmp(string, "specificTrack")) {
+		return AudioInputChannel::SPECIFIC_OUTPUT;
+	}
+
 	else {
 		return AudioInputChannel::NONE;
 	}

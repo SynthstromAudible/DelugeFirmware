@@ -1557,7 +1557,7 @@ void slowRoutine() {
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency,
-                               bool shouldNormalize) {
+                               bool shouldNormalize, Output* outputRecordingFrom) {
 	Error error;
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
@@ -1567,11 +1567,21 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 
 	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
 
-	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency);
+	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency,
+	                           outputRecordingFrom);
 	if (error != Error::NONE) {
+errorAfterAllocation:
 		newRecorder->~SampleRecorder();
 		delugeDealloc(recorderMemory);
 		return NULL;
+	}
+
+	if (mode == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom) {
+		bool success = outputRecordingFrom->addRecorder(newRecorder);
+		if (!success) {
+			D_PRINTLN("Tried to attach to an occupied output");
+			goto errorAfterAllocation;
+		}
 	}
 
 	newRecorder->next = firstRecorder;

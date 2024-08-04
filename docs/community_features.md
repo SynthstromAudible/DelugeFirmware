@@ -239,6 +239,7 @@ as the micromonsta and the dreadbox nymphes.
 #### 3.17 - Select Audio Clip Source from Audio Clip Menu
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
+- ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose which track to record from.
 
 #### 3.18 - Remove Timestretching From Audio Clip Sample
 - ([#1542]) Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
@@ -1399,6 +1400,8 @@ different firmware
 [#2343]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2343
 
 [#2345]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2345
+
+[#2371]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2371
 
 [#2367]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2367
 

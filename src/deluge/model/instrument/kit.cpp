@@ -558,8 +558,8 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		    modelStack->addNoteRow(noteRowIndex, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
 		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, numSamples, reverbBuffer,
-		                  sideChainHitPending, reverbAmountAdjust, shouldLimitDelayFeedback,
-		                  pitchAdjust); // According to our volume, we tell Drums to send less reverb
+		                  sideChainHitPending, reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
+		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
 	}
 
@@ -658,7 +658,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::KIT, recorder);
 }
 
 // offer the CC to kit gold knobs without also offering to all drums

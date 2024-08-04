@@ -52,7 +52,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
                                                         int32_t numSamples, int32_t* reverbBuffer,
                                                         int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                                         bool shouldLimitDelayFeedback, bool isClipActive,
-                                                        OutputType outputType) {
+                                                        OutputType outputType, SampleRecorder* recorder) {
 	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
@@ -148,6 +148,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	}
 	else {
 		compressor.reset();
+	}
+	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+		recorder->feedAudio((int32_t*)globalEffectableBuffer, numSamples, true);
 	}
 	addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 

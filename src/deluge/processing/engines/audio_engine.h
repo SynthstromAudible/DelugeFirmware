@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
+#include "model/output.h"
 #include <cstdint>
 
 extern "C" {
@@ -160,8 +161,8 @@ int32_t getNumSamplesLeftToOutputFromPreviousRender();
 void registerSideChainHit(int32_t strength);
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
-                               bool keepFirstReasons = false, bool writeLoopPoints = false,
-                               int32_t buttonPressLatency = 0, bool shouldNormalize = true);
+                               bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency,
+                               bool shouldNormalize, Output* outputRecordingFrom);
 void discardRecorder(SampleRecorder* recorder);
 bool isAnyInternalRecordingHappening();
 

@@ -122,6 +122,7 @@ enum class String : size_t {
 	STRING_FOR_BALANCED_INPUT_MONITORING,
 	STRING_FOR_MIX_PRE_FX,
 	STRING_FOR_MIX_POST_FX,
+	STRING_FOR_TRACK,
 
 	// gui/context_menu/launch_style.cpp
 	STRING_FOR_DEFAULT_LAUNCH,

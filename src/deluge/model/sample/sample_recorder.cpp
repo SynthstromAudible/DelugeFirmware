@@ -103,13 +103,13 @@ void SampleRecorder::detachSample() {
 }
 
 Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
-                            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID,
-                            int32_t buttonPressLatency) {
+                            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
+                            Output* outputRecordingFrom_) {
 
 	if (!audioFileManager.ensureEnoughMemoryForOneMoreAudioFile()) {
 		return Error::INSUFFICIENT_RAM;
 	}
-
+	outputRecordingFrom = outputRecordingFrom_;
 	keepingReasonsForFirstClusters = newKeepingReasons;
 	recordingExtraMargins = shouldRecordExtraMargins;
 	folderID = newFolderID;
@@ -393,6 +393,11 @@ aborted:
 					}
 					else {
 						name = "IntMic";
+					}
+				}
+				else if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {
+					if (outputRecordingFrom) {
+						name = outputRecordingFrom->name.get();
 					}
 				}
 				else {
@@ -848,6 +853,9 @@ void SampleRecorder::finishCapturing() {
 	status = RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING;
 	if (getRootUI()) {
 		getRootUI()->sampleNeedsReRendering(sample);
+	}
+	if (outputRecordingFrom) {
+		outputRecordingFrom->removeRecorder();
 	}
 }
 
