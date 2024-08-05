@@ -49,7 +49,7 @@ struct KeyboardStateChord {
 	int32_t rowColorMultiplier = 5;
 	Chords chordList{};
 };
-/// Please note that saving \and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
+/// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
 /// share one struct for storage
 struct KeyboardState {
 	KeyboardLayoutType currentLayout = FlashStorage::defaultKeyboardLayout;

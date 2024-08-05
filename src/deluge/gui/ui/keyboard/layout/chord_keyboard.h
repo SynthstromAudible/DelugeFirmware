@@ -23,6 +23,10 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
+/**
+ * @brief Represents a keyboard layout for chord-based input.
+ *
+ */
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutChord() = default;

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2023 Synthstrom Audible Limited
+ * Copyright © 2016-2024 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -34,6 +34,7 @@ struct Chord {
 	Voicing voicings[kUniqueVoicings] = {0};
 };
 
+const int32_t NON = INT32_MAX;
 const int32_t ROOT = 0;
 const int32_t MIN2 = 1;
 const int32_t MAJ2 = 2;
@@ -43,6 +44,7 @@ const int32_t P4 = 5;
 const int32_t AUG4 = 6;
 const int32_t DIM5 = 6;
 const int32_t P5 = 7;
+const int32_t AUG5 = 8;
 const int32_t MIN6 = 8;
 const int32_t MAJ6 = 9;
 const int32_t MIN7 = 10;
@@ -115,13 +117,13 @@ const Chord kMinor11 = {"-11",
                          {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, ROOT},
                          {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, ROOT}}};
 const Chord k13 = {"13",
-                   {{ROOT, MAJ3, P5, MIN7, MAJ9, P11, MAJ13},
-                    {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, P11, MAJ13},
-                    {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, P11, MAJ13}}};
+                   {{ROOT, MAJ3, P5, MIN7, MAJ9, MAJ13, ROOT},
+                    {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, MAJ13, ROOT},
+                    {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, MAJ13, ROOT}}};
 const Chord kM13 = {"M13",
-                    {{ROOT, MAJ3, P5, MAJ7, MAJ9, P11, MAJ13},
-                     {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, P11, MAJ13},
-                     {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, P11, MAJ13}}};
+                    {{ROOT, MAJ3, P5, MAJ7, MAJ9, MAJ13, ROOT},
+                     {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, MAJ13, ROOT},
+                     {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, MAJ13, ROOT}}};
 const Chord kMinor13 = {"-13",
                         {{ROOT, MIN3, P5, MIN7, MAJ9, P11, MAJ13},
                          {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, MAJ13},
