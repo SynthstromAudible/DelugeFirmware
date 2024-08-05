@@ -187,7 +187,7 @@ LiveInputBuffer* liveInputBuffers[3];
 uint16_t lastRoutineTime;
 
 std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
-std::array<int32_t, SSI_TX_BUFFER_NUM_SAMPLES> reverbBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
+std::array<int32_t, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reverbBuffer __attribute__((aligned(CACHE_LINE_SIZE)));
 
 StereoSample* renderingBufferOutputPos = renderingBuffer.begin();
 StereoSample* renderingBufferOutputEnd = renderingBuffer.begin();
