@@ -28,7 +28,7 @@ public:
 		gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)getCurrentOutput();
 		gui::context_menu::audioInputSelector.setupAndCheckAvailability();
 		openUI(&gui::context_menu::audioInputSelector);
-		return (MenuItem*)0xFFFFFFFF; // no navigation
+		return NO_NAVIGATION;
 	}
 
 	bool shouldEnterSubmenu() override { return false; }

@@ -53,7 +53,7 @@ MenuItem* Automation::selectButtonPress() {
 			}
 		}
 
-		return (MenuItem*)0xFFFFFFFF; // No navigation
+		return NO_NAVIGATION;
 	}
 	return nullptr; // Navigate back
 }
