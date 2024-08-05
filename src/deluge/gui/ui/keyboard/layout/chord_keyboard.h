@@ -17,13 +17,11 @@
 
 #pragma once
 
-#include "gui/ui/keyboard/layout/column_controls.h"
 #include "definitions.h"
 #include "gui/ui/keyboard/chords.h"
-
+#include "gui/ui/keyboard/layout/column_controls.h"
 
 namespace deluge::gui::ui::keyboard::layout {
-
 
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
 public:
@@ -32,7 +30,8 @@ public:
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
-	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed = false) override;
+	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses],
+	                             bool encoderPressed = false) override;
 	void precalculate() override;
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
@@ -50,14 +49,11 @@ private:
 		return getState().chord.VoiceOffset + x + y * getState().chord.rowInterval;
 	}
 
-	inline uint8_t noteFromCoords(int32_t x) {
-		return getState().chord.VoiceOffset + x;
-	}
+	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.VoiceOffset + x; }
 
 	void offsetPads(int32_t offset, bool shiftEnabled);
 
 	RGB noteColours[kOctaveSize];
-
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

@@ -15,20 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "io/debug/log.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/colour/colour.h"
-#include "hid/display/display.h"
 #include "gui/ui/audio_recorder.h"
-#include "gui/ui/sound_editor.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "gui/ui/browser/sample_browser.h"
-#include "util/functions.h"
 #include "gui/ui/keyboard/chords.h"
-
+#include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
+#include "io/debug/log.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "util/functions.h"
 
 namespace deluge::gui::ui::keyboard::layout {
-
 
 void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
@@ -95,18 +93,17 @@ void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 		}
 	}
 	precalculate();
-
 }
 
-void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                  PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
 	KeyboardStateChord& state = getState().chord;
 
 	if (encoderPressed) {
-			for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
+		for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
 
 			PressedPad pressed = presses[idxPress];
 			if (pressed.active && pressed.x < kDisplayWidth) {
-
 
 				int32_t chordNo = pressed.y + state.chordRowOffset;
 
@@ -124,13 +121,10 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 					}
 					else {
 						state.chordList.voicingOffset[chordNo] += offset;
-				}
-
+					}
 				}
 			}
-
 		}
-
 
 		// 	if (state.voicingOffset[] + kDisplayHeight + offset >= kUniqueChords) {
 		// 		state.chordRowOffset = kUniqueChords - kDisplayHeight;
@@ -154,7 +148,6 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	precalculate();
 }
 
-
 void KeyboardLayoutChord::precalculate() {
 	KeyboardStateChord& state = getState().chord;
 
@@ -165,7 +158,6 @@ void KeyboardLayoutChord::precalculate() {
 }
 
 void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
-
 
 	// Iterate over grid image
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
@@ -185,8 +177,6 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			// 	image[y][x] = noteColours[normalizedPadOffset].adjust(getHighlightedNotes()[noteCode], 1);
 			// }
 
-
-
 			// // Or, if this note is just within the current scale, show it dim
 			// else if (octaveScaleNotes.has(noteWithinOctave)) {
 			// 	image[y][x] = noteColours[normalizedPadOffset].forTail();
@@ -199,11 +189,9 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 
 			// TODO: In a future revision it would be nice to add this to the API
 			//  Dim note pad if a browser is open with the note highlighted
-
 		}
 	}
 }
-
 
 void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName) {
 	// We a modified version of reimplement noteCodeToString here

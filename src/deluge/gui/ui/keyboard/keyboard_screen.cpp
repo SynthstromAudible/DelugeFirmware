@@ -16,11 +16,11 @@
  */
 #include "io/debug/log.h"
 
-#include "gui/ui/keyboard/keyboard_screen.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -44,11 +44,11 @@
 #include <cstring>
 
 #include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
-#include "gui/ui/keyboard/layout/chord_keyboard.h"
 
 deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
 
@@ -607,7 +607,8 @@ ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRo
 ActionResult KeyboardScreen::horizontalEncoderAction(int32_t offset) {
 
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
-	    offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)), pressedPads, xEncoderActive);
+	    offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)), pressedPads,
+	    xEncoderActive);
 
 	if (isUIModeWithinRange(padActionUIModes)) {
 		evaluateActiveNotes();
@@ -674,7 +675,8 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	}
 
 	// Ensure scroll values are calculated in bounds
-	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads, xEncoderActive);
+	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads,
+	                                                                                             xEncoderActive);
 
 	// Precalculate because changing instruments can change pad colours
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
@@ -700,14 +702,16 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 			}
 		}
 		display->displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
-		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads, xEncoderActive);
+		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
+		    0, false, pressedPads, xEncoderActive);
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
 	}
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
 		// Ensure scroll values are calculated in bounds
-		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads, xEncoderActive);
+		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
+		    0, false, pressedPads, xEncoderActive);
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
 	}
@@ -746,7 +750,8 @@ void KeyboardScreen::openedInBackground() {
 	getCurrentInstrumentClip()->onKeyboardScreen = true;
 
 	// Ensure scroll values are calculated in bounds
-	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads, xEncoderActive);
+	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads,
+	                                                                                             xEncoderActive);
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }

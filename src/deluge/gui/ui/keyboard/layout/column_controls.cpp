@@ -124,7 +124,9 @@ bool ColumnControlsKeyboard::verticalEncoderHandledByColumns(int32_t offset) {
 	return false;
 }
 
-void ColumnControlsKeyboard::handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+void ColumnControlsKeyboard::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                     PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                     bool encoderPressed) {
 	horizontalEncoderHandledByColumns(offset, shiftEnabled);
 }
 

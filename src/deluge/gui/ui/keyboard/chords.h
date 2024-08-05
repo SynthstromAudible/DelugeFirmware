@@ -23,9 +23,7 @@ constexpr int32_t kMaxChordKeyboardSize = 6;
 constexpr int32_t kUniqueVoicings = 3;
 constexpr int32_t kUniqueChords = 17;
 
-
 namespace deluge::gui::ui::keyboard {
-
 
 struct Voicing {
 	int32_t offsets[kMaxChordKeyboardSize];
@@ -44,7 +42,6 @@ public:
 	Chord chords[kUniqueChords];
 	int32_t voicingOffset[kUniqueChords] = {0};
 };
-
 
 } // namespace deluge::gui::ui::keyboard
 
