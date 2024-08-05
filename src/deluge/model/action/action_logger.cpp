@@ -84,6 +84,9 @@ void ActionLogger::deleteLastAction() {
 
 Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible) {
 
+	if (!currentSong) {
+		return nullptr;
+	}
 	deleteLog(AFTER);
 
 	// If not on a View, not allowed!

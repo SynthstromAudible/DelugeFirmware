@@ -246,7 +246,7 @@ void Song::setupDefault() {
 
 	seedRandom();
 
-	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
+	setBPMInner(defaultTempoMenu.getRandomValueInRange(), false);
 	swingAmount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
 	key.rootNote = defaultKeyMenu.getRandomValueInRange();
 
