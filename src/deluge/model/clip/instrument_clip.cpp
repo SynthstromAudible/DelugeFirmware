@@ -1292,16 +1292,12 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 	}
 }
 
-void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOctavePresent, int32_t newRootNote,
-                                                        Song* song, bool deleteEmptyNoteRows) {
-	song->key.rootNote = newRootNote; // Not ideal to be setting the global root note here... but as it happens, there's
-	                                  // no scenario (currently) where this would cause problems
-
+void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOctavePresent, MusicalKey key) {
 	for (int32_t i = 0; i < noteRows.getNumElements();) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!thisNoteRow->hasNoNotes()) {
-			notesWithinOctavePresent.add(song->key.intervalOf(thisNoteRow->getNoteCode()));
+			notesWithinOctavePresent.add(key.intervalOf(thisNoteRow->getNoteCode()));
 			i++;
 		}
 
@@ -1504,9 +1500,9 @@ int32_t InstrumentClip::getYNoteFromYVisual(int32_t yVisual, Song* song) {
 int32_t InstrumentClip::guessRootNote(Song* song, int32_t previousRoot) {
 	NoteSet notesPresent;
 
-	seeWhatNotesWithinOctaveArePresent(
-	    notesPresent, 0, song,
-	    false); // Don't delete anything yet, since we're still going to make use of the noteRowsOnScreen!
+	// It's important this comes before noteRows.getNumElements(), since fetching
+	// used notes also deletes empty note rows!
+	seeWhatNotesWithinOctaveArePresent(notesPresent, song->key);
 
 	// If no NoteRows, not much we can do
 	if (noteRows.getNumElements() == 0) {

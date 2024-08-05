@@ -260,10 +260,10 @@ TEST(NoteSetTest, remove) {
 	}
 }
 
-TEST(NoteSetTest, presetScaleId) {
-	CHECK_EQUAL(MAJOR_SCALE, presetScaleNotes[MAJOR_SCALE].presetScaleId());
-	CHECK_EQUAL(MINOR_SCALE, presetScaleNotes[MINOR_SCALE].presetScaleId());
-	CHECK_EQUAL(CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES, NoteSet().presetScaleId());
+TEST(NoteSetTest, scaleId) {
+	CHECK_EQUAL(MAJOR_SCALE, presetScaleNotes[MAJOR_SCALE].scaleId());
+	CHECK_EQUAL(MINOR_SCALE, presetScaleNotes[MINOR_SCALE].scaleId());
+	CHECK_EQUAL(NUM_PRESET_SCALES, NoteSet().scaleId());
 }
 
 TEST(NoteSetTest, majorness) {
