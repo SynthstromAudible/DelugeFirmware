@@ -43,7 +43,7 @@ public:
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();
 	bool setScale(int32_t newScale);
-	void displayScaleName(int32_t scale);
+	void displayScaleName(uint8_t scale);
 	void displayCurrentScaleName();
 	void selectEncoderAction(int32_t offset);
 	static void drawMIDIControlNumber(int32_t controlNumber, bool automationExists);
@@ -54,7 +54,7 @@ public:
 
 	static int16_t defaultRootNote; // Stores the calculated "default" root note between the user pressing the
 	                                // scale-mode button and releasing it
-	static bool exitScaleModeOnButtonRelease;
+	static bool toggleScaleModeOnButtonRelease;
 	static bool flashDefaultRootNoteOn;
 
 	static uint8_t editingMIDICCForWhichModKnob;

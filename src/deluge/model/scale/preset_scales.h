@@ -62,11 +62,10 @@
 	DEF(BLUES_SCALE, "BLUES", DEF_NOTES(0, 3, 5, 6, 7, 10, 0))                                                         \
 	/* ============================== 5-note scales ============================== */                                  \
 	/* PENT Pentatonic Minor (matches Launchpad and Lumi scale) */                                                     \
-	DEF(PENTATONIC_MINOR_SCALE, "PENTANOTIC_MINOR", DEF_NOTES(0, 3, 5, 7, 10))                                         \
+	DEF(PENTATONIC_MINOR_SCALE, "PENTANOTIC MINOR", DEF_NOTES(0, 3, 5, 7, 10))                                         \
 	/* HIRA Hirajoshi (matches Launchpad scale) */                                                                     \
 	DEF(HIRAJOSHI_SCALE, "HIRAJOSHI", DEF_NOTES(0, 2, 3, 7, 8))
 
-#define FIRST_7_NOTE_SCALE_INDEX MAJOR_SCALE
 #define FIRST_6_NOTE_SCALE_INDEX WHOLE_TONE_SCALE
 #define FIRST_5_NOTE_SCALE_INDEX PENTATONIC_MINOR_SCALE
 
@@ -87,7 +86,7 @@ extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
 // arrays!
 #define OFFICIAL_FIRMWARE_RANDOM_SCALE_INDEX 7
 #define OFFICIAL_FIRMWARE_NONE_SCALE_INDEX 8
-#define CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES 255
+#define CANT_CHANGE_SCALE 255
 #define PRESET_SCALE_RANDOM 254
 #define PRESET_SCALE_NONE 255
 // These offsets allow us to introduce new 7, 6 and 5 note scales in between the existing
@@ -95,3 +94,5 @@ extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
 // defaults stored in flash memory.
 #define OFFSET_6_NOTE_SCALE 64
 #define OFFSET_5_NOTE_SCALE 128
+
+const char* getScaleName(uint8_t scale);

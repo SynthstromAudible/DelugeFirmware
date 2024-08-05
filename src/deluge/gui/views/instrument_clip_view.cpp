@@ -175,6 +175,75 @@ void InstrumentClipView::setLedStates() {
 	InstrumentClipMinder::setLedStates();
 }
 
+ActionResult InstrumentClipView::commandLearnUserScale() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip->inScaleMode) {
+		commandEnterScaleMode();
+	}
+	NoteSet notes = currentSong->notesInScaleModeClips();
+	currentSong->setScale(notes);
+	recalculateColours();
+	uiNeedsRendering(this);
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
+	display->popupTextTemporary("USER");
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandCycleThroughScales() {
+	cycleThroughScales();
+	recalculateColours();
+	uiNeedsRendering(this);
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandFlashRootNote() {
+	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
+	                            // released the button
+	flashDefaultRootNoteOn = false;
+	flashDefaultRootNote();
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandEnterScaleModeWithRoot(uint8_t root) {
+	cancelAllAuditioning();
+	enterScaleMode(root);
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandChangeRootNote(uint8_t yDisplay) {
+	// uiTimerManager.unsetTimer(TimerName::DEFAULT_ROOT_NOTE);
+	cancelAllAuditioning();
+
+	int32_t oldYVisual = getYVisualFromYDisplay(yDisplay);
+	int32_t newRootNote = getCurrentInstrumentClip()->getYNoteFromYVisual(oldYVisual, currentSong);
+
+	setupChangingOfRootNote(newRootNote, yDisplay);
+	displayCurrentScaleName();
+
+	recalculateColours();
+	uiNeedsRendering(this);
+
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_ROOT_NOTE);
+
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandEnterScaleMode() {
+	enterScaleMode();
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandExitScaleMode() {
+	exitScaleMode();
+	return ActionResult::DEALT_WITH;
+}
+
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
@@ -194,50 +263,44 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
 
-		if (on) {
+		bool inScaleMode = getCurrentInstrumentClip()->inScaleMode;
 
-			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-
-				// If user holding shift and we're already in scale mode, cycle through available scales
-				if (Buttons::isShiftButtonPressed() && getCurrentInstrumentClip()->inScaleMode) {
-					cycleThroughScales();
-					recalculateColours();
-					uiNeedsRendering(this);
-					// Hook point for specificMidiDevice
-					iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
-				}
-
-				// Or, no shift button - normal behaviour
-				else {
-					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
-					exitScaleModeOnButtonRelease = true;
-					if (!getCurrentInstrumentClip()->inScaleMode) {
-						calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
-						                            // released the button
-						flashDefaultRootNoteOn = false;
-						flashDefaultRootNote();
-						// Hook point for specificMidiDevice
-						iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
-					}
-				}
+		if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+			if (!inScaleMode) {
+				commandEnterScaleMode();
 			}
-
-			// If user is auditioning just one NoteRow, we can go directly into Scale Mode and set that root note
-			else if (oneNoteAuditioning() && !getCurrentInstrumentClip()->inScaleMode) {
-				cancelAllAuditioning();
-				enterScaleMode(lastAuditionedYDisplay);
+			return commandLearnUserScale();
+		}
+		else if (on && inScaleMode && Buttons::isShiftButtonPressed()) {
+			// If we're note in scale mode, we defer to commands that
+			// will instead enter the scale mode.
+			return commandCycleThroughScales();
+		}
+		else if (on && oneNoteAuditioning()) {
+			if (inScaleMode) {
+				return commandChangeRootNote(lastAuditionedYDisplay);
+			}
+			else {
+				return commandEnterScaleModeWithRoot(lastAuditionedYDisplay);
 			}
 		}
+		else if (on) {
+			currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
+			toggleScaleModeOnButtonRelease = true;
+			return commandFlashRootNote();
+		}
 		else {
+			// Button release
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 				currentUIMode = UI_MODE_NONE;
-				if (getCurrentInstrumentClip()->inScaleMode) {
-					if (exitScaleModeOnButtonRelease) {
-						exitScaleMode();
-					}
+			}
+			if (toggleScaleModeOnButtonRelease) {
+				toggleScaleModeOnButtonRelease = false;
+				if (inScaleMode) {
+					return commandExitScaleMode();
 				}
 				else {
-					enterScaleMode();
+					return commandEnterScaleMode();
 				}
 			}
 		}
@@ -1586,13 +1649,13 @@ possiblyAuditionPad:
 
 				if (velocity && getCurrentOutputType() != OutputType::KIT) { // We probably couldn't have got this far
 					                                                         // if it was a Kit, but let's just check
+					toggleScaleModeOnButtonRelease = false;
+					currentUIMode = UI_MODE_NONE;
 					if (getCurrentInstrumentClip()->inScaleMode) {
-						currentUIMode = UI_MODE_NONE; // So that the upcoming render of the sidebar comes out correctly
-						changeRootNote(y);
-						exitScaleModeOnButtonRelease = false;
+						return commandChangeRootNote(y);
 					}
 					else {
-						enterScaleMode(y);
+						return commandEnterScaleModeWithRoot(y);
 					}
 				}
 			}
@@ -4337,21 +4400,6 @@ void InstrumentClipView::setupChangingOfRootNote(int32_t newRootNote, int32_t yD
 	int32_t newYVisual = getCurrentInstrumentClip()->getYVisualFromYNote(yNote, currentSong);
 	int32_t scrollChange = newYVisual - oldYVisual;
 	getCurrentInstrumentClip()->yScroll += scrollChange;
-}
-
-void InstrumentClipView::changeRootNote(uint8_t yDisplay) {
-
-	int32_t oldYVisual = getYVisualFromYDisplay(yDisplay);
-	int32_t newRootNote = getCurrentInstrumentClip()->getYNoteFromYVisual(oldYVisual, currentSong);
-
-	setupChangingOfRootNote(newRootNote, yDisplay);
-	displayCurrentScaleName();
-
-	recalculateColours();
-	uiNeedsRendering(this);
-
-	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_ROOT_NOTE);
 }
 
 bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
