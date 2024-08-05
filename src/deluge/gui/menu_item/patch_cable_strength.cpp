@@ -48,6 +48,8 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	preferBarDrawing =
 	    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::PatchCableResolution) == RuntimeFeatureStateToggle::Off);
+
+	delayHorizontalScrollUntil = 0;
 }
 
 void PatchCableStrength::renderOLED() {
@@ -254,13 +256,21 @@ void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
 	// or you're holding down the horizontal encoder because you want to zoom in/out
 	// if this is the case, then you can potentially engage scrolling/zooming of the underlying automation view
 	if (currentEditPos == soundEditor.numberEditPos) {
-		RootUI* rootUI = getRootUI();
-		if (rootUI == &automationView) {
-			automationView.horizontalEncoderAction(offset);
+		if (delayHorizontalScrollUntil == 0) {
+			delayHorizontalScrollUntil = AudioEngine::audioSampleTimer + kShortPressTime;
 		}
-		else if (rootUI == &keyboardScreen) {
-			keyboardScreen.horizontalEncoderAction(offset);
+		else if (AudioEngine::audioSampleTimer > delayHorizontalScrollUntil) {
+			RootUI* rootUI = getRootUI();
+			if (rootUI == &automationView) {
+				automationView.horizontalEncoderAction(offset);
+			}
+			else if (rootUI == &keyboardScreen) {
+				keyboardScreen.horizontalEncoderAction(offset);
+			}
 		}
+	}
+	else {
+		delayHorizontalScrollUntil = 0;
 	}
 }
 

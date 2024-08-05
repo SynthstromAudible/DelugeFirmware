@@ -57,6 +57,9 @@ public:
 
 	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory);
 
+	/// Used when scrolling horizontally to briefly catch on min / max decimal number edit position
+	uint32_t delayHorizontalScrollUntil = 0;
+
 protected:
 	bool preferBarDrawing = false;
 	ModelStackWithAutoParam* getModelStack(void* memory, bool allowCreation = false);
