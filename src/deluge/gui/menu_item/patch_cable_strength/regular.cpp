@@ -96,7 +96,7 @@ MenuItem* Regular::patchingSourceShortcutPress(PatchSource s, bool previousPress
 		source_selection::rangeMenu.s = s;
 		return &patch_cable_strength::rangeMenu;
 	}
-	return (MenuItem*)0xFFFFFFFF;
+	return NO_NAVIGATION;
 }
 
 } // namespace deluge::gui::menu_item::patch_cable_strength

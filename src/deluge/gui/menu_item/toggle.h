@@ -31,7 +31,7 @@ public:
 	MenuItem* selectButtonPress() override {
 		toggleValue();
 		displayToggleValue();
-		return (MenuItem*)0xFFFFFFFF; // no navigation
+		return NO_NAVIGATION; // no navigation
 	}
 
 	// get's toggle status for rendering checkbox on OLED

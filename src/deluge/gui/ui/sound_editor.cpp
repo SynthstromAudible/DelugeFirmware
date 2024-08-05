@@ -274,7 +274,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				MenuItem* currentMenuItem = getCurrentMenuItem();
 				MenuItem* newItem = currentMenuItem->selectButtonPress();
 				if (newItem) {
-					if (newItem != (MenuItem*)0xFFFFFFFF) {
+					if (newItem != NO_NAVIGATION) {
 						if (newItem->shouldEnterSubmenu()) {
 							MenuPermission result = newItem->checkPermissionToBeginSession(
 							    currentModControllable, currentSourceIndex, &currentMultiRange);
@@ -1049,7 +1049,7 @@ getOut:
 					    source, previousPressStillActive);
 
 					// If it says "go up a level and ask that MenuItem", do that
-					if (newMenuItem == (MenuItem*)0xFFFFFFFF) {
+					if (newMenuItem == NO_NAVIGATION) {
 						newNavigationDepth--;
 						if (newNavigationDepth < 0) { // This normally shouldn't happen
 							exitCompletely();
