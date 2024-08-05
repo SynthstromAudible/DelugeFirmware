@@ -42,7 +42,11 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 
 			D_PRINTLN("pressed x: %d pressed y: %d", pressed.x, pressed.y);
 
-			Chord chord = chords.chords[pressed.y + state.chordRowOffset];
+			int32_t chordNo = pressed.y + state.chordRowOffset;
+
+			// Chord chord = state.chordList.chords[chordNo];
+			Chord chord = state.chordList.chords[chordNo];
+			// Chord chord = chords2.chords[chordNo];
 
 			bool rootPlayed = false;
 
@@ -53,7 +57,9 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 			D_PRINTLN("Root x: %d Root y: %d", pressed.x, pressed.y);
 
 			for (int i = 0; i < kMaxChordKeyboardSize; i++) {
-				auto offset = chord.offsets[i];
+				// auto offset = chord.voicings[state.voicingOffset[chordNo]].offsets[i];
+				Voicing voicing = state.chordList.getVoicing(chordNo);
+				int32_t offset = voicing.offsets[i];
 				if (!offset && !rootPlayed) {
 					rootPlayed = true;
 				}
@@ -92,11 +98,59 @@ void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 
 }
 
-void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
 	KeyboardStateChord& state = getState().chord;
 
-	state.VoiceOffset += offset;
+	if (encoderPressed) {
+			for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
 
+			PressedPad pressed = presses[idxPress];
+			if (pressed.active && pressed.x < kDisplayWidth) {
+
+
+				int32_t chordNo = pressed.y + state.chordRowOffset;
+
+				if (offset > 0) {
+					if (state.chordList.voicingOffset[chordNo] + offset >= kUniqueVoicings) {
+						state.chordList.voicingOffset[chordNo] = kUniqueVoicings - 1;
+					}
+					else {
+						state.chordList.voicingOffset[chordNo] += offset;
+					}
+				}
+				else {
+					if (state.chordList.voicingOffset[chordNo] + offset < 0) {
+						state.chordList.voicingOffset[chordNo] = 0;
+					}
+					else {
+						state.chordList.voicingOffset[chordNo] += offset;
+				}
+
+				}
+			}
+
+		}
+
+
+		// 	if (state.voicingOffset[] + kDisplayHeight + offset >= kUniqueChords) {
+		// 		state.chordRowOffset = kUniqueChords - kDisplayHeight;
+		// 	}
+		// 	else {
+		// 		state.chordRowOffset += offset;
+		// 	}
+		// }
+		// else {
+		// 	if (state.chordRowOffset + offset < 0) {
+		// 		state.chordRowOffset = 0;
+		// 	}
+		// 	else {
+		// 		state.chordRowOffset += offset;
+		// 	}
+		// }
+	}
+	else {
+		state.VoiceOffset += offset;
+	}
 	precalculate();
 }
 

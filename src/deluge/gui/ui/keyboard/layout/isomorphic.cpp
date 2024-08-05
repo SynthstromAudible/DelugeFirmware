@@ -47,7 +47,7 @@ void KeyboardLayoutIsomorphic::handleVerticalEncoder(int32_t offset) {
 	offsetPads(offset * getState().isomorphic.rowInterval, false);
 }
 
-void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+void KeyboardLayoutIsomorphic::handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}

@@ -20,34 +20,32 @@
 #include "definitions_cxx.hpp"
 
 constexpr int32_t kMaxChordKeyboardSize = 6;
-constexpr int32_t kUniqueChords = 11;
+constexpr int32_t kUniqueVoicings = 3;
+constexpr int32_t kUniqueChords = 17;
+
 
 namespace deluge::gui::ui::keyboard {
 
 
-struct Chord {
-	const char* name;
+struct Voicing {
 	int32_t offsets[kMaxChordKeyboardSize];
 };
 
-struct Chords {
+struct Chord {
+	const char* name;
+	Voicing voicings[kUniqueVoicings] = {0};
+};
+
+class Chords {
+public:
+	Chords();
+	Voicing getVoicing(int32_t chordNo);
+
 	Chord chords[kUniqueChords];
+	int32_t voicingOffset[kUniqueChords] = {0};
 };
 
-const Chords chords = {
-	{
-		{"", {0, 0, 0, 0, 0, 0}},
-		{"M", {4, 7, 0, 0, 0, 0}},
-		{"-", {3, 7, 0, 0, 0, 0}},
-		{"SUS2", {2, 7, 0, 0, 0, 0}},
-		{"SUS4", {5, 7, 0, 0, 0, 0}},
-		{"7", {4, 7, 10, 0, 0, 0}},
-		{"M7", {4, 7, 11, 0, 0, 0}},
-		{"-7", {3, 7, 10, 0, 0, 0}},
-		{"9", {4, 7, 10, 14, 0, 0}},
-		{"M9", {4, 7, 11, 14, 0, 0}},
-		{"-9", {3, 7, 10, 14, 0, 0}},
-	}
-};
 
-}
+} // namespace deluge::gui::ui::keyboard
+
+// extern deluge::gui::ui::keyboard::Chords2 chords2;

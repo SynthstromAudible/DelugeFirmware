@@ -35,7 +35,7 @@ void KeyboardLayoutNorns::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 void KeyboardLayoutNorns::handleVerticalEncoder(int32_t offset) {
 }
 
-void KeyboardLayoutNorns::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+void KeyboardLayoutNorns::handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
 }
 
 void KeyboardLayoutNorns::precalculate() {
