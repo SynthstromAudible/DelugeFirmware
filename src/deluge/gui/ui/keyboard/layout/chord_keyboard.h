@@ -23,10 +23,7 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-/**
- * @brief Represents a keyboard layout for chord-based input.
- *
- */
+/// @brief Represents a keyboard layout for chord-based input.
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutChord() = default;
@@ -53,9 +50,13 @@ private:
 		return getState().chord.VoiceOffset + x + y * getState().chord.rowInterval;
 	}
 
-	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.VoiceOffset + x; }
-
 	void offsetPads(int32_t offset, bool shiftEnabled);
+
+	// A modified version of noteCodeToString
+	// Because sometimes the note name is not displayed correctly
+	// and we need to add a null terminator to the note name string
+	// TODO: work out how to fix this with the noteCodeToString function
+	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.VoiceOffset + x; }
 
 	RGB noteColours[kOctaveSize];
 };

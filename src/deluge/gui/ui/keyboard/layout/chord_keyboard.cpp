@@ -25,6 +25,7 @@
 #include "io/debug/log.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
+#include <stdlib.h>
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -38,12 +39,8 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 		PressedPad pressed = presses[idxPress];
 		if (pressed.active && pressed.x < kDisplayWidth) {
 
-			D_PRINTLN("pressed x: %d pressed y: %d", pressed.x, pressed.y);
-
 			int32_t chordNo = pressed.y + state.chordRowOffset;
-
 			Chord chord = state.chordList.chords[chordNo];
-
 			bool rootPlayed = false;
 
 			drawChordName(noteFromCoords(pressed.x), chord.name);
@@ -69,20 +66,10 @@ void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 	KeyboardStateChord& state = getState().chord;
 
 	if (offset > 0) {
-		if (state.chordRowOffset + kDisplayHeight + offset >= kUniqueChords) {
-			state.chordRowOffset = kUniqueChords - kDisplayHeight;
-		}
-		else {
-			state.chordRowOffset += offset;
-		}
+		state.chordRowOffset = std::min<int32_t>(kUniqueChords - kDisplayHeight, state.chordRowOffset + offset);
 	}
 	else {
-		if (state.chordRowOffset + offset < 0) {
-			state.chordRowOffset = 0;
-		}
-		else {
-			state.chordRowOffset += offset;
-		}
+		state.chordRowOffset = std::max<int32_t>(0, state.chordRowOffset + offset);
 	}
 	precalculate();
 }
@@ -100,20 +87,12 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 				int32_t chordNo = pressed.y + state.chordRowOffset;
 
 				if (offset > 0) {
-					if (state.chordList.voicingOffset[chordNo] + offset >= kUniqueVoicings) {
-						state.chordList.voicingOffset[chordNo] = kUniqueVoicings - 1;
-					}
-					else {
-						state.chordList.voicingOffset[chordNo] += offset;
-					}
+					state.chordList.voicingOffset[chordNo] =
+					    std::min<int32_t>(kUniqueVoicings - 1, state.chordList.voicingOffset[chordNo] + offset);
 				}
 				else {
-					if (state.chordList.voicingOffset[chordNo] + offset < 0) {
-						state.chordList.voicingOffset[chordNo] = 0;
-					}
-					else {
-						state.chordList.voicingOffset[chordNo] += offset;
-					}
+					state.chordList.voicingOffset[chordNo] =
+					    std::max<int32_t>(0, state.chordList.voicingOffset[chordNo] + offset);
 				}
 			}
 		}
@@ -143,10 +122,6 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 }
 
 void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName) {
-	// We a modified version of reimplement noteCodeToString here
-	// Because sometimes the note name is not displayed correctly
-	// and we need to add a null terminator to the note name string
-	// TODO: work out how to fix this with the noteCodeToString function
 	char noteName[3];
 	uint8_t drawDot;
 	char* thisChar = noteName;

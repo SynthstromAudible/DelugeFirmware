@@ -25,15 +25,18 @@ constexpr int32_t kUniqueChords = 17;
 
 namespace deluge::gui::ui::keyboard {
 
+/// @brief A voicing is a set of offsets from the root note of a chord
 struct Voicing {
 	int32_t offsets[kMaxChordKeyboardSize];
 };
 
+/// @brief A chord is a name and a set of voicings
 struct Chord {
 	const char* name;
 	Voicing voicings[kUniqueVoicings] = {0};
 };
 
+// Interval offsets for convenience
 const int32_t NON = INT32_MAX;
 const int32_t ROOT = 0;
 const int32_t MIN2 = 1;
@@ -64,6 +67,7 @@ const int32_t MAJ13 = MAJ6 + OCT;
 const int32_t MIN14 = MIN7 + OCT;
 const int32_t MAJ14 = MAJ7 + OCT;
 
+// Chords
 const Chord kMajor = {"M",
                       {{ROOT, MAJ3, P5, ROOT, ROOT, ROOT, ROOT},
                        {ROOT, OCT + MAJ3, P5, ROOT, ROOT, ROOT, ROOT},
@@ -129,9 +133,18 @@ const Chord kMinor13 = {"-13",
                          {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, MAJ13},
                          {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, MAJ13}}};
 
+/// @brief A collection of chords
 class Chords {
 public:
 	Chords();
+
+	/**
+	 * @brief Get a voicing for a chord with a given index. If the index is past the unique voicings, the final voicing
+	 * is returned.
+	 *
+	 * @param chordNo The index of the chord
+	 * @return The voicing
+	 */
 	Voicing getVoicing(int32_t chordNo);
 
 	Chord chords[kUniqueChords];
@@ -139,5 +152,3 @@ public:
 };
 
 } // namespace deluge::gui::ui::keyboard
-
-// extern deluge::gui::ui::keyboard::Chords2 chords2;
