@@ -5256,8 +5256,6 @@ void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 	deleteClipObject(oldClip);
 }
 
-int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
-
 Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex) {
 
 	// Allocate memory for audio clip

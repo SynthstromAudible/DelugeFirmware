@@ -1,5 +1,5 @@
 /*
- * ContextMenuLaunchStyle.h
+ * ContextMenu\Clip_Settings\Launch_Style.h
  *
  *  Created on: 11 Jun 2023
  *      Author: Robin
@@ -11,7 +11,7 @@
 
 class Clip;
 
-namespace deluge::gui::context_menu {
+namespace deluge::gui::context_menu::clip_settings {
 
 class LaunchStyle final : public ContextMenu {
 
@@ -21,7 +21,7 @@ public:
 	bool setupAndCheckAvailability();
 	bool canSeeViewUnderneath() override { return true; }
 
-	Clip* clip;
+	Clip* clip = nullptr;
 
 	/// Title
 	char const* getTitle() override;
@@ -31,4 +31,4 @@ public:
 };
 
 extern LaunchStyle launchStyle;
-} // namespace deluge::gui::context_menu
+} // namespace deluge::gui::context_menu::clip_settings

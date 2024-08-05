@@ -22,7 +22,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/context_menu/clear_song.h"
-#include "gui/context_menu/launch_style.h"
+#include "gui/context_menu/clip_settings/launch_style.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -2488,7 +2488,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	}
 }
 
-RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool whiteInactivePads, bool allowMIDIFlash) {
+RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlash) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
@@ -2535,17 +2535,8 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool whiteInactive
 				thisColour = menu_item::onceColourMenu.getRGB(); // colours::red_orange;
 				break;
 			default:
-
-				if (whiteInactivePads) {
-					// If grid view + config mode requests it,
-					// Use white to avoid a screen full of red pads
-					// Grid mode itself dims these colours to grey
-					thisColour = colours::white;
-				}
-				else {
-					// If it's stopped, red.
-					thisColour = menu_item::stoppedColourMenu.getRGB();
-				}
+				// If it's stopped, red.
+				thisColour = menu_item::stoppedColourMenu.getRGB();
 			}
 		}
 		else {
@@ -2587,13 +2578,13 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 				clip->armedForRecording = true;
 				if (clip->type == ClipType::AUDIO) {
 					((AudioClip*)clip)->overdubsShouldCloneOutput = false;
-					defaultAudioClipOverdubOutputCloning = 0;
+					currentSong->defaultAudioClipOverdubOutputCloning = 0;
 				}
 			}
 			else {
 				if (clip->type == ClipType::AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
 					((AudioClip*)clip)->overdubsShouldCloneOutput = true;
-					defaultAudioClipOverdubOutputCloning = 1;
+					currentSong->defaultAudioClipOverdubOutputCloning = 1;
 					break; // No need to reassess greyout
 				}
 				else {
@@ -2619,7 +2610,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
-			context_menu::launchStyle.clip = clip;
+			context_menu::clip_settings::launchStyle.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
