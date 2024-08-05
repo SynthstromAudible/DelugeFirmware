@@ -25,17 +25,17 @@ Chords::Chords()
              kMinor,
              kSus2,
              kSus4,
-             k7,
              kM7,
+             k7,
              kMinor7,
-             k9,
              kM9,
+             k9,
              kMinor9,
-             k11,
              kM11,
+             k11,
              kMinor11,
-             k13,
              kM13,
+             k13,
              kMinor13} {
 }
 

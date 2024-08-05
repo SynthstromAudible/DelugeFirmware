@@ -69,65 +69,67 @@ const int32_t MAJ14 = MAJ7 + OCT;
 
 // Chords
 const Chord kMajor = {"M",
-                      {{ROOT, MAJ3, P5, ROOT, ROOT, ROOT, ROOT},
-                       {ROOT, OCT + MAJ3, P5, ROOT, ROOT, ROOT, ROOT},
-                       {ROOT, OCT + MAJ3, P5, -12, ROOT, ROOT, ROOT}}};
+                      {{ROOT, MAJ3, P5, NON, NON, NON, NON},
+                       {ROOT, OCT + MAJ3, P5, NON, NON, NON, NON},
+                       {ROOT, OCT + MAJ3, P5, -12, NON, NON, NON}}};
 const Chord kMinor = {"-",
-                      {{ROOT, MIN3, P5, ROOT, ROOT, ROOT, ROOT},
-                       {ROOT, OCT + MIN3, P5, ROOT, ROOT, ROOT, ROOT},
-                       {ROOT, OCT + MIN3, P5, -12, ROOT, ROOT, ROOT}}};
+                      {{ROOT, MIN3, P5, NON, NON, NON, NON},
+                       {ROOT, OCT + MIN3, P5, NON, NON, NON, NON},
+                       {ROOT, OCT + MIN3, P5, -12, NON, NON, NON}}};
 const Chord kSus2 = {"SUS2",
-                     {{ROOT, 2, P5, ROOT, ROOT, ROOT, ROOT},
-                      {ROOT, 2 + OCT, P5, ROOT, ROOT, ROOT, ROOT},
-                      {ROOT, 2 + OCT, P5, -12, ROOT, ROOT, ROOT}}};
+                     {{ROOT, 2, P5, NON, NON, NON, NON},
+                      {ROOT, 2 + OCT, P5, NON, NON, NON, NON},
+                      {ROOT, 2 + OCT, P5, -12, NON, NON, NON}}};
 const Chord kSus4 = {"SUS4",
-                     {{ROOT, 5, P5, ROOT, ROOT, ROOT, ROOT},
-                      {ROOT, 5 + OCT, P5, ROOT, ROOT, ROOT, ROOT},
-                      {ROOT, 5 + OCT, P5, -12, ROOT, ROOT, ROOT}}};
+                     {{ROOT, 5, P5, NON, NON, NON, NON},
+                      {ROOT, 5 + OCT, P5, NON, NON, NON, NON},
+                      {ROOT, 5 + OCT, P5, -12, NON, NON, NON}}};
 const Chord k7 = {"7",
-                  {{ROOT, MAJ3, P5, MIN7, ROOT, ROOT, ROOT},
-                   {ROOT, MAJ3 + OCT, P5, MIN7, ROOT, ROOT, ROOT},
-                   {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, ROOT, ROOT, ROOT}}};
+                  {{ROOT, MAJ3, P5, MIN7, NON, NON, NON},
+                   {ROOT, MAJ3 + OCT, P5, MIN7, NON, NON, NON},
+                   {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, NON, NON, NON}}};
 const Chord kM7 = {"M7",
-                   {{ROOT, MAJ3, P5, MAJ7, ROOT, ROOT, ROOT},
-                    {ROOT, MAJ3 + OCT, P5, MAJ7, ROOT, ROOT, ROOT},
-                    {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, ROOT, ROOT, ROOT}}};
+                   {{ROOT, MAJ3, P5, MAJ7, NON, NON, NON},
+                    {ROOT, MAJ3 + OCT, P5, MAJ7, NON, NON, NON},
+                    {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, NON, NON, NON}}};
 const Chord kMinor7 = {"-7",
-                       {{ROOT, MIN3, P5, MIN7, ROOT, ROOT, ROOT},
-                        {ROOT, MIN3 + OCT, P5, MIN7, ROOT, ROOT, ROOT},
-                        {ROOT, MIN3 + OCT, P5, MIN7 + OCT, ROOT, ROOT, ROOT}}};
+                       {{ROOT, MIN3, P5, MIN7, NON, NON, NON},
+                        {ROOT, MIN3 + OCT, P5, MIN7, NON, NON, NON},
+                        {ROOT, MIN3 + OCT, P5, MIN7 + OCT, NON, NON, NON}}};
 const Chord k9 = {"9",
-                  {{ROOT, MAJ3, P5, MIN7, MAJ9, ROOT, ROOT},
-                   {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, ROOT, ROOT},
-                   {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, ROOT, ROOT}}};
+                  {{ROOT, MAJ3, P5, MIN7, MAJ9, NON, NON},
+                   {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, NON, NON},
+                   {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, NON, NON}}};
 const Chord kM9 = {"M9",
-                   {{ROOT, MAJ3, P5, MAJ7, MAJ9, ROOT, ROOT},
-                    {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, ROOT, ROOT},
-                    {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, ROOT, ROOT}}};
+                   {{ROOT, MAJ3, P5, MAJ7, MAJ9, NON, NON},
+                    {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, NON, NON},
+                    {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, NON, NON}}};
 const Chord kMinor9 = {"-9",
-                       {{ROOT, MIN3, P5, MIN7, MAJ9, ROOT, ROOT},
-                        {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, ROOT, ROOT},
-                        {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, ROOT, ROOT}}};
+                       {{ROOT, MIN3, P5, MIN7, MAJ9, NON, NON},
+                        {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, NON, NON},
+                        {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, NON, NON}}};
 const Chord k11 = {"11",
-                   {{ROOT, MAJ3, P5, MIN7, MAJ9, P11, ROOT},
-                    {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, P11, ROOT},
-                    {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, P11, ROOT}}};
+                   {{ROOT, MAJ3, P5, MIN7, MAJ9, P11, NON},
+                    {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, P11, NON},
+                    {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, P11, NON}}};
 const Chord kM11 = {"M11",
-                    {{ROOT, MAJ3, P5, MAJ7, MAJ9, P11, ROOT},
-                     {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, P11, ROOT},
-                     {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, P11, ROOT}}};
+                    {{ROOT, MAJ3, P5, MAJ7, MAJ9, P11, NON},
+                     {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, P11, NON},
+                     {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, P11, NON}}};
 const Chord kMinor11 = {"-11",
-                        {{ROOT, MIN3, P5, MIN7, MAJ9, P11, ROOT},
-                         {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, ROOT},
-                         {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, ROOT}}};
+                        {{ROOT, MIN3, P5, MIN7, MAJ9, P11, NON},
+                         {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, NON},
+                         {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, NON}}};
+// 11th are often omitted in 13th chords because they clash with the major 3rd
+// if anything, the 11th is often played as a #11
 const Chord k13 = {"13",
-                   {{ROOT, MAJ3, P5, MIN7, MAJ9, MAJ13, ROOT},
-                    {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, MAJ13, ROOT},
-                    {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, MAJ13, ROOT}}};
+                   {{ROOT, MAJ3, P5, MIN7, MAJ9, MAJ13, NON},
+                    {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, MAJ13, NON},
+                    {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, MAJ9, MAJ13, NON}}};
 const Chord kM13 = {"M13",
-                    {{ROOT, MAJ3, P5, MAJ7, MAJ9, MAJ13, ROOT},
-                     {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, MAJ13, ROOT},
-                     {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, MAJ13, ROOT}}};
+                    {{ROOT, MAJ3, P5, MAJ7, MAJ9, MAJ13, NON},
+                     {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, MAJ13, NON},
+                     {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, MAJ13, NON}}};
 const Chord kMinor13 = {"-13",
                         {{ROOT, MIN3, P5, MIN7, MAJ9, P11, MAJ13},
                          {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, MAJ13},
