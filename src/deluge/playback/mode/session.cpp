@@ -1954,7 +1954,9 @@ bool Session::areAnyClipsArmed() {
 // I wish we could easily just do this to the Clips that need it, but we don't store an easy list of just the Clips
 // affected by each Action. This is only to be called if playbackHandler.isEitherClockActive().
 void Session::reversionDone() {
-
+	if (!currentSong) {
+		return;
+	}
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
 		if (currentSong->isClipActive(clip)) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
