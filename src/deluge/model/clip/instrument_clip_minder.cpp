@@ -530,7 +530,7 @@ void InstrumentClipMinder::cycleThroughScales() {
 
 // Returns if the scale could be changed or not
 bool InstrumentClipMinder::setScale(Scale newScale) {
-	auto result = currentSong->setScale(newScale);
+	Scale result = currentSong->setScale(newScale);
 	if (result == NO_SCALE) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
 		return false;
