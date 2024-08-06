@@ -13,7 +13,7 @@
  * See OFFSET_6|5_NOTE_SCALE for how to deal with that.
  *
  * The actual definitions expand this macro, picking the thing they need:
- * - enum PresetScale
+ * - enum Scale
  * - presetScaleNames
  * - presetScaleNotes
  *
