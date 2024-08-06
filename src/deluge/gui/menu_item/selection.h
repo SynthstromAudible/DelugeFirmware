@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/menu_item/enumeration.h"
+#include "gui/ui/sound_editor.h"
 #include "util/containers.h"
 #include <string_view>
 
@@ -47,11 +48,20 @@ public:
 		writeCurrentValue();
 	};
 
-	// handles changing bool setting without entering menu and updating the display
+	// handles toggling a "toggle" selection menu from sub-menu level
+	// or handles going back up a level after making a selection from within selection menu
 	MenuItem* selectButtonPress() override {
-		toggleValue();
-		displayToggleValue();
-		return NO_NAVIGATION;
+		// this is true if you open a selection menu using grid shortcut
+		// or you enter a selection menu that isn't a toggle
+		if (soundEditor.getCurrentMenuItem() == this) {
+			return nullptr; // go up a level
+		}
+		// you're toggling selection menu from submenu level
+		else {
+			toggleValue();
+			displayToggleValue();
+			return NO_NAVIGATION;
+		}
 	}
 
 	// get's toggle status for rendering checkbox on OLED
