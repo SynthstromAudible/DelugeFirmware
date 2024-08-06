@@ -46,7 +46,7 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 
 			for (int i = 0; i < kMaxChordKeyboardSize; i++) {
 				int32_t offset = voicing.offsets[i];
-				if (offset == NON) {
+				if (offset == NONE) {
 					continue;
 				}
 				enableNote(noteFromCoords(pressed.x) + offset, velocity);

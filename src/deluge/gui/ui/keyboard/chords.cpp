@@ -20,7 +20,7 @@
 namespace deluge::gui::ui::keyboard {
 
 ChordList::ChordList()
-    : chords{{"", {{0, NON, NON, NON, NON, NON}}},
+    : chords{{"", {{0, NONE, NONE, NONE, NONE, NONE}}},
              kMajor,
              kMinor,
              kSus2,
