@@ -144,8 +144,8 @@ public:
 	ChordList();
 
 	/**
-	 * @brief Get a voicing for a chord with a given index. If the index is past the unique voicings, the final voicing
-	 * is returned.
+	 * @brief Get a voicing for a chord with a given index. If the voicingOffset for that Chord is out of bounds,
+	 * return the max or min voicing depending on the direction.
 	 *
 	 * @param chordNo The index of the chord
 	 * @return The voicing
