@@ -20,21 +20,12 @@
 #include "definitions_cxx.hpp"
 
 constexpr int32_t kMaxChordKeyboardSize = 7;
-constexpr int32_t kUniqueVoicings = 3;
+constexpr int32_t kUniqueVoicings = 4;
 constexpr int32_t kUniqueChords = 17;
 
 namespace deluge::gui::ui::keyboard {
 
 /// @brief A voicing is a set of offsets from the root note of a chord
-struct Voicing {
-	int32_t offsets[kMaxChordKeyboardSize];
-};
-
-/// @brief A chord is a name and a set of voicings
-struct Chord {
-	const char* name;
-	Voicing voicings[kUniqueVoicings] = {0};
-};
 
 // Interval offsets for convenience
 const int32_t NON = INT32_MAX;
@@ -67,7 +58,18 @@ const int32_t MAJ13 = MAJ6 + OCT;
 const int32_t MIN14 = MIN7 + OCT;
 const int32_t MAJ14 = MAJ7 + OCT;
 
-// Chords
+struct Voicing {
+	int32_t offsets[kMaxChordKeyboardSize];
+	const char* supplementalName = "";
+};
+
+/// @brief A chord is a name and a set of voicings
+struct Chord {
+	const char* name;
+	Voicing voicings[kUniqueVoicings] = {0};
+};
+
+// ChordList
 const Chord kMajor = {"M",
                       {{ROOT, MAJ3, P5, NON, NON, NON, NON},
                        {ROOT, OCT + MAJ3, P5, NON, NON, NON, NON},
@@ -118,6 +120,7 @@ const Chord kM11 = {"M11",
                      {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, P11, NON}}};
 const Chord kMinor11 = {"-11",
                         {{ROOT, MIN3, P5, MIN7, MAJ9, P11, NON},
+                         {{ROOT, P4, MIN7, MIN3 + OCT, P5 + OCT, NON, NON}, "SO WHAT"},
                          {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, NON},
                          {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, NON}}};
 // 11th are often omitted in 13th chords because they clash with the major 3rd
@@ -136,9 +139,9 @@ const Chord kMinor13 = {"-13",
                          {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, MAJ13}}};
 
 /// @brief A collection of chords
-class Chords {
+class ChordList {
 public:
-	Chords();
+	ChordList();
 
 	/**
 	 * @brief Get a voicing for a chord with a given index. If the index is past the unique voicings, the final voicing
@@ -147,7 +150,7 @@ public:
 	 * @param chordNo The index of the chord
 	 * @return The voicing
 	 */
-	Voicing getVoicing(int32_t chordNo);
+	Voicing getChordVoicing(int32_t chordNo);
 
 	Chord chords[kUniqueChords];
 	int32_t voicingOffset[kUniqueChords] = {0};

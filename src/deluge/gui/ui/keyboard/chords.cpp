@@ -19,8 +19,8 @@
 
 namespace deluge::gui::ui::keyboard {
 
-Chords::Chords()
-    : chords{{"", {{0, 0, 0, 0, 0, 0}}},
+ChordList::ChordList()
+    : chords{{"", {{0, NON, NON, NON, NON, NON}}},
              kMajor,
              kMinor,
              kSus2,
@@ -39,7 +39,16 @@ Chords::Chords()
              kMinor13} {
 }
 
-Voicing Chords::getVoicing(int32_t chordNo) {
+Voicing ChordList::getChordVoicing(int32_t chordNo) {
+
+	if (chordNo < 0) {
+		D_PRINTLN("Chord number is negative, returning chord 0");
+		chordNo = 0;
+	}
+	else if (chordNo >= kUniqueChords) {
+		D_PRINTLN("Chord number is too high, returning chord last chord");
+		chordNo = kUniqueChords - 1;
+	}
 
 	int32_t voicingNo = voicingOffset[chordNo];
 	bool valid;
@@ -48,6 +57,7 @@ Voicing Chords::getVoicing(int32_t chordNo) {
 	}
 	// Check if voicing is valid
 	// voicings after the first should default to 0
+	// So if the voicing is all 0, we should return the voicing before it
 	else if (voicingNo > 0) {
 		for (int voicingN = voicingNo; voicingN >= 0; voicingN--) {
 			Voicing voicing = chords[chordNo].voicings[voicingN];

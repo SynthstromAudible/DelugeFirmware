@@ -37,7 +37,7 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	void drawChordName(int16_t noteCode, const char* chordName);
+	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
 
 	char const* name() override { return "Chord"; }
 	bool supportsInstrument() override { return true; }

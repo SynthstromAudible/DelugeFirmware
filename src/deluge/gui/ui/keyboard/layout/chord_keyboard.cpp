@@ -15,7 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "io/debug/log.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/colour/colour.h"
 #include "gui/ui/audio_recorder.h"
@@ -23,6 +22,7 @@
 #include "gui/ui/keyboard/chords.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "io/debug/log.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "util/functions.h"
 #include <stdlib.h>
@@ -40,25 +40,19 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 		if (pressed.active && pressed.x < kDisplayWidth) {
 
 			int32_t chordNo = pressed.y + state.chordRowOffset;
-			Chord chord = state.chordList.chords[chordNo];
-			bool rootPlayed = false;
 
-			drawChordName(noteFromCoords(pressed.x), chord.name);
+			Voicing voicing = state.chordList.getChordVoicing(chordNo);
+			drawChordName(noteFromCoords(pressed.x), state.chordList.chords[chordNo].name, voicing.supplementalName);
 
 			for (int i = 0; i < kMaxChordKeyboardSize; i++) {
-				Voicing voicing = state.chordList.getVoicing(chordNo);
 				int32_t offset = voicing.offsets[i];
-				if (!offset && !rootPlayed) {
-					rootPlayed = true;
-				}
-				else if (!offset || offset == NON) {
+				if (offset == NON) {
 					continue;
 				}
 				enableNote(noteFromCoords(pressed.x) + offset, velocity);
 			}
 		}
 	}
-
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
@@ -121,7 +115,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	}
 }
 
-void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName) {
+void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
 	char noteName[3];
 	uint8_t drawDot;
 	char* thisChar = noteName;
@@ -140,11 +134,20 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName)
 	}
 	*thisChar = '\0';
 
-	if (display->haveOLED()) {
-		display->popupTextTemporary(strcat(noteName, chordName));
+	// Create a buffer to hold the full chord name and format it
+	char fullChordName[300];
+	if (voicingName[0] == '\0') {
+		sprintf(fullChordName, "%s%s", noteName, chordName);
 	}
 	else {
-		display->setText(strcat(noteName, chordName), false, drawDot, true);
+		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
+	}
+
+	if (display->haveOLED()) {
+		display->popupTextTemporary(fullChordName);
+	}
+	else {
+		display->setText(fullChordName, false, drawDot, true);
 	}
 }
 } // namespace deluge::gui::ui::keyboard::layout

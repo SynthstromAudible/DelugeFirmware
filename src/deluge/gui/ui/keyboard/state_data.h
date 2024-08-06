@@ -47,7 +47,7 @@ struct KeyboardStateChord {
 	int32_t chordRowOffset = 0;
 	uint32_t VoiceOffset = (rowInterval * 4);
 	int32_t rowColorMultiplier = 5;
-	Chords chordList{};
+	ChordList chordList{};
 };
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
 /// share one struct for storage
