@@ -37,8 +37,8 @@ use the TRACK menu to select the specific track to record from
 - Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG VIEW` which enables you to select the type of clip before the clip is created.
   - In `SONG (GRID) VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
   - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
-- Removed the `SONG VIEW` shortcut of Pressing `CLIP` + `SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
-- Pressing `CLIP` + `SELECT` in `SONG VIEW` will now always open the `LAUNCH STYLE` menu so you can change the Clip launch style between `DEFAULT`, `FILL` and `ONCE`.
+- Removed the `SONG VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
+- `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 
 ### MIDI
@@ -290,7 +290,7 @@ and MIDI clips on a per step basis at any zoom level. (Excludes MPE automations)
   non-MIDI parameters and 0-127 for MIDI parameters.
 - A `MOD MATRIX` entry has been added to the sound editor menu which shows a list of all currently active modulations of
   a given preset.
-- You can change the launch status of a clip from `DEFAULT` to `FILL`. When a `FILL` clip is launched it will schedule
+- You can change the launch status of a clip from `INFINITE` to `FILL`. When a `FILL` clip is launched it will schedule
   itself to play the fill at such a time that it _finishes_ by the start of the next loop and then mutes itself.
 - You can now scroll through parameter values and menus faster by +/- 5 by holding `SHIFT` while turning the `SELECT`
   encoder.

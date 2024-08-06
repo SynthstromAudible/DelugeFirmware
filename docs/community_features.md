@@ -295,10 +295,10 @@ as the micromonsta and the dreadbox nymphes.
 - ([#2299]) Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG VIEW` which enables you to select the type of clip before the clip is created.
   - In `SONG (GRID) VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
   - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
-- Removed the `SONG VIEW` shortcut of Pressing `CLIP` + `SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
+- Removed the `SONG VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
 
-#### 3.28 Updated UI for Setting Clip Launch Style in Song View
-- ([#2299]) Pressing `CLIP` + `SELECT` in `SONG VIEW` will now always open the `LAUNCH STYLE` menu so you can change the Clip launch style between `DEFAULT`, `FILL` and `ONCE`.
+#### 3.28 Updated UI for Setting Clip Mode in Song View
+- ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
 
 ## 4. New Features Added
 
@@ -339,10 +339,10 @@ Here is a list of features that have been added to the firmware as a list, group
 #### 4.1.3 - Fill Clips and Once Clips
 
 - ([#196] and [#1018]) In Song View (Rows mode), holding a clip or the status pad (mute pad) for a clip and pressing `SELECT`
-  brings up a `LAUNCH STYLE` menu. For Grid Mode, only holding a clip and pressing `SELECT` will bring up the `LAUNCH STYLE` menu. 
+  brings up a `CLIP MODE` menu. For Grid Mode, only holding a clip and pressing `SELECT` will bring up the `CLIP MODE` menu. 
   
-  The `LAUNCH STYLE` menu enables you the set the following launch style options for a clip:
-    - **`Default (DEFA)`** - the default Deluge launch style.
+  The `CLIP MODE` menu enables you the set the following launch style options for a clip:
+    - **`INFINITE (INF)`** - the default Deluge launch style.
     - **`Fill (FILL)`** - Fill clip.
         - When inactive it appears orange on the status pads in rows view, or in Config Mode in grid view.
         - When active it will appear green.
