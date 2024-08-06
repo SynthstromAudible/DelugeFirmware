@@ -1053,10 +1053,10 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 	}
 	// releasing a pad
 	else {
-		// if releasing a pad with "held" status shortly after being given that status
+		// if releasing stutter pad
+		// or releasing a pad with "held" status shortly after being given that status
 		// or releasing a pad that was not in "held" status but was a longer press and release
-		if ((params::isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive
-		     && lastPadPress.yDisplay == yDisplay)
+		if (params::isParamStutter(lastSelectedParamKind, lastSelectedParamID)
 		    || (fxPress[xDisplay].padPressHeld
 		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < FlashStorage::holdTime))
 		    || ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
