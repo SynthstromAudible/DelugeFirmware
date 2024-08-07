@@ -155,10 +155,16 @@ void ArrangerView::moveClipToSession() {
 
 		goToSongView();
 
-		currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
-		sessionView.selectedClipYDisplay = yPressedEffective;
-		sessionView.selectedClipPressYDisplay = yPressedActual;
-		sessionView.selectedClipPressXDisplay = xPressed;
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+			sessionView.selectedClipYDisplay = yPressedEffective;
+			sessionView.selectedClipPressYDisplay = yPressedActual;
+			sessionView.selectedClipPressXDisplay = xPressed;
+		}
+		else {
+			currentUIMode = UI_MODE_NONE;
+		}
+
 		sessionView.performActionOnPadRelease = false;
 		view.setActiveModControllableTimelineCounter(clip);
 	}
