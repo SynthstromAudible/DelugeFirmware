@@ -746,7 +746,7 @@ void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& 
 		}
 
 		if (display[i] & (1 << 7)) {
-			main.invertArea(ix + 22, 2, 42, 43);
+			main.invertArea(ix + 21, 3, 41, 43);
 		}
 	}
 	markChanged();
