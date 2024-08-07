@@ -1290,7 +1290,9 @@ void Browser::currentFileDeleted() {
 	if (!currentFileItem) {
 		return; // Shouldn't happen...
 	}
-
+	if (currentFileItem->instrument && !currentFileItem->instrumentAlreadyInSong) {
+		currentFileItem->instrument->shouldHibernate = false;
+	}
 	currentFileItem->~FileItem();
 
 	fileItems.deleteAtIndex(fileIndexSelected);
@@ -1303,6 +1305,7 @@ void Browser::currentFileDeleted() {
 	else {
 		setEnteredTextFromCurrentFilename();
 	}
+	currentFileChanged(0);
 }
 
 int32_t textStartX = 14;
@@ -1513,7 +1516,7 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
-
+				// deletes the underlying item
 				goIntoDeleteFileContextMenu();
 			}
 		}
