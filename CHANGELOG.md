@@ -8,6 +8,7 @@
 
 - Added `BASS FREQUENCY` and `TREBLE FREQUENCY` parameters to the list of assignable parameters in `PERFORMANCE VIEW`.
 - Fixed `PERFORMANCE VIEW` bug where stutter pad could get stuck in active state which should not be possible.
+- Fixed a couple bugs around `VU METER` rendering.
 
 ## c1.1.0 Beethoven
 
