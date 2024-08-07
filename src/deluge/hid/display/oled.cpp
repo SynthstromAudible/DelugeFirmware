@@ -444,6 +444,83 @@ struct TextLineBreakdown {
 	int32_t maxWidthPerLine;
 };
 
+/// checks if a character fits within line width based on width of characters of added so far
+/// + the width of the character we are trying to add
+/// if the character fits, this function will return:
+/// 1) updated line width in pixels
+/// 2) updated line length in characters
+/// 3) number of spacing in pixels added after the last character
+bool addCharacterToLine(char c, int32_t maxWidthPerLine, int32_t textHeight, int32_t& lineWidth, int32_t& lineLength,
+                        int32_t& charSpacing) {
+	// we're in a word, calculate width (in px) of the character in that word
+	int32_t charWidth = deluge::hid::display::OLED::popup.getCharWidthInPixels(c, textHeight);
+	// is the cumulative width (in px) for the line we're looking at less than the max width of that line?
+	if ((lineWidth + charWidth) <= maxWidthPerLine) {
+		// this character fits within the line's width so increment the size of this line
+		lineWidth += charWidth;
+		// add spacing after the character so we can see if next character will fit in the line
+		// if we can't fit next character we'll need to remove this extra spacing (see below)
+		charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(c, false);
+		lineWidth += charSpacing;
+
+		// increment the number of characters in this line
+		lineLength++;
+
+		return true;
+	}
+	return false;
+}
+
+/// used with breakStringIntoLines function below
+/// here we iterate through every character in the string until we reach a "break" in a word
+/// which can be due to a new line, a space, an underscore or the end of the string (0)
+/// returns the following:
+/// 1) the string remaining after the split point
+/// 2) updated textLineBreakdown struct
+/// 3) width of the line in pixels from start of the line up to the split point
+/// 4) returns number of characters from start of the line up to the split point
+/// 5) returns number of spacing in pixels added after the last character
+char const* findWordSplitPoint(char const* wordStart, int32_t maxWidthPerLine, int32_t textHeight, int32_t& lineWidth,
+                               int32_t& lineLength, int32_t& charSpacing) {
+	char const* space = wordStart;
+	while (true) {
+		// we've reached end of a word
+		if (*space == '\n' || *space == ' ' || *space == 0 || *space == '_') {
+			break;
+		}
+		// this means current character does not fit in current line (line max width would be exceeded)
+		if (!addCharacterToLine(*space, maxWidthPerLine, textHeight, lineWidth, lineLength, charSpacing)) {
+			break;
+		}
+		space++; // increment to see what next character is
+	}
+
+	// we're here because we reached end of a word or because we reached line width limit
+	if (*space == '_' || *space == ' ') {
+		addCharacterToLine(*space, maxWidthPerLine, textHeight, lineWidth, lineLength, charSpacing);
+	}
+	return space;
+}
+
+void addLine(TextLineBreakdown* textLineBreakdown, char const* lineStart, int32_t lineWidth, int32_t lineLength) {
+	// save the start position for this line of the string
+	textLineBreakdown->lines[textLineBreakdown->numLines] = lineStart;
+	// save the length in characters for this line of the string
+	textLineBreakdown->lineLengths[textLineBreakdown->numLines] = lineLength;
+	// check if this line is the longest line in characters, if so, save the length
+	if (lineLength > textLineBreakdown->longestLineLength) {
+		textLineBreakdown->longestLineLength = lineLength;
+	}
+	// save the length in pixels for this line of the string
+	textLineBreakdown->lineWidths[textLineBreakdown->numLines] = lineWidth;
+	// check if this line is the longest line in pixels, if so, save the width in pixels
+	if (lineWidth > textLineBreakdown->longestLineWidth) {
+		textLineBreakdown->longestLineWidth = lineWidth;
+	}
+	// increment number of lines
+	textLineBreakdown->numLines++;
+}
+
 /// this function takes a string and breaks it into multiple lines
 /// it does so by iterating through each character in a string, calculating the width in pixels
 /// for each character and comparing that width to the maximum width of a line
@@ -468,55 +545,13 @@ void breakStringIntoLines(char const* text, TextLineBreakdown* textLineBreakdown
 	int32_t lineLengthBeforeThisWord = 0; // line length in characters up to the current word
 	int32_t charSpacing = 0;              // number of pixels last added after a character
 
-findNextSpace:
-	char const* space = wordStart;
+findNextStringSplitPoint:
 	// save current lineWidth / lineLength in case we need to cut off drawing on a line before current word
 	lineWidthBeforeThisWord = lineWidth;
 	lineLengthBeforeThisWord = lineLength;
-	// here we iterate through every character in the string until we reach a "break" in a word
-	// which can be due to a new line, a space, an underscore or the end of the string (0)
-	while (true) {
-		// we've reached end of a word
-		if (*space == '\n' || *space == ' ' || *space == 0 || *space == '_') {
-			break;
-		}
-		// we're in a word, calculate width (in px) of the character in that word
-		int32_t charWidth = deluge::hid::display::OLED::popup.getCharWidthInPixels(*space, textHeight);
-		// is the cumulative width (in px) for the line we're looking at less than the max width of that line?
-		if ((lineWidth + charWidth) <= textLineBreakdown->maxWidthPerLine) {
-			// this character fits within the line's width so increment the size of this line
-			lineWidth += charWidth;
-			// add spacing after the character so we can see if next character will fit in the line
-			// if we can't fit next character we'll need to remove this extra spacing (see below)
-			charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(*space, false);
-			lineWidth += charSpacing;
 
-			// increment the number of characters in this line
-			lineLength++;
-		}
-		// this means current character does not fit in current line
-		else {
-			break;
-		}
-		space++; // increment to see what next character is
-	}
-
-	// we're here because we reached end of a word or because we reached line width limit
-	if (*space == '_' || *space == ' ') {
-		// calculate width (in px) of the character
-		int32_t charWidth = deluge::hid::display::OLED::popup.getCharWidthInPixels(*space, textHeight);
-		// is the cumulative width (in px) for the line we're looking at less than the max width of that line?
-		if ((lineWidth + charWidth) <= textLineBreakdown->maxWidthPerLine) {
-			// this character fits within the line's width so increment the size of this line
-			lineWidth += charWidth;
-			// add the spacing after this character as well
-			// so we can decide what to do below if spacing doesn't fit
-			charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(*space, false);
-			lineWidth += charSpacing;
-			// increment the number of characters in this line
-			lineLength++;
-		}
-	}
+	char const* space = findWordSplitPoint(wordStart, textLineBreakdown->maxWidthPerLine, textHeight, lineWidth,
+	                                       lineLength, charSpacing);
 
 	// If line not too long yet
 	if (lineWidth <= textLineBreakdown->maxWidthPerLine) {
@@ -525,22 +560,7 @@ findNextSpace:
 			// if we reached line break or end of string, we don't need extra spacing after it
 			lineWidth -= charSpacing;
 			lineWidth--; // Sean: need to figure out why this additional -1 adjustment is needed
-			// save the start position for this line of the string
-			textLineBreakdown->lines[textLineBreakdown->numLines] = lineStart;
-			// save the length in characters for this line of the string
-			textLineBreakdown->lineLengths[textLineBreakdown->numLines] = lineLength;
-			// check if this line is the longest line in characters, if so, save the length
-			if (lineLength > textLineBreakdown->longestLineLength) {
-				textLineBreakdown->longestLineLength = lineLength;
-			}
-			// save the length in pixels for this line of the string
-			textLineBreakdown->lineWidths[textLineBreakdown->numLines] = lineWidth;
-			// check if this line is the longest line in pixels, if so, save the width in pixels
-			if (lineWidth > textLineBreakdown->longestLineWidth) {
-				textLineBreakdown->longestLineWidth = lineWidth;
-			}
-			// increment number of lines
-			textLineBreakdown->numLines++;
+			addLine(textLineBreakdown, lineStart, lineWidth, lineLength);
 			// did we reach the end of the original string? or the max number of lines?
 			// then return, we're done
 			if (!*space || textLineBreakdown->numLines == TEXT_MAX_NUM_LINES) {
@@ -553,34 +573,17 @@ findNextSpace:
 			lineLength = 0;
 			charSpacing = 0;
 		}
-		// set character to start iterating from on the next line
+		// set character to start iterating from on
 		wordStart = space + 1;
 
 		// continue iterating through remaining characters in the string
-		goto findNextSpace;
+		goto findNextStringSplitPoint;
 	}
 	// line width exceeds maximum
 	else {
 		// if we reached line break or end of string, we don't need extra spacing after it
 		lineWidthBeforeThisWord -= charSpacing;
-		// save the start position for this line of the string
-		textLineBreakdown->lines[textLineBreakdown->numLines] = lineStart;
-		// save the length in characters for this line of the string
-		// we're saving the length up to the current word / character
-		textLineBreakdown->lineLengths[textLineBreakdown->numLines] = lineLengthBeforeThisWord;
-		// check if this line is the longest line in characters, if so, save the length
-		if (lineLengthBeforeThisWord > textLineBreakdown->longestLineLength) {
-			textLineBreakdown->longestLineLength = lineLengthBeforeThisWord;
-		}
-		// save the length in pixels for this line of the string
-		// we're saving the length up to the current word / character
-		textLineBreakdown->lineWidths[textLineBreakdown->numLines] = lineWidthBeforeThisWord;
-		// check if this line is the longest line in pixels, if so, save the width in pixels
-		if (lineWidthBeforeThisWord > textLineBreakdown->longestLineWidth) {
-			textLineBreakdown->longestLineWidth = lineWidthBeforeThisWord;
-		}
-		// increment number of lines
-		textLineBreakdown->numLines++;
+		addLine(textLineBreakdown, lineStart, lineWidthBeforeThisWord, lineLengthBeforeThisWord);
 		// did we reach the the max number of lines?
 		// then return, we're done
 		if (textLineBreakdown->numLines == TEXT_MAX_NUM_LINES) {
@@ -602,7 +605,7 @@ findNextSpace:
 		charSpacing = 0;
 
 		// continue iterating through remaining characters in the string
-		goto findNextSpace;
+		goto findNextStringSplitPoint;
 	}
 }
 
