@@ -3119,6 +3119,12 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		}
 	}
 
+	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
+	if (synthMode == SynthMode::FM && reader.getFirmwareVersion() < FirmwareVersion::community({1, 2, 0})) {
+		hpfMode = FilterMode::OFF;
+		lpfMode = FilterMode::OFF;
+	}
+
 	// If we actually got a paramManager, we can do resonance compensation on it
 	if (paramManager.containsAnyMainParamCollections()) {
 		if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0})) {
