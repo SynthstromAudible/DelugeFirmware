@@ -3078,7 +3078,7 @@ bool Sound::anyNoteIsOn() {
 }
 
 bool Sound::hasFilters() {
-	return (getSynthMode() != SynthMode::FM);
+	return (lpfMode != FilterMode::OFF || hpfMode != FilterMode::OFF);
 }
 
 void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
