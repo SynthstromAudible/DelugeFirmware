@@ -36,4 +36,22 @@ public:
 
 	uint8_t thingIndex;
 };
+
+class HorizontalMenuReferringToOneThing : public HorizontalMenu {
+public:
+	HorizontalMenuReferringToOneThing(l10n::String newName, std::span<MenuItem*> newItems, int32_t newThingIndex)
+	    : HorizontalMenu(newName, newItems), thingIndex(newThingIndex) {}
+	HorizontalMenuReferringToOneThing(l10n::String newName, std::initializer_list<MenuItem*> newItems,
+	                                  int32_t newThingIndex)
+	    : HorizontalMenu(newName, newItems), thingIndex(newThingIndex) {}
+
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
+		soundEditor.currentSourceIndex = thingIndex;
+		soundEditor.currentSource = &soundEditor.currentSound->sources[thingIndex];
+		soundEditor.currentSampleControls = &soundEditor.currentSource->sampleControls;
+		HorizontalMenu::beginSession(navigatedBackwardFrom);
+	}
+
+	uint8_t thingIndex;
+};
 } // namespace deluge::gui::menu_item

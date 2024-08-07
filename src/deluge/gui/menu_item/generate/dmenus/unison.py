@@ -5,7 +5,8 @@ count = Menu(
     "numUnisonMenu",
     ["{name}"],
     "oscillator/unison/count.md",
-    name="STRING_FOR_UNISON_NUMBER",
+    name="STRING_FOR_NUMBER",
+    title="STRING_FOR_UNISON_NUMBER",
 )
 
 detune = Menu(
@@ -13,7 +14,8 @@ detune = Menu(
     "unisonDetuneMenu",
     ["{name}"],
     "oscillator/unison/detune.md",
-    name="STRING_FOR_UNISON_DETUNE",
+    name="STRING_FOR_DETUNE",
+    title="STRING_FOR_UNISON_DETUNE",
 )
 
 stereo_spread = Menu(
@@ -21,11 +23,12 @@ stereo_spread = Menu(
     "unison::stereoSpreadMenu",
     ["{name}"],
     "oscillator/unison/stereo_spread.md",
-    name="STRING_FOR_UNISON_STEREO_SPREAD",
+    name="STRING_FOR_SPREAD",
+    title="STRING_FOR_UNISON_STEREO_SPREAD",
 )
 
 menu = Submenu(
-    "Submenu",
+    "HorizontalMenu",
     "unisonMenu",
     ["{name}", "%%CHILDREN%%"],
     "oscillator/unison/index.md",

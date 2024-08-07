@@ -39,8 +39,20 @@ public:
 		    l10n::getView(STRING_FOR_SVF_BAND),
 		    l10n::getView(STRING_FOR_SVF_NOTCH),
 		    l10n::getView(STRING_FOR_HPLADDER),
-		    l10n::getView(STRING_FOR_NONE),
+		    l10n::getView(STRING_FOR_OFF),
 		};
 	}
+	deluge::vector<std::string_view> getShortOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_SVF_BAND_SHORT),
+		    l10n::getView(STRING_FOR_SVF_NOTCH_SHORT),
+		    l10n::getView(STRING_FOR_HPLADDER_SHORT),
+		    l10n::getView(STRING_FOR_OFF),
+		};
+	}
+
+protected:
+	bool wrapAround() override { return true; }
 };
 } // namespace deluge::gui::menu_item::filter

@@ -31,6 +31,7 @@ public:
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return -1; }
+	bool isDisabledBelowZero() override { return true; }
 
 	void drawValue() override {
 		if (this->getValue() < 0) {

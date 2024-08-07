@@ -109,6 +109,8 @@ public:
 
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
+	/// Read the value from the system.
+	virtual void readCurrentValue() {}
 
 	/// @}
 	/// @name Patching support
@@ -261,7 +263,17 @@ public:
 	// render the submenu item type (icon or value)
 	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
 
+	// TODO: Document new menu methods
+	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height);
+	virtual bool hasInputAction() { return false; }
+	virtual void focusChild(const MenuItem* child);
+	virtual bool isSubmenu() { return false; }
+	virtual void setupNumberEditor() {}
+
 	/// @}
+
+private:
+	MenuItem* parent;
 };
 
 #define NO_NAVIGATION ((MenuItem*)0xFFFFFFFF)

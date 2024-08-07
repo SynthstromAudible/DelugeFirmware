@@ -15,23 +15,36 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/filter/filter_value.h"
 #include "gui/menu_item/patched_param/integer_non_fm.h"
+#include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/sound_editor.h"
 
 using namespace deluge::dsp::filter;
 namespace deluge::gui::menu_item::filter {
 
-class FilterMorph final : public patched_param::Integer {
+class FilterMorph final : public FilterValue {
 public:
-	using patched_param::Integer::Integer;
-	FilterMorph(l10n::String newName, int32_t newP, bool hpf) : Integer{newName, newP}, hpf{hpf} {}
+	FilterMorph(l10n::String newName, int32_t newP, bool hpf) : FilterValue{newName, newName, newP, hpf} {}
 	[[nodiscard]] std::string_view getName() const override {
 		using enum l10n::String;
 		auto filt = SpecificFilter(hpf ? soundEditor.currentModControllable->hpfMode
 		                               : soundEditor.currentModControllable->lpfMode);
 		return l10n::getView(filt.getMorphName());
 	}
-	[[nodiscard]] std::string_view getTitle() const override { return getName(); }
+};
+
+class UnpatchedFilterMorph final : public deluge::gui::menu_item::UnpatchedParam {
+public:
+	using UnpatchedParam::UnpatchedParam;
+	UnpatchedFilterMorph(l10n::String newName, int32_t newP, bool hpf)
+	    : UnpatchedParam{newName, newName, newP}, hpf{hpf} {}
+	[[nodiscard]] std::string_view getName() const override {
+		using enum l10n::String;
+		auto filt = SpecificFilter(hpf ? soundEditor.currentModControllable->hpfMode
+		                               : soundEditor.currentModControllable->lpfMode);
+		return l10n::getView(filt.getMorphName());
+	}
 
 private:
 	bool hpf;

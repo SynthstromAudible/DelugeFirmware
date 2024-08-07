@@ -174,3 +174,17 @@ TEST(WaveTest, triangle) {
 	CHECK_EQUAL(1, getTriangle(3221225471u));
 	CHECK_EQUAL(-1, getTriangle(3221225472u));
 }
+
+#if 0
+#include <iostream>
+
+TEST(WaveTest, triangleFull) {
+	int n = 1000;
+	int32_t incr = INT32_MAX;
+	LFO lfo;
+	while (n--) {
+		std::cout << lfo.render(1, LFOType::RANDOM_WALK, incr) << std::endl;
+	}
+	FAIL("X");
+}
+#endif

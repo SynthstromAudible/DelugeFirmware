@@ -24,6 +24,7 @@ namespace deluge::gui::menu_item {
 class Number : public Value<int32_t> {
 public:
 	using Value::Value;
+	virtual bool isDisabledBelowZero() { return false; }
 	void drawBar(int32_t yTop, int32_t marginL, int32_t marginR = -1);
 
 protected:

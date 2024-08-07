@@ -23,12 +23,23 @@
 #include "processing/sound/sound.h"
 #include "storage/multi_range/multi_range.h"
 
+#include "io/debug/log.h"
+
 namespace deluge::gui::menu_item::patch_cable_strength {
 MenuPermission Fixed::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                     MultiRange** currentRange) {
+	setupPatching();
+	return PatchCableStrength::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
+}
+
+void Fixed::setupPatching() {
 	soundEditor.patchingParamSelected = p;
 	source_selection::regularMenu.s = s;
-	return PatchCableStrength::checkPermissionToBeginSession(modControllable, whichThing, currentRange);
+}
+
+void Fixed::readCurrentValue() {
+	setupPatching();
+	PatchCableStrength::readCurrentValue();
 }
 
 uint8_t Fixed::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {

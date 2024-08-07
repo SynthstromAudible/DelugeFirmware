@@ -25,7 +25,9 @@ namespace deluge::gui::menu_item::lfo {
 class Type final : public Shape {
 public:
 	Type(deluge::l10n::String name, deluge::l10n::String type, uint8_t lfoId) : Shape(name, type), lfoId_(lfoId) {}
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType); }
+	void readCurrentValue() override {
+		this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType);
+	}
 	void writeCurrentValue() override {
 		soundEditor.currentSound->lfoConfig[lfoId_].waveType = this->getValue<LFOType>();
 		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
@@ -33,6 +35,8 @@ public:
 		// would be enough?
 		soundEditor.currentSound->resyncGlobalLFO();
 	}
+	bool wrapAround() override { return true; }
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 
 private:
 	uint8_t lfoId_;

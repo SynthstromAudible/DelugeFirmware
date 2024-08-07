@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/menu_item/patched_param/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
 
 namespace deluge::gui::menu_item::source {
 class PatchedParam : public menu_item::patched_param::Integer {

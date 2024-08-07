@@ -349,7 +349,10 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		if (on) {
+		if (getCurrentMenuItem()->hasInputAction()) {
+			getCurrentMenuItem()->readValueAgain();
+		}
+		else if (on) {
 			if (!currentUIMode) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_LEARN));
@@ -765,21 +768,22 @@ void SoundEditor::scrollFinished() {
 
 void SoundEditor::selectEncoderAction(int8_t offset) {
 
+	int8_t scaledOffset = offset;
 	// 5x acceleration of select encoder when holding the shift button
 	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
-		offset = offset * 5;
+		scaledOffset *= 5;
 	}
 
 	RootUI* rootUI = getRootUI();
 
 	// if you're in the performance view, let it handle the select encoder action
 	if (rootUI == &performanceSessionView) {
-		performanceSessionView.selectEncoderAction(offset);
+		performanceSessionView.selectEncoderAction(scaledOffset);
 	}
 	// if you're not on the automation overview and you haven't selected a multi pad press
 	// (multi pad press values are only editable with mod encoders to edit left and right position)
 	else if (rootUI == &automationView && isEditingAutomationViewParam() && !automationView.multiPadPressSelected) {
-		automationView.modEncoderAction(0, offset);
+		automationView.modEncoderAction(0, scaledOffset);
 	}
 	else {
 		if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
@@ -799,7 +803,8 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 			hadNoteTails = currentSound->allowNoteTails(modelStack);
 		}
 
-		getCurrentMenuItem()->selectEncoderAction(offset);
+		MenuItem* item = getCurrentMenuItem();
+		item->selectEncoderAction(item->isSubmenu() ? offset : scaledOffset);
 
 		if (currentSound) {
 			if (getCurrentMenuItem()->selectEncoderActionEditsInstrument()) {
@@ -878,11 +883,13 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		const MenuItem* item = nullptr;
+		MenuItem* parent = nullptr;
 
 		// session views (arranger, song, performance)
 		if (isUISessionView) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
+				parent = parentsForSongViewShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -892,6 +899,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		else if (setupKitGlobalFXMenu) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForKitGlobalFX[x][y];
+				parent = parentsForKitGlobalFXShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -912,6 +920,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			}
 			else if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
+				parent = parentsForAudioClipShortcuts[x][y];
 			}
 
 			goto doSetup;
@@ -924,6 +933,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			}
 			else {
 				item = paramShortcutsForSounds[x][y];
+				parent = parentsForSoundShortcuts[x][y];
 				goto doSetup;
 			}
 		}
@@ -942,6 +952,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				if (editingCVOrMIDIClip()) {
 					if (x == 11) {
 						item = midiOrCVParamShortcuts[y];
+						parent = parentForMidiCVParamShortcuts; // Just one.
 					}
 					else if (x == 4) {
 						if (y == 7) {
@@ -954,6 +965,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				}
 				else {
 					item = paramShortcutsForSounds[x][y];
+					parent = parentsForSoundShortcuts[x][y];
 				}
 
 doSetup:
@@ -962,6 +974,13 @@ doSetup:
 					if (item == comingSoonMenu) {
 						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
 						return ActionResult::DEALT_WITH;
+					}
+
+					// If we're on OLED, and there's a larger parent menu in which this item is visible & editable,
+					// focus that menu on the child and use it instead.
+					if (parent && display->haveOLED()) {
+						parent->focusChild(item);
+						item = parent;
 					}
 
 					// if we're in the menu and automation view is the root (background) UI
@@ -989,9 +1008,7 @@ doSetup:
 							setModulatorNumberForTitles(x & 1);
 							break;
 
-						case 8 ... 9:
-							setEnvelopeNumberForTitles(x & 1);
-							break;
+						default:;
 						}
 					}
 					int32_t thingIndex = x & 1;
@@ -1320,7 +1337,6 @@ void SoundEditor::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 }
 
 bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
-
 	Sound* newSound = nullptr;
 	ParamManagerForTimeline* newParamManager = nullptr;
 	ArpeggiatorSettings* newArpSettings = nullptr;
@@ -1528,6 +1544,7 @@ doMIDIOrCV:
 
 	navigationDepth = 0;
 	shouldGoUpOneLevelOnBegin = false;
+
 	menuItemNavigationRecord[navigationDepth] = newItem;
 
 	display->setNextTransitionDirection(1);

@@ -10,16 +10,6 @@ wave_index = Menu(
     available_when="Oscillator must be in wavetable mode",
 )
 
-volume = Menu(
-    "osc::source::Volume",
-    "sourceVolumeMenu",
-    ["{name}", "{title}", "params::LOCAL_OSC_A_VOLUME"],
-    "oscillator/volume.md",
-    name="STRING_FOR_VOLUME_LEVEL",
-    title="STRING_FOR_OSC_LEVEL_MENU_TITLE",
-    available_when='Oscillator type must not be <string-for name="STRING_FOR_RINGMOD">RINGMOD</string-for>',
-)
-
 feedback = Menu(
     "osc::source::Feedback",
     "sourceFeedbackMenu",

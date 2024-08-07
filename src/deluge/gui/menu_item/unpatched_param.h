@@ -30,7 +30,7 @@ public:
 	UnpatchedParam(l10n::String newName, l10n::String title, int32_t newP)
 	    : Param(newP), IntegerContinuous(newName, title) {}
 
-	UnpatchedParam(l10n::String newName, int32_t newP) : Param(newP), IntegerContinuous(newName) {}
+	UnpatchedParam(l10n::String newName, int32_t newP) : Param(newP), IntegerContinuous(newName, newName) {}
 
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
@@ -61,6 +61,8 @@ public:
 		readCurrentValue();
 		return getValue();
 	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) final override;
 
 protected:
 	virtual int32_t getFinalValue();
