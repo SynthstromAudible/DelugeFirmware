@@ -15,7 +15,7 @@ constexpr size_t kNumValues = 3;
 LaunchStyle launchStyle{};
 
 char const* LaunchStyle::getTitle() {
-	static char const* title = "Launch Style";
+	static char const* title = "Clip Mode";
 	return title;
 }
 
