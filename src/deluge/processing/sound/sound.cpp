@@ -2935,6 +2935,9 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 				}
 			}
 		}
+		// switch the filters off so they don't render unless deliberately enabled
+		lpfMode = FilterMode::OFF;
+		hpfMode = FilterMode::OFF;
 	}
 
 	// ... and switching *from* FM...
@@ -2945,6 +2948,13 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 				modKnobs[f][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
 				modKnobs[f][1].paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
 			}
+		}
+		// switch the filters back on if needed
+		if (lpfMode == FilterMode::OFF) {
+			lpfMode = FilterMode::TRANSISTOR_24DB;
+		}
+		if (hpfMode == FilterMode::OFF) {
+			hpfMode = FilterMode::HPLADDER;
 		}
 	}
 }
