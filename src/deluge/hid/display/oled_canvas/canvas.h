@@ -178,6 +178,8 @@ public:
 	/// @param endY Maximum Y coordinate, inclusive
 	void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
 
+	void invertAreaOfSubstring(const char* string, size_t start, size_t len, int32_t startY, int32_t endY);
+
 	/// @}
 
 	/// Height of the image in bytes

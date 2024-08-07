@@ -25,8 +25,8 @@ using namespace deluge;
 
 MenuPermission MenuItem::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                        MultiRange** currentRange) {
-	bool toReturn = isRelevant(modControllable, whichThing);
-	return toReturn ? MenuPermission::YES : MenuPermission::NO;
+	bool relevant = isRelevant(modControllable, whichThing);
+	return relevant ? MenuPermission::YES : MenuPermission::NO;
 }
 
 void MenuItem::learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value) {
@@ -72,4 +72,30 @@ void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	int32_t startX = getSubmenuItemTypeRenderIconStart();
 
 	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, 7);
+}
+
+void MenuItem::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	// Render item name
+
+	std::string_view name = getName();
+	size_t nameLen = std::min((size_t)(width / kTextTitleSpacingX), name.size());
+	// If we can fit the whole name, we do, if we can't we chop one letter off. It just looks and
+	// feels better, at least with the names we have now.
+	if (name.size() > nameLen) {
+		nameLen -= 1;
+	}
+	DEF_STACK_STRING_BUF(shortName, 10);
+	for (uint8_t p = 0; p < nameLen; p++) {
+		shortName.append(name[p]);
+	}
+	int32_t pxLen = image.getStringWidthInPixels(shortName.c_str(), kTextTitleSizeY);
+	// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
+	int32_t pad = (width + 1 - pxLen) / 2;
+	image.drawString(shortName.c_str(), pad + startX, startY + kTextSpacingY, kTextTitleSpacingX, kTextTitleSizeY, 0,
+	                 startX + width);
+}
+
+void MenuItem::focusChild(const MenuItem* child) {
 }

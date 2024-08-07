@@ -11,12 +11,12 @@ public:
 	using Value::Value;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void selectEncoderAction(int32_t offset) override;
-
 	virtual size_t size() = 0;
 
 protected:
 	virtual void drawPixelsForOled() override = 0;
 	void drawValue() override;
+	virtual bool wrapAround() { return false; }
 };
 
 } // namespace deluge::gui::menu_item

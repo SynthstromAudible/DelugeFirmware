@@ -36,5 +36,7 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return (AudioEngine::reverbSidechainVolume >= 0);
 	}
+
+	bool isDisabledBelowZero() override { return true; }
 };
 } // namespace deluge::gui::menu_item::reverb::sidechain

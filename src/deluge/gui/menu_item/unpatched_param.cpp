@@ -81,6 +81,28 @@ uint32_t UnpatchedParam::getParamIndex() {
 	return this->getP();
 }
 
+void UnpatchedParam::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	std::string_view name = getName();
+	size_t len = std::min((size_t)(width / kTextSpacingX), name.size());
+	// If we can fit the whole name, we do, if we can't we chop one letter off. It just looks and
+	// feels better, at least with the names we have now.
+	if (name.size() > len) {
+		len -= 1;
+	}
+	std::string_view shortName(name.data(), len);
+	image.drawString(shortName, startX, startY, kTextSpacingX, kTextSpacingY, 0, startX + width);
+
+	DEF_STACK_STRING_BUF(paramValue, 10);
+	paramValue.appendInt(getParamValue());
+
+	int32_t pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextTitleSizeY);
+	int32_t pad = (width - pxLen) / 2;
+	image.drawString(paramValue.c_str(), startX + pad, startY + kTextSpacingY + 2, kTextTitleSpacingX, kTextTitleSizeY,
+	                 0, startX + width);
+}
+
 // ---------------------------------------
 
 // ---------------------------------------

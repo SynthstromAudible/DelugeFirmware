@@ -87,4 +87,32 @@ void Toggle::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	}
 }
 
+// TODO: This almot identical with the patched & unpatched integer versions. Share code?
+void Toggle::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	std::string_view name = getName();
+	size_t len = std::min((size_t)(width / kTextSpacingX), name.size());
+	// If we can fit the whole name, we do, if we can't we chop one letter off. It just looks and
+	// feels better, at least with the names we have now.
+	if (name.size() > len) {
+		len -= 1;
+	}
+	std::string_view shortName(name.data(), len);
+	image.drawString(shortName, startX, startY, kTextSpacingX, kTextSpacingY, 0, startX + width);
+
+	const char* value;
+	if (getToggleValue()) {
+		value = "ON";
+	}
+	else {
+		value = "OFF";
+	}
+	int32_t pxLen = image.getStringWidthInPixels(value, kTextTitleSizeY);
+	// If not exactly centered, prefer 1px to the right.
+	int32_t pad = (width + 1 - pxLen) / 2;
+	image.drawString(value, startX + pad, startY + kTextSpacingY + 2, kTextTitleSpacingX, kTextTitleSizeY, 0,
+	                 startX + width);
+}
+
 } // namespace deluge::gui::menu_item

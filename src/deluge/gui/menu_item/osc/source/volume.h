@@ -21,16 +21,12 @@
 
 namespace deluge::gui::menu_item::osc::source {
 
-class Volume final : public menu_item::source::PatchedParam, public FormattedTitle {
+class Volume final : public menu_item::source::PatchedParam {
 public:
-	Volume(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
-
-	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
-
+	using PatchedParam::PatchedParam;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (sound->getSynthMode() != SynthMode::RINGMOD);
+		return (sound->getSynthMode() != ::SynthMode::RINGMOD);
 	}
 };
 } // namespace deluge::gui::menu_item::osc::source

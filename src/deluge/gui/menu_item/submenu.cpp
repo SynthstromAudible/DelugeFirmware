@@ -189,4 +189,5 @@ bool Submenu::learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteC
 	}
 	return false;
 }
+
 } // namespace deluge::gui::menu_item

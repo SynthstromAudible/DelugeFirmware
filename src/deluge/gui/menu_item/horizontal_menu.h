@@ -26,15 +26,15 @@
 
 namespace deluge::gui::menu_item {
 
-class Submenu : public MenuItem {
+class HorizontalMenu : public MenuItem {
 public:
-	Submenu(l10n::String newName, std::initializer_list<MenuItem*> newItems) : MenuItem(newName), items{newItems} {}
-	Submenu(l10n::String newName, std::span<MenuItem*> newItems)
+	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> items_)
+	    : MenuItem(newName), items{items_}, currentPos{0} {}
+	HorizontalMenu(l10n::String newName, l10n::String newTitle, std::initializer_list<MenuItem*> items_)
+	    : MenuItem(newName, newTitle), items{items_}, currentPos{0} {}
+	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems)
 	    : MenuItem(newName), items{newItems.begin(), newItems.end()} {}
-	Submenu(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems)
-	    : MenuItem(newName, title), items{newItems} {}
-
-	Submenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
+	HorizontalMenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
 	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()} {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
@@ -42,18 +42,16 @@ public:
 	void selectEncoderAction(int32_t offset) final;
 	MenuItem* selectButtonPress() final;
 	void readValueAgain() final { updateDisplay(); }
-	void unlearnAction() final;
-	bool allowsLearnMode() final;
-	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
-	void learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber);
-	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
-	void drawPixelsForOled() override;
-	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
-
-	deluge::vector<MenuItem*> items;
-	typename decltype(items)::iterator current_item_;
-
+	void drawPixelsForOled() final;
+	bool hasInputAction() final { return true; }
+	void focusChild(const MenuItem* child) override;
 	bool isSubmenu() override { return true; }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
+
+private:
+	deluge::vector<MenuItem*> items;
+	deluge::vector<MenuItem*> relevantItems;
+	int32_t currentPos;
 };
 
 } // namespace deluge::gui::menu_item

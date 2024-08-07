@@ -29,6 +29,7 @@ public:
 	using Enumeration::Enumeration;
 	int32_t syncTypeAndLevelToMenuOption(SyncType type, ::SyncLevel level);
 	size_t size() override { return NUM_SYNC_VALUES; }
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 
 protected:
 	void drawValue() final;

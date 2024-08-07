@@ -53,7 +53,7 @@ transpose = Menu(
     "sourceTransposeMenu",
     ["{name}", "{title}", "params::LOCAL_OSC_A_PITCH_ADJUST"],
     "oscillator/sample/transpose.md",
-    name="STRING_FOR_TRANSPOSE",
+    name="STRING_FOR_PITCH",
     title="STRING_FOR_OSC_TRANSPOSE_MENU_TITLE",
 )
 

@@ -47,6 +47,11 @@ extern MenuItem* paramShortcutsForAudioClips[15][8];
 extern MenuItem* paramShortcutsForSongView[15][8];
 extern MenuItem* paramShortcutsForKitGlobalFX[15][8];
 
+extern MenuItem* parentForMidiCVParamShortcuts;
+extern MenuItem* parentsForSoundShortcuts[15][8];
+extern MenuItem* parentsForAudioClipShortcuts[15][8];
+extern MenuItem* parentsForSongViewShortcuts[15][8];
+extern MenuItem* parentsForKitGlobalFXShortcuts[15][8];
+
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);
-void setEnvelopeNumberForTitles(int32_t);

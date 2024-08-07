@@ -26,11 +26,11 @@ class Sync final : public SyncLevel {
 public:
 	Sync(deluge::l10n::String name, deluge::l10n::String type, uint8_t lfoId) : SyncLevel(name, type), lfoId_(lfoId) {}
 
-	void readCurrentValue() {
+	void readCurrentValue() override {
 		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoConfig[lfoId_].syncType,
 		                                            soundEditor.currentSound->lfoConfig[lfoId_].syncLevel));
 	}
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		soundEditor.currentSound->lfoConfig[lfoId_].syncType = syncValueToSyncType(this->getValue());
 		soundEditor.currentSound->lfoConfig[lfoId_].syncLevel = syncValueToSyncLevel(this->getValue());
 		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
