@@ -16,6 +16,7 @@
  */
 #include "gui/ui/keyboard/chords.h"
 #include "io/debug/log.h"
+#include <stdlib.h>
 
 namespace deluge::gui::ui::keyboard {
 
@@ -40,15 +41,8 @@ ChordList::ChordList()
 }
 
 Voicing ChordList::getChordVoicing(int32_t chordNo) {
-
-	if (chordNo < 0) {
-		D_PRINTLN("Chord number is negative, returning chord 0");
-		chordNo = 0;
-	}
-	else if (chordNo >= kUniqueChords) {
-		D_PRINTLN("Chord number is too high, returning chord last chord");
-		chordNo = kUniqueChords - 1;
-	}
+	// Check if chord number is valid
+	chordNo = validateChordNo(chordNo);
 
 	int32_t voicingNo = voicingOffset[chordNo];
 	bool valid;
@@ -78,6 +72,41 @@ Voicing ChordList::getChordVoicing(int32_t chordNo) {
 		}
 	}
 	return chords[chordNo].voicings[0];
+}
+
+void ChordList::adjustChordRowOffset(int32_t offset) {
+	if (offset > 0) {
+		chordRowOffset = std::min<int32_t>(kOffScreenChords, chordRowOffset + offset);
+	}
+	else {
+		chordRowOffset = std::max<int32_t>(0, chordRowOffset + offset);
+	}
+}
+
+void ChordList::adjustVoicingOffset(int32_t chordNo, int32_t offset) {
+	// Check if chord number is valid
+	chordNo = validateChordNo(chordNo);
+
+	if (offset > 0) {
+		voicingOffset[chordNo] =
+			std::min<int32_t>(kUniqueVoicings - 1, voicingOffset[chordNo] + offset);
+	}
+	else {
+		voicingOffset[chordNo] =
+		std::max<int32_t>(0, voicingOffset[chordNo] + offset);
+	}
+}
+
+int32_t ChordList::validateChordNo(int32_t chordNo) {
+	if (chordNo < 0) {
+		D_PRINTLN("Chord number is negative, returning chord 0");
+		chordNo = 0;
+	}
+	else if (chordNo >= kUniqueChords) {
+		D_PRINTLN("Chord number is too high, returning last chord");
+		chordNo = kUniqueChords - 1;
+	}
+	return chordNo;
 }
 
 } // namespace deluge::gui::ui::keyboard

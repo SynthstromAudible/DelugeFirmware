@@ -22,6 +22,8 @@
 constexpr int32_t kMaxChordKeyboardSize = 7;
 constexpr int32_t kUniqueVoicings = 4;
 constexpr int32_t kUniqueChords = 17;
+constexpr int32_t kOffScreenChords = kUniqueChords - kDisplayHeight;
+
 
 namespace deluge::gui::ui::keyboard {
 
@@ -152,8 +154,17 @@ public:
 	 */
 	Voicing getChordVoicing(int32_t chordNo);
 
+	void adjustChordRowOffset(int32_t offset);
+	void adjustVoicingOffset(int32_t chordNo, int32_t offset);
+
 	Chord chords[kUniqueChords];
 	int32_t voicingOffset[kUniqueChords] = {0};
+	uint32_t chordRowOffset = 0;
+
+private:
+
+	int32_t validateChordNo(int32_t chordNo);
+
 };
 
 } // namespace deluge::gui::ui::keyboard

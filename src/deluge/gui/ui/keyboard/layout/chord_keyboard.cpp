@@ -39,7 +39,7 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 		PressedPad pressed = presses[idxPress];
 		if (pressed.active && pressed.x < kDisplayWidth) {
 
-			int32_t chordNo = pressed.y + state.chordRowOffset;
+			int32_t chordNo = pressed.y + state.chordList.chordRowOffset;
 
 			Voicing voicing = state.chordList.getChordVoicing(chordNo);
 			drawChordName(noteFromCoords(pressed.x), state.chordList.chords[chordNo].name, voicing.supplementalName);
@@ -59,12 +59,8 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 	KeyboardStateChord& state = getState().chord;
 
-	if (offset > 0) {
-		state.chordRowOffset = std::min<int32_t>(kUniqueChords - kDisplayHeight, state.chordRowOffset + offset);
-	}
-	else {
-		state.chordRowOffset = std::max<int32_t>(0, state.chordRowOffset + offset);
-	}
+
+	state.chordList.adjustChordRowOffset(offset);
 	precalculate();
 }
 
@@ -78,21 +74,14 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 			PressedPad pressed = presses[idxPress];
 			if (pressed.active && pressed.x < kDisplayWidth) {
 
-				int32_t chordNo = pressed.y + state.chordRowOffset;
+				int32_t chordNo = pressed.y + state.chordList.chordRowOffset;
 
-				if (offset > 0) {
-					state.chordList.voicingOffset[chordNo] =
-					    std::min<int32_t>(kUniqueVoicings - 1, state.chordList.voicingOffset[chordNo] + offset);
-				}
-				else {
-					state.chordList.voicingOffset[chordNo] =
-					    std::max<int32_t>(0, state.chordList.voicingOffset[chordNo] + offset);
-				}
+				state.chordList.adjustVoicingOffset(chordNo, offset);
 			}
 		}
 	}
 	else {
-		state.VoiceOffset += offset;
+		state.noteOffset += offset;
 	}
 	precalculate();
 }
@@ -102,7 +91,7 @@ void KeyboardLayoutChord::precalculate() {
 
 	// Pre-Buffer colours for next renderings
 	for (int32_t i = 0; i < (kOctaveSize + kDisplayWidth); ++i) {
-		noteColours[i] = getNoteColour(((state.VoiceOffset + i) % state.rowInterval) * state.rowColorMultiplier);
+		noteColours[i] = getNoteColour(((state.noteOffset + i) % state.rowInterval) * state.rowColorMultiplier);
 	}
 }
 

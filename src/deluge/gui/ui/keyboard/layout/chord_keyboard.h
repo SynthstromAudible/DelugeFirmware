@@ -47,7 +47,7 @@ public:
 
 private:
 	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
-		return getState().chord.VoiceOffset + x + y * getState().chord.rowInterval;
+		return getState().chord.noteOffset + x + y * getState().chord.rowInterval;
 	}
 
 	void offsetPads(int32_t offset, bool shiftEnabled);
@@ -56,7 +56,7 @@ private:
 	// Because sometimes the note name is not displayed correctly
 	// and we need to add a null terminator to the note name string
 	// TODO: work out how to fix this with the noteCodeToString function
-	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.VoiceOffset + x; }
+	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.noteOffset + x; }
 
 	RGB noteColours[kOctaveSize];
 };
