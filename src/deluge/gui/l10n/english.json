@@ -171,9 +171,9 @@
         "STRING_FOR_MIX_POST_FX": "Deluge output (post fx)",
         "STRING_FOR_TRACK": "Specific Track",
 
-        "STRING_FOR_DEFAULT_LAUNCH": "Default Clip",
-        "STRING_FOR_FILL_LAUNCH": "Fill Clip",
-        "STRING_FOR_ONCE_LAUNCH": "Once Clip",
+        "STRING_FOR_DEFAULT_LAUNCH": "Infinite",
+        "STRING_FOR_FILL_LAUNCH": "Fill",
+        "STRING_FOR_ONCE_LAUNCH": "Once",
 
         "STRING_FOR_LOAD_ALL": "Load all",
         "STRING_FOR_SLICE": "Slice",
