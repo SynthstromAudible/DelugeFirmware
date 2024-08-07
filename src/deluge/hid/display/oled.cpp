@@ -480,7 +480,7 @@ bool addCharacterToLine(char c, int32_t maxWidthPerLine, int32_t textHeight, int
 /// 3) width of the line in pixels from start of the line up to the split point
 /// 4) returns number of characters from start of the line up to the split point
 /// 5) returns number of spacing in pixels added after the last character
-char const* findWordSplitPoint(char const* wordStart, int32_t maxWidthPerLine, int32_t textHeight, int32_t& lineWidth,
+char const* findLineSplitPoint(char const* wordStart, int32_t maxWidthPerLine, int32_t textHeight, int32_t& lineWidth,
                                int32_t& lineLength, int32_t& charSpacing) {
 	char const* space = wordStart;
 	while (true) {
@@ -550,7 +550,7 @@ findNextStringSplitPoint:
 	lineWidthBeforeThisWord = lineWidth;
 	lineLengthBeforeThisWord = lineLength;
 
-	char const* space = findWordSplitPoint(wordStart, textLineBreakdown->maxWidthPerLine, textHeight, lineWidth,
+	char const* space = findLineSplitPoint(wordStart, textLineBreakdown->maxWidthPerLine, textHeight, lineWidth,
 	                                       lineLength, charSpacing);
 
 	// If line not too long yet
