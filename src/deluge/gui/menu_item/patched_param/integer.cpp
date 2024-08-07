@@ -62,15 +62,7 @@ void Integer::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	DEF_STACK_STRING_BUF(paramValue, 10);
 	paramValue.appendInt(getParamValue());
 
-	std::string stringForSubmenuItemType;
-	stringForSubmenuItemType.append(paramValue.c_str());
-
-	// pad value string so it's 3 characters long
-	padStringTo(stringForSubmenuItemType, 3);
-
-	int32_t startX = getSubmenuItemTypeRenderValueStart();
-
-	image.drawString(stringForSubmenuItemType, startX, yPixel, kTextSpacingX, kTextSpacingY);
+	image.drawStringAlignRight(paramValue.c_str(), yPixel, kTextSpacingX, kTextSpacingY, OLED_MAIN_WIDTH_PIXELS - 3);
 }
 
 } // namespace deluge::gui::menu_item::patched_param
