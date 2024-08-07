@@ -39,11 +39,8 @@ public:
 		    l10n::getView(STRING_FOR_SVF_BAND),
 		    l10n::getView(STRING_FOR_SVF_NOTCH),
 		    l10n::getView(STRING_FOR_HPLADDER),
+		    l10n::getView(STRING_FOR_NONE),
 		};
-	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}
 };
 } // namespace deluge::gui::menu_item::filter
