@@ -23,11 +23,12 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "lib/printf.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
-#include "string.h"
 #include <algorithm>
+#include <string.h>
 
 void TimelineView::scrollFinished() {
 	exitUIMode(UI_MODE_HORIZONTAL_SCROLL);
@@ -245,13 +246,9 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 	}
 
 	if (display->haveOLED()) {
-		DEF_STACK_STRING_BUF(popupMsg, 15);
-		popupMsg.appendInt(whichBar);
-		popupMsg.append(" : ");
-		popupMsg.appendInt(whichBeat);
-		popupMsg.append(" : ");
-		popupMsg.appendInt(whichSubBeat);
-		display->popupTextTemporary(popupMsg.c_str());
+		char buffer[15];
+		sprintf(buffer, "%d : %d : %d", whichBar, whichBeat, whichSubBeat);
+		display->popupTextTemporary(buffer);
 	}
 	else {
 		char text[5];

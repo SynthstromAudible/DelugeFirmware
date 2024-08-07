@@ -303,6 +303,8 @@ int32_t OLED::setupConsole(int32_t height) {
 	// Or if no other items, easy
 	else {
 		shouldRedrawTopLine = true;
+		// Sean: -1 adjustment here due to some visual artifacts observed with the console rendering
+		//		 this shifts all console items up a pixel
 		consoleItems[0].minY = OLED_MAIN_HEIGHT_PIXELS - height - 1;
 		consoleItems[0].maxY = consoleItems[0].minY + height;
 	}
