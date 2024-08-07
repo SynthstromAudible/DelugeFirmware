@@ -137,6 +137,7 @@ public:
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
 	virtual void exitTag(char const* exitTagName = NULL) = 0;
+	virtual FirmwareVersion getFirmwareVersion() = 0;
 };
 
 class XMLDeserializer : public Deserializer {
@@ -163,6 +164,7 @@ public:
 	                  bool ignoreIncorrectFirmware = false);
 
 	StorageManager* msd;
+	FirmwareVersion getFirmwareVersion() override { return firmware_version; }
 
 public:
 	UINT currentReadBufferEndPos;

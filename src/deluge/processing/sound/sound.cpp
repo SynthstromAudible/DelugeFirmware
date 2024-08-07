@@ -2935,6 +2935,9 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 				}
 			}
 		}
+		// switch the filters off so they don't render unless deliberately enabled
+		lpfMode = FilterMode::OFF;
+		hpfMode = FilterMode::OFF;
 	}
 
 	// ... and switching *from* FM...
@@ -2945,6 +2948,13 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 				modKnobs[f][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
 				modKnobs[f][1].paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
 			}
+		}
+		// switch the filters back on if needed
+		if (lpfMode == FilterMode::OFF) {
+			lpfMode = FilterMode::TRANSISTOR_24DB;
+		}
+		if (hpfMode == FilterMode::OFF) {
+			hpfMode = FilterMode::HPLADDER;
 		}
 	}
 }
@@ -3078,7 +3088,7 @@ bool Sound::anyNoteIsOn() {
 }
 
 bool Sound::hasFilters() {
-	return (getSynthMode() != SynthMode::FM);
+	return (lpfMode != FilterMode::OFF || hpfMode != FilterMode::OFF);
 }
 
 void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
@@ -3117,6 +3127,12 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 		else {
 			reader.exitTag(tagName);
 		}
+	}
+
+	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
+	if (synthMode == SynthMode::FM && reader.getFirmwareVersion() < FirmwareVersion::community({1, 2, 0})) {
+		hpfMode = FilterMode::OFF;
+		lpfMode = FilterMode::OFF;
 	}
 
 	// If we actually got a paramManager, we can do resonance compensation on it

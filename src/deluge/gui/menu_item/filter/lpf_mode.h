@@ -26,19 +26,30 @@ namespace deluge::gui::menu_item::filter {
 class LPFMode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue<::FilterMode>(soundEditor.currentModControllable->lpfMode); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->lpfMode = this->getValue<::FilterMode>(); }
+	void readCurrentValue() override {
+		// Off is located past the HPFLadder, which isn't an option for the low pass filter (should it be?)
+		int32_t selection = util::to_underlying(soundEditor.currentModControllable->lpfMode);
+		this->setValue(std::min(selection, kNumLPFModes));
+	}
+	void writeCurrentValue() override {
+		int32_t selection = this->getValue();
+		FilterMode mode;
+		// num lpf modes counts off but there's HPF modes in the middle
+		if (selection >= kNumLPFModes) {
+			mode = FilterMode::OFF;
+		}
+		else {
+			mode = static_cast<FilterMode>(selection);
+		}
+		soundEditor.currentModControllable->lpfMode = mode;
+	}
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_12DB_LADDER), l10n::getView(STRING_FOR_24DB_LADDER),
 		    l10n::getView(STRING_FOR_DRIVE),       l10n::getView(STRING_FOR_SVF_BAND),
-		    l10n::getView(STRING_FOR_SVF_NOTCH),
+		    l10n::getView(STRING_FOR_SVF_NOTCH),   l10n::getView(STRING_FOR_NONE),
 		};
-	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}
 };
 } // namespace deluge::gui::menu_item::filter
