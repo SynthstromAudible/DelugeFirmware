@@ -50,6 +50,7 @@ public:
 	void aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                        bool* doingMidiThru, ModelStack* modelStack);
 
+	void clearStoredClips();
 	void removeClip(Clip* clip);
 
 	// midi CC mappings

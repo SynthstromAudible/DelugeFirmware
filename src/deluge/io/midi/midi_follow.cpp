@@ -371,6 +371,14 @@ int32_t MidiFollow::getCCFromParam(params::Kind paramKind, int32_t paramID) {
 /// used to store the clip's for each note received so that note off's can be sent to the right clip
 PLACE_SDRAM_DATA Clip* clipForLastNoteReceived[kMaxMIDIValue + 1] = {0};
 
+/// initializes the clipForLastNoteReceived array
+/// called when swapping songs to make sure that you aren't using clips from the old song
+void MidiFollow::clearStoredClips() {
+	for (int32_t i = 0; i <= 127; i++) {
+		clipForLastNoteReceived[i] = nullptr;
+	}
+}
+
 /// removes a specific clip pointer from the clipForLastNoteReceived array
 /// if a clip is deleted, it should be removed from this array to ensure note off's don't get sent
 /// to delete clips
