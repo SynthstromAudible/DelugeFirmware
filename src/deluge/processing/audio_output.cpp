@@ -51,6 +51,7 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	GlobalEffectableForClip::cloneFrom(other);
 
 	inputChannel = ((AudioOutput*)other)->inputChannel;
+	outputRecordingFrom = ((AudioOutput*)other)->outputRecordingFrom;
 }
 
 void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
