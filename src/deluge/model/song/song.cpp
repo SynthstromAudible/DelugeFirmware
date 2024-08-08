@@ -178,7 +178,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	reverbSidechainVolume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
 	reverbSidechainShape = -601295438;
 	reverbSidechainSync = SYNC_LEVEL_8TH;
-	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
+	model = deluge::dsp::Reverb::Model::MUTABLE;
 
 	// setup base compressor gain to match 1.0
 	globalEffectable.compressor.setBaseGain(0.85);
@@ -1258,7 +1258,7 @@ Error Song::readFromFile(Deserializer& reader) {
 
 	// reverb mode
 	if (smDeserializer.firmware_version < FirmwareVersion::official({4, 1, 4})) {
-		AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
+		model = deluge::dsp::Reverb::Model::FREEVERB;
 	}
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1270,14 +1270,7 @@ Error Song::readFromFile(Deserializer& reader) {
 			if (!strcmp(tagName, "reverb")) {
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "model")) {
-						deluge::dsp::Reverb::Model model =
-						    static_cast<deluge::dsp::Reverb::Model>(reader.readTagOrAttributeValueInt());
-						if (model == deluge::dsp::Reverb::Model::FREEVERB) {
-							AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
-						}
-						else if (model == deluge::dsp::Reverb::Model::MUTABLE) {
-							AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::MUTABLE);
-						}
+						model = static_cast<deluge::dsp::Reverb::Model>(reader.readTagOrAttributeValueInt());
 						reader.exitTag("model");
 					}
 					else if (!strcmp(tagName, "roomSize")) {
