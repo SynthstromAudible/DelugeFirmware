@@ -1698,6 +1698,38 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer& rea
 
 	return Error::FILE_CORRUPTED;
 }
+bool StorageManager::buildPathToFile(const char* fileName) {
+
+	FRESULT res;
+	DEF_STACK_STRING_BUF(s_container, 255);
+	s_container.append(fileName);
+	char* s = s_container.data();
+	int i = strlen(s);
+
+	while (i > 0 && s[i - 1] != '/') // Find decomposition point
+		i--;
+
+	if (i > 0) // Move to '/'
+		i--;
+
+	if (i > 0) {
+		s[i] = 0; // replace '/' with NUL
+
+		res = f_mkdir(s);
+
+		if (res == FR_NO_PATH) {
+			// try the next folder in the path
+			if (buildPathToFile(s)) {
+				// if that worked, try again
+				res = f_mkdir(s);
+			}
+		}
+
+		if (res == FR_OK || res == FR_EXIST)
+			return true;
+	}
+	return false;
+}
 
 Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
                                    bool ignoreIncorrectFirmware) {
