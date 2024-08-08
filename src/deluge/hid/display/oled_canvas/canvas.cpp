@@ -351,24 +351,24 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 	if (isLastChar) {
 		return 0;
 	}
-	// if character is a space, make spacing 6px instead
-	// (just need to add 5 since previous character added 1 after it)
 	else if (theChar == ' ') {
 		// smaller apple ][ font is monospaced, so spacing is different
 		if (monospacedFont) {
 			return kTextSpacingX;
 		}
+		// if character is a space, make spacing 6px instead
+		// (just need to add 5 since previous character added 1 after it)
 		else {
 			return 5;
 		}
 	}
-	// default spacing is 2 pixels for bold fonts
 	else {
 		// smaller apple ][ font is monospaced, so no extra spacing needs to be added
 		// as it's handled by the standard char width
 		if (monospacedFont) {
 			return 0;
 		}
+		// default spacing is 2 pixels for bold fonts
 		else {
 			return 2;
 		}
