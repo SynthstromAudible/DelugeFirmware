@@ -43,6 +43,8 @@ public:
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 
+	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }
+
 	uint8_t chordSemitoneOffsets[kMaxChordKeyboardSize] = {0};
 
 private:
