@@ -3401,7 +3401,7 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 	ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip =
 	    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStackWithTimelineCounter);
 
-	Drum* drum = NULL;
+	Drum* drum = nullptr;
 
 	// If Kit...
 	if (isKit) {
@@ -3410,8 +3410,8 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 			drum = modelStackWithNoteRowOnCurrentClip->getNoteRow()->drum;
 		}
 
-		// If NoteRow doesn't exist here, we'll see about creating one
-		else {
+		// If NoteRow doesn't exist here or doesn't have a drum, we'll see about creating one
+		if (drum == nullptr) {
 
 			// But not if we're actually not on this screen
 			if (getCurrentUI() != this) {
