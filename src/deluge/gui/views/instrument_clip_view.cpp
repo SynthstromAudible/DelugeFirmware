@@ -3459,24 +3459,11 @@ void InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, b
 						if (newNoteRow) {
 							uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 
-							ModelStackWithNoteRow* modelStackWithNoteRow =
-							    modelStackWithTimelineCounter->addNoteRow(noteRowIndex, newNoteRow);
-							newNoteRow->setDrum(drumForNewNoteRow, (Kit*)instrument, modelStackWithNoteRow);
-							AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
-						}
-					}
-					if (display->haveOLED()) {
-						deluge::hid::display::OLED::removePopup();
-					}
-					else {
-						redrawNumericDisplay();
-					}
-justReRender:
-					uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
-				}
-			}
-
-			goto getOut;
+	// If drum or noterow doesn't exist here, we'll see about creating one
+	if (drum == nullptr) {
+		// But not if we're actually not on this screen
+		if (getCurrentUI() != this) {
+			return drum;
 		}
 	}
 
