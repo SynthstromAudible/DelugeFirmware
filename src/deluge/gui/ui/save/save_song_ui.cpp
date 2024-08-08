@@ -183,6 +183,7 @@ gotError:
 			if (audioFile->type == AudioFileType::SAMPLE) {
 				// If this is a recording which still exists at its temporary location, move the file
 				if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
+					bdsm.buildPathToFile(audioFile->filePath.get());
 					FRESULT result =
 					    f_rename(((Sample*)audioFile)->tempFilePathForRecording.get(), audioFile->filePath.get());
 					if (result == FR_OK) {
@@ -192,10 +193,8 @@ gotError:
 						// We at least need to warn the user that although the main file save was (hopefully soon to be)
 						// successful, something's gone wrong
 						anyErrorMovingTempFiles = true;
-						/*
-						D_PRINTLN("rename failed.  %d %s %s", result, ((Sample*)sample)->tempFilePathForRecording.get(),
-						sample->filePath.get());
-						*/
+						D_PRINTLN("rename failed.  %d %s %s", result,
+						          ((Sample*)audioFile)->tempFilePathForRecording.get(), audioFile->filePath.get());
 					}
 				}
 			}
