@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/reverb/model.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
@@ -59,7 +60,6 @@ class Output;
 class AudioOutput;
 class ModelStack;
 class ModelStackWithTimelineCounter;
-
 Clip* getCurrentClip();
 InstrumentClip* getCurrentInstrumentClip();
 AudioClip* getCurrentAudioClip();
@@ -362,6 +362,7 @@ public:
 	bool midiLoopback = false;
 
 	// Reverb params to be stored here between loading and song being made the active one
+	dsp::Reverb::Model model;
 	float reverbRoomSize;
 	float reverbDamp;
 	float reverbWidth;
