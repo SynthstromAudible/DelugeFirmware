@@ -460,7 +460,7 @@ bool addCharacterToLine(char c, int32_t maxWidthPerLine, int32_t textHeight, int
 		lineWidth += charWidth;
 		// add spacing after the character so we can see if next character will fit in the line
 		// if we can't fit next character we'll need to remove this extra spacing (see below)
-		charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(c, false);
+		charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(c, textHeight, false);
 		lineWidth += charSpacing;
 
 		// increment the number of characters in this line
@@ -844,7 +844,7 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 
 	int32_t charIdx = 0;
 	for (char const c : text) {
-		int32_t charSpacing = main.getCharSpacingInPixels(c, charIdx == scroller->textLength);
+		int32_t charSpacing = main.getCharSpacingInPixels(c, textSizeY, charIdx == scroller->textLength);
 		int32_t charWidth = main.getCharWidthInPixels(c, textSizeY) + charSpacing;
 		scroller->stringLengthPixels += charWidth;
 		charIdx++;
