@@ -3642,8 +3642,8 @@ Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, 
 		drum = modelStackWithNoteRowOnCurrentClip->getNoteRow()->drum;
 	}
 
-	// If NoteRow doesn't exist here, we'll see about creating one
-	else {
+	// If drum or noterow doesn't exist here, we'll see about creating one
+	if (drum == nullptr) {
 		// But not if we're actually not on this screen
 		if (getCurrentUI() != this) {
 			return drum;
