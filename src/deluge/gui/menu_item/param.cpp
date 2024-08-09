@@ -18,6 +18,7 @@
 #include "param.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -42,7 +43,13 @@ ActionResult Param::buttonAction(deluge::hid::Button b, bool on, bool inCardRout
 }
 
 void Param::horizontalEncoderAction(int32_t offset) {
-	Automation::horizontalEncoderAction(offset);
+	RootUI* rootUI = getRootUI();
+	if (rootUI == &automationView) {
+		automationView.horizontalEncoderAction(offset);
+	}
+	else if (rootUI == &keyboardScreen) {
+		keyboardScreen.horizontalEncoderAction(offset);
+	}
 }
 
 ModelStackWithAutoParam* Param::getModelStackWithParam(void* memory) {
