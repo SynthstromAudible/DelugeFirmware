@@ -454,10 +454,10 @@ bool addCharacterToLine(char c, int32_t maxWidthPerLine, int32_t textHeight, int
                         int32_t& charSpacing) {
 	// we're in a word, calculate width (in px) of the character in that word
 	int32_t charWidth = deluge::hid::display::OLED::popup.getCharWidthInPixels(c, textHeight);
-	
+
 	// increase line width for the character added
 	lineWidth += charWidth;
-	
+
 	// add spacing (not relevant if you're using a monospaced font, which we are here, but keep it anyway in case we
 	// don't)
 	charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(c, textHeight, false);
