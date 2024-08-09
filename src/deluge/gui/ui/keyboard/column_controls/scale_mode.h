@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/ui/keyboard/column_controls/control_column.h"
+#include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::ui::keyboard::controls {
@@ -35,8 +36,9 @@ public:
 
 private:
 	int32_t currentScalePad = -1;
-	int32_t previousScale = -1;
-	uint8_t scaleModes[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+	Scale previousScale = NO_SCALE;
+	Scale scaleModes[8] = {MAJOR_SCALE,  MINOR_SCALE,      DORIAN_SCALE,  PHRYGIAN_SCALE,
+	                       LYDIAN_SCALE, MIXOLYDIAN_SCALE, LOCRIAN_SCALE, MELODIC_MINOR_SCALE};
 };
 
 } // namespace deluge::gui::ui::keyboard::controls

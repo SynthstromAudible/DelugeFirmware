@@ -63,15 +63,6 @@ int8_t NoteSet::degreeOf(uint8_t note) const {
 	}
 }
 
-uint8_t NoteSet::scaleId() const {
-	for (int32_t p = 0; p < NUM_PRESET_SCALES; p++) {
-		if (*this == presetScaleNotes[p]) {
-			return p;
-		}
-	}
-	return NUM_PRESET_SCALES;
-}
-
 NoteSet NoteSet::operator|(const NoteSet& other) {
 	NoteSet newSet = other;
 	newSet.bits |= bits;
