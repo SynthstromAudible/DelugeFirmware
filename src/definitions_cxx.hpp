@@ -997,7 +997,7 @@ enum GridMode : uint8_t {
 	Unassigned1,
 	Unassigned2,
 	Unassigned3,
-	Unassigned4,
+	MAGENTA,
 	YELLOW,
 	BLUE,
 	GREEN,

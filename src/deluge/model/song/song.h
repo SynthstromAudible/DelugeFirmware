@@ -84,6 +84,21 @@ struct BackedUpParamManager {
 
 #define MAX_NOTES_CHORD_MEM 10
 
+enum SessionMacroKind : int8_t {
+	NO_MACRO = 0,
+	CLIP_LAUNCH,
+	OUTPUT_CYCLE,
+	SECTION,
+	NUM_KINDS,
+};
+
+struct SessionMacro {
+	SessionMacroKind kind;
+	Clip* clip;
+	Output* output;
+	uint8_t section;
+};
+
 class Song final : public TimelineCounter {
 public:
 	Song();
@@ -221,6 +236,8 @@ public:
 	int32_t unautomatedParamValues[deluge::modulation::params::kMaxNumUnpatchedParams];
 
 	String dirPath;
+
+	SessionMacro sessionMacros[8];
 
 	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();

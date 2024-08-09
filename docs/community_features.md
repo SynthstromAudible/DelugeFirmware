@@ -409,6 +409,10 @@ Here is a list of features that have been added to the firmware as a list, group
             - Track color can be changed by holding any populated clip in a column and rotating `▼︎▲︎`. For fine changes
               to the color press `▼︎▲︎` while turning it.
             - Section pads (left sidebar column) will allow changing repeat count while held
+        - `Purple mode`
+           - [Song macros](#419---song-macros) can be set up. First select a macro slot in the left sidebar and then press a clip to
+             put it in the slot. press the same clip multiple times to switch between macro kinds (i e affect the entire
+             output or section for the clip)
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:
@@ -479,6 +483,23 @@ Here is a list of features that have been added to the firmware as a list, group
             - y2 = -22.0 to -17.7
             - y1 = -26.4 to -22.1
             - y0 = -30.8 to -26.5
+
+### 4.1.9 - Song macros
+
+Macros are a way to quickly switch playing clips without needing to go into song view.
+Within grid view, purple mode is used to edit macros. There are 8 macro slots
+shown in the left sidebar. To assign a macro,
+first select a macro slot and then press a clip in the grid. Pressing the same clip multiple
+time cycles though different modes:
+
+- clip macro: Launch or mute the clip
+- output macro: cycle though all clips for this particular output
+- section macro: Launch all clips for this section
+
+Inside a clip timeline view, hold SONG button and press the left sidebar to launch a macro.
+In keyboard view, macros are available as a sidebar control.
+SHIFT makes the launch immediate just like in song view. AFFECT ENTIRE + clip macro can be
+used to jump to edit the clip.
 
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
@@ -950,6 +971,8 @@ to each individual note onset. ([#1978])
       pads will default to the first 7 scale modes, but you can change any pad to any scale by
       holding it down and turning the vertical encoder. If the scale that is going to be set
       can't fit/transpose the existing notes from your clips, screen will show `Can't`.
+    - **`Song Macro Mode (SONG - various):`** Activate [Song macros](#419---song-macros).
+
 - ([#2174]) With the addition of the new Keyboard Sidebar Controls, the default behaviour of being able to immediately exit the menu by pressing a sidebar pad while in Keyboard View was removed. To accomodate users that still wish to be able to exit the menus immediately by pressing a sidebar pad, a new community feature toggle has been added (`Enable KB View Sidebar Menu Exit (EXIT)`) which will enable you to immediately exit the menu using the top left sidebar pad if you are in the `SETTINGS` or `SOUND` menu for `KEYBOARD VIEW`.
 
 #### 4.4.2 - Scales
