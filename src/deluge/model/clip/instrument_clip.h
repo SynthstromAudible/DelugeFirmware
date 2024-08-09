@@ -109,6 +109,9 @@ public:
 	                  int16_t const* mpeValuesOrNull = NULL, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
 	void recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t velocity = kDefaultLiftValue);
 
+	bool stepRecordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, int32_t xZoom);
+	void stepRecordAdvance(int32_t xZoom);
+
 	void copyBasicsFrom(Clip const* otherClip) override;
 
 	ArpeggiatorSettings arpSettings; // Not valid for Kits
@@ -156,6 +159,10 @@ public:
 	uint8_t midiPGM;  // 128 means none
 
 	OutputType outputTypeWhileLoading; // For use only while loading song
+
+	bool isStepRecording = false;
+	int32_t stepRecordingPos = 0;
+	void toggleStepRecording();
 
 	void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = NULL) override;
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, bool atStart, int32_t* getIndex = NULL);

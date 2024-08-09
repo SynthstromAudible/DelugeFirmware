@@ -1061,6 +1061,29 @@ modifyNote:
 	((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 }
 
+void NoteRow::stepRecordExtend(uint32_t noteOffPos, ModelStackWithNoteRow* modelStack) {
+	if (!notes.getNumElements()) {
+		return;
+	}
+
+	int32_t effectiveLength = modelStack->getLoopLength();
+
+	int32_t i = notes.search(noteOffPos, LESS);
+	bool wrapping = (i == -1 || i == notes.getNumElements());
+	if (wrapping) {
+		// if wrapping, do something quite lazy:p
+		return;
+	}
+
+	// TODO: anyhow keep track of next note we might be crashing into?
+	Note *note = notes.getElement(i);
+	int32_t newLength = noteOffPos - note->pos;
+	if (newLength <= 0) {
+		return;
+	}
+	note->setLength(newLength);
+}
+
 void NoteRow::complexSetNoteLength(Note* thisNote, uint32_t newLength, ModelStackWithNoteRow* modelStack,
                                    Action* action) {
 
