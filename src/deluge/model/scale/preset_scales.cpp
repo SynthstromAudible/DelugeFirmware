@@ -13,10 +13,10 @@ const NoteSet presetScaleNotes[NUM_PRESET_SCALES] = {
 #undef DEF
 };
 
-const char* getScaleName(uint8_t scale) {
+const char* getScaleName(Scale scale) {
 	// Not using l10n since USER and ERR are <= 4 characters, and
 	// keeing this disentangled from l10n makes testing easier.
-	if (scale == NUM_PRESET_SCALES) {
+	if (scale == USER_SCALE) {
 		return "USER";
 	}
 	else if (scale < NUM_PRESET_SCALES) {
@@ -25,4 +25,17 @@ const char* getScaleName(uint8_t scale) {
 	else {
 		return "ERR";
 	}
+}
+
+Scale getScale(NoteSet notes) {
+	for (int32_t p = 0; p < NUM_PRESET_SCALES; p++) {
+		if (notes == presetScaleNotes[p]) {
+			return static_cast<Scale>(p);
+		}
+	}
+	return USER_SCALE;
+}
+
+bool isUserScale(NoteSet notes) {
+	return USER_SCALE == getScale(notes);
 }

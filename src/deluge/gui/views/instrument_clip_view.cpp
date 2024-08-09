@@ -181,7 +181,7 @@ ActionResult InstrumentClipView::commandLearnUserScale() {
 		commandEnterScaleMode();
 	}
 	NoteSet notes = currentSong->notesInScaleModeClips();
-	currentSong->setScale(notes);
+	currentSong->setScaleNotes(notes);
 	recalculateColours();
 	uiNeedsRendering(this);
 	// Hook point for specificMidiDevice

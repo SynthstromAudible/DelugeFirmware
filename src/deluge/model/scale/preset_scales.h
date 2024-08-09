@@ -13,7 +13,7 @@
  * See OFFSET_6|5_NOTE_SCALE for how to deal with that.
  *
  * The actual definitions expand this macro, picking the thing they need:
- * - enum PresetScales
+ * - enum Scale
  * - presetScaleNames
  * - presetScaleNotes
  *
@@ -66,18 +66,20 @@
 	/* HIRA Hirajoshi (matches Launchpad scale) */                                                                     \
 	DEF(HIRAJOSHI_SCALE, "HIRAJOSHI", DEF_NOTES(0, 2, 3, 7, 8))
 
-#define FIRST_6_NOTE_SCALE_INDEX WHOLE_TONE_SCALE
-#define FIRST_5_NOTE_SCALE_INDEX PENTATONIC_MINOR_SCALE
-
 /** Indexes into presetScaleNames and presetScaleNotes -arrays, and total
  *  number of preset scales.
  */
-enum PresetScales {
+enum Scale {
 #define DEF(id, name, notes) id,
 	DEF_SCALES()
 #undef DEF
-	    NUM_PRESET_SCALES
+	    NUM_PRESET_SCALES,
+	USER_SCALE = NUM_PRESET_SCALES,
+	NO_SCALE = 255
 };
+
+#define FIRST_6_NOTE_SCALE_INDEX WHOLE_TONE_SCALE
+#define FIRST_5_NOTE_SCALE_INDEX PENTATONIC_MINOR_SCALE
 
 extern const NoteSet presetScaleNotes[NUM_PRESET_SCALES];
 extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
@@ -86,7 +88,6 @@ extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
 // arrays!
 #define OFFICIAL_FIRMWARE_RANDOM_SCALE_INDEX 7
 #define OFFICIAL_FIRMWARE_NONE_SCALE_INDEX 8
-#define CANT_CHANGE_SCALE 255
 #define PRESET_SCALE_RANDOM 254
 #define PRESET_SCALE_NONE 255
 // These offsets allow us to introduce new 7, 6 and 5 note scales in between the existing
@@ -95,4 +96,8 @@ extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
 #define OFFSET_6_NOTE_SCALE 64
 #define OFFSET_5_NOTE_SCALE 128
 
-const char* getScaleName(uint8_t scale);
+const char* getScaleName(Scale scale);
+
+Scale getScale(NoteSet notes);
+
+bool isUserScale(NoteSet notes);

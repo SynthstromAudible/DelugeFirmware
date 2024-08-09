@@ -66,11 +66,6 @@ public:
 	 * Returns -1 if there are no notes present unused in the other NoteSet..
 	 */
 	int8_t highestNotIn(NoteSet used) const;
-	/** If this is a preset scale, returns the preset scale id / index.
-	 *
-	 * Otherwise returns NUM_PRESET_SCALES.
-	 */
-	uint8_t scaleId() const;
 	/** Returns number of notes in the NoteSet.
 	 */
 	int count() const { return std::popcount(bits); }
