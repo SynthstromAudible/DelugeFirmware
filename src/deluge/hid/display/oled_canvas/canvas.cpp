@@ -321,16 +321,13 @@ int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 	if (charIndex <= 0) {
 		return 0;
 	}
+	// the smaller apple ][ is monospaced, so return standard width of each character
+	else if (textHeight <= 9) {
+		return kTextSpacingX;
+	}
 
 	lv_font_glyph_dsc_t const* descriptor;
 	switch (textHeight) {
-	case 9:
-		[[fallthrough]];
-	case 7:
-		[[fallthrough]];
-	case 8:
-		descriptor = font_apple_desc;
-		break;
 	case 10:
 		descriptor = font_metric_bold_9px_desc;
 		break;
@@ -349,6 +346,7 @@ int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 }
 
 int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool isLastChar) {
+	bool monospacedFont = (textHeight <= 9);
 	// don't add space to the last character
 	if (isLastChar) {
 		return 0;
@@ -356,12 +354,20 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 	// if character is a space, make spacing 6px instead
 	// (just need to add 5 since previous character added 1 after it)
 	else if (theChar == ' ') {
-		return 5;
+		// smaller apple ][ font is monospaced, so spacing is different
+		if (monospacedFont) {
+			return kTextSpacingX;
+		}
+		else {
+			return 5;
+		}
 	}
-	// default spacing is 1 pixel for non bold font, 2 pixels for bold fonts
+	// default spacing is 2 pixels for bold fonts
 	else {
-		if (textHeight <= 9) {
-			return 1;
+		// smaller apple ][ font is monospaced, so no extra spacing needs to be added
+		// as it's handled by the standard char width
+		if (monospacedFont) {
+			return 0;
 		}
 		else {
 			return 2;
