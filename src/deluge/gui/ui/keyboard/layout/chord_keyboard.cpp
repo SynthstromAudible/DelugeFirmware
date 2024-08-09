@@ -97,10 +97,21 @@ void KeyboardLayoutChord::precalculate() {
 }
 
 void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+	KeyboardStateChord& state = getState().chord;
+
 	// Iterate over grid image
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			image[y][x] = noteColours[x];
+			int32_t chordNo = y + state.chordList.chordRowOffset;
+			// We add a colored row every 4 chords to help with navigation
+			// We also use different colors for the rows to help with navigation
+			if (chordNo % 4 == 0) {
+				int32_t rowNo = chordNo / 4;
+				image[y][x] = noteColours[rowNo % kOctaveSize];
+			}
+			else {
+				image[y][x] = noteColours[x];
+			}
 		}
 	}
 }
