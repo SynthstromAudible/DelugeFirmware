@@ -173,10 +173,4 @@ void Automation::selectAutomationViewParameter(bool clipMinder) {
 	}
 }
 
-void Automation::horizontalEncoderAction(int32_t offset) {
-	if (getRootUI() == &automationView) {
-		automationView.horizontalEncoderAction(offset);
-	}
-}
-
 } // namespace deluge::gui::menu_item
