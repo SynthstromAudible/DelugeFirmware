@@ -1,5 +1,6 @@
 /*
  * Copyright © 2016-2024 Synthstrom Audible Limited
+ * Copyright © 2024 Madeline Scyphers
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -125,7 +126,7 @@ const Chord kMinor11 = {"-11",
                          {{ROOT, P4, MIN7, MIN3 + OCT, P5 + OCT, NONE, NONE}, "SO WHAT"},
                          {ROOT, MIN3 + OCT, P5, MIN7, MAJ9, P11, NONE},
                          {ROOT, MIN3 + OCT, P5, MIN7 + OCT, MAJ9, P11, NONE}}};
-// 11th are often omitted in 13th chords because they clash with the major 3rd
+// 11th are often omitted in 13th and M13th chords because they clash with the major 3rd
 // if anything, the 11th is often played as a #11
 const Chord k13 = {"13",
                    {{ROOT, MAJ3, P5, MIN7, MAJ9, MAJ13, NONE},

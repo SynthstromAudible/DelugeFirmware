@@ -1,5 +1,6 @@
 /*
- * Copyright © 2016-2023 Synthstrom Audible Limited
+ * Copyright © 2016-2024 Synthstrom Audible Limited
+ * Copyright © 2024 Madeline Scyphers
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *

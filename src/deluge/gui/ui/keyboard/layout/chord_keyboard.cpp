@@ -1,5 +1,6 @@
 /*
- * Copyright © 2016-2023 Synthstrom Audible Limited
+ * Copyright © 2016-2024 Synthstrom Audible Limited
+ * Copyright © 2024 Madeline Scyphers
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -105,38 +106,25 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 }
 
 void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
-	char noteName[3];
-	uint8_t drawDot;
-	char* thisChar = noteName;
+	char noteName[3]={0};
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+	noteCodeToString(noteCode, noteName, &isNatural, false);
 
-	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
-	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
-	thisChar++;
-
-	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*thisChar = display->haveOLED() ? '#' : '.';
-		thisChar++;
-		drawDot = 255;
-	}
-	else {
-		drawDot = 0;
-	}
-	*thisChar = '\0';
-
-	// Create a buffer to hold the full chord name and format it
 	char fullChordName[300];
-	if (voicingName[0] == '\0') {
-		sprintf(fullChordName, "%s%s", noteName, chordName);
+
+	if (voicingName && *voicingName) {
+		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
 	}
 	else {
-		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
+		sprintf(fullChordName, "%s%s", noteName, chordName);
 	}
 
 	if (display->haveOLED()) {
 		display->popupTextTemporary(fullChordName);
 	}
 	else {
-		display->setText(fullChordName, false, drawDot, true);
+		int8_t drawDot = !isNatural ? 0 : 255;
+		display->setScrollingText(fullChordName, 0);
 	}
 }
 } // namespace deluge::gui::ui::keyboard::layout
