@@ -2151,7 +2151,7 @@ void SessionView::graphicsRoutine() {
 }
 
 /// display number of bars or quarter notes remaining until a launch event
-int32_t SessionView::displayLoopsRemainingPopup() {
+int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 	int32_t sixteenthNotesRemaining = session.getNumSixteenthNotesRemainingTilLaunch();
 	if (sixteenthNotesRemaining > 0) {
 		DEF_STACK_STRING_BUF(popupMsg, 40);
@@ -2169,7 +2169,7 @@ int32_t SessionView::displayLoopsRemainingPopup() {
 			}
 			popupMsg.appendInt(quarterNotesRemaining);
 		}
-		if (display->haveOLED()) {
+		if (display->haveOLED() && !ephemeral) {
 			deluge::hid::display::OLED::clearMainImage();
 			deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
 			deluge::hid::display::OLED::sendMainImage();
@@ -2878,24 +2878,29 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 	// Section column
 	uint32_t sectionColumnIndex = kDisplayWidth;
 	for (int32_t y = (kGridHeight - 1); y >= 0; --y) {
-		occupancyMask[y][sectionColumnIndex] = 64;
+		if (gridModeActive == SessionGridModeMacros) {
+			view.renderMacros(sectionColumnIndex, y, selectedMacro, image, occupancyMask);
+		}
+		else {
+			occupancyMask[y][sectionColumnIndex] = 64;
 
-		auto section = gridSectionFromY(y);
-		RGB& ptrSectionColour = image[y][sectionColumnIndex];
+			auto section = gridSectionFromY(y);
+			RGB& ptrSectionColour = image[y][sectionColumnIndex];
 
-		ptrSectionColour = RGB::fromHue(defaultClipGroupColours[gridSectionFromY(y)]);
-		ptrSectionColour = ptrSectionColour.adjust(255, 2);
+			ptrSectionColour = RGB::fromHue(defaultClipGroupColours[gridSectionFromY(y)]);
+			ptrSectionColour = ptrSectionColour.adjust(255, 2);
 
-		if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
-			// MIDI colour if necessary
-			if (currentSong->sections[section].launchMIDICommand.containsSomething()) {
-				ptrSectionColour = colours::midi_command;
-			}
+			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
+				// MIDI colour if necessary
+				if (currentSong->sections[section].launchMIDICommand.containsSomething()) {
+					ptrSectionColour = colours::midi_command;
+				}
 
-			else {
-				// If user assigning MIDI controls and has this section selected, flash to half brightness
-				if (currentSong && view.learnedThing == &currentSong->sections[section].launchMIDICommand) {
-					ptrSectionColour = ptrSectionColour.dim();
+				else {
+					// If user assigning MIDI controls and has this section selected, flash to half brightness
+					if (currentSong && view.learnedThing == &currentSong->sections[section].launchMIDICommand) {
+						ptrSectionColour = ptrSectionColour.dim();
+					}
 				}
 			}
 		}
@@ -2922,6 +2927,11 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 	case GridMode::BLUE: {
 		modeActive = (gridModeActive == SessionGridModeEdit);
 		modeColour = colours::blue; // Blue
+		break;
+	}
+	case GridMode::MAGENTA: {
+		modeActive = (gridModeActive == SessionGridModeMacros);
+		modeColour = colours::magenta_full; // Magenta
 		break;
 	}
 	case GridMode::PINK: {
@@ -3041,6 +3051,26 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 	}
 
 	RGB resultColour = RGB::fromHue(clip->output->colour);
+	bool macroActive = false;
+	if (gridModeActive == SessionGridModeMacros && selectedMacro >= 0) {
+		auto& macro = currentSong->sessionMacros[selectedMacro];
+		if (macro.kind == SessionMacroKind::CLIP_LAUNCH) {
+			macroActive = (macro.clip == clip);
+		}
+		else if (macro.kind == SessionMacroKind::OUTPUT_CYCLE) {
+			macroActive = (macro.output == clip->output);
+		}
+		else if (macro.kind == SessionMacroKind::SECTION) {
+			macroActive = (macro.section == clip->section);
+		}
+
+		if (macroActive) {
+			resultColour = RGB(255, 255, 255);
+		}
+		else {
+			resultColour = RGB::fromHue(clip->output->colour);
+		}
+	}
 
 	// If we are not in record arming mode make this clip full color for being soloed
 	if ((clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) && !viewingRecordArmingActive) {
@@ -3049,7 +3079,8 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 
 	// If clip is not active or grayed out - dim it
 	else if (!clip->activeIfNoSolo) {
-		resultColour = resultColour.transform([](auto chan) { return ((float)chan / 255) * 10; });
+		resultColour =
+		    resultColour.transform([macroActive](auto chan) { return ((float)chan / 255) * (macroActive ? 64 : 10); });
 	}
 
 	if (greyout) {
@@ -3455,6 +3486,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				gridModeActive = SessionGridModeEdit;
 				break;
 			}
+			case GridMode::MAGENTA: {
+				gridModeActive = SessionGridModeMacros;
+				break;
+			}
 			case GridMode::PINK: {
 				performanceSessionView.gridModeActive = true;
 				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
@@ -3489,6 +3524,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		}
 		case SessionGridModeLaunch: {
 			modeHandleResult = gridHandlePadsLaunch(x, y, on, clip);
+			break;
+		}
+		case SessionGridModeMacros: {
+			modeHandleResult = gridHandlePadsMacros(x, y, on, clip);
 			break;
 		}
 		}
@@ -3823,6 +3862,43 @@ void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 			gridToggleClipPlay(clip, false);
 		}
 	}
+}
+
+ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip) {
+	if (x < kDisplayWidth) {
+		if (selectedMacro == -1 || !on) {
+			return ActionResult::DEALT_WITH;
+		}
+		auto& macro = currentSong->sessionMacros[selectedMacro];
+		if (gridFirstPressedX != x || gridFirstPressedY != y) {
+			if (clip == nullptr) {
+				// TODO: be smart and assign output or section if can be determined
+				gridFirstPressedX = -1;
+				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+			}
+			gridFirstPressedX = x;
+			gridFirstPressedY = y;
+			macro.kind = SessionMacroKind::CLIP_LAUNCH;
+			macro.clip = clip;
+			macro.output = clip->output;
+			macro.section = clip->section;
+		}
+		else {
+			int kindIndex = (int32_t)macro.kind + 1;
+			if (kindIndex == SessionMacroKind::NUM_KINDS) {
+				kindIndex = 0;
+			}
+			macro.kind = (SessionMacroKind)kindIndex;
+		}
+		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+	}
+	else {
+		if (on) {
+			selectedMacro = (selectedMacro == y) ? -1 : y;
+			gridFirstPressedX = -1;
+		}
+	}
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {

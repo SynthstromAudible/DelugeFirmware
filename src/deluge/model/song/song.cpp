@@ -1237,6 +1237,55 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeClosingTag("chordMem");
 	}
 
+	// macros
+	int maxSessionMacroToSave = 0;
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		if (sessionMacros[y].kind != SessionMacroKind::NO_MACRO) {
+			maxSessionMacroToSave = y + 1;
+		}
+	}
+	if (maxSessionMacroToSave > 0) {
+		// some macros to save
+		writer.writeOpeningTag("sessionMacros");
+		for (int32_t y = 0; y < maxSessionMacroToSave; y++) {
+			auto& m = sessionMacros[y];
+			writer.writeOpeningTagBeginning("macro");
+			switch (m.kind) {
+			case CLIP_LAUNCH: {
+				int32_t index = sessionClips.getIndexForClip(m.clip);
+				if (index >= 0) {
+					writer.writeAttribute("kind", "clip_launch");
+					writer.writeAttribute("clip", index);
+				}
+				break;
+			}
+			case OUTPUT_CYCLE: {
+				int32_t i = 0;
+				Output* thisOutput;
+				for (thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
+					if (thisOutput == m.output) {
+						break;
+					}
+					i++;
+				}
+				if (thisOutput != nullptr) {
+					writer.writeAttribute("kind", "output_cycle");
+					writer.writeAttribute("output", i);
+				}
+				break;
+			}
+			case SECTION:
+				writer.writeAttribute("kind", "section");
+				writer.writeAttribute("section", m.section);
+				break;
+			case NO_MACRO:
+				break;
+			}
+			writer.closeTag();
+		}
+		writer.writeClosingTag("sessionMacros");
+	}
+
 	writer.writeClosingTag("song");
 }
 
@@ -1252,6 +1301,9 @@ Error Song::readFromFile(Deserializer& reader) {
 
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
 		sections[s].numRepetitions = -1;
+	}
+	for (int32_t y = 0; y < 8; y++) {
+		sessionMacros[y].kind = NO_MACRO;
 	}
 
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
@@ -1648,6 +1700,62 @@ unknownTag:
 				reader.exitTag("chordMem");
 			}
 
+			else if (!strcmp(tagName, "sessionMacros")) {
+				int slot_index = 0;
+				while (*(tagName = reader.readNextTagOrAttributeName())) {
+					if (!strcmp(tagName, "macro")) {
+						int y = slot_index++;
+						if (y >= 8) {
+							reader.exitTag("macro");
+							continue;
+						}
+						auto& m = sessionMacros[y];
+						while (*(tagName = reader.readNextTagOrAttributeName())) {
+							if (!strcmp(tagName, "kind")) {
+								const char* kind = reader.readTagOrAttributeValue();
+								if (!strcmp(kind, "clip_launch")) {
+									m.kind = CLIP_LAUNCH;
+								}
+								else if (!strcmp(kind, "output_cycle")) {
+									m.kind = OUTPUT_CYCLE;
+								}
+								else if (!strcmp(kind, "section")) {
+									m.kind = SECTION;
+								}
+							}
+							else if (!strcmp(tagName, "clip")) {
+								int32_t index = reader.readTagOrAttributeValueInt();
+								if (index >= 0 && index < sessionClips.getNumElements()) {
+									m.clip = sessionClips.getClipAtIndex(index);
+								}
+							}
+							else if (!strcmp(tagName, "output")) {
+								int32_t index = reader.readTagOrAttributeValueInt();
+								Output* thisOutput;
+								for (thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
+									if (index == 0) {
+										break;
+									}
+									index--;
+								}
+								m.output = thisOutput;
+							}
+							else if (!strcmp(tagName, "section")) {
+								m.section = reader.readTagOrAttributeValueInt();
+							}
+						}
+
+						if ((m.kind == CLIP_LAUNCH && m.clip == nullptr)
+						    || (m.kind == OUTPUT_CYCLE && m.output == nullptr)) {
+							m.kind = NO_MACRO;
+						}
+					}
+					else {
+						reader.exitTag();
+					}
+				}
+				reader.exitTag("chordMem");
+			}
 			else if (!strcmp(tagName, "sections")) {
 				// Read in all the sections
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -3230,6 +3338,13 @@ deleteIt:
 }
 
 void Song::deleteOutput(Output* output) {
+	for (int y = 0; y < 8; y++) {
+		auto& m = sessionMacros[y];
+		if (m.kind == OUTPUT_CYCLE && m.output == output) {
+			m.kind = NO_MACRO;
+		}
+	}
+
 	output->deleteBackedUpParamManagers(this);
 	void* toDealloc = dynamic_cast<void*>(output);
 	output->~Output();
@@ -5073,6 +5188,13 @@ void Song::removeSessionClipLowLevel(Clip* clip, int32_t clipIndex) {
 	if (playbackHandler.isEitherClockActive() && currentPlaybackMode == &session && clip->activeIfNoSolo) {
 		clip->expectNoFurtherTicks(this);
 		clip->activeIfNoSolo = false;
+	}
+
+	for (int y = 0; y < 8; y++) {
+		auto& m = sessionMacros[y];
+		if (m.kind == CLIP_LAUNCH && m.clip == clip) {
+			m.kind = NO_MACRO;
+		}
 	}
 
 	sessionClips.deleteAtIndex(clipIndex);

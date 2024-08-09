@@ -62,6 +62,7 @@ public:
 	const char* getName() { return "audio_clip_view"; }
 
 private:
+	uint32_t timeSongButtonPressed;
 	void needsRenderingDependingOnSubMode();
 	int32_t lastTickSquare;
 	bool mustRedrawTickSquares;

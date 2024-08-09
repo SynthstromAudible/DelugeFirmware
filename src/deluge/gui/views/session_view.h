@@ -32,6 +32,7 @@ class ModelStackWithTimelineCounter;
 enum SessionGridMode : uint8_t {
 	SessionGridModeEdit,
 	SessionGridModeLaunch,
+	SessionGridModeMacros,
 	SessionGridModeMaxElement // Keep as boundary
 };
 
@@ -64,7 +65,7 @@ public:
 	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void graphicsRoutine();
-	int32_t displayLoopsRemainingPopup();
+	int32_t displayLoopsRemainingPopup(bool ephemeral = false);
 	void potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining);
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
@@ -114,6 +115,7 @@ public:
 	                                       // action to set this to false
 	uint8_t sectionPressed;
 	uint8_t masterCompEditMode;
+	int8_t selectedMacro = -1;
 
 	Clip* getClipForLayout();
 
@@ -179,6 +181,7 @@ private:
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip);
+	ActionResult gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip);
 	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
 
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);

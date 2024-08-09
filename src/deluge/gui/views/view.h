@@ -96,6 +96,12 @@ public:
 	ActionResult clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
 	void flashPlayDisable();
+	void flashPlayRoutine();
+
+	void activateMacro(uint32_t y);
+	Clip* findNextClipForOutput(Output* output);
+	bool renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB image[][kDisplayWidth + kSideBarWidth],
+	                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	// MIDI learn stuff
 	MidiLearn thingPressedForMidiLearn = MidiLearn::NONE;

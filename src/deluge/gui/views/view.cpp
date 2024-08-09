@@ -2644,6 +2644,18 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 	return ActionResult::DEALT_WITH;
 }
 
+void View::flashPlayRoutine() {
+	view.clipArmFlashOn = !view.clipArmFlashOn;
+	RootUI* rootUI = getRootUI();
+	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+		sessionView.flashPlayRoutine();
+	}
+	else {
+		// TODO: sidebar might not actually be visible, flash song button in that case?
+		uiNeedsRendering(getCurrentUI(), 0x00000000, 0xFFFFFFFF);
+	}
+}
+
 void View::flashPlayEnable() {
 	uiTimerManager.setTimer(TimerName::PLAY_ENABLE_FLASH, kFastFlashTime);
 }
@@ -2661,6 +2673,119 @@ void View::flashPlayDisable() {
 		drawCurrentClipPad(getCurrentClip());
 	}
 #endif
+}
+
+bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB image[][kDisplayWidth + kSideBarWidth],
+                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	uint8_t brightness = 1;
+	uint8_t otherChannels = 0;
+
+	bool is_active = selectedMacro == y;
+	bool is_other_active = selectedMacro >= 0 && !is_active;
+	uint8_t dark = is_active ? 32 : 0;
+	uint8_t light = is_other_active ? 208 : 255;
+
+	bool armed = view.clipArmFlashOn;
+
+	SessionMacro& m = currentSong->sessionMacros[y];
+	switch (m.kind) {
+	case CLIP_LAUNCH:
+		if (m.clip->activeIfNoSolo) {
+			image[y][column] = {0, light, 0};
+		}
+		else {
+			image[y][column] = {light, 0, 0};
+		}
+		if (m.clip->armState != ArmState::OFF) {
+			armed = true;
+			if (view.clipArmFlashOn) {
+				image[y][column] = {0, 0, 0};
+			}
+		}
+
+		break;
+	case OUTPUT_CYCLE:
+		image[y][column] = {0, 64, light};
+		break;
+	case SECTION:
+		image[y][column] = {light, 0, 128};
+		break;
+	case NO_MACRO:
+		image[y][column] = {dark, dark, dark};
+		break;
+	}
+
+	if (occupancyMask) {
+		occupancyMask[y][column] = true;
+	}
+
+	return armed;
+}
+
+void View::activateMacro(uint32_t y) {
+	if (y > 8) {
+		return;
+	}
+
+	SessionMacro& m = currentSong->sessionMacros[y];
+	switch (m.kind) {
+	case CLIP_LAUNCH:
+		if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {
+			if (getCurrentClip() != m.clip) {
+				sessionView.transitionToViewForClip(m.clip);
+			}
+		}
+		else {
+			session.toggleClipStatus(m.clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+		}
+		break;
+
+	case OUTPUT_CYCLE: {
+		Clip* nextClip = findNextClipForOutput(m.output);
+		if (nextClip) {
+			session.toggleClipStatus(nextClip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+		}
+		break;
+	}
+
+	case SECTION:
+		session.armSection(m.section, kInternalButtonPressLatency);
+		break;
+
+	default:
+		break;
+	}
+}
+
+Clip* View::findNextClipForOutput(Output* output) {
+	int last_active = -1;
+	for (int i = 0; i < currentSong->sessionClips.getNumElements(); i++) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(i);
+		if (clip->output == output) {
+			if (last_active == -1) {
+				if (clip->activeIfNoSolo) {
+					last_active = i;
+				}
+			}
+			else {
+				return clip;
+			}
+		}
+	}
+
+	if (last_active == -1) {
+		last_active = currentSong->sessionClips.getNumElements();
+	}
+
+	// might need to cycle around to find the next clip
+	for (int i = 0; i < last_active; i++) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(i);
+		if (clip->output == output) {
+			return clip;
+		}
+	}
+
+	return nullptr;
 }
 
 /*
