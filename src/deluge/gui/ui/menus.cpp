@@ -190,7 +190,7 @@ unison::CountToStereoSpread numUnisonToStereoSpreadMenu{STRING_FOR_UNISON_NUMBER
 
 // Arp --------------------------------------------------------------------------------------
 arpeggiator::PresetMode arpPresetModeMenu{STRING_FOR_PRESET, STRING_FOR_ARP_PRESET_MENU_TITLE};
-arpeggiator::Mode arpModeMenu{STRING_FOR_MODE, STRING_FOR_ARP_MODE_MENU_TITLE};
+arpeggiator::Mode arpModeMenu{STRING_FOR_ENABLED, STRING_FOR_ARP_MODE_MENU_TITLE};
 arpeggiator::Sync arpSyncMenu{STRING_FOR_SYNC, STRING_FOR_ARP_SYNC_MENU_TITLE};
 arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP_OCTAVES_MENU_TITLE};
 arpeggiator::OctaveMode arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
