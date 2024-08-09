@@ -60,7 +60,6 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 	KeyboardStateChord& state = getState().chord;
 
-
 	state.chordList.adjustChordRowOffset(offset);
 	precalculate();
 }
@@ -117,7 +116,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 }
 
 void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
-	char noteName[3]={0};
+	char noteName[3] = {0};
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(noteCode, noteName, &isNatural, false);
 

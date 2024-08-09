@@ -22,17 +22,17 @@
 namespace deluge::gui::ui::keyboard {
 
 ChordList::ChordList()
-    : chords{{"", {{0, NONE, NONE, NONE, NONE, NONE}}},  // TODO remove when root fixed on bottom of keyboard
+    : chords{{"", {{0, NONE, NONE, NONE, NONE, NONE}}}, // TODO remove when root fixed on bottom of keyboard
              kMajor,
              kMinor,
-			 kDim,
+             kDim,
              kM7,
              k7,
              kMinor7,
-			 kMinor7b5,
+             kMinor7b5,
              kSus4,
              kSus2,
-			 kAug,
+             kAug,
              kM9,
              k9,
              kMinor9,
@@ -92,12 +92,10 @@ void ChordList::adjustVoicingOffset(int32_t chordNo, int32_t offset) {
 	chordNo = validateChordNo(chordNo);
 
 	if (offset > 0) {
-		voicingOffset[chordNo] =
-			std::min<int32_t>(kUniqueVoicings - 1, voicingOffset[chordNo] + offset);
+		voicingOffset[chordNo] = std::min<int32_t>(kUniqueVoicings - 1, voicingOffset[chordNo] + offset);
 	}
 	else {
-		voicingOffset[chordNo] =
-		std::max<int32_t>(0, voicingOffset[chordNo] + offset);
+		voicingOffset[chordNo] = std::max<int32_t>(0, voicingOffset[chordNo] + offset);
 	}
 }
 

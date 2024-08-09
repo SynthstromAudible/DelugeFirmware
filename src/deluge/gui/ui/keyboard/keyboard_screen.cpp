@@ -407,7 +407,9 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
-		if ((getCurrentOutputType() == OutputType::KIT) || (getCurrentInstrumentClip()->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChords)) {
+		if ((getCurrentOutputType() == OutputType::KIT)
+		    || (getCurrentInstrumentClip()->keyboardState.currentLayout
+		        == KeyboardLayoutType::KeyboardLayoutTypeChords)) {
 			// Kits and Chords can't do scales!
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_KEYBOARD_VIEW_CANT_ENTER_SCALE));
 			return ActionResult::DEALT_WITH;
@@ -633,8 +635,11 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 			nextLayout = 0;
 		}
 
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayNornsLayout) == RuntimeFeatureStateToggle::Off
-		    && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns) {
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayNornsLayout) == RuntimeFeatureStateToggle::Off
+		     && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns)
+		    || (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayChordKeyboard)
+		            == RuntimeFeatureStateToggle::Off
+		        && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeChords)) {
 			// Don't check the next conditions, this one is already lost
 		}
 		else if (getCurrentOutputType() == OutputType::KIT && layoutList[nextLayout]->supportsKit()) {

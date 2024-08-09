@@ -977,7 +977,7 @@ to each individual note onset. ([#1978])
 
 #### 4.4.1.6 - Display Chord Keyboard Layout
 
-- ([#2385]) Enables keyboard layout which displays chords on the pads. Accessible the same way as other instrument supporting keyboards `SELECT` + `KEYBOARD` to cycle through layouts while on `SYNTH, MIDI, CV`
+- ([#2385]) Enables `CHORD` keyboard layout which displays chords on the pads. Accessible the same way as other instrument supporting keyboards `SELECT` + `KEYBOARD` to cycle through layouts while on `SYNTH, MIDI, CV`
 
 - Each column is a note (chormatic, all 12 notes), turning `◀︎▶︎` will move down or up the scale, lowering or raising your chords. Each pad is a different chord. So the first row is just roots, second is major triads, 3rd is minor triads, etc. `▼︎▲︎` scrolls up to more chords.
 

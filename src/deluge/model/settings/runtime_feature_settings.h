@@ -62,6 +62,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	EmulatedDisplay,
 	EnableKeyboardViewSidebarMenuExit,
 	EnableLaunchEventPlayhead,
+	DisplayChordKeyboard,
 	MaxElement // Keep as boundary
 };
 
