@@ -32,6 +32,9 @@ public:
 		if (audioOutputBeingEdited->outputRecordingFrom) {
 			outputIndex = currentSong->getOutputIndex(audioOutputBeingEdited->outputRecordingFrom);
 		}
+		else {
+			outputIndex = 0;
+		}
 		numOutputs = currentSong->getNumOutputs();
 		if (display->haveOLED()) {
 			renderUIsForOled();
