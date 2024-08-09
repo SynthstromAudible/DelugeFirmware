@@ -1018,7 +1018,7 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("linearInterpolation", 1);
 	}
 	if (sampleControls.reversed) {
-		writer.writeAttribute("reversed", "1");
+		writer.writeAttribute("reversed", 1);
 	}
 	writer.writeAttribute("attack", attack);
 	writer.writeAttribute("priority", util::to_underlying(voicePriority));

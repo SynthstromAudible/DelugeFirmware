@@ -245,8 +245,15 @@ void LoadSongUI::performLoad(StorageManager& bdsm) {
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
-
-	Error error = storageManager.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song");
+	Error error;
+	bool jsonFileFlag = false;
+	if (currentFileItem->filename.contains(".Json")) {
+		jsonFileFlag = true;
+		error = storageManager.openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, "song");
+	}
+	else {
+		error = storageManager.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song");
+	}
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return;
@@ -284,7 +291,7 @@ ramError:
 
 someError:
 		display->displayError(error);
-		f_close(&smDeserializer.readFIL);
+		f_close(jsonFileFlag ? &smJsonDeserializer.readFIL : &smDeserializer.readFIL);
 
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
@@ -313,13 +320,17 @@ fail:
 
 		// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but
 		// chances are, after failing on one of those, it'd try to load something else and that would fail.
-		error = preLoadedSong->readFromFile(smDeserializer);
+
+		if (jsonFileFlag)
+			error = preLoadedSong->readFromFile(smJsonDeserializer);
+		else
+			error = preLoadedSong->readFromFile(smDeserializer);
 		if (error != Error::NONE) {
 			goto gotErrorAfterCreatingSong;
 		}
 		AudioEngine::logAction("d");
 
-		bool success = f_close(&smDeserializer.readFIL);
+		bool success = f_close(jsonFileFlag ? &smJsonDeserializer.readFIL : &smDeserializer.readFIL);
 
 		if (!success) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
@@ -376,13 +387,16 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = preLoadedSong->readFromFile(smDeserializer);
+	if (jsonFileFlag)
+		error = preLoadedSong->readFromFile(smJsonDeserializer);
+	else
+		error = preLoadedSong->readFromFile(smDeserializer);
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 	AudioEngine::logAction("read new song from file");
 
-	bool success = storageManager.closeFile(smDeserializer.readFIL);
+	bool success = storageManager.closeFile(jsonFileFlag ? smJsonDeserializer.readFIL : smDeserializer.readFIL);
 	if (!success) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;

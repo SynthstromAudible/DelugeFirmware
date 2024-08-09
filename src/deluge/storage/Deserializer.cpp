@@ -76,7 +76,7 @@ void XMLDeserializer::reset() {
 	fileReadBufferCurrentPos = audioFileManager.clusterSize;
 	currentReadBufferEndPos = audioFileManager.clusterSize;
 
-	firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
+	song_firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
 
 	tagDepthFile = 0;
 	tagDepthCaller = 0;
@@ -543,6 +543,8 @@ reachedEndCharEarly:
 }
 
 // This is almost never called now - TODO: get rid
+// It is used to read a variable-sized value (like an integer) while
+// maintaining the parser xmlArea state variable.
 char XMLDeserializer::readNextCharOfTagOrAttributeValue() {
 
 	char thisChar;
@@ -755,7 +757,7 @@ Error XMLDeserializer::readTagOrAttributeValueString(String* string) {
 	}
 }
 
-int32_t XMLDeserializer::getNumCharsRemainingInValue() {
+int32_t XMLDeserializer::getNumCharsRemainingInValueBeforeEndOfCluster() {
 
 	int32_t pos = fileReadBufferCurrentPos;
 	while (pos < currentReadBufferEndPos && fileClusterBuffer[pos] != charAtEndOfValue) {
@@ -786,7 +788,16 @@ bool XMLDeserializer::prepareToReadTagOrAttributeValueOneCharAtATime() {
 	}
 }
 
-void XMLDeserializer::exitTag(char const* exitTagName) {
+// ToDo: Make this call act more like exitTag.
+void XMLDeserializer::skipValue() {
+}
+
+// Only used by Json (at present).
+bool XMLDeserializer::match(char const ch) {
+	return true;
+}
+
+void XMLDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 	// back out the file depth to one less than the caller depth
 	while (tagDepthFile >= tagDepthCaller) {
 
@@ -864,7 +875,7 @@ Error XMLDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool i
 
 	if (!strcmp(tagName, "firmwareVersion")) {
 		char const* firmware_version_string = readTagOrAttributeValue();
-		firmware_version = FirmwareVersion::parse(firmware_version_string);
+		song_firmware_version = FirmwareVersion::parse(firmware_version_string);
 	}
 
 	// If this tag doesn't exist, it's from old firmware so is ok

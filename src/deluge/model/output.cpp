@@ -335,7 +335,7 @@ bool Output::readTagFromFile(Deserializer& reader, char const* tagName) {
 			if (numElementsToAllocateFor <= 0) {
 
 				// See how many more chars before the end of the cluster. If there are any...
-				uint32_t charsRemaining = reader.getNumCharsRemainingInValue();
+				uint32_t charsRemaining = reader.getNumCharsRemainingInValueBeforeEndOfCluster();
 				if (charsRemaining) {
 
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do

@@ -676,14 +676,14 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 
 	if (getCurrentClip() == this) {
 		if (getRootUI()->toClipMinder()) {
-			writer.writeAttribute("beingEdited", "1");
+			writer.writeAttribute("beingEdited", 1);
 		}
 		else {
-			writer.writeAttribute("selected", "1");
+			writer.writeAttribute("selected", 1);
 		}
 	}
 	if (song->getSyncScalingClip() == this) {
-		writer.writeAttribute("isSyncScaleClip", "1");
+		writer.writeAttribute("isSyncScaleClip", 1);
 	}
 	if (launchStyle != LaunchStyle::DEFAULT) {
 		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle));

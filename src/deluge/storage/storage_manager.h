@@ -62,7 +62,8 @@ public:
 protected:
 	bool readFileCluster();
 	bool readFileClusterIfNecessary();
-	uint32_t readChar(char* thisChar);
+	bool peekChar(char* thisChar);
+	bool readChar(char* thisChar);
 	void readDone();
 
 	int32_t readCount; // Used for multitask interleaving.
@@ -98,7 +99,7 @@ public:
 	virtual void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true) = 0;
 	virtual void writeTagNameAndSeperator(char const* tag) = 0;
 	virtual void writeTag(char const* tag, int32_t number, bool box = false) = 0;
-	virtual void writeTag(char const* tag, char const* contents, bool box = false) = 0;
+	virtual void writeTag(char const* tag, char const* contents, bool box = false, bool quote = true) = 0;
 	virtual void writeOpeningTag(char const* tag, bool startNewLineAfter = true, bool box = false) = 0;
 	virtual void writeOpeningTagBeginning(char const* tag, bool box = false) = 0;
 	virtual void writeOpeningTagEnd(bool startNewLineAfter = true) = 0;
@@ -137,7 +138,7 @@ public:
 	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
 	void writeTagNameAndSeperator(char const* tag) override;
 	void writeTag(char const* tag, int32_t number, bool box = false) override;
-	void writeTag(char const* tag, char const* contents, bool box = false) override;
+	void writeTag(char const* tag, char const* contents, bool box = false, bool quote = true) override;
 	void writeOpeningTag(char const* tag, bool startNewLineAfter = true, bool box = false) override;
 	void writeOpeningTagBeginning(char const* tag, bool box = false) override;
 	void writeOpeningTagEnd(bool startNewLineAfter = true) override;
@@ -160,18 +161,21 @@ class Deserializer {
 public:
 	virtual bool prepareToReadTagOrAttributeValueOneCharAtATime() = 0;
 	virtual char readNextCharOfTagOrAttributeValue() = 0;
-	virtual int32_t getNumCharsRemainingInValue() = 0;
+	virtual int32_t getNumCharsRemainingInValueBeforeEndOfCluster() = 0;
 
-	virtual int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos) = 0;
 	virtual char const* readNextTagOrAttributeName() = 0;
 	virtual char const* readTagOrAttributeValue() = 0;
 	virtual int32_t readTagOrAttributeValueInt() = 0;
 	virtual int32_t readTagOrAttributeValueHex(int32_t errorValue) = 0;
 	virtual int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) = 0;
+	virtual Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) = 0;
 
 	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
-	virtual void exitTag(char const* exitTagName = NULL) = 0;
+	virtual bool match(char const ch) = 0;
+	virtual void skipValue() = 0;
+	virtual void exitTag(char const* exitTagName = NULL, bool closeObject = false) = 0;
+
 	virtual void reset() = 0;
 };
 
@@ -183,28 +187,26 @@ public:
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
 	char const* readNextTagOrAttributeName() override;
 	char readNextCharOfTagOrAttributeValue() override;
-	int32_t getNumCharsRemainingInValue() override;
+	int32_t getNumCharsRemainingInValueBeforeEndOfCluster() override;
 
 	int32_t readTagOrAttributeValueInt() override;
 	int32_t readTagOrAttributeValueHex(int32_t errorValue) override;
 	int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) override;
 
-	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos) override;
+	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos);
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) override;
 	Error readTagOrAttributeValueString(String* string) override;
 	char const* readTagOrAttributeValue() override;
-	void exitTag(char const* exitTagName = NULL) override;
+	bool match(char const ch) override;
+
+	void skipValue() override;
+	void exitTag(char const* exitTagName = NULL, bool closeObject = false) override;
 
 	Error openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                  bool ignoreIncorrectFirmware = false);
 	void reset() override;
-	/*
-	    FIL	 readFIL;
-	    char* fileClusterBuffer; // This buffer is reused in various places outside of StorageManager proper.
-	*/
-	FirmwareVersion firmware_version = FirmwareVersion::current();
 
-	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
+	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) override;
 
 private:
 	char charAtEndOfValue;
@@ -242,7 +244,7 @@ public:
 	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
 	void writeTagNameAndSeperator(char const* tag) override;
 	void writeTag(char const* tag, int32_t number, bool box = false) override;
-	void writeTag(char const* tag, char const* contents, bool box = false) override;
+	void writeTag(char const* tag, char const* contents, bool box = false, bool quote = true) override;
 	void writeOpeningTag(char const* tag, bool startNewLineAfter = true, bool box = false) override;
 	void writeOpeningTagBeginning(char const* tag, bool box = false) override;
 	void writeOpeningTagEnd(bool startNewLineAfter = true) override;
@@ -270,47 +272,41 @@ public:
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
 	char const* readNextTagOrAttributeName() override;
 	char readNextCharOfTagOrAttributeValue() override;
-	int32_t getNumCharsRemainingInValue() override;
+	int32_t getNumCharsRemainingInValueBeforeEndOfCluster() override;
 
 	int32_t readTagOrAttributeValueInt() override;
 	int32_t readTagOrAttributeValueHex(int32_t errorValue) override;
 	int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) override;
 
-	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos) override;
+	int readHexBytesUntil(uint8_t* bytes, int32_t maxLen, char endPos);
 	char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) override;
 	Error readTagOrAttributeValueString(String* string) override;
 	char const* readTagOrAttributeValue() override;
-	void exitTag(char const* exitTagName = NULL) override;
+	bool match(char const ch) override;
+	void skipValue() override;
+	void exitTag(char const* exitTagName = NULL, bool closeObject = false) override;
 
 	Error openJsonFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                   bool ignoreIncorrectFirmware = false);
 	void reset() override;
-	/*
-	    FIL	 readFIL;
-	    char* fileClusterBuffer; // This buffer is reused in various places outside of StorageManager proper.
-	*/
-	FirmwareVersion firmware_version = FirmwareVersion::current();
-
-	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false);
+	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) override;
 
 private:
-	char charAtEndOfValue;
-	uint8_t xmlArea; // state variable for tokenizer
-
-	int32_t tagDepthCaller; // How deeply indented in XML the main Deluge classes think we are, as data being read.
-	int32_t tagDepthFile; // Will temporarily be different to the above as unwanted / unused XML tags parsed on the way
-	                      // to finding next useful data.
+	int32_t objectDepth;
+	int32_t arrayDepth;
 
 	char stringBuffer[kFilenameBufferSize];
 
 	void skipUntilChar(char endChar);
-
-	char const* readTagName();
+	char unescape(char inchar);
+	bool skipWhiteSpace(bool commasToo = true);
+	char const* readQuotedString();
+	char const* readKeyName();
 	char const* readNextAttributeName();
 	char const* readUntilChar(char endChar);
 	char const* readAttributeValue();
 
-	int32_t readIntUntilChar(char endChar);
+	int32_t readInt();
 	bool getIntoAttributeValue();
 	int32_t readAttributeValueInt();
 
@@ -323,7 +319,6 @@ extern XMLDeserializer smDeserializer;
 extern JsonSerializer smJsonSerializer;
 extern JsonDeserializer smJsonDeserializer;
 extern Serializer& GetSerializer();
-extern Deserializer& GetDeserializer();
 
 class StorageManager {
 public:
@@ -337,7 +332,8 @@ public:
 	                     bool displayErrors = true);
 	Error openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const* firstTagName,
 	                  char const* altTagName = "", bool ignoreIncorrectFirmware = false);
-
+	Error openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char const* firstTagName,
+	                   char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 	Error initSD();
 	bool closeFile(FIL& fileToClose);
 
@@ -355,7 +351,7 @@ public:
 	Drum* createNewDrum(DrumType drumType);
 	Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
 	                      FilePointer* filePointer, String* name, String* dirPath);
-	void openFilePointer(FilePointer* fp, XMLDeserializer& reader);
+	void openFilePointer(FilePointer* fp, FileReader& reader);
 
 	Error checkSpaceOnCard();
 
@@ -363,11 +359,12 @@ private:
 	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 };
 
+extern FirmwareVersion song_firmware_version;
 extern StorageManager storageManager;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
 extern bool writeJsonFlag;
-extern bool readJsonFlag;
+
 inline bool isCardReady() {
 	return !sdRoutineLock && Error::NONE == storageManager.initSD();
 }

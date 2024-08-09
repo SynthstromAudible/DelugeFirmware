@@ -81,7 +81,7 @@ void XMLSerializer::writeTag(char const* tag, int32_t number, bool box) {
 	writeTag(tag, buffer, box);
 }
 
-void XMLSerializer::writeTag(char const* tag, char const* contents, bool box) {
+void XMLSerializer::writeTag(char const* tag, char const* contents, bool box, bool quote) {
 
 	printIndents();
 	write("<");

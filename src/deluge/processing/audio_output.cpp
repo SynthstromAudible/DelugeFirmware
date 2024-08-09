@@ -302,7 +302,7 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 	writer.writeAttribute("name", name.get());
 
 	if (echoing) {
-		writer.writeAttribute("echoingInput", "1");
+		writer.writeAttribute("echoingInput", 1);
 	}
 	writer.writeAttribute("inputChannel", inputChannelToString(inputChannel));
 

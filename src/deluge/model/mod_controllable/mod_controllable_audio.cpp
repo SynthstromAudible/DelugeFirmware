@@ -861,6 +861,7 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
 	if (!strcmp(tagName, "equalizer")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "bass")) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BASS,
@@ -883,7 +884,7 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 				reader.exitTag("trebleFrequency");
 			}
 		}
-		reader.exitTag("equalizer");
+		reader.exitTag("equalizer", true);
 	}
 
 	else if (!strcmp(tagName, "stutterRate")) {
@@ -957,7 +958,7 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 		// Set default values in case they are not configured
 		delay.syncType = SYNC_TYPE_EVEN;
 		delay.syncLevel = SYNC_LEVEL_NONE;
-
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 			// These first two ensure compatibility with old files (pre late 2016 I think?)
@@ -1006,10 +1007,11 @@ doReadPatchedParam:
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("delay");
+		reader.exitTag("delay", true);
 	}
 
 	else if (!strcmp(tagName, "audioCompressor")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				q31_t masterCompressorAttack = reader.readTagOrAttributeValueInt();
@@ -1045,7 +1047,7 @@ doReadPatchedParam:
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("AudioCompressor");
+		reader.exitTag("AudioCompressor", true);
 	}
 	// this is actually the sidechain but pre c1.1 songs save it as compressor
 	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
@@ -1054,6 +1056,7 @@ doReadPatchedParam:
 		sidechain.syncType = SYNC_TYPE_EVEN;
 		sidechain.syncLevel = SYNC_LEVEL_NONE;
 
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				sidechain.attack = reader.readTagOrAttributeValueInt();
@@ -1076,7 +1079,7 @@ doReadPatchedParam:
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag(name);
+		reader.exitTag(name, true);
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {

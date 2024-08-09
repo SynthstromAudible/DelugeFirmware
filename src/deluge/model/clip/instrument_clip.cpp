@@ -2460,6 +2460,7 @@ someError:
 
 		return error;
 	}
+	reader.match('{');
 
 	instrumentWasLoadedByReferenceFromClip = NULL;
 
@@ -2481,8 +2482,7 @@ someError:
 		if (!strcmp(tagName, "clipName")) {
 			reader.readTagOrAttributeValueString(&clipName);
 		}
-
-		if (!strcmp(tagName, "inKeyMode")) {
+		else if (!strcmp(tagName, "inKeyMode")) {
 			inScaleMode = reader.readTagOrAttributeValueInt();
 		}
 
@@ -2657,6 +2657,7 @@ someError:
 		}
 
 		else if (!strcmp(tagName, "arpeggiator")) {
+			reader.match('{');
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 				if (!strcmp(tagName, "rate")) {
@@ -2691,18 +2692,22 @@ someError:
 					arpSettings.syncType = (SyncType)reader.readTagOrAttributeValueInt();
 					reader.exitTag("syncType");
 				}
-				else if (!strcmp(tagName, "mode")
-				         && smDeserializer.firmware_version < FirmwareVersion::community({1, 1, 0})) {
-					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
-					// but only if the new params are not already read and set,
-					// that is, if we detect they have a value other than default
-					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
-					if (arpSettings.mode == ArpMode::OFF && arpSettings.noteMode == ArpNoteMode::UP
-					    && arpSettings.octaveMode == ArpOctaveMode::UP) {
-						arpSettings.mode = oldModeToArpMode(oldMode);
-						arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
-						arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
-						arpSettings.updatePresetFromCurrentSettings();
+				else if (!strcmp(tagName, "mode")) {
+					if (song_firmware_version >= FirmwareVersion::community({1, 1, 0})) {
+						reader.skipValue();
+					}
+					else {
+						// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+						// but only if the new params are not already read and set,
+						// that is, if we detect they have a value other than default
+						OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
+						if (arpSettings.mode == ArpMode::OFF && arpSettings.noteMode == ArpNoteMode::UP
+						    && arpSettings.octaveMode == ArpOctaveMode::UP) {
+							arpSettings.mode = oldModeToArpMode(oldMode);
+							arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
+							arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
+							arpSettings.updatePresetFromCurrentSettings();
+						}
 					}
 					reader.exitTag("mode");
 				}
@@ -2733,11 +2738,13 @@ someError:
 					reader.exitTag(tagName);
 				}
 			}
+			reader.exitTag("arpeggiator", true);
 		}
 
 		// For song files from before V2.0, where Instruments were stored within the Clip.
 		// Loading Instrument from another Clip.
 		else if (!strcmp(tagName, "instrument")) {
+			reader.match('{');
 			if (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "referToTrackId")) {
 					if (!output) {
@@ -2822,7 +2829,7 @@ loadInstrument:
 
 			// Normal case - load in brand new ParamManager
 
-			if (smDeserializer.firmware_version >= FirmwareVersion::official({1, 2, 0}) || !output) {
+			if (song_firmware_version >= FirmwareVersion::official({1, 2, 0}) || !output) {
 createNewParamManager:
 				error = paramManager.setupWithPatching();
 				if (error != Error::NONE) {
@@ -2872,8 +2879,9 @@ createNewParamManager:
 		}
 
 		else if (!strcmp(tagName, "noteRows")) {
+			reader.match('[');
 			int32_t minY = -32768;
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
+			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "noteRow")) {
 					NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(noteRows.getNumElements());
 					if (!newNoteRow) {
@@ -2884,8 +2892,10 @@ createNewParamManager:
 						goto someError;
 					}
 				}
-				reader.exitTag();
+				reader.match('}');          // leave value object.
+				reader.exitTag(NULL, true); // leave box.
 			}
+			reader.match(']');
 		}
 
 		// These are the expression params for MPE
@@ -2941,7 +2951,7 @@ doReadBendRange:
 
 		reader.exitTag();
 	}
-
+	reader.match('}'); // Close values object.
 	// Some stuff for song files before V2.0, where the Instrument would have been loaded at this point
 
 	// For song files from before V2.0, where Instruments were stored within the Clip (which was called a Track back
@@ -3025,7 +3035,7 @@ doReadBendRange:
 
 	// Pre V3.2.0 (and also for some of 3.2's alpha phase), bend range wasn't adjustable, wasn't written in the file,
 	// and was always 12.
-	if (smDeserializer.firmware_version <= FirmwareVersion::official({3, 2, 0, "alpha"})
+	if (song_firmware_version <= FirmwareVersion::official({3, 2, 0, "alpha"})
 	    && !paramManager.getExpressionParamSet()) {
 		ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 		if (expressionParams) {
@@ -3109,7 +3119,7 @@ expressionParam:
 							if (paramId == CC_EXTERNAL_MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel
-								if (smDeserializer.firmware_version < FirmwareVersion::community({1, 1, 0})) {
+								if (song_firmware_version < FirmwareVersion::community({1, 1, 0})) {
 									paramId = Y_SLIDE_TIMBRE;
 									goto expressionParam;
 								}
@@ -4060,7 +4070,7 @@ haveNoDrum:
 				if (thisNoteRow->drum) {
 
 					// If saved before V2.1, see if we need linear interpolation
-					if (smDeserializer.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
+					if (song_firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 						if (thisNoteRow->drum->type == DrumType::SOUND) {
 							SoundDrum* sound = (SoundDrum*)thisNoteRow->drum;
 
@@ -4138,7 +4148,7 @@ haveNoDrum:
 	compensateVolumeForResonance(modelStack);
 
 	// If saved before V2.1....
-	if (smDeserializer.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
+	if (song_firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 
 		if (output->type == OutputType::SYNTH) {
 			SoundInstrument* sound = (SoundInstrument*)output;
@@ -4153,7 +4163,7 @@ haveNoDrum:
 
 		// For songs saved before V2.0, ensure that non-square oscillators have PW set to 0 (cos PW in this case didn't
 		// have an effect then but it will now)
-		if (smDeserializer.firmware_version < FirmwareVersion::official({2, 0, 0, "beta"})) {
+		if (song_firmware_version < FirmwareVersion::official({2, 0, 0, "beta"})) {
 			if (output->type == OutputType::SYNTH) {
 				SoundInstrument* sound = (SoundInstrument*)output;
 

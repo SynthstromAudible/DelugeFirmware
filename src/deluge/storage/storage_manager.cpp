@@ -57,6 +57,7 @@ void routineForSD(void);
 }
 
 StorageManager storageManager{};
+FirmwareVersion song_firmware_version = FirmwareVersion::current();
 FILINFO staticFNO;
 DIR staticDIR;
 XMLSerializer smSerializer;
@@ -65,7 +66,6 @@ JsonSerializer smJsonSerializer;
 JsonDeserializer smJsonDeserializer;
 
 bool writeJsonFlag = true;
-bool readJsonFlag = false;
 
 Serializer& GetSerializer() {
 	if (writeJsonFlag) {
@@ -73,15 +73,6 @@ Serializer& GetSerializer() {
 	}
 	else {
 		return smSerializer;
-	}
-}
-
-Deserializer& GetDeserializer() {
-	if (readJsonFlag) {
-		return smJsonDeserializer;
-	}
-	else {
-		return smDeserializer;
 	}
 }
 
@@ -292,7 +283,7 @@ bool StorageManager::checkSDInitialized() {
 }
 
 // Function can't fail.
-void StorageManager::openFilePointer(FilePointer* fp, XMLDeserializer& reader) {
+void StorageManager::openFilePointer(FilePointer* fp, FileReader& reader) {
 
 	AudioEngine::logAction("openFilePointer");
 
@@ -385,8 +376,7 @@ deleteInstrumentAndGetOut:
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
-		if (smDeserializer.firmware_version < FirmwareVersion::official({2, 2, 0, "beta"})
-		    && outputType == OutputType::KIT) {
+		if (song_firmware_version < FirmwareVersion::official({2, 2, 0, "beta"}) && outputType == OutputType::KIT) {
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupUnpatched();
 			if (error != Error::NONE) {
@@ -610,6 +600,21 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer& rea
 	return Error::FILE_CORRUPTED;
 }
 
+Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char const* firstTagName,
+                                   char const* altTagName, bool ignoreIncorrectFirmware) {
+
+	AudioEngine::logAction("openJsonFile");
+	reader.reset();
+	// Prep to read first Cluster shortly
+	openFilePointer(filePointer, reader);
+	Error err = reader.openJsonFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
+	if (err == Error::NONE)
+		return Error::NONE;
+	f_close(&reader.readFIL);
+
+	return Error::FILE_CORRUPTED;
+}
+
 FileReader::FileReader() {
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
 	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
@@ -666,18 +671,32 @@ bool FileReader::readFileCluster() {
 	return true;
 }
 
-uint32_t FileReader::readChar(char* thisChar) {
+// Similar to readChar, but it does not advance the fileReadBufferCurrentPos.
+// If you later want that to happen, you can call readChar then.
+bool FileReader::peekChar(char* thisChar) {
 
 	bool stillGoing = readFileClusterIfNecessary();
 	if (reachedBufferEnd) {
-		return 0;
+		return false;
+	}
+
+	*thisChar = fileClusterBuffer[fileReadBufferCurrentPos];
+
+	return true;
+}
+
+bool FileReader::readChar(char* thisChar) {
+
+	bool stillGoing = readFileClusterIfNecessary();
+	if (reachedBufferEnd) {
+		return false;
 	}
 
 	*thisChar = fileClusterBuffer[fileReadBufferCurrentPos];
 
 	fileReadBufferCurrentPos++;
 
-	return 1;
+	return true;
 }
 
 // Call various routines 1 out of N times, where N = 64 at present.

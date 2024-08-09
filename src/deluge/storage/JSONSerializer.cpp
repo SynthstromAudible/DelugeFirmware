@@ -71,10 +71,10 @@ void JsonSerializer::write(char const* output) {
 void JsonSerializer::writeTag(char const* tag, int32_t number, bool box) {
 	char* buffer = shortStringBuffer;
 	intToString(number, buffer);
-	writeTag(tag, buffer, box);
+	writeTag(tag, buffer, box, false);
 }
 
-void JsonSerializer::writeTag(char const* tag, char const* contents, bool box) {
+void JsonSerializer::writeTag(char const* tag, char const* contents, bool box, bool quote) {
 	insertCommaIfNeeded();
 	write("\n");
 	printIndents();
@@ -82,20 +82,38 @@ void JsonSerializer::writeTag(char const* tag, char const* contents, bool box) {
 		write("{");
 	write("\"");
 	write(tag);
-	write("\": \"");
+	write("\": ");
+	if (quote)
+		write("\"");
 	write(contents);
-	write("\"");
+	if (quote)
+		write("\"");
 	if (box)
 		write("}");
 	firstItemHasBeenWritten = true;
 }
 
+// Unlike other attributes, numbers in Json should not be quoted.
+// So we don't.
 void JsonSerializer::writeAttribute(char const* name, int32_t number, bool onNewLine) {
 
 	char buffer[12];
 	intToString(number, buffer);
 
-	writeAttribute(name, buffer, onNewLine);
+	insertCommaIfNeeded();
+	if (onNewLine) {
+		write("\n");
+		printIndents();
+	}
+	else {
+		write(" ");
+	}
+	write("\"");
+	write(name);
+	write("\": ");
+	write(buffer);
+
+	firstItemHasBeenWritten = true;
 }
 
 // numChars may be up to 8
@@ -105,7 +123,6 @@ void JsonSerializer::writeAttributeHex(char const* name, int32_t number, int32_t
 	buffer[0] = '0';
 	buffer[1] = 'x';
 	intToHex(number, &buffer[2], numChars);
-
 	writeAttribute(name, buffer, onNewLine);
 }
 

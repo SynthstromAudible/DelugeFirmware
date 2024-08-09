@@ -49,21 +49,11 @@ extern "C" {
 #include "fatfs/ff.h"
 }
 
-char jCharAtEndOfValue;
-
 /*******************************************************************************
 
     JsonDeserializer
 
 ********************************************************************************/
-
-#define BETWEEN_TAGS 0
-#define IN_TAG_NAME 1
-#define IN_TAG_PAST_NAME 2
-#define IN_ATTRIBUTE_NAME 3
-#define PAST_ATTRIBUTE_NAME 4
-#define PAST_EQUALS_SIGN 5
-#define IN_ATTRIBUTE_VALUE 6
 
 JsonDeserializer::JsonDeserializer() {
 
@@ -76,324 +66,153 @@ void JsonDeserializer::reset() {
 	fileReadBufferCurrentPos = audioFileManager.clusterSize;
 	currentReadBufferEndPos = audioFileManager.clusterSize;
 
-	firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
+	song_firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
 
-	tagDepthFile = 0;
-	tagDepthCaller = 0;
-
-	xmlArea = BETWEEN_TAGS;
+	objectDepth = 0;
+	arrayDepth = 0;
 }
 
-// Only call this if IN_TAG_NAME
-// TODO: this is very sub-optimal and still calls readChar()
-char const* JsonDeserializer::readTagName() {
-
-	if (false) {
-skipToNextTag:
-		skipUntilChar('>');
-		skipUntilChar('<');
-	}
-
+// Advances read pointer until it encounters a non-whitespace character.
+// It leaves the read pointer at the non-whitespace character encountered.
+// Returns true if a non-whitespace character was found, otherwise false
+// if we are at the end.
+bool JsonDeserializer::skipWhiteSpace(bool commasToo) {
 	char thisChar;
+	while (peekChar(&thisChar)) {
+		if (thisChar == ' ' || thisChar == '\r' || thisChar == '\n' || thisChar == '\t'
+		    || ((thisChar == ',') && commasToo)) {
+			readChar(&thisChar);
+		}
+		else {
+			return true;
+		}
+	}
+	return false;
+}
+
+char JsonDeserializer::unescape(char inchar) {
+	char thisChar;
+	if (inchar != '\\')
+		return inchar;
+	if (!readChar(&thisChar))
+		return 0;
+	switch (thisChar) {
+	case '"':
+		thisChar = '"';
+		break;
+	case '\\':
+		thisChar = '\\';
+		break;
+	default:
+		break;
+	}
+	return thisChar;
+}
+
+// Returns a Json string, max length of kFilenameBufferSize, delimited by double quotes.
+char const* JsonDeserializer::readQuotedString() {
+	char thisChar;
+	if (!skipWhiteSpace())
+		return NULL;
+	if (!peekChar(&thisChar))
+		return NULL;
+	if (thisChar != '\"')
+		return NULL;
+	readChar(&thisChar);
 	int32_t charPos = 0;
 
 	while (readChar(&thisChar)) {
-		switch (thisChar) {
-		case '/':
-			goto skipPastRest;
-
-		case ' ':
-		case '\r':
-		case '\n':
-		case '\t':
-			xmlArea = IN_TAG_PAST_NAME;
+		if (thisChar == '\"')
 			goto getOut;
-
-		case '?':
-			goto skipToNextTag;
-
-		case '>':
-			xmlArea = BETWEEN_TAGS;
+		thisChar = unescape(thisChar);
+		if (thisChar == 0)
 			goto getOut;
-
-		default:
-			if (!charPos) {
-				tagDepthFile++;
-			}
-
-			// Store this character, if space in our un-ideal buffer
-			if (charPos < kFilenameBufferSize - 1) {
-				stringBuffer[charPos++] = thisChar;
-			}
+		// Store this character, if space in our un-ideal buffer
+		if (charPos < kFilenameBufferSize - 1) {
+			stringBuffer[charPos++] = thisChar;
 		}
 	}
 
 getOut:
 	readDone();
-
-	if (false) {
-skipPastRest:
-		tagDepthFile--;
-		skipUntilChar('>');
-		xmlArea = BETWEEN_TAGS;
-	}
-
 	stringBuffer[charPos] = 0;
 	return stringBuffer;
 }
 
-// Only call when IN_TAG_PAST_NAME
+// Read a Json key name, which must be quoted and followed with a colon.
+// return an empty string if a proper key is not found.
+char const* JsonDeserializer::readKeyName() {
+	char const* key = readQuotedString();
+	if (key == NULL)
+		return "";
+	if (!skipWhiteSpace())
+		return "";
+	char aChar;
+	if (!readChar(&aChar))
+		return "";
+	if (aChar != ':')
+		return "";
+	return key;
+}
+
 char const* JsonDeserializer::readNextAttributeName() {
-
+	if (!skipWhiteSpace(true))
+		return "";
 	char thisChar;
-	int32_t charPos = 0;
-
-	while (readChar(&thisChar)) {
-		switch (thisChar) {
-		case ' ':
-		case '\r':
-		case '\n':
-		case '\t':
-			break;
-
-		case '/':
-			tagDepthFile--;
-			skipUntilChar('>');
-			// No break
-
-		case '>':
-			xmlArea = BETWEEN_TAGS;
-			// No break
-
-		case '<': // This is an error - there definitely shouldn't be a '<' inside a tag! TODO: make way to return error
-			goto noMoreAttributes;
-
-		default:
-			goto doReadName;
-		}
-	}
-
-noMoreAttributes:
-	return "";
-
-	// Here, we're in IN_ATTRIBUTE_NAME, and we're not allowed to leave this while loop until our xmlArea changes to
-	// something else
-	// - or there's an error or file-end, in which case we'll return error below
-doReadName:
-	xmlArea = IN_ATTRIBUTE_NAME;
-	tagDepthFile++;
-	fileReadBufferCurrentPos--; // This means we don't need to call readFileClusterIfNecessary()
-
-	bool haveReachedNameEnd = false;
-
-	// This is basically copied and tweaked from readUntilChar()
-	do {
-		int32_t bufferPosAtStart = fileReadBufferCurrentPos;
-		while (fileReadBufferCurrentPos < currentReadBufferEndPos) {
-			char thisChar = fileClusterBuffer[fileReadBufferCurrentPos];
-
-			switch (thisChar) {
-			case ' ':
-			case '\r':
-			case '\n':
-			case '\t':
-				xmlArea = PAST_ATTRIBUTE_NAME;
-				goto reachedNameEnd;
-
-			case '=':
-				xmlArea = PAST_EQUALS_SIGN;
-				goto reachedNameEnd;
-
-			// If we get a close-tag name, it means we saw some sorta attribute name with no value, which isn't allowed,
-			// so treat it as invalid
-			case '>':
-				xmlArea = BETWEEN_TAGS;
-				goto noMoreAttributes;
-
-				// TODO: a '/' should get us outta here too...
-			}
-
-			fileReadBufferCurrentPos++;
-		}
-
-		if (false) {
-reachedNameEnd:
-			readDone();
-			haveReachedNameEnd = true;
-			// If possible, just return a pointer to the chars within the existing buffer
-			if (!charPos && fileReadBufferCurrentPos < currentReadBufferEndPos) {
-				fileClusterBuffer[fileReadBufferCurrentPos] = 0; // NULL end of the string we're returning
-				fileReadBufferCurrentPos++;                      // Gets us past the endChar
-				return &fileClusterBuffer[bufferPosAtStart];
-			}
-		}
-
-		int32_t numCharsHere = fileReadBufferCurrentPos - bufferPosAtStart;
-		int32_t numCharsToCopy = std::min<int32_t>(numCharsHere, kFilenameBufferSize - 1 - charPos);
-
-		if (numCharsToCopy > 0) {
-			memcpy(&stringBuffer[charPos], &fileClusterBuffer[bufferPosAtStart], numCharsToCopy);
-
-			charPos += numCharsToCopy;
-		}
-
-		if (haveReachedNameEnd) {
-			stringBuffer[charPos] = 0;
-			fileReadBufferCurrentPos++; // Gets us past the endChar
-			return stringBuffer;
-		}
-
-	} while (fileReadBufferCurrentPos == currentReadBufferEndPos && readFileClusterIfNecessary());
-
-	// If here, file ended
-	return "";
+	if (!peekChar(&thisChar))
+		return "";
+	return readKeyName();
 }
 
-// char jCharAtEndOfValue; // *** JFF get rid of this global!
-
+// In Json, the equivalent functionality is to read the next key name.
+// Which is always "key": (with double quotes & colon)
 char const* JsonDeserializer::readNextTagOrAttributeName() {
-
-	char const* toReturn;
-	int32_t tagDepthStart = tagDepthFile;
-
-	switch (xmlArea) {
-
-	default:
-#if ALPHA_OR_BETA_VERSION
-		// Can happen with invalid files, though I'm implementing error checks whenever a user alerts me to a scenario.
-		// Fraser got this, Nov 2021.
-		FREEZE_WITH_ERROR("E365");
-#else
-		__builtin_unreachable();
-#endif
-		break;
-
-	case IN_ATTRIBUTE_VALUE: // Could have been left here during a char-at-a-time read
-		skipUntilChar(jCharAtEndOfValue);
-		xmlArea = IN_TAG_PAST_NAME;
-		// No break
-
-	case IN_TAG_PAST_NAME:
-		toReturn = readNextAttributeName();
-		// If depth has changed, this means we met a /> and must get out
-		if (*toReturn || tagDepthFile != tagDepthStart) {
-			break;
-		}
-		// No break
-
-	case BETWEEN_TAGS:
-		skipUntilChar('<');
-		xmlArea = IN_TAG_NAME;
-		// No break
-
-	case IN_TAG_NAME:
-		toReturn = readTagName();
-	}
-
-	if (*toReturn) {
-		/*
-		for (int32_t t = 0; t < tagDepthCaller; t++) {
-D_PRINTLN("\t");
-		}
-		D_PRINTLN(toReturn);
-		*/
-		tagDepthCaller++;
-		AudioEngine::logAction(toReturn);
-	}
-
-	return toReturn;
+	return readKeyName();
 }
 
-// Only call if PAST_ATTRIBUTE_NAME or PAST_EQUALS_SIGN
-// Returns the quote character that opens the value - or 0 if fail
+// the stream index is left directly addressing the leading character of the value.
 bool JsonDeserializer::getIntoAttributeValue() {
-
+	if (!skipWhiteSpace())
+		return 0;
+	// valid characters to start a value are a digit, minus sign,
+	// or a double quote. If it is double quote, skip past it.
 	char thisChar;
-
-	switch (xmlArea) {
-	case PAST_ATTRIBUTE_NAME:
-		while (readChar(&thisChar)) {
-			switch (thisChar) {
-			case ' ':
-			case '\r':
-			case '\n':
-			case '\t':
-				break;
-
-			case '=':
-				xmlArea = PAST_EQUALS_SIGN;
-				goto pastEqualsSign;
-
-			default:
-				return false; // There shouldn't be any other characters. If there are, that's an error
-			}
-		}
-
-		break;
-
-	case PAST_EQUALS_SIGN:
-pastEqualsSign:
-		while (readChar(&thisChar)) {
-			switch (thisChar) {
-			case ' ':
-			case '\r':
-			case '\n':
-			case '\t':
-				break;
-
-			case '"':
-			case '\'':
-				goto inAttributeValue;
-
-			default:
-				return false; // There shouldn't be any other characters. If there are, that's an error
-			}
-		}
-		break;
-	}
-
-	if (false) {
-inAttributeValue:
-		xmlArea = IN_ATTRIBUTE_VALUE;
-		tagDepthFile--;
-		jCharAtEndOfValue = thisChar;
+	if (!peekChar(&thisChar))
+		return false;
+	if ((thisChar >= '0' && thisChar <= '9') || thisChar == '-') {
 		return true;
 	}
-
-	return false; // Fail
+	if (thisChar == '"')
+		readChar(&thisChar);
+	return (thisChar == '"');
 }
 
-// Only call if PAST_ATTRIBUTE_NAME or PAST_EQUALS_SIGN
+// Only call if PAST_ATTRIBUTE_NAME or PAST_COLON
 char const* JsonDeserializer::readAttributeValue() {
 
 	if (!getIntoAttributeValue()) {
 		return "";
 	}
-	xmlArea = IN_TAG_PAST_NAME; // How it'll be after this next call
-	return readUntilChar(jCharAtEndOfValue);
+	return readUntilChar('"');
 }
 
-// Only call if PAST_ATTRIBUTE_NAME or PAST_EQUALS_SIGN
+// Only call if PAST_ATTRIBUTE_NAME or PAST_COLON
 int32_t JsonDeserializer::readAttributeValueInt() {
 
 	if (!getIntoAttributeValue()) {
 		return 0;
 	}
-	xmlArea = IN_TAG_PAST_NAME; // How it'll be after this next call
-	return readIntUntilChar(jCharAtEndOfValue);
+	return readInt();
 }
 
-// Only call if PAST_ATTRIBUTE_NAME or PAST_EQUALS_SIGN
+// Only call if PAST_ATTRIBUTE_NAME or PAST_COLON
 Error JsonDeserializer::readAttributeValueString(String* string) {
 
 	if (!getIntoAttributeValue()) {
 		string->clear();
 		return Error::NONE;
 	}
-	Error error = readStringUntilChar(string, jCharAtEndOfValue);
-	if (error == Error::NONE) {
-		xmlArea = IN_TAG_PAST_NAME;
-	}
+	Error error = readStringUntilChar(string, '"');
 	return error;
 }
 
@@ -413,7 +232,8 @@ void JsonDeserializer::skipUntilChar(char endChar) {
 	readDone();
 }
 
-// Returns memory error. If error, caller must deal with the fact that the end-character hasn't been reached
+// A non-destructive (to the fileClusterBuffer contents) routine to read into a String object.
+// Returns memory error. If error, caller must deal with the fact that the end-character hasn't been reached.
 Error JsonDeserializer::readStringUntilChar(String* string, char endChar) {
 
 	int32_t newStringPos = 0;
@@ -447,6 +267,10 @@ Error JsonDeserializer::readStringUntilChar(String* string, char endChar) {
 	return Error::NONE;
 }
 
+// Called when the buf index is pointed at the first char of the value
+// (Past the leading double quote.)
+// This version, like XMLDeserialize, pokes a null character over the memory
+// location occupied by endChar. (If it can get away with that).
 char const* JsonDeserializer::readUntilChar(char endChar) {
 	int32_t charPos = 0;
 
@@ -497,7 +321,7 @@ char const* JsonDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChar
 		int32_t currentReadBufferEndPosNow = std::min<int32_t>(currentReadBufferEndPos, bufferPosAtEnd);
 
 		while (fileReadBufferCurrentPos < currentReadBufferEndPosNow) {
-			if (fileClusterBuffer[fileReadBufferCurrentPos] == jCharAtEndOfValue) {
+			if (fileClusterBuffer[fileReadBufferCurrentPos] == '"') {
 				goto reachedEndCharEarly;
 			}
 			fileReadBufferCurrentPos++;
@@ -533,12 +357,7 @@ char const* JsonDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChar
 	// And, additional bit we jump to when end-char reached
 reachedEndCharEarly:
 	fileReadBufferCurrentPos++; // Gets us past the endChar
-	if (jCharAtEndOfValue == '<') {
-		xmlArea = IN_TAG_NAME;
-	}
-	else {
-		xmlArea = IN_TAG_PAST_NAME; // Could be ' or "
-	}
+
 	return NULL;
 }
 
@@ -549,49 +368,32 @@ char JsonDeserializer::readNextCharOfTagOrAttributeValue() {
 	if (!readChar(&thisChar)) {
 		return 0;
 	}
-	if (thisChar == jCharAtEndOfValue) {
-		if (jCharAtEndOfValue == '<') {
-			xmlArea = IN_TAG_NAME;
-		}
-		else {
-			xmlArea = IN_TAG_PAST_NAME; // Could be ' or "
-		}
-		readDone();
-		return 0;
-	}
 	return thisChar;
 }
 
-// Will always skip up until the end-char, even if it doesn't like the contents it sees
-int32_t JsonDeserializer::readIntUntilChar(char endChar) {
+// Read an integer up until the first non-numeric character.
+// Leaves the buff index pointing at that non-numeric character.
+int32_t JsonDeserializer::readInt() {
 	uint32_t number = 0;
 	char thisChar;
 
-	if (!readChar(&thisChar)) {
+	if (!skipWhiteSpace(false))
 		return 0;
-	}
-
-	bool isNegative = (thisChar == '-');
-	if (!isNegative) {
-		goto readDigit;
-	}
-
-	while (readChar(&thisChar)) {
-readDigit:
+	bool isNegative = false;
+	while (peekChar(&thisChar)) {
+		if (thisChar == '-') {
+			isNegative = true;
+			readChar(&thisChar);
+			continue;
+		}
 		if (!(thisChar >= '0' && thisChar <= '9')) {
 			goto getOut;
 		}
+		readChar(&thisChar);
 		number *= 10;
 		number += (thisChar - '0');
 	}
-
-	if (false) {
 getOut:
-		if (thisChar != endChar) {
-			skipUntilChar(endChar);
-		}
-	}
-
 	if (isNegative) {
 		if (number >= 2147483648) {
 			return -2147483648;
@@ -606,47 +408,11 @@ getOut:
 }
 
 char const* JsonDeserializer::readTagOrAttributeValue() {
-
-	switch (xmlArea) {
-
-	case BETWEEN_TAGS:
-		xmlArea = IN_TAG_NAME; // How it'll be after this call
-		return readUntilChar('<');
-
-	case PAST_ATTRIBUTE_NAME:
-	case PAST_EQUALS_SIGN:
-		return readAttributeValue();
-
-	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more
-	                       // contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
-		return "";
-
-	default:
-		FREEZE_WITH_ERROR("BBBB");
-		__builtin_unreachable();
-	}
+	return readAttributeValue();
 }
 
 int32_t JsonDeserializer::readTagOrAttributeValueInt() {
-
-	switch (xmlArea) {
-
-	case BETWEEN_TAGS:
-		xmlArea = IN_TAG_NAME; // How it'll be after this call
-		return readIntUntilChar('<');
-
-	case PAST_ATTRIBUTE_NAME:
-	case PAST_EQUALS_SIGN:
-		return readAttributeValueInt();
-
-	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more
-	                       // contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
-		return 0;
-
-	default:
-		FREEZE_WITH_ERROR("BBBB");
-		__builtin_unreachable();
-	}
+	return readInt();
 }
 
 // This isn't super optimal, like the int32_t version is, but only rarely used
@@ -659,27 +425,10 @@ int32_t JsonDeserializer::readTagOrAttributeValueHex(int32_t errorValue) {
 }
 
 int JsonDeserializer::readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) {
-	switch (xmlArea) {
 
-	case BETWEEN_TAGS:
-		xmlArea = IN_TAG_NAME; // How it'll be after this call
-		return readHexBytesUntil(bytes, maxLen, '<');
-
-	case PAST_ATTRIBUTE_NAME:
-	case PAST_EQUALS_SIGN:
-		if (!getIntoAttributeValue())
-			return 0;
-		xmlArea = IN_TAG_PAST_NAME; // How it'll be after this next call
-		return readHexBytesUntil(bytes, maxLen, jCharAtEndOfValue);
-
-	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more
-	                       // contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
+	if (!getIntoAttributeValue())
 		return 0;
-
-	default:
-		FREEZE_WITH_ERROR("BBBB");
-		__builtin_unreachable();
-	}
+	return readHexBytesUntil(bytes, maxLen, '\"');
 }
 
 extern bool getNibble(char ch, int* nibble);
@@ -714,110 +463,82 @@ getOut:
 
 // Returns memory error
 Error JsonDeserializer::readTagOrAttributeValueString(String* string) {
-
-	Error error;
-
-	switch (xmlArea) {
-	case BETWEEN_TAGS:
-		error = readStringUntilChar(string, '<');
-		if (error == Error::NONE) {
-			xmlArea = IN_TAG_NAME;
-		}
-		return error;
-
-	case PAST_ATTRIBUTE_NAME:
-	case PAST_EQUALS_SIGN:
-		return readAttributeValueString(string);
-
-	case IN_TAG_PAST_NAME: // Could happen if trying to read a value but instead of a value there are multiple more
-	                       // contents, like attributes etc. Obviously not "meant" to happen, but we need to cope.
+	if (!skipWhiteSpace())
 		return Error::FILE_CORRUPTED;
-
-	default:
-		if (ALPHA_OR_BETA_VERSION) {
-			FREEZE_WITH_ERROR("BBBB");
-		}
-		__builtin_unreachable();
-	}
+	skipUntilChar('\"');
+	return readStringUntilChar(string, '\"');
 }
 
-int32_t JsonDeserializer::getNumCharsRemainingInValue() {
+int32_t JsonDeserializer::getNumCharsRemainingInValueBeforeEndOfCluster() {
 
 	int32_t pos = fileReadBufferCurrentPos;
-	while (pos < currentReadBufferEndPos && fileClusterBuffer[pos] != jCharAtEndOfValue) {
+	while (pos < currentReadBufferEndPos && fileClusterBuffer[pos] != '"') {
 		pos++;
 	}
 
 	return pos - fileReadBufferCurrentPos;
 }
 
-// Returns whether we're all good to go
+// Called before unusual attribute reading. In our case, get past
+// the leading double quote.
 bool JsonDeserializer::prepareToReadTagOrAttributeValueOneCharAtATime() {
-	switch (xmlArea) {
+	return getIntoAttributeValue();
+}
 
-	case BETWEEN_TAGS:
-		// xmlArea = IN_TAG_NAME; // How it'll be after reading all chars
-		jCharAtEndOfValue = '<';
-		return true;
+// Advances the index to the next comma, object close, or array close,
+// skipping everything else.
+// This can be used to bail-out of an unwanted/unknown KVP.
+// When exitting, the index is left at the separator character.
+void JsonDeserializer::skipValue() {
+	char nowChar;
+	if (!skipWhiteSpace(false))
+		return;
 
-	case PAST_ATTRIBUTE_NAME:
-	case PAST_EQUALS_SIGN:
-		return getIntoAttributeValue();
-
-	default:
-		if (ALPHA_OR_BETA_VERSION) {
-			FREEZE_WITH_ERROR("CCCC");
-		}
-		__builtin_unreachable();
+	while (peekChar(&nowChar)) {
+		if (nowChar == ',' || nowChar == ']' || nowChar == '}')
+			return;
+		readChar(&nowChar); // step past
+		if (!skipWhiteSpace(false))
+			return;
 	}
 }
 
-void JsonDeserializer::exitTag(char const* exitTagName) {
-	// back out the file depth to one less than the caller depth
-	while (tagDepthFile >= tagDepthCaller) {
-
-		if (reachedBufferEnd) {
-			return;
-		}
-
-		switch (xmlArea) {
-
-		case IN_ATTRIBUTE_VALUE: // Could get left in here after a char-at-a-time read
-			skipUntilChar(jCharAtEndOfValue);
-			xmlArea = IN_TAG_PAST_NAME;
-			// No break
-
-		case IN_TAG_PAST_NAME:
-			readNextAttributeName();
+// Used to match syntax for Json strings.
+// Iff the current index matches the given character
+// we then skip over that character and return true.
+// else we return false and leave the index pointing at
+// the first non-whitespace character after the incoming index.
+bool JsonDeserializer::match(char const ch) {
+	if (!skipWhiteSpace())
+		return false;
+	char nowChar, nextChar;
+	if (peekChar(&nowChar)) {
+		if (nowChar != ch)
+			return false;
+		readChar(&nowChar);
+		switch (ch) {
+		case '{':
+			objectDepth++;
 			break;
-
-		case PAST_ATTRIBUTE_NAME:
-		case PAST_EQUALS_SIGN:
-			readAttributeValue();
+		case '}':
+			objectDepth--;
 			break;
-
-		case BETWEEN_TAGS:
-			skipUntilChar('<');
-			xmlArea = IN_TAG_NAME;
-			// Got to next tag start
-			// No break
-
-		case IN_TAG_NAME:
-			readTagName();
+		case '[':
+			arrayDepth++;
 			break;
-
-		default:
-			if (ALPHA_OR_BETA_VERSION) {
-				FREEZE_WITH_ERROR("AAAA"); // Really shouldn't be possible anymore, I feel fairly certain...
-			}
-			__builtin_unreachable();
+		case ']':
+			arrayDepth--;
+			break;
 		}
 	}
-	// It is possible for caller and file tag depths to get out of sync due to faulty error handling
-	// On exit reset the caller depth to match tag depth. File depth represents the parsers view of
-	// where we are in the xml parsing, caller depth represents the callers view. The caller can be shallower
-	// as the file will open past empty or unused tags, but should never be deeper.
-	tagDepthCaller = tagDepthFile;
+	peekChar(&nextChar);
+	return true;
+}
+
+void JsonDeserializer::exitTag(char const* exitTagName, bool closeObject) {
+	if (closeObject) {
+		match('}');
+	}
 }
 
 Error JsonDeserializer::openJsonFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
@@ -827,6 +548,8 @@ Error JsonDeserializer::openJsonFile(FilePointer* filePointer, char const* first
 
 	reset();
 
+	if (!match('{'))
+		return Error::FILE_CORRUPTED;
 	char const* tagName;
 
 	while (*(tagName = readNextTagOrAttributeName())) {
@@ -850,7 +573,7 @@ Error JsonDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool 
 
 	if (!strcmp(tagName, "firmwareVersion")) {
 		char const* firmware_version_string = readTagOrAttributeValue();
-		firmware_version = FirmwareVersion::parse(firmware_version_string);
+		song_firmware_version = FirmwareVersion::parse(firmware_version_string);
 	}
 
 	// If this tag doesn't exist, it's from old firmware so is ok
