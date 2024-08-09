@@ -1579,7 +1579,11 @@ errorAfterAllocation:
 		return NULL;
 	}
 
-	if (mode == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom) {
+	if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {
+		if (!outputRecordingFrom) {
+			D_PRINTLN("Specific output recorder with no output provided");
+			goto errorAfterAllocation;
+		}
 		bool success = outputRecordingFrom->addRecorder(newRecorder);
 		if (!success) {
 			D_PRINTLN("Tried to attach to an occupied output");
