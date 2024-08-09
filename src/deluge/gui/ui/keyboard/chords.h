@@ -22,7 +22,7 @@
 
 constexpr int32_t kMaxChordKeyboardSize = 7;
 constexpr int32_t kUniqueVoicings = 4;
-constexpr int32_t kUniqueChords = 17;
+constexpr int32_t kUniqueChords = 20;
 constexpr int32_t kOffScreenChords = kUniqueChords - kDisplayHeight;
 
 
@@ -81,6 +81,14 @@ const Chord kMinor = {"-",
                       {{ROOT, MIN3, P5, NONE, NONE, NONE, NONE},
                        {ROOT, OCT + MIN3, P5, NONE, NONE, NONE, NONE},
                        {ROOT, OCT + MIN3, P5, -12, NONE, NONE, NONE}}};
+const Chord kDim = {"DIM",
+                      {{ROOT, MIN3, DIM5, NONE, NONE, NONE, NONE},
+                       {ROOT, OCT + MIN3, DIM5, NONE, NONE, NONE, NONE},
+                       {ROOT, OCT + MIN3, DIM5, -12, NONE, NONE, NONE}}};
+const Chord kAug = {"AUG",
+                      {{ROOT, MIN3, AUG5, NONE, NONE, NONE, NONE},
+                       {ROOT, OCT + MIN3, AUG5, NONE, NONE, NONE, NONE},
+                       {ROOT, OCT + MIN3, AUG5, -12, NONE, NONE, NONE}}};
 const Chord kSus2 = {"SUS2",
                      {{ROOT, 2, P5, NONE, NONE, NONE, NONE},
                       {ROOT, 2 + OCT, P5, NONE, NONE, NONE, NONE},
@@ -101,6 +109,10 @@ const Chord kMinor7 = {"-7",
                        {{ROOT, MIN3, P5, MIN7, NONE, NONE, NONE},
                         {ROOT, MIN3 + OCT, P5, MIN7, NONE, NONE, NONE},
                         {ROOT, MIN3 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
+const Chord kMinor7b5 = {"-7b5",
+                       {{ROOT, MIN3, DIM5, MIN7, NONE, NONE, NONE},
+                        {ROOT, MIN3 + OCT, DIM5, MIN7, NONE, NONE, NONE},
+                        {ROOT, MIN3 + OCT, DIM5, MIN7 + OCT, NONE, NONE, NONE}}};
 const Chord k9 = {"9",
                   {{ROOT, MAJ3, P5, MIN7, MAJ9, NONE, NONE},
                    {ROOT, MAJ3 + OCT, P5, MIN7, MAJ9, NONE, NONE},
