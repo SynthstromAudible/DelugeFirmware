@@ -42,6 +42,10 @@ use the TRACK menu to select the specific track to record from
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 - Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
 
+### Keyboard View Improvements
+
+- New `CHORD` keyboard layout. `CHORD` keyboard is split-up into columns of chords, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard.
+
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
 - Allow changing MPE y output to CC1 to support more synths

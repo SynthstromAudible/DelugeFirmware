@@ -295,10 +295,10 @@ as the micromonsta and the dreadbox nymphes.
 - ([#2299]) Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG VIEW` which enables you to select the type of clip before the clip is created.
   - In `SONG (GRID) VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
   - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
-- Removed the `SONG VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
+- Removed the `SONG VIEW` shortcut of Pressing `CLIP` + `SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
 
-#### 3.28 Updated UI for Setting Clip Mode in Song View
-- ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+#### 3.28 Updated UI for Setting Clip Launch Style in Song View
+- ([#2299]) Pressing `CLIP` + `SELECT` in `SONG VIEW` will now always open the `LAUNCH STYLE` menu so you can change the Clip launch style between `DEFAULT`, `FILL` and `ONCE`.
 
 ## 4. New Features Added
 
@@ -975,6 +975,16 @@ to each individual note onset. ([#1978])
 
 - ([#2174]) With the addition of the new Keyboard Sidebar Controls, the default behaviour of being able to immediately exit the menu by pressing a sidebar pad while in Keyboard View was removed. To accomodate users that still wish to be able to exit the menus immediately by pressing a sidebar pad, a new community feature toggle has been added (`Enable KB View Sidebar Menu Exit (EXIT)`) which will enable you to immediately exit the menu using the top left sidebar pad if you are in the `SETTINGS` or `SOUND` menu for `KEYBOARD VIEW`.
 
+#### 4.4.1.6 - Display Chord Keyboard Layout
+
+- ([#2385]) Enables `CHORD` keyboard layout which displays chords on the pads. Accessible the same way as other instrument supporting keyboards `SELECT` + `KEYBOARD` to cycle through layouts while on `SYNTH, MIDI, CV`
+
+- Each column is a note (chormatic, all 12 notes), turning `◀︎▶︎` will move down or up the scale, lowering or raising your chords. Each pad is a different chord. So the first row is just roots, second is major triads, 3rd is minor triads, etc. `▼︎▲︎` scrolls up to more chords.
+
+- Holding a pad on a row and pressing in the `◀︎▶︎` and turning changes the voicing for all the chords on that row.
+
+- As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
+
 #### 4.4.2 - Scales
 
 - ([#991]) Added new scales for instrument clips.
@@ -1174,6 +1184,8 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * When On, while in the `SETTINGS` or `SOUND` menu of `KEYBOARD VIEW`, pressing the top left sidebar pad will immediately exit the menu.
 * `Launch Event Playhead (PLAY)`
     * When On, a red and white playhead will be rendered in Song Grid and Performance Views that let's you know that a maximum of one bar (16 notes) is remaining before a clip or section launch event is scheduled to occur.
+* `Chord Keyboard (CHRD)`
+    * When On, enables the `CHORD` keyboard layout which allows playing chords on the pads. See [Chord Keyboard Layout](#4416---display-chord-keyboard-layout) for more information.
 
 ## 6. Sysex Handling
 
@@ -1435,6 +1447,8 @@ different firmware
 [#2371]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2371
 
 [#2367]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2367
+
+[#2385]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2385
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

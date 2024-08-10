@@ -46,6 +46,7 @@ SettingToggle menuEnableDxShortcuts(RuntimeFeatureSettingType::EnableDxShortcuts
 EmulatedDisplay menuEmulatedDisplay{};
 SettingToggle menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
 SettingToggle menuEnableLaunchEventPlayhead(RuntimeFeatureSettingType::EnableLaunchEventPlayhead);
+SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyboard);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -66,7 +67,8 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuEnableDxShortcuts,
     &menuEmulatedDisplay,
     &menuEnableKeyboardViewSidebarMenuExit,
-    &menuEnableLaunchEventPlayhead};
+    &menuEnableLaunchEventPlayhead,
+    &menuDisplayChordLayout};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }
