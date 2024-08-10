@@ -1,5 +1,6 @@
 /*
  * Copyright © 2016-2024 Synthstrom Audible Limited
+ * Copyright © 2024 Madeline Scyphers
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,14 +18,17 @@
 
 #pragma once
 
+#include "definitions.h"
+#include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 
 namespace deluge::gui::ui::keyboard::layout {
 
-class KeyboardLayoutIsomorphic : public ColumnControlsKeyboard {
+/// @brief Represents a keyboard layout for chord-based input.
+class KeyboardLayoutChord : public ColumnControlsKeyboard {
 public:
-	KeyboardLayoutIsomorphic() {}
-	~KeyboardLayoutIsomorphic() override {}
+	KeyboardLayoutChord() = default;
+	~KeyboardLayoutChord() override = default;
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
@@ -34,17 +38,30 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	char const* name() override { return "Isomorphic"; }
+	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
+
+	char const* name() override { return "Chord"; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 
+	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }
+
+	uint8_t chordSemitoneOffsets[kMaxChordKeyboardSize] = {0};
+
 private:
-	void offsetPads(int32_t offset, bool shiftEnabled);
-	inline uint8_t noteFromCoords(int32_t x, int32_t y) {
-		return getState().isomorphic.scrollOffset + x + y * getState().isomorphic.rowInterval;
+	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
+		return getState().chord.noteOffset + x + y * getState().chord.rowInterval;
 	}
 
-	RGB noteColours[kDisplayHeight * kMaxIsomorphicRowInterval + kDisplayWidth];
+	void offsetPads(int32_t offset, bool shiftEnabled);
+
+	// A modified version of noteCodeToString
+	// Because sometimes the note name is not displayed correctly
+	// and we need to add a null terminator to the note name string
+	// TODO: work out how to fix this with the noteCodeToString function
+	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.noteOffset + x; }
+
+	RGB noteColours[kOctaveSize];
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

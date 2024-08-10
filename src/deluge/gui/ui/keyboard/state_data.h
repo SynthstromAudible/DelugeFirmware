@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout/column_control_state.h"
 #include "storage/flash_storage.h"
 
@@ -40,6 +41,13 @@ struct KeyboardStateInKey {
 	int32_t rowInterval = kDefaultInKeyRowInterval;
 };
 
+struct KeyboardStateChord {
+	int32_t rowInterval = kOctaveSize;
+	int32_t scrollOffset = 0;
+	int32_t noteOffset = (rowInterval * 4);
+	int32_t rowColorMultiplier = 5;
+	ChordList chordList{};
+};
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
 /// share one struct for storage
 struct KeyboardState {
@@ -48,6 +56,7 @@ struct KeyboardState {
 	KeyboardStateIsomorphic isomorphic;
 	KeyboardStateDrums drums;
 	KeyboardStateInKey inKey;
+	KeyboardStateChord chord;
 
 	layout::ColumnControlState columnControl;
 };

@@ -440,6 +440,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_COMMUNITY_FEATURE_DX_SHORTCUTS, "DX shortcuts"},
         {STRING_FOR_COMMUNITY_FEATURE_KEYBOARD_VIEW_SIDEBAR_MENU_EXIT, "KB View Sidebar Menu Exit"},
         {STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD, "Launch Event Playhead"},
+        {STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD, "Chord Keyboard"},
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
         {STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST, "Delete all track's clips first"},
         {STRING_FOR_CANT_DELETE_FINAL_CLIP, "Can't delete final Clip"},
@@ -772,6 +773,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_STOP_EXPORT_STEMS_QMARK, "Cancel Export?"},
         {STRING_FOR_STOP_EXPORT_STEMS, "Export Cancelled"},
         {STRING_FOR_DONE_EXPORT_STEMS, "Export Done!"},
+        {STRING_FOR_KEYBOARD_VIEW_CANT_ENTER_SCALE, "Can't enter scale mode, not supported by this keyboard view"},
     },
 };
 } // namespace deluge::l10n::built_in

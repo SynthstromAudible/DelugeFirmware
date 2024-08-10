@@ -49,6 +49,8 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/model/song/clip_iterators.cpp
         # For sync tests
         ../../src/deluge/model/sync.cpp
+        # For chord tests
+        ../../src/deluge/gui/ui/keyboard/chords.cpp
 )
 
 add_executable(UnitTests
@@ -60,6 +62,7 @@ add_executable(UnitTests
         clip_iterator_tests.cpp
         function_tests.cpp
         sync_tests.cpp
+        chord_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

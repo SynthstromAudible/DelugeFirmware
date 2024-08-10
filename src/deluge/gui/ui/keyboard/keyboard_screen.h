@@ -95,6 +95,8 @@ private:
 
 	bool keyboardButtonActive = false;
 	bool keyboardButtonUsed = false;
+	bool yEncoderActive = false;
+	bool xEncoderActive = false;
 };
 }; // namespace deluge::gui::ui::keyboard
 
