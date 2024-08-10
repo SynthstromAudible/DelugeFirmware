@@ -28,11 +28,11 @@ use the TRACK menu to select the specific track to record from
 - A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 - The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
-- For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
+- For toggle (ON/OFF) menus, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
  - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
-- Submenu's on OLED for automatable parameters (e.g. LPF Frequency) render the current parameter value at the end. You still need to click on `SELECT` to edit the parameters value / edit modulation depth and patch cables.
-- All other submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
+- Submenus on OLED for automatable parameters (e.g. LPF Frequency) render the current parameter value at the end. You still need to click on `SELECT` to edit the parameter's value / edit modulation depth and patch cables.
+- All other submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 - Added ability to `AUTOMATE TEMPO` in arranger view
 - Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG VIEW` which enables you to select the type of clip before the clip is created.
   - In `SONG (GRID) VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
@@ -44,7 +44,7 @@ use the TRACK menu to select the specific track to record from
 
 ### Keyboard View Improvements
 
-- New `CHORD` keyboard layout. `CHORD` keyboard is split-up into columns of chords, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard.
+- New `CHORD` keyboard layout. `CHORD` keyboard is split up into columns of chords, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard.
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
