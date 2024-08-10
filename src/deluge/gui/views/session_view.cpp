@@ -63,7 +63,6 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -2854,22 +2853,56 @@ void SessionView::selectLayout(int8_t offset) {
 			break;
 		}
 		}
+		renderLayoutChange();
+	}
+}
 
-		// After change
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+void SessionView::renderLayoutChange(bool displayPopup) {
+	// After change
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+		if (displayPopup) {
 			display->displayPopup("Rows");
-			selectedClipYDisplay = 255;
-			currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
 		}
-		else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		selectedClipYDisplay = 255;
+		currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
+	}
+	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (displayPopup) {
 			display->displayPopup("Grid");
-			currentSong->songGridScrollX = 0;
-			currentSong->songGridScrollY = 0;
 		}
+		currentSong->songGridScrollX = 0;
+		currentSong->songGridScrollY = 0;
+	}
 
+	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	view.flashPlayEnable();
+}
+
+void SessionView::selectSpecificLayout(SessionLayoutType layout) {
+	gridSetDefaultMode();
+	gridResetPresses();
+	gridModeActive = gridModeSelected;
+
+	if (currentSong->sessionLayout != layout) {
+		currentSong->sessionLayout = layout;
+		renderLayoutChange(false);
+	}
+	else {
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 		view.flashPlayEnable();
 	}
+}
+
+void SessionView::enterMacrosConfigMode() {
+	previousLayout = currentSong->sessionLayout;
+	currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+	gridModeActive = SessionGridModeMacros;
+	requestRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
+	view.flashPlayEnable();
+}
+
+void SessionView::exitMacrosConfigMode() {
+	selectSpecificLayout(previousLayout);
 }
 
 bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -2927,11 +2960,6 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 	case GridMode::BLUE: {
 		modeActive = (gridModeActive == SessionGridModeEdit);
 		modeColour = colours::blue; // Blue
-		break;
-	}
-	case GridMode::MAGENTA: {
-		modeActive = (gridModeActive == SessionGridModeMacros);
-		modeColour = colours::magenta_full; // Magenta
 		break;
 	}
 	case GridMode::PINK: {
@@ -3486,10 +3514,6 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				gridModeActive = SessionGridModeEdit;
 				break;
 			}
-			case GridMode::MAGENTA: {
-				gridModeActive = SessionGridModeMacros;
-				break;
-			}
 			case GridMode::PINK: {
 				performanceSessionView.gridModeActive = true;
 				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
@@ -3890,6 +3914,15 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 			}
 			macro.kind = (SessionMacroKind)kindIndex;
 		}
+
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			const char* macroKind = getMacroKindString(macro.kind);
+			display->displayPopup(macroKind);
+		}
+
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
 	else {
@@ -3899,6 +3932,27 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 		}
 	}
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+}
+
+char const* SessionView::getMacroKindString(SessionMacroKind kind) {
+	const char* macroKind;
+	// display new macro type on the screen
+	switch (kind) {
+		using deluge::l10n::String;
+	case SessionMacroKind::CLIP_LAUNCH:
+		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_CLIP);
+		break;
+	case SessionMacroKind::OUTPUT_CYCLE:
+		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_OUTPUT);
+		break;
+	case SessionMacroKind::SECTION:
+		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_SECTION);
+		break;
+	default:
+		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_NONE);
+		break;
+	}
+	return macroKind;
 }
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {

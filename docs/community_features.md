@@ -409,10 +409,6 @@ Here is a list of features that have been added to the firmware as a list, group
             - Track color can be changed by holding any populated clip in a column and rotating `▼︎▲︎`. For fine changes
               to the color press `▼︎▲︎` while turning it.
             - Section pads (left sidebar column) will allow changing repeat count while held
-        - `Purple mode`
-           - [Song macros](#419---song-macros) can be set up. First select a macro slot in the left sidebar and then press a clip to
-             put it in the slot. press the same clip multiple times to switch between macro kinds (i e affect the entire
-             output or section for the clip)
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:
@@ -487,19 +483,24 @@ Here is a list of features that have been added to the firmware as a list, group
 ### 4.1.9 - Song macros
 
 Macros are a way to quickly switch playing clips without needing to go into song view.
-Within grid view, purple mode is used to edit macros. There are 8 macro slots
-shown in the left sidebar. To assign a macro,
-first select a macro slot and then press a clip in the grid. Pressing the same clip multiple
-time cycles though different modes:
+From session view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros. 
 
-- clip macro: Launch or mute the clip
-- output macro: cycle though all clips for this particular output
-- section macro: Launch all clips for this section
+There are 8 macro slots shown in the left sidebar. 
 
-Inside a clip timeline view, hold SONG button and press the left sidebar to launch a macro.
-In keyboard view, macros are available as a sidebar control.
-SHIFT makes the launch immediate just like in song view. AFFECT ENTIRE + clip macro can be
-used to jump to edit the clip.
+To assign a macro, first select a macro slot and then press a clip in the grid. 
+
+Pressing the same clip multiple time cycles though different modes:
+
+- `Clip macro`: Launch or mute the clip
+  - Individual clips are green/red, so you see if they get deactivated, just like in song row view
+- `Output macro`: cycle though all clips for this particular output
+- `Section macro`: Launch all clips for this section
+
+After assigning a clip to a slot, you can press the macro slot to see what clip has been assigned to it (clip will alternate between the clip's colour and white).
+
+Inside a `CLIP TIMELINE VIEW`, hold `SONG` button and press the `LEFT SIDEBAR` to launch a macro.
+
+In `KEYBOARD VIEW`, macros are available as a sidebar control. `SHIFT` makes the launch immediate just like in song view. `AFFECT ENTIRE` + `CLIP MACRO` can be used to jump to edit the clip.
 
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
