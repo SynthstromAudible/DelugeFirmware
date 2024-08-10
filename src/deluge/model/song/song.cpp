@@ -5322,7 +5322,7 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 
 	Clip* newClip = clip->cloneAsNewOverdub(modelStackWithTimelineCounter, newOverdubNature);
 
-	if (newClip) {
+	if (newClip && newClip != clip) {
 		newClip->overdubNature = newOverdubNature;
 		sessionClips.insertClipAtIndex(newClip, clipIndex);
 		if (clipIndex != songViewYScroll) {

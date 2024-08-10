@@ -368,8 +368,13 @@ void Session::doLaunch(bool isFillLaunch) {
 				}
 			}
 
-			// If armed to stop
-			else if (clip->armState != ArmState::OFF && !isFillLaunch) {
+			// start up an overdub
+			else if (clip->armState == ArmState::ON_TO_RECORD) {
+				giveClipOpportunityToBeginLinearRecording(clip, c, 0);
+			}
+			// If armed to stop (these mean stop normally or end soloing respectively)
+			else if ((clip->armState == ArmState::ON_NORMAL || clip->armState == ArmState::ON_TO_SOLO)
+			         && !isFillLaunch) {
 
 				clip->armState = ArmState::OFF;
 

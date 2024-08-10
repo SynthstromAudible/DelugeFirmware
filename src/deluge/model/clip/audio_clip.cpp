@@ -110,6 +110,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 void AudioClip::copyBasicsFrom(Clip const* otherClip) {
 	Clip::copyBasicsFrom(otherClip);
 	overdubsShouldCloneOutput = ((AudioClip*)otherClip)->overdubsShouldCloneOutput;
+	doTrueOverdubs = ((AudioClip*)otherClip)->doTrueOverdubs;
 }
 
 void AudioClip::abortRecording() {
@@ -136,7 +137,7 @@ void AudioClip::abortRecording() {
 }
 
 bool AudioClip::wantsToBeginLinearRecording(Song* song) {
-	return (Clip::wantsToBeginLinearRecording(song) && !sampleHolder.audioFile
+	return (Clip::wantsToBeginLinearRecording(song) && (!sampleHolder.audioFile || doTrueOverdubs)
 	        && ((AudioOutput*)output)->inputChannel > AudioInputChannel::NONE);
 }
 
@@ -146,12 +147,26 @@ bool AudioClip::isAbandonedOverdub() {
 
 Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 
-	AudioInputChannel inputChannel = ((AudioOutput*)output)->inputChannel;
-	Output* outputRecordingFrom = ((AudioOutput*)output)->getOutputRecordingFrom();
-	int32_t numChannels =
-	    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO) ? 2
-	                                                                                                             : 1;
+	AudioInputChannel inputChannel;
+	Output* outputRecordingFrom;
+	int32_t numChannels;
 
+	if (isEmpty()) {
+
+		inputChannel = ((AudioOutput*)output)->inputChannel;
+		outputRecordingFrom = ((AudioOutput*)output)->getOutputRecordingFrom();
+		numChannels =
+		    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO)
+		        ? 2
+		        : 1;
+	}
+	// if we already have an input then we're going to record an overdub instead. This won't be called if the clip is
+	// doing the classic deluge clip cloning loops (will be called on the clone instead)
+	else {
+		inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		outputRecordingFrom = output;
+		numChannels = 2;
+	}
 	bool shouldRecordMarginsNow =
 	    FlashStorage::audioClipRecordMargins && inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
 
@@ -199,6 +214,9 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 		getRootUI()->clipNeedsReRendering(this);
 	}
 
+	if (!isEmpty()) {
+		clear(nullptr, modelStack, true, true);
+	}
 	sampleHolder.filePath.set(&recorder->sample->filePath);
 	sampleHolder.setAudioFile(recorder->sample, sampleControls.reversed, true,
 	                          CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after
@@ -218,7 +236,12 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 }
 
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
-
+	if (doTrueOverdubs) {
+		originalLength = loopLength;
+		armState = ArmState::ON_TO_RECORD;
+		isPendingOverdub = true;
+		return this;
+	}
 	// Allocate memory for audio clip
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
@@ -254,7 +277,7 @@ ramError:
 
 bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
 	// don't clone for loop commands in red mode
-	if (!overdubsShouldCloneOutput) {
+	if (!overdubsShouldCloneOutput || doTrueOverdubs) {
 		return false;
 	}
 
