@@ -308,7 +308,8 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 	}
 
 	// If at pos 0, that's the only place where anything really important happens: play the Sample
-	if (!lastProcessedPos) {
+	// also play it if we're auto extending and we just did that
+	if (!(lastProcessedPos % originalLength)) {
 
 		// If there is a sample, play it
 		if (sampleHolder.audioFile && !((Sample*)sampleHolder.audioFile)->unplayable) {
@@ -830,6 +831,8 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 // May change the TimelineCounter in the modelStack if new Clip got created
 void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
+	if (!isEmpty()) {}
+
 	Clip::posReachedEnd(modelStack);
 
 	// If recording from session to arranger...
@@ -1266,8 +1269,8 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 				abortRecording();
 			}
 		}
-
-		else if (sampleHolder.audioFile) {
+		// with overdubs these could both be true
+		if (sampleHolder.audioFile) {
 			// we're not actually deleting the song, but we don't want to keep this sample cached since we can't get it
 			// back anyway
 			unassignVoiceSample(true);
