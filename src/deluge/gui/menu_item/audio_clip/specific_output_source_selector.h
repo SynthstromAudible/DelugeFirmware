@@ -47,8 +47,10 @@ public:
 	void selectEncoderAction(int32_t offset) override {
 		outputIndex += offset;
 		outputIndex = std::clamp<int32_t>(outputIndex, 0, numOutputs - 1);
+		audioOutputBeingEdited->outputRecordingFrom->setRenderingToAudioOutput(false);
 		auto newRecordingFrom = currentSong->getOutputFromIndex(outputIndex);
 		audioOutputBeingEdited->outputRecordingFrom = newRecordingFrom;
+		audioOutputBeingEdited->outputRecordingFrom->setRenderingToAudioOutput(audioOutputBeingEdited->echoing);
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}

@@ -123,6 +123,7 @@ enum class String : size_t {
 	STRING_FOR_MIX_PRE_FX,
 	STRING_FOR_MIX_POST_FX,
 	STRING_FOR_TRACK,
+	STRING_FOR_TRACK_WITH_FX,
 
 	// gui/context_menu/clip_settings/launch_style.cpp
 	STRING_FOR_DEFAULT_LAUNCH,

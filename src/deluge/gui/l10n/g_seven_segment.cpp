@@ -67,6 +67,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_MIX_PRE_FX, "MIX"},
         {STRING_FOR_MIX_POST_FX, "OUTP"},
         {STRING_FOR_TRACK, "TRAK"},
+        {STRING_FOR_TRACK_WITH_FX, "TRAK."},
         {STRING_FOR_DEFAULT_LAUNCH, "INF"},
         {STRING_FOR_FILL_LAUNCH, "FILL"},
         {STRING_FOR_ONCE_LAUNCH, "ONCE"},
