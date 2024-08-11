@@ -332,10 +332,11 @@ void Session::doLaunch(bool isFillLaunch) {
 			output->isGettingSoloingClip = false;
 		}
 	}
+	int32_t distanceTilLaunchEvent = 0; // For if clips automatically armed cos they just started recording a loop
 
-	// Ok, now action the stopping of all Clips which need to stop - including ones which weren't actually armed to stop
-	// but need to stop in order to make way for other ones which were armed to start. But we can't action the starting
-	// of any Clips yet, until all stopping is done.
+	// Ok, now action all currently playing clips. This includes clips armed to start recording or stop - including ones
+	// which weren't actually armed to stop but need to stop in order to make way for other ones which were armed to
+	// start. But we can't action the starting of any Clips yet, until all stopping is done.
 	for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
@@ -370,7 +371,16 @@ void Session::doLaunch(bool isFillLaunch) {
 
 			// start up an overdub
 			else if (clip->armState == ArmState::ON_TO_RECORD) {
+				clip->armState = ArmState::OFF;
+				clip->setPos(modelStackWithTimelineCounter, 0, false);
+
 				giveClipOpportunityToBeginLinearRecording(clip, c, 0);
+				output = clip->output; // A new Output may have been created as recording began
+
+				// If that caused it to be armed *again*...
+				if (clip->armState == ArmState::ON_NORMAL) {
+					distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
+				}
 			}
 			// If armed to stop (these mean stop normally or end soloing respectively)
 			else if ((clip->armState == ArmState::ON_NORMAL || clip->armState == ArmState::ON_TO_SOLO)
@@ -483,7 +493,6 @@ stopOnlyIfOutputTaken:
 
 	bool sectionWasJustLaunched = (lastSectionArmed < 254);
 	bool anyLinearRecordingAfter = false;
-	int32_t distanceTilLaunchEvent = 0; // For if clips automatically armed cos they just started recording a loop
 
 	// Now action the launching of Clips
 	for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
@@ -517,7 +526,7 @@ stopOnlyIfOutputTaken:
 				}
 			}
 
-			// But if it is armed, to start playing or soloing...
+			// But if it is armed, to start playing, recording, or soloing...
 			else {
 
 				clip->armState = ArmState::OFF;

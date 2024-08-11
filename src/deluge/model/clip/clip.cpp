@@ -722,6 +722,7 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 	else if (!strcmp(tagName, "trackLength") || !strcmp(tagName, "length")) {
 		loopLength = reader.readTagOrAttributeValueInt();
 		loopLength = std::max((int32_t)1, loopLength);
+		originalLength = loopLength; // it's 0 otherwise, which is fine except for audio clips
 		*readAutomationUpToPos = loopLength;
 	}
 
@@ -1170,4 +1171,9 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 		numTicks = -numTicks;
 	}
 	lastProcessedPos += numTicks;
+}
+void Clip::setupOverdubInPlace() {
+	originalLength = loopLength;
+	armState = ArmState::ON_TO_RECORD;
+	isPendingOverdub = true;
 }

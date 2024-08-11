@@ -5260,7 +5260,7 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 			anyDeleted = true;
 		}
 	}
-
+	D_PRINTLN("Deleted pending overdubs");
 	return anyDeleted;
 }
 
@@ -5309,28 +5309,32 @@ Clip* Song::getClipWithOutputAboutToBeginLinearRecording(Output* output) {
 }
 
 Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, OverDubType newOverdubNature) {
-
+	Clip* newClip = clip; // we're returning the clip to be scheduled, default to this one
 	// No automatic overdubs are allowed during soloing, cos that's just too complicated
 	if (anyClipsSoloing) {
 		return NULL;
 	}
+	if (clip->shouldCloneForOverdubs()) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+		newClip = clip->cloneAsNewOverdub(modelStackWithTimelineCounter, newOverdubNature);
 
-	Clip* newClip = clip->cloneAsNewOverdub(modelStackWithTimelineCounter, newOverdubNature);
+		if (newClip && newClip != clip) {
+			newClip->overdubNature = newOverdubNature;
+			sessionClips.insertClipAtIndex(newClip, clipIndex);
+			if (clipIndex != songViewYScroll) {
+				songViewYScroll++;
+			}
 
-	if (newClip && newClip != clip) {
-		newClip->overdubNature = newOverdubNature;
-		sessionClips.insertClipAtIndex(newClip, clipIndex);
-		if (clipIndex != songViewYScroll) {
-			songViewYScroll++;
+			// use root UI in case this is called from performance view
+			sessionView.requestRendering(getRootUI());
 		}
-
-		// use root UI in case this is called from performance view
-		sessionView.requestRendering(getRootUI());
+	}
+	else {
+		clip->setupOverdubInPlace();
 	}
 
 	return newClip;

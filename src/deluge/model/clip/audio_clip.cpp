@@ -150,7 +150,7 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	AudioInputChannel inputChannel;
 	Output* outputRecordingFrom;
 	int32_t numChannels;
-
+	bool shouldNormalize{false};
 	if (isEmpty()) {
 
 		inputChannel = ((AudioOutput*)output)->inputChannel;
@@ -159,6 +159,8 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 		    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO)
 		        ? 2
 		        : 1;
+		shouldNormalize =
+		    (inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION); // if reading from input we need this
 	}
 	// if we already have an input then we're going to record an overdub instead. This won't be called if the clip is
 	// doing the classic deluge clip cloning loops (will be called on the clone instead)
@@ -176,6 +178,7 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 		return Error::INSUFFICIENT_RAM;
 	}
 	recorder->autoDeleteWhenDone = true;
+	recorder->allowNormalization = shouldNormalize;
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
 }
 
@@ -217,6 +220,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	if (!isEmpty()) {
 		clear(nullptr, modelStack, true, true);
 	}
+	originalLength = loopLength;
 	sampleHolder.filePath.set(&recorder->sample->filePath);
 	sampleHolder.setAudioFile(recorder->sample, sampleControls.reversed, true,
 	                          CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after
@@ -236,12 +240,6 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 }
 
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
-	if (doTrueOverdubs) {
-		originalLength = loopLength;
-		armState = ArmState::ON_TO_RECORD;
-		isPendingOverdub = true;
-		return this;
-	}
 	// Allocate memory for audio clip
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(AudioClip));
 	if (!clipMemory) {
@@ -309,7 +307,7 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 
 	// If at pos 0, that's the only place where anything really important happens: play the Sample
 	// also play it if we're auto extending and we just did that
-	if (!(lastProcessedPos % originalLength)) {
+	if (!(lastProcessedPos) || (getCurrentlyRecordingLinearly() && !(lastProcessedPos % originalLength))) {
 
 		// If there is a sample, play it
 		if (sampleHolder.audioFile && !((Sample*)sampleHolder.audioFile)->unplayable) {
@@ -504,7 +502,8 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 
 void AudioClip::setupPlaybackBounds() {
 	if (sampleHolder.audioFile) {
-		guide.sequenceSyncLengthTicks = loopLength;
+		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength;
+		guide.sequenceSyncLengthTicks = length;
 		guide.setupPlaybackBounds(sampleControls.reversed);
 	}
 }
@@ -949,8 +948,9 @@ int64_t AudioClip::getSamplesFromTicks(int32_t ticks) {
 		return playbackHandler.getTimePerInternalTickFloat() * ticks;
 	}
 	else {
+		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength;
 		return (int64_t)ticks * sampleHolder.getDurationInSamples(true)
-		       / loopLength; // Yup, ticks could be negative, and so could the result
+		       / length; // Yup, ticks could be negative, and so could the result
 	}
 }
 
@@ -1248,6 +1248,7 @@ void AudioClip::quantizeLengthForArrangementRecording(ModelStackWithTimelineCoun
 
 	int32_t oldLength = loopLength;
 	loopLength = suggestedLength;
+	originalLength = loopLength;
 	lengthChanged(modelStack, oldLength, NULL);
 }
 
