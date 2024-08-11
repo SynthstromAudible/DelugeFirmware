@@ -307,8 +307,14 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 
 	// If at pos 0, that's the only place where anything really important happens: play the Sample
 	// also play it if we're auto extending and we just did that
-	if (!(lastProcessedPos) || (getCurrentlyRecordingLinearly() && !(lastProcessedPos % originalLength))) {
-
+	if (!lastProcessedPos || lastProcessedPos == nextSampleRestartPos) {
+		if (getCurrentlyRecordingLinearly()) {
+			nextSampleRestartPos = lastProcessedPos + originalLength;
+			// make sure we come back here later
+			if (originalLength < playbackHandler.swungTicksTilNextEvent) {
+				playbackHandler.swungTicksTilNextEvent = originalLength;
+			}
+		}
 		// If there is a sample, play it
 		if (sampleHolder.audioFile && !((Sample*)sampleHolder.audioFile)->unplayable) {
 

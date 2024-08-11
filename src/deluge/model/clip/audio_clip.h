@@ -87,7 +87,7 @@ public:
 	Error readFromFile(Deserializer& reader, Song* song) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;
 	char const* getXMLTag() override { return "audioClip"; }
-
+	int32_t nextSampleRestartPos;
 	SampleControls sampleControls;
 
 	SampleHolderForClip sampleHolder;
