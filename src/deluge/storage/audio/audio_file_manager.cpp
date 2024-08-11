@@ -344,6 +344,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		while (storageManager.fileExists(namedPath)) {
 			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath->get(), songName->get(), channelName,
 			         i);
+			i++;
 		}
 		error = filePath->set(namedPath);
 		if (error != Error::NONE) {
