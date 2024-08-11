@@ -295,10 +295,10 @@ as the micromonsta and the dreadbox nymphes.
 - ([#2299]) Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG VIEW` which enables you to select the type of clip before the clip is created.
   - In `SONG (GRID) VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
   - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
-- Removed the `SONG VIEW` shortcut of Pressing `CLIP` + `SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
+- Removed the `SONG VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
 
-#### 3.28 Updated UI for Setting Clip Launch Style in Song View
-- ([#2299]) Pressing `CLIP` + `SELECT` in `SONG VIEW` will now always open the `LAUNCH STYLE` menu so you can change the Clip launch style between `DEFAULT`, `FILL` and `ONCE`.
+#### 3.28 Updated UI for Setting Clip Mode in Song View
+- ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
 
 ## 4. New Features Added
 
@@ -344,8 +344,6 @@ Here is a list of features that have been added to the firmware as a list, group
   The `CLIP MODE` menu enables you the set the following launch style options for a clip:
     - **`INFINITE (INF)`** - the default Deluge launch style.
     - **`Fill (FILL)`** - Fill clip.
-        - When inactive it appears orange on the status pads in rows view, or in Config Mode in grid view.
-        - When active it will appear green.
         - When launched it will schedule itself to start at such a time that it _finishes_ at the start of the next
         loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through.
         The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section.
@@ -354,8 +352,6 @@ Here is a list of features that have been added to the firmware as a list, group
           never starting since a default type clip has the needed instrument. This can be worked around by cloning the
           instrument to an independent copy.
     - **`Once (ONCE)`** - Once clip.
-        - When inactive it appears purple on the status pads in rows view, or in Config Mode in grid view.
-        - When active it will appear green.
         - When triggered it will schedule itself to
         start at the start of the next loop. Then it will schedule itself to stop, so it just plays once. This type of
         clips also work when soloing them, they will solo just for one loop and unsolo after that.
