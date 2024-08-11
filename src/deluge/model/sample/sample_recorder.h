@@ -51,7 +51,7 @@ public:
 	Error setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
 	            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
 	            Output* outputRecordingFrom);
-	void feedAudio(int32_t* inputAddress, int32_t numSamples, bool applyGain = false);
+	void feedAudio(int32_t* inputAddress, int32_t numSamples, bool applyGain = false, uint8_t gainToApply = 5);
 	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
 	bool inputLooksDifferential();
