@@ -150,7 +150,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		compressor.reset();
 	}
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		recorder->feedAudio((int32_t*)globalEffectableBuffer, numSamples, true);
+		recorder->feedAudio((int32_t*)globalEffectableBuffer, numSamples, false);
 	}
 	addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 

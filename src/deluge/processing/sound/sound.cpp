@@ -2430,7 +2430,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	}
 
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		recorder->feedAudio(soundBuffer, numSamples, true);
+		recorder->feedAudio(soundBuffer, numSamples, false);
 	}
 	addAudio((StereoSample*)soundBuffer, outputBuffer, numSamples);
 
