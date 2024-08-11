@@ -2080,7 +2080,7 @@ skipInstance:
 		if (thisOutput->type == OutputType::AUDIO) {
 			auto ao = (AudioOutput*)thisOutput;
 			if (ao->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
-				ao->outputRecordingFrom = getOutputFromIndex(ao->outputRecordingFromIndex);
+				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex), ao->echoing);
 			}
 		}
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
