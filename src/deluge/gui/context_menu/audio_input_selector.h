@@ -18,8 +18,7 @@
 #pragma once
 
 #include "gui/context_menu/context_menu.h"
-
-class AudioOutput;
+#include "processing/audio_output.h"
 
 namespace deluge::gui::context_menu {
 

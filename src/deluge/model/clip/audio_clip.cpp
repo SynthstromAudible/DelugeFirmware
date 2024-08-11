@@ -16,6 +16,7 @@
  */
 
 #include "model/clip/audio_clip.h"
+#include "clip.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/views/automation_view.h"
@@ -137,7 +138,7 @@ void AudioClip::abortRecording() {
 }
 
 bool AudioClip::wantsToBeginLinearRecording(Song* song) {
-	return (Clip::wantsToBeginLinearRecording(song) && (!sampleHolder.audioFile || doTrueOverdubs)
+	return (Clip::wantsToBeginLinearRecording(song) && (!sampleHolder.audioFile || !shouldCloneForOverdubs())
 	        && ((AudioOutput*)output)->inputChannel > AudioInputChannel::NONE);
 }
 
@@ -275,7 +276,7 @@ ramError:
 
 bool AudioClip::cloneOutput(ModelStackWithTimelineCounter* modelStack) {
 	// don't clone for loop commands in red mode
-	if (!overdubsShouldCloneOutput || doTrueOverdubs) {
+	if (!overdubsShouldCloneOutput) {
 		return false;
 	}
 

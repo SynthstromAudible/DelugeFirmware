@@ -5314,7 +5314,8 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 	if (anyClipsSoloing) {
 		return NULL;
 	}
-	if (clip->shouldCloneForOverdubs()) {
+	// if we're in rows or the clip can't support in place overdub then use the traditional deluge cloning looper
+	if (sessionLayout == SessionLayoutType::SessionLayoutTypeRows || clip->shouldCloneForOverdubs()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
@@ -5334,7 +5335,7 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 		}
 	}
 	else {
-		clip->setupOverdubInPlace();
+		clip->setupOverdubInPlace(newOverdubNature);
 	}
 
 	return newClip;

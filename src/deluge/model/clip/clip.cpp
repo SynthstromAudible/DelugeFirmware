@@ -1172,8 +1172,10 @@ void Clip::incrementPos(ModelStackWithTimelineCounter* modelStack, int32_t numTi
 	}
 	lastProcessedPos += numTicks;
 }
-void Clip::setupOverdubInPlace() {
+void Clip::setupOverdubInPlace(OverDubType type) {
 	originalLength = loopLength;
 	armState = ArmState::ON_TO_RECORD;
-	isPendingOverdub = true;
+	// This is used to indicate a cloned overdub clip that doesn't have anything in it, not overdub in place
+	isPendingOverdub = false;
+	overdubNature = type;
 }

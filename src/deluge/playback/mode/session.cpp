@@ -375,7 +375,6 @@ void Session::doLaunch(bool isFillLaunch) {
 				clip->setPos(modelStackWithTimelineCounter, 0, false);
 
 				giveClipOpportunityToBeginLinearRecording(clip, c, 0);
-				output = clip->output; // A new Output may have been created as recording began
 
 				// If that caused it to be armed *again*...
 				if (clip->armState == ArmState::ON_NORMAL) {

@@ -24,6 +24,8 @@
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
+#include "model/song/song.h"
+#include "processing/audio_output.h"
 #include "util/d_string.h"
 
 class VoiceSample;
@@ -57,7 +59,13 @@ public:
 	void quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack, int32_t lengthSoFar,
 	                                           uint32_t timeRemainder, int32_t suggestedLength,
 	                                           int32_t alternativeLongerLength) override;
-	bool shouldCloneForOverdubs() override { return !doTrueOverdubs; };
+
+	// we can only do in place overdubs if input monitoring is on right now, recording input seperately might come later
+	// if we're in rows mode then use the old cloning method instead
+	bool shouldCloneForOverdubs() override {
+		return currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows
+		       || !(((AudioOutput*)output)->echoing);
+	};
 	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) override;
 	int64_t getSamplesFromTicks(int32_t ticks);
 	void unassignVoiceSample(bool wontBeUsedAgain);
@@ -127,6 +135,5 @@ private:
 	void removeClipFromSection(AudioClip* clip);
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
 	LoopType getLoopingType(ModelStackWithTimelineCounter const* modelStack);
-	bool doTrueOverdubs{true};
 	bool recordPostFX{true};
 };
