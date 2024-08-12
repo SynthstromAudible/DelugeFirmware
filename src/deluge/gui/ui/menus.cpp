@@ -138,6 +138,7 @@
 #include "gui/menu_item/sidechain/send.h"
 #include "gui/menu_item/sidechain/sync.h"
 #include "gui/menu_item/sidechain/volume.h"
+#include "gui/menu_item/song_macros/configure.h"
 #include "gui/menu_item/source/patched_param/fm.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
@@ -1199,6 +1200,8 @@ menu_item::Submenu stemExportMenu{
     },
 };
 
+song_macros::Configure configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
+
 // Root menu for Song View
 menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
@@ -1208,6 +1211,7 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalFXMenu,
         &swingIntervalMenu,
         &midiLoopbackMenu,
+        &configureSongMacrosMenu,
         &stemExportMenu,
     },
 };
