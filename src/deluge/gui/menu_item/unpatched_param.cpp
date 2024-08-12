@@ -81,15 +81,6 @@ uint32_t UnpatchedParam::getParamIndex() {
 	return this->getP();
 }
 
-void UnpatchedParam::renderSubmenuItemTypeForOled(int32_t yPixel) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-
-	DEF_STACK_STRING_BUF(paramValue, 10);
-	paramValue.appendInt(getParamValue());
-
-	image.drawStringAlignRight(paramValue.c_str(), yPixel, kTextSpacingX, kTextSpacingY, OLED_MAIN_WIDTH_PIXELS - 3);
-}
-
 // ---------------------------------------
 
 // ---------------------------------------

@@ -48,9 +48,10 @@ struct {
 	const char* shortname;
 	int index;
 } items[] = {
-    {"algorithm", "algo", 134}, {"feedback", "fbck", 135},      {"sync", "sync", 136},      {"operator 1", "op 1", -1},
-    {"operator 2", "op 2", -2}, {"operator 3", "op 3", -3},     {"operator 4", "op 4", -4}, {"operator 5", "op 5", -5},
-    {"operator 6", "op 6", -6}, {"pitch env.", "penv", 6 * 21}, {"lfo", "lfo", 137},
+    {"algorithm", "algo", 134},         {"feedback", "fbck", 135},  {"sync", "sync", 136},
+    {"operator 1", "op 1", -1},         {"operator 2", "op 2", -2}, {"operator 3", "op 3", -3},
+    {"operator 4", "op 4", -4},         {"operator 5", "op 5", -5}, {"operator 6", "op 6", -6},
+    {"pitch envelope", "penv", 6 * 21}, {"lfo", "lfo", 137},
 };
 
 constexpr int numValues = sizeof(items) / sizeof(items[0]);

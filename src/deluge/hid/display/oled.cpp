@@ -444,31 +444,37 @@ struct TextLineBreakdown {
 	int32_t maxWidthPerLine;
 };
 
-/// checks if a character fits within line width based on width of characters of added so far
-/// + the width of the character we are trying to add
-/// if the character fits, this function will return:
+/// adds character to line by increasing line width (in px) and line length (in characters)
+/// returns the following:
 /// 1) updated line width in pixels
 /// 2) updated line length in characters
 /// 3) number of spacing in pixels added after the last character
+/// 4) whether the character added extends the line width past the max width allowed
 bool addCharacterToLine(char c, int32_t maxWidthPerLine, int32_t textHeight, int32_t& lineWidth, int32_t& lineLength,
                         int32_t& charSpacing) {
 	// we're in a word, calculate width (in px) of the character in that word
 	int32_t charWidth = deluge::hid::display::OLED::popup.getCharWidthInPixels(c, textHeight);
-	// is the cumulative width (in px) for the line we're looking at less than the max width of that line?
-	if ((lineWidth + charWidth) <= maxWidthPerLine) {
-		// this character fits within the line's width so increment the size of this line
-		lineWidth += charWidth;
-		// add spacing after the character so we can see if next character will fit in the line
-		// if we can't fit next character we'll need to remove this extra spacing (see below)
-		charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(c, false);
-		lineWidth += charSpacing;
 
-		// increment the number of characters in this line
-		lineLength++;
+	// increase line width for the character added
+	lineWidth += charWidth;
 
+	// add spacing (not relevant if you're using a monospaced font, which we are here, but keep it anyway in case we
+	// don't)
+	charSpacing = deluge::hid::display::OLED::popup.getCharSpacingInPixels(c, textHeight, false);
+	lineWidth += charSpacing;
+
+	// increment the number of characters in this line
+	lineLength++;
+
+	// does the character we just added cause us to go over the line width?
+	// if no, return true so we can keep adding characters
+	if (lineWidth <= maxWidthPerLine) {
 		return true;
 	}
-	return false;
+	// if yes, return false so we stop looking at characters
+	else {
+		return false;
+	}
 }
 
 /// used with breakStringIntoLines function below
@@ -482,20 +488,22 @@ bool addCharacterToLine(char c, int32_t maxWidthPerLine, int32_t textHeight, int
 /// 5) returns number of spacing in pixels added after the last character
 char const* findLineSplitPoint(char const* wordStart, int32_t maxWidthPerLine, int32_t textHeight, int32_t& lineWidth,
                                int32_t& lineLength, int32_t& charSpacing) {
+	bool lineWidthLimitReached = false;
 	char const* space = wordStart;
 	while (true) {
 		// we've reached end of a word
 		if (*space == '\n' || *space == ' ' || *space == 0 || *space == '_') {
 			break;
 		}
-		// this means current character does not fit in current line (line max width would be exceeded)
+		// add character and check if the character we just aded takes us over the line width
 		if (!addCharacterToLine(*space, maxWidthPerLine, textHeight, lineWidth, lineLength, charSpacing)) {
-			break;
+			// character took us over line width, so return here
+			return space;
 		}
 		space++; // increment to see what next character is
 	}
 
-	// we're here because we reached end of a word or because we reached line width limit
+	// we're here because we reached end of a word
 	if (*space == '_' || *space == ' ') {
 		addCharacterToLine(*space, maxWidthPerLine, textHeight, lineWidth, lineLength, charSpacing);
 	}
@@ -559,7 +567,6 @@ findNextStringSplitPoint:
 		if (*space == '\n' || *space == 0) {
 			// if we reached line break or end of string, we don't need extra spacing after it
 			lineWidth -= charSpacing;
-			lineWidth--; // Sean: need to figure out why this additional -1 adjustment is needed
 			addLine(textLineBreakdown, lineStart, lineWidth, lineLength);
 			// did we reach the end of the original string? or the max number of lines?
 			// then return, we're done
@@ -592,8 +599,7 @@ findNextStringSplitPoint:
 		// if current character is a space, we won't draw it on the next line
 		// so let's move forward a character
 		if (*space == ' ') {
-			lineStart = space + 1;
-			wordStart = lineStart + 1;
+			wordStart = lineStart = space + 1;
 		}
 		// otherwise let's render the current word on the next line because it's too long for this line
 		else {
@@ -844,7 +850,7 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 
 	int32_t charIdx = 0;
 	for (char const c : text) {
-		int32_t charSpacing = main.getCharSpacingInPixels(c, charIdx == scroller->textLength);
+		int32_t charSpacing = main.getCharSpacingInPixels(c, textSizeY, charIdx == scroller->textLength);
 		int32_t charWidth = main.getCharWidthInPixels(c, textSizeY) + charSpacing;
 		scroller->stringLengthPixels += charWidth;
 		charIdx++;

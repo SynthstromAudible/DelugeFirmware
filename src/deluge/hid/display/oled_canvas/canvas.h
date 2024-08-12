@@ -142,8 +142,9 @@ public:
 	/// Returns spacing in pixels between characters drawn in a string
 	///
 	/// @param theChar A single character
+	/// @param textHeight The height of the character (to distinguish between non-bold and bold characters)
 	/// @param isLastChar a boolean to specify whether any char's follow this char
-	int32_t getCharSpacingInPixels(uint8_t theChar, bool isLastChar);
+	int32_t getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool isLastChar);
 
 	/// Returns width of a string in pixels
 	///
