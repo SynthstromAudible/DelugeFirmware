@@ -57,9 +57,6 @@ public:
 		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	};
 
-	// renders param value in submenus after the item name
-	void renderSubmenuItemTypeForOled(int32_t yPixel) override;
-
 	int32_t getParamValue() {
 		readCurrentValue();
 		return getValue();

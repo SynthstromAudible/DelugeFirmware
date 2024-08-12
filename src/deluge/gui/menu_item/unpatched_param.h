@@ -57,9 +57,6 @@ public:
 	ParamSet* getParamSet() final;
 	ModelStackWithAutoParam* getModelStack(void* memory) final;
 
-	// renders param value in submenus after the item name
-	void renderSubmenuItemTypeForOled(int32_t yPixel) override;
-
 	int32_t getParamValue() {
 		readCurrentValue();
 		return getValue();

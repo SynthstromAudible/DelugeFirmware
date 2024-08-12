@@ -133,7 +133,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		int32_t widthOfCharsToChopOff = 0;
 		int32_t charStartX = 0;
 		for (char const c : string) {
-			int32_t charSpacing = getCharSpacingInPixels(c, charIdx == stringLength);
+			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
 			int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
 			charStartX += charWidth;
 			// are we past the scroll position?
@@ -162,7 +162,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 	// if we scrolled above, then the string, ScrollPos, stringLength will have been adjusted
 	// here we're going to draw the remaining characters in the string
 	for (char const c : string) {
-		int32_t charSpacing = getCharSpacingInPixels(c, charIdx == stringLength);
+		int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
 		int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
 		drawChar(c, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
 
@@ -321,16 +321,13 @@ int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 	if (charIndex <= 0) {
 		return 0;
 	}
+	// the smaller apple ][ is monospaced, so return standard width of each character
+	else if (textHeight <= 9) {
+		return kTextSpacingX;
+	}
 
 	lv_font_glyph_dsc_t const* descriptor;
 	switch (textHeight) {
-	case 9:
-		[[fallthrough]];
-	case 7:
-		[[fallthrough]];
-	case 8:
-		descriptor = font_apple_desc;
-		break;
 	case 10:
 		descriptor = font_metric_bold_9px_desc;
 		break;
@@ -348,19 +345,33 @@ int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 	return descriptor->w_px;
 }
 
-int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, bool isLastChar) {
+int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool isLastChar) {
+	bool monospacedFont = (textHeight <= 9);
 	// don't add space to the last character
 	if (isLastChar) {
 		return 0;
 	}
-	// if character is a space, make spacing 6px instead
-	// (just need to add 5 since previous character added 1 after it)
 	else if (theChar == ' ') {
-		return 5;
+		// smaller apple ][ font is monospaced, so spacing is different
+		if (monospacedFont) {
+			return kTextSpacingX;
+		}
+		// if character is a space, make spacing 6px instead
+		// (just need to add 5 since previous character added 1 after it)
+		else {
+			return 5;
+		}
 	}
-	// default spacing is 1 pixel
 	else {
-		return 1;
+		// smaller apple ][ font is monospaced, so no extra spacing needs to be added
+		// as it's handled by the standard char width
+		if (monospacedFont) {
+			return 0;
+		}
+		// default spacing is 2 pixels for bold fonts
+		else {
+			return 2;
+		}
 	}
 }
 
@@ -370,7 +381,7 @@ int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
 	int32_t stringWidth = 0;
 	int32_t charIdx = 0;
 	for (char const c : str) {
-		int32_t charSpacing = getCharSpacingInPixels(c, charIdx == stringLength);
+		int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
 		int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
 		stringWidth += charWidth;
 		charIdx++;
