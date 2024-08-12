@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
+#include "model/song/song.h"
 #include "storage/flash_storage.h"
 
 class Editor;
@@ -129,6 +130,12 @@ public:
 	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
 	Clip* newClipToCreate;
 
+	// Grid macros config mode
+	void enterMacrosConfigMode();
+	void exitMacrosConfigMode();
+	char const* getMacroKindString(SessionMacroKind kind);
+	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
 	// no dispatch logic.
@@ -161,6 +168,9 @@ private:
 	// Members regarding rendering different layouts
 private:
 	void selectLayout(int8_t offset);
+	void renderLayoutChange(bool displayPopup = true);
+	void selectSpecificLayout(SessionLayoutType layout);
+	SessionLayoutType previousLayout;
 
 	bool sessionButtonActive = false;
 	bool sessionButtonUsed = false;
@@ -183,8 +193,6 @@ private:
 	ActionResult gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip);
 	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
-
-	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 	void gridTransitionToSessionView();
 	void gridTransitionToViewForClip(Clip* clip);

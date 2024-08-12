@@ -1,20 +1,20 @@
 #include "CppUTest/TestHarness.h"
-#include "gui/ui/keyboard/chords.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/keyboard/chords.h"
 
 using deluge::gui::ui::keyboard::ChordList;
-using deluge::gui::ui::keyboard::Voicing;
 using deluge::gui::ui::keyboard::NONE;
+using deluge::gui::ui::keyboard::Voicing;
 
 TEST_GROUP(ChordTests) {
-    ChordList chordList;
+	ChordList chordList;
 };
 
 TEST(ChordTests, getChordBoundsCheck) {
 	// For each chord, iterate through all voicing offsets and then some
 	for (int chordNo = 0; chordNo < kUniqueChords; chordNo++) {
 		// iterate through -5 to twice the number of possible voicings to check bounds
-		for (int voicingOffset = -5; voicingOffset < 2*kUniqueVoicings; voicingOffset++) {
+		for (int voicingOffset = -5; voicingOffset < 2 * kUniqueVoicings; voicingOffset++) {
 			// Set the voicing offset, even if it's out of bounds
 			chordList.voicingOffset[chordNo] = voicingOffset;
 			// Get the voicing, should return between voicing 0 and last valid voicing
@@ -88,6 +88,5 @@ TEST(ChordTests, adjustVoicingOffsetBoundsCheck) {
 		chordList.voicingOffset[chordNo] = kUniqueVoicings - 1;
 		chordList.adjustVoicingOffset(chordNo, -1);
 		CHECK_EQUAL(kUniqueVoicings - 2, chordList.voicingOffset[chordNo]);
-
 	}
 }
