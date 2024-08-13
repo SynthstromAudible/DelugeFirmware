@@ -47,7 +47,7 @@ MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* mo
 	Sound* sound = static_cast<Sound*>(modControllable);
 
 	MenuPermission permission =
-	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
+	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
 
 	// Before going ahead, make sure a Sample is loaded
 	if (permission == MenuPermission::YES) {

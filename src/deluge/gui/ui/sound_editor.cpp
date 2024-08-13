@@ -1559,7 +1559,6 @@ void SoundEditor::setCurrentMultiRange(int32_t i) {
 }
 
 MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
-                                                                               bool automaticallySelectIfOnlyOne,
                                                                                ::MultiRange** previouslySelectedRange) {
 
 	Source* source = &sound->sources[whichThing];
@@ -1570,7 +1569,13 @@ MenuPermission SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam(S
 		return MenuPermission::NO;
 	}
 
-	if (soundEditor.editingKit() || (automaticallySelectIfOnlyOne && source->ranges.getNumElements() == 1)) {
+	// NOTE: This function used to have automaticallySelectIfOnlyOne-parameter, for which FileSelector
+	// and AudioRecorder passed false, and and which was checked in the second half of the OR below.
+	//
+	// Since there was only one option to select, and there was no available reasoning for these exceptions,
+	// that parameter was removed in 2024-08. If there's new weirdness with FileSelector or AudioRecorder,
+	// then we've discovered the reason for the exceptions... and if not, then the UX is slightly smoother.
+	if (soundEditor.editingKit() || (source->ranges.getNumElements() == 1)) {
 		*previouslySelectedRange = firstRange;
 		return MenuPermission::YES;
 	}
