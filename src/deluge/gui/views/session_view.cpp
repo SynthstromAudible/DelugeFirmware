@@ -480,11 +480,16 @@ moveAfterClipInstance:
 				performActionOnPadRelease = false;
 
 				Clip* clip = getClipForLayout();
-				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-				if (clip != nullptr) {
-					context_menu::clip_settings::launchStyle.clip = clip;
-					context_menu::clip_settings::launchStyle.setupAndCheckAvailability();
-					openUI(&context_menu::clip_settings::launchStyle);
+				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+					if (clip != nullptr) {
+						context_menu::clip_settings::launchStyle.clip = clip;
+						context_menu::clip_settings::launchStyle.setupAndCheckAvailability();
+						openUI(&context_menu::clip_settings::launchStyle);
+					}
+				}
+				else if (clip != nullptr) {
+					replaceInstrumentClipWithAudioClip(clip);
 				}
 			}
 			else if (currentUIMode == UI_MODE_NONE) {
@@ -789,15 +794,20 @@ startHoldingDown:
 					// if (possiblyCreatePendingNextOverdub(clipIndex, OverdubType::EXTENDING)) return
 					// ActionResult::DEALT_WITH;
 
-					context_menu::clip_settings::newClipType.yDisplay = yDisplay;
-					context_menu::clip_settings::newClipType.setupAndCheckAvailability();
-					openUI(&context_menu::clip_settings::newClipType);
+					if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+						context_menu::clip_settings::newClipType.yDisplay = yDisplay;
+						context_menu::clip_settings::newClipType.setupAndCheckAvailability();
+						openUI(&context_menu::clip_settings::newClipType);
 
-					// wait until you've exited out of clip creation context menu
-					newClipToCreate = nullptr;
-					yield([]() { return (getCurrentUI() != &context_menu::clip_settings::newClipType); });
+						// wait until you've exited out of clip creation context menu
+						newClipToCreate = nullptr;
+						yield([]() { return (getCurrentUI() != &context_menu::clip_settings::newClipType); });
 
-					clip = newClipToCreate;
+						clip = newClipToCreate;
+					}
+					else {
+						clip = createNewInstrumentClip(OutputType::SYNTH, yDisplay);
+					}
 					if (!clip) {
 						return ActionResult::DEALT_WITH;
 					}
@@ -814,6 +824,10 @@ startHoldingDown:
 					clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
 					selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
 					requestRendering(this, 0, 1 << selectedClipYDisplay);
+
+					if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+						goto startHoldingDown;
+					}
 				}
 			}
 
@@ -1703,6 +1717,42 @@ void SessionView::resyncNewClip(Clip* newClip, ModelStackWithTimelineCounter* mo
 	if (session.hasPlaybackActive() && playbackHandler.isEitherClockActive() && currentSong->isClipActive(newClip)) {
 		session.reSyncClip(modelStackWithTimelineCounter, true);
 	}
+}
+
+void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
+	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
+
+	if (!clip || clip->type != ClipType::INSTRUMENT) {
+		return;
+	}
+
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid
+	    && currentSong->getClipWithOutput(clip->output, false, clip)) {
+		display->displayPopup(deluge::l10n::get(
+		    deluge::l10n::String::STRING_FOR_INSTRUMENTS_WITH_CLIPS_CANT_BE_TURNED_INTO_AUDIO_TRACKS));
+		return;
+	}
+
+	// don't allow clip type change if clip is not empty
+	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
+	if (!instrumentClip->isEmpty()) {
+		return;
+	}
+
+	Clip* newClip = currentSong->replaceInstrumentClipWithAudioClip(clip, clipIndex);
+
+	if (!newClip) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+		return;
+	}
+
+	currentSong->arrangementYScroll--; // Is our best bet to avoid the scroll appearing to change visually
+
+	view.setActiveModControllableTimelineCounter(newClip);
+	view.displayOutputName(newClip->output, true, newClip);
+
+	// If Clip was in keyboard view, need to redraw that
+	requestRendering(this, 1 << selectedClipYDisplay, 1 << selectedClipYDisplay);
 }
 
 void SessionView::removeClip(Clip* clip) {
