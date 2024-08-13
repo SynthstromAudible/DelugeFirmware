@@ -3140,7 +3140,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	}
 
 	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
-	if (synthMode == SynthMode::FM && reader.getFirmwareVersion() < FirmwareVersion::community({1, 2, 0})) {
+	if (synthMode == SynthMode::FM && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
 		hpfMode = FilterMode::OFF;
 		lpfMode = FilterMode::OFF;
 	}
