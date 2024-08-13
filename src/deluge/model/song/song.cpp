@@ -1586,8 +1586,7 @@ unknownTag:
 			}
 			else if (!strcmp(tagName, "preview") || !strcmp(tagName, "previewNumPads")) {
 				reader.tryReadingFirmwareTagFromFile(tagName, false);
-				reader.skipValue(); // call for Json side of things.
-				reader.exitTag(tagName);
+				reader.exitIgnoringValue(tagName);
 			}
 			else if (!strcmp(tagName, "sessionLayout")) {
 				sessionLayout = (SessionLayoutType)reader.readTagOrAttributeValueInt();
@@ -1613,7 +1612,7 @@ unknownTag:
 			                 "inArrangementView")) { // For V2.0 pre-beta songs. There'd be another way to detect
 				                                     // this...
 				lastClipInstanceEnteredStartPos = 0;
-				reader.exitTag("inArrangementView");
+				reader.exitIgnoringValue("inArrangementView");
 			}
 
 			else if (!strcmp(tagName, "currentTrackInstanceArrangementPos")) {
@@ -1919,6 +1918,7 @@ loadOutput:
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
+						reader.match('{');
 						newOutput = new (memory) Kit();
 						defaultDirPath = "KITS";
 						goto setDirPathFirst;
@@ -2257,8 +2257,8 @@ readClip:
 
 			goto readClip;
 		}
-		else {
-			reader.exitTag(tagName);
+		else if (*tagName) {
+			reader.exitIgnoringValue(tagName);
 		}
 	}
 	reader.match(']'); // leave array.

@@ -788,8 +788,8 @@ bool XMLDeserializer::prepareToReadTagOrAttributeValueOneCharAtATime() {
 	}
 }
 
-// ToDo: Make this call act more like exitTag.
-void XMLDeserializer::skipValue() {
+void XMLDeserializer::exitIgnoringValue(char const* exitTagName) {
+	exitTag(exitTagName);
 }
 
 // Only used by Json (at present).

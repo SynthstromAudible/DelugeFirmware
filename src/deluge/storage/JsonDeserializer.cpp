@@ -489,7 +489,7 @@ bool JsonDeserializer::prepareToReadTagOrAttributeValueOneCharAtATime() {
 // skipping everything else.
 // This can be used to bail-out of an unwanted/unknown KVP.
 // When exitting, the index is left at the separator character.
-void JsonDeserializer::skipValue() {
+void JsonDeserializer::exitIgnoringValue(char const* exitTagName) {
 	char nowChar;
 	if (!skipWhiteSpace(false))
 		return;

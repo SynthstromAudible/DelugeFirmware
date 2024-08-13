@@ -635,7 +635,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		// Set default values in case they are not configured
 		arpSettings->syncType = SYNC_TYPE_EVEN;
 		arpSettings->syncLevel = SYNC_LEVEL_NONE;
-
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 			if (!strcmp(tagName,
@@ -692,21 +692,25 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "mode") && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
-				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
-				// but only if the new params are not already read and set,
-				// that is, if we detect they have a value other than default
-				if (arpSettings) {
-					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
-					if (arpSettings->mode == ArpMode::OFF && arpSettings->noteMode == ArpNoteMode::UP
-					    && arpSettings->octaveMode == ArpOctaveMode::UP) {
-						arpSettings->mode = oldModeToArpMode(oldMode);
-						arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
-						arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
-						arpSettings->updatePresetFromCurrentSettings();
+			else if (!strcmp(tagName, "mode")) {
+				if (song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
+					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+					// but only if the new params are not already read and set,
+					// that is, if we detect they have a value other than default
+					if (arpSettings) {
+						OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
+						if (arpSettings->mode == ArpMode::OFF && arpSettings->noteMode == ArpNoteMode::UP
+						    && arpSettings->octaveMode == ArpOctaveMode::UP) {
+							arpSettings->mode = oldModeToArpMode(oldMode);
+							arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
+							arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
+							arpSettings->updatePresetFromCurrentSettings();
+						}
 					}
+					reader.exitTag("mode");
 				}
-				reader.exitTag("mode");
+				else
+					reader.exitIgnoringValue("mode");
 			}
 			else if (!strcmp(tagName,
 			                 "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
@@ -721,7 +725,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 		}
 
-		reader.exitTag("arpeggiator");
+		reader.exitTag("arpeggiator", true);
 	}
 
 	else if (!strcmp(tagName, "transpose")) {
@@ -3314,6 +3318,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			range->sampleHolder.endMSec = 0;
 			range->sampleHolder.startPos = 0;
 			range->sampleHolder.endPos = 0;
+			reader.match('{');
 
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "startSeconds")) {
@@ -3352,10 +3357,10 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				}
 
 				else {
-					reader.exitTag(tagName);
+					reader.exitIgnoringValue(tagName);
 				}
 			}
-			reader.exitTag("zone");
+			reader.exitTag("zone", true);
 		}
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
 

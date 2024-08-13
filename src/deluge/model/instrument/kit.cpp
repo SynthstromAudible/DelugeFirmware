@@ -261,17 +261,20 @@ Error Kit::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t re
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "soundSources")) {
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
+			reader.match('[');
+			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 				DrumType drumType;
 
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
 					drumType = DrumType::SOUND;
 doReadDrum:
-					Error error = readDrumFromFile(storageManager, song, clip, drumType, readAutomationUpToPos);
+					reader.match('{');
+					Error error = readDrumFromFile(storageManager, reader, song, clip, drumType, readAutomationUpToPos);
 					if (error != Error::NONE) {
 						return error;
 					}
-					reader.exitTag();
+					reader.match('}');          // Exit value.
+					reader.exitTag(NULL, true); // Exit box.
 				}
 				else if (!strcmp(tagName, "midiOutput")) {
 					drumType = DrumType::MIDI;
@@ -282,9 +285,10 @@ doReadDrum:
 					goto doReadDrum;
 				}
 				else {
-					reader.exitTag(tagName);
+					reader.exitIgnoringValue(tagName);
 				}
 			}
+			reader.match(']');
 			reader.exitTag("soundSources");
 		}
 		else if (!strcmp(tagName, "selectedDrumIndex")) {
@@ -327,7 +331,7 @@ doReadDrum:
 	return Error::NONE;
 }
 
-Error Kit::readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumType drumType,
+Error Kit::readDrumFromFile(StorageManager& bdsm, Deserializer& reader, Song* song, Clip* clip, DrumType drumType,
                             int32_t readAutomationUpToPos) {
 
 	Drum* newDrum = bdsm.createNewDrum(drumType);
@@ -335,7 +339,6 @@ Error Kit::readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumTy
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	Deserializer& reader = smDeserializer;
 	Error error = newDrum->readFromFile(
 	    reader, song, clip,
 	    readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it

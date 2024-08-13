@@ -2694,7 +2694,7 @@ someError:
 				}
 				else if (!strcmp(tagName, "mode")) {
 					if (song_firmware_version >= FirmwareVersion::community({1, 1, 0})) {
-						reader.skipValue();
+						reader.exitIgnoringValue("mode");
 					}
 					else {
 						// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
@@ -2862,7 +2862,9 @@ createNewParamManager:
 			}
 
 			GlobalEffectableForClip::initParams(&paramManager);
+			reader.match('{');
 			GlobalEffectableForClip::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
+			reader.match('}');
 		}
 
 		else if (!strcmp(tagName, "midiParams")) {
