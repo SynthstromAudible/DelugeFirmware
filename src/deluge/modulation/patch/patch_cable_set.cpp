@@ -830,9 +830,11 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 					rangeAdjustable = reader.readTagOrAttributeValueInt();
 				}
 				else if (!strcmp(tagName, "depthControlledBy")) { // *** JFF still need to do this one.
-					while (*(tagName = reader.readNextTagOrAttributeName())
+					reader.match('[');
+					while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())
 					       && numPatchCables < kMaxNumPatchCables - 1) {
 						if (!strcmp(tagName, "patchCable")) {
+							reader.match('{');
 							PatchSource rangeSource = PatchSource::NONE;
 							AutoParam tempRangeParam;
 							while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -844,7 +846,8 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 								}
 								reader.exitTag();
 							}
-
+							reader.match('}'); // leave value
+							reader.match('}'); // leave box.
 							if (rangeSource != PatchSource::NONE && tempRangeParam.containsSomething(0)) {
 								// Ensure no previous patch cable matches this combination
 								for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
@@ -863,7 +866,9 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 doneWithThisRangeCable:
 						reader.exitTag();
 					} // end of inner patchCable array
-				}     // end of DepthControlledBy kvp handler
+
+				} // end of DepthControlledBy kvp handler
+				reader.match(']');
 				reader.exitTag();
 			}
 			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull() && tempParam.containsSomething(0)) {
@@ -967,25 +972,25 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 				if (!anyDepthControllingCablesFound) {
 					anyDepthControllingCablesFound = true;
 					writer.writeOpeningTagEnd();
-					writer.writeOpeningTag("depthControlledBy");
+					writer.writeArrayStart("depthControlledBy");
 				}
 
-				writer.writeOpeningTagBeginning("patchCable");
+				writer.writeOpeningTagBeginning("patchCable", true);
 				writer.writeAttribute("source", sourceToString(patchCables[d].from));
-
+				writer.insertCommaIfNeeded();
 				writer.write("\n");
 				writer.printIndents();
 				writer.writeTagNameAndSeperator("amount");
 				writer.write("\"");
 				patchCables[d].param.writeToFile(writer, writeAutomation);
 				writer.write("\"");
-				writer.closeTag();
+				writer.closeTag(true);
 			}
 		}
 
 		if (anyDepthControllingCablesFound) {
-			writer.writeClosingTag("depthControlledBy");
-			writer.writeClosingTag("patchCable");
+			writer.writeArrayEnding("depthControlledBy");
+			writer.writeClosingTag("patchCable", true, true);
 		}
 		else {
 			writer.closeTag(true);

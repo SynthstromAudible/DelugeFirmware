@@ -501,6 +501,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 
 	// Backwards-compatible reading of old-style oscs, from pre-mid-2016 files
 	else if (!strcmp(tagName, "oscillatorA")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 			if (!strcmp(tagName, "type")) {
@@ -532,10 +533,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("oscillatorA");
+		reader.exitTag("oscillatorA", true);
 	}
 
 	else if (!strcmp(tagName, "oscillatorB")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
 				sources[1].oscType = stringToOscType(reader.readTagOrAttributeValue());
@@ -567,10 +569,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("oscillatorB");
+		reader.exitTag("oscillatorB", true);
 	}
 
 	else if (!strcmp(tagName, "modulator1")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
@@ -594,10 +597,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("modulator1");
+		reader.exitTag("modulator1", true);
 	}
 
 	else if (!strcmp(tagName, "modulator2")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
@@ -628,7 +632,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("modulator2");
+		reader.exitTag("modulator2", true);
 	}
 
 	else if (!strcmp(tagName, "arpeggiator")) {
@@ -3383,8 +3387,8 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			reader.exitTag("zone", true);
 		}
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
-
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
+			reader.match('[');
+			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 
 				if (!strcmp(tagName, "sampleRange") || !strcmp(tagName, "wavetableRange")) {
 
@@ -3399,7 +3403,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 					}
 
 					AudioFileHolder* holder = tempRange->getAudioFileHolder();
-
+					reader.match('{');
 					while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 						if (!strcmp(tagName, "fileName")) {
@@ -3412,7 +3416,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 						}
 						else if (source->oscType != OscType::WAVETABLE) {
 							if (!strcmp(tagName, "zone")) {
-
+								reader.match('{');
 								while (*(tagName = reader.readNextTagOrAttributeName())) {
 									if (!strcmp(tagName, "startSamplePos")) {
 										((SampleHolder*)holder)->startPos = reader.readTagOrAttributeValueInt();
@@ -3437,7 +3441,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 										reader.exitTag(tagName);
 									}
 								}
-								reader.exitTag("zone");
+								reader.exitTag("zone", true);
 							}
 							else if (!strcmp(tagName, "transpose")) {
 								((SampleHolderForVoice*)holder)->transpose = reader.readTagOrAttributeValueInt();
@@ -3478,15 +3482,16 @@ gotError:
 
 					void* destinationRange = (MultisampleRange*)source->ranges.getElementAddress(i);
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);
-
-					reader.exitTag();
-				}
+					reader.match('}');          // exit value object
+					reader.exitTag(NULL, true); // exit box.
+				}                               // was a sampleRange or wavetableRange
 				else {
 					reader.exitTag();
 				}
 			}
 
 			reader.exitTag();
+			reader.match(']');
 		}
 		else {
 			reader.exitTag();
@@ -3522,14 +3527,14 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 
 		if (numRanges > 1) {
 			writer.writeOpeningTagEnd();
-			writer.writeOpeningTag("sampleRanges");
+			writer.writeArrayStart("sampleRanges");
 		}
 
 		for (int32_t e = 0; e < numRanges; e++) {
 			MultisampleRange* range = (MultisampleRange*)source->ranges.getElement(e);
 
 			if (numRanges > 1) {
-				writer.writeOpeningTagBeginning("sampleRange");
+				writer.writeOpeningTagBeginning("sampleRange", true);
 
 				if (e != numRanges - 1) {
 					writer.writeAttribute("rangeTopNote", range->topNote);
@@ -3560,12 +3565,12 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			writer.closeTag();
 
 			if (numRanges > 1) {
-				writer.writeClosingTag("sampleRange");
+				writer.writeClosingTag("sampleRange", true, true);
 			}
 		}
 
 		if (numRanges > 1) {
-			writer.writeClosingTag("sampleRanges");
+			writer.writeArrayEnding("sampleRanges");
 		}
 		else if (numRanges == 0) {
 			writer.writeOpeningTagEnd();
@@ -3590,14 +3595,14 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 
 			if (numRanges > 1) {
 				writer.writeOpeningTagEnd();
-				writer.writeOpeningTag("wavetableRanges");
+				writer.writeArrayStart("wavetableRanges");
 			}
 
 			for (int32_t e = 0; e < numRanges; e++) {
 				MultisampleRange* range = (MultisampleRange*)source->ranges.getElement(e);
 
 				if (numRanges > 1) {
-					writer.writeOpeningTagBeginning("wavetableRange");
+					writer.writeOpeningTagBeginning("wavetableRange", true);
 
 					if (e != numRanges - 1) {
 						writer.writeAttribute("rangeTopNote", range->topNote);
@@ -3609,12 +3614,12 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 				                                      : range->sampleHolder.filePath.get());
 
 				if (numRanges > 1) {
-					writer.closeTag();
+					writer.closeTag(true);
 				}
 			}
 
 			if (numRanges > 1) {
-				writer.writeClosingTag("wavetableRanges");
+				writer.writeArrayEnding("wavetableRanges");
 				writer.writeClosingTag(tagName);
 			}
 			else {

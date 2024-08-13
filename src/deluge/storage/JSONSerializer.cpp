@@ -61,6 +61,7 @@ JsonSerializer::JsonSerializer() {
 
 void JsonSerializer::reset() {
 	resetWriter();
+	firstItemHasBeenWritten = false;
 }
 
 void JsonSerializer::write(char const* output) {
