@@ -2323,8 +2323,6 @@ uint32_t SessionView::getClipLocalScroll(Clip* clip, uint32_t overviewScroll, ui
 }
 
 void SessionView::flashPlayRoutine() {
-	view.clipArmFlashOn = !view.clipArmFlashOn;
-
 	switch (currentSong->sessionLayout) {
 	case SessionLayoutType::SessionLayoutTypeRows: {
 		uint32_t whichRowsNeedReRendering = 0;
