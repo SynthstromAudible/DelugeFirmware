@@ -33,11 +33,13 @@ use the TRACK menu to select the specific track to record from
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
 - Submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 - Added ability to `AUTOMATE TEMPO` in arranger view
-- Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG VIEW` which enables you to select the type of clip before the clip is created.
-  - In `SONG (GRID) VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
+- Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG GRID VIEW` which enables you to select the type of clip before the clip is created.
+  - In `SONG GRID VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
   - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
-- Removed the `SONG VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
-- `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+  - Removed the `SONG GRID VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
+  - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
+- `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+  - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`  
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 - Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
 
