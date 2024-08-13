@@ -542,8 +542,8 @@ changeOutputType:
 
 					// don't allow clip type change if clip is not empty
 					// only impose this restriction if switching to/from kit clip
-					if (((getCurrentOutputType() == OutputType::KIT) || (newOutputType == OutputType::KIT))
-					    && !instrumentClip->isEmpty()) {
+					if (((instrument->type == OutputType::KIT) || (newOutputType == OutputType::KIT))
+					    && (!clip->isEmpty() || !clip->output->isEmpty())) {
 						return ActionResult::DEALT_WITH;
 					}
 
