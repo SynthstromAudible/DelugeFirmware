@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/sample/utils.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
@@ -28,6 +29,10 @@ public:
 	using Selection::Selection;
 
 	bool usesAffectEntire() override { return true; }
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final {
+		return getCurrentAudioClip() || isSampleModeSample(modControllable, whichThing);
+	}
 
 	void readCurrentValue() override { this->setValue(soundEditor.currentSampleControls->pitchAndSpeedAreIndependent); }
 

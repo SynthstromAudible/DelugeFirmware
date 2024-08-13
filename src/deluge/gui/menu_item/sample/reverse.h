@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/sample/utils.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
@@ -57,10 +58,8 @@ public:
 			soundEditor.currentSource->setReversed(this->getValue());
 		}
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final {
+		return isSampleModeSample(modControllable, whichThing);
 	}
 };
 } // namespace deluge::gui::menu_item::sample
