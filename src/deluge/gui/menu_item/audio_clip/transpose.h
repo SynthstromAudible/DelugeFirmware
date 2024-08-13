@@ -26,7 +26,7 @@ class Transpose final : public Decimal, public MenuItemWithCCLearning {
 public:
 	using Decimal::Decimal;
 	void readCurrentValue() override {
-		auto sampleHolder = getCurrentAudioClip()->sampleHolder;
+		auto& sampleHolder = getCurrentAudioClip()->sampleHolder;
 		this->setValue(computeCurrentValueForTranspose(sampleHolder.transpose, sampleHolder.cents));
 	}
 	void writeCurrentValue() override {
