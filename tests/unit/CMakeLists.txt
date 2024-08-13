@@ -40,11 +40,17 @@ file(GLOB_RECURSE deluge_SOURCES
         # For scale tests
         ../../src/deluge/model/scale/musical_key.cpp
         ../../src/deluge/model/scale/note_set.cpp
+        ../../src/deluge/model/scale/preset_scales.cpp
         ../../src/deluge/model/scale/utils.cpp
+        ../../src/deluge/model/scale/preset_scales.cpp
+        ../../src/deluge/model/scale/scale_change.cpp
+        ../../src/deluge/model/scale/scale_mapper.cpp
         # For clip iterator tests
         ../../src/deluge/model/song/clip_iterators.cpp
         # For sync tests
         ../../src/deluge/model/sync.cpp
+        # For chord tests
+        ../../src/deluge/gui/ui/keyboard/chords.cpp
 )
 
 add_executable(UnitTests
@@ -56,6 +62,7 @@ add_executable(UnitTests
         clip_iterator_tests.cpp
         function_tests.cpp
         sync_tests.cpp
+        chord_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

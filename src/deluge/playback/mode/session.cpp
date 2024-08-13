@@ -111,22 +111,31 @@ void Session::armAllClipsToStop(int32_t afterNumRepeats) {
 }
 
 void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
-
 	if (numRepetitions == -1) {
 		numRepetitions = currentSong->sections[oldSection].numRepetitions;
 	}
-	if (currentSong->sessionClips.getClipAtIndex(0)->section != oldSection) {
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+		if (currentSong->sessionClips.getClipAtIndex(0)->section != oldSection) {
 
-		for (int32_t c = 1; c < currentSong->sessionClips.getNumElements(); c++) { // NOTE: starts at 1, not 0
-			Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
+			for (int32_t c = 1; c < currentSong->sessionClips.getNumElements(); c++) { // NOTE: starts at 1, not 0
+				Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
-			if (clip->section == oldSection) {
-				int32_t newSection =
-				    currentSong->sessionClips.getClipAtIndex(c - 1)->section; // Grab section from next Clip down
-				userWantsToArmClipsToStartOrSolo(newSection, NULL, true, false, false, numRepetitions, false);
-				lastSectionArmed = newSection;
-				return;
+				if (clip->section == oldSection) {
+					int32_t newSection =
+					    currentSong->sessionClips.getClipAtIndex(c - 1)->section; // Grab section from next Clip down
+					userWantsToArmClipsToStartOrSolo(newSection, NULL, true, false, false, numRepetitions, false);
+					lastSectionArmed = newSection;
+					return;
+				}
 			}
+		}
+	}
+	// grid mode - just go to the next section, no need to worry about what order they're in
+	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (oldSection < kMaxNumSections) {
+			userWantsToArmClipsToStartOrSolo(oldSection + 1, NULL, true, false, false, numRepetitions, false);
+			lastSectionArmed = oldSection + 1;
+			return;
 		}
 	}
 
@@ -700,11 +709,13 @@ int32_t Session::getNumSixteenthNotesRemainingTilLaunch() {
 	float ticksRemaining = static_cast<float>(launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned
 	                                          - playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick());
 	float sixteenthNotesRemaining = std::round(ticksRemaining / currentSong->getSixteenthNoteLength());
+	// if there is more than 1 repeat remaining, we need to adjust the number of sixteenth notes remaining
+	// as number of ticksRemaining is only accurate for 1 repeat
+	if (numRepeatsTilLaunch > 1) {
+		sixteenthNotesRemaining += (((numRepeatsTilLaunch - 1) * currentArmedLaunchLengthForOneRepeat)
+		                            / currentSong->getSixteenthNoteLength());
+	}
 	return static_cast<int32_t>(sixteenthNotesRemaining);
-}
-
-int32_t Session::getNumBarsRemainingTilLaunch() {
-	return getNumSixteenthNotesRemainingTilLaunch() / 16;
 }
 
 void Session::scheduleFillEvent(Clip* clip, int64_t atTickCount) {
@@ -1229,6 +1240,10 @@ probablyDoFlashPlayEnable:
 				view.flashPlayEnable();
 			}
 		}
+	}
+	else {
+		// TODO: only if sidebar visible!
+		uiNeedsRendering(getCurrentUI(), 0x00000000, 0xFFFFFFFF);
 	}
 }
 
@@ -1952,7 +1967,9 @@ bool Session::areAnyClipsArmed() {
 // I wish we could easily just do this to the Clips that need it, but we don't store an easy list of just the Clips
 // affected by each Action. This is only to be called if playbackHandler.isEitherClockActive().
 void Session::reversionDone() {
-
+	if (!currentSong) {
+		return;
+	}
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
 		if (currentSong->isClipActive(clip)) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];

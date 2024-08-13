@@ -85,10 +85,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::PLAY_ENABLE_FLASH: {
-					RootUI* rootUI = getRootUI();
-					if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
-						sessionView.flashPlayRoutine();
-					}
+					view.flashPlayRoutine();
 					break;
 				}
 				case TimerName::DISPLAY:

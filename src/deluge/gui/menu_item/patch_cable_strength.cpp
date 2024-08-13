@@ -20,6 +20,7 @@
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -47,6 +48,8 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	preferBarDrawing =
 	    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::PatchCableResolution) == RuntimeFeatureStateToggle::Off);
+
+	delayHorizontalScrollUntil = 0;
 }
 
 void PatchCableStrength::renderOLED() {
@@ -253,7 +256,21 @@ void PatchCableStrength::horizontalEncoderAction(int32_t offset) {
 	// or you're holding down the horizontal encoder because you want to zoom in/out
 	// if this is the case, then you can potentially engage scrolling/zooming of the underlying automation view
 	if (currentEditPos == soundEditor.numberEditPos) {
-		Automation::horizontalEncoderAction(offset);
+		if (delayHorizontalScrollUntil == 0) {
+			delayHorizontalScrollUntil = AudioEngine::audioSampleTimer + kShortPressTime;
+		}
+		else if (AudioEngine::audioSampleTimer > delayHorizontalScrollUntil) {
+			RootUI* rootUI = getRootUI();
+			if (rootUI == &automationView) {
+				automationView.horizontalEncoderAction(offset);
+			}
+			else if (rootUI == &keyboardScreen) {
+				keyboardScreen.horizontalEncoderAction(offset);
+			}
+		}
+	}
+	else {
+		delayHorizontalScrollUntil = 0;
 	}
 }
 

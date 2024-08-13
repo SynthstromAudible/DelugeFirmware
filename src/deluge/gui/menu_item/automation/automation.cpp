@@ -53,7 +53,7 @@ MenuItem* Automation::selectButtonPress() {
 			}
 		}
 
-		return (MenuItem*)0xFFFFFFFF; // No navigation
+		return NO_NAVIGATION;
 	}
 	return nullptr; // Navigate back
 }
@@ -170,12 +170,6 @@ void Automation::selectAutomationViewParameter(bool clipMinder) {
 		}
 
 		automationView.automationParamType = AutomationParamType::PER_SOUND;
-	}
-}
-
-void Automation::horizontalEncoderAction(int32_t offset) {
-	if (getRootUI() == &automationView) {
-		automationView.horizontalEncoderAction(offset);
 	}
 }
 

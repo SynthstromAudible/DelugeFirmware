@@ -260,8 +260,8 @@ const char* desc_op_short[] = {"rat1",   "rat2",      "rat3",     "rat4",     "l
                                "ampmod", "velo sens", "levl",     "mode",     "coar",     "fine",     "detune"};
 
 const char* desc_global_long[]{"DX7 pitch R1", "DX7 pitch R2",     "DX7 pitch R3",  "DX7 pitch R4",  "DX7 pitch l1",
-                               "DX7 pitch l2", "DX7 pitch l3",     "DX7 pitch l4",  "DX7 algoritm",  "DX7 feedback",
-                               "DX7 oscSync",  "DX7 LFO rate",     "DX7 LFO delay", "DX7 LFO pitch", "DX7 LFO amp",
+                               "DX7 pitch l2", "DX7 pitch l3",     "DX7 pitch l4",  "DX7 algorithm", "DX7 feedback",
+                               "DX7 osc Sync", "DX7 LFO rate",     "DX7 LFO delay", "DX7 LFO pitch", "DX7 LFO amp",
                                "DX7 LFO sync", "DX7 LFO waveform", "DX7 pitch sens"};
 
 const char* desc_global_short[]{"piR1",       "piR2",      "piR3",    "piR4",     "pil1",     "pil2",
@@ -488,7 +488,7 @@ static void renderAlgorithm(uint8_t* params) {
 
 	char buffer[12];
 	intToString(params[134] + 1, buffer, 2);
-	OLED::main.drawString(buffer, 113, 7, kTextSpacingX, kTextSizeYUpdated);
+	OLED::main.drawString(buffer, 116, 7, kTextSpacingX, kTextSizeYUpdated);
 
 	FmAlgorithm a = FmCore::algorithms[params[134]];
 	for (int i = 0; i < 6; i++) {
@@ -500,11 +500,12 @@ static void renderAlgorithm(uint8_t* params) {
 		const char ob[] = {'c', 'x', 'y', 'q'};
 		buffer[0] = '1' + i;
 		buffer[1] = ':';
-		buffer[2] = ib[inbus];
-		buffer[3] = (f & OUT_BUS_ADD) ? '+' : '>';
-		buffer[4] = ob[outbus];
-		buffer[5] = (f & (FB_IN | FB_OUT)) ? 'f' : ' ';
-		buffer[6] = 0;
+		buffer[2] = ' ';
+		buffer[3] = ib[inbus];
+		buffer[4] = (f & OUT_BUS_ADD) ? '+' : '>';
+		buffer[5] = ob[outbus];
+		buffer[6] = (f & (FB_IN | FB_OUT)) ? 'f' : ' ';
+		buffer[7] = 0;
 
 		int r = i / 3, c = i % 3;
 		show(buffer, r, c * 7);

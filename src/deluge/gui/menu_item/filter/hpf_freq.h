@@ -21,10 +21,9 @@
 
 namespace deluge::gui::menu_item::filter {
 
-class HPFFreq final : public patched_param::IntegerNonFM {
+class HPFFreq final : public patched_param::Integer {
 public:
-	using patched_param::IntegerNonFM::IntegerNonFM;
-
+	using patched_param::Integer::Integer;
 	// 7Seg ONLY
 	void drawValue() override {
 		if (this->getValue() == kMinMenuValue
@@ -33,7 +32,7 @@ public:
 			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
 		}
 		else {
-			patched_param::IntegerNonFM::drawValue();
+			patched_param::Integer::drawValue();
 		}
 	}
 };

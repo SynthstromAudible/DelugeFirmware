@@ -21,6 +21,8 @@
 #include "hid/button.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "model/clip/clip_minder.h"
+#include "model/scale/preset_scales.h"
+
 #include <cstdint>
 
 class InstrumentClip;
@@ -42,8 +44,8 @@ public:
 	void calculateDefaultRootNote();
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();
-	bool setScale(int32_t newScale);
-	void displayScaleName(int32_t scale);
+	bool setScale(Scale newScale);
+	void displayScaleName(Scale scale);
 	void displayCurrentScaleName();
 	void selectEncoderAction(int32_t offset);
 	static void drawMIDIControlNumber(int32_t controlNumber, bool automationExists);
@@ -54,7 +56,7 @@ public:
 
 	static int16_t defaultRootNote; // Stores the calculated "default" root note between the user pressing the
 	                                // scale-mode button and releasing it
-	static bool exitScaleModeOnButtonRelease;
+	static bool toggleScaleModeOnButtonRelease;
 	static bool flashDefaultRootNoteOn;
 
 	static uint8_t editingMIDICCForWhichModKnob;

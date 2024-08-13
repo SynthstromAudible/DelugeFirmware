@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/menu_item/enumeration.h"
+#include "gui/ui/sound_editor.h"
 #include "util/containers.h"
 #include <string_view>
 
@@ -32,5 +33,52 @@ public:
 
 	void drawPixelsForOled() override;
 	size_t size() override { return this->getOptions().size(); }
+
+	virtual bool isToggle() { return false; }
+
+	void displayToggleValue();
+
+	// renders toggle item type in submenus after the item name
+	void renderSubmenuItemTypeForOled(int32_t yPixel) override;
+
+	// toggles boolean ON / OFF
+	void toggleValue() {
+		readCurrentValue();
+		setValue(!getValue());
+		writeCurrentValue();
+	};
+
+	// handles toggling a "toggle" selection menu from sub-menu level
+	// or handles going back up a level after making a selection from within selection menu
+	MenuItem* selectButtonPress() override {
+		// this is true if you open a selection menu using grid shortcut
+		// or you enter a selection menu that isn't a toggle
+		if (soundEditor.getCurrentMenuItem() == this) {
+			return nullptr; // go up a level
+		}
+		// you're toggling selection menu from submenu level
+		else {
+			toggleValue();
+			displayToggleValue();
+			return NO_NAVIGATION;
+		}
+	}
+
+	// get's toggle status for rendering checkbox on OLED
+	bool getToggleValue() {
+		readCurrentValue();
+		return this->getValue();
+	}
+
+	// get's toggle status for rendering dot on 7SEG
+	uint8_t shouldDrawDotOnName() override {
+		if (isToggle()) {
+			readCurrentValue();
+			return this->getValue() ? 3 : 255;
+		}
+		else {
+			return 255;
+		}
+	}
 };
 } // namespace deluge::gui::menu_item

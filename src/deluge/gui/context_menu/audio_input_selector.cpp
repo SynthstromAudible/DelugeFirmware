@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
+#include "model/song/song.h"
 #include "processing/audio_output.h"
 
 extern AudioInputChannel defaultAudioOutputInputChannel;
@@ -43,8 +44,10 @@ enum class AudioInputSelector::Value {
 	MASTER,
 
 	OUTPUT,
+
+	TRACK,
 };
-constexpr size_t kNumValues = 11;
+constexpr size_t kNumValues = 12;
 
 AudioInputSelector audioInputSelector{};
 
@@ -67,6 +70,7 @@ Sized<const char**> AudioInputSelector::getOptions() {
 	    l10n::get(STRING_FOR_BALANCED_INPUT_MONITORING),
 	    l10n::get(STRING_FOR_MIX_PRE_FX),
 	    l10n::get(STRING_FOR_MIX_POST_FX),
+	    l10n::get(STRING_FOR_TRACK),
 	};
 	return {options, kNumValues};
 }
@@ -97,6 +101,10 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 
 	case AudioInputChannel::OUTPUT:
 		valueOption = Value::OUTPUT;
+		break;
+
+	case AudioInputChannel::SPECIFIC_OUTPUT:
+		valueOption = Value::TRACK;
 		break;
 
 	default:
@@ -159,6 +167,10 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	case Value::OUTPUT:
 		audioOutput->inputChannel = AudioInputChannel::OUTPUT;
+		break;
+	case Value::TRACK:
+		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		audioOutput->outputRecordingFrom = currentSong->getOutputFromIndex(0);
 		break;
 
 	default:

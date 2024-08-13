@@ -20,7 +20,7 @@
 #include "dsp/compressor/rms_feedback.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
-#include "gui/context_menu/launch_style.h"
+#include "gui/context_menu/clip_settings/launch_style.h"
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/ui.h"
@@ -654,7 +654,6 @@ void PerformanceSessionView::renderOLED(deluge::hid::display::oled_canvas::Canva
 }
 
 void PerformanceSessionView::redrawNumericDisplay() {
-	renderViewDisplay();
 	sessionView.redrawNumericDisplay();
 }
 
@@ -1054,10 +1053,10 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 	}
 	// releasing a pad
 	else {
-		// if releasing a pad with "held" status shortly after being given that status
+		// if releasing stutter pad
+		// or releasing a pad with "held" status shortly after being given that status
 		// or releasing a pad that was not in "held" status but was a longer press and release
-		if ((params::isParamStutter(lastSelectedParamKind, lastSelectedParamID) && lastPadPress.isActive
-		     && lastPadPress.yDisplay == yDisplay)
+		if (params::isParamStutter(lastSelectedParamKind, lastSelectedParamID)
 		    || (fxPress[xDisplay].padPressHeld
 		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < FlashStorage::holdTime))
 		    || ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)

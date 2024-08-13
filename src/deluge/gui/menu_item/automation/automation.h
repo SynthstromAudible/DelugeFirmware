@@ -33,6 +33,5 @@ public:
 	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory) = 0;
 	virtual PatchSource getPatchSource() { return PatchSource::NONE; }
 	void selectAutomationViewParameter(bool clipMinder);
-	void horizontalEncoderAction(int32_t offset);
 };
 } // namespace deluge::gui::menu_item

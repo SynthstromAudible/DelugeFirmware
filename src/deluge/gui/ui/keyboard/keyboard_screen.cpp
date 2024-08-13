@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -43,6 +42,7 @@
 #include <cstring>
 
 #include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
@@ -55,6 +55,7 @@ namespace deluge::gui::ui::keyboard {
 layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
 layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
 layout::KeyboardLayoutInKey keyboardLayoutInKey{};
+layout::KeyboardLayoutChord keyboardLayoutChord{};
 layout::KeyboardLayoutNorns keyboardLayoutNorns{};
 KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
 
@@ -62,6 +63,7 @@ KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeDrums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeInKey] = (KeyboardLayout*)&keyboardLayoutInKey;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChords] = (KeyboardLayout*)&keyboardLayoutChord;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeNorns] = (KeyboardLayout*)&keyboardLayoutNorns;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));
@@ -163,7 +165,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 		// We probably couldn't have got this far if it was a Kit, but let's just check
 		if (getCurrentOutputType() != OutputType::KIT && lastNotesState.count == 0 && currentNotesState.count == 1) {
-			exitScaleModeOnButtonRelease = false;
+			toggleScaleModeOnButtonRelease = false;
 			if (getCurrentInstrumentClip()->inScaleMode) {
 				instrumentClipView.setupChangingOfRootNote(currentNotesState.notes[0].note);
 				requestRendering();
@@ -309,7 +311,8 @@ void KeyboardScreen::updateActiveNotes() {
 
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
 		if (activeInstrument->type != OutputType::KIT && clipIsActiveOnInstrument
-		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())) {
+		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())
+		    && getCurrentClip()->armedForRecording) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(getCurrentClip());
 
@@ -404,8 +407,12 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
-		if (getCurrentOutputType() == OutputType::KIT) {
-			return ActionResult::DEALT_WITH; // Kits can't do scales!
+		if ((getCurrentOutputType() == OutputType::KIT)
+		    || (getCurrentInstrumentClip()->keyboardState.currentLayout
+		        == KeyboardLayoutType::KeyboardLayoutTypeChords)) {
+			// Kits and Chords can't do scales!
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_KEYBOARD_VIEW_CANT_ENTER_SCALE));
+			return ActionResult::DEALT_WITH;
 		}
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
@@ -422,7 +429,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 				// Or, no shift button - normal behaviour
 				else {
 					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
-					exitScaleModeOnButtonRelease = true;
+					toggleScaleModeOnButtonRelease = true;
 					// if (!getCurrentInstrumentClip()->inScaleMode) {
 					// 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
 					// released the button 	flashDefaultRootNoteOn = false; 	flashDefaultRootNote();
@@ -441,7 +448,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 				currentUIMode = UI_MODE_NONE;
 				if (getCurrentInstrumentClip()->inScaleMode) {
-					if (exitScaleModeOnButtonRelease) {
+					if (toggleScaleModeOnButtonRelease) {
 						exitScaleMode();
 					}
 				}
@@ -553,10 +560,15 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	else if (b == SELECT_ENC && on && getCurrentInstrumentClip()->inScaleMode
 	         && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-		exitScaleModeOnButtonRelease = false;
+		toggleScaleModeOnButtonRelease = false;
 		cycleThroughScales();
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
+	}
+
+	// store if the user is holding the x encoder
+	else if (b == X_ENC) {
+		xEncoderActive = on;
 	}
 
 	else {
@@ -597,7 +609,8 @@ ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRo
 ActionResult KeyboardScreen::horizontalEncoderAction(int32_t offset) {
 
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
-	    offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)));
+	    offset, (Buttons::isShiftButtonPressed() && isUIModeWithinRange(padActionUIModes)), pressedPads,
+	    xEncoderActive);
 
 	if (isUIModeWithinRange(padActionUIModes)) {
 		evaluateActiveNotes();
@@ -622,8 +635,11 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 			nextLayout = 0;
 		}
 
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayNornsLayout) == RuntimeFeatureStateToggle::Off
-		    && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns) {
+		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayNornsLayout) == RuntimeFeatureStateToggle::Off
+		     && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns)
+		    || (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayChordKeyboard)
+		            == RuntimeFeatureStateToggle::Off
+		        && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeChords)) {
 			// Don't check the next conditions, this one is already lost
 		}
 		else if (getCurrentOutputType() == OutputType::KIT && layoutList[nextLayout]->supportsKit()) {
@@ -664,7 +680,8 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 	}
 
 	// Ensure scroll values are calculated in bounds
-	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
+	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads,
+	                                                                                             xEncoderActive);
 
 	// Precalculate because changing instruments can change pad colours
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
@@ -678,7 +695,7 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	}
 	else if (getCurrentOutputType() != OutputType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
 	         && getCurrentInstrumentClip()->inScaleMode) {
-		exitScaleModeOnButtonRelease = false;
+		toggleScaleModeOnButtonRelease = false;
 		int32_t newRootNote = ((currentSong->key.rootNote + kOctaveSize) + offset) % kOctaveSize;
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
@@ -690,14 +707,16 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 			}
 		}
 		display->displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
-		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
+		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
+		    0, false, pressedPads, xEncoderActive);
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
 	}
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
 		// Ensure scroll values are calculated in bounds
-		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
+		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
+		    0, false, pressedPads, xEncoderActive);
 		layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 		requestRendering();
 	}
@@ -736,7 +755,8 @@ void KeyboardScreen::openedInBackground() {
 	getCurrentInstrumentClip()->onKeyboardScreen = true;
 
 	// Ensure scroll values are calculated in bounds
-	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false);
+	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads,
+	                                                                                             xEncoderActive);
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 	requestRendering(); // This one originally also included sidebar, the other ones didn't
 }

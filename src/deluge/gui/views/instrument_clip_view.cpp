@@ -175,6 +175,75 @@ void InstrumentClipView::setLedStates() {
 	InstrumentClipMinder::setLedStates();
 }
 
+ActionResult InstrumentClipView::commandLearnUserScale() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip->inScaleMode) {
+		commandEnterScaleMode();
+	}
+	NoteSet notes = currentSong->notesInScaleModeClips();
+	currentSong->setScaleNotes(notes);
+	recalculateColours();
+	uiNeedsRendering(this);
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
+	display->popupTextTemporary("USER");
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandCycleThroughScales() {
+	cycleThroughScales();
+	recalculateColours();
+	uiNeedsRendering(this);
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandFlashRootNote() {
+	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
+	                            // released the button
+	flashDefaultRootNoteOn = false;
+	flashDefaultRootNote();
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandEnterScaleModeWithRoot(uint8_t root) {
+	cancelAllAuditioning();
+	enterScaleMode(root);
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandChangeRootNote(uint8_t yDisplay) {
+	// uiTimerManager.unsetTimer(TimerName::DEFAULT_ROOT_NOTE);
+	cancelAllAuditioning();
+
+	int32_t oldYVisual = getYVisualFromYDisplay(yDisplay);
+	int32_t newRootNote = getCurrentInstrumentClip()->getYNoteFromYVisual(oldYVisual, currentSong);
+
+	setupChangingOfRootNote(newRootNote, yDisplay);
+	displayCurrentScaleName();
+
+	recalculateColours();
+	uiNeedsRendering(this);
+
+	// Hook point for specificMidiDevice
+	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_ROOT_NOTE);
+
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandEnterScaleMode() {
+	enterScaleMode();
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::commandExitScaleMode() {
+	exitScaleMode();
+	return ActionResult::DEALT_WITH;
+}
+
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
@@ -194,50 +263,44 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
 
-		if (on) {
+		bool inScaleMode = getCurrentInstrumentClip()->inScaleMode;
 
-			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-
-				// If user holding shift and we're already in scale mode, cycle through available scales
-				if (Buttons::isShiftButtonPressed() && getCurrentInstrumentClip()->inScaleMode) {
-					cycleThroughScales();
-					recalculateColours();
-					uiNeedsRendering(this);
-					// Hook point for specificMidiDevice
-					iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
-				}
-
-				// Or, no shift button - normal behaviour
-				else {
-					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
-					exitScaleModeOnButtonRelease = true;
-					if (!getCurrentInstrumentClip()->inScaleMode) {
-						calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
-						                            // released the button
-						flashDefaultRootNoteOn = false;
-						flashDefaultRootNote();
-						// Hook point for specificMidiDevice
-						iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_SCALE);
-					}
-				}
+		if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+			if (!inScaleMode) {
+				commandEnterScaleMode();
 			}
-
-			// If user is auditioning just one NoteRow, we can go directly into Scale Mode and set that root note
-			else if (oneNoteAuditioning() && !getCurrentInstrumentClip()->inScaleMode) {
-				cancelAllAuditioning();
-				enterScaleMode(lastAuditionedYDisplay);
+			return commandLearnUserScale();
+		}
+		else if (on && inScaleMode && Buttons::isShiftButtonPressed()) {
+			// If we're note in scale mode, we defer to commands that
+			// will instead enter the scale mode.
+			return commandCycleThroughScales();
+		}
+		else if (on && oneNoteAuditioning()) {
+			if (inScaleMode) {
+				return commandChangeRootNote(lastAuditionedYDisplay);
+			}
+			else {
+				return commandEnterScaleModeWithRoot(lastAuditionedYDisplay);
 			}
 		}
+		else if (on) {
+			currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
+			toggleScaleModeOnButtonRelease = true;
+			return commandFlashRootNote();
+		}
 		else {
+			// Button release
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 				currentUIMode = UI_MODE_NONE;
-				if (getCurrentInstrumentClip()->inScaleMode) {
-					if (exitScaleModeOnButtonRelease) {
-						exitScaleMode();
-					}
+			}
+			if (toggleScaleModeOnButtonRelease) {
+				toggleScaleModeOnButtonRelease = false;
+				if (inScaleMode) {
+					return commandExitScaleMode();
 				}
 				else {
-					enterScaleMode();
+					return commandEnterScaleMode();
 				}
 			}
 		}
@@ -245,9 +308,27 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 	// Song view button
 	else if (b == SESSION_VIEW) {
-		if (on && currentUIMode == UI_MODE_NONE) {
+		if (on) {
+			if (currentUIMode == UI_MODE_NONE) {
+				currentUIMode = UI_MODE_HOLDING_SONG_BUTTON;
+				timeSongButtonPressed = AudioEngine::audioSampleTimer;
+				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
+				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			}
+		}
+		else {
+			if (!isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+				return ActionResult::DEALT_WITH;
+			}
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			exitUIMode(UI_MODE_HOLDING_SONG_BUTTON);
+
+			if ((int32_t)(AudioEngine::audioSampleTimer - timeSongButtonPressed) > kShortPressTime) {
+				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+				return ActionResult::DEALT_WITH;
 			}
 
 			if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
@@ -1526,6 +1607,16 @@ doRegularEditPadActionProbably:
 			}
 			view.noteRowMuteMidiLearnPadPressed(velocity, noteRow);
 		}
+		else if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+			if (sdRoutineLock) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			if (!velocity) {
+				// TODO: long press..
+				view.activateMacro(y);
+			}
+			return ActionResult::DEALT_WITH;
+		}
 		else if (getCurrentOutputType() == OutputType::KIT && lastAuditionedYDisplay == y
 		         && isUIModeActive(UI_MODE_AUDITIONING) && getNumNoteRowsAuditioning() == 1) {
 			if (velocity) {
@@ -1586,13 +1677,13 @@ possiblyAuditionPad:
 
 				if (velocity && getCurrentOutputType() != OutputType::KIT) { // We probably couldn't have got this far
 					                                                         // if it was a Kit, but let's just check
+					toggleScaleModeOnButtonRelease = false;
+					currentUIMode = UI_MODE_NONE;
 					if (getCurrentInstrumentClip()->inScaleMode) {
-						currentUIMode = UI_MODE_NONE; // So that the upcoming render of the sidebar comes out correctly
-						changeRootNote(y);
-						exitScaleModeOnButtonRelease = false;
+						return commandChangeRootNote(y);
 					}
 					else {
-						enterScaleMode(y);
+						return commandEnterScaleModeWithRoot(y);
 					}
 				}
 			}
@@ -3514,7 +3605,7 @@ ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDi
 
 	// Recording - only allowed if currentClip is activeClip
 	if (clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
-	    && currentSong->isClipActive(getCurrentClip())) {
+	    && currentSong->isClipActive(getCurrentClip()) && getCurrentClip()->armedForRecording) {
 
 		// Note-on
 		if (velocity) {
@@ -3579,8 +3670,8 @@ Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, 
 		drum = modelStackWithNoteRowOnCurrentClip->getNoteRow()->drum;
 	}
 
-	// If NoteRow doesn't exist here, we'll see about creating one
-	else {
+	// If drum or noterow doesn't exist here, we'll see about creating one
+	if (drum == nullptr) {
 		// But not if we're actually not on this screen
 		if (getCurrentUI() != this) {
 			return drum;
@@ -4339,21 +4430,6 @@ void InstrumentClipView::setupChangingOfRootNote(int32_t newRootNote, int32_t yD
 	getCurrentInstrumentClip()->yScroll += scrollChange;
 }
 
-void InstrumentClipView::changeRootNote(uint8_t yDisplay) {
-
-	int32_t oldYVisual = getYVisualFromYDisplay(yDisplay);
-	int32_t newRootNote = getCurrentInstrumentClip()->getYNoteFromYVisual(oldYVisual, currentSong);
-
-	setupChangingOfRootNote(newRootNote, yDisplay);
-	displayCurrentScaleName();
-
-	recalculateColours();
-	uiNeedsRendering(this);
-
-	// Hook point for specificMidiDevice
-	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_ROOT_NOTE);
-}
-
 bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
@@ -4364,11 +4440,22 @@ bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayW
 		return true;
 	}
 
+	int32_t macroColumn = kDisplayWidth;
+	bool armed = false;
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
-			drawMuteSquare(getCurrentInstrumentClip()->getNoteRowOnScreen(i, currentSong), image[i], occupancyMask[i]);
+			if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+				armed |= view.renderMacros(macroColumn, i, -1, image, occupancyMask);
+			}
+			else {
+				drawMuteSquare(getCurrentInstrumentClip()->getNoteRowOnScreen(i, currentSong), image[i],
+				               occupancyMask[i]);
+			}
 			drawAuditionSquare(i, image[i]);
 		}
+	}
+	if (armed) {
+		view.flashPlayEnable();
 	}
 
 	return true;

@@ -222,6 +222,8 @@ public:
 	void commandEditTempoFine(int8_t offset);
 	void commandDisplayTempo(int8_t offset);
 
+	void commandClearTempoAutomation();
+
 private:
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);
 

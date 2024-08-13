@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/clip/clip_instance_vector.h"
+#include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
 #include "util/d_string.h"
 #include <cstdint>
@@ -160,9 +161,27 @@ public:
 	                                                        int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                        bool affectEntire, bool useMenuStack) = 0;
 	virtual bool needsEarlyPlayback() const { return false; }
+	bool hasRecorder() { return recorder; }
+	bool addRecorder(SampleRecorder* newRecorder) {
+		if (recorder) {
+			return false;
+		}
+		recorder = newRecorder;
+		return true;
+	}
+	// returns whether a recorder was removed
+	bool removeRecorder() {
+		if (recorder) {
+			recorder->removeFromOutput();
+			recorder = nullptr;
+			return true;
+		}
+		return false;
+	}
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
 
-	Clip* activeClip;
+	Clip* activeClip{nullptr};
+	SampleRecorder* recorder{nullptr};
 };

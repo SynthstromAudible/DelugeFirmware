@@ -22,7 +22,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/context_menu/clear_song.h"
-#include "gui/context_menu/launch_style.h"
+#include "gui/context_menu/clip_settings/launch_style.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -1614,8 +1614,15 @@ void View::displayAutomation() {
 /// and the current mod button selected is the volume/pan button
 /// render VU meter on the grid
 bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	if (displayVUMeter && view.activeModControllableModelStack.modControllable
-	    && *activeModControllableModelStack.modControllable->getModKnobMode() == 0) {
+	// if VU meter is toggled on and
+	// 1) mod controllable is active and we've selected the level / pan mod knob button
+	// or
+	// 2) we've pressed a clip while vu meter was active
+	// then let's continue to render VU meter
+	if (displayVUMeter
+	    && ((activeModControllableModelStack.modControllable
+	         && *activeModControllableModelStack.modControllable->getModKnobMode() == 0)
+	        || (isClipContext() && renderedVUMeter))) {
 		PadLEDs::renderingLock = true;
 
 		// get max Y display that would be rendered based on AudioEngine::approxRMSLevel
@@ -2481,7 +2488,7 @@ void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrume
 	}
 }
 
-RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool whiteInactivePads, bool allowMIDIFlash) {
+RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlash) {
 
 	if (currentUIMode == UI_MODE_VIEWING_RECORD_ARMING && clip && clip->armedForRecording) {
 		if (blinkOn) {
@@ -2528,17 +2535,8 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool whiteInactive
 				thisColour = menu_item::onceColourMenu.getRGB(); // colours::red_orange;
 				break;
 			default:
-
-				if (whiteInactivePads) {
-					// If grid view + config mode requests it,
-					// Use white to avoid a screen full of red pads
-					// Grid mode itself dims these colours to grey
-					thisColour = colours::white;
-				}
-				else {
-					// If it's stopped, red.
-					thisColour = menu_item::stoppedColourMenu.getRGB();
-				}
+				// If it's stopped, red.
+				thisColour = menu_item::stoppedColourMenu.getRGB();
 			}
 		}
 		else {
@@ -2580,13 +2578,13 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 				clip->armedForRecording = true;
 				if (clip->type == ClipType::AUDIO) {
 					((AudioClip*)clip)->overdubsShouldCloneOutput = false;
-					defaultAudioClipOverdubOutputCloning = 0;
+					currentSong->defaultAudioClipOverdubOutputCloning = 0;
 				}
 			}
 			else {
 				if (clip->type == ClipType::AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
 					((AudioClip*)clip)->overdubsShouldCloneOutput = true;
-					defaultAudioClipOverdubOutputCloning = 1;
+					currentSong->defaultAudioClipOverdubOutputCloning = 1;
 					break; // No need to reassess greyout
 				}
 				else {
@@ -2612,7 +2610,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
-			context_menu::launchStyle.clip = clip;
+			context_menu::clip_settings::launchStyle.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
@@ -2646,6 +2644,18 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 	return ActionResult::DEALT_WITH;
 }
 
+void View::flashPlayRoutine() {
+	view.clipArmFlashOn = !view.clipArmFlashOn;
+	RootUI* rootUI = getRootUI();
+	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+		sessionView.flashPlayRoutine();
+	}
+	else {
+		// TODO: sidebar might not actually be visible, flash song button in that case?
+		uiNeedsRendering(getCurrentUI(), 0x00000000, 0xFFFFFFFF);
+	}
+}
+
 void View::flashPlayEnable() {
 	uiTimerManager.setTimer(TimerName::PLAY_ENABLE_FLASH, kFastFlashTime);
 }
@@ -2663,6 +2673,119 @@ void View::flashPlayDisable() {
 		drawCurrentClipPad(getCurrentClip());
 	}
 #endif
+}
+
+bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB image[][kDisplayWidth + kSideBarWidth],
+                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	uint8_t brightness = 1;
+	uint8_t otherChannels = 0;
+
+	bool is_active = selectedMacro == y;
+	bool is_other_active = selectedMacro >= 0 && !is_active;
+	uint8_t dark = is_active ? 32 : 0;
+	uint8_t light = is_other_active ? 208 : 255;
+
+	bool armed = view.clipArmFlashOn;
+
+	SessionMacro& m = currentSong->sessionMacros[y];
+	switch (m.kind) {
+	case CLIP_LAUNCH:
+		if (m.clip->activeIfNoSolo) {
+			image[y][column] = {0, light, 0};
+		}
+		else {
+			image[y][column] = {light, 0, 0};
+		}
+		if (m.clip->armState != ArmState::OFF) {
+			armed = true;
+			if (view.clipArmFlashOn) {
+				image[y][column] = {0, 0, 0};
+			}
+		}
+
+		break;
+	case OUTPUT_CYCLE:
+		image[y][column] = {0, 64, light};
+		break;
+	case SECTION:
+		image[y][column] = {light, 0, 128};
+		break;
+	case NO_MACRO:
+		image[y][column] = {dark, dark, dark};
+		break;
+	}
+
+	if (occupancyMask) {
+		occupancyMask[y][column] = true;
+	}
+
+	return armed;
+}
+
+void View::activateMacro(uint32_t y) {
+	if (y > 8) {
+		return;
+	}
+
+	SessionMacro& m = currentSong->sessionMacros[y];
+	switch (m.kind) {
+	case CLIP_LAUNCH:
+		if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {
+			if (getCurrentClip() != m.clip) {
+				sessionView.transitionToViewForClip(m.clip);
+			}
+		}
+		else {
+			session.toggleClipStatus(m.clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+		}
+		break;
+
+	case OUTPUT_CYCLE: {
+		Clip* nextClip = findNextClipForOutput(m.output);
+		if (nextClip) {
+			session.toggleClipStatus(nextClip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+		}
+		break;
+	}
+
+	case SECTION:
+		session.armSection(m.section, kInternalButtonPressLatency);
+		break;
+
+	default:
+		break;
+	}
+}
+
+Clip* View::findNextClipForOutput(Output* output) {
+	int last_active = -1;
+	for (int i = 0; i < currentSong->sessionClips.getNumElements(); i++) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(i);
+		if (clip->output == output) {
+			if (last_active == -1) {
+				if (clip->activeIfNoSolo) {
+					last_active = i;
+				}
+			}
+			else {
+				return clip;
+			}
+		}
+	}
+
+	if (last_active == -1) {
+		last_active = currentSong->sessionClips.getNumElements();
+	}
+
+	// might need to cycle around to find the next clip
+	for (int i = 0; i < last_active; i++) {
+		Clip* clip = currentSong->sessionClips.getClipAtIndex(i);
+		if (clip->output == output) {
+			return clip;
+		}
+	}
+
+	return nullptr;
 }
 
 /*

@@ -76,8 +76,8 @@ public:
 	void resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound = true) override;
 	void setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos,
 	            bool useActualPosForParamManagers = true) override;
-	void replaceMusicalMode(uint8_t numModeNotes, int8_t changes[], ModelStackWithTimelineCounter* modelStack);
-	void seeWhatNotesWithinOctaveArePresent(NoteSet&, int32_t, Song* song, bool deleteEmptyNoteRows = true);
+	void replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack);
+	void seeWhatNotesWithinOctaveArePresent(NoteSet&, MusicalKey);
 	void transpose(int32_t, ModelStackWithTimelineCounter* modelStack);
 	void nudgeNotesVertically(int32_t direction, VerticalNudgeType, ModelStackWithTimelineCounter* modelStack);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;

@@ -147,6 +147,8 @@ as the micromonsta and the dreadbox nymphes.
   `SETTINGS > SWING INTERVAL` to `SONG > SWING INTERVAL`. Additionally, when changing either swing amount or interval using the
   `TEMPO` encoder, first encoder detent shows the current swing without changing it, with subsequent ones editing it.
 
+- ([#2367]) Tempo changes can now be recorded to automation in arranger view
+
 #### 3.5 - Kits
 
 - ([#395]) Load synth presets into kit rows by holding the row's `AUDITION` + `SYNTH`. Saving can be done by holding the
@@ -237,6 +239,7 @@ as the micromonsta and the dreadbox nymphes.
 #### 3.17 - Select Audio Clip Source from Audio Clip Menu
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
+- ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose which track to record from.
 
 #### 3.18 - Remove Timestretching From Audio Clip Sample
 - ([#1542]) Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
@@ -279,14 +282,22 @@ as the micromonsta and the dreadbox nymphes.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 
 #### 3.25 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
-- ([#2315]) The display now shows the number of Bars (or Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
+- ([#2315]) The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
 
 #### 3.26 Updated UI for Interacting with Toggle Menu's and Sub Menu's
 - ([#2345]) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
  - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
- - Submenu's on OLED for automatable parameters (e.g. LPF Frequency) render the current parameter value at the end. You still need to click on `SELECT` to edit the parameters value / edit modulation depth and patch cables.
- - All other submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
+ - Submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
+
+#### 3.27 Updated UI for Creating New Clips in New Tracks in Song View
+- ([#2299]) Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG VIEW` which enables you to select the type of clip before the clip is created.
+  - In `SONG (GRID) VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
+  - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
+- Removed the `SONG VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
+
+#### 3.28 Updated UI for Setting Clip Mode in Song View
+- ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
 
 ## 4. New Features Added
 
@@ -326,15 +337,12 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.3 - Fill Clips and Once Clips
 
-- ([#196] and [#1018]) In Song View (Rows mode), holding the status pad (mute pad) for a clip and pressing `SELECT`
-  brings up a clip type selection menu. For Grid Mode there is a dedicated Config Mode in which this menu can be
-  reached, see `Yellow Mode` in [Grid View](#415grid-view).
+- ([#196] and [#1018]) In Song View (Rows mode), holding a clip or the status pad (mute pad) for a clip and pressing `SELECT`
+  brings up a `CLIP MODE` menu. For Grid Mode, only holding a clip and pressing `SELECT` will bring up the `CLIP MODE` menu. 
   
-  The options are:
-    - **`Default (DEFA)`** - the default Deluge clip type.
+  The `CLIP MODE` menu enables you the set the following launch style options for a clip:
+    - **`INFINITE (INF)`** - the default Deluge launch style.
     - **`Fill (FILL)`** - Fill clip.
-        - When inactive it appears orange on the status pads in rows view, or in Config Mode in grid view.
-        - When active it will appear green.
         - When launched it will schedule itself to start at such a time that it _finishes_ at the start of the next
         loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through.
         The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section.
@@ -343,8 +351,6 @@ Here is a list of features that have been added to the firmware as a list, group
           never starting since a default type clip has the needed instrument. This can be worked around by cloning the
           instrument to an independent copy.
     - **`Once (ONCE)`** - Once clip.
-        - When inactive it appears purple on the status pads in rows view, or in Config Mode in grid view.
-        - When active it will appear green.
         - When triggered it will schedule itself to
         start at the start of the next loop. Then it will schedule itself to stop, so it just plays once. This type of
         clips also work when soloing them, they will solo just for one loop and unsolo after that.
@@ -398,16 +404,6 @@ Here is a list of features that have been added to the firmware as a list, group
             - Track color can be changed by holding any populated clip in a column and rotating `▼︎▲︎`. For fine changes
               to the color press `▼︎▲︎` while turning it.
             - Section pads (left sidebar column) will allow changing repeat count while held
-        - `Yellow mode`
-            - Clips can be configured by holding their pad and pressing the Select encoder to reach the launch style
-              menu, see [Fill Clips and Once Clips](#413fill-clips-and-once-clips)
-            - Pad colour in yellow mode indicates the clip type:
-              - If inactive
-                  - Fill clips are dim orange by default
-                  - Once clips are dim purple by default.
-                  - Normal clips are dull grey.
-              - Active clips are green, or whatever colour is set for active pads.
-              - The colours can be changed in `SETTINGS > PADS > COLOURS > FILL/ONCE`
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:
@@ -478,6 +474,28 @@ Here is a list of features that have been added to the firmware as a list, group
             - y2 = -22.0 to -17.7
             - y1 = -26.4 to -22.1
             - y0 = -30.8 to -26.5
+
+### 4.1.9 - Song macros
+
+Macros are a way to quickly switch playing clips without needing to go into song view.
+From session view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros. 
+
+There are 8 macro slots shown in the left sidebar. 
+
+To assign a macro, first select a macro slot and then press a clip in the grid. 
+
+Pressing the same clip multiple time cycles though different modes:
+
+- `Clip macro`: Launch or mute the clip
+  - Individual clips are green/red, so you see if they get deactivated, just like in song row view
+- `Output macro`: cycle though all clips for this particular output
+- `Section macro`: Launch all clips for this section
+
+After assigning a clip to a slot, you can press the macro slot to see what clip has been assigned to it (clip will alternate between the clip's colour and white).
+
+Inside a `CLIP TIMELINE VIEW`, hold `SONG` button and press the `LEFT SIDEBAR` to launch a macro.
+
+In `KEYBOARD VIEW`, macros are available as a sidebar control. `SHIFT` makes the launch immediate just like in song view. `AFFECT ENTIRE` + `CLIP MACRO` can be used to jump to edit the clip.
 
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
@@ -949,9 +967,21 @@ to each individual note onset. ([#1978])
       pads will default to the first 7 scale modes, but you can change any pad to any scale by
       holding it down and turning the vertical encoder. If the scale that is going to be set
       can't fit/transpose the existing notes from your clips, screen will show `Can't`.
+    - **`Song Macro Mode (SONG - various):`** Activate [Song macros](#419---song-macros).
+
 - ([#2174]) With the addition of the new Keyboard Sidebar Controls, the default behaviour of being able to immediately exit the menu by pressing a sidebar pad while in Keyboard View was removed. To accomodate users that still wish to be able to exit the menus immediately by pressing a sidebar pad, a new community feature toggle has been added (`Enable KB View Sidebar Menu Exit (EXIT)`) which will enable you to immediately exit the menu using the top left sidebar pad if you are in the `SETTINGS` or `SOUND` menu for `KEYBOARD VIEW`.
 
-#### 4.4.2 - New scales
+#### 4.4.1.6 - Display Chord Keyboard Layout
+
+- ([#2385]) Enables `CHORD` keyboard layout which displays chords on the pads. Accessible the same way as other instrument supporting keyboards `SELECT` + `KEYBOARD` to cycle through layouts while on `SYNTH, MIDI, CV`
+
+- Each column is a note (chormatic, all 12 notes), turning `◀︎▶︎` will move down or up the scale, lowering or raising your chords. Each pad is a different chord. So the first row is just roots, second is major triads, 3rd is minor triads, etc. `▼︎▲︎` scrolls up to more chords.
+
+- Holding a pad on a row and pressing in the `◀︎▶︎` and turning changes the voicing for all the chords on that row.
+
+- As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
+
+#### 4.4.2 - Scales
 
 - ([#991]) Added new scales for instrument clips.
     - The new set of scales is:
@@ -970,6 +1000,14 @@ to each individual note onset. ([#1978])
       all clips in the song must fit the new scale. If you have added more notes that what can fit in the new scale, the
       Deluge will omit those scales, and cycle back to the beginning of the Scales list (that is, going back to the
       Major scale).
+
+- ([#2365]) Added support for learning a user specified scale.
+    - Hold `LEARN` and press `SCALE` while in clip view. Notes from current clip & all scale mode clips are learned as the "USER"
+      scale. This scale is part of the normal scale rotation, accessible with `SHIFT` + `SCALE`. If another user scale is learned,
+      the previous one is discarded.
+    - Additionally, if you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
+      preset scales, it will be learned as a user scale - similarly overwriting the previous `USER` scale.
+    - NOTE: extended support for user scales is planned, allowing multiple user scales to be learned, saved, and loaded.
 
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
@@ -1126,7 +1164,7 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with
       sticky
       shift.
-* `Enable Grain FX (GRFX)`
+* `Grain FX (GRFX)`
     * When On, `GRAIN` will be a selectable option in the `MOD FX TYPE` category. Resource intensive, recommended to
       only use one instance per song or resample and remove instance afterwards.
 * `Enable DX Shortcuts (DX7S)`
@@ -1138,10 +1176,12 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * With the "7SEG" mode, the deluge will boot with the emulated display.
     * This option is technically available also on deluge with 7SEG hardware. But as you need an external display to
       render the OLED screen, it is of more limited use.
-* `Enable KB View Sidebar Menu Exit (EXIT)`
+* `KB View Sidebar Menu Exit (EXIT)`
     * When On, while in the `SETTINGS` or `SOUND` menu of `KEYBOARD VIEW`, pressing the top left sidebar pad will immediately exit the menu.
-* `Enable Launch Event Playhead (PLAY)`
+* `Launch Event Playhead (PLAY)`
     * When On, a red and white playhead will be rendered in Song Grid and Performance Views that let's you know that a maximum of one bar (16 notes) is remaining before a clip or section launch event is scheduled to occur.
+* `Chord Keyboard (CHRD)`
+    * When On, enables the `CHORD` keyboard layout which allows playing chords on the pads. See [Chord Keyboard Layout](#4416---display-chord-keyboard-layout) for more information.
 
 ## 6. Sysex Handling
 
@@ -1388,6 +1428,8 @@ different firmware
 
 [#2260]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2260
 
+[#2299]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2299
+
 [#2315]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2315
 
 [#2327]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2327
@@ -1397,6 +1439,12 @@ different firmware
 [#2343]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2343
 
 [#2345]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2345
+
+[#2371]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2371
+
+[#2367]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2367
+
+[#2385]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2385
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

@@ -257,7 +257,8 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 // Oi, don't even think about modifying this to take a Sample* pointer - cos the whole Sample could get deleted during
 // the card access.
 Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
-                                                        AudioRecordingFolder folder, uint32_t* getNumber) {
+                                                        AudioRecordingFolder folder, uint32_t* getNumber,
+                                                        const char* channelName, String* songName) {
 	const auto folderID = util::to_underlying(folder);
 
 	Error error = storageManager.initSD();
@@ -300,8 +301,6 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		highestUsedAudioRecordingNumberNeedsReChecking[folderID] = false;
 	}
 
-	highestUsedAudioRecordingNumber[folderID]++;
-
 	D_PRINTLN("new file: --------------  %d", highestUsedAudioRecordingNumber[folderID]);
 
 	error = filePath->set(audioRecordingFolderNames[folderID]);
@@ -321,17 +320,35 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		}
 	}
 
-	error = filePath->concatenate("/REC");
-	if (error != Error::NONE) {
-		return error;
+	// default to putting it in the normal spot if the song isn't named
+	if (songName->isEmpty()) {
+		error = filePath->concatenate("/REC");
+		if (error != Error::NONE) {
+			return error;
+		}
+		error = filePath->concatenateInt(highestUsedAudioRecordingNumber[folderID], 5);
+		if (error != Error::NONE) {
+			return error;
+		}
+		error = filePath->concatenate(".WAV");
+		if (error != Error::NONE) {
+			return error;
+		}
+		highestUsedAudioRecordingNumber[folderID]++;
 	}
-	error = filePath->concatenateInt(highestUsedAudioRecordingNumber[folderID], 5);
-	if (error != Error::NONE) {
-		return error;
-	}
-	error = filePath->concatenate(".WAV");
-	if (error != Error::NONE) {
-		return error;
+	else {
+		char namedPath[255]{0};
+		snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_000.wav", filePath->get(), songName->get(), channelName);
+		int i = 1;
+		while (storageManager.fileExists(namedPath)) {
+			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath->get(), songName->get(), channelName,
+			         i);
+			i++;
+		}
+		error = filePath->set(namedPath);
+		if (error != Error::NONE) {
+			return error;
+		}
 	}
 
 	if (doingTempFolder) {

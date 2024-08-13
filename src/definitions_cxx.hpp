@@ -229,6 +229,9 @@ enum class AutomationParamType : uint8_t {
 	NOTE_VELOCITY,
 };
 
+// BEWARE! Something in Kit loading or InstrumentClip::changeOutputType() is sensitive to output type order. There's a
+// lot of casting to and from indexes, and the issue is non-obvious, but moving AUDIO first causes new song + pressing
+// kit to crash in changeOutputType()
 enum class OutputType : uint8_t {
 	SYNTH,
 	KIT,
@@ -788,6 +791,7 @@ enum class AudioInputChannel {
 	BALANCED,
 	MIX,
 	OUTPUT,
+	SPECIFIC_OUTPUT,
 };
 
 constexpr AudioInputChannel AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION = AudioInputChannel::MIX;
@@ -906,10 +910,12 @@ constexpr int32_t kOLEDMenuNumOptionsVisible = (OLED_HEIGHT_CHARS - 1);
 constexpr int32_t kConsoleImageHeight = (OLED_MAIN_HEIGHT_PIXELS);
 constexpr int32_t kConsoleImageNumRows = (OLED_MAIN_HEIGHT_PIXELS >> 3);
 
-constexpr int32_t kTextSpacingX = 6;
-constexpr int32_t kTextSpacingY = 9;
+// non-title characters
+constexpr int32_t kTextSpacingX = 6; // the width of a character (5 px) + the space after it (1 px)
+constexpr int32_t kTextSpacingY = 9; // the height of a character (7 px) + the space above (1px) and below it (1px)
 constexpr int32_t kTextSizeYUpdated = 7;
 
+// title characters
 constexpr int32_t kTextTitleSpacingX = 9;
 constexpr int32_t kTextTitleSizeY = 10;
 
@@ -967,6 +973,7 @@ constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    /
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
 	KeyboardLayoutTypeInKey,
+	KeyboardLayoutTypeChords,
 	KeyboardLayoutTypeDrums,
 	KeyboardLayoutTypeNorns,
 	KeyboardLayoutTypeMaxElement // Keep as boundary
@@ -992,7 +999,7 @@ enum GridMode : uint8_t {
 	Unassigned2,
 	Unassigned3,
 	Unassigned4,
-	YELLOW,
+	Unassigned5,
 	BLUE,
 	GREEN,
 };

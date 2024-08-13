@@ -32,7 +32,7 @@ public:
 
 	void focusRegained() override;
 	void selectEncoderAction(int8_t offset) override;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final;
+	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void drawCurrentOption();
 	virtual bool isCurrentOptionAvailable() { return true; }
 	virtual bool acceptCurrentOption() { return false; } // If returns false, will cause UI to exit

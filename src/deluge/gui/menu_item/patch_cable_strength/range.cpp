@@ -56,7 +56,7 @@ uint8_t Range::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour)
 }
 
 MenuItem* Range::patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) {
-	return (MenuItem*)0xFFFFFFFF;
+	return NO_NAVIGATION;
 }
 
 // FixedPatchCableStrength ----------------------------------------------------------------------------

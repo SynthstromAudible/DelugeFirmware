@@ -175,6 +175,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableLaunchEventPlayhead],
 	                  STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD, "enableLaunchEventPlayhead",
 	                  RuntimeFeatureStateToggle::On);
+
+	// DisplayChordKeyboard
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayChordKeyboard],
+	                  STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD, "displayChordKeyboard",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {

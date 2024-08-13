@@ -51,6 +51,7 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	GlobalEffectableForClip::cloneFrom(other);
 
 	inputChannel = ((AudioOutput*)other)->inputChannel;
+	outputRecordingFrom = ((AudioOutput*)other)->outputRecordingFrom;
 }
 
 void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
@@ -63,7 +64,7 @@ void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffe
 
 	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, outputBuffer, numSamples,
 	                                      reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO);
+	                                      shouldLimitDelayFeedback, isClipActive, OutputType::AUDIO, recorder);
 }
 
 void AudioOutput::resetEnvelope() {
@@ -305,7 +306,7 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 		writer.writeAttribute("echoingInput", 1);
 	}
 	writer.writeAttribute("inputChannel", inputChannelToString(inputChannel));
-
+	writer.writeAttribute("outputRecordingIndex", currentSong->getOutputIndex(outputRecordingFrom));
 	Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
 
 	GlobalEffectableForClip::writeAttributesToFile(writer, clipForSavingOutputOnly == NULL);
@@ -340,6 +341,10 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 		else if (!strcmp(tagName, "inputChannel")) {
 			inputChannel = stringToInputChannel(reader.readTagOrAttributeValue());
 			reader.exitTag("inputChannel");
+		}
+
+		else if (!strcmp(tagName, "outputRecordingIndex")) {
+			outputRecordingFromIndex = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (Output::readTagFromFile(reader, tagName)) {}

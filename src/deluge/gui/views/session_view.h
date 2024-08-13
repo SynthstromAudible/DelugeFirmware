@@ -20,17 +20,20 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
+#include "model/song/song.h"
 #include "storage/flash_storage.h"
 
 class Editor;
 class InstrumentClip;
+class AudioClip;
 class Clip;
 class ModelStack;
+class ModelStackWithTimelineCounter;
 
 enum SessionGridMode : uint8_t {
 	SessionGridModeEdit,
 	SessionGridModeLaunch,
-	SessionGridModeConfig,
+	SessionGridModeMacros,
 	SessionGridModeMaxElement // Keep as boundary
 };
 
@@ -63,7 +66,7 @@ public:
 	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void graphicsRoutine();
-	int32_t displayLoopsRemainingPopup();
+	int32_t displayLoopsRemainingPopup(bool ephemeral = false);
 	void potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining);
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
@@ -113,6 +116,7 @@ public:
 	                                       // action to set this to false
 	uint8_t sectionPressed;
 	uint8_t masterCompEditMode;
+	int8_t selectedMacro = -1;
 
 	Clip* getClipForLayout();
 
@@ -122,6 +126,15 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::SESSION; }
+
+	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
+	Clip* newClipToCreate;
+
+	// Grid macros config mode
+	void enterMacrosConfigMode();
+	void exitMacrosConfigMode();
+	char const* getMacroKindString(SessionMacroKind kind);
+	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
@@ -139,15 +152,25 @@ private:
 	void clipPressEnded();
 	void drawSectionRepeatNumber();
 	void beginEditingSectionRepeatsNum();
-	Clip* createNewInstrumentClip(int32_t yDisplay);
 	void goToArrangementEditor();
-	void replaceInstrumentClipWithAudioClip(Clip* clip);
 	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
 	void setCentralLEDStates();
+
+	Clip* createNewAudioClip(int32_t yDisplay);
+	Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay);
+
+	bool createNewTrackForAudioClip(AudioClip* newClip);
+	bool createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip);
+
+	bool insertAndResyncNewClip(Clip* newClip, int32_t yDisplay);
+	void resyncNewClip(Clip* newClip, ModelStackWithTimelineCounter* modelStackWithTimelineCounter);
 
 	// Members regarding rendering different layouts
 private:
 	void selectLayout(int8_t offset);
+	void renderLayoutChange(bool displayPopup = true);
+	void selectSpecificLayout(SessionLayoutType layout);
+	SessionLayoutType previousLayout;
 
 	bool sessionButtonActive = false;
 	bool sessionButtonUsed = false;
@@ -168,10 +191,8 @@ private:
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip);
-	ActionResult gridHandlePadsConfig(int32_t x, int32_t y, int32_t on, Clip* clip);
+	ActionResult gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip);
 	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
-
-	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 	void gridTransitionToSessionView();
 	void gridTransitionToViewForClip(Clip* clip);
@@ -200,10 +221,11 @@ private:
 
 	Clip* gridCloneClip(Clip* sourceClip);
 	Clip* gridCreateClipInTrack(Output* targetOutput);
-	bool gridCreateNewTrackForClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip);
-	InstrumentClip* gridCreateClipWithNewTrack(OutputType type);
+	AudioClip* gridCreateAudioClipWithNewTrack();
+	InstrumentClip* gridCreateInstrumentClipWithNewTrack(OutputType type);
 	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
 	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
+	void setupNewClip(Clip* newClip);
 
 	void gridStartSection(uint32_t section, bool instant);
 	void gridToggleClipPlay(Clip* clip, bool instant);

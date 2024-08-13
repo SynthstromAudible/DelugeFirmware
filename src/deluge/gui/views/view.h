@@ -92,11 +92,16 @@ public:
 	void drawOutputNameFromDetails(OutputType outputType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool editedByUser, bool doBlink, Clip* clip = NULL);
 	void endMIDILearn();
-	[[nodiscard]] RGB getClipMuteSquareColour(Clip* clip, RGB thisColour, bool whiteInactivePads = false,
-	                                          bool allowMIDIFlash = true);
+	[[nodiscard]] RGB getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlash = true);
 	ActionResult clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView = -1);
 	void flashPlayEnable();
 	void flashPlayDisable();
+	void flashPlayRoutine();
+
+	void activateMacro(uint32_t y);
+	Clip* findNextClipForOutput(Output* output);
+	bool renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB image[][kDisplayWidth + kSideBarWidth],
+	                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 
 	// MIDI learn stuff
 	MidiLearn thingPressedForMidiLearn = MidiLearn::NONE;

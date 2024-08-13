@@ -1174,6 +1174,9 @@ char const* inputChannelToString(AudioInputChannel inputChannel) {
 	case AudioInputChannel::OUTPUT:
 		return "output";
 
+	case AudioInputChannel::SPECIFIC_OUTPUT:
+		return "specificTrack";
+
 	default: // AudioInputChannel::NONE
 		return "none";
 	}
@@ -1198,6 +1201,10 @@ AudioInputChannel stringToInputChannel(char const* string) {
 	else if (!strcmp(string, "output")) {
 		return AudioInputChannel::OUTPUT;
 	}
+	else if (!strcmp(string, "specificTrack")) {
+		return AudioInputChannel::SPECIFIC_OUTPUT;
+	}
+
 	else {
 		return AudioInputChannel::NONE;
 	}
@@ -1820,7 +1827,7 @@ int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from) {
 	return getMagnitudeOld(to) - getMagnitudeOld(from);
 }
 
-void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot) {
+void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot, bool appendOctaveNo) {
 	char* thisChar = buffer;
 	int32_t octave = (noteCode) / 12 - 2;
 	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
@@ -1831,7 +1838,9 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 		*thisChar = display->haveOLED() ? '#' : '.';
 		thisChar++;
 	}
-	intToString(octave, thisChar, 1);
+	if (appendOctaveNo) {
+		intToString(octave, thisChar, 1);
+	}
 
 	if (getLengthWithoutDot) {
 		*getLengthWithoutDot = strlen(buffer);

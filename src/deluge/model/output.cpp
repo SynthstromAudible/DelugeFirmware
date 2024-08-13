@@ -44,6 +44,7 @@ Output::Output(OutputType newType) : type(newType) {
 }
 
 Output::~Output() {
+	removeRecorder();
 }
 
 void Output::setupWithoutActiveClip(ModelStack* modelStack) {

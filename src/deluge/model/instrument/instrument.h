@@ -51,7 +51,7 @@ public:
 
 	bool editedByUser;
 	bool existsOnCard;
-
+	bool shouldHibernate{true};
 	virtual bool doAnySoundsUseCC(uint8_t channel, uint8_t ccNumber, uint8_t value) { return false; }
 	virtual void beenEdited(bool shouldMoveToEmptySlot = true);
 	virtual void setupPatching(ModelStackWithTimelineCounter* modelStack) {

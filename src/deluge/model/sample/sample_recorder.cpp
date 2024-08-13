@@ -24,6 +24,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/sample/sample.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
@@ -102,13 +103,13 @@ void SampleRecorder::detachSample() {
 }
 
 Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
-                            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID,
-                            int32_t buttonPressLatency) {
+                            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
+                            Output* outputRecordingFrom_) {
 
 	if (!audioFileManager.ensureEnoughMemoryForOneMoreAudioFile()) {
 		return Error::INSUFFICIENT_RAM;
 	}
-
+	outputRecordingFrom = outputRecordingFrom_;
 	keepingReasonsForFirstClusters = newKeepingReasons;
 	recordingExtraMargins = shouldRecordExtraMargins;
 	folderID = newFolderID;
@@ -385,8 +386,25 @@ aborted:
 				error = stemExport.getUnusedStemRecordingFilePath(&filePath, folderID);
 			}
 			else {
+				const char* name;
+				if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && !AudioEngine::lineInPluggedIn) {
+					if (AudioEngine::micPluggedIn) {
+						name = "ExtMic";
+					}
+					else {
+						name = "IntMic";
+					}
+				}
+				else if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {
+					if (outputRecordingFrom) {
+						name = outputRecordingFrom->name.get();
+					}
+				}
+				else {
+					name = inputChannelToString(mode);
+				}
 				error = audioFileManager.getUnusedAudioRecordingFilePath(&filePath, &tempFilePathForRecording, folderID,
-				                                                         &audioFileNumber);
+				                                                         &audioFileNumber, name, &currentSong->name);
 			}
 			if (status == RecorderStatus::ABORTED) {
 				goto aborted; // In case aborted during
@@ -834,6 +852,9 @@ void SampleRecorder::finishCapturing() {
 	status = RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING;
 	if (getRootUI()) {
 		getRootUI()->sampleNeedsReRendering(sample);
+	}
+	if (outputRecordingFrom) {
+		outputRecordingFrom->removeRecorder();
 	}
 }
 

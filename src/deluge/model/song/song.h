@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/reverb/model.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
@@ -26,6 +27,9 @@
 #include "model/output.h"
 #include "model/scale/musical_key.h"
 #include "model/scale/note_set.h"
+#include "model/scale/preset_scales.h"
+#include "model/scale/scale_change.h"
+#include "model/scale/scale_mapper.h"
 #include "model/sync.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
@@ -57,7 +61,6 @@ class Output;
 class AudioOutput;
 class ModelStack;
 class ModelStackWithTimelineCounter;
-
 Clip* getCurrentClip();
 InstrumentClip* getCurrentInstrumentClip();
 AudioClip* getCurrentAudioClip();
@@ -82,6 +85,21 @@ struct BackedUpParamManager {
 
 #define MAX_NOTES_CHORD_MEM 10
 
+enum SessionMacroKind : int8_t {
+	NO_MACRO = 0,
+	CLIP_LAUNCH,
+	OUTPUT_CYCLE,
+	SECTION,
+	NUM_KINDS,
+};
+
+struct SessionMacro {
+	SessionMacroKind kind;
+	Clip* clip;
+	Output* output;
+	uint8_t section;
+};
+
 class Song final : public TimelineCounter {
 public:
 	Song();
@@ -91,19 +109,14 @@ public:
 	void transposeAllScaleModeClips(int32_t interval);
 	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();
-	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
-	void addMajorDependentModeNotes(uint8_t i, bool preferHigher, NoteSet& notesWithinOctavePresent);
-	bool yNoteIsYVisualWithinOctave(int32_t yNote, int32_t yVisualWithinOctave);
-	uint8_t getYNoteWithinOctaveFromYNote(int32_t yNote);
 	void changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change);
 	void rotateMusicalMode(int8_t change);
-	void replaceMusicalMode(int8_t changes[], bool affectMIDITranspose);
+	void replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key);
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
-	bool modeContainsYNote(int32_t yNote);
 	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
 	void setupPatchingForAllParamManagersForDrum(SoundDrum* drum);
 	void setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound);
@@ -113,10 +126,29 @@ public:
 	                                                                                 SoundDrum* drum, Kit* kit);
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
 	void displayCurrentRootNoteAndScaleName();
-	const char* getScaleName(int32_t scale);
-	int32_t cycleThroughScales();
-	int32_t getCurrentPresetScale();
-	int32_t setPresetScale(int32_t newScale);
+
+	// Scale-related methods
+
+	/// Changes to next applicable scale.
+	Scale cycleThroughScales();
+	/// Returns current scale
+	Scale getCurrentScale();
+	/// Changes to requested scale, will return the scale if successfull, or NO_SCALE if change
+	/// could not be completed.
+	Scale setScale(Scale newScale);
+	/// Changes scale to the requested notes. Returns true if successful. If the notes are not a preset
+	/// scale, defines the scale as the new user scale.
+	bool setScaleNotes(NoteSet newScale);
+	/// Learns a user scale from notes in scale mode clips.
+	void learnScaleFromCurrentNotes();
+	/// Returns true if the song has a user scale.
+	bool hasUserScale();
+	/// Sets root note of key. If the previous scale no longer fits, changes to a new implied scale, which
+	/// can result in a new user scale being set.
+	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
+	/// Returns a NoteSet with all notes currently in used in scale mdoe clips.
+	NoteSet notesInScaleModeClips();
+
 	void setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction);
 	void setupDefault();
 	void setBPM(float tempoBPM, bool shouldLogAction);
@@ -221,6 +253,8 @@ public:
 
 	String dirPath;
 
+	SessionMacro sessionMacros[8];
+
 	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();
 	void setCurrentClip(Clip* clip) {
@@ -240,8 +274,6 @@ public:
 	Error readFromFile(Deserializer& reader);
 	void writeToFile(StorageManager& bdsm);
 	void loadAllSamples(bool mayActuallyReadFiles = true);
-	bool modeContainsYNoteWithinOctave(uint8_t yNoteWithinOctave);
-	uint8_t getYNoteIndexInMode(int32_t yNote);
 	void renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
 	                 int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
@@ -363,6 +395,7 @@ public:
 	bool midiLoopback = false;
 
 	// Reverb params to be stored here between loading and song being made the active one
+	dsp::Reverb::Model model;
 	float reverbRoomSize;
 	float reverbDamp;
 	float reverbWidth;
@@ -398,9 +431,15 @@ public:
 	uint8_t chordMemNoteCount[kDisplayHeight] = {0};
 	uint8_t chordMem[kDisplayHeight][MAX_NOTES_CHORD_MEM] = {0};
 
+	// Tempo automation
+	void clearTempoAutomation();
+	void updateBPMFromAutomation();
+
+	int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
+
 private:
-	uint8_t indexLastUnusedScaleDegreeFrom7To6 = 0;
-	uint8_t indexLastUnusedScaleDegreeFrom6To5 = 0;
+	ScaleMapper scaleMapper;
+	NoteSet userScaleNotes;
 	bool fillModeActive;
 	Clip* currentClip = nullptr;
 	Clip* previousClip = nullptr; // for future use, maybe finding an instrument clip or something
@@ -411,8 +450,10 @@ private:
 	void deleteAllBackedUpParamManagersWithClips();
 	void deleteAllOutputs(Output** prevPointer);
 	void setupClipIndexesForSaving();
+	void setBPMInner(float tempoBPM, bool shouldLogAction);
+	void clearTempoAutomation(float tempoBPM);
+	int32_t intBPM;
 };
 
 extern Song* currentSong;
 extern Song* preLoadedSong;
-extern int8_t defaultAudioClipOverdubOutputCloning;

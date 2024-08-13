@@ -44,6 +44,7 @@ const char* functionNames[][2] = {
     /* CHORD_MEM   */ {"CCME", "Clip Chord Memory"},
     /* SCALE_MODE  */ {"SMOD", "Scales"},
     /* DX          */ {"DX", "DX operators"},
+    /* SESSION     */ {"SONG", "song macros"},
     /* BEAT_REPEAT */ {"BEAT", "Beat Repeat"},
 };
 
@@ -123,7 +124,9 @@ bool ColumnControlsKeyboard::verticalEncoderHandledByColumns(int32_t offset) {
 	return false;
 }
 
-void ColumnControlsKeyboard::handleHorizontalEncoder(int32_t offset, bool shiftEnabled) {
+void ColumnControlsKeyboard::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                     PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                     bool encoderPressed) {
 	horizontalEncoderHandledByColumns(offset, shiftEnabled);
 }
 
@@ -204,6 +207,8 @@ ControlColumn* ColumnControlState::getColumnForFunc(ColumnControlFunction func) 
 		return &scaleModeColumn;
 	case DX:
 		return &dxColumn;
+	case SESSION:
+		return &sessionColumn;
 	}
 	return nullptr;
 }
@@ -224,6 +229,8 @@ const char* columnFunctionToString(ColumnControlFunction func) {
 		return "scale_mode";
 	case DX:
 		return "dx";
+	case SESSION:
+		return "session";
 	}
 	return "";
 }
@@ -249,6 +256,9 @@ ColumnControlFunction stringToColumnFunction(char const* string) {
 	}
 	else if (!strcmp(string, "dx")) {
 		return DX;
+	}
+	else if (!strcmp(string, "session")) {
+		return SESSION;
 	}
 	else {
 		return VELOCITY; // unknown column, just pick the default

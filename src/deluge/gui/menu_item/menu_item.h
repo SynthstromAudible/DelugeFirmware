@@ -62,7 +62,7 @@ public:
 	/// buttons going to the current View.
 	///
 	/// This is called with `(b == SELECT_ENC && on)` immediately after the menu is entered, or after
-	/// \ref selectButtonPress is called and returns `(MenuItem*)0xFFFFFFFF`.
+	/// \ref selectButtonPress is called and returns `NO_NAVIGATION`.
 	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
@@ -82,7 +82,7 @@ public:
 	/// @brief Handle a select button press.
 	///
 	/// @returns
-	///   - `(MenuItem*)0xFFFFFFFF` if the SoundEditor should stay on the current menu.
+	///   - `NO_NAVIGATION` if the SoundEditor should stay on the current menu.
 	///   - `nullptr` if the SoundEditor should go up one level in the menu stack.
 	///   - otherwise, enter the returned menu.
 	virtual MenuItem* selectButtonPress() { return nullptr; }
@@ -143,7 +143,7 @@ public:
 	/// strength modulation.
 	///
 	/// @returns
-	///   - `((MenuItem*)0xFFFFFFFF)` if the SoundEditor should ask the menu 1 layer up in the stack what to do
+	///   - `NO_NAVIGATION` if the SoundEditor should ask the menu 1 layer up in the stack what to do
 	///   - `nullptr` if nothing should happen
 	///   - A valid MenuItem if we should switch to that menu item.
 	virtual MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) {
@@ -248,8 +248,20 @@ public:
 	virtual bool shouldEnterSubmenu() { return true; }
 
 	/// @brief Handle rendering of submenu item types
-	virtual int32_t getSubmenuItemTypeRenderLength() { return (3 + (kTextSpacingX * 3) + kTextSpacingX); }
-	virtual void renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel);
+	// length = spacing before (3 pixels)
+	//			+ width of 3 characters (3 * 6 pixels - to accomodate rendering of 3 digit param values)
+	//          + spacing after (3 pixels)
+	// spacing before is to ensure that menu item text doesn't overlap and can scroll
+	// length = 6 pixels before + (3 characters * 6 pixels per character) + 3 pixels after
+	virtual int32_t getSubmenuItemTypeRenderLength() { return (3 + (3 * kTextSpacingX) + 3); }
+	// push the start x over so it aligns with the right most character drawn for param value menus
+	// startX = end pixel of menu item string + 3px spacing after it + spacing for 2 characters +
+	// 			shift icon left 1 pixel (it's 1px wider than a regular character)
+	virtual int32_t getSubmenuItemTypeRenderIconStart() { return (OLED_MAIN_WIDTH_PIXELS - 3 - kTextSpacingX - 1); }
+	// render the submenu item type (icon or value)
+	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
 
 	/// @}
 };
+
+#define NO_NAVIGATION ((MenuItem*)0xFFFFFFFF)

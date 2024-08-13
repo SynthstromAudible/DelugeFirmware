@@ -1,5 +1,7 @@
 #pragma once
 
+#include "model/scale/note_set.h"
+
 #include <array>
 #include <cstdint>
 
@@ -11,7 +13,7 @@
  * See OFFSET_6|5_NOTE_SCALE for how to deal with that.
  *
  * The actual definitions expand this macro, picking the thing they need:
- * - enum PresetScales
+ * - enum Scale
  * - presetScaleNames
  * - presetScaleNotes
  *
@@ -21,8 +23,7 @@
  * DEF_NOTES keeps the notes array intact on the trip through the preprocessor, since
  * cpp doesn't understand arrays, seeing { and } as a normal tokens.
  */
-#define DEF_NOTES(...)                                                                                                 \
-	{ __VA_ARGS__ }
+#define DEF_NOTES(...) NoteSet({__VA_ARGS__})
 
 // Note: Value of note intervals taken from here: https://www.apassion4jazz.net/scales2.html
 #define DEF_SCALES()                                                                                                   \
@@ -61,32 +62,32 @@
 	DEF(BLUES_SCALE, "BLUES", DEF_NOTES(0, 3, 5, 6, 7, 10, 0))                                                         \
 	/* ============================== 5-note scales ============================== */                                  \
 	/* PENT Pentatonic Minor (matches Launchpad and Lumi scale) */                                                     \
-	DEF(PENTATONIC_MINOR_SCALE, "PENTANOTIC_MINOR", DEF_NOTES(0, 3, 5, 7, 10, 0, 0))                                   \
+	DEF(PENTATONIC_MINOR_SCALE, "PENTANOTIC MINOR", DEF_NOTES(0, 3, 5, 7, 10))                                         \
 	/* HIRA Hirajoshi (matches Launchpad scale) */                                                                     \
-	DEF(HIRAJOSHI_SCALE, "HIRAJOSHI", DEF_NOTES(0, 2, 3, 7, 8, 0, 0))
-
-#define FIRST_7_NOTE_SCALE_INDEX MAJOR_SCALE
-#define FIRST_6_NOTE_SCALE_INDEX WHOLE_TONE_SCALE
-#define FIRST_5_NOTE_SCALE_INDEX PENTATONIC_MINOR_SCALE
+	DEF(HIRAJOSHI_SCALE, "HIRAJOSHI", DEF_NOTES(0, 2, 3, 7, 8))
 
 /** Indexes into presetScaleNames and presetScaleNotes -arrays, and total
  *  number of preset scales.
  */
-enum PresetScales {
+enum Scale {
 #define DEF(id, name, notes) id,
 	DEF_SCALES()
 #undef DEF
-	    NUM_PRESET_SCALES
+	    NUM_PRESET_SCALES,
+	USER_SCALE = NUM_PRESET_SCALES,
+	NO_SCALE = 255
 };
 
-extern const uint8_t presetScaleNotes[NUM_PRESET_SCALES][7];
+#define FIRST_6_NOTE_SCALE_INDEX WHOLE_TONE_SCALE
+#define FIRST_5_NOTE_SCALE_INDEX PENTATONIC_MINOR_SCALE
+
+extern const NoteSet presetScaleNotes[NUM_PRESET_SCALES];
 extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
 
 // These are scale ids / indexes as stored in flash memory, not for the presetScales*
 // arrays!
 #define OFFICIAL_FIRMWARE_RANDOM_SCALE_INDEX 7
 #define OFFICIAL_FIRMWARE_NONE_SCALE_INDEX 8
-#define CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES 255
 #define PRESET_SCALE_RANDOM 254
 #define PRESET_SCALE_NONE 255
 // These offsets allow us to introduce new 7, 6 and 5 note scales in between the existing
@@ -94,3 +95,9 @@ extern std::array<char const*, NUM_PRESET_SCALES> presetScaleNames;
 // defaults stored in flash memory.
 #define OFFSET_6_NOTE_SCALE 64
 #define OFFSET_5_NOTE_SCALE 128
+
+const char* getScaleName(Scale scale);
+
+Scale getScale(NoteSet notes);
+
+bool isUserScale(NoteSet notes);

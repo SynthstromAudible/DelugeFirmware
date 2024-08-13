@@ -407,7 +407,7 @@ inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& squ
 }
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
-void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = NULL);
+void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = NULL, bool appendOctaveNo = true);
 void concatenateLines(const char* lines[], size_t numLines, char* resultString);
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);

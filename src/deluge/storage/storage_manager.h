@@ -338,6 +338,8 @@ public:
 
 	bool fileExists(char const* pathName);
 	bool fileExists(char const* pathName, FilePointer* fp);
+	/// takes a full path/to/file.text and makes sure the directories exist
+	bool buildPathToFile(const char* fileName);
 
 	bool checkSDPresent();
 	bool checkSDInitialized();

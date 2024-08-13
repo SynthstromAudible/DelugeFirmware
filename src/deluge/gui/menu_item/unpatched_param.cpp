@@ -81,21 +81,6 @@ uint32_t UnpatchedParam::getParamIndex() {
 	return this->getP();
 }
 
-void UnpatchedParam::renderSubmenuItemTypeForOled(int32_t xPixel, int32_t yPixel) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
-
-	DEF_STACK_STRING_BUF(paramValue, 10);
-	paramValue.appendInt(getParamValue());
-
-	std::string stringForSubmenuItemType;
-	stringForSubmenuItemType.append(paramValue.c_str());
-
-	// pad value string so it's 3 characters long
-	padStringTo(stringForSubmenuItemType, 3);
-
-	image.drawString(stringForSubmenuItemType, xPixel, yPixel, kTextSpacingX, kTextSpacingY);
-}
-
 // ---------------------------------------
 
 // ---------------------------------------

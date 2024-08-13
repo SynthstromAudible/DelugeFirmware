@@ -21,10 +21,10 @@
 using namespace deluge::dsp::filter;
 namespace deluge::gui::menu_item::filter {
 
-class FilterMorph final : public patched_param::IntegerNonFM {
+class FilterMorph final : public patched_param::Integer {
 public:
-	using patched_param::IntegerNonFM::IntegerNonFM;
-	FilterMorph(l10n::String newName, int32_t newP, bool hpf) : IntegerNonFM{newName, newP}, hpf{hpf} {}
+	using patched_param::Integer::Integer;
+	FilterMorph(l10n::String newName, int32_t newP, bool hpf) : Integer{newName, newP}, hpf{hpf} {}
 	[[nodiscard]] std::string_view getName() const override {
 		using enum l10n::String;
 		auto filt = SpecificFilter(hpf ? soundEditor.currentModControllable->hpfMode

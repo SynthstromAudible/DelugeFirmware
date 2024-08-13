@@ -80,8 +80,20 @@ public:
 
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
 
-	AudioInputChannel inputChannel;
-	bool echoing; // Doesn't get cloned - we wouldn't want that!
+	/// Audio channel used for recording and monitoring.
+	AudioInputChannel inputChannel{AudioInputChannel::UNSET};
+	/// Which output to record from. Only valid when inputChannel is AudioInputChannel::SPECIFIC_OUTPUT.
+	Output* outputRecordingFrom{nullptr};
+	/// Only used during loading - index changes as outputs are added/removed and this won't get updated. Pointer stays
+	/// accurate through those changes.
+	///
+	/// int16 so it packs nicely with `echoing` below
+	int16_t outputRecordingFromIndex{-1}; // int16 so it fits with the bool and because that should be enough outputs
+	/// When true, this output is monitoring its input.
+	///
+	/// Does not get copied when this Output is cloned, as that would result in undesirable doubling of the monitored
+	/// audio.
+	bool echoing;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

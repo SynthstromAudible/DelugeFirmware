@@ -25,7 +25,7 @@ using namespace deluge::gui::ui::keyboard::layout;
 namespace deluge::gui::ui::keyboard::controls {
 
 void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
-	int32_t currentScale = currentSong->getCurrentPresetScale();
+	Scale currentScale = currentSong->getCurrentScale();
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool mode_selected = scaleModes[y] == currentScale;
@@ -41,13 +41,11 @@ void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], i
 }
 
 bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
-	int32_t newScale = scaleModes[pad];
+	Scale newScale = scaleModes[pad];
 	bool newScaleNotSelectedYet = true;
 	while (newScaleNotSelectedYet) {
-		newScale = (newScale + offset) % NUM_PRESET_SCALES;
-		if (newScale < 0) {
-			newScale = NUM_PRESET_SCALES - 1;
-		}
+		// TODO: support USER_SCALE here.
+		newScale = static_cast<Scale>(mod(newScale + offset, NUM_PRESET_SCALES));
 		bool scaleFoundInPads = false;
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
 			if (scaleModes[y] == newScale) {
@@ -66,7 +64,7 @@ bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 void ScaleModeColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
                                           KeyboardLayout* layout) {
 	// Restore previously set scale
-	if (previousScale == -1) {
+	if (previousScale == NO_SCALE) {
 		return;
 	}
 	if (keyboardScreen.setScale(previousScale)) {
@@ -82,7 +80,7 @@ void ScaleModeColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelSt
 void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                                 KeyboardLayout* layout) {
 	if (pad.active) {
-		previousScale = currentSong->getCurrentPresetScale();
+		previousScale = currentSong->getCurrentScale();
 		if (keyboardScreen.setScale(scaleModes[pad.y])) {
 			currentScalePad = pad.y;
 		}
