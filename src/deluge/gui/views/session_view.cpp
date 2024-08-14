@@ -3430,9 +3430,6 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		yield([]() { return (currentUIMode != UI_MODE_CREATING_CLIP); });
 		if (createClip) {
 			newClip = createNewClip(lastTypeCreated, -1);
-			if (newClip) {
-				display->popupTextTemporary("DONE");
-			}
 		}
 	}
 
