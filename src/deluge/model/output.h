@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "hid/button.h"
 #include "model/clip/clip_instance_vector.h"
 #include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
@@ -44,6 +45,40 @@ class StorageManager;
 class Serializer;
 class Deserializer;
 
+inline const char* outputTypeToString(OutputType type) {
+	switch (type) {
+	case OutputType::SYNTH:
+		return "synth";
+	case OutputType::KIT:
+		return "kit";
+	case OutputType::MIDI_OUT:
+		return "MIDI";
+	case OutputType::CV:
+		return "CV";
+	case OutputType::AUDIO:
+		return "audio";
+	default:
+		return "none";
+	}
+}
+
+inline OutputType buttonToOutputType(deluge::hid::Button b) {
+	using namespace deluge::hid::button;
+	switch (b) {
+	case SYNTH:
+		return OutputType::SYNTH;
+	case MIDI:
+		return OutputType::MIDI_OUT;
+	case KIT:
+		return OutputType::KIT;
+	case CV:
+		return OutputType::CV;
+	case SELECT_ENC:
+		return OutputType::AUDIO;
+	default:
+		return OutputType::NONE;
+	}
+}
 class Output {
 public:
 	Output(OutputType newType);
@@ -125,9 +160,9 @@ public:
 	virtual void loadCrucialAudioFilesOnly() {} // Caller must check that there is an activeClip.
 
 	// No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
-	virtual void resyncLFOs(){};
+	virtual void resyncLFOs() {};
 
-	virtual void sendMIDIPGM(){};
+	virtual void sendMIDIPGM() {};
 	virtual void deleteBackedUpParamManagers(Song* song) {}
 	virtual void prepareForHibernationOrDeletion() {}
 

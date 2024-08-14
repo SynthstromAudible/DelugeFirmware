@@ -28,6 +28,7 @@ public:
 
 	/// Options
 	Sized<const char**> getOptions() override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
 };
 
 extern NewClipType newClipType;

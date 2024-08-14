@@ -205,7 +205,8 @@ private:
 	int32_t gridFirstPressedY = -1;
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
-
+	bool creatingClip{false};
+	OutputType lastTypeCreated{OutputType::AUDIO};
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
 
 	inline void gridResetPresses(bool first = true, bool second = true) {
@@ -253,6 +254,9 @@ private:
 		}
 		}
 	}
+	void setupTrackCreation() const;
+	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
+	void exitTrackCreation();
 };
 
 extern SessionView sessionView;
