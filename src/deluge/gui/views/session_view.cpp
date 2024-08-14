@@ -3368,7 +3368,9 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		// wait until you've chosen a type, by pressing a type button or releasing the pad
 		yield([]() { return (currentUIMode != UI_MODE_CREATING_CLIP); });
 		newClip = createNewClip(lastTypeCreated, -1);
-		display->popupTextTemporary("DONE");
+		if (newClip) {
+			display->popupTextTemporary("DONE");
+		}
 	}
 
 	// Set new clip section and add it to the list
@@ -3726,10 +3728,10 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 }
 void SessionView::setupTrackCreation() const { // start clip creation, blink all LEDs to tell user
 	currentUIMode = UI_MODE_CREATING_CLIP;
-	indicator_leds::blinkLed(IndicatorLED::SYNTH, 255, 1);
-	indicator_leds::blinkLed(IndicatorLED::MIDI, 255, 1);
-	indicator_leds::blinkLed(IndicatorLED::KIT, 255, 1);
-	indicator_leds::blinkLed(IndicatorLED::CV, 255, 1);
+	indicator_leds::blinkLed(IndicatorLED::SYNTH);
+	indicator_leds::blinkLed(IndicatorLED::MIDI);
+	indicator_leds::blinkLed(IndicatorLED::KIT);
+	indicator_leds::blinkLed(IndicatorLED::CV);
 	if (display->haveOLED()) {
 		char popupText[32] = {0};
 		sprintf(popupText, "Create %s track?", outputTypeToString(lastTypeCreated));
@@ -3797,53 +3799,70 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 	}
 
 	if (clip == nullptr) {
-		// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing
-		if (on && playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL
-		    && FlashStorage::gridEmptyPadsCreateRec) {
+		// press on an empty pad
+		if (on) {
 			auto maxTrack = gridTrackCount();
 			Output* track = gridTrackFromX(x, maxTrack);
-			if (track != nullptr) {
+
+			// holding one clip, then pressing a second empty clip
+			if ((gridFirstPressedX != -1 && gridFirstPressedY != -1)
+			    && (gridSecondPressedX == -1 || gridSecondPressedY == -1)) {
+				performActionOnPadRelease = false; // doing a copy paste, so don't launch clips
+				gridSecondPressedX = x;
+				gridSecondPressedY = y;
+				display->popupText("COPY CLIPS");
+			}
+			// next disarm the track if that's the user prefernce and a track exists
+			else if (currentUIMode == UI_MODE_NONE && track && FlashStorage::gridEmptyPadsUnarm) {
+				auto maxTrack = gridTrackCount();
+				Output* track = gridTrackFromX(x, maxTrack);
+				if (track != nullptr) {
+					for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+						Clip* sessionClip = currentSong->sessionClips.getClipAtIndex(idxClip);
+						if (sessionClip->output == track) {
+							if (sessionClip->activeIfNoSolo) {
+								gridToggleClipPlay(sessionClip, Buttons::isShiftButtonPressed());
+							}
+							else {
+								sessionClip->armState = ArmState::OFF;
+							}
+						}
+					}
+
+					return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+				}
+			}
+			// lastly create a new clip, either on an existing track or on a new one
+			else if (currentUIMode == UI_MODE_NONE) {
+				gridFirstPressedX = x;
+				gridFirstPressedY = y;
+				// will create the track if it doesn't exist
 				clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
-				if (clip != nullptr) {
+				// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing
+				// (depending on setting)
+				if (clip != nullptr && playbackHandler.playbackState
+				    && playbackHandler.recording == RecordingMode::NORMAL && FlashStorage::gridEmptyPadsCreateRec) {
 					gridToggleClipPlay(clip, Buttons::isShiftButtonPressed());
 				}
 
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
 		}
-
-		if (on && currentUIMode == UI_MODE_NONE && FlashStorage::gridEmptyPadsUnarm) {
-			auto maxTrack = gridTrackCount();
-			Output* track = gridTrackFromX(x, maxTrack);
-			if (track != nullptr) {
-				for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-					Clip* sessionClip = currentSong->sessionClips.getClipAtIndex(idxClip);
-					if (sessionClip->output == track) {
-						if (sessionClip->activeIfNoSolo) {
-							gridToggleClipPlay(sessionClip, Buttons::isShiftButtonPressed());
-						}
-						else {
-							sessionClip->armState = ArmState::OFF;
-						}
-					}
+		// release on an empty pad
+		else {
+			// if creating a clip releasing the first pad makes it
+			if (isUIModeActive(UI_MODE_CREATING_CLIP)) {
+				if (x == gridFirstPressedX && y == gridFirstPressedY) {
+					exitTrackCreation();
+					clipPressEnded();
 				}
-
+			}
+			// clone clip on release of second pad
+			if (gridSecondPressedX == x && gridSecondPressedY == y) {
+				gridClonePad(gridFirstPressedX, gridFirstPressedY, gridSecondPressedX, gridSecondPressedY);
+				gridResetPresses(false, true);
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
-		}
-		// holding one clip, then pressing a second empty clip
-		if ((gridFirstPressedX != -1 && gridFirstPressedY != -1)
-		    && (gridSecondPressedX == -1 || gridSecondPressedY == -1)) {
-			performActionOnPadRelease = false; // doing a copy paste, so don't launch clips
-			gridSecondPressedX = x;
-			gridSecondPressedY = y;
-			display->popupText("COPY CLIPS");
-		}
-		// clone clip on release of second pad
-		if (!on && gridSecondPressedX == x && gridSecondPressedY == y) {
-			gridClonePad(gridFirstPressedX, gridFirstPressedY, gridSecondPressedX, gridSecondPressedY);
-			gridResetPresses(false, true);
-			return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 		}
 
 		return ActionResult::DEALT_WITH;
