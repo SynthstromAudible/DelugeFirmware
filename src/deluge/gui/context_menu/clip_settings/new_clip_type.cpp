@@ -34,7 +34,7 @@ Sized<char const**> NewClipType::getOptions() {
 bool NewClipType::setupAndCheckAvailability() {
 	currentUIMode = UI_MODE_NONE;
 
-	this->currentOption = scrollPos = 0; // start at the top of the menu
+	scrollPos = this->currentOption; // start at the top of the menu
 
 	return true;
 }
@@ -62,7 +62,12 @@ bool NewClipType::acceptCurrentOption() {
 		outputType = OutputType::CV;
 	}
 	sessionView.newClipToCreate = sessionView.createNewClip(outputType, yDisplay);
-	return false; // so you exit out of the context menu
+	display->setNextTransitionDirection(-1);
+	close();
+	return true;
+}
+ActionResult NewClipType::padAction(int32_t x, int32_t y, int32_t on) {
+	return sessionView.padAction(x, y, on); // let the grid handle this
 }
 
 ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -74,24 +79,28 @@ ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	if (b == SYNTH) {
 		if (on) {
+			currentOption = 1;
 			sessionView.newClipToCreate = sessionView.createNewClip(OutputType::SYNTH, yDisplay);
 		}
 	}
 
 	else if (b == KIT) {
 		if (on) {
+			currentOption = 2;
 			sessionView.newClipToCreate = sessionView.createNewClip(OutputType::KIT, yDisplay);
 		}
 	}
 
 	else if (b == MIDI) {
 		if (on) {
+			currentOption = 3;
 			sessionView.newClipToCreate = sessionView.createNewClip(OutputType::MIDI_OUT, yDisplay);
 		}
 	}
 
 	else if (b == CV) {
 		if (on) {
+			currentOption = 4;
 			sessionView.newClipToCreate = sessionView.createNewClip(OutputType::CV, yDisplay);
 		}
 	}
