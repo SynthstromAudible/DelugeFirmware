@@ -894,6 +894,13 @@ enum class String : size_t {
 	STRING_FOR_SONG_MACRO_KIND_SECTION,
 	STRING_FOR_SONG_MACRO_KIND_NONE,
 
+	// actions
+	STRING_FOR_ACTIONS,
+
+	// string for removing audio clip timestretching
+	STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH,
+	STRING_FOR_CLIP_LENGTH_ADJUSTED,
+
 	STRING_LAST
 };
 

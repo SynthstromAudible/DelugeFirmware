@@ -241,10 +241,11 @@ as the micromonsta and the dreadbox nymphes.
   - Not included in c1.1.0
 - ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose which track to record from.
 
-#### 3.18 - Remove Timestretching From Audio Clip Sample
-- ([#1542]) Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
-  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
-  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+#### 3.18 - Set Audio Clip Length Equal to Sample Length
+- ([#1542]) Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
+  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample.
+    - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
+  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 
 #### 3.19 - Sample Slice Default Mode
 
