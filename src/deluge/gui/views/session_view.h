@@ -158,6 +158,7 @@ private:
 
 	Clip* createNewAudioClip(int32_t yDisplay);
 	Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay);
+	void replaceInstrumentClipWithAudioClip(Clip* clip);
 
 	bool createNewTrackForAudioClip(AudioClip* newClip);
 	bool createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip);
