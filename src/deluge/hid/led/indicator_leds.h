@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 
-constexpr size_t numLedBlinkers = 5;
+constexpr size_t numLedBlinkers = 6;
 
 namespace indicator_leds {
 

@@ -3424,12 +3424,15 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	else {
 		// This is the right position to add immediate type creation
 		setupTrackCreation();
+		createClip = true;
 
 		// wait until you've chosen a type, by pressing a type button or releasing the pad
 		yield([]() { return (currentUIMode != UI_MODE_CREATING_CLIP); });
-		newClip = createNewClip(lastTypeCreated, -1);
-		if (newClip) {
-			display->popupTextTemporary("DONE");
+		if (createClip) {
+			newClip = createNewClip(lastTypeCreated, -1);
+			if (newClip) {
+				display->popupTextTemporary("DONE");
+			}
 		}
 	}
 
@@ -3794,6 +3797,7 @@ void SessionView::setupTrackCreation() const { // start clip creation, blink all
 	indicator_leds::blinkLed(IndicatorLED::KIT);
 	indicator_leds::blinkLed(IndicatorLED::CV);
 	indicator_leds::blinkLed(IndicatorLED::CROSS_SCREEN_EDIT);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
 	if (display->haveOLED()) {
 		char popupText[32] = {0};
 		sprintf(popupText, "Create %s track?", outputTypeToString(lastTypeCreated));
@@ -3812,8 +3816,9 @@ ActionResult SessionView::clipCreationButtonPressed(hid::Button i, bool on, bool
 		exitTrackCreation();
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
-	// exit on back or the creation
+	// exit on back, cancel creation
 	if (i == BACK) {
+		createClip = false;
 		exitTrackCreation();
 		return ActionResult::DEALT_WITH;
 	}
@@ -3825,6 +3830,7 @@ void SessionView::exitTrackCreation() {
 	indicator_leds::setLedState(IndicatorLED::KIT, false, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false, false);
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false, false);
+	indicator_leds::setLedState(IndicatorLED::BACK, false, false);
 	display->cancelPopup();
 	exitUIMode(UI_MODE_CREATING_CLIP);
 	requestRendering(this);
