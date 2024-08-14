@@ -31,6 +31,12 @@ namespace deluge::gui::context_menu {
 
 ConfigureSongMacros configureSongMacros{};
 
+bool ConfigureSongMacros::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+	*cols = 0x01; // Only mode (audition) column
+	*rows = 0x0;
+	return true;
+}
+
 char const* ConfigureSongMacros::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_SHORT);

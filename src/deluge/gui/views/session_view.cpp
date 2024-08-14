@@ -2941,7 +2941,7 @@ void SessionView::renderLayoutChange(bool displayPopup) {
 		currentSong->songGridScrollY = 0;
 	}
 
-	requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	requestRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
 	view.flashPlayEnable();
 }
 
@@ -2955,7 +2955,7 @@ void SessionView::selectSpecificLayout(SessionLayoutType layout) {
 		renderLayoutChange(false);
 	}
 	else {
-		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+		requestRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
 		view.flashPlayEnable();
 	}
 }
