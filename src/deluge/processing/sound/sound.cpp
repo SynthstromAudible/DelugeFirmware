@@ -887,7 +887,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("reversed");
 	}
 	else if (!strcmp(tagName, "zone")) {
-
+		reader.match('{');
 		MultisampleRange* range = (MultisampleRange*)sources[0].getOrCreateFirstRange();
 		if (!range) {
 			return Error::INSUFFICIENT_RAM;
@@ -917,7 +917,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag("endMilliseconds");
 			}
 		}
-		reader.exitTag("zone");
+		reader.exitTag("zone", true);
 	}
 
 	else if (!strcmp(tagName, "ringMod")) {
@@ -1185,6 +1185,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 
 	else if (!strcmp(tagName, "hpf")) {
 		bool switchedOn = true; // For backwards compatibility with pre November 2015 files
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "status")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
@@ -1217,10 +1218,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			    getParamFromUserValue(params::LOCAL_HPF_FREQ, 50));
 		}
 
-		reader.exitTag("hpf");
+		reader.exitTag("hpf", true);
 	}
 
 	else if (!strcmp(tagName, "envelope1")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				ENSURE_PARAM_MANAGER_EXISTS
@@ -1251,10 +1253,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 		}
 
-		reader.exitTag("envelope1");
+		reader.exitTag("envelope1", true);
 	}
 
 	else if (!strcmp(tagName, "envelope2")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				ENSURE_PARAM_MANAGER_EXISTS
@@ -1285,7 +1288,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 		}
 
-		reader.exitTag("envelope2");
+		reader.exitTag("envelope2", true);
 	}
 
 	else if (!strcmp(tagName, "polyphonic")) {
@@ -3983,19 +3986,19 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	writer.writeOpeningTagEnd();
 
 	// Envelopes
-	writer.writeOpeningTagBeginning("envelope1");
+	writer.writeOpeningTagBeginning("envelope1", true);
 	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_0_ATTACK, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_0_DECAY, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_0_SUSTAIN, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_0_RELEASE, writeAutomation);
-	writer.closeTag();
+	writer.closeTag(true);
 
-	writer.writeOpeningTagBeginning("envelope2");
+	writer.writeOpeningTagBeginning("envelope2", true);
 	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_1_ATTACK, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_1_DECAY, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_1_SUSTAIN, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_1_RELEASE, writeAutomation);
-	writer.closeTag();
+	writer.closeTag(true);
 
 	paramManager->getPatchCableSet()->writePatchCablesToFile(writer, writeAutomation);
 

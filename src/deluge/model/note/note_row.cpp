@@ -3184,7 +3184,7 @@ finishedNormalStuff:
 			Sound::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
 		}
 
-		// Notes stored as XML (before V1.4)
+		// Notes stored as XML (before V1.4) - NOT CONVERTED TO ALSO WORK WITH JSON.
 		else if (!strcmp(tagName, "notes")) {
 			// Read each Note
 			uint32_t minPos = 0;

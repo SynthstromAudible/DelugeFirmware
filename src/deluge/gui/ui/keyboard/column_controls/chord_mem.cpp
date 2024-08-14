@@ -81,17 +81,17 @@ void ChordMemColumn::writeToFile(Serializer& writer) {
 		return; // no state to save
 	}
 
-	writer.writeOpeningTag("chordMem");
+	writer.writeArrayStart("chordMem", true, true);
 	for (int32_t y = 0; y < num; y++) {
-		writer.writeOpeningTag("chordSlot");
+		writer.writeArrayStart("chordSlot", true, true);
 		for (int i = 0; i < chordMemNoteCount[y]; i++) {
-			writer.writeOpeningTagBeginning("note");
+			writer.writeOpeningTagBeginning("note", true);
 			writer.writeAttribute("code", chordMem[y][i]);
-			writer.closeTag();
+			writer.closeTag(true);
 		}
-		writer.writeClosingTag("chordSlot");
+		writer.writeArrayEnding("chordSlot", true, true);
 	}
-	writer.writeClosingTag("chordMem");
+	writer.writeArrayEnding("chordMem", true, true);
 }
 
 void ChordMemColumn::readFromFile(Deserializer& reader) {
