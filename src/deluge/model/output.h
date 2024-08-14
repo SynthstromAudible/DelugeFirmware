@@ -73,7 +73,7 @@ inline OutputType buttonToOutputType(deluge::hid::Button b) {
 		return OutputType::KIT;
 	case CV:
 		return OutputType::CV;
-	case SELECT_ENC:
+	case CROSS_SCREEN_EDIT:
 		return OutputType::AUDIO;
 	default:
 		return OutputType::NONE;
