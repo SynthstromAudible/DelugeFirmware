@@ -47,6 +47,7 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_follow.h"
@@ -181,6 +182,13 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// do not action anybutton presses except BACK to cancel the process
 	if (b != BACK && stemExport.processStarted) {
 		return ActionResult::DEALT_WITH;
+	}
+
+	if (currentUIMode == UI_MODE_CREATING_CLIP) {
+		if (inCardRoutine) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		return clipCreationButtonPressed(b, on, inCardRoutine);
 	}
 
 	// Clip-view button
@@ -1613,6 +1621,7 @@ Clip* SessionView::createNewClip(OutputType outputType, int32_t yDisplay) {
 		}
 		break;
 	}
+
 	return clip;
 }
 
@@ -1838,7 +1847,10 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	}
 
 	UI* currentUI = getCurrentUI();
-	if (currentUI != &performanceSessionView) {
+	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+		view.displayOutputName(getCurrentClip()->output, true, getCurrentClip());
+	}
+	else if (currentUI != &performanceSessionView) {
 		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
 		                                             : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
 	}
@@ -2886,9 +2898,16 @@ Clip* SessionView::getClipForLayout() {
 
 void SessionView::selectLayout(int8_t offset) {
 	gridSetDefaultMode();
-	gridResetPresses();
+	// only reset first pad if it's not still held
+	bool keepFirst = matrixDriver.isPadPressed(gridFirstPressedX, gridFirstPressedY);
+	gridResetPresses(!keepFirst);
 	gridModeActive = gridModeSelected;
-
+	if (matrixDriver.isPadPressed(kDisplayWidth + 1, GREEN)) {
+		gridModeActive = SessionGridMode::SessionGridModeLaunch;
+	}
+	else if (matrixDriver.isPadPressed(kDisplayWidth + 1, BLUE)) {
+		gridModeActive = SessionGridMode::SessionGridModeEdit;
+	}
 	// Layout change
 	if (offset != 0) {
 		switch (currentSong->sessionLayout) {
@@ -3395,13 +3414,14 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	// Create new clip in new track
 	else {
 		// This is the right position to add immediate type creation
-		context_menu::clip_settings::newClipType.setupAndCheckAvailability();
-		openUI(&context_menu::clip_settings::newClipType);
+		setupTrackCreation();
 
-		// wait until you've exited out of clip creation context menu
-		newClipToCreate = nullptr;
-		yield([]() { return (getCurrentUI() != &context_menu::clip_settings::newClipType); });
-		newClip = newClipToCreate;
+		// wait until you've chosen a type, by pressing a type button or releasing the pad
+		yield([]() { return (currentUIMode != UI_MODE_CREATING_CLIP); });
+		newClip = createNewClip(lastTypeCreated, -1);
+		if (newClip) {
+			display->popupTextTemporary("DONE");
+		}
 	}
 
 	// Set new clip section and add it to the list
@@ -3549,9 +3569,9 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 	// Right sidebar column - action modes
 	if (x > kDisplayWidth) {
-		clipPressEnded();
 
 		if (on) {
+			clipPressEnded();
 			gridActiveModeUsed = false;
 			switch (y) {
 			case GridMode::GREEN: {
@@ -3669,8 +3689,6 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
 
-	bool createdNewClip = false;
-
 	if (on) {
 		// Only do this if no pad is pressed yet
 		if (gridFirstPressedX == -1 && gridFirstPressedY == -1) {
@@ -3689,7 +3707,11 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 					// Immediately start playing it for new tracks
 					if (clip != nullptr && track == nullptr) {
 						gridToggleClipPlay(clip, true);
-						createdNewClip = true;
+					}
+					// if the pad has already been released while we yielded just get out of here
+					if (x != gridFirstPressedX || y != gridFirstPressedY) {
+						currentSong->setCurrentClip(clip);
+						return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 					}
 				}
 			}
@@ -3697,25 +3719,21 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			if (clip == nullptr) {
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
+			if (display->haveOLED()) {
+				// removes potential stuck pop-up if you're previewing / entering a clip
+				// while holding section pad and repeats popup is displayed
+				deluge::hid::display::OLED::removePopup();
+			}
+			view.displayOutputName(clip->output, true, clip);
+
 			// we've either created or selected a clip, so set it to be current
 			currentSong->setCurrentClip(clip);
-
-			// if we just created a new clip, treat it like it's not being pressed anymore
-			if (createdNewClip) {
-				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-			}
 
 			// Allow clip control (selection)
 			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 			performActionOnPadRelease = true;
 			selectedClipTimePressed = AudioEngine::audioSampleTimer;
 			view.setActiveModControllableTimelineCounter(clip);
-			view.displayOutputName(clip->output, true, clip);
-			if (display->haveOLED()) {
-				// removes potential stuck pop-up if you're previewing / entering a clip
-				// while holding section pad and repeats popup is displayed
-				deluge::hid::display::OLED::removePopup();
-			}
 		}
 		// Remember the second press down if empty
 		else if (gridSecondPressedX == -1 || gridSecondPressedY == -1) {
@@ -3728,6 +3746,10 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 	else {
 		// First finger up
 		if (gridFirstPressedX == x && gridFirstPressedY == y) {
+			if (currentUIMode == UI_MODE_CREATING_CLIP) {
+				// accept the current option on release. -1 for last
+				exitTrackCreation(); // will fall back into making a clip
+			}
 			// Open clip if no other pad was previously pressed, timer has not run out and clip is pressed
 			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) && performActionOnPadRelease
 			    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
@@ -3755,6 +3777,46 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 	}
 
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+}
+void SessionView::setupTrackCreation() const { // start clip creation, blink all LEDs to tell user
+	currentUIMode = UI_MODE_CREATING_CLIP;
+	indicator_leds::blinkLed(IndicatorLED::SYNTH);
+	indicator_leds::blinkLed(IndicatorLED::MIDI);
+	indicator_leds::blinkLed(IndicatorLED::KIT);
+	indicator_leds::blinkLed(IndicatorLED::CV);
+	if (display->haveOLED()) {
+		char popupText[32] = {0};
+		sprintf(popupText, "Create %s track?", outputTypeToString(lastTypeCreated));
+		display->popupText(popupText);
+	}
+	else {
+		display->popupText(outputTypeToString(lastTypeCreated));
+	}
+}
+
+ActionResult SessionView::clipCreationButtonPressed(hid::Button i, bool on, bool routine) {
+	using namespace deluge::hid::button;
+	OutputType toCreate = buttonToOutputType(i);
+	if (toCreate != OutputType::NONE) {
+		lastTypeCreated = toCreate;
+		exitTrackCreation();
+		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+	}
+	// exit on back or the creation
+	if (i == BACK) {
+		exitTrackCreation();
+		return ActionResult::DEALT_WITH;
+	}
+	return ActionResult::NOT_DEALT_WITH;
+}
+void SessionView::exitTrackCreation() {
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false, false);
+	indicator_leds::setLedState(IndicatorLED::MIDI, false, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false, false);
+	indicator_leds::setLedState(IndicatorLED::CV, false, false);
+	display->cancelPopup();
+	exitUIMode(UI_MODE_CREATING_CLIP);
+	requestRendering(this);
 }
 
 ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip) {
@@ -3789,53 +3851,80 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 	}
 
 	if (clip == nullptr) {
-		// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing
-		if (on && playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL
-		    && FlashStorage::gridEmptyPadsCreateRec) {
+		// press on an empty pad
+		if (on) {
 			auto maxTrack = gridTrackCount();
 			Output* track = gridTrackFromX(x, maxTrack);
-			if (track != nullptr) {
-				clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
-				if (clip != nullptr) {
-					gridToggleClipPlay(clip, Buttons::isShiftButtonPressed());
-				}
 
-				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+			// holding one clip, then pressing a second empty clip
+			if ((gridFirstPressedX != -1 && gridFirstPressedY != -1)
+			    && (gridSecondPressedX == -1 || gridSecondPressedY == -1)) {
+				performActionOnPadRelease = false; // doing a copy paste, so don't launch clips
+				gridSecondPressedX = x;
+				gridSecondPressedY = y;
+				display->popupText("COPY CLIPS");
 			}
-		}
-
-		if (on && currentUIMode == UI_MODE_NONE && FlashStorage::gridEmptyPadsUnarm) {
-			auto maxTrack = gridTrackCount();
-			Output* track = gridTrackFromX(x, maxTrack);
-			if (track != nullptr) {
-				for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-					Clip* sessionClip = currentSong->sessionClips.getClipAtIndex(idxClip);
-					if (sessionClip->output == track) {
-						if (sessionClip->activeIfNoSolo) {
-							gridToggleClipPlay(sessionClip, Buttons::isShiftButtonPressed());
-						}
-						else {
-							sessionClip->armState = ArmState::OFF;
+			// next disarm the track if that's the user prefernce and a track exists
+			else if (currentUIMode == UI_MODE_NONE && track && FlashStorage::gridEmptyPadsUnarm) {
+				auto maxTrack = gridTrackCount();
+				Output* track = gridTrackFromX(x, maxTrack);
+				if (track != nullptr) {
+					for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
+						Clip* sessionClip = currentSong->sessionClips.getClipAtIndex(idxClip);
+						if (sessionClip->output == track) {
+							if (sessionClip->activeIfNoSolo) {
+								gridToggleClipPlay(sessionClip, Buttons::isShiftButtonPressed());
+							}
+							else {
+								sessionClip->armState = ArmState::OFF;
+							}
 						}
 					}
+
+					return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 				}
+			}
+			// lastly create a new clip, either on an existing track or on a new one
+			else if (currentUIMode == UI_MODE_NONE) {
+				gridFirstPressedX = x;
+				gridFirstPressedY = y;
+				// will create the track if it doesn't exist
+				clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
+				// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing
+				// (depending on setting)
+				if (clip != nullptr && playbackHandler.playbackState
+				    && playbackHandler.recording == RecordingMode::NORMAL && FlashStorage::gridEmptyPadsCreateRec) {
+					gridToggleClipPlay(clip, Buttons::isShiftButtonPressed());
+				}
+				// Allow clip control (selection) if still holding it
+				if (x == gridFirstPressedX && y == gridFirstPressedY) {
+					currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+					view.displayOutputName(clip->output, true, clip);
+					display->cancelPopup();
+				}
+				currentSong->setCurrentClip(clip);
+				// this needs to be called after the current clip is set in order to ensure that
+				// if midi follow feedback is enabled, it sends feedback for the right clip
+				view.setActiveModControllableTimelineCounter(clip);
 
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
 		}
-		// holding one clip, then pressing a second empty clip
-		if ((gridFirstPressedX != -1 && gridFirstPressedY != -1)
-		    && (gridSecondPressedX == -1 || gridSecondPressedY == -1)) {
-			performActionOnPadRelease = false; // doing a copy paste, so don't launch clips
-			gridSecondPressedX = x;
-			gridSecondPressedY = y;
-			display->popupText("COPY CLIPS");
-		}
-		// clone clip on release of second pad
-		if (!on && gridSecondPressedX == x && gridSecondPressedY == y) {
-			gridClonePad(gridFirstPressedX, gridFirstPressedY, gridSecondPressedX, gridSecondPressedY);
-			gridResetPresses(false, true);
-			return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+		// release on an empty pad
+		else {
+			// if creating a clip releasing the first pad makes it
+			if (isUIModeActive(UI_MODE_CREATING_CLIP)) {
+				if (x == gridFirstPressedX && y == gridFirstPressedY) {
+					exitTrackCreation();
+					clipPressEnded();
+				}
+			}
+			// clone clip on release of second pad
+			if (gridSecondPressedX == x && gridSecondPressedY == y) {
+				gridClonePad(gridFirstPressedX, gridFirstPressedY, gridSecondPressedX, gridSecondPressedY);
+				gridResetPresses(false, true);
+				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+			}
 		}
 
 		return ActionResult::DEALT_WITH;
