@@ -291,10 +291,13 @@ as the micromonsta and the dreadbox nymphes.
  - Submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
 #### 3.27 Updated UI for Creating New Clips in New Tracks in Song Grid View
-- ([#2299]) Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG GRID VIEW` which enables you to select the type of clip before the clip is created.
-  - In `SONG GRID VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
-  - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
-- Removed the `SONG GRID VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
+- ([#2429]) Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and updated the button used to Create Audio Clips in `SONG GRID VIEW` from the `SELECT ENCODER` to the `CROSS SCREEN BUTTON`.
+  - When you press a pad in a new track, a popup will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. It will tell you on the display what that clip type is. 
+    - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last clip type.
+    - If you press and hold a pad, you can choose a different type by pressing one of the `BLINKING` clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV` or `CROSS SCREEN` (for Audio Clips)). If you let go of the pad without selecting a different type, it will create the clip using the last selected clip type.
+    - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.
+- Updated the `SONG GRID VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `CROSS SCREEN BUTTON` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
+  - This replaces the previous shortcut of `HOLDING PAD FOR THE CLIP` + `SELECT ENCODER`.
 - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
 #### 3.28 Updated UI for Setting Clip Mode in Song Grid View
@@ -1447,6 +1450,8 @@ different firmware
 [#2367]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2367
 
 [#2385]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2385
+
+[#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

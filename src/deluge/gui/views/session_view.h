@@ -129,6 +129,7 @@ public:
 
 	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
 	Clip* newClipToCreate;
+	bool createClip = false;
 
 	// Grid macros config mode
 	void enterMacrosConfigMode();
