@@ -23,7 +23,6 @@
 #include "gui/colour/palette.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/clip_settings/launch_style.h"
-#include "gui/context_menu/clip_settings/new_clip_type.h"
 #include "gui/context_menu/context_menu.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/menu_item/colour.h"
@@ -621,6 +620,29 @@ doActualSimpleChange:
 		newOutputType = OutputType::CV;
 		goto changeOutputType;
 	}
+	// used for changing clip type to audio clip
+	else if (b == CROSS_SCREEN_EDIT) {
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			if (on && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && !Buttons::isShiftButtonPressed()) {
+				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+					return ActionResult::DEALT_WITH;
+				}
+
+				if (inCardRoutine) {
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
+
+				actionLogger.deleteAllLogs();
+				performActionOnPadRelease = false;
+				Clip* clip = getClipForLayout();
+				if (clip != nullptr) {
+					replaceInstrumentClipWithAudioClip(clip);
+				}
+			}
+		}
+	}
+
 	else if (b == KEYBOARD) {
 		if (on && (currentUIMode == UI_MODE_NONE)
 		    && (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid)) {
@@ -802,20 +824,7 @@ startHoldingDown:
 					// if (possiblyCreatePendingNextOverdub(clipIndex, OverdubType::EXTENDING)) return
 					// ActionResult::DEALT_WITH;
 
-					if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-						context_menu::clip_settings::newClipType.yDisplay = yDisplay;
-						context_menu::clip_settings::newClipType.setupAndCheckAvailability();
-						openUI(&context_menu::clip_settings::newClipType);
-
-						// wait until you've exited out of clip creation context menu
-						newClipToCreate = nullptr;
-						yield([]() { return (getCurrentUI() != &context_menu::clip_settings::newClipType); });
-
-						clip = newClipToCreate;
-					}
-					else {
-						clip = createNewInstrumentClip(OutputType::SYNTH, yDisplay);
-					}
+					clip = createNewInstrumentClip(OutputType::SYNTH, yDisplay);
 					if (!clip) {
 						return ActionResult::DEALT_WITH;
 					}
@@ -3415,12 +3424,12 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	else {
 		// This is the right position to add immediate type creation
 		setupTrackCreation();
+		createClip = true;
 
 		// wait until you've chosen a type, by pressing a type button or releasing the pad
 		yield([]() { return (currentUIMode != UI_MODE_CREATING_CLIP); });
-		newClip = createNewClip(lastTypeCreated, -1);
-		if (newClip) {
-			display->popupTextTemporary("DONE");
+		if (createClip) {
+			newClip = createNewClip(lastTypeCreated, -1);
 		}
 	}
 
@@ -3784,6 +3793,8 @@ void SessionView::setupTrackCreation() const { // start clip creation, blink all
 	indicator_leds::blinkLed(IndicatorLED::MIDI);
 	indicator_leds::blinkLed(IndicatorLED::KIT);
 	indicator_leds::blinkLed(IndicatorLED::CV);
+	indicator_leds::blinkLed(IndicatorLED::CROSS_SCREEN_EDIT);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
 	if (display->haveOLED()) {
 		char popupText[32] = {0};
 		sprintf(popupText, "Create %s track?", outputTypeToString(lastTypeCreated));
@@ -3802,8 +3813,9 @@ ActionResult SessionView::clipCreationButtonPressed(hid::Button i, bool on, bool
 		exitTrackCreation();
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
-	// exit on back or the creation
+	// exit on back, cancel creation
 	if (i == BACK) {
+		createClip = false;
 		exitTrackCreation();
 		return ActionResult::DEALT_WITH;
 	}
@@ -3814,6 +3826,8 @@ void SessionView::exitTrackCreation() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false, false);
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false, false);
+	indicator_leds::setLedState(IndicatorLED::BACK, false, false);
 	display->cancelPopup();
 	exitUIMode(UI_MODE_CREATING_CLIP);
 	requestRendering(this);

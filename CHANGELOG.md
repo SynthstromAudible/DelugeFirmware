@@ -33,11 +33,15 @@ use the TRACK menu to select the specific track to record from
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
 - Submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 - Added ability to `AUTOMATE TEMPO` in arranger view
-- Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG GRID VIEW` which enables you to select the type of clip before the clip is created.
-  - In `SONG GRID VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
-  - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
-  - Removed the `SONG GRID VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
-  - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
+- Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and updated the button used to Create Audio Clips in `SONG GRID VIEW` from the `SELECT ENCODER` to the `CROSS SCREEN BUTTON`.
+  - When you press a pad in a new track, a popup will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. It will tell you on the display what that clip type is. 
+    - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last clip type.
+    - If you press and hold a pad, you can choose a different type by pressing one of the `BLINKING` clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV` or `CROSS SCREEN` (for Audio Clips)). If you let go of the pad without selecting a different type, it will create the clip using the last selected clip type.
+    - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.    
+    - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
+- Updated the `SONG GRID VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `CROSS SCREEN BUTTON` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
+  - This replaces the previous shortcut of `HOLDING PAD FOR THE CLIP` + `SELECT ENCODER`.
+  - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW` 
 - `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
   - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`  
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.

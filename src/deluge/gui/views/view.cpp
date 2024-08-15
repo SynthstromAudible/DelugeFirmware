@@ -1898,7 +1898,19 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			setLedState(LED::CV, false);
 		}
 
-		if (outputType != OutputType::AUDIO) {
+		bool isGridView =
+		    (getCurrentUI() == &sessionView && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid);
+
+		if (isGridView) {
+			if (outputType == OutputType::AUDIO) {
+				led = LED::CROSS_SCREEN_EDIT;
+			}
+			else {
+				setLedState(LED::CROSS_SCREEN_EDIT, false);
+			}
+			blinkLed(led);
+		}
+		else if (outputType != OutputType::AUDIO) {
 			blinkLed(led);
 		}
 
@@ -1909,7 +1921,9 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 
 		setLedState(LED::KEYBOARD, (clip && clip->onKeyboardScreen));
 		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != OutputType::KIT));
-		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
+		if (!isGridView) {
+			setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
+		}
 	}
 
 	// hook to render display for OLED and 7SEG when in Automation View
