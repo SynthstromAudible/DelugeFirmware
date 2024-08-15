@@ -58,6 +58,7 @@ struct ParamsForPerformance {
 class PerformanceSessionView final : public ClipNavigationTimelineView {
 public:
 	PerformanceSessionView();
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	bool opened() override;
 	void focusRegained() override;
 
