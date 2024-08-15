@@ -243,6 +243,7 @@ void JsonSerializer::writeArrayStart(char const* tag, bool startNewLineAfter, bo
 
 void JsonSerializer::writeArrayEnding(char const* tag, bool shouldPrintIndents, bool box) {
 	indentAmount--;
+	firstItemHasBeenWritten = true;
 	if (shouldPrintIndents) {
 		write("\n");
 		printIndents();

@@ -65,7 +65,7 @@ XMLDeserializer smDeserializer;
 JsonSerializer smJsonSerializer;
 JsonDeserializer smJsonDeserializer;
 
-bool writeJsonFlag = false;
+bool writeJsonFlag = true;
 
 Serializer& GetSerializer() {
 	if (writeJsonFlag) {

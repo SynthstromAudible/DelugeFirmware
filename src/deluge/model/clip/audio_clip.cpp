@@ -1033,7 +1033,7 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
 	if (onAutomationClipView) {
-		writer.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
+		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
 	if (lastSelectedParamID != kNoSelection) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);

@@ -3986,19 +3986,19 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	writer.writeOpeningTagEnd();
 
 	// Envelopes
-	writer.writeOpeningTagBeginning("envelope1", true);
+	writer.writeOpeningTagBeginning("envelope1");
 	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_0_ATTACK, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_0_DECAY, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_0_SUSTAIN, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_0_RELEASE, writeAutomation);
-	writer.closeTag(true);
+	writer.closeTag();
 
-	writer.writeOpeningTagBeginning("envelope2", true);
+	writer.writeOpeningTagBeginning("envelope2");
 	patchedParams->writeParamAsAttribute(writer, "attack", params::LOCAL_ENV_1_ATTACK, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "decay", params::LOCAL_ENV_1_DECAY, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "sustain", params::LOCAL_ENV_1_SUSTAIN, writeAutomation);
 	patchedParams->writeParamAsAttribute(writer, "release", params::LOCAL_ENV_1_RELEASE, writeAutomation);
-	writer.closeTag(true);
+	writer.closeTag();
 
 	paramManager->getPatchCableSet()->writePatchCablesToFile(writer, writeAutomation);
 
@@ -4074,13 +4074,13 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writer.closeTag();
 
 	if (paramManager) {
-		writer.writeOpeningTagBeginning("defaultParams");
+		writer.writeOpeningTagBeginning("defaultParams", true);
 		Sound::writeParamsToFile(writer, paramManager, false);
-		writer.writeClosingTag("defaultParams");
+		writer.writeClosingTag("defaultParams", true, true);
 	}
 
 	if (arpSettings) {
-		writer.writeOpeningTagBeginning("arpeggiator");
+		writer.writeOpeningTagBeginning("arpeggiator", true);
 		writer.writeAttribute("mode", arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
 		writer.writeAttribute("numOctaves", arpSettings->numOctaves);
 		writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel, true);
@@ -4089,7 +4089,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
 		writer.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		writer.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
-		writer.closeTag();
+		writer.closeTag(true);
 	}
 
 	// Mod knobs

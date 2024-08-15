@@ -3434,9 +3434,9 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.writeOpeningTagEnd();
 			closedOurTagYet = true;
 
-			writer.writeOpeningTagBeginning("soundParams");
+			writer.writeOpeningTagBeginning("soundParams", true);
 			Sound::writeParamsToFile(writer, &paramManager, true);
-			writer.writeClosingTag("soundParams");
+			writer.writeClosingTag("soundParams", true, true);
 		}
 	}
 

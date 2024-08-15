@@ -2303,10 +2303,10 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeAttribute("yScrollKeyboard", keyboardState.isomorphic.scrollOffset);
 
 	if (onKeyboardScreen) {
-		writer.writeAttribute("onKeyboardScreen", (char*)"1");
+		writer.writeAttribute("onKeyboardScreen", 1);
 	}
 	if (onAutomationClipView) {
-		writer.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
+		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
 	if (lastSelectedParamID != kNoSelection) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);
@@ -2407,9 +2407,9 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeClosingTag("kitParams");
 	}
 	else if (output->type == OutputType::SYNTH) {
-		writer.writeOpeningTag("soundParams");
+		writer.writeOpeningTagBeginning("soundParams");
 		Sound::writeParamsToFile(writer, &paramManager, true);
-		writer.writeClosingTag("soundParams");
+		writer.writeClosingTag("soundParams", true);
 	}
 
 	if (output->type != OutputType::KIT) {
@@ -2716,8 +2716,8 @@ someError:
 							arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);
 							arpSettings.updatePresetFromCurrentSettings();
 						}
+						reader.exitTag("mode");
 					}
-					reader.exitTag("mode");
 				}
 				else if (!strcmp(tagName, "arpMode")) {
 					arpSettings.mode = stringToArpMode(reader.readTagOrAttributeValue());
@@ -2746,7 +2746,7 @@ someError:
 					reader.exitTag(tagName);
 				}
 			}
-			reader.exitTag("arpeggiator", true);
+			reader.match('}'); // End arpeggiator value object.
 		}
 
 		// For song files from before V2.0, where Instruments were stored within the Clip.

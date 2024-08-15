@@ -1233,7 +1233,7 @@ weAreInArrangementEditorOrInClipInstance:
 		for (int32_t y = 0; y < maxChordPosToSave; y++) {
 			writer.writeArrayStart("chord", true, true);
 			for (int i = 0; i < chordMemNoteCount[y]; i++) {
-				writer.writeOpeningTagBeginning("note");
+				writer.writeOpeningTagBeginning("note", true);
 				writer.writeAttribute("code", chordMem[y][i]);
 				writer.closeTag(true);
 			}
@@ -1675,8 +1675,9 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "chordMem")) {
+				reader.match('[');
 				int slot_index = 0;
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
+				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "chord")) {
 						int y = slot_index++;
 						if (y >= kDisplayHeight) {
@@ -1684,8 +1685,10 @@ unknownTag:
 							continue;
 						}
 						int i = 0;
-						while (*(tagName = reader.readNextTagOrAttributeName())) {
+						reader.match('[');
+						while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "note")) {
+								reader.match('{');
 								while (*(tagName = reader.readNextTagOrAttributeName())) {
 									if (!strcmp(tagName, "code")) {
 										if (i < MAX_NOTES_CHORD_MEM) {
@@ -1697,17 +1700,22 @@ unknownTag:
 									}
 								}
 								i++;
+								reader.match('}'); // note value object
+								reader.match('}'); // note box
 							}
 							else {
 								reader.exitTag();
 							}
 						}
 						chordMemNoteCount[y] = std::min(MAX_NOTES_CHORD_MEM, i);
+						reader.match(']'); // close note array.
+						reader.match('}'); // close chord box.
 					}
 					else {
 						reader.exitTag();
 					}
 				}
+				reader.match(']');
 				reader.exitTag("chordMem");
 			}
 
@@ -1765,7 +1773,7 @@ unknownTag:
 						reader.exitTag();
 					}
 				}
-				reader.exitTag("chordMem");
+				reader.exitTag("sessionMacros");
 			}
 			else if (!strcmp(tagName, "sections")) {
 				// Read in all the sections
