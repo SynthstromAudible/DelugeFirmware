@@ -766,10 +766,10 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 
 	// MIDI knobs
 	if (midiKnobArray.getNumElements()) {
-		writer.writeOpeningTag("midiKnobs");
+		writer.writeArrayStart("midiKnobs");
 		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			MIDIKnob* knob = midiKnobArray.getElement(k);
-			writer.writeOpeningTagBeginning("midiKnob");
+			writer.writeOpeningTagBeginning("midiKnob", true);
 			knob->midiInput.writeAttributesToFile(
 			    writer,
 			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
@@ -791,13 +791,13 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 			if (knob->midiInput.device) {
 				writer.writeOpeningTagEnd();
 				knob->midiInput.device->writeReferenceToFile(writer);
-				writer.writeClosingTag("midiKnob");
+				writer.writeClosingTag("midiKnob", true, true);
 			}
 			else {
 				writer.closeTag();
 			}
 		}
-		writer.writeClosingTag("midiKnobs");
+		writer.writeArrayEnding("midiKnobs");
 	}
 
 	// Sidechain (renamed from "compressor" from the official firmware)
@@ -1083,9 +1083,9 @@ doReadPatchedParam:
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {
-
+		reader.match('[');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "midiKnob")) {
+			if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
 
 				MIDIDevice* device = nullptr;
 				uint8_t channel;
@@ -1124,6 +1124,8 @@ doReadPatchedParam:
 					}
 					reader.exitTag();
 				}
+				reader.match('}'); // close value object.
+				reader.match('}'); // close box.
 
 				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
 					MIDIKnob* newKnob = midiKnobArray.insertKnobAtEnd();
@@ -1147,6 +1149,7 @@ doReadPatchedParam:
 			}
 			reader.exitTag();
 		}
+		reader.match(']'); // close array.
 		reader.exitTag("midiKnobs");
 	}
 

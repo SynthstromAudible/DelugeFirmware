@@ -70,6 +70,7 @@ void JsonDeserializer::reset() {
 
 	objectDepth = 0;
 	arrayDepth = 0;
+	readState = JsonState::NewFile;
 }
 
 // Advances read pointer until it encounters a non-whitespace character.
@@ -152,6 +153,7 @@ char const* JsonDeserializer::readKeyName() {
 		return "";
 	if (aChar != ':')
 		return "";
+	readState = JsonState::KeyRead;
 	return key;
 }
 
@@ -264,6 +266,7 @@ Error JsonDeserializer::readStringUntilChar(String* string, char endChar) {
 	fileReadBufferCurrentPos++; // Gets us past the endChar
 
 	readDone();
+	readState = JsonState::ValueRead;
 	return Error::NONE;
 }
 
@@ -280,7 +283,7 @@ char const* JsonDeserializer::readUntilChar(char endChar) {
 		       && fileClusterBuffer[fileReadBufferCurrentPos] != endChar) {
 			fileReadBufferCurrentPos++;
 		}
-
+		readState = JsonState::ValueRead;
 		// If possible, just return a pointer to the chars within the existing buffer
 		if (!charPos && fileReadBufferCurrentPos < currentReadBufferEndPos) {
 			fileClusterBuffer[fileReadBufferCurrentPos] = 0;
@@ -333,6 +336,7 @@ char const* JsonDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChar
 		// existing buffer
 		if (numCharsHere == numChars) {
 			readDone();
+			readState = JsonState::ValueRead;
 			return &fileClusterBuffer[bufferPosAtStart];
 		}
 
@@ -345,6 +349,7 @@ char const* JsonDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChar
 			// And if we've now got all the chars we needed, return
 			if (charPos == numChars) {
 				readDone();
+				readState = JsonState::ValueRead;
 				return stringBuffer;
 			}
 		}
@@ -394,6 +399,7 @@ int32_t JsonDeserializer::readInt() {
 		number += (thisChar - '0');
 	}
 getOut:
+	readState = JsonState::ValueRead;
 	if (isNegative) {
 		if (number >= 2147483648) {
 			return -2147483648;
@@ -458,6 +464,7 @@ getOut:
 	if (thisChar != endChar) {
 		skipUntilChar(endChar);
 	}
+	readState = JsonState::ValueRead;
 	return read;
 }
 
@@ -538,6 +545,9 @@ bool JsonDeserializer::match(char const ch) {
 void JsonDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 	if (closeObject) {
 		match('}');
+	}
+	if (readState != JsonState::ValueRead) {
+		D_PRINTLN("Unread value detected");
 	}
 }
 

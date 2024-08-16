@@ -1251,10 +1251,10 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 	if (maxSessionMacroToSave > 0) {
 		// some macros to save
-		writer.writeOpeningTag("sessionMacros");
+		writer.writeArrayStart("sessionMacros");
 		for (int32_t y = 0; y < maxSessionMacroToSave; y++) {
 			auto& m = sessionMacros[y];
-			writer.writeOpeningTagBeginning("macro");
+			writer.writeOpeningTagBeginning("macro", true);
 			switch (m.kind) {
 			case CLIP_LAUNCH: {
 				int32_t index = sessionClips.getIndexForClip(m.clip);
@@ -1286,9 +1286,9 @@ weAreInArrangementEditorOrInClipInstance:
 			case NO_MACRO:
 				break;
 			}
-			writer.closeTag();
+			writer.closeTag(true);
 		}
-		writer.writeClosingTag("sessionMacros");
+		writer.writeArrayEnding("sessionMacros");
 	}
 
 	writer.writeClosingTag("song", true, true);
@@ -1721,14 +1721,16 @@ unknownTag:
 
 			else if (!strcmp(tagName, "sessionMacros")) {
 				int slot_index = 0;
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
+				reader.match('[');
+				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "macro")) {
 						int y = slot_index++;
 						if (y >= 8) {
-							reader.exitTag("macro");
+							reader.exitTag("macro", true);
 							continue;
 						}
 						auto& m = sessionMacros[y];
+						reader.match('{'); // enter value object
 						while (*(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "kind")) {
 								const char* kind = reader.readTagOrAttributeValue();
@@ -1772,7 +1774,10 @@ unknownTag:
 					else {
 						reader.exitTag();
 					}
+					reader.match('}'); // end value object
+					reader.match('}'); // end box
 				}
+				reader.match(']'); // end array
 				reader.exitTag("sessionMacros");
 			}
 			else if (!strcmp(tagName, "sections")) {

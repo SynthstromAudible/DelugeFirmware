@@ -4080,7 +4080,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	}
 
 	if (arpSettings) {
-		writer.writeOpeningTagBeginning("arpeggiator", true);
+		writer.writeOpeningTagBeginning("arpeggiator");
 		writer.writeAttribute("mode", arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
 		writer.writeAttribute("numOctaves", arpSettings->numOctaves);
 		writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel, true);
@@ -4089,7 +4089,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
 		writer.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		writer.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
-		writer.closeTag(true);
+		writer.closeTag();
 	}
 
 	// Mod knobs
