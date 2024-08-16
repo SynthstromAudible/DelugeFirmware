@@ -27,6 +27,7 @@ namespace deluge::gui::ui::keyboard::layout {
 /// @brief Represents a keyboard layout for chord-based input.
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
 public:
+	// KeyboardLayoutChord() {}
 	KeyboardLayoutChord() = default;
 	~KeyboardLayoutChord() override = default;
 
@@ -38,7 +39,6 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
 
 	char const* name() override { return "Chord"; }
 	bool supportsInstrument() override { return true; }
@@ -46,19 +46,11 @@ public:
 
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }
 
-	uint8_t chordSemitoneOffsets[kMaxChordKeyboardSize] = {0};
+protected:
+	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
-	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
-		return getState().chord.noteOffset + x + y * getState().chord.rowInterval;
-	}
-
-	void offsetPads(int32_t offset, bool shiftEnabled);
-
-	// A modified version of noteCodeToString
-	// Because sometimes the note name is not displayed correctly
-	// and we need to add a null terminator to the note name string
-	// TODO: work out how to fix this with the noteCodeToString function
+	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
 	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.noteOffset + x; }
 
 	RGB noteColours[kOctaveSize];

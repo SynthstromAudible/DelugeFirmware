@@ -58,6 +58,9 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 }
 
 void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
+	if (verticalEncoderHandledByColumns(offset)) {
+		return;
+	}
 	KeyboardStateChord& state = getState().chord;
 
 	state.chordList.adjustChordRowOffset(offset);
@@ -66,6 +69,9 @@ void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 
 void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
                                                   PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+		return;
+	}
 	KeyboardStateChord& state = getState().chord;
 
 	if (encoderPressed) {
@@ -137,4 +143,17 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 		display->setScrollingText(fullChordName, 0);
 	}
 }
+
+bool KeyboardLayoutChord::allowSidebarType(ColumnControlFunction sidebarType) {
+	if (
+		(sidebarType == ColumnControlFunction::CHORD) ||
+		(sidebarType == ColumnControlFunction::DX) ||
+		// TODO, when scales for chord keyboard are implemented, add this back in
+		(sidebarType == ColumnControlFunction::SCALE_MODE)
+	) {
+		return false;
+	}
+	return true;
+}
+
 } // namespace deluge::gui::ui::keyboard::layout

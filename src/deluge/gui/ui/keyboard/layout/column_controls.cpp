@@ -130,18 +130,18 @@ void ColumnControlsKeyboard::handleHorizontalEncoder(int32_t offset, bool shiftE
 	horizontalEncoderHandledByColumns(offset, shiftEnabled);
 }
 
-ColumnControlFunction nextControlFunction(ColumnControlFunction cur, ColumnControlFunction skip) {
+ColumnControlFunction ColumnControlsKeyboard::nextControlFunction(ColumnControlFunction cur, ColumnControlFunction skip) {
 	bool has_dx = (getCurrentDxPatch() != nullptr);
 	auto out = cur;
 	while (true) {
 		out = static_cast<ColumnControlFunction>((out + 1) % COL_CTRL_FUNC_MAX);
-		if (out != skip && (has_dx || out != DX)) {
+		if (out != skip && (has_dx || out != DX) && allowSidebarType(out)) {
 			return out;
 		}
 	}
 }
 
-ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip) {
+ColumnControlFunction ColumnControlsKeyboard::prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip) {
 	bool has_dx = (getCurrentDxPatch() != nullptr);
 	auto out = cur;
 	while (true) {
@@ -149,7 +149,7 @@ ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnContr
 		if (out < 0) {
 			out = static_cast<ColumnControlFunction>(COL_CTRL_FUNC_MAX - 1);
 		}
-		if (out != skip && (has_dx || out != DX)) {
+		if (out != skip && (has_dx || out != DX) && allowSidebarType(out)) {
 			return out;
 		}
 	}
@@ -187,7 +187,7 @@ void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
 	}
 }
 
-ColumnControlFunction stepControlFunction(int32_t offset, ColumnControlFunction cur, ColumnControlFunction skip) {
+ColumnControlFunction ColumnControlsKeyboard::stepControlFunction(int32_t offset, ColumnControlFunction cur, ColumnControlFunction skip) {
 	return (offset > 0) ? nextControlFunction(cur, skip) : prevControlFunction(cur, skip);
 }
 
