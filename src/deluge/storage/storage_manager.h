@@ -294,7 +294,7 @@ private:
 	int32_t objectDepth;
 	int32_t arrayDepth;
 
-	enum JsonState {NewFile, KeyRead, ValueRead, ReadError};
+	enum JsonState { NewFile, KeyRead, ValueRead, ReadError };
 	JsonState readState = NewFile;
 
 	char stringBuffer[kFilenameBufferSize];
@@ -314,7 +314,6 @@ private:
 	Error readAttributeValueString(String* string);
 
 	Error readStringUntilChar(String* string, char endChar);
-
 };
 
 extern XMLSerializer smSerializer;
