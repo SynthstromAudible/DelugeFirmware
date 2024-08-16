@@ -112,10 +112,10 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			// We also use different colors for the rows to help with navigation
 			if (chordNo % 4 == 0) {
 				int32_t rowNo = chordNo / 4;
-				image[y][x] = noteColours[rowNo % kOctaveSize];
+				image[y][x] = noteColours[rowNo % noteColours.size()];
 			}
 			else {
-				image[y][x] = noteColours[x];
+				image[y][x] = noteColours[x % noteColours.size()];
 			}
 		}
 	}
