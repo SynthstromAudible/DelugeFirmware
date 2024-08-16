@@ -84,8 +84,6 @@ public:
 	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout);
 	void updateSourceBlinks(MenuItem* currentItem);
 
-	int32_t menuCurrentScroll;
-
 	uint8_t navigationDepth;
 	uint8_t patchingParamSelected;
 	uint8_t currentParamShorcutX;
