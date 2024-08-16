@@ -96,7 +96,7 @@ void KeyboardLayoutChord::precalculate() {
 	KeyboardStateChord& state = getState().chord;
 
 	// Pre-Buffer colours for next renderings
-	for (int32_t i = 0; i < (kChordColumns); ++i) {
+	for (int32_t i = 0; i < noteColours.size(); ++i) {
 		noteColours[i] = getNoteColour(((state.noteOffset + i) % state.rowInterval) * state.rowColorMultiplier);
 	}
 }

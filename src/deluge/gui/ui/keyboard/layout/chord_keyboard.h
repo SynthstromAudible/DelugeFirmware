@@ -21,13 +21,13 @@
 #include "definitions.h"
 #include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
+#include <array>
 
 namespace deluge::gui::ui::keyboard::layout {
 
 /// @brief Represents a keyboard layout for chord-based input.
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
 public:
-	// KeyboardLayoutChord() {}
 	KeyboardLayoutChord() = default;
 	~KeyboardLayoutChord() override = default;
 
@@ -52,7 +52,7 @@ private:
 	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
 	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.noteOffset + x; }
 
-	RGB noteColours[kOctaveSize];
+	std::array<RGB, kOctaveSize> noteColours;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout
