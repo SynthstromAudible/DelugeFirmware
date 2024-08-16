@@ -39,7 +39,6 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-
 	char const* name() override { return "Chord"; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }

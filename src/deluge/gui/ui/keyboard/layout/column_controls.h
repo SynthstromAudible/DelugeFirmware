@@ -78,6 +78,7 @@ public:
 
 	int8_t leftColHeld = -1;
 	int8_t rightColHeld = -1;
+
 protected:
 	// Subclasses can override this to allow or disallow certain ControlColumn types
 	virtual bool allowSidebarType(ColumnControlFunction sidebarType) { return true; };

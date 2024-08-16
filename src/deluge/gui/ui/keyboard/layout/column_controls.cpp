@@ -130,7 +130,8 @@ void ColumnControlsKeyboard::handleHorizontalEncoder(int32_t offset, bool shiftE
 	horizontalEncoderHandledByColumns(offset, shiftEnabled);
 }
 
-ColumnControlFunction ColumnControlsKeyboard::nextControlFunction(ColumnControlFunction cur, ColumnControlFunction skip) {
+ColumnControlFunction ColumnControlsKeyboard::nextControlFunction(ColumnControlFunction cur,
+                                                                  ColumnControlFunction skip) {
 	bool has_dx = (getCurrentDxPatch() != nullptr);
 	auto out = cur;
 	while (true) {
@@ -141,7 +142,8 @@ ColumnControlFunction ColumnControlsKeyboard::nextControlFunction(ColumnControlF
 	}
 }
 
-ColumnControlFunction ColumnControlsKeyboard::prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip) {
+ColumnControlFunction ColumnControlsKeyboard::prevControlFunction(ColumnControlFunction cur,
+                                                                  ColumnControlFunction skip) {
 	bool has_dx = (getCurrentDxPatch() != nullptr);
 	auto out = cur;
 	while (true) {
@@ -187,7 +189,8 @@ void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
 	}
 }
 
-ColumnControlFunction ColumnControlsKeyboard::stepControlFunction(int32_t offset, ColumnControlFunction cur, ColumnControlFunction skip) {
+ColumnControlFunction ColumnControlsKeyboard::stepControlFunction(int32_t offset, ColumnControlFunction cur,
+                                                                  ColumnControlFunction skip) {
 	return (offset > 0) ? nextControlFunction(cur, skip) : prevControlFunction(cur, skip);
 }
 
