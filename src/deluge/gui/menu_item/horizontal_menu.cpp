@@ -10,6 +10,10 @@ namespace deluge::gui::menu_item {
 
 void HorizontalMenu::focusChild(const MenuItem* child) {
 	D_PRINTLN("focusChild(%s) for %s", child ? child->getName().data() : "nullptr", getName().data());
+	// Retain old focus if we don't have a new one.
+	if (!child && currentPos >= 0) {
+		child = relevantItems[currentPos];
+	}
 	// Update list of revelent items, and discover location of the child
 	// item in it.
 	relevantItems.clear();
