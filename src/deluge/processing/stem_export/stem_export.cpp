@@ -52,7 +52,7 @@ StemExport stemExport{};
 StemExport::StemExport() {
 	currentStemExportType = StemExportType::CLIP;
 	processStarted = false;
-	stopOutputRecordingAtSilence = false;
+	stopRecording = false;
 
 	highestUsedStemFolderNumber = -1;
 	wavFileNameForStemExportSet = false;
@@ -64,6 +64,7 @@ StemExport::StemExport() {
 	loopEndPointInSamplesForAudioFile = 0;
 
 	allowNormalization = false;
+	exportToSilence = true;
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
@@ -117,7 +118,7 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 /// Stop stem export process
 void StemExport::stopStemExportProcess() {
 	exitUIMode(UI_MODE_STEM_EXPORT);
-	stopOutputRecordingAndPlayback();
+	stopPlayback();
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_STOP_EXPORT_STEMS), 6);
 	processStarted = false;
 }
@@ -129,17 +130,30 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, AudioInputChannel::MIX, writeLoopEndPos(),
 		                                   allowNormalization);
 		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
-			stopOutputRecordingAtSilence = true;
+			stopRecording = true;
 		}
 	}
 }
 
-/// simulate pressing record and then play to stop output-recording and playback immediately
-void StemExport::stopOutputRecordingAndPlayback() {
+/// simulate pressing play
+void StemExport::stopPlayback() {
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	}
 	highestUsedStemFolderNumber++;
+}
+
+/// simulate pressing record
+void StemExport::stopOutputRecording() {
+	// if playback has stopped and we're currently recording, check if we can stop recording
+	if (!playbackHandler.isEitherClockActive() && playbackHandler.recording == RecordingMode::OFF) {
+		// if silence is found and you are currently resampling, stop recording soon
+		// if not exporting to silence, stop recording soon
+		if (!exportToSilence || (exportToSilence && checkForSilence())) {
+			audioRecorder.endRecordingSoon();
+			stopRecording = false;
+		}
+	}
 }
 
 /// if we're exporting clip stems in song or inside a clip (e.g. not arrangement tracks)
@@ -168,15 +182,12 @@ bool StemExport::checkForLoopEnd() {
 	return false;
 }
 
-/// if playback has stopped, we want to check for silence so we can stop recording
-void StemExport::checkForSilence() {
-	if (!playbackHandler.isEitherClockActive() && playbackHandler.recording == RecordingMode::OFF) {
-		// if silence is found and you are currently resampling, stop recording soon
-		if (std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r) < 9) {
-			audioRecorder.endRecordingSoon();
-			stopOutputRecordingAtSilence = false;
-		}
+/// we want to check for silence so we can stop recording
+bool StemExport::checkForSilence() {
+	if (std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r) < 9) {
+		return true;
 	}
+	return false;
 }
 
 /// disarms and prepares all the instruments so that they can be exported
@@ -253,10 +264,8 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 
 				// wait until recording is done and playback is turned off
 				yield([]() {
-					// if you haven't found silence yet and playback has stopped
-					// check for silence so you can stop recording
-					if (stemExport.stopOutputRecordingAtSilence) {
-						stemExport.checkForSilence();
+					if (stemExport.stopRecording) {
+						stemExport.stopOutputRecording();
 					}
 					return !(playbackHandler.recording != RecordingMode::OFF
 					         || audioRecorder.recordingSource > AudioInputChannel::NONE
@@ -393,8 +402,8 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 				yield([]() {
 					// if you haven't found silence yet and playback has stopped
 					// check for silence so you can stop recording
-					if (stemExport.stopOutputRecordingAtSilence) {
-						stemExport.checkForSilence();
+					if (stemExport.stopRecording) {
+						stemExport.stopOutputRecording();
 					}
 					return !(playbackHandler.recording != RecordingMode::OFF
 					         || audioRecorder.recordingSource > AudioInputChannel::NONE
