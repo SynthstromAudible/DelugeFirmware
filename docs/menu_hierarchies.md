@@ -521,6 +521,9 @@ The Song menu contains the following menu hierarchy:
 		- Export to Silence (SILE)
 			- Disabled (OFF)
 			- Enabled (ON)
+		- Song FX (SONG)
+			- Disabled (OFF)
+			- Enabled (ON)
 </details>
 </details>
 

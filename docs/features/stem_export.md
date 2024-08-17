@@ -61,7 +61,10 @@ Stem's are given a meaningful name in the following format:
 
 ### Normalization
 - Normalization is off by default. Normalization sets the peak of the recorded stems to be at 0dB (as loud as possible without distorting).
-  - Normalization can be turned on in the ste mexport configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\NORMALIZATION`  
+  - Normalization can be turned on in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\NORMALIZATION`  
+
+### Song FX
+- Song FX are excluded by default. They can be included in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\SONG FX`
 
 ### Clip Stem Loop Points
 
@@ -79,6 +82,7 @@ This menu allows you to start a stem export and configure various settings relat
     - You can currently configure the following for the Stem Export:
       - `NORMALIZATION`: Normalization sets the peak of the recorded stems to be at 0dB (as loud as possible without distorting).
       - `EXPORT TO SILENCE`: Stems are recorded until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured.
+      - `SONG FX`: Stems are recorded with or without Song FX applied.
 
 ## Videos
 

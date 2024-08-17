@@ -43,6 +43,7 @@ public:
 	// export config variables
 	bool allowNormalization;
 	bool exportToSilence;
+	bool includeSongFX;
 
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport();

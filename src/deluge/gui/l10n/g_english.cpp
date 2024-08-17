@@ -770,6 +770,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CONFIGURE_EXPORT_STEMS, "Configure Export"},
         {STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, "Normalization"},
         {STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE, "Export to Silence"},
+        {STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, "Song FX"},
         {STRING_FOR_CANT_EXPORT_STEMS, "Turn off playback and/or recording"},
         {STRING_FOR_STOP_EXPORT_STEMS_QMARK, "Cancel Export?"},
         {STRING_FOR_STOP_EXPORT_STEMS, "Export Cancelled"},

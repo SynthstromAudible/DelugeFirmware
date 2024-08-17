@@ -79,6 +79,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
@@ -1626,8 +1627,17 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 		PadLEDs::renderingLock = true;
 
 		// get max Y display that would be rendered based on AudioEngine::approxRMSLevel
-		int32_t maxYDisplayForVUMeterL = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.l);
-		int32_t maxYDisplayForVUMeterR = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.r);
+		int32_t maxYDisplayForVUMeterL = 0;
+		int32_t maxYDisplayForVUMeterR = 0;
+
+		if (stemExport.processStarted && !stemExport.includeSongFX) {
+			maxYDisplayForVUMeterL = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevelBeforeSongFX.l);
+			maxYDisplayForVUMeterR = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevelBeforeSongFX.r);
+		}
+		else {
+			maxYDisplayForVUMeterL = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.l);
+			maxYDisplayForVUMeterR = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.r);
+		}
 
 		// if we haven't yet rendered
 		// or previously rendered VU meter was rendered to a different maxYDisplay

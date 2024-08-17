@@ -55,6 +55,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
@@ -2335,6 +2336,10 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		snprintf(buf, sizeof(buf), "complete: %s", output->name.get());
 		AudioEngine::logAction(buf);
 #endif
+	}
+
+	if (stemExport.processStarted && !stemExport.includeSongFX) {
+		AudioEngine::approxRMSLevelBeforeSongFX = AudioEngine::envelopeFollower.calcApproxRMS(outputBuffer, numSamples);
 	}
 
 	// If recording the "MIX", this is the place where we want to grab it - before any master FX or volume applied

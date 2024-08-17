@@ -23,6 +23,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/session_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
@@ -65,6 +66,7 @@ StemExport::StemExport() {
 
 	allowNormalization = false;
 	exportToSilence = true;
+	includeSongFX = false;
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
@@ -84,6 +86,7 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	// restart file numbering for stem export
 	audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(AudioRecordingFolder::STEMS)] = -1;
 	enterUIMode(UI_MODE_STEM_EXPORT);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
 
 	// so that we can reset vertical scroll position
 	int32_t elementsProcessed = 0;
@@ -98,10 +101,11 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 
 	// if process wasn't cancelled, then we got here because we finished
 	// exporting all the stems, so let's finish up
-	if (processStarted) {
+	if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
 		finishStemExportProcess(stemExportType, elementsProcessed);
 	}
 	else {
+		processStarted = false;
 		updateScrollPosition(stemExportType, elementsProcessed);
 	}
 
@@ -113,6 +117,15 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 
 	// re-render UI because view scroll positions and mute statuses will have been updated
 	uiNeedsRendering(getCurrentUI());
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		if (!rootUIIsClipMinderScreen()) {
+			sessionView.redrawNumericDisplay();
+		}
+		// here is the right place to call InstrumentClipMinder::redrawNumericDisplay()
+	}
 }
 
 /// Stop stem export process
@@ -120,7 +133,7 @@ void StemExport::stopStemExportProcess() {
 	exitUIMode(UI_MODE_STEM_EXPORT);
 	stopPlayback();
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_STOP_EXPORT_STEMS), 6);
-	processStarted = false;
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 }
 
 /// Simulate pressing record and play in order to trigger resampling of out output that ends when loop ends
@@ -184,7 +197,10 @@ bool StemExport::checkForLoopEnd() {
 
 /// we want to check for silence so we can stop recording
 bool StemExport::checkForSilence() {
-	if (std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r) < 9) {
+	float approxRMSLevel =
+	    includeSongFX ? std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r)
+	                  : std::max(AudioEngine::approxRMSLevelBeforeSongFX.l, AudioEngine::approxRMSLevelBeforeSongFX.r);
+	if (approxRMSLevel <= 9) {
 		return true;
 	}
 	return false;
@@ -276,7 +292,7 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 			}
 			// in the event that stem exporting is cancelled while iterating through clips
 			// break out of the loop
-			if (!processStarted) {
+			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
 				break;
 			}
 		}
@@ -414,7 +430,7 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 			}
 			// in the event that stem exporting is cancelled while iterating through clips
 			// break out of the loop
-			if (!processStarted) {
+			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
 				break;
 			}
 		}
@@ -503,6 +519,8 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType, int32_t 
 	updateScrollPosition(stemExportType, elementsProcessed);
 
 	processStarted = false;
+
+	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
 	return;
 }

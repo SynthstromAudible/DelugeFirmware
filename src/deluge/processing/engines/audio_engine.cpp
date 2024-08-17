@@ -17,7 +17,6 @@
 
 #include "processing/engines/audio_engine.h"
 #include "definitions_cxx.hpp"
-#include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/reverb/reverb.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "extern.h"
@@ -148,6 +147,7 @@ int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
 StereoFloatSample approxRMSLevel{0};
+StereoFloatSample approxRMSLevelBeforeSongFX{0};
 AbsValueFollower envelopeFollower{};
 int32_t timeLastPopup{0};
 
