@@ -72,6 +72,6 @@ MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio*
 		return MenuPermission::NO;
 	}
 
-	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
+	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
 }
 } // namespace deluge::gui::menu_item
