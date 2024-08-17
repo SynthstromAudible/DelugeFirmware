@@ -84,6 +84,28 @@ This menu allows you to start a stem export and configure various settings relat
       - `EXPORT TO SILENCE`: Stems are recorded until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured.
       - `SONG FX`: Stems are recorded with or without Song FX applied.
 
+## Troubleshooting
+
+### I have a track that won't export
+
+#### Scenario #1: Special characters in the track name 
+
+One user reported that they were unable to export a track even though the stem export indicated that the track had been exported.
+
+Solution: 
+
+Check that the track name doesn't have any special characters. In this case, the user had a track called << Organ >>. Removing the characters "<< >>" and just naming the track "Organ" allowed the track to be exported.
+
+#### Scenario #2: The track has an exceptionally long tail that doesn't not drop to silence
+
+If you are using the `EXPORT TO SILENCE` feature, it may not automatically export your track because the track never becomes sufficiently silent. Thus, you will see that playback was turned off but the recording button continues to blink rapidly. 
+
+In this case, you will need to press `BACK` to cancel the stem export. If you press `BACK` after the track's loop length is finished, it will save the stem, however the stem's length may not match the loop length.
+
+Possible solution:
+
+If you want to continue using the `EXPORT TO SILENCE` feature, check what might be contributing to the exceptionally long tails (e.g. delay, reverb, release, compressor). Use the `VU Meter` to check the levels when you start and stop a track. If the `VU Meter` gets stuck with pads that do not turn off, then it is an indication that you have exceptionally long tails.
+
 ## Videos
 
 https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/77bb8dfc-8b39-408d-8688-fc43eb7be593
