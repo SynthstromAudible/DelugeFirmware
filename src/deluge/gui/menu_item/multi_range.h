@@ -43,6 +43,11 @@ protected:
 		return l10n::getView(l10n::String::STRING_FOR_NOTE_RANGE);
 	};
 	void drawPixelsForOled() override;
+
+	// NOTE: this isn't strictly speaking needed, but refactoring the selectEncoderAction() and
+	// displayPixelsForOled() to not use additional storage for scroll position was more work
+	// than Nikodemus wanted to do. See Selection, Enumeration, and Submenu for examples how it's done.
+	int32_t currentScroll = 0;
 };
 
 extern MultiRange multiRangeMenu;
