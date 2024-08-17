@@ -80,7 +80,7 @@ public:
 			return MenuPermission::YES;
 		}
 
-		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
+		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
 	}
 
 	bool isRangeDependent() override { return true; }

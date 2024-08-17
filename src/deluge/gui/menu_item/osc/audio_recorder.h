@@ -56,7 +56,7 @@ public:
 
 		Sound* sound = static_cast<Sound*>(modControllable);
 
-		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, false, currentRange);
+		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
 	}
 };
 } // namespace deluge::gui::menu_item::osc
