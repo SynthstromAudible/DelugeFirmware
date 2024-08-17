@@ -15,38 +15,27 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
+#include "gui/menu_item/audio_interpolation.h"
 #include "gui/menu_item/formatted_title.h"
-#include "gui/menu_item/selection.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/menu_item/sample/utils.h"
 #include "model/sample/sample_controls.h"
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::sample {
-class Interpolation final : public Selection, public FormattedTitle {
+class Interpolation final : public AudioInterpolation, public FormattedTitle {
 public:
 	Interpolation(l10n::String name, l10n::String title_format_str)
-	    : Selection(name), FormattedTitle(title_format_str) {}
+	    : AudioInterpolation(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSampleControls->interpolationMode); }
-
-	void writeCurrentValue() override {
-		soundEditor.currentSampleControls->interpolationMode = this->getValue<InterpolationMode>();
-	}
-
-	deluge::vector<std::string_view> getOptions() override {
-		return {l10n::getView(l10n::String::STRING_FOR_LINEAR), l10n::getView(l10n::String::STRING_FOR_SINC)};
-	}
-
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		if (sound == nullptr) {
+		if (getCurrentAudioClip()) {
 			return true;
 		}
+		Sound* sound = static_cast<Sound*>(modControllable);
 		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE
+		return (sound->getSynthMode() == ::SynthMode::SUBTRACTIVE
 		        && ((source->oscType == OscType::SAMPLE && source->hasAtLeastOneAudioFileLoaded())
 		            || source->oscType == OscType::INPUT_L || source->oscType == OscType::INPUT_R
 		            || source->oscType == OscType::INPUT_STEREO));
