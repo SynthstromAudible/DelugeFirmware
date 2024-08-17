@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/sample/utils.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
@@ -32,6 +33,10 @@ public:
 	Repeat(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final {
+		return isSampleModeSample(modControllable, whichThing);
+	}
 
 	bool usesAffectEntire() override { return true; }
 	void readCurrentValue() override { this->setValue(soundEditor.currentSource->repeatMode); }
