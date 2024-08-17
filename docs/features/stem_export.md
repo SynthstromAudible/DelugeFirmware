@@ -98,13 +98,19 @@ Check that the track name doesn't have any special characters. In this case, the
 
 #### Scenario #2: The track has an exceptionally long tail that doesn't not drop to silence
 
-If you are using the `EXPORT TO SILENCE` feature, it may not automatically export your track because the track never becomes sufficiently silent. Thus, you will see that playback was turned off but the recording button continues to blink rapidly. 
+If you are using the `EXPORT TO SILENCE` feature, it may not automatically export your track because the track never becomes sufficiently silent. Thus, you will see that playback was turned off but the recording button continues to blink rapidly because it is still waiting for silence before stopping the recording.
 
 In this case, you will need to press `BACK` to cancel the stem export. If you press `BACK` after the track's loop length is finished, it will save the stem, however the stem's length may not match the loop length.
 
 Possible solution:
 
 If you want to continue using the `EXPORT TO SILENCE` feature, check what might be contributing to the exceptionally long tails (e.g. delay, reverb, release, compressor). Use the `VU Meter` to check the levels when you start and stop a track. If the `VU Meter` gets stuck with pads that do not turn off, then it is an indication that you have exceptionally long tails.
+
+### The tails of one stem recording "bleed" into another stem recording
+
+If you are not using the `EXPORT TO SILENCE` feature, it is possible that when exporting a stem that the audio from the previous stem recording may bleed into the start of the recording of the next stem to be exported.
+
+Other than using the `EXPORT TO SILENCE` feature, we do not have a solution for this yet. Ideally if we can find a way to cut any sustaining audio from the previous track / clip recorded that would ensure that no bleed occurs, however we have not found a way to do this yet.
 
 ## Videos
 
