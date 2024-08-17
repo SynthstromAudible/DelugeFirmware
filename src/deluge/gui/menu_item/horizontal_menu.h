@@ -29,13 +29,13 @@ namespace deluge::gui::menu_item {
 class HorizontalMenu : public MenuItem {
 public:
 	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> items_)
-	    : MenuItem(newName), items{items_}, currentPos{0} {}
+	    : MenuItem(newName), items{items_}, currentItem{items.begin()} {}
 	HorizontalMenu(l10n::String newName, l10n::String newTitle, std::initializer_list<MenuItem*> items_)
-	    : MenuItem(newName, newTitle), items{items_}, currentPos{0} {}
+	    : MenuItem(newName, newTitle), items{items_}, currentItem{items.begin()} {}
 	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems)
-	    : MenuItem(newName), items{newItems.begin(), newItems.end()} {}
+	    : MenuItem(newName), items{newItems.begin(), newItems.end()}, currentItem{items.begin()} {}
 	HorizontalMenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
-	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()} {}
+	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()}, currentItem{items.begin()} {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void updateDisplay();
@@ -50,8 +50,7 @@ public:
 
 private:
 	deluge::vector<MenuItem*> items;
-	deluge::vector<MenuItem*> relevantItems;
-	int32_t currentPos;
+	typename decltype(items)::iterator currentItem;
 };
 
 } // namespace deluge::gui::menu_item

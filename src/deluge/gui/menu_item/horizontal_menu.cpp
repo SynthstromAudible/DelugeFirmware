@@ -8,40 +8,25 @@
 
 namespace deluge::gui::menu_item {
 
+bool isItemRelevant(MenuItem* item) {
+	return item->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex);
+}
+
 void HorizontalMenu::focusChild(const MenuItem* child) {
 	D_PRINTLN("focusChild(%s) for %s", child ? child->getName().data() : "nullptr", getName().data());
-	// Retain old focus if we don't have a new one.
-	if (!child && currentPos >= 0) {
-		child = relevantItems[currentPos];
+	// Set new current item.
+	if (child) {
+		currentItem = std::find(items.begin(), items.end(), child);
 	}
-	// Update list of revelent items, and discover location of the child
-	// item in it.
-	relevantItems.clear();
-	currentPos = 0; // first relevant item is an inoffensive default if we don't find focus
-	for (size_t i = 0; i < items.size(); i++) {
-		MenuItem* m = items[i];
-		if (m && m->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			relevantItems.push_back(m);
-			D_PRINTLN(" + %s", m->getName().data());
-			if (m == child) {
-				currentPos = relevantItems.size() - 1;
-				D_PRINTLN("  --> %s (%d)", child->getName().data(), currentPos);
-			}
-		}
-		else {
-			D_PRINTLN(" - %s", m ? m->getName().data() : "nullptr");
-		}
+	// If the item wasn't found or isn't relevant, set to first relevant one instead.
+	if (currentItem == items.end() || !isItemRelevant(*currentItem)) {
+		currentItem = std::find_if(items.begin(), items.end(), isItemRelevant);
 	}
-	if (relevantItems.size() == 0) {
-		D_PRINTLN(" no relevant items!");
-		currentPos = -1;
-	}
-	else if (child && relevantItems[currentPos] != child) {
-		// This can happen with sufficiently magical menus, like unison. The _shortcut_ item for number
-		// is different from the actual menu item - but since the number is first in the menu this works
-		// right by accident for that special case. If we get even more special cases, then something
-		// needs to be done.
-		D_PRINTLN(" nenu %s focus item %s not relevant!", this->getName().data(), child->getName().data());
+	// Log it.
+	if (currentItem != items.end()) {
+		D_PRINTLN(" - focus: %s", (*currentItem)->getName().data());
+	} else {
+		D_PRINTLN(" - no focus!");
 	}
 }
 
@@ -54,53 +39,69 @@ void HorizontalMenu::updateDisplay() {
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
-	else if (currentPos < 0) {
+	else if (currentItem == items.end()) {
 		return; // no relevant items
 	}
 	else if (Buttons::isShiftButtonPressed()) {
-		relevantItems[currentPos]->readValueAgain();
+		(*currentItem)->readValueAgain();
 	}
 	else {
-		relevantItems[currentPos]->drawName();
+		(*currentItem)->drawName();
 	}
 }
 
 void HorizontalMenu::drawPixelsForOled() {
-	if (currentPos < 0) {
+	if (currentItem == items.end()) {
 		return; // no relevant items
 	}
+	D_PRINTLN("HorizontalMenu::drawPixelsForOled()");
+
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
 	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	baseY += OLED_MAIN_TOPMOST_PIXEL;
 
-	int32_t pageSize = std::min(relevantItems.size(), (size_t)4);
-	int32_t pageCount = std::ceil(relevantItems.size() / (float)pageSize);
-	int32_t page = currentPos / pageSize;
-	int32_t pos = mod(currentPos, pageSize);
-	int32_t first = page * pageSize;
-	int32_t n = std::min(first + pageSize, (int32_t)relevantItems.size()) - first;
+	int32_t nTotal = std::count_if(items.begin(), items.end(), isItemRelevant);
+	int32_t nBefore = std::count_if(items.begin(), currentItem, isItemRelevant);
+
+	int32_t pageSize = std::min<int32_t>(nTotal, 4);
+	int32_t pageCount = std::ceil(nTotal / (float)pageSize);
+	int32_t currentPage = nBefore / pageSize;
+	int32_t posOnPage = mod(nBefore, pageSize);
+	int32_t pageStart = currentPage * pageSize;
+
+	D_PRINTLN("  nTotal=%d", nTotal);
+	D_PRINTLN("  nBefore=%d", nBefore);
+	D_PRINTLN("  pageSize=%d", pageSize);
+	D_PRINTLN("  pageCount=%d", pageCount);
+	D_PRINTLN("  page=%d", currentPage);
+	D_PRINTLN("  posOnPage=%d -> %d", posOnPage, pageStart + posOnPage);
+	D_PRINTLN("  pageStart=%d", pageStart);
+
+	// Scan to beginning of the visible page:
+	auto it = items.begin();
+	for (size_t n = 0; n < pageStart; n++) {
+		it = std::next(std::find_if(it, items.end(), isItemRelevant));
+		if (it != items.end()) {
+			D_PRINTLN("  scan: %s", (*it)->getName().data());
+		}
+	}
+	D_PRINTLN("  start: %s", (*it)->getName().data());
 
 	int32_t boxHeight = OLED_MAIN_VISIBLE_HEIGHT - baseY;
 	int32_t boxWidth = OLED_MAIN_WIDTH_PIXELS / pageSize;
 
-	D_PRINTLN("pageSize=%d", pageSize);
-	D_PRINTLN("pageCount=%d", pageCount);
-	D_PRINTLN("page=%d", page);
-	D_PRINTLN("pos=%d -> %d -> %s", pos, first + pos, relevantItems[first + pos]->getName().data());
-	D_PRINTLN("n=%d", n);
-	D_PRINTLN("first=%d, -> %s", first, relevantItems[first]->getName().data());
-	D_PRINTLN("last=%d, -> %s", first + n - 1, relevantItems[first + n - 1]->getName().data());
-	D_PRINTLN("curentPos=%d, -> %s", currentPos, relevantItems[currentPos]->getName().data());
-	D_PRINTLN("curentPos=%d, -> %s", currentPos, relevantItems[currentPos]->getName().data());
-
-	for (uint8_t i = 0; i < n; i++) {
-		int32_t startX = boxWidth * i;
-		// Update value!
-		relevantItems[first + i]->readCurrentValue();
-		relevantItems[first + i]->renderInHorizontalMenu(startX + 1, boxWidth, baseY, boxHeight);
+	// Render the page
+	for (size_t n = 0; n < pageSize && it != items.end(); n++) {
+		MenuItem* item = *it;
+		int32_t startX = boxWidth * n;
+		item->readCurrentValue();
+		item->renderInHorizontalMenu(startX + 1, boxWidth, baseY, boxHeight);
+		// next relevant item.
+		it = std::find_if(std::next(it), items.end(), isItemRelevant);
 	}
 
+	// Render the page counters
 	if (pageCount > 1) {
 		int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
 		int32_t pageY = extraY + OLED_MAIN_TOPMOST_PIXEL;
@@ -113,19 +114,19 @@ void HorizontalMenu::drawPixelsForOled() {
 			int32_t w = image.getStringWidthInPixels(pageNum.c_str(), kTextSpacingY);
 			image.drawString(pageNum.c_str(), endX - w, pageY, kTextSpacingX, kTextSpacingY);
 			endX -= w + 1;
-			if (p - 1 == page) {
+			if (p - 1 == currentPage) {
 				image.invertArea(endX, w + 1, pageY, pageY + kTextSpacingY);
 			}
 		}
 	}
-	image.invertArea(boxWidth * pos, boxWidth, baseY, baseY + boxHeight);
+	image.invertArea(boxWidth * posOnPage, boxWidth, baseY, baseY + boxHeight);
 }
 
 void HorizontalMenu::selectEncoderAction(int32_t offset) {
-	if (currentPos < 0) {
+	if (currentItem != items.end()) {
 		return; // no relevant items
 	}
-	MenuItem* child = relevantItems[currentPos];
+	MenuItem* child = *currentItem;
 	if (Buttons::isShiftButtonPressed() && !child->isSubmenu()) {
 		child->setupNumberEditor();
 		child->selectEncoderAction(offset);
@@ -134,18 +135,30 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 		// that would trigger for scrolling in the menu as well.
 		soundEditor.markInstrumentAsEdited();
 	}
-	else {
-		currentPos = mod(currentPos + offset, relevantItems.size());
-		updateDisplay();
+	else if (offset > 0) {
+		auto next = std::find_if(currentItem, items.end(), isItemRelevant);
+		if (next != items.end()) {
+			currentItem = next;
+		} else {
+			currentItem = std::find_if(items.begin(), items.end(), isItemRelevant);
+		}
+	}
+	else if (offset < 0) {
+		auto prev = std::find_if(std::reverse_iterator(currentItem), items.rend(), isItemRelevant);
+		if (prev != items.rend()) {
+			currentItem = prev.base();
+		} else {
+			currentItem = std::find_if(items.rbegin(), items.rend(), isItemRelevant).base();
+		}
 	}
 }
 
 MenuItem* HorizontalMenu::selectButtonPress() {
-	if (currentPos < 0) {
+	if (currentItem != items.end()) {
 		return NO_NAVIGATION;
 	}
 	else {
-		return relevantItems[currentPos];
+		return *currentItem;
 	}
 }
 
