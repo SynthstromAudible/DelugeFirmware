@@ -179,13 +179,13 @@ void ArrangerView::goToSongView() {
 ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	OutputType newOutputType;
-
 	// when stem export process has started,
 	// do not action anybutton presses except BACK to cancel the process
 	if (b != BACK && stemExport.processStarted) {
 		return ActionResult::DEALT_WITH;
 	}
+
+	OutputType newOutputType;
 
 	// Song button
 	if (b == SESSION_VIEW) {
@@ -265,7 +265,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	}
 
 	// cancel stem export process
-	else if (b == BACK && stemExport.processStarted) {
+	else if (b == BACK && isUIModeActive(UI_MODE_STEM_EXPORT)) {
 		if (on) {
 			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
 
@@ -935,6 +935,10 @@ void ArrangerView::auditionEnded() {
 }
 
 ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
+	// do not interpret pad actions when stem export is underway
+	if (stemExport.processStarted) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;

@@ -28,6 +28,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "util/functions.h"
 #include <new>
 
@@ -66,6 +67,11 @@ void readEncoders() {
 }
 
 bool interpretEncoders(bool skipActioning) {
+	// do not interpret encoders when stem export is underway
+	if (stemExport.processStarted) {
+		return false;
+	}
+
 	skipActioning |= sdRoutineLock; // if the "sd routine" is yielding then always defer actioning encoders
 	bool anything = false;
 

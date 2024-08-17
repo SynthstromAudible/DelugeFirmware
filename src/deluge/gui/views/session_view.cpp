@@ -175,13 +175,13 @@ void SessionView::focusRegained() {
 ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	OutputType newOutputType;
-
 	// when stem export process has started,
 	// do not action anybutton presses except BACK to cancel the process
 	if (b != BACK && stemExport.processStarted) {
 		return ActionResult::DEALT_WITH;
 	}
+
+	OutputType newOutputType;
 
 	if (currentUIMode == UI_MODE_CREATING_CLIP) {
 		if (inCardRoutine) {
@@ -200,9 +200,9 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		}
 	}
 
-	// Song-view button without shift
+// Song-view button without shift
 
-	// Arranger view button, or if there isn't one then song view button
+// Arranger view button, or if there isn't one then song view button
 #ifdef arrangerViewButtonX
 	else if (b == arrangerView) {
 #else
@@ -405,7 +405,7 @@ moveAfterClipInstance:
 	}
 
 	// cancel stem export process
-	else if (b == BACK && stemExport.processStarted) {
+	else if (b == BACK && isUIModeActive(UI_MODE_STEM_EXPORT)) {
 		if (on) {
 			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
 
@@ -675,6 +675,11 @@ void SessionView::beginEditingSectionRepeatsNum() {
 }
 
 ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t on) {
+	// do not interpret pad actions when stem export is underway
+	if (stemExport.processStarted) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
 	if (xDisplay >= kDisplayWidth && view.displayVUMeter && (view.getModKnobMode() == 0)) {

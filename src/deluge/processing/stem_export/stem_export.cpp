@@ -162,7 +162,8 @@ void StemExport::stopOutputRecording() {
 	if (!playbackHandler.isEitherClockActive() && playbackHandler.recording == RecordingMode::OFF) {
 		// if silence is found and you are currently resampling, stop recording soon
 		// if not exporting to silence, stop recording soon
-		if (!exportToSilence || (exportToSilence && checkForSilence())) {
+		// if you cancelled stem export and exited out of UI mode, stop recording soon
+		if (!isUIModeActive(UI_MODE_STEM_EXPORT) || !exportToSilence || (exportToSilence && checkForSilence())) {
 			audioRecorder.endRecordingSoon();
 			stopRecording = false;
 		}
