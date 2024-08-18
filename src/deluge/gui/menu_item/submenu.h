@@ -49,6 +49,9 @@ public:
 	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
 	void drawPixelsForOled() override;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
+	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
+	///         At the moment implements the legacy behaviour of wrapping on 7seg but not on OLED.
+	bool wrapAround();
 
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;

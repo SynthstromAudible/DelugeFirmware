@@ -8,12 +8,7 @@ namespace deluge::gui::menu_item {
 
 void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 	Value::beginSession(navigatedBackwardFrom);
-	if (display->haveOLED()) {
-		soundEditor.menuCurrentScroll = 0;
-	}
-	else {
-		drawValue();
-	}
+	drawValue();
 }
 
 void Toggle::selectEncoderAction(int32_t offset) {
@@ -24,43 +19,38 @@ void Toggle::selectEncoderAction(int32_t offset) {
 	Value::selectEncoderAction(offset);
 }
 
+const char* Toggle::getNameFor(bool enabled) {
+	return enabled ? l10n::get(l10n::String::STRING_FOR_ENABLED) : l10n::get(l10n::String::STRING_FOR_DISABLED);
+}
+
 void Toggle::drawValue() {
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
 	else {
-		display->setText(this->getValue() //<
-		                     ? l10n::get(l10n::String::STRING_FOR_ENABLED)
-		                     : l10n::get(l10n::String::STRING_FOR_DISABLED));
+		display->setText(getNameFor(getValue()));
 	}
 }
 
 void Toggle::drawPixelsForOled() {
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 
-	const int32_t val = static_cast<int32_t>(this->getValue());
-	// Move scroll
-	soundEditor.menuCurrentScroll = std::clamp<int32_t>(soundEditor.menuCurrentScroll, 0, 1);
+	int32_t yPixel = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	yPixel += OLED_MAIN_TOPMOST_PIXEL;
 
-	char const* options[] = {
-	    l10n::get(l10n::String::STRING_FOR_DISABLED),
-	    l10n::get(l10n::String::STRING_FOR_ENABLED),
-	};
-	int32_t selectedOption = this->getValue() - soundEditor.menuCurrentScroll;
-
-	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
-	baseY += OLED_MAIN_TOPMOST_PIXEL;
-
-	for (int32_t o = 0; o < 2; o++) {
-		int32_t yPixel = o * kTextSpacingY + baseY;
-
-		canvas.drawString(options[o], kTextSpacingX, yPixel, kTextSpacingX, kTextSpacingY);
+	bool selectedOption = getValue();
+	bool order[2] = {false, true};
+	for (bool o : order) {
+		const char* name = getNameFor(o);
+		canvas.drawString(name, kTextSpacingX, yPixel, kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
 			canvas.invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
-			deluge::hid::display::OLED::setupSideScroller(0, options[o], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
+			deluge::hid::display::OLED::setupSideScroller(0, name, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
 			                                              yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}
+
+		yPixel += kTextSpacingY;
 	}
 }
 
