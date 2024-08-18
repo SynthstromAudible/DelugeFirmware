@@ -697,7 +697,12 @@ void readSettings() {
 		defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 	}
 
-	defaultDisabledPresetScales = std::bitset<NUM_PRESET_SCALES>((buffer[173] << 8) | buffer[172]);
+	if (savedVersion < FirmwareVersion::community({1, 2, 0})) {
+		defaultDisabledPresetScales = std::bitset<NUM_PRESET_SCALES>(0);
+	}
+	else {
+		defaultDisabledPresetScales = std::bitset<NUM_PRESET_SCALES>((buffer[173] << 8) | buffer[172]);
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
