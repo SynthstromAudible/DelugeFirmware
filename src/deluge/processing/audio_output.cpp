@@ -278,6 +278,7 @@ renderEnvelope:
 	}
 	else if (echoing && modelStack->song->isOutputActiveInArrangement(this)
 	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom) {
+		rendered = true;
 		StereoSample* __restrict__ outputBuffer = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
