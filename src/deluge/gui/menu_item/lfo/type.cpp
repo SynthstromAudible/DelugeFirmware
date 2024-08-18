@@ -1,7 +1,7 @@
 #include "gui/menu_item/lfo/type.h"
 
-#include "modulation/lfo.h"
 #include "hid/display/oled.h"
+#include "modulation/lfo.h"
 
 #include "io/debug/log.h"
 
@@ -30,7 +30,8 @@ void Type::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 	LFO lfo;
 	if (lfoId_ == 0) {
 		lfo.setGlobalInitialPhase(config);
-	} else {
+	}
+	else {
 		lfo.setLocalInitialPhase(config);
 	}
 	int32_t phaseIncrement;
@@ -39,9 +40,11 @@ void Type::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 		phaseIncrement = UINT32_MAX / (plotWidth / 12);
 		// RANDOM walk range is smaller, so we magnify for display.
 		extraScaling = 5;
-	} else if (wave == LFOType::SAMPLE_AND_HOLD) {
+	}
+	else if (wave == LFOType::SAMPLE_AND_HOLD) {
 		phaseIncrement = UINT32_MAX / (plotWidth / 12);
-	} else {
+	}
+	else {
 		phaseIncrement = UINT32_MAX / (plotWidth / 3);
 	}
 	bool first = true;
@@ -56,7 +59,8 @@ void Type::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 			int32_t delta = y - prevY;
 			if (delta > 1) {
 				image.drawVerticalLine(startX + x, baseline - y, baseline - prevY);
-			} else if (delta < -1) {
+			}
+			else if (delta < -1) {
 				image.drawVerticalLine(startX + x, baseline - prevY, baseline - y);
 			}
 		}
@@ -65,5 +69,4 @@ void Type::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY,
 	}
 }
 
-} // namespace
-
+} // namespace deluge::gui::menu_item::lfo

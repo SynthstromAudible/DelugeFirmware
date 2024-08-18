@@ -25,9 +25,7 @@ namespace deluge::gui::menu_item::lfo {
 class Type final : public Shape {
 public:
 	Type(deluge::l10n::String name, deluge::l10n::String type, uint8_t lfoId) : Shape(name, type), lfoId_(lfoId) {}
-	void readCurrentValue() override {
-		this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType);
-	}
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType); }
 	void writeCurrentValue() override {
 		soundEditor.currentSound->lfoConfig[lfoId_].waveType = this->getValue<LFOType>();
 		// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not

@@ -25,7 +25,8 @@ void HorizontalMenu::focusChild(const MenuItem* child) {
 	// Log it.
 	if (currentItem != items.end()) {
 		D_PRINTLN(" - focus: %s", (*currentItem)->getName().data());
-	} else {
+	}
+	else {
 		D_PRINTLN(" - no focus!");
 	}
 }
@@ -139,7 +140,8 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 		auto next = std::find_if(currentItem, items.end(), isItemRelevant);
 		if (next != items.end()) {
 			currentItem = next;
-		} else {
+		}
+		else {
 			currentItem = std::find_if(items.begin(), items.end(), isItemRelevant);
 		}
 	}
@@ -147,7 +149,8 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 		auto prev = std::find_if(std::reverse_iterator(currentItem), items.rend(), isItemRelevant);
 		if (prev != items.rend()) {
 			currentItem = prev.base();
-		} else {
+		}
+		else {
 			currentItem = std::find_if(items.rbegin(), items.rend(), isItemRelevant).base();
 		}
 	}
