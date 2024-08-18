@@ -43,7 +43,7 @@ Stem's are given a meaningful name in the following format:
 ### Cancelling Stem Export
 
 - Press `BACK` to cancel Stem Export process
-- When you cancel stem export, a dialog will appear on the screen asking you to confirm if you want to cancel the export. Press on the `SELECT` encoder to confirm that you want to cancel. Press `BACK` or any `PAD` on the grid to exit out of the dialog and continue with stem export process.
+- When you cancel stem export, a dialog will appear on the screen asking you to confirm if you want to cancel the export. Press on the `SELECT` encoder to confirm that you want to cancel. Press `BACK` to exit out of the dialog and continue with stem export process.
 - Note: When you press `BACK`, the stem export still continues in the background until you confirm you want to stop.
 
 ## Recording Parameters

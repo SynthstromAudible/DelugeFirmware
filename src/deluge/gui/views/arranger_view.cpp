@@ -935,11 +935,6 @@ void ArrangerView::auditionEnded() {
 }
 
 ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
-	// do not interpret pad actions when stem export is underway
-	if (stemExport.processStarted) {
-		return ActionResult::DEALT_WITH;
-	}
-
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
