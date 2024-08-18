@@ -147,7 +147,7 @@ bool AudioClip::isAbandonedOverdub() {
 Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int32_t buttonPressLatency) {
 
 	AudioInputChannel inputChannel = ((AudioOutput*)output)->inputChannel;
-	Output* outputRecordingFrom = ((AudioOutput*)output)->outputRecordingFrom;
+	Output* outputRecordingFrom = ((AudioOutput*)output)->getOutputRecordingFrom();
 	int32_t numChannels =
 	    (inputChannel >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION || inputChannel == AudioInputChannel::STEREO) ? 2
 	                                                                                                             : 1;

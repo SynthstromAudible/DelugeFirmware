@@ -197,6 +197,10 @@ public:
 	                                                        bool affectEntire, bool useMenuStack) = 0;
 	virtual bool needsEarlyPlayback() const { return false; }
 	bool hasRecorder() { return recorder; }
+	bool shouldRenderInSong() { return !(recorderIsEchoing); }
+
+	/// disable rendering to the song buffer if this clip is the input to an audio output that's monitoring
+	void setRenderingToAudioOutput(bool monitoring) { recorderIsEchoing = monitoring; }
 	bool addRecorder(SampleRecorder* newRecorder) {
 		if (recorder) {
 			return false;
@@ -216,7 +220,7 @@ public:
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
-
+	bool recorderIsEchoing{false};
 	Clip* activeClip{nullptr};
 	SampleRecorder* recorder{nullptr};
 };

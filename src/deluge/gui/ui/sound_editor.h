@@ -134,7 +134,6 @@ public:
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();
 	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
-	                                                                  bool automaticallySelectIfOnlyOne,
 	                                                                  MultiRange** previouslySelectedRange);
 	void setupExclusiveShortcutBlink(int32_t x, int32_t y);
 	void setShortcutsVersion(int32_t newVersion);

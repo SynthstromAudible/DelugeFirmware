@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/sample/utils.h"
 
 namespace deluge::gui::menu_item::sample {
 

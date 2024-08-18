@@ -2080,7 +2080,7 @@ skipInstance:
 		if (thisOutput->type == OutputType::AUDIO) {
 			auto ao = (AudioOutput*)thisOutput;
 			if (ao->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
-				ao->outputRecordingFrom = getOutputFromIndex(ao->outputRecordingFromIndex);
+				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex), ao->echoing);
 			}
 		}
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
@@ -2327,8 +2327,10 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		bool isClipActiveNow =
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		DISABLE_ALL_INTERRUPTS();
-		output->renderOutput(modelStack, outputBuffer, outputBuffer + numSamples, numSamples, reverbBuffer,
-		                     volumePostFX >> 1, sideChainHitPending, !isClipActiveNow, isClipActiveNow);
+		if (output->shouldRenderInSong()) {
+			output->renderOutput(modelStack, outputBuffer, outputBuffer + numSamples, numSamples, reverbBuffer,
+			                     volumePostFX >> 1, sideChainHitPending, !isClipActiveNow, isClipActiveNow);
+		}
 		ENABLE_INTERRUPTS();
 #if DO_AUDIO_LOG
 		char buf[64];

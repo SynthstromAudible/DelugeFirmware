@@ -20,6 +20,8 @@
 #include "processing/sound/sound.h"
 #include "storage/multi_range/multisample_range.h"
 
+// NOTE: This is actually the Oscillator transpose!
+
 namespace deluge::gui::menu_item::sample {
 class Transpose final : public source::Transpose, public FormattedTitle {
 public:
@@ -78,7 +80,7 @@ public:
 			return MenuPermission::YES;
 		}
 
-		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
+		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
 	}
 
 	bool isRangeDependent() override { return true; }

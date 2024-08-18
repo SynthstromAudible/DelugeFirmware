@@ -32,6 +32,9 @@ public:
 	virtual void drawValue();
 	MenuItem* selectButtonPress() override;
 	void drawPixelsForOled();
+
+private:
+	size_t currentScroll;
 };
 
 extern Devices devicesMenu;
