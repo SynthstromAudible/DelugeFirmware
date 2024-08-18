@@ -46,8 +46,9 @@ enum class AudioInputSelector::Value {
 	OUTPUT,
 
 	TRACK,
+	TRACK_FX,
 };
-constexpr size_t kNumValues = 12;
+constexpr size_t kNumValues = 13;
 
 AudioInputSelector audioInputSelector{};
 
@@ -71,6 +72,7 @@ Sized<const char**> AudioInputSelector::getOptions() {
 	    l10n::get(STRING_FOR_MIX_PRE_FX),
 	    l10n::get(STRING_FOR_MIX_POST_FX),
 	    l10n::get(STRING_FOR_TRACK),
+	    l10n::get(STRING_FOR_TRACK_WITH_FX),
 	};
 	return {options, kNumValues};
 }
@@ -170,7 +172,11 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 		break;
 	case Value::TRACK:
 		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
-		audioOutput->outputRecordingFrom = currentSong->getOutputFromIndex(0);
+		audioOutput->setOutputRecordingFrom(currentSong->getOutputFromIndex(0), false);
+		break;
+	case Value::TRACK_FX:
+		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		audioOutput->setOutputRecordingFrom(currentSong->getOutputFromIndex(0), true);
 		break;
 
 	default:

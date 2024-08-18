@@ -149,6 +149,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MIX_PRE_FX, "Deluge mix (pre fx)"},
         {STRING_FOR_MIX_POST_FX, "Deluge output (post fx)"},
         {STRING_FOR_TRACK, "Specific Track"},
+        {STRING_FOR_TRACK_WITH_FX, "Specific Track (FX processing)"},
         {STRING_FOR_DEFAULT_LAUNCH, "Infinite"},
         {STRING_FOR_FILL_LAUNCH, "Fill"},
         {STRING_FOR_ONCE_LAUNCH, "Once"},
