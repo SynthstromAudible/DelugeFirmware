@@ -29,8 +29,8 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		audioOutputBeingEdited = (AudioOutput*)getCurrentOutput();
-		if (audioOutputBeingEdited->outputRecordingFrom) {
-			outputIndex = currentSong->getOutputIndex(audioOutputBeingEdited->outputRecordingFrom);
+		if (audioOutputBeingEdited->getOutputRecordingFrom()) {
+			outputIndex = currentSong->getOutputIndex(audioOutputBeingEdited->getOutputRecordingFrom());
 		}
 		else {
 			outputIndex = 0;
@@ -48,7 +48,7 @@ public:
 		outputIndex += offset;
 		outputIndex = std::clamp<int32_t>(outputIndex, 0, numOutputs - 1);
 		auto newRecordingFrom = currentSong->getOutputFromIndex(outputIndex);
-		audioOutputBeingEdited->outputRecordingFrom = newRecordingFrom;
+		audioOutputBeingEdited->setOutputRecordingFrom(newRecordingFrom, audioOutputBeingEdited->echoing);
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
@@ -57,13 +57,13 @@ public:
 		}
 	}
 	void drawPixelsForOled() override {
-		char const* text = audioOutputBeingEdited->outputRecordingFrom->name.get();
+		char const* text = audioOutputBeingEdited->getOutputRecordingFrom()->name.get();
 		deluge::hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX,
 		                                                   kTextBigSizeY);
 	}
 
 	void drawFor7seg() {
-		char const* text = audioOutputBeingEdited->outputRecordingFrom->name.get();
+		char const* text = audioOutputBeingEdited->getOutputRecordingFrom()->name.get();
 		display->setScrollingText(text, 0);
 	}
 
