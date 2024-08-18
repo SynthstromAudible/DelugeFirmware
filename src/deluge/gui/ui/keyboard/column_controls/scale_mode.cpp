@@ -44,8 +44,17 @@ bool ScaleModeColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	Scale newScale = scaleModes[pad];
 	bool newScaleNotSelectedYet = true;
 	while (newScaleNotSelectedYet) {
-		// TODO: support USER_SCALE here.
-		newScale = static_cast<Scale>(mod(newScale + offset, NUM_PRESET_SCALES));
+		newScale = static_cast<Scale>(mod(newScale + offset, NUM_ALL_SCALES));
+		// This is a bit awkward as we need to keep USER_SCALE from indexing the preset
+		// disabled vector by accident, that would be OOB.
+		if (newScale == USER_SCALE) {
+			if (!currentSong->hasUserScale()) {
+				continue;
+			}
+		}
+		else if (currentSong->disabledPresetScales[newScale]) {
+			continue;
+		}
 		bool scaleFoundInPads = false;
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
 			if (scaleModes[y] == newScale) {

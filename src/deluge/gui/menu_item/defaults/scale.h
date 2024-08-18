@@ -20,65 +20,46 @@
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::defaults {
-class Scale final : public Selection {
+class DefaultScale final : public Selection {
 public:
 	using Selection::Selection;
 
 	void readCurrentValue() override {
-		int32_t savedScale = FlashStorage::defaultScale;
-		if (savedScale == PRESET_SCALE_RANDOM) {
-			this->setValue(NUM_PRESET_SCALES);
-		}
-		else if (savedScale == PRESET_SCALE_NONE) {
-			this->setValue(NUM_PRESET_SCALES + 1);
-		}
-		else {
-			if (savedScale >= OFFSET_5_NOTE_SCALE) {
-				// remove offset for 5 note scales
-				savedScale = FIRST_5_NOTE_SCALE_INDEX + savedScale - OFFSET_5_NOTE_SCALE;
-			}
-			else if (savedScale >= OFFSET_6_NOTE_SCALE) {
-				// remove offset for 6 note scales
-				savedScale = FIRST_6_NOTE_SCALE_INDEX + savedScale - OFFSET_6_NOTE_SCALE;
-			}
-			if (savedScale >= NUM_PRESET_SCALES) {
-				// Index is out of bounds, so reset to 0
-				this->setValue(0);
-			}
-			else {
-				// Otherwise set to the saved scale
-				this->setValue(savedScale);
-			}
-		}
+		this->setValue(scaleToOptionIndex(flashStorageCodeToScale(FlashStorage::defaultScale)));
 	}
 
 	void writeCurrentValue() override {
-		int32_t v = this->getValue();
-		if (v == NUM_PRESET_SCALES) {
-			FlashStorage::defaultScale = PRESET_SCALE_RANDOM;
-		}
-		else if (v == NUM_PRESET_SCALES + 1) {
-			FlashStorage::defaultScale = PRESET_SCALE_NONE;
-		}
-		else {
-			if (v >= FIRST_5_NOTE_SCALE_INDEX) {
-				// apply offset to 5 note scales
-				v = OFFSET_5_NOTE_SCALE + v - FIRST_5_NOTE_SCALE_INDEX;
-			}
-			else if (v >= FIRST_6_NOTE_SCALE_INDEX) {
-				// apply offset to 6 note scales
-				v = OFFSET_6_NOTE_SCALE + v - FIRST_6_NOTE_SCALE_INDEX;
-			}
-			FlashStorage::defaultScale = v;
-		}
+		FlashStorage::defaultScale = scaleToFlashStorageCode(optionIndexToScale(static_cast<Scale>(this->getValue())));
 	}
 
+	void drawName() override { display->setScrollingText(getName().data()); }
+
 	deluge::vector<std::string_view> getOptions() override {
-		deluge::vector<std::string_view> scales = {presetScaleNames.begin(),
-		                                           presetScaleNames.begin() + NUM_PRESET_SCALES};
-		scales.push_back("RANDOM");
-		scales.push_back("NONE");
+		deluge::vector<std::string_view> scales;
+		for (uint8_t i = 0; i < NUM_SCALELIKE; i++) {
+			if (i != USER_SCALE) {
+				scales.push_back(scalelikeNames[i]);
+			}
+		}
 		return scales;
+	}
+
+private:
+	// USER_SCALE is not available as a default, since it's not saved to flash storage,
+	// so we need to offset the index.
+	Scale optionIndexToScale(uint8_t index) {
+		if (index >= USER_SCALE) {
+			index += 1;
+		}
+		return static_cast<Scale>(index);
+	}
+	uint8_t scaleToOptionIndex(Scale scale) {
+		if (scale >= USER_SCALE) {
+			return scale - 1;
+		}
+		else {
+			return scale;
+		}
 	}
 };
 } // namespace deluge::gui::menu_item::defaults

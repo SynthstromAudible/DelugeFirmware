@@ -20,7 +20,7 @@
 #include "gui/ui_timer_manager.h"
 #include "string.h"
 
-NumericLayerScrollingText::NumericLayerScrollingText() {
+NumericLayerScrollingText::NumericLayerScrollingText(uint8_t fixedDot_) : NumericLayer(fixedDot_) {
 	currentDirection = 1;
 	currentPos = 0;
 }

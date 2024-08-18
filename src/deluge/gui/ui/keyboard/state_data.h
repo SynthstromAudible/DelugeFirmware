@@ -36,7 +36,7 @@ struct KeyboardStateDrums {
 
 constexpr int32_t kDefaultInKeyRowInterval = 3;
 struct KeyboardStateInKey {
-	// Default scales have 7 elements, multipled by three octaves gives us C1 as first pad
+	// Init scales have 7 elements, multipled by three octaves gives us C1 as first pad
 	int32_t scrollOffset = (7 * 3);
 	int32_t rowInterval = kDefaultInKeyRowInterval;
 };

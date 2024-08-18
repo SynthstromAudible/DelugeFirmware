@@ -147,6 +147,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	fillModeActive = false;
 
 	key.modeNotes = presetScaleNotes[MAJOR_SCALE];
+	disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
 
 	swingAmount = 0;
 
@@ -241,6 +242,7 @@ Clip* Song::getCurrentClip() {
 	return currentClip;
 }
 
+// It's not super clear to me why this isn't done as part of the constructor.
 void Song::setupDefault() {
 	inClipMinderViewOnLoad = true;
 
@@ -251,30 +253,28 @@ void Song::setupDefault() {
 	key.rootNote = defaultKeyMenu.getRandomValueInRange();
 
 	// Do scale
-	uint8_t whichScale = FlashStorage::defaultScale;
-	if (whichScale == PRESET_SCALE_RANDOM) {
-		whichScale = random(NUM_PRESET_SCALES - 1);
+	disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
+	ensureNotAllPresetScalesDisabled(disabledPresetScales);
+	Scale whichScale = flashStorageCodeToScale(FlashStorage::defaultScale);
+	if (whichScale == RANDOM_SCALE) {
+		do {
+			whichScale = static_cast<Scale>(random(LAST_PRESET_SCALE));
+		} while (disabledPresetScales[whichScale]);
 	}
-	else if (whichScale == PRESET_SCALE_NONE) {
-		whichScale = 0; // Major. Still need the *song*, (as opposed to the Clip) to have a scale
+	else if (whichScale > LAST_PRESET_SCALE) {
+		// Both USER_SCALE and NO_SCALE, and any bogus values. Same handling for different reasons.
+		//
+		// - USER_SCALE isn't yet stored, so though you can set it as default, we can't
+		//   activate it.
+		//
+		// - for NO_SCALE *song* still needs a scale.
+		//
+		// - bogus values just need ignoring
+		whichScale = MAJOR_SCALE;
 	}
-	else {
-		if (whichScale >= OFFSET_5_NOTE_SCALE) {
-			// remove offset for 5 note scales
-			whichScale = FIRST_5_NOTE_SCALE_INDEX + whichScale - OFFSET_5_NOTE_SCALE;
-		}
-		else if (whichScale >= OFFSET_6_NOTE_SCALE) {
-			// remove offset for 6 note scales
-			whichScale = FIRST_6_NOTE_SCALE_INDEX + whichScale - OFFSET_6_NOTE_SCALE;
-		}
-		if (whichScale >= NUM_PRESET_SCALES) {
-			// Index is out of bounds, so reset to 0
-			whichScale = 0;
-		}
-	}
-	if (whichScale >= NUM_PRESET_SCALES) {
-		FREEZE_WITH_ERROR("DS01");
-	}
+
+	// Whichever scale we ended up with, make sure it's enabled.
+	disabledPresetScales[whichScale] = false;
 
 	key.modeNotes = presetScaleNotes[whichScale];
 }
@@ -1289,6 +1289,12 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeClosingTag("sessionMacros");
 	}
 
+	// Scale stuff
+	writer.writeOpeningTag("scales");
+	writer.writeTag("userScale", userScaleNotes.toBits());
+	writer.writeTag("disabledPresetScales", disabledPresetScales.to_ulong());
+	writer.writeClosingTag("scales");
+
 	writer.writeClosingTag("song");
 }
 
@@ -1759,6 +1765,20 @@ unknownTag:
 				}
 				reader.exitTag("chordMem");
 			}
+
+			else if (!strcmp(tagName, "scales")) {
+				while (*(tagName = reader.readNextTagOrAttributeName())) {
+					if (!strcmp(tagName, "userScale")) {
+						userScaleNotes = NoteSet(reader.readTagOrAttributeValueInt());
+					}
+					else if (!strcmp(tagName, "disabledPresetScales")) {
+						disabledPresetScales = std::bitset<NUM_PRESET_SCALES>(reader.readTagOrAttributeValueInt());
+					}
+					reader.exitTag(tagName);
+				}
+				reader.exitTag("scales");
+			}
+
 			else if (!strcmp(tagName, "sections")) {
 				// Read in all the sections
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -2837,7 +2857,9 @@ Scale Song::cycleThroughScales() {
 	// NUM_PRESET_SCALES stands for the user scale.
 	do {
 		newScale = static_cast<Scale>(mod(newScale + 1, NUM_PRESET_SCALES + 1));
-		currentScale = setScale(newScale);
+		if (newScale == USER_SCALE || !disabledPresetScales[newScale]) {
+			currentScale = setScale(newScale);
+		}
 	} while (newScale != currentScale && newScale != startScale);
 	return newScale;
 }

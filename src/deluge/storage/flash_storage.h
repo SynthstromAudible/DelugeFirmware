@@ -18,6 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/scale/preset_scales.h"
+#include <bitset>
 #include <cstdint>
 #include <span>
 
@@ -65,6 +67,8 @@ extern uint8_t defaultHoldTime;
 extern int32_t holdTime;
 
 extern uint8_t defaultSwingInterval;
+
+extern std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 
 void readSettings();
 void writeSettings();

@@ -177,6 +177,8 @@ enum Entries {
 169: High CPU Usage Indicator
 170: default hold time (1-20)
 171: default swing interval
+172: default disabled scales low byte
+173: default disabled scales high byte
 */
 
 uint8_t defaultScale;
@@ -222,6 +224,13 @@ uint8_t defaultHoldTime;
 int32_t holdTime;
 
 uint8_t defaultSwingInterval;
+
+std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
+// We're storing the scales in a two-byte bitmask in the flash. Current intent is to not
+// add any more builtin scales, but put all future scales on the SD card, which
+// will have it's own disabled-flags. If we ever add more, we need to spend at least one byte
+// more of flash.
+static_assert(NUM_PRESET_SCALES <= 16);
 
 void resetSettings() {
 
@@ -315,6 +324,8 @@ void resetSettings() {
 	holdTime = (defaultHoldTime * kSampleRate) / 20;
 
 	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
+
+	defaultDisabledPresetScales = {0};
 }
 
 void resetMidiFollowSettings() {
@@ -483,7 +494,7 @@ void readSettings() {
 		if (buffer[59] == OFFICIAL_FIRMWARE_RANDOM_SCALE_INDEX) {
 			// If the old value was set to RANDOM,
 			// import it adapting to the new RANDOM index
-			defaultScale = NUM_PRESET_SCALES;
+			defaultScale = RANDOM_SCALE;
 		}
 		else if (buffer[59] == OFFICIAL_FIRMWARE_NONE_SCALE_INDEX) {
 			// If the old value is "NONE"
@@ -685,6 +696,8 @@ void readSettings() {
 	if (defaultSwingInterval < MIN_SWING_INERVAL || MAX_SWING_INTERVAL < defaultSwingInterval) {
 		defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 	}
+
+	defaultDisabledPresetScales = std::bitset<NUM_PRESET_SCALES>((buffer[173] << 8) | buffer[172]);
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -943,6 +956,10 @@ void writeSettings() {
 	buffer[170] = defaultHoldTime;
 
 	buffer[171] = defaultSwingInterval;
+
+	unsigned long disabledBits = defaultDisabledPresetScales.to_ulong();
+	buffer[172] = 0xff & disabledBits;
+	buffer[173] = 0xff & (disabledBits >> 8);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
