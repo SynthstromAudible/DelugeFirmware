@@ -3,32 +3,33 @@
 #include "hid/display/oled.h" //todo: this probably shouldn't be needed
 #include "util/container/static_vector.hpp"
 
+#include "io/debug/log.h"
+
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
-	current_item_ = items.begin();
-	soundEditor.currentMultiRange = nullptr;
-	if (navigatedBackwardFrom != nullptr) {
-		for (; *current_item_ != navigatedBackwardFrom; current_item_++) {
-			if (current_item_ == items.end()) { // If desired item not found
-				current_item_ = items.begin();
-				break;
-			}
-		}
-	}
-	auto start = current_item_;
-	bool wrapped = false;
-	// loop through non-null items until we find a relevant one
-	while ((*current_item_ != nullptr)
-	       && !(*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)
-	       && !(wrapped && current_item_ == start)) {
-		current_item_++;
-		if (current_item_ == items.end()) { // Not sure we need this since we don't wrap submenu items?
-			current_item_ = items.begin();
-			wrapped = true;
-		}
-	}
+	soundEditor.currentMultiRange = nullptr; // TODO: is this actually needed?
+	focusChild(navigatedBackwardFrom);
 	if (display->have7SEG()) {
 		updateDisplay();
+	}
+}
+
+void Submenu::focusChild(const MenuItem* child) {
+	D_PRINTLN("focusChild(%s) for %s", child ? child->getName().data() : "nullptr", getName().data());
+	// Set new current item.
+	if (child) {
+		currentItem = std::find(items.begin(), items.end(), child);
+	}
+	// If the item wasn't found or isn't relevant, set to first relevant one instead.
+	if (currentItem == items.end() || !isItemRelevant(*currentItem)) {
+		currentItem = std::find_if(items.begin(), items.end(), isItemRelevant);
+	}
+	// Log it.
+	if (currentItem != items.end()) {
+		D_PRINTLN(" - focus: %s", (*currentItem)->getName().data());
+	}
+	else {
+		D_PRINTLN(" - no focus!");
 	}
 }
 
@@ -36,15 +37,41 @@ void Submenu::updateDisplay() {
 	if (display->haveOLED()) {
 		renderUIsForOled();
 	}
+	else if (currentItem == items.end()) {
+		// no relevant items
+		return;
+	}
+	else if (Buttons::isShiftButtonPressed()) {
+		// Display the value instead of name on 7-seg if shift is held.
+		(*currentItem)->readValueAgain();
+	}
 	else {
-		(*current_item_)->drawName();
+		(*currentItem)->drawName();
 	}
 }
 
 void Submenu::drawPixelsForOled() {
+	if (currentItem == items.end()) {
+		// no relevant items
+		return;
+	}
+
+	switch (renderingStyle()) {
+	case RenderingStyle::VERTICAL:
+		return drawVerticalMenu();
+	case RenderingStyle::HORIZONTAL:
+		return drawHorizontalMenu();
+	default:
+		__unreachable();
+	}
+}
+
+void Submenu::drawVerticalMenu() {
+	D_PRINTLN("Submenu::drawHVerticalMenu()");
+
 	// Collect items before the current item, this is possibly more than we need.
 	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
-	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
+	for (auto it = currentItem - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
 		MenuItem* menuItem = (*it);
 		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
 			before.push_back(menuItem);
@@ -54,7 +81,7 @@ void Submenu::drawPixelsForOled() {
 
 	// Collect current item and fill the tail
 	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> after = {};
-	for (auto it = current_item_; it != items.end() && after.size() < after.capacity(); it++) {
+	for (auto it = currentItem; it != items.end() && after.size() < after.capacity(); it++) {
 		MenuItem* menuItem = (*it);
 		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
 			after.push_back(menuItem);
@@ -112,87 +139,182 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 	}
 }
 
+void Submenu::drawHorizontalMenu() {
+	D_PRINTLN("Submenu::drawHorizontalMenu()");
+
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	int32_t baseY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
+	baseY += OLED_MAIN_TOPMOST_PIXEL;
+
+	int32_t nTotal = std::count_if(items.begin(), items.end(), isItemRelevant);
+	int32_t nBefore = std::count_if(items.begin(), currentItem, isItemRelevant);
+
+	int32_t pageSize = std::min<int32_t>(nTotal, 4);
+	int32_t pageCount = std::ceil(nTotal / (float)pageSize);
+	int32_t currentPage = nBefore / pageSize;
+	int32_t posOnPage = mod(nBefore, pageSize);
+	int32_t pageStart = currentPage * pageSize;
+
+	D_PRINTLN("  nTotal=%d", nTotal);
+	D_PRINTLN("  nBefore=%d", nBefore);
+	D_PRINTLN("  pageSize=%d", pageSize);
+	D_PRINTLN("  pageCount=%d", pageCount);
+	D_PRINTLN("  page=%d", currentPage);
+	D_PRINTLN("  posOnPage=%d -> %d", posOnPage, pageStart + posOnPage);
+	D_PRINTLN("  pageStart=%d", pageStart);
+
+	// Scan to beginning of the visible page:
+	auto it = items.begin();
+	for (size_t n = 0; n < pageStart; n++) {
+		it = std::next(std::find_if(it, items.end(), isItemRelevant));
+		if (it != items.end()) {
+			D_PRINTLN("  scan: %s", (*it)->getName().data());
+		}
+	}
+	D_PRINTLN("  start: %s", (*it)->getName().data());
+
+	int32_t boxHeight = OLED_MAIN_VISIBLE_HEIGHT - baseY;
+	int32_t boxWidth = OLED_MAIN_WIDTH_PIXELS / pageSize;
+
+	// Render the page
+	for (size_t n = 0; n < pageSize && it != items.end(); n++) {
+		MenuItem* item = *it;
+		int32_t startX = boxWidth * n;
+		item->readCurrentValue();
+		item->renderInHorizontalMenu(startX + 1, boxWidth, baseY, boxHeight);
+		// next relevant item.
+		it = std::find_if(std::next(it), items.end(), isItemRelevant);
+	}
+
+	// Render the page counters
+	if (pageCount > 1) {
+		int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
+		int32_t pageY = extraY + OLED_MAIN_TOPMOST_PIXEL;
+
+		int32_t endX = OLED_MAIN_WIDTH_PIXELS;
+
+		for (int32_t p = pageCount; p > 0; p--) {
+			DEF_STACK_STRING_BUF(pageNum, 2);
+			pageNum.appendInt(p);
+			int32_t w = image.getStringWidthInPixels(pageNum.c_str(), kTextSpacingY);
+			image.drawString(pageNum.c_str(), endX - w, pageY, kTextSpacingX, kTextSpacingY);
+			endX -= w + 1;
+			if (p - 1 == currentPage) {
+				image.invertArea(endX, w + 1, pageY, pageY + kTextSpacingY);
+			}
+		}
+	}
+	image.invertArea(boxWidth * posOnPage, boxWidth, baseY, baseY + boxHeight);
+}
+
 bool Submenu::wrapAround() {
-	return display->have7SEG();
+	return display->have7SEG() || renderingStyle() == RenderingStyle::HORIZONTAL;
 }
 
 void Submenu::selectEncoderAction(int32_t offset) {
-	if (!items.size()) {
+	D_PRINTLN("Submenu::selectEncoderAction(%d)", offset);
+	if (currentItem == items.end()) {
+		D_PRINTLN("- no relevant items!");
 		return;
 	}
-	auto lastRelevant = current_item_;
+	D_PRINTLN("- current: %s", (*currentItem)->getName().data());
+	MenuItem* child = *currentItem;
+	if (Buttons::isShiftButtonPressed() && !child->isSubmenu() && renderingStyle() == RenderingStyle::HORIZONTAL) {
+		child->setupNumberEditor();
+		child->selectEncoderAction(offset);
+		focusChild(child);
+		// We don't want to return true for selectEncoderEditsInstrument(), since
+		// that would trigger for scrolling in the menu as well.
+		soundEditor.markInstrumentAsEdited();
+	}
 	if (offset > 0) {
 		// Scan items forward, counting relevant items.
+		auto lastRelevant = currentItem;
 		do {
-			current_item_++;
-			if (current_item_ == items.end()) {
+			currentItem++;
+			if (currentItem == items.end()) {
 				if (wrapAround()) {
-					current_item_ = items.begin();
+					currentItem = items.begin();
 				}
 				else {
-					current_item_ = lastRelevant;
+					currentItem = lastRelevant;
 					break;
 				}
 			}
-			if ((*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-				lastRelevant = current_item_;
+			if ((*currentItem)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+				lastRelevant = currentItem;
 				offset--;
 			}
 		} while (offset > 0);
 	}
 	else if (offset < 0) {
 		// Scan items backwad, counting relevant items.
+		auto lastRelevant = currentItem;
 		do {
-			if (current_item_ == items.begin()) {
+			if (currentItem == items.begin()) {
 				if (wrapAround()) {
-					current_item_ = items.end();
+					currentItem = items.end();
 				}
 				else {
-					current_item_ = lastRelevant;
+					currentItem = lastRelevant;
 					break;
 				}
 			}
-			current_item_--;
-			if ((*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-				lastRelevant = current_item_;
+			currentItem--;
+			if ((*currentItem)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+				lastRelevant = currentItem;
 				offset++;
 			}
 		} while (offset < 0);
 	}
-	updateDisplay();
+	updateDisplay(); // TODO: is this needed?
 }
 
 MenuItem* Submenu::selectButtonPress() {
-	return *current_item_;
+	if (currentItem == items.end()) {
+		return NO_NAVIGATION;
+	}
+	else {
+		return *currentItem;
+	}
+}
+
+bool Submenu::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+	// Submenu is relevant if any of its items is relevant.
+	auto isRelevantHere = [modControllable, whichThing](MenuItem* item) {
+		return item->isRelevant(modControllable, whichThing);
+	};
+	return std::any_of(items.begin(), items.end(), isRelevantHere);
 }
 
 void Submenu::unlearnAction() {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->unlearnAction();
+		(*currentItem)->unlearnAction();
 	}
 }
 
 bool Submenu::allowsLearnMode() {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		return (*current_item_)->allowsLearnMode();
+		return (*currentItem)->allowsLearnMode();
 	}
 	return false;
 }
 
 void Submenu::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+		(*currentItem)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
 	}
 }
 void Submenu::learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->learnProgramChange(fromDevice, channel, programNumber);
+		(*currentItem)->learnProgramChange(fromDevice, channel, programNumber);
 	}
 }
 
 bool Submenu::learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		return (*current_item_)->learnNoteOn(fromDevice, channel, noteCode);
+		return (*currentItem)->learnNoteOn(fromDevice, channel, noteCode);
 	}
 	return false;
 }

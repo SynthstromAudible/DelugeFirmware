@@ -17,40 +17,28 @@
 
 #pragma once
 
-#include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
 #include "menu_item.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "util/containers.h"
 #include <initializer_list>
 #include <span>
 
 namespace deluge::gui::menu_item {
 
-class HorizontalMenu : public MenuItem {
+class HorizontalMenu : public Submenu {
 public:
-	HorizontalMenu(l10n::String newName, std::initializer_list<MenuItem*> items_)
-	    : MenuItem(newName), items{items_}, currentItem{items.begin()} {}
-	HorizontalMenu(l10n::String newName, l10n::String newTitle, std::initializer_list<MenuItem*> items_)
-	    : MenuItem(newName, newTitle), items{items_}, currentItem{items.begin()} {}
-	HorizontalMenu(l10n::String newName, std::span<MenuItem*> newItems)
-	    : MenuItem(newName), items{newItems.begin(), newItems.end()}, currentItem{items.begin()} {}
-	HorizontalMenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
-	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()}, currentItem{items.begin()} {}
-
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	void updateDisplay();
-	void selectEncoderAction(int32_t offset) final;
-	MenuItem* selectButtonPress() final;
-	void readValueAgain() final { updateDisplay(); }
-	void drawPixelsForOled() final;
-	bool hasInputAction() final { return true; }
-	void focusChild(const MenuItem* child) override;
-	bool isSubmenu() override { return true; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
-
-private:
-	deluge::vector<MenuItem*> items;
-	typename decltype(items)::iterator currentItem;
+	using Submenu::Submenu;
+	RenderingStyle renderingStyle() override {
+		auto setting = runtimeFeatureSettings.horizontalMenuSetting();
+		if (setting == HorizontalMenuSetting::On) {
+			return RenderingStyle::HORIZONTAL;
+		}
+		else {
+			return RenderingStyle::VERTICAL;
+		}
+	}
 };
 
 } // namespace deluge::gui::menu_item

@@ -23,6 +23,10 @@
 
 using namespace deluge;
 
+bool isItemRelevant(MenuItem* item) {
+	return item->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex);
+}
+
 MenuPermission MenuItem::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                        MultiRange** currentRange) {
 	bool relevant = isRelevant(modControllable, whichThing);

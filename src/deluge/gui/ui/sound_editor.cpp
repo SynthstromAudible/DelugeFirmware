@@ -349,9 +349,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		if (getCurrentMenuItem()->hasInputAction()) {
-			getCurrentMenuItem()->readValueAgain();
-		}
 		else if (on) {
 			if (!currentUIMode) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
@@ -976,9 +973,10 @@ doSetup:
 						return ActionResult::DEALT_WITH;
 					}
 
-					// If we're on OLED, and there's a larger parent menu in which this item is visible & editable,
-					// focus that menu on the child and use it instead.
-					if (parent && display->haveOLED()) {
+					// If we're on OLED, and there's a parent menu & user has asked for horizontal menus,
+					// then we swap the parent in place of the child.
+					if (parent && display->haveOLED()
+					    && runtimeFeatureSettings.horizontalMenuSetting() != HorizontalMenuSetting::Off) {
 						parent->focusChild(item);
 						item = parent;
 					}
@@ -1136,6 +1134,7 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 extern uint16_t batteryMV;
 
 ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
+
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}

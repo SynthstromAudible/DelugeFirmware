@@ -276,4 +276,8 @@ private:
 	MenuItem* parent;
 };
 
+/// @brief  Returns true if the item is relevant using current soundEditor
+/// modControllable and sourceIndex.
+bool isItemRelevant(MenuItem* item);
+
 #define NO_NAVIGATION ((MenuItem*)0xFFFFFFFF)

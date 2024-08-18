@@ -28,16 +28,19 @@ namespace deluge::gui::menu_item {
 
 class Submenu : public MenuItem {
 public:
-	Submenu(l10n::String newName, std::initializer_list<MenuItem*> newItems) : MenuItem(newName), items{newItems} {}
+	enum RenderingStyle { VERTICAL, HORIZONTAL };
+	Submenu(l10n::String newName, std::initializer_list<MenuItem*> newItems)
+	    : MenuItem(newName), items{newItems}, currentItem{items.end()} {}
 	Submenu(l10n::String newName, std::span<MenuItem*> newItems)
-	    : MenuItem(newName), items{newItems.begin(), newItems.end()} {}
+	    : MenuItem(newName), items{newItems.begin(), newItems.end()}, currentItem{items.end()} {}
 	Submenu(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems)
-	    : MenuItem(newName, title), items{newItems} {}
+	    : MenuItem(newName, title), items{newItems}, currentItem{items.end()} {}
 
 	Submenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
-	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()} {}
+	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()}, currentItem{items.end()} {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	void focusChild(const MenuItem* child) override;
 	void updateDisplay();
 	void selectEncoderAction(int32_t offset) final;
 	MenuItem* selectButtonPress() final;
@@ -52,11 +55,16 @@ public:
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
 	///         At the moment implements the legacy behaviour of wrapping on 7seg but not on OLED.
 	bool wrapAround();
+	bool isSubmenu() override { return true; }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
+	virtual RenderingStyle renderingStyle() { return RenderingStyle::VERTICAL; }
+
+protected:
+	void drawVerticalMenu();
+	void drawHorizontalMenu();
 
 	deluge::vector<MenuItem*> items;
-	typename decltype(items)::iterator current_item_;
-
-	bool isSubmenu() override { return true; }
+	typename decltype(items)::iterator currentItem;
 };
 
 } // namespace deluge::gui::menu_item
