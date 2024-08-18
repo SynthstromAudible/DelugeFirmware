@@ -17,10 +17,6 @@
 
 #include "hid/display/numeric_layer/numeric_layer.h"
 
-NumericLayer::NumericLayer() {
-	next = NULL;
-}
-
 NumericLayer::~NumericLayer() {
 	// TODO Auto-generated destructor stub
 }

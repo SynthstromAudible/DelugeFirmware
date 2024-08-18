@@ -1006,13 +1006,20 @@ to each individual note onset. ([#1978])
       Deluge will omit those scales, and cycle back to the beginning of the Scales list (that is, going back to the
       Major scale).
 
-- ([#2365]) Added support for learning a user specified scale.
+- ([#2365]) Added learning a user specified scale.
     - Hold `LEARN` and press `SCALE` while in clip view. Notes from current clip & all scale mode clips are learned as the "USER"
-      scale. This scale is part of the normal scale rotation, accessible with `SHIFT` + `SCALE`. If another user scale is learned,
-      the previous one is discarded.
-    - Additionally, if you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
-      preset scales, it will be learned as a user scale - similarly overwriting the previous `USER` scale.
-    - NOTE: extended support for user scales is planned, allowing multiple user scales to be learned, saved, and loaded.
+      scale. This scale is part of the normal scale rotation, accessible with `SHIFT` + `SCALE`, and saved as part of the song.
+      If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
+    - If you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
+      preset scales, it will be learned as a user scale, overwriting the previous `USER` scale.
+    - NOTE: extended support for user scales is planned, allowing multiple user scales to be learned, saved, and loaded. Soon!
+
+- ([#2376]) Added `ACTIVE SCALES` menu.
+    - `SONG > ACTIVE SCALES` toggles scales on and off from the `SHIFT + SCALE` rotation for the current song. Active scales
+      are saved as part of the song. On 7-segment display dot indicates that the named scale is active, lack of dot indicates
+      it has been disabled.
+    - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as
+      `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
 
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 

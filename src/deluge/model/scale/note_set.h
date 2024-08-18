@@ -21,6 +21,8 @@ class NoteSet {
 public:
 	/** Default constructor for an empty NoteSet. */
 	NoteSet() : bits(0) {}
+	/** Construct NoteSet from uint16_t bitfield returned by toBits(). */
+	NoteSet(uint16_t bits_) : bits(bits_) {}
 	/** Constructs a NoteSet from notes.
 	 */
 	NoteSet(std::initializer_list<uint8_t> notes);
@@ -88,6 +90,8 @@ public:
 	/** Size of NoteSet, ie. the maximum number of notes it can hold.
 	 */
 	NoteSet toImpliedScale() const;
+	/** Returns NoteSet content as a uint16_t bitfield for serialization. */
+	uint16_t toBits() const { return bits; }
 	static const int8_t size = 12;
 
 private:
