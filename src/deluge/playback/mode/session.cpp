@@ -371,6 +371,10 @@ void Session::doLaunch(bool isFillLaunch) {
 
 			// start up an overdub
 			else if (clip->armState == ArmState::ON_TO_RECORD) {
+				if (clip->getCurrentlyRecordingLinearly()) {
+					clip->finishLinearRecording(modelStackWithTimelineCounter, nullptr);
+					stoppedLinearRecording = true;
+				}
 				clip->armState = ArmState::OFF;
 				clip->setPos(modelStackWithTimelineCounter, 0, false);
 
