@@ -3422,14 +3422,22 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 	// Create new clip in new track
 	else {
-		// This is the right position to add immediate type creation
-		setupTrackCreation();
-		createClip = true;
+		// only create track and clip if you're pressing in an empty track column immediately to
+		// to the right of another not-empty track column
+		auto maxTrack = gridTrackCount();
+		if ((gridFirstPressedX > 0) && (gridTrackFromX(gridFirstPressedX - 1, maxTrack))) {
+			// This is the right position to add immediate type creation
+			setupTrackCreation();
+			createClip = true;
 
-		// wait until you've chosen a type, by pressing a type button or releasing the pad
-		yield([]() { return (currentUIMode != UI_MODE_CREATING_CLIP); });
-		if (createClip) {
-			newClip = createNewClip(lastTypeCreated, -1);
+			// wait until you've chosen a type, by pressing a type button or releasing the pad
+			yield([]() { return (currentUIMode != UI_MODE_CREATING_CLIP); });
+			if (createClip) {
+				newClip = createNewClip(lastTypeCreated, -1);
+			}
+		}
+		else {
+			clipPressEnded();
 		}
 	}
 
@@ -3817,6 +3825,7 @@ ActionResult SessionView::clipCreationButtonPressed(hid::Button i, bool on, bool
 	if (i == BACK) {
 		createClip = false;
 		exitTrackCreation();
+		clipPressEnded();
 		return ActionResult::DEALT_WITH;
 	}
 	return ActionResult::NOT_DEALT_WITH;
@@ -3910,16 +3919,18 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				    && playbackHandler.recording == RecordingMode::NORMAL && FlashStorage::gridEmptyPadsCreateRec) {
 					gridToggleClipPlay(clip, Buttons::isShiftButtonPressed());
 				}
+				currentSong->setCurrentClip(clip);
+
 				// Allow clip control (selection) if still holding it
 				if (x == gridFirstPressedX && y == gridFirstPressedY) {
 					currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 					view.displayOutputName(clip->output, true, clip);
 					display->cancelPopup();
+
+					// this needs to be called after the current clip is set in order to ensure that
+					// if midi follow feedback is enabled, it sends feedback for the right clip
+					view.setActiveModControllableTimelineCounter(clip);
 				}
-				currentSong->setCurrentClip(clip);
-				// this needs to be called after the current clip is set in order to ensure that
-				// if midi follow feedback is enabled, it sends feedback for the right clip
-				view.setActiveModControllableTimelineCounter(clip);
 
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
