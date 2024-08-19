@@ -19,6 +19,7 @@
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
+#include "gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h"
 #include "gui/menu_item/audio_clip/transpose.h"
 #include "gui/menu_item/audio_compressor/compressor_params.h"
 #include "gui/menu_item/audio_compressor/compressor_values.h"
@@ -619,6 +620,15 @@ Submenu globalSidechainMenu{
 
 // AudioClip stuff ---------------------------------------------------------------------------
 
+audio_clip::SetClipLengthEqualToSampleLength setClipLengthMenu{STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH};
+
+Submenu audioClipActionsMenu{
+    STRING_FOR_ACTIONS,
+    {
+        &setClipLengthMenu,
+    },
+};
+
 audio_clip::AudioSourceSelector audioSourceSelectorMenu{STRING_FOR_AUDIO_SOURCE};
 audio_clip::SpecificSourceOutputSelector specificOutputSelectorMenu{STRING_FOR_TRACK};
 audio_clip::Transpose audioClipTransposeMenu{STRING_FOR_TRANSPOSE};
@@ -1161,6 +1171,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
 menu_item::Submenu soundEditorRootMenuAudioClip{
     STRING_FOR_AUDIO_CLIP,
     {
+        &audioClipActionsMenu,
         &audioSourceSelectorMenu,
         &specificOutputSelectorMenu,
         &audioClipMasterMenu,

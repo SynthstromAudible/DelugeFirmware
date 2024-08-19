@@ -14,10 +14,11 @@ use the TRACK menu to select the specific track to record from
 
 ### User Interface
 
-- Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
-- Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
-  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
-  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+- Added ability to select audio source from within an Audio Clip by opening the `Audio Clip Sound Menu` (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
+- Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
+  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample.
+    - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
+  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 - The maximum zoom level for timelines has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
