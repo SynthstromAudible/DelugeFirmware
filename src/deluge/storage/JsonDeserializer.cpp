@@ -546,8 +546,42 @@ void JsonDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 	if (closeObject) {
 		match('}');
 	}
-	if (readState != JsonState::ValueRead) {
-		D_PRINTLN("Unread value detected");
+	if (readState == JsonState::ValueRead)
+		return;
+
+	// We have a key/value pair where the key is not known.
+	// Based on the key type, skip over the value(s).
+	// Since the value could be an object or array, we need to skip forward until we hit the
+	// matching closing character. This can involve counting open and close characters until
+	// we get a match.
+	D_PRINTLN("Unread value detected");
+	readState == JsonState::ValueRead; // declare victory prematurely.
+	skipWhiteSpace();
+	char leadingChar, trailingChar, currentChar, balanceCtr = 1;
+	readChar(&leadingChar);
+	// Strings are easy.
+	if (leadingChar == '"') {
+		skipUntilChar('"');
+		return;
+	}
+	if (leadingChar == '[')
+		trailingChar = ']';
+	else if (leadingChar == '{')
+		trailingChar = '}';
+	else if ((leadingChar == '-') || (leadingChar >= '0' && leadingChar <= '9')) {
+		// The other possibility is a number
+		readInt(); // skip the number.
+		return;
+	}
+	else {
+		D_PRINTLN("Malformed value encountered.");
+	}
+
+	while ((balanceCtr > 0) && readChar(&currentChar)) {
+		if (currentChar == leadingChar)
+			balanceCtr++;
+		else if (currentChar == trailingChar)
+			balanceCtr--;
 	}
 }
 
