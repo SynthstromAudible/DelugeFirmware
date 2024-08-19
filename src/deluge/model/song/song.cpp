@@ -5259,6 +5259,11 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 
 			anyDeleted = true;
 		}
+		// this isn't actually deleting, but it is clearing a pending overdub which is what matters for the caller
+		else if (clip->armState == ArmState::ON_TO_RECORD) {
+			clip->armState = ArmState::OFF;
+			anyDeleted = true;
+		}
 	}
 	D_PRINTLN("Deleted pending overdubs");
 	return anyDeleted;
