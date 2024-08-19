@@ -37,6 +37,7 @@
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
@@ -66,6 +67,11 @@ void MatrixDriver::noPressesHappening(bool inCardRoutine) {
 }
 
 ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
+	// do not interpret pad actions when stem export is underway
+	if (stemExport.processStarted) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	padStates[x][y] = velocity;
 #if ENABLE_MATRIX_DEBUG
 	D_PRINT("UI=%s,PAD_X=%d,PAD_Y=%d,VEL=%d", getCurrentUI()->getName(), x, y, velocity);
