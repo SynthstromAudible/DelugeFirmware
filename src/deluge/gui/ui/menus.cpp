@@ -1209,9 +1209,15 @@ menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT_STEMS}
 
 ToggleBool configureNormalizationMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
                                       STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, stemExport.allowNormalization};
+ToggleBool configureSilenceMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE, STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE,
+                                stemExport.exportToSilence};
+ToggleBool configureSongFXMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX,
+                               stemExport.includeSongFX};
 menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
                                            {
                                                &configureNormalizationMenu,
+                                               &configureSilenceMenu,
+                                               &configureSongFXMenu,
                                            }};
 
 menu_item::Submenu stemExportMenu{
