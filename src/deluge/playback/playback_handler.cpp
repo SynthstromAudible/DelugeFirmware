@@ -108,6 +108,8 @@ PlaybackHandler::PlaybackHandler() {
 	countInBars = 1;
 	timeLastMIDIStartOrContinueMessageSent = 0;
 	currentVisualCountForCountIn = 0;
+	skipAnalogClocks = 0;
+	skipMidiClocks = 0;
 }
 
 extern "C" uint32_t triggerClockRisingEdgeTimes[];
@@ -674,7 +676,12 @@ void PlaybackHandler::actionTimerTickPart2() {
 void PlaybackHandler::doTriggerClockOutTick() {
 	triggerClockOutTickScheduled = false;
 	lastTriggerClockOutTickDone++;
-	cvEngine.analogOutTick();
+	if (skipAnalogClocks) {
+		skipAnalogClocks--;
+	}
+	else {
+		cvEngine.analogOutTick();
+	}
 }
 
 // Check these are enabled before calling this!
@@ -732,7 +739,12 @@ void PlaybackHandler::doMIDIClockOutTick() {
 	}
 	midiClockOutTickScheduled = false;
 	lastMIDIClockOutTickDone++;
-	midiEngine.sendClock(this, true);
+	if (skipMidiClocks) {
+		skipMidiClocks--;
+	}
+	else {
+		midiEngine.sendClock(this, true);
+	}
 }
 
 void PlaybackHandler::actionSwungTick() {
@@ -1896,12 +1908,15 @@ void PlaybackHandler::commandNudgeClock(int8_t offset) {
 	}
 	if (isInternalClockActive()) {
 		if (currentlySendingMIDIOutputClocks()) {
-			// TODO: these should also affect trigger clock output. Currently they don't
 			if (offset < 0) {
-				midiEngine.sendClock(this); // Send one extra clock
+				// Send one extra clock
+				midiEngine.sendClock(this);
+				cvEngine.analogOutTick();
 			}
-			else {
-				numOutputClocksWaitingToBeSent--; // Send one less clock
+			else if (offset > 0) {
+				// Skip one clock
+				skipAnalogClocks++;
+				skipMidiClocks++;
 			}
 		}
 		else {
