@@ -1788,6 +1788,7 @@ unknownTag:
 			}
 
 			else if (!strcmp(tagName, "scales")) {
+				reader.match('{');
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "userScale")) {
 						userScaleNotes = NoteSet(reader.readTagOrAttributeValueInt());
@@ -1797,7 +1798,7 @@ unknownTag:
 					}
 					reader.exitTag(tagName);
 				}
-				reader.exitTag("scales");
+				reader.exitTag("scales", true);
 			}
 
 			else if (!strcmp(tagName, "sections")) {
