@@ -1496,7 +1496,7 @@ unknownTag:
 			}
 			else if (!strcmp(tagName, "preview") || !strcmp(tagName, "previewNumPads")) {
 				reader.tryReadingFirmwareTagFromFile(tagName, false);
-				reader.exitIgnoringValue(tagName);
+				reader.exitTag(tagName);
 			}
 			else if (!strcmp(tagName, "sessionLayout")) {
 				sessionLayout = (SessionLayoutType)reader.readTagOrAttributeValueInt();
@@ -1522,7 +1522,7 @@ unknownTag:
 			                 "inArrangementView")) { // For V2.0 pre-beta songs. There'd be another way to detect
 				                                     // this...
 				lastClipInstanceEnteredStartPos = 0;
-				reader.exitIgnoringValue("inArrangementView");
+				reader.exitTag("inArrangementView");
 			}
 
 			else if (!strcmp(tagName, "currentTrackInstanceArrangementPos")) {
@@ -2242,7 +2242,7 @@ readClip:
 			goto readClip;
 		}
 		else if (*tagName) {
-			reader.exitIgnoringValue(tagName);
+			reader.exitTag(tagName);
 		}
 	}
 	reader.match(']'); // leave array.

@@ -714,7 +714,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 					reader.exitTag("mode");
 				}
 				else
-					reader.exitIgnoringValue("mode");
+					reader.exitTag("mode");
 			}
 			else if (!strcmp(tagName,
 			                 "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
@@ -3384,7 +3384,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				}
 
 				else {
-					reader.exitIgnoringValue(tagName);
+					reader.exitTag(tagName);
 				}
 			}
 			reader.exitTag("zone", true);

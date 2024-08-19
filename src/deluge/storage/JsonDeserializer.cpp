@@ -492,24 +492,6 @@ bool JsonDeserializer::prepareToReadTagOrAttributeValueOneCharAtATime() {
 	return getIntoAttributeValue();
 }
 
-// Advances the index to the next comma, object close, or array close,
-// skipping everything else.
-// This can be used to bail-out of an unwanted/unknown KVP.
-// When exitting, the index is left at the separator character.
-void JsonDeserializer::exitIgnoringValue(char const* exitTagName) {
-	char nowChar;
-	if (!skipWhiteSpace(false))
-		return;
-
-	while (peekChar(&nowChar)) {
-		if (nowChar == ',' || nowChar == ']' || nowChar == '}')
-			return;
-		readChar(&nowChar); // step past
-		if (!skipWhiteSpace(false))
-			return;
-	}
-}
-
 // Used to match syntax for Json strings.
 // Iff the current index matches the given character
 // we then skip over that character and return true.

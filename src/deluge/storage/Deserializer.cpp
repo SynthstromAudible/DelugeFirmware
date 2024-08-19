@@ -788,10 +788,6 @@ bool XMLDeserializer::prepareToReadTagOrAttributeValueOneCharAtATime() {
 	}
 }
 
-void XMLDeserializer::exitIgnoringValue(char const* exitTagName) {
-	exitTag(exitTagName);
-}
-
 // Only used by Json (at present).
 bool XMLDeserializer::match(char const ch) {
 	return true;

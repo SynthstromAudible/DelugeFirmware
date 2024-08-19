@@ -174,7 +174,6 @@ public:
 	virtual Error readTagOrAttributeValueString(String* string) = 0;
 	virtual bool match(char const ch) = 0;
 	virtual void exitTag(char const* exitTagName = NULL, bool closeObject = false) = 0;
-	virtual void exitIgnoringValue(char const* exitTagName = NULL) = 0;
 
 	virtual void reset() = 0;
 };
@@ -200,7 +199,6 @@ public:
 	bool match(char const ch) override;
 
 	void exitTag(char const* exitTagName = NULL, bool closeObject = false) override;
-	void exitIgnoringValue(char const* exitTagName = NULL) override;
 	Error openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
 	                  bool ignoreIncorrectFirmware = false);
 	void reset() override;
@@ -282,7 +280,6 @@ public:
 	Error readTagOrAttributeValueString(String* string) override;
 	char const* readTagOrAttributeValue() override;
 	bool match(char const ch) override;
-	void exitIgnoringValue(char const* exitTagName = NULL) override;
 	void exitTag(char const* exitTagName = NULL, bool closeObject = false) override;
 
 	Error openJsonFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",

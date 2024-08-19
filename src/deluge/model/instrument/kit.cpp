@@ -285,7 +285,7 @@ doReadDrum:
 					goto doReadDrum;
 				}
 				else {
-					reader.exitIgnoringValue(tagName);
+					reader.exitTag(tagName);
 				}
 			}
 			reader.match(']');

@@ -2702,7 +2702,7 @@ someError:
 				}
 				else if (!strcmp(tagName, "mode")) {
 					if (song_firmware_version >= FirmwareVersion::community({1, 1, 0})) {
-						reader.exitIgnoringValue("mode");
+						reader.exitTag("mode");
 					}
 					else {
 						// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
