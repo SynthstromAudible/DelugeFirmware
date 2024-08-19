@@ -209,6 +209,5 @@ extern RMSFeedbackCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;
-extern StereoFloatSample approxRMSLevelBeforeSongFX;
 extern AbsValueFollower envelopeFollower;
 } // namespace AudioEngine

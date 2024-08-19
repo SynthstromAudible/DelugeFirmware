@@ -1627,17 +1627,8 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 		PadLEDs::renderingLock = true;
 
 		// get max Y display that would be rendered based on AudioEngine::approxRMSLevel
-		int32_t maxYDisplayForVUMeterL = 0;
-		int32_t maxYDisplayForVUMeterR = 0;
-
-		if (stemExport.processStarted && !stemExport.includeSongFX) {
-			maxYDisplayForVUMeterL = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevelBeforeSongFX.l);
-			maxYDisplayForVUMeterR = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevelBeforeSongFX.r);
-		}
-		else {
-			maxYDisplayForVUMeterL = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.l);
-			maxYDisplayForVUMeterR = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.r);
-		}
+		int32_t maxYDisplayForVUMeterL = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.l);
+		int32_t maxYDisplayForVUMeterR = getMaxYDisplayForVUMeter(AudioEngine::approxRMSLevel.r);
 
 		// if we haven't yet rendered
 		// or previously rendered VU meter was rendered to a different maxYDisplay

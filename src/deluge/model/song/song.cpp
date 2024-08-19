@@ -2338,10 +2338,6 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 #endif
 	}
 
-	if (stemExport.processStarted && !stemExport.includeSongFX) {
-		AudioEngine::approxRMSLevelBeforeSongFX = AudioEngine::envelopeFollower.calcApproxRMS(outputBuffer, numSamples);
-	}
-
 	// If recording the "MIX", this is the place where we want to grab it - before any master FX or volume applied
 	// Go through each SampleRecorder, feeding them audio
 	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder; recorder = recorder->next) {

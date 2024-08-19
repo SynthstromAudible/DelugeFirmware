@@ -147,7 +147,6 @@ int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
 StereoFloatSample approxRMSLevel{0};
-StereoFloatSample approxRMSLevelBeforeSongFX{0};
 AbsValueFollower envelopeFollower{};
 int32_t timeLastPopup{0};
 
@@ -525,6 +524,7 @@ void renderReverb(size_t numSamples);
 void tickSongFinalizeWindows(size_t& numSamples, int32_t& timeWithinWindowAtWhichMIDIOrGateOccurs);
 void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
+void renderAudioForStemExport(size_t numSamples);
 /// inner loop of audio rendering, deliberately not in header
 [[gnu::hot]] void routine_() {
 #if JFTRACE
@@ -621,11 +621,44 @@ void renderAudio(size_t numSamples) {
 	metronome.render(renderingBuffer.data(), numSamples);
 
 	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), numSamples);
+
 	setMonitoringMode();
 
 	renderingBufferOutputPos = renderingBuffer.begin();
 	renderingBufferOutputEnd = renderingBuffer.begin() + numSamples;
 }
+
+void renderAudioForStemExport(size_t numSamples) {
+	memset(&renderingBuffer, 0, numSamples * sizeof(StereoSample));
+	memset(&reverbBuffer, 0, numSamples * sizeof(StereoSample));
+
+	if (sideChainHitPending) {
+		timeLastSideChainHit = audioSampleTimer;
+		sizeLastSideChainHit = sideChainHitPending;
+	}
+
+	numHopsEndedThisRoutineCall = 0;
+
+	// Render audio for song
+	if (currentSong) {
+
+		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
+	}
+
+	if (stemExport.includeSongFX) {
+		renderReverb(numSamples);
+		renderSongFX(numSamples);
+	}
+
+	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), numSamples);
+
+	doMonitoring = false;
+	monitoringAction = MonitoringAction::NONE;
+
+	renderingBufferOutputPos = renderingBuffer.begin();
+	renderingBufferOutputEnd = renderingBuffer.begin() + numSamples;
+}
+
 void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At this stage, it would only really have
 	                          // live user-triggered
 	// output and MIDI THRU in it. We want any messages like "start" to go out before we send any clocks below, and
@@ -969,7 +1002,7 @@ void routine() {
 			tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
 
 			numSamplesLastTime = numSamples;
-			renderAudio(numSamples);
+			renderAudioForStemExport(numSamples);
 			audioSampleTimer += numSamples;
 			doSomeOutputting();
 			if (!sdRoutineLock) {

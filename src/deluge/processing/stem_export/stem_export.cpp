@@ -198,9 +198,7 @@ bool StemExport::checkForLoopEnd() {
 
 /// we want to check for silence so we can stop recording
 bool StemExport::checkForSilence() {
-	float approxRMSLevel =
-	    includeSongFX ? std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r)
-	                  : std::max(AudioEngine::approxRMSLevelBeforeSongFX.l, AudioEngine::approxRMSLevelBeforeSongFX.r);
+	float approxRMSLevel = std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r);
 	if (approxRMSLevel <= 9) {
 		return true;
 	}
