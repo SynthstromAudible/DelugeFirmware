@@ -6,7 +6,6 @@
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 	current_item_ = items.begin();
-	soundEditor.menuCurrentScroll = 0;
 	soundEditor.currentMultiRange = nullptr;
 	if (navigatedBackwardFrom != nullptr) {
 		for (; *current_item_ != navigatedBackwardFrom; current_item_++) {
@@ -43,38 +42,44 @@ void Submenu::updateDisplay() {
 }
 
 void Submenu::drawPixelsForOled() {
-	int32_t selectedRow = soundEditor.menuCurrentScroll;
-
-	// This finds the next relevant submenu item
-	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> nextMenuItem = {};
-	int32_t idx = selectedRow;
-	for (auto it = current_item_; it != this->items.end() && idx < kOLEDMenuNumOptionsVisible; it++) {
+	// Collect items before the current item, this is possibly more than we need.
+	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
+	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
 		MenuItem* menuItem = (*it);
 		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			nextMenuItem.push_back(menuItem);
-			idx++;
+			before.push_back(menuItem);
+		}
+	}
+	std::reverse(before.begin(), before.end());
+
+	// Collect current item and fill the tail
+	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> after = {};
+	for (auto it = current_item_; it != items.end() && after.size() < after.capacity(); it++) {
+		MenuItem* menuItem = (*it);
+		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+			after.push_back(menuItem);
 		}
 	}
 
-	// This finds the previous relevant submenu item
-	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> prevMenuItem = {};
-	idx = selectedRow - 1;
-	for (auto it = current_item_ - 1; it != this->items.begin() - 1 && idx >= 0; it--) {
-		MenuItem* menuItem = (*it);
-		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			prevMenuItem.push_back(menuItem);
-			idx--;
-		}
+	// Ideally we'd have the selected item in the middle (rounding down for even cases)
+	// ...but sometimes that's not going to happen.
+	size_t pos = (kOLEDMenuNumOptionsVisible - 1) / 2;
+	size_t tail = kOLEDMenuNumOptionsVisible - pos;
+	if (before.size() < pos) {
+		pos = before.size();
+		tail = std::min((int32_t)(kOLEDMenuNumOptionsVisible - pos), (int32_t)after.size());
 	}
-	std::reverse(prevMenuItem.begin(), prevMenuItem.end());
+	else if (after.size() < tail) {
+		tail = after.size();
+		pos = std::min((int32_t)(kOLEDMenuNumOptionsVisible - tail), (int32_t)before.size());
+	}
 
-	if (!prevMenuItem.empty()) {
-		prevMenuItem.insert(prevMenuItem.end(), nextMenuItem.begin(), nextMenuItem.end());
-		drawSubmenuItemsForOled(prevMenuItem, selectedRow);
-	}
-	else {
-		drawSubmenuItemsForOled(nextMenuItem, selectedRow);
-	}
+	// Put it together.
+	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> visible;
+	visible.insert(visible.begin(), before.end() - pos, before.end());
+	visible.insert(visible.begin() + pos, after.begin(), after.begin() + tail);
+
+	drawSubmenuItemsForOled(visible, pos);
 }
 
 void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption) {
@@ -107,51 +112,53 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 	}
 }
 
-void Submenu::selectEncoderAction(int32_t offset) {
-	int32_t sign = (offset > 0) ? 1 : ((offset < 0) ? -1 : 0);
-	auto thisSubmenuItem = current_item_;
+bool Submenu::wrapAround() {
+	return display->have7SEG();
+}
 
-	for (size_t i = 0; i < std::abs(offset); ++i) {
+void Submenu::selectEncoderAction(int32_t offset) {
+	if (!items.size()) {
+		return;
+	}
+	auto lastRelevant = current_item_;
+	if (offset > 0) {
+		// Scan items forward, counting relevant items.
 		do {
-			if (offset >= 0) {
-				thisSubmenuItem++;
-				if (thisSubmenuItem >= items.end()) {
-					if (display->haveOLED()) {
-						updateDisplay();
-						return;
-					}
-					// 7SEG wraps
-					thisSubmenuItem = items.begin();
-				}
-			}
-			else {
-				if (thisSubmenuItem <= items.begin()) {
-					if (display->haveOLED()) {
-						updateDisplay();
-						return;
-					}
-					// 7SEG wraps
-					thisSubmenuItem = (items.end() - 1);
+			current_item_++;
+			if (current_item_ == items.end()) {
+				if (wrapAround()) {
+					current_item_ = items.begin();
 				}
 				else {
-					thisSubmenuItem--;
+					current_item_ = lastRelevant;
+					break;
 				}
 			}
-		} while (!(*thisSubmenuItem)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex));
-
-		current_item_ = thisSubmenuItem;
-
-		if (display->haveOLED()) {
-			soundEditor.menuCurrentScroll += sign;
-			if (soundEditor.menuCurrentScroll < 0) {
-				soundEditor.menuCurrentScroll = 0;
+			if ((*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+				lastRelevant = current_item_;
+				offset--;
 			}
-			else if (soundEditor.menuCurrentScroll > kOLEDMenuNumOptionsVisible - 1) {
-				soundEditor.menuCurrentScroll = kOLEDMenuNumOptionsVisible - 1;
-			}
-		}
+		} while (offset > 0);
 	}
-
+	else if (offset < 0) {
+		// Scan items backwad, counting relevant items.
+		do {
+			if (current_item_ == items.begin()) {
+				if (wrapAround()) {
+					current_item_ = items.end();
+				}
+				else {
+					current_item_ = lastRelevant;
+					break;
+				}
+			}
+			current_item_--;
+			if ((*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+				lastRelevant = current_item_;
+				offset++;
+			}
+		} while (offset < 0);
+	}
 	updateDisplay();
 }
 

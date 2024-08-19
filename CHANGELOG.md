@@ -14,10 +14,11 @@ use the TRACK menu to select the specific track to record from
 
 ### User Interface
 
-- Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
-- Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
-  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
-  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+- Added ability to select audio source from within an Audio Clip by opening the `Audio Clip Sound Menu` (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
+- Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
+  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample.
+    - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
+  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 - The maximum zoom level for timelines has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
@@ -33,11 +34,17 @@ use the TRACK menu to select the specific track to record from
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
 - Submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 - Added ability to `AUTOMATE TEMPO` in arranger view
-- Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG VIEW` which enables you to select the type of clip before the clip is created.
-  - In `SONG (GRID) VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
-  - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
-- Removed the `SONG VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`. 
-- `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+- Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and updated the button used to Create Audio Clips in `SONG GRID VIEW` from the `SELECT ENCODER` to the `CROSS SCREEN BUTTON`.
+  - When you press a pad in a new track, a popup will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. It will tell you on the display what that clip type is. 
+    - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last clip type.
+    - If you press and hold a pad, you can choose a different type by pressing one of the `BLINKING` clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV` or `CROSS SCREEN` (for Audio Clips)). If you let go of the pad without selecting a different type, it will create the clip using the last selected clip type.
+    - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.    
+    - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
+- Updated the `SONG GRID VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `CROSS SCREEN BUTTON` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
+  - This replaces the previous shortcut of `HOLDING PAD FOR THE CLIP` + `SELECT ENCODER`.
+  - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW` 
+- `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+  - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`  
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 - Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
 

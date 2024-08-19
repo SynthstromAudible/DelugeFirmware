@@ -240,6 +240,8 @@ private:
 
 	int32_t numOutputClocksWaitingToBeSent;
 	int32_t numInputTicksToSkip;
+	uint32_t skipAnalogClocks;
+	uint32_t skipMidiClocks;
 
 	void resetTimePerInternalTickMovingAverage();
 	void getCurrentTempoParams(int32_t* magnitude, int8_t* whichValue);

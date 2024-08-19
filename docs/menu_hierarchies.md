@@ -1304,6 +1304,9 @@ The Audio Clip menu is accessible from Audio clips by pressing on the `SELECT EN
 The Audio Clip menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Actions (ACT)</summary>
+	- Set Clip Length to Sample Length (LEN)
+</details>
 <details><summary>Audio Source (AUDI)</summary>
 
 	- Disabled (OFF)

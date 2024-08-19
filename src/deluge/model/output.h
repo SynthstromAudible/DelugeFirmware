@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "hid/button.h"
 #include "model/clip/clip_instance_vector.h"
 #include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
@@ -44,6 +45,40 @@ class StorageManager;
 class Serializer;
 class Deserializer;
 
+inline const char* outputTypeToString(OutputType type) {
+	switch (type) {
+	case OutputType::SYNTH:
+		return "synth";
+	case OutputType::KIT:
+		return "kit";
+	case OutputType::MIDI_OUT:
+		return "MIDI";
+	case OutputType::CV:
+		return "CV";
+	case OutputType::AUDIO:
+		return "audio";
+	default:
+		return "none";
+	}
+}
+
+inline OutputType buttonToOutputType(deluge::hid::Button b) {
+	using namespace deluge::hid::button;
+	switch (b) {
+	case SYNTH:
+		return OutputType::SYNTH;
+	case MIDI:
+		return OutputType::MIDI_OUT;
+	case KIT:
+		return OutputType::KIT;
+	case CV:
+		return OutputType::CV;
+	case CROSS_SCREEN_EDIT:
+		return OutputType::AUDIO;
+	default:
+		return OutputType::NONE;
+	}
+}
 class Output {
 public:
 	Output(OutputType newType);
@@ -162,6 +197,10 @@ public:
 	                                                        bool affectEntire, bool useMenuStack) = 0;
 	virtual bool needsEarlyPlayback() const { return false; }
 	bool hasRecorder() { return recorder; }
+	bool shouldRenderInSong() { return !(recorderIsEchoing); }
+
+	/// disable rendering to the song buffer if this clip is the input to an audio output that's monitoring
+	void setRenderingToAudioOutput(bool monitoring) { recorderIsEchoing = monitoring; }
 	bool addRecorder(SampleRecorder* newRecorder) {
 		if (recorder) {
 			return false;
@@ -181,7 +220,7 @@ public:
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
-
+	bool recorderIsEchoing{false};
 	Clip* activeClip{nullptr};
 	SampleRecorder* recorder{nullptr};
 };

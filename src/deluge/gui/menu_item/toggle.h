@@ -54,6 +54,9 @@ public:
 		readCurrentValue();
 		return this->getValue() ? 3 : 255;
 	}
+
+private:
+	const char* getNameFor(bool on);
 };
 
 /// the toggle pointer passed to this class must be valid for as long as the menu exists

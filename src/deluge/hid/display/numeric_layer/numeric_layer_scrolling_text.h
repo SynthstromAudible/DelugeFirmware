@@ -21,7 +21,7 @@
 
 class NumericLayerScrollingText final : public NumericLayer {
 public:
-	NumericLayerScrollingText();
+	NumericLayerScrollingText(uint8_t fixedDot_);
 	virtual ~NumericLayerScrollingText();
 	void render(uint8_t* returnSegments);
 	bool callBack();

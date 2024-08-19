@@ -82,8 +82,7 @@ public:
 
 	/// Audio channel used for recording and monitoring.
 	AudioInputChannel inputChannel{AudioInputChannel::UNSET};
-	/// Which output to record from. Only valid when inputChannel is AudioInputChannel::SPECIFIC_OUTPUT.
-	Output* outputRecordingFrom{nullptr};
+
 	/// Only used during loading - index changes as outputs are added/removed and this won't get updated. Pointer stays
 	/// accurate through those changes.
 	///
@@ -95,6 +94,16 @@ public:
 	/// audio.
 	bool echoing;
 
+	Output* getOutputRecordingFrom() { return outputRecordingFrom; }
+	void setOutputRecordingFrom(Output* toRecordfrom, bool monitoring) {
+		if (outputRecordingFrom) {
+			outputRecordingFrom->setRenderingToAudioOutput(false);
+		}
+		outputRecordingFrom = toRecordfrom;
+		outputRecordingFrom->setRenderingToAudioOutput(monitoring);
+		echoing = monitoring;
+	}
+
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                bool affectEntire, bool useMenuStack);
@@ -103,4 +112,7 @@ protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);
 	bool wantsToBeginArrangementRecording();
 	bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
+
+	/// Which output to record from. Only valid when inputChannel is AudioInputChannel::SPECIFIC_OUTPUT.
+	Output* outputRecordingFrom{nullptr};
 };

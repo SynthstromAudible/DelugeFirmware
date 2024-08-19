@@ -241,10 +241,11 @@ as the micromonsta and the dreadbox nymphes.
   - Not included in c1.1.0
 - ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose which track to record from.
 
-#### 3.18 - Remove Timestretching From Audio Clip Sample
-- ([#1542]) Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
-  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
-  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+#### 3.18 - Set Audio Clip Length Equal to Sample Length
+- ([#1542]) Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
+  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample.
+    - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
+  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 
 #### 3.19 - Sample Slice Default Mode
 
@@ -290,14 +291,19 @@ as the micromonsta and the dreadbox nymphes.
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
  - Submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
-#### 3.27 Updated UI for Creating New Clips in New Tracks in Song View
-- ([#2299]) Added `NEW CLIP TYPE` menu that opens on creation of a `NEW CLIP` in `SONG VIEW` which enables you to select the type of clip before the clip is created.
-  - In `SONG (GRID) VIEW`, this menu will only appear when you add a `NEW CLIP` to a `NEW TRACK` (empty column).
-  - This menu will not appear if you are cloning clips (e.g. pressing one clip and then pressing an empty pad).
-- Removed the `SONG VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
+#### 3.27 Updated UI for Creating New Clips in New Tracks in Song Grid View
+- ([#2429]) Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and updated the button used to Create Audio Clips in `SONG GRID VIEW` from the `SELECT ENCODER` to the `CROSS SCREEN BUTTON`.
+  - When you press a pad in a new track, a popup will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. It will tell you on the display what that clip type is. 
+    - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last clip type.
+    - If you press and hold a pad, you can choose a different type by pressing one of the `BLINKING` clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV` or `CROSS SCREEN` (for Audio Clips)). If you let go of the pad without selecting a different type, it will create the clip using the last selected clip type.
+    - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.
+- Updated the `SONG GRID VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `CROSS SCREEN BUTTON` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
+  - This replaces the previous shortcut of `HOLDING PAD FOR THE CLIP` + `SELECT ENCODER`.
+- These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
-#### 3.28 Updated UI for Setting Clip Mode in Song View
-- ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+#### 3.28 Updated UI for Setting Clip Mode in Song Grid View
+- ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+- This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
 ## 4. New Features Added
 
@@ -1001,13 +1007,20 @@ to each individual note onset. ([#1978])
       Deluge will omit those scales, and cycle back to the beginning of the Scales list (that is, going back to the
       Major scale).
 
-- ([#2365]) Added support for learning a user specified scale.
+- ([#2365]) Added learning a user specified scale.
     - Hold `LEARN` and press `SCALE` while in clip view. Notes from current clip & all scale mode clips are learned as the "USER"
-      scale. This scale is part of the normal scale rotation, accessible with `SHIFT` + `SCALE`. If another user scale is learned,
-      the previous one is discarded.
-    - Additionally, if you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
-      preset scales, it will be learned as a user scale - similarly overwriting the previous `USER` scale.
-    - NOTE: extended support for user scales is planned, allowing multiple user scales to be learned, saved, and loaded.
+      scale. This scale is part of the normal scale rotation, accessible with `SHIFT` + `SCALE`, and saved as part of the song.
+      If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
+    - If you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
+      preset scales, it will be learned as a user scale, overwriting the previous `USER` scale.
+    - NOTE: extended support for user scales is planned, allowing multiple user scales to be learned, saved, and loaded. Soon!
+
+- ([#2376]) Added `ACTIVE SCALES` menu.
+    - `SONG > ACTIVE SCALES` toggles scales on and off from the `SHIFT + SCALE` rotation for the current song. Active scales
+      are saved as part of the song. On 7-segment display dot indicates that the named scale is active, lack of dot indicates
+      it has been disabled.
+    - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as
+      `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
 
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
@@ -1445,6 +1458,8 @@ different firmware
 [#2367]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2367
 
 [#2385]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2385
+
+[#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
