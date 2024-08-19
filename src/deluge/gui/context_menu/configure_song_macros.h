@@ -34,6 +34,7 @@ public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 };
 
 extern ConfigureSongMacros configureSongMacros;
