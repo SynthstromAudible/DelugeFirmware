@@ -52,6 +52,7 @@ SampleRecorder::~SampleRecorder() {
 	if (sample != nullptr) {
 		detachSample();
 	}
+	outputRecordingFrom->removeRecorder();
 }
 
 // This can be called when this SampleRecorder is destructed routinely - or earlier if we've aborted and the sample file
