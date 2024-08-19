@@ -58,6 +58,7 @@ Stem's are given a meaningful name in the following format:
 ### Silence
 - Stems are recorded by default until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured
   - This can be turned off in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\EXPORT TO SILENCE`
+- If silence is not reached within 60 seconds of playback stopping, then the recording will stop automatically as a safety precaution.
 
 ### Normalization
 - Normalization is off by default. Normalization sets the peak of the recorded stems to be at 0dB (as loud as possible without distorting).
@@ -88,7 +89,7 @@ This menu allows you to start a stem export and configure various settings relat
 
 ### I have a track that won't export
 
-#### Scenario #1: Special characters in the track name 
+#### Scenario: Special characters in the track name 
 
 One user reported that they were unable to export a track even though the stem export indicated that the track had been exported.
 
@@ -96,13 +97,15 @@ Solution:
 
 Check that the track name doesn't have any special characters. In this case, the user had a track called << Organ >>. Removing the characters "<< >>" and just naming the track "Organ" allowed the track to be exported.
 
-#### Scenario #2: The track has an exceptionally long tail that doesn't not drop to silence
+### I have a track that takes much longer to export than others
 
-If you are using the `EXPORT TO SILENCE` feature, it may not automatically export your track because the track never becomes sufficiently silent. Thus, you will see that playback was turned off but the recording button continues to blink rapidly because it is still waiting for silence before stopping the recording.
+#### Scenario: The track has an exceptionally long tail that doesn't not drop to silence
 
-In this case, you will need to press `BACK` to cancel the stem export. If you press `BACK` after the track's loop length is finished, it will save the stem, however the stem's length may not match the loop length.
+If you are using the `EXPORT TO SILENCE` feature, it may take longer for your track to export because the recorder is waiting for your track to become silent. Thus, you will see that playback has turned off but the record button continues to blink rapidly because it is still waiting for silence before stopping the recording.
 
-Possible solution:
+As a safety measure, if your track does not become silent within 60 seconds of playback stopping, then the recording will stop automatically.
+
+If you do not want to wait potentially 60 seconds, you will need to press `BACK` to cancel the stem export. If you press `BACK` after the track's loop length is finished, it will save the stem, however the stem's length may not match the loop length.
 
 If you want to continue using the `EXPORT TO SILENCE` feature, check what might be contributing to the exceptionally long tails (e.g. delay, reverb, release, compressor). Use the `VU Meter` to check the levels when you start and stop a track. If the `VU Meter` gets stuck with pads that do not turn off, then it is an indication that you have exceptionally long tails.
 
