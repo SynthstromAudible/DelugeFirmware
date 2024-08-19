@@ -784,6 +784,9 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SONG_MACRO_KIND_OUTPUT, "Kind: Output"},
         {STRING_FOR_SONG_MACRO_KIND_SECTION, "Kind: Section"},
         {STRING_FOR_SONG_MACRO_KIND_NONE, "Kind: None"},
+        {STRING_FOR_ACTIONS, "Actions"},
+        {STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH, "Set Clip Length Equal to Sample Length"},
+        {STRING_FOR_CLIP_LENGTH_ADJUSTED, "Clip Length Adjusted"},
     },
 };
 } // namespace deluge::l10n::built_in
