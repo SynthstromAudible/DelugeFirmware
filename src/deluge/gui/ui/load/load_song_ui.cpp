@@ -799,21 +799,39 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song", "", true);
+	Error error;
+	bool jsonFileFlag = false;
+	Deserializer* reader;
+	char const* tagName;
+
+	if (currentFileItem->filename.contains(".Json")) {
+		jsonFileFlag = true;
+		error = storageManager.openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, "song");
+		reader = &smJsonDeserializer;
+		// Since the Json deserializer does not automatically descend into subobjects, we need to do
+		// that before joining the common logic that follows.
+		//		reader->match('{'); // skip box start.
+		//		tagName = reader->readNextTagOrAttributeName(); // pass "song".
+		reader->match('{'); // descend into value object.
+	}
+	else {
+
+		error = bdsm.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song", "", true);
+		reader = &smDeserializer;
+	}
 	if (error != Error::NONE) {
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return;
 		}
 	}
-	Deserializer& reader = smDeserializer;
-	char const* tagName;
+
 	int32_t previewNumPads = 40;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader->readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "previewNumPads")) {
-			previewNumPads = reader.readTagOrAttributeValueInt();
-			reader.exitTag("previewNumPads");
+			previewNumPads = reader->readTagOrAttributeValueInt();
+			reader->exitTag("previewNumPads");
 		}
 		else if (!strcmp(tagName, "preview")) {
 			int32_t skipNumCharsAfterRow = 0;
@@ -826,12 +844,12 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 			int32_t width = endX - startX;
 			int32_t numCharsToRead = width * 3 * 2;
 
-			if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+			if (!reader->prepareToReadTagOrAttributeValueOneCharAtATime()) {
 				goto stopLoadingPreview;
 			}
 
 			for (int32_t y = startY; y < endY; y++) {
-				char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(numCharsToRead);
+				char const* hexChars = reader->readNextCharsOfTagOrAttributeValue(numCharsToRead);
 				if (!hexChars) {
 					goto stopLoadingPreview;
 				}
@@ -847,11 +865,16 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 			goto stopLoadingPreview;
 		}
 		else {
-			reader.exitTag(tagName);
+			reader->exitTag(tagName);
 		}
 	}
 stopLoadingPreview:
-	bdsm.closeFile(smDeserializer.readFIL);
+	if (jsonFileFlag) {
+		bdsm.closeFile(smJsonDeserializer.readFIL);
+	}
+	else {
+		bdsm.closeFile(smDeserializer.readFIL);
+	}
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {

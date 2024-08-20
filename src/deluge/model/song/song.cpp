@@ -1053,7 +1053,7 @@ void Song::writeToFile(StorageManager& bdsm) {
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 
-	writer.writeAttribute("previewNumPads", "144");
+	writer.writeAttribute("previewNumPads", 144);
 	writer.insertCommaIfNeeded();
 	writer.write("\n");
 	writer.printIndents();

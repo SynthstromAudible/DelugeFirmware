@@ -182,9 +182,8 @@ void JsonSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter, bo
 
 void JsonSerializer::writeOpeningTagBeginning(char const* tag, bool box, bool newLineBefore) {
 	insertCommaIfNeeded();
-	if (newLineBefore) { // prepend newLine almost always.
+	if (newLineBefore) // prepend newLine almost always.
 		write("\n");
-	}
 	printIndents();
 	if (box)
 		write("{");
