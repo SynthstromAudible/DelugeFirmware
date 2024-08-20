@@ -90,7 +90,7 @@ gotError:
 	return true;
 }
 
-bool SaveKitRowUI::performSave(StorageManager& bdsm, bool mayOverwrite) {
+bool SaveKitRowUI::performSave(bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
@@ -114,7 +114,7 @@ fail:
 		return false;
 	}
 
-	error = bdsm.createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
+	error = StorageManager::createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
@@ -140,7 +140,7 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
-	soundDrumToSave->writeToFileAsInstrument(bdsm, false, paramManagerToSave);
+	soundDrumToSave->writeToFileAsInstrument(false, paramManagerToSave);
 
 	char const* endString = "\n</sound>\n";
 

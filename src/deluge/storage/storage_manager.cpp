@@ -56,7 +56,6 @@ FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory
 void routineForSD(void);
 }
 
-StorageManager storageManager{};
 FirmwareVersion song_firmware_version = FirmwareVersion::current();
 FILINFO staticFNO;
 DIR staticDIR;

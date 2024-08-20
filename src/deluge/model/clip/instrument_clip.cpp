@@ -2639,8 +2639,8 @@ someError:
 			output = song->getInstrumentFromPresetSlot(OutputType::MIDI_OUT, instrumentPresetSlot,
 			                                           instrumentPresetSubSlot, NULL, NULL, false);
 			if (!output) {
-				output = storageManager.createNewNonAudioInstrument(OutputType::MIDI_OUT, instrumentPresetSlot,
-				                                                    instrumentPresetSubSlot);
+				output = StorageManager::createNewNonAudioInstrument(OutputType::MIDI_OUT, instrumentPresetSlot,
+				                                                     instrumentPresetSubSlot);
 
 				if (!output) {
 					goto ramError;
@@ -2653,8 +2653,7 @@ someError:
 				return error;
 			}
 
-			error = ((MIDIInstrument*)output)
-			            ->readModKnobAssignmentsFromFile(storageManager, readAutomationUpToPos, &paramManager);
+			error = ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(readAutomationUpToPos, &paramManager);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -3853,9 +3852,9 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		if (!newInstrument) {
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = storageManager.loadInstrumentFromFile(modelStack->song, NULL, newOutputType, false,
-			                                                     &newInstrument, &result.fileItem->filePointer,
-			                                                     &newPresetName, &Browser::currentDir);
+			result.error = StorageManager::loadInstrumentFromFile(modelStack->song, NULL, newOutputType, false,
+			                                                      &newInstrument, &result.fileItem->filePointer,
+			                                                      &newPresetName, &Browser::currentDir);
 		}
 
 		Browser::emptyFileItems();

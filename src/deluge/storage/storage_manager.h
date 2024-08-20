@@ -45,7 +45,6 @@ class String;
 class MIDIParamCollection;
 class ParamManager;
 class SoundDrum;
-class StorageManager;
 
 class SMSharedData {};
 
@@ -319,53 +318,47 @@ extern JsonSerializer smJsonSerializer;
 extern JsonDeserializer smJsonDeserializer;
 extern Serializer& GetSerializer();
 
-class StorageManager {
-public:
-	StorageManager() = default;
-	~StorageManager() = default;
+namespace StorageManager {
 
-	std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
-	Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false,
-	                    bool displayErrors = true);
-	Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverwrite = false,
-	                     bool displayErrors = true);
-	Error openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const* firstTagName,
-	                  char const* altTagName = "", bool ignoreIncorrectFirmware = false);
-	Error openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char const* firstTagName,
-	                   char const* altTagName = "", bool ignoreIncorrectFirmware = false);
-	Error initSD();
-	bool closeFile(FIL& fileToClose);
+std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
+Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false, bool displayErrors = true);
+Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverwrite = false,
+                     bool displayErrors = true);
+Error openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const* firstTagName,
+                  char const* altTagName = "", bool ignoreIncorrectFirmware = false);
+Error openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char const* firstTagName,
+                   char const* altTagName = "", bool ignoreIncorrectFirmware = false);
+Error initSD();
+bool closeFile(FIL& fileToClose);
 
-	bool fileExists(char const* pathName);
-	bool fileExists(char const* pathName, FilePointer* fp);
-	/// takes a full path/to/file.text and makes sure the directories exist
-	bool buildPathToFile(const char* fileName);
+bool fileExists(char const* pathName);
+bool fileExists(char const* pathName, FilePointer* fp);
+/// takes a full path/to/file.text and makes sure the directories exist
+bool buildPathToFile(const char* fileName);
 
-	bool checkSDPresent();
-	bool checkSDInitialized();
+bool checkSDPresent();
+bool checkSDInitialized();
 
-	Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = NULL);
-	Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
-	                             Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
-	Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
+Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = NULL);
+Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
+                             Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
+Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
-	Drum* createNewDrum(DrumType drumType);
-	Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
-	                      FilePointer* filePointer, String* name, String* dirPath);
-	void openFilePointer(FilePointer* fp, FileReader& reader);
+Drum* createNewDrum(DrumType drumType);
+Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
+                      FilePointer* filePointer, String* name, String* dirPath);
+void openFilePointer(FilePointer* fp, FileReader& reader);
 
-	Error checkSpaceOnCard();
+Error checkSpaceOnCard();
 
-private:
-	Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
-};
+Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
+} // namespace StorageManager
 
 extern FirmwareVersion song_firmware_version;
-extern StorageManager storageManager;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
 extern bool writeJsonFlag;
 
 inline bool isCardReady() {
-	return !sdRoutineLock && Error::NONE == storageManager.initSD();
+	return !sdRoutineLock && Error::NONE == StorageManager::initSD();
 }

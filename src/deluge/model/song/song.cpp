@@ -377,7 +377,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 		ParamManager newParamManager; // Deliberate don't set up.
 
 		ReturnOfConfirmPresetOrNextUnlaunchedOne result;
-		result.error = storageManager.initSD(); // Still want this here?
+		result.error = StorageManager::initSD(); // Still want this here?
 		if (result.error != Error::NONE) {
 			goto couldntLoad;
 		}
@@ -395,9 +395,9 @@ bool Song::ensureAtLeastOneSessionClip() {
 		if (result.error == Error::NONE) {
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = storageManager.loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false,
-			                                                     &newInstrument, &result.fileItem->filePointer,
-			                                                     &newPresetName, &Browser::currentDir);
+			result.error = StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false,
+			                                                      &newInstrument, &result.fileItem->filePointer,
+			                                                      &newPresetName, &Browser::currentDir);
 
 			Browser::emptyFileItems();
 			if (result.error != Error::NONE) {
@@ -406,7 +406,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 		}
 		else {
 couldntLoad:
-			newInstrument = storageManager.createNewInstrument(OutputType::SYNTH, &newParamManager);
+			newInstrument = StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
 
 			// TODO: Clean this up and get rid of infinite loop traps (proper error recovery)
 
@@ -1034,16 +1034,16 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 
 void Song::writeTemplateSong(const char* templatePath) {
 	name.set("DEFAULT");
-	Error error = storageManager.createXMLFile(templatePath, smSerializer, false, false);
+	Error error = StorageManager::createXMLFile(templatePath, smSerializer, false, false);
 	if (error != Error::NONE) {
 		return;
 	}
-	writeToFile(storageManager);
+	writeToFile();
 	GetSerializer().closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
 	                                      "\n</song>\n");
 }
 
-void Song::writeToFile(StorageManager& bdsm) {
+void Song::writeToFile() {
 
 	setupClipIndexesForSaving();
 	Serializer& writer = GetSerializer();
@@ -1170,7 +1170,7 @@ weAreInArrangementEditorOrInClipInstance:
 
 	writer.writeArrayStart("instruments");
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->writeToFile(bdsm, NULL, this);
+		thisOutput->writeToFile(NULL, this);
 	}
 	writer.writeArrayEnding("instruments");
 	writer.writeArrayStart("sections");
@@ -4830,7 +4830,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 				goto gotAnInstrument;
 			}
 		}
-		newInstrument = storageManager.createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
+		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
 			display->displayError(Error::INSUFFICIENT_RAM);
 			return NULL;
@@ -4861,9 +4861,9 @@ gotAnInstrument: {}
 		if (!newInstrument) {
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = storageManager.loadInstrumentFromFile(this, NULL, newOutputType, false, &newInstrument,
-			                                                     &result.fileItem->filePointer, &newPresetName,
-			                                                     &Browser::currentDir);
+			result.error = StorageManager::loadInstrumentFromFile(this, NULL, newOutputType, false, &newInstrument,
+			                                                      &result.fileItem->filePointer, &newPresetName,
+			                                                      &Browser::currentDir);
 		}
 
 		Browser::emptyFileItems();
@@ -5138,7 +5138,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 				goto gotAnInstrument;
 			}
 		}
-		newInstrument = storageManager.createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
+		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
 			display->displayError(Error::INSUFFICIENT_RAM);
 			return NULL;

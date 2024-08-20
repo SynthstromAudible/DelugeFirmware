@@ -949,7 +949,7 @@ someError:
 
 	else {
 
-		Drum* newDrum = storageManager.createNewDrum(drumType);
+		Drum* newDrum = StorageManager::createNewDrum(drumType);
 
 		if (!newDrum) {
 			goto ramError;

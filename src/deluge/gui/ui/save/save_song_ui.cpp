@@ -112,7 +112,7 @@ void SaveSongUI::focusRegained() {
 	return SaveUI::focusRegained();
 }
 
-bool SaveSongUI::performSave(StorageManager& bdsm, bool mayOverwrite) {
+bool SaveSongUI::performSave(bool mayOverwrite) {
 
 	if (ALPHA_OR_BETA_VERSION && currentlyAccessingCard) {
 		FREEZE_WITH_ERROR("E316");
@@ -134,7 +134,7 @@ gotError:
 		return false;
 	}
 
-	bool fileAlreadyExisted = bdsm.fileExists(filePath.get());
+	bool fileAlreadyExisted = StorageManager::fileExists(filePath.get());
 
 	if (!mayOverwrite && fileAlreadyExisted) {
 		context_menu::overwriteFile.currentSaveUI = this;
@@ -188,7 +188,7 @@ gotError:
 			if (audioFile->type == AudioFileType::SAMPLE) {
 				// If this is a recording which still exists at its temporary location, move the file
 				if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
-					bdsm.buildPathToFile(audioFile->filePath.get());
+					StorageManager::buildPathToFile(audioFile->filePath.get());
 					FRESULT result =
 					    f_rename(((Sample*)audioFile)->tempFilePathForRecording.get(), audioFile->filePath.get());
 					if (result == FR_OK) {
@@ -345,7 +345,7 @@ failAfterOpeningSourceFile:
 				}
 
 				// Create file to write
-				auto created = bdsm.createFile(destFilePath, false);
+				auto created = StorageManager::createFile(destFilePath, false);
 				if (!created) {
 					if (created.error() == Error::FILE_ALREADY_EXISTS) {
 						// No problem - the audio file was already there from
@@ -425,7 +425,7 @@ fail3:
 				goto gotError;
 			}
 
-			if (!bdsm.fileExists(filePathDuringWrite.get())) {
+			if (!StorageManager::fileExists(filePathDuringWrite.get())) {
 				break;
 			}
 
@@ -440,13 +440,13 @@ fail3:
 
 	if (writeJsonFlag) {
 		// Write the actual song file
-		error = bdsm.createJsonFile(filePathDuringWrite.get(), smJsonSerializer, false, false);
+		error = StorageManager::createJsonFile(filePathDuringWrite.get(), smJsonSerializer, false, false);
 		if (error != Error::NONE) {
 			goto gotError;
 		}
 	}
 	else {
-		error = bdsm.createXMLFile(filePathDuringWrite.get(), smSerializer, false, false);
+		error = StorageManager::createXMLFile(filePathDuringWrite.get(), smSerializer, false, false);
 		if (error != Error::NONE) {
 			goto gotError;
 		}
@@ -455,7 +455,7 @@ fail3:
 	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be
 	// for either overwriting or not.
 
-	currentSong->writeToFile(bdsm);
+	currentSong->writeToFile();
 
 	error = GetSerializer().closeFileAfterWriting(
 	    filePathDuringWrite.get(),
@@ -491,10 +491,10 @@ cardError:
 	currentSong->dirPath.set(&currentDir);
 
 	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
-		runtimeFeatureSettings.writeSettingsToFile(bdsm);
+		runtimeFeatureSettings.writeSettingsToFile();
 	}
 	// While we're at it, save MIDI devices if there's anything new to save.
-	MIDIDeviceManager::writeDevicesToFile(bdsm);
+	MIDIDeviceManager::writeDevicesToFile();
 
 	close();
 	return true;

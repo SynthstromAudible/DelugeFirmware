@@ -514,8 +514,8 @@ void SoundEditor::exitCompletely() {
 		display->displayLoadingAnimationText("Saving settings");
 
 		FlashStorage::writeSettings();
-		MIDIDeviceManager::writeDevicesToFile(storageManager);
-		runtimeFeatureSettings.writeSettingsToFile(storageManager);
+		MIDIDeviceManager::writeDevicesToFile();
+		runtimeFeatureSettings.writeSettingsToFile();
 		display->removeWorkingAnimation();
 	}
 	display->setNextTransitionDirection(-1);

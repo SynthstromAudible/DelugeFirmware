@@ -81,7 +81,7 @@ void AudioFileManager::init() {
 
 	clusterBeingLoaded = NULL;
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error == Error::NONE) {
 		setClusterSize(fileSystem.csize * 512);
 
@@ -210,8 +210,8 @@ clusterSizeChangedButItsOk:
 		}
 	}
 
-	MIDIDeviceManager::readDevicesFromFile(storageManager); // Hopefully we can do this now. It'll only happen if it
-	                                                        // wasn't able to do it before.
+	MIDIDeviceManager::readDevicesFromFile(); // Hopefully we can do this now. It'll only happen if it
+	                                          // wasn't able to do it before.
 }
 
 // Call this after deleting the current (or in other words previous) Song from memory - meaning there won't be any
@@ -261,7 +261,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
                                                         const char* channelName, String* songName) {
 	const auto folderID = util::to_underlying(folder);
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -340,7 +340,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		char namedPath[255]{0};
 		snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_000.wav", filePath->get(), songName->get(), channelName);
 		int i = 1;
-		while (storageManager.fileExists(namedPath)) {
+		while (StorageManager::fileExists(namedPath)) {
 			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath->get(), songName->get(), channelName,
 			         i);
 			i++;
@@ -833,7 +833,7 @@ ramError:
 
 	// Or if WaveTable, we're going to read the file more normally through FatFS, so we want to "open" it.
 	else {
-		storageManager.openFilePointer(&effectiveFilePointer, smDeserializer); // It never returns fail.
+		StorageManager::openFilePointer(&effectiveFilePointer, smDeserializer); // It never returns fail.
 	}
 
 	// Read top-level RIFF headers
@@ -1271,7 +1271,7 @@ void AudioFileManager::slowRoutine() {
 
 	// If we know the card's been ejected...
 	if (cardEjected && !sdRoutineLock) {
-		Error error = storageManager.initSD();
+		Error error = StorageManager::initSD();
 		if (error == Error::NONE) {
 			cardEjected = false;
 		}
@@ -1316,7 +1316,7 @@ performActionsAndGetOut:
 		return;
 	}
 
-	if (!storageManager.checkSDInitialized()) {
+	if (!StorageManager::checkSDInitialized()) {
 		goto performActionsAndGetOut; // In case the card somehow died
 	}
 

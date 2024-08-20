@@ -365,13 +365,13 @@ aborted:
 		// If file not created yet, do that
 		if (filePathCreated.isEmpty()) {
 
-			error = storageManager.initSD();
+			error = StorageManager::initSD();
 			if (error != Error::NONE) {
 				goto gotError;
 			}
 
 			// Check there's space on the card
-			error = storageManager.checkSpaceOnCard();
+			error = StorageManager::checkSpaceOnCard();
 			if (error != Error::NONE) {
 				goto gotError;
 			}
@@ -425,7 +425,7 @@ aborted:
 			}
 
 			// Recording could finish or abort during this!
-			auto created = storageManager.createFile(filePathCreated.get(), mayOverwrite);
+			auto created = StorageManager::createFile(filePathCreated.get(), mayOverwrite);
 			if (!created) {
 				filePathCreated.clear();
 				goto gotError;

@@ -33,7 +33,6 @@ class Action;
 class TimelineView;
 class ParamManagerForTimeline;
 class ModelStackWithTimelineCounter;
-class StorageManager;
 class Serializer;
 class Deserializer;
 

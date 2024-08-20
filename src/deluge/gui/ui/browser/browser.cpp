@@ -97,7 +97,7 @@ bool Browser::checkFP() {
 	}
 
 	FilePointer tempfp;
-	bool fileExists = storageManager.fileExists(filePath.get(), &tempfp);
+	bool fileExists = StorageManager::fileExists(filePath.get(), &tempfp);
 	if (!fileExists) {
 		D_PRINTLN("couldn't get filepath");
 		return false;
@@ -260,7 +260,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	emptyFileItems();
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 		return error;
 	}

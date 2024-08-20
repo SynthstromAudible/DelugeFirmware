@@ -1161,7 +1161,7 @@ void dumpAudioLog() {
 	uint16_t currentTime = *TCNT[TIMER_SYSTEM_FAST];
 	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
 	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
-	if (definitelyLog || timePassedUSA > (storageManager.devVarA * 10)) {
+	if (definitelyLog || timePassedUSA > (StorageManager::devVarA * 10)) {
 
 		D_PRINTLN("");
 		for (int32_t i = 0; i < numAudioLogItems; i++) {

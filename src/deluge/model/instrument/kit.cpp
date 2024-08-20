@@ -269,7 +269,7 @@ Error Kit::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t re
 					drumType = DrumType::SOUND;
 doReadDrum:
 					reader.match('{');
-					Error error = readDrumFromFile(storageManager, reader, song, clip, drumType, readAutomationUpToPos);
+					Error error = readDrumFromFile(reader, song, clip, drumType, readAutomationUpToPos);
 					if (error != Error::NONE) {
 						return error;
 					}
@@ -331,10 +331,10 @@ doReadDrum:
 	return Error::NONE;
 }
 
-Error Kit::readDrumFromFile(StorageManager& bdsm, Deserializer& reader, Song* song, Clip* clip, DrumType drumType,
+Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumType drumType,
                             int32_t readAutomationUpToPos) {
 
-	Drum* newDrum = bdsm.createNewDrum(drumType);
+	Drum* newDrum = StorageManager::createNewDrum(drumType);
 	if (!newDrum) {
 		return Error::INSUFFICIENT_RAM;
 	}

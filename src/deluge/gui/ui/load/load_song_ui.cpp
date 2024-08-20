@@ -135,7 +135,7 @@ gotError:
 
 void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 
-	drawSongPreview(storageManager, currentUIMode == UI_MODE_VERTICAL_SCROLL);
+	drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
 
 	PadLEDs::sendOutMainPadColours();
 	PadLEDs::sendOutSidebarColours();
@@ -158,10 +158,10 @@ void LoadSongUI::enterKeyPress() {
 	}
 
 	else {
-		LoadUI::enterKeyPress();     // Converts name to numeric-only if it was typed as text
-		performLoad(storageManager); // May fail
+		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
+		performLoad();           // May fail
 		if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-			runtimeFeatureSettings.writeSettingsToFile(storageManager);
+			runtimeFeatureSettings.writeSettingsToFile();
 		}
 	}
 }
@@ -228,7 +228,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 }
 
 // Before calling this, you must set loadButtonReleased.
-void LoadSongUI::performLoad(StorageManager& bdsm) {
+void LoadSongUI::performLoad() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 
@@ -249,10 +249,10 @@ void LoadSongUI::performLoad(StorageManager& bdsm) {
 	bool jsonFileFlag = false;
 	if (currentFileItem->filename.contains(".Json")) {
 		jsonFileFlag = true;
-		error = storageManager.openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, "song");
+		error = StorageManager::openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, "song");
 	}
 	else {
-		error = storageManager.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song");
+		error = StorageManager::openXMLFile(&currentFileItem->filePointer, smDeserializer, "song");
 	}
 	if (error != Error::NONE) {
 		display->displayError(error);
@@ -396,7 +396,7 @@ gotErrorAfterCreatingSong:
 	}
 	AudioEngine::logAction("read new song from file");
 
-	bool success = storageManager.closeFile(jsonFileFlag ? smJsonDeserializer.readFIL : smDeserializer.readFIL);
+	bool success = StorageManager::closeFile(jsonFileFlag ? smJsonDeserializer.readFIL : smDeserializer.readFIL);
 	if (!success) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
@@ -613,7 +613,7 @@ int32_t LoadSongUI::findNextFile(int32_t offset) {
 
 doSearch:
 
-    int32_t result = storageManager.findNextFile(offset,
+    int32_t result = StorageManager::findNextFile(offset,
             &currentSlot, &currentSubSlot, &newName, &currentFileIsFolder,
             slotToSearchFrom, subSlotToSearchFrom, nameToSearchFrom,
             "SONG", currentDir.get(), &currentFilePointer, true, 255, NULL, numberEditPos);
@@ -675,7 +675,7 @@ void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 		PadLEDs::horizontal::renderScroll(); // The scrolling animation will begin while file is being found and
 		                                     // loaded
 
-		drawSongPreview(storageManager); // Scrolling continues as the file is read by this function
+		drawSongPreview(); // Scrolling continues as the file is read by this function
 
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 		scrollingIntoSlot = true;
@@ -781,7 +781,7 @@ void LoadSongUI::exitAction() {
 	timerCallback();
 }
 
-void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
+void LoadSongUI::drawSongPreview(bool toStore) {
 
 	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {
@@ -806,17 +806,15 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 
 	if (currentFileItem->filename.contains(".Json")) {
 		jsonFileFlag = true;
-		error = storageManager.openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, "song");
+		error = StorageManager::openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, "song");
 		reader = &smJsonDeserializer;
 		// Since the Json deserializer does not automatically descend into subobjects, we need to do
 		// that before joining the common logic that follows.
-		//		reader->match('{'); // skip box start.
-		//		tagName = reader->readNextTagOrAttributeName(); // pass "song".
 		reader->match('{'); // descend into value object.
 	}
 	else {
 
-		error = bdsm.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song", "", true);
+		error = StorageManager::openXMLFile(&currentFileItem->filePointer, smDeserializer, "song", "", true);
 		reader = &smDeserializer;
 	}
 	if (error != Error::NONE) {
@@ -870,10 +868,10 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 	}
 stopLoadingPreview:
 	if (jsonFileFlag) {
-		bdsm.closeFile(smJsonDeserializer.readFIL);
+		StorageManager::closeFile(smJsonDeserializer.readFIL);
 	}
 	else {
-		bdsm.closeFile(smDeserializer.readFIL);
+		StorageManager::closeFile(smDeserializer.readFIL);
 	}
 }
 

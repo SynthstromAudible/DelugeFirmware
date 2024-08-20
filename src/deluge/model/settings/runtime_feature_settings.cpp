@@ -182,15 +182,15 @@ void RuntimeFeatureSettings::init() {
 	                  RuntimeFeatureStateToggle::Off);
 }
 
-void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
+void RuntimeFeatureSettings::readSettingsFromFile() {
 	FilePointer fp;
 
-	bool success = bdsm.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
+	bool success = StorageManager::fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
 	if (!success) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&fp, smDeserializer, TAG_RUNTIME_FEATURE_SETTINGS);
+	Error error = StorageManager::openXMLFile(&fp, smDeserializer, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -250,10 +250,10 @@ void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
 	f_close(&smDeserializer.readFIL);
 }
 
-void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {
+void RuntimeFeatureSettings::writeSettingsToFile() {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	Error error = bdsm.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, smSerializer, true);
+	Error error = StorageManager::createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}

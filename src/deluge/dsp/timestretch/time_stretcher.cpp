@@ -359,11 +359,11 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
 
 	/*
-	minBeamWidth = storageManager.devVarA * 10;
-	maxBeamWidth = storageManager.devVarB * 100;
-	crossfadeProportional = storageManager.devVarC << 24;
-	crossfadeAbsolute = storageManager.devVarD;
-	randomElement = storageManager.devVarF << 16;
+	minBeamWidth = StorageManager::devVarA * 10;
+	maxBeamWidth = StorageManager::devVarB * 100;
+	crossfadeProportional = StorageManager::devVarC << 24;
+	crossfadeAbsolute = StorageManager::devVarD;
+	randomElement = StorageManager::devVarF << 16;
 */
 
 	// Apply random element
