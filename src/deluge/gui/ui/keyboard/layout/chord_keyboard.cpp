@@ -145,7 +145,7 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 }
 
 bool KeyboardLayoutChord::allowSidebarType(ColumnControlFunction sidebarType) {
-	if ((sidebarType == ColumnControlFunction::CHORD) || (sidebarType == ColumnControlFunction::DX) ||
+	if ((sidebarType == ColumnControlFunction::CHORD) ||
 	    // TODO, when scales for chord keyboard are implemented, add this back in
 	    (sidebarType == ColumnControlFunction::SCALE_MODE)) {
 		return false;
