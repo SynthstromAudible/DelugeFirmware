@@ -518,6 +518,12 @@ The Song menu contains the following menu hierarchy:
 		- Normalization (NORM)
 			- Disabled (OFF)
 			- Enabled (ON)
+		- Export to Silence (SILE)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Song FX (SONG)
+			- Disabled (OFF)
+			- Enabled (ON)
 </details>
 </details>
 

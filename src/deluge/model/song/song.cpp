@@ -55,6 +55,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>

@@ -43,17 +43,30 @@ Stem's are given a meaningful name in the following format:
 ### Cancelling Stem Export
 
 - Press `BACK` to cancel Stem Export process
-- When you cancel stem export, a dialog will appear on the screen asking you to confirm if you want to cancel the export. Press on the `SELECT` encoder to confirm that you want to cancel. Press `BACK` or any `PAD` on the grid to exit out of the dialog and continue with stem export process.
+- When you cancel stem export, a dialog will appear on the screen asking you to confirm if you want to cancel the export. Press on the `SELECT` encoder to confirm that you want to cancel. Press `BACK` to exit out of the dialog and continue with stem export process.
 - Note: When you press `BACK`, the stem export still continues in the background until you confirm you want to stop.
 
-## Recording Length and Silence
+## Recording Parameters
 
-- Stems are recorded until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured
+### Recording Length
 - In terms of the length of each stem recording:
-  - In Arranger, a track is played until the end of the arrangement's length is reached, at which point tails will be allowed to ring out and recording will continue until silence
-  - In Song, a clip is played until the end of the longest note row with notes in it is reached, at which point tails will be allowed to ring out and recording will continue until silence
+  - In Arranger, a track is played until the end of the arrangement's length is reached.
+  - In Song, a clip is played until the end of the longest note row with notes in it is reached.
 
-## Clip Stem Loop Points
+  - If `Exporting Stems to Silence` is enabled, tails will be allowed to ring out and recording will continue past the track or clip length until silence is reached (see below).
+
+### Silence
+- Stems are recorded by default until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured
+  - This can be turned off in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\EXPORT TO SILENCE`
+
+### Normalization
+- Normalization is off by default. Normalization sets the peak of the recorded stems to be at 0dB (as loud as possible without distorting).
+  - Normalization can be turned on in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\NORMALIZATION`  
+
+### Song FX
+- Song FX are excluded by default. They can be included in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\SONG FX`
+
+### Clip Stem Loop Points
 
 - For clip stems, a loop point marker is saved with the stem file to mark the clip's loop length. This makes it easy to reload your stems and they will play back and loop as if you were playing those clip's on the deluge.
 
@@ -66,7 +79,38 @@ This menu allows you to start a stem export and configure various settings relat
 - Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
 - Configure settings for the stem export by entering the `SONG\EXPORT STEMS\CONFIGURE EXPORT\` menu.
-    - Currently only one configuration object has been added (`NORMALIZATION`) but more will be added in the near future.
+    - You can currently configure the following for the Stem Export:
+      - `NORMALIZATION`: Normalization sets the peak of the recorded stems to be at 0dB (as loud as possible without distorting).
+      - `EXPORT TO SILENCE`: Stems are recorded until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured.
+      - `SONG FX`: Stems are recorded with or without Song FX applied.
+
+## Troubleshooting
+
+### I have a track that won't export
+
+#### Scenario #1: Special characters in the track name 
+
+One user reported that they were unable to export a track even though the stem export indicated that the track had been exported.
+
+Solution: 
+
+Check that the track name doesn't have any special characters. In this case, the user had a track called << Organ >>. Removing the characters "<< >>" and just naming the track "Organ" allowed the track to be exported.
+
+#### Scenario #2: The track has an exceptionally long tail that doesn't not drop to silence
+
+If you are using the `EXPORT TO SILENCE` feature, it may not automatically export your track because the track never becomes sufficiently silent. Thus, you will see that playback was turned off but the recording button continues to blink rapidly because it is still waiting for silence before stopping the recording.
+
+In this case, you will need to press `BACK` to cancel the stem export. If you press `BACK` after the track's loop length is finished, it will save the stem, however the stem's length may not match the loop length.
+
+Possible solution:
+
+If you want to continue using the `EXPORT TO SILENCE` feature, check what might be contributing to the exceptionally long tails (e.g. delay, reverb, release, compressor). Use the `VU Meter` to check the levels when you start and stop a track. If the `VU Meter` gets stuck with pads that do not turn off, then it is an indication that you have exceptionally long tails.
+
+### The tails of one stem recording "bleed" into another stem recording
+
+If you are not using the `EXPORT TO SILENCE` feature, it is possible that when exporting a stem that the audio from the previous stem recording may bleed into the start of the recording of the next stem to be exported.
+
+Other than using the `EXPORT TO SILENCE` feature, we do not have a solution for this yet. Ideally if we can find a way to cut any sustaining audio from the previous track / clip recorded that would ensure that no bleed occurs, however we have not found a way to do this yet.
 
 ## Videos
 
