@@ -58,6 +58,9 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 }
 
 void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
+	if (verticalEncoderHandledByColumns(offset)) {
+		return;
+	}
 	KeyboardStateChord& state = getState().chord;
 
 	state.chordList.adjustChordRowOffset(offset);
@@ -66,6 +69,9 @@ void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 
 void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
                                                   PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
+		return;
+	}
 	KeyboardStateChord& state = getState().chord;
 
 	if (encoderPressed) {
@@ -90,7 +96,7 @@ void KeyboardLayoutChord::precalculate() {
 	KeyboardStateChord& state = getState().chord;
 
 	// Pre-Buffer colours for next renderings
-	for (int32_t i = 0; i < (kOctaveSize + kDisplayWidth); ++i) {
+	for (int32_t i = 0; i < noteColours.size(); ++i) {
 		noteColours[i] = getNoteColour(((state.noteOffset + i) % state.rowInterval) * state.rowColorMultiplier);
 	}
 }
@@ -106,10 +112,10 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			// We also use different colors for the rows to help with navigation
 			if (chordNo % 4 == 0) {
 				int32_t rowNo = chordNo / 4;
-				image[y][x] = noteColours[rowNo % kOctaveSize];
+				image[y][x] = noteColours[rowNo % noteColours.size()];
 			}
 			else {
-				image[y][x] = noteColours[x];
+				image[y][x] = noteColours[x % noteColours.size()];
 			}
 		}
 	}
@@ -137,4 +143,14 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 		display->setScrollingText(fullChordName, 0);
 	}
 }
+
+bool KeyboardLayoutChord::allowSidebarType(ColumnControlFunction sidebarType) {
+	if ((sidebarType == ColumnControlFunction::CHORD) ||
+	    // TODO, when scales for chord keyboard are implemented, add this back in
+	    (sidebarType == ColumnControlFunction::SCALE_MODE)) {
+		return false;
+	}
+	return true;
+}
+
 } // namespace deluge::gui::ui::keyboard::layout
