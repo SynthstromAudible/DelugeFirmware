@@ -357,7 +357,7 @@ Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 extern FirmwareVersion song_firmware_version;
 extern FILINFO staticFNO;
 extern DIR staticDIR;
-extern bool writeJsonFlag;
+extern const bool writeJsonFlag;
 
 inline bool isCardReady() {
 	return !sdRoutineLock && Error::NONE == StorageManager::initSD();
