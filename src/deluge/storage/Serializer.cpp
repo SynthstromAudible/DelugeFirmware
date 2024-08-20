@@ -159,7 +159,7 @@ void XMLSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter, boo
 	writeOpeningTagEnd(startNewLineAfter);
 }
 
-void XMLSerializer::writeOpeningTagBeginning(char const* tag, bool box) {
+void XMLSerializer::writeOpeningTagBeginning(char const* tag, bool box, bool newLineBefore) {
 	printIndents();
 	write("<");
 	write(tag);

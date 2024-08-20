@@ -49,8 +49,6 @@ extern "C" {
 #include "fatfs/ff.h"
 }
 
-char charAtEndOfValue;
-
 /*******************************************************************************
 
     XMLDeserializer
@@ -248,8 +246,6 @@ reachedNameEnd:
 	// If here, file ended
 	return "";
 }
-
-// char charAtEndOfValue; // *** JFF get rid of this global!
 
 char const* XMLDeserializer::readNextTagOrAttributeName() {
 

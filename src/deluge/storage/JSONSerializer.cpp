@@ -180,10 +180,11 @@ void JsonSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter, bo
 	writeOpeningTagEnd(startNewLineAfter);
 }
 
-void JsonSerializer::writeOpeningTagBeginning(char const* tag, bool box) {
+void JsonSerializer::writeOpeningTagBeginning(char const* tag, bool box, bool newLineBefore) {
 	insertCommaIfNeeded();
-	write("\n");
-
+	if (newLineBefore) { // prepend newLine almost always.
+		write("\n");
+	}
 	printIndents();
 	if (box)
 		write("{");
@@ -198,7 +199,7 @@ void JsonSerializer::closeTag(bool box) {
 	// printIndents();
 	write("}");
 	if (box)
-		write(" }");
+		write("}");
 	indentAmount--;
 	firstItemHasBeenWritten = true;
 }
@@ -209,9 +210,6 @@ void JsonSerializer::writeOpeningTagEnd(bool startNewLineAfter) {
 void JsonSerializer::writeClosingTag(char const* tag, bool shouldPrintIndents, bool box) {
 	indentAmount--;
 	firstItemHasBeenWritten = true;
-	if (shouldPrintIndents) {
-		printIndents();
-	}
 	write("}");
 	if (box)
 		write("}");
@@ -224,7 +222,7 @@ void JsonSerializer::printIndents() {
 }
 
 Error JsonSerializer::closeFileAfterWriting(char const* path, char const* beginningString, char const* endString) {
-	return closeAfterWriting(path, beginningString, endString);
+	return closeAfterWriting(path, beginningString, NULL);
 }
 
 void JsonSerializer::writeArrayStart(char const* tag, bool startNewLineAfter, bool box) {

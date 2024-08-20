@@ -1048,7 +1048,7 @@ void Song::writeToFile(StorageManager& bdsm) {
 	setupClipIndexesForSaving();
 	Serializer& writer = GetSerializer();
 	writer.reset();
-	writer.writeOpeningTagBeginning("song", true);
+	writer.writeOpeningTagBeginning("song", true, false);
 
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");

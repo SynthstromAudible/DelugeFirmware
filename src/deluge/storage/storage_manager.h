@@ -101,7 +101,7 @@ public:
 	virtual void writeTag(char const* tag, int32_t number, bool box = false) = 0;
 	virtual void writeTag(char const* tag, char const* contents, bool box = false, bool quote = true) = 0;
 	virtual void writeOpeningTag(char const* tag, bool startNewLineAfter = true, bool box = false) = 0;
-	virtual void writeOpeningTagBeginning(char const* tag, bool box = false) = 0;
+	virtual void writeOpeningTagBeginning(char const* tag, bool box = false, bool newLineBefore = true) = 0;
 	virtual void writeOpeningTagEnd(bool startNewLineAfter = true) = 0;
 	virtual void closeTag(bool box = false) = 0;
 	virtual void writeClosingTag(char const* tag, bool shouldPrintIndents = true, bool box = false) = 0;
@@ -140,7 +140,7 @@ public:
 	void writeTag(char const* tag, int32_t number, bool box = false) override;
 	void writeTag(char const* tag, char const* contents, bool box = false, bool quote = true) override;
 	void writeOpeningTag(char const* tag, bool startNewLineAfter = true, bool box = false) override;
-	void writeOpeningTagBeginning(char const* tag, bool box = false) override;
+	void writeOpeningTagBeginning(char const* tag, bool box = false, bool newLineBefore = true) override;
 	void writeOpeningTagEnd(bool startNewLineAfter = true) override;
 	void closeTag(bool box = false) override;
 	void writeClosingTag(char const* tag, bool shouldPrintIndents = true, bool box = false) override;
@@ -243,7 +243,7 @@ public:
 	void writeTag(char const* tag, int32_t number, bool box = false) override;
 	void writeTag(char const* tag, char const* contents, bool box = false, bool quote = true) override;
 	void writeOpeningTag(char const* tag, bool startNewLineAfter = true, bool box = false) override;
-	void writeOpeningTagBeginning(char const* tag, bool box = false) override;
+	void writeOpeningTagBeginning(char const* tag, bool box = false, bool newLineBefore = true) override;
 	void writeOpeningTagEnd(bool startNewLineAfter = true) override;
 	void closeTag(bool box = false) override;
 	void writeClosingTag(char const* tag, bool shouldPrintIndents = true, bool box = false) override;
