@@ -249,7 +249,7 @@ void Song::setupDefault() {
 
 	seedRandom();
 
-	setBPMInner(defaultTempoMenu.getRandomValueInRange(), false);
+	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
 	swingAmount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
 	key.rootNote = defaultKeyMenu.getRandomValueInRange();
 
@@ -1969,6 +1969,10 @@ loadOutput:
 	}
 
 	setTimePerTimerTick(newTimePerTimerTick);
+
+	// make sure the bpm param matches the ticks in case something went wrong? ref issue 2455, possible cause is invalid
+	// tempo param
+	setBPM(calculateBPM(), false);
 
 	// Ensure all arranger-only Clips have their section as 255
 	for (int32_t t = 0; t < arrangementOnlyClips.getNumElements(); t++) {
@@ -5776,8 +5780,9 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 	return modelStackWithParam;
 }
 void Song::updateBPMFromAutomation() {
+	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore that
 	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
-	if (currentTempo != intBPM) {
+	if (currentTempo && currentTempo != intBPM) {
 		setBPMInner((float)currentTempo / 100, false);
 		intBPM = currentTempo;
 	}
