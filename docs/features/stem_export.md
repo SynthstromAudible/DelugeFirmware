@@ -105,7 +105,7 @@ If you are using the `EXPORT TO SILENCE` feature, it may take longer for your tr
 
 As a safety measure, if your track does not become silent within 60 seconds of playback stopping, then the recording will stop automatically.
 
-If you do not want to wait potentially 60 seconds, you will need to press `BACK` to cancel the stem export. If you press `BACK` after the track's loop length is finished, it will save the stem, however the stem's length may not match the loop length.
+If you do not want to wait potentially 60 seconds, you will need to press `BACK` to cancel the stem export and save what has been recorded up to that point.
 
 If you want to continue using the `EXPORT TO SILENCE` feature, check what might be contributing to the exceptionally long tails (e.g. delay, reverb, release, compressor). Use the `VU Meter` to check the levels when you start and stop a track. If the `VU Meter` gets stuck with pads that do not turn off, then it is an indication that you have exceptionally long tails.
 
