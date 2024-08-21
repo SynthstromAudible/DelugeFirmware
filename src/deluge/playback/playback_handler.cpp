@@ -2004,7 +2004,7 @@ void PlaybackHandler::commandEditTempoCoarse(int8_t offset) {
 }
 
 void PlaybackHandler::commandEditTempoFine(int8_t offset) {
-	int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5;
+	int32_t tempoBPM = calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5f;
 	tempoBPM += offset;
 	if (tempoBPM > 0) {
 		currentSong->setBPM(tempoBPM, true);
@@ -2202,15 +2202,7 @@ void PlaybackHandler::commandDisplayTempo() {
 }
 
 float PlaybackHandler::calculateBPM(float timePerInternalTick) {
-	float timePerTimerTick = timePerInternalTick;
-	if (currentSong->insideWorldTickMagnitude > 0) {
-		timePerTimerTick *= ((uint32_t)1 << (currentSong->insideWorldTickMagnitude));
-	}
-	float tempoBPM = (float)110250 / timePerTimerTick;
-	if (currentSong->insideWorldTickMagnitude < 0) {
-		tempoBPM *= ((uint32_t)1 << (-currentSong->insideWorldTickMagnitude));
-	}
-	return tempoBPM;
+	return currentSong->calculateBPM();
 }
 
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
