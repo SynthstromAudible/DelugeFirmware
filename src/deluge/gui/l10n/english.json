@@ -784,7 +784,7 @@
         "STRING_FOR_PAD_SELECTION_OFF": "Pad Selection Off",
         "STRING_FOR_PAD_SELECTION_ON": "Pad Selection On",
 
-        "STRING_FOR_PERFORM_VIEW": "Performance View",
+        "STRING_FOR_PERFORM_VIEW": "Performance",
         "STRING_FOR_PERFORM_FX": "Perform FX",
         "STRING_FOR_PERFORM_EDITOR": "Editing Mode",
         "STRING_FOR_PERFORM_EDIT_PARAM": "Param",
@@ -794,9 +794,9 @@
 
         "STRING_FOR_MIDILOOPBACK": "MIDI Loopback",
 
-        "STRING_FOR_SONG_VIEW": "Song View",
+        "STRING_FOR_SONG_VIEW": "Song",
 
-        "STRING_FOR_ARRANGER_VIEW": "Arranger View",
+        "STRING_FOR_ARRANGER_VIEW": "Arranger",
 
         "STRING_FOR_KIT_GLOBAL_FX": "Kit FX",
         "STRING_FOR_PITCH": "Pitch",

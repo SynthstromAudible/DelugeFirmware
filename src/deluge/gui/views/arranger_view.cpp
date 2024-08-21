@@ -3021,6 +3021,10 @@ void ArrangerView::graphicsRoutine() {
 		PadLEDs::sendOutSidebarColours();
 	}
 
+	if (display->haveOLED()) {
+		sessionView.displayPotentialTempoChange(this);
+	}
+
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {
 
 		int32_t newTickSquare;
