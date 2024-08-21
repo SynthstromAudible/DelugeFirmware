@@ -591,7 +591,7 @@ Error JsonDeserializer::openJsonFile(FilePointer* filePointer, char const* first
 		exitTag(tagName);
 	}
 
-	f_close(&readFIL);
+	closeFIL();
 	return Error::FILE_CORRUPTED;
 }
 
@@ -607,7 +607,7 @@ Error JsonDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool 
 		char const* firmware_version_string = readTagOrAttributeValue();
 		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
 		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
-			f_close(&readFIL);
+			closeFIL();
 			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
 		}
 	}

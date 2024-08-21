@@ -1049,6 +1049,9 @@ void Song::writeToFile() {
 	setupClipIndexesForSaving();
 	Serializer& writer = GetSerializer();
 	writer.reset();
+	if (!writeJsonFlag) {
+		writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	}
 	writer.writeOpeningTagBeginning("song", true, false);
 
 	writer.writeFirmwareVersion();

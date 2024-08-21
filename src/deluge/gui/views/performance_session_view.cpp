@@ -1847,8 +1847,7 @@ void PerformanceSessionView::readDefaultsFromFile() {
 		}
 		reader.exitTag();
 	}
-
-	StorageManager::closeFile(smDeserializer.readFIL);
+	smDeserializer.closeFIL();
 
 	successfullyReadDefaultsFromFile = true;
 }

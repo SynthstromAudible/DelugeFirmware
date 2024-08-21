@@ -319,7 +319,7 @@ gotError:
 						                                                     &audioFile->filePath);
 						if (error != Error::NONE) {
 failAfterOpeningSourceFile:
-							f_close(&smDeserializer.readFIL); // Close source file
+							smDeserializer.closeFIL();
 							goto gotError;
 						}
 					}
@@ -387,7 +387,7 @@ fail3:
 					}
 				}
 
-				f_close(&smDeserializer.readFIL); // Close source file
+				smDeserializer.closeFIL(); // Close source file
 
 				// Write has succeeded. We can mark it as existing in its normal main location (e.g. in the SAMPLES
 				// folder). Unless we were collection media, in which case it won't be there - it'll be in the new

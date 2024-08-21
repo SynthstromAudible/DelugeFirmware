@@ -566,7 +566,7 @@ void readDevicesFromFile() {
 		reader.exitTag();
 	}
 
-	f_close(&smDeserializer.readFIL);
+	smDeserializer.closeFIL();
 
 	recountSmallestMPEZones();
 

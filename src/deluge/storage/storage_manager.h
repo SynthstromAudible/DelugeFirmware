@@ -58,6 +58,8 @@ public:
 	UINT currentReadBufferEndPos;
 	int32_t fileReadBufferCurrentPos;
 
+	FRESULT closeFIL();
+
 protected:
 	bool readFileCluster();
 	bool readFileClusterIfNecessary();
@@ -78,6 +80,7 @@ public:
 
 	Error closeAfterWriting(char const* path, char const* beginningString, char const* endString);
 	void writeChars(char const* output);
+	FRESULT closeFIL();
 
 protected:
 	void resetWriter();
@@ -329,7 +332,6 @@ Error openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const*
 Error openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char const* firstTagName,
                    char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 Error initSD();
-bool closeFile(FIL& fileToClose);
 
 bool fileExists(char const* pathName);
 bool fileExists(char const* pathName, FilePointer* fp);

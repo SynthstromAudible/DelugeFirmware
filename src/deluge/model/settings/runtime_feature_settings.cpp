@@ -247,7 +247,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		}
 		reader.exitTag(currentTag);
 	}
-	f_close(&smDeserializer.readFIL);
+	smDeserializer.closeFIL();
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile() {

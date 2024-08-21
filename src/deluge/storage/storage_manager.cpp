@@ -64,7 +64,7 @@ XMLDeserializer smDeserializer;
 JsonSerializer smJsonSerializer;
 JsonDeserializer smJsonDeserializer;
 
-const bool writeJsonFlag = false;
+const bool writeJsonFlag = true;
 
 Serializer& GetSerializer() {
 	if (writeJsonFlag) {
@@ -184,9 +184,6 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	}
 	writer.writeFIL = created.value().inner();
 	writer.reset();
-
-	writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-
 	return Error::NONE;
 }
 
@@ -234,12 +231,6 @@ bool StorageManager::fileExists(char const* pathName, FilePointer* fp) {
 
 	f_close(&fil);
 	return true;
-}
-
-// Returns false if some error, including error while writing
-bool StorageManager::closeFile(FIL& fileToClose) {
-	FRESULT result = f_close(&fileToClose);
-	return (result == FR_OK);
 }
 
 // Gets ready to access SD card.
@@ -343,17 +334,17 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	Instrument* newInstrument = createNewInstrument(outputType);
 
 	if (!newInstrument) {
-		closeFile(smDeserializer.readFIL);
+		smDeserializer.closeFIL();
 		D_PRINTLN("Allocating instrument file failed -  %d", name->get());
 		return Error::INSUFFICIENT_RAM;
 	}
 
 	error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
 
-	bool fileSuccess = closeFile(smDeserializer.readFIL);
+	FRESULT fileSuccess = smDeserializer.closeFIL();
 
 	// If that somehow didn't work...
-	if (error != Error::NONE || !fileSuccess) {
+	if (error != Error::NONE || fileSuccess != FR_OK) {
 		D_PRINTLN("reading instrument file failed -  %s", name->get());
 		if (!fileSuccess) {
 			error = Error::SD_CARD;
@@ -444,8 +435,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
 
-	bool fileSuccess = closeFile(smDeserializer.readFIL);
-	;
+	bool fileSuccess = smDeserializer.closeFIL() == FR_OK;
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -594,7 +584,7 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer& rea
 	Error err = reader.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
 	if (err == Error::NONE)
 		return Error::NONE;
-	f_close(&reader.readFIL);
+	reader.closeFIL();
 
 	return Error::FILE_CORRUPTED;
 }
@@ -609,7 +599,7 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
 	Error err = reader.openJsonFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
 	if (err == Error::NONE)
 		return Error::NONE;
-	f_close(&reader.readFIL);
+	reader.closeFIL();
 
 	return Error::FILE_CORRUPTED;
 }
@@ -747,6 +737,10 @@ void FileReader::readDone() {
 	}
 }
 
+FRESULT FileReader::closeFIL() {
+	return f_close(&readFIL);
+}
+
 FileWriter::FileWriter() {
 	void* temp = GeneralMemoryAllocator::get().allocLowSpeed(32768 + CACHE_LINE_SIZE * 2);
 	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
@@ -760,6 +754,10 @@ void FileWriter::resetWriter() {
 	fileWriteBufferCurrentPos = 0;
 	fileTotalBytesWritten = 0;
 	fileAccessFailedDuringWrite = false;
+}
+
+FRESULT FileWriter::closeFIL() {
+	return f_close(&writeFIL);
 }
 
 void FileWriter::writeChars(char const* output) {
@@ -820,7 +818,7 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		return Error::WRITE_FAIL;
 	}
 
-	FRESULT result = f_close(&writeFIL);
+	FRESULT result = closeFIL();
 	if (result) {
 		return Error::WRITE_FAIL;
 	}
@@ -870,7 +868,7 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		}
 	}
 
-	result = f_close(&writeFIL);
+	result = closeFIL();
 	if (result) {
 		return Error::WRITE_FAIL;
 	}

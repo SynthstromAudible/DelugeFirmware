@@ -291,7 +291,10 @@ ramError:
 
 someError:
 		display->displayError(error);
-		f_close(jsonFileFlag ? &smJsonDeserializer.readFIL : &smDeserializer.readFIL);
+		if (jsonFileFlag)
+			smJsonDeserializer.closeFIL();
+		else
+			smDeserializer.closeFIL();
 
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
@@ -330,9 +333,12 @@ fail:
 		}
 		AudioEngine::logAction("d");
 
-		bool success = f_close(jsonFileFlag ? &smJsonDeserializer.readFIL : &smDeserializer.readFIL);
-
-		if (!success) {
+		FRESULT success;
+		if (jsonFileFlag)
+			success = smJsonDeserializer.closeFIL();
+		else
+			success = smDeserializer.closeFIL();
+		if (success != FR_OK) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 			goto fail;
 		}
@@ -396,8 +402,12 @@ gotErrorAfterCreatingSong:
 	}
 	AudioEngine::logAction("read new song from file");
 
-	bool success = StorageManager::closeFile(jsonFileFlag ? smJsonDeserializer.readFIL : smDeserializer.readFIL);
-	if (!success) {
+	FRESULT success;
+	if (jsonFileFlag)
+		success = smJsonDeserializer.closeFIL();
+	else
+		success = smDeserializer.closeFIL();
+	if (success != FR_OK) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
 	}
@@ -868,10 +878,10 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 	}
 stopLoadingPreview:
 	if (jsonFileFlag) {
-		StorageManager::closeFile(smJsonDeserializer.readFIL);
+		smJsonDeserializer.closeFIL();
 	}
 	else {
-		StorageManager::closeFile(smDeserializer.readFIL);
+		smDeserializer.closeFIL();
 	}
 }
 
