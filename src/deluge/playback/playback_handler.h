@@ -192,7 +192,7 @@ public:
 	bool subModeAllowsRecording();
 
 	void songSelectReceived(uint8_t songId);
-	float calculateBPM(float timePerInternalTick);
+	static float calculateBPM(float timePerInternalTick);
 	void switchToArrangement();
 	void switchToSession();
 	void finishTempolessRecording(bool startPlaybackAgain, int32_t buttonLatencyForTempolessRecord,
@@ -245,7 +245,6 @@ private:
 	uint32_t skipMidiClocks;
 
 	void resetTimePerInternalTickMovingAverage();
-	void getCurrentTempoParams(int32_t* magnitude, int8_t* whichValue);
 	void displayTempoFromParams(int32_t magnitude, int8_t whichValue);
 	void displayTempoBPM(float tempoBPM);
 	void getAnalogOutTicksToInternalTicksRatio(uint32_t* internalTicksPer, uint32_t* analogOutTicksPer);
