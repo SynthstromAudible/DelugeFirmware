@@ -39,6 +39,7 @@ public:
 	bool processStarted;
 	bool stopRecording;
 	StemExportType currentStemExportType;
+	uint32_t timePlaybackStopped;
 
 	// export config variables
 	bool allowNormalization;
