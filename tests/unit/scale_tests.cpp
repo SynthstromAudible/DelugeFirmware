@@ -389,6 +389,15 @@ TEST(NoteSetTest, highestNotIn) {
 	CHECK_EQUAL(11, a.highestNotIn(b));
 }
 
+TEST(NoteSetTest, modulateByOffset) {
+	NoteSet notes = NoteSet({0, 1, 4, 11});
+	NoteSet modulated = notes.modulateByOffset(3);
+	CHECK_EQUAL(2, modulated[0]);  // wrapped around 11 + 3 % 12 = 2
+	CHECK_EQUAL(3, modulated[1]);  // 0 + 3 % 12 = 3
+	CHECK_EQUAL(4, modulated[2]);  // 1 + 3 % 12 = 4
+	CHECK_EQUAL(7, modulated[3]);  // 4 + 3 % 12 = 7
+}
+
 TEST_GROUP(MusicalKeyTest){};
 
 TEST(MusicalKeyTest, ctor) {
