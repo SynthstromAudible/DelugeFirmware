@@ -180,7 +180,9 @@ public:
 	virtual void reset() = 0;
 };
 
-class XMLDeserializer : public Deserializer, public FileReader {
+class FileDeserializer : public Deserializer, public FileReader {};
+
+class XMLDeserializer : public FileDeserializer {
 public:
 	XMLDeserializer();
 	~XMLDeserializer() = default;
@@ -263,7 +265,7 @@ private:
 	bool firstItemHasBeenWritten = false;
 };
 
-class JsonDeserializer : public Deserializer, public FileReader {
+class JsonDeserializer : public FileDeserializer {
 public:
 	JsonDeserializer();
 	~JsonDeserializer() = default;
@@ -320,7 +322,9 @@ extern XMLDeserializer smDeserializer;
 extern JsonSerializer smJsonSerializer;
 extern JsonDeserializer smJsonDeserializer;
 extern Serializer& GetSerializer();
+extern FileDeserializer* activeDeserializer;
 
+struct FileItem;
 namespace StorageManager {
 
 std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
@@ -331,6 +335,8 @@ Error openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const*
                   char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 Error openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char const* firstTagName,
                    char const* altTagName = "", bool ignoreIncorrectFirmware = false);
+Error openDelugeFile(FileItem* currentFileItem, char const* firstTagName, char const* altTagName = "",
+                     bool ignoreIncorrectFirmware = false);
 Error initSD();
 
 bool fileExists(char const* pathName);

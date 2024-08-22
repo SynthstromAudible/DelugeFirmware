@@ -37,6 +37,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/file_item.h"
+
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/try.h"
@@ -63,8 +65,9 @@ XMLSerializer smSerializer;
 XMLDeserializer smDeserializer;
 JsonSerializer smJsonSerializer;
 JsonDeserializer smJsonDeserializer;
+FileDeserializer* activeDeserializer = NULL;
 
-const bool writeJsonFlag = true;
+const bool writeJsonFlag = false;
 
 Serializer& GetSerializer() {
 	if (writeJsonFlag) {
@@ -602,6 +605,25 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
 	reader.closeFIL();
 
 	return Error::FILE_CORRUPTED;
+}
+
+Error StorageManager::openDelugeFile(FileItem* currentFileItem, char const* firstTagName, char const* altTagName,
+                                     bool ignoreIncorrectFirmware) {
+	Error error;
+	activeDeserializer = NULL;
+	if (currentFileItem->filename.contains(".Json")) {
+		error = StorageManager::openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, firstTagName,
+		                                     altTagName, ignoreIncorrectFirmware);
+		activeDeserializer = &smJsonDeserializer;
+		activeDeserializer->match('{'); // descend into value object.
+	}
+	else {
+		error = StorageManager::openXMLFile(&currentFileItem->filePointer, smDeserializer, firstTagName, altTagName,
+		                                    ignoreIncorrectFirmware);
+		activeDeserializer = &smDeserializer;
+	}
+
+	return error;
 }
 
 bool StorageManager::buildPathToFile(const char* fileName) {

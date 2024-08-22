@@ -246,18 +246,8 @@ void LoadSongUI::performLoad() {
 		playbackHandler.switchToSession();
 	}
 	Error error;
-	bool jsonFileFlag = false;
-	if (currentFileItem->filename.contains(".Json")) {
-		jsonFileFlag = true;
-		error = StorageManager::openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, "song");
-	}
-	else {
-		error = StorageManager::openXMLFile(&currentFileItem->filePointer, smDeserializer, "song");
-	}
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return;
-	}
+
+	error = StorageManager::openDelugeFile(currentFileItem, "song");
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
@@ -291,11 +281,7 @@ ramError:
 
 someError:
 		display->displayError(error);
-		if (jsonFileFlag)
-			smJsonDeserializer.closeFIL();
-		else
-			smDeserializer.closeFIL();
-
+		activeDeserializer->closeFIL();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
 		if (!currentSong) {
@@ -324,20 +310,14 @@ fail:
 		// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but
 		// chances are, after failing on one of those, it'd try to load something else and that would fail.
 
-		if (jsonFileFlag)
-			error = preLoadedSong->readFromFile(smJsonDeserializer);
-		else
-			error = preLoadedSong->readFromFile(smDeserializer);
+		error = preLoadedSong->readFromFile(*activeDeserializer);
+
 		if (error != Error::NONE) {
 			goto gotErrorAfterCreatingSong;
 		}
 		AudioEngine::logAction("d");
 
-		FRESULT success;
-		if (jsonFileFlag)
-			success = smJsonDeserializer.closeFIL();
-		else
-			success = smDeserializer.closeFIL();
+		FRESULT success = activeDeserializer->closeFIL();
 		if (success != FR_OK) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 			goto fail;
@@ -393,20 +373,13 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	if (jsonFileFlag)
-		error = preLoadedSong->readFromFile(smJsonDeserializer);
-	else
-		error = preLoadedSong->readFromFile(smDeserializer);
+	error = preLoadedSong->readFromFile(*activeDeserializer);
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 	AudioEngine::logAction("read new song from file");
 
-	FRESULT success;
-	if (jsonFileFlag)
-		success = smJsonDeserializer.closeFIL();
-	else
-		success = smDeserializer.closeFIL();
+	FRESULT success = activeDeserializer->closeFIL();
 	if (success != FR_OK) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
@@ -810,29 +783,17 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 	}
 
 	Error error;
-	bool jsonFileFlag = false;
 	Deserializer* reader;
 	char const* tagName;
-
-	if (currentFileItem->filename.contains(".Json")) {
-		jsonFileFlag = true;
-		error = StorageManager::openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, "song");
-		reader = &smJsonDeserializer;
-		// Since the Json deserializer does not automatically descend into subobjects, we need to do
-		// that before joining the common logic that follows.
-		reader->match('{'); // descend into value object.
-	}
-	else {
-
-		error = StorageManager::openXMLFile(&currentFileItem->filePointer, smDeserializer, "song", "", true);
-		reader = &smDeserializer;
-	}
+	error = StorageManager::openDelugeFile(currentFileItem, "song");
 	if (error != Error::NONE) {
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return;
 		}
 	}
+
+	reader = activeDeserializer;
 
 	int32_t previewNumPads = 40;
 	while (*(tagName = reader->readNextTagOrAttributeName())) {
@@ -877,12 +838,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		}
 	}
 stopLoadingPreview:
-	if (jsonFileFlag) {
-		smJsonDeserializer.closeFIL();
-	}
-	else {
-		smDeserializer.closeFIL();
-	}
+	activeDeserializer->closeFIL();
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {
