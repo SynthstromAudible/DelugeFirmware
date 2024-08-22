@@ -29,6 +29,7 @@
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
+#include "task_scheduler.h"
 #include "version.h"
 
 extern "C" {
@@ -424,73 +425,82 @@ void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velo
 	velocity = std::max((uint8_t)1, velocity);
 	velocity = std::min((uint8_t)127, velocity);
 
-	sendMidi(source, on ? 0x09 : 0x08, channel, note, velocity, filter);
+	sendMidi(source, on ? 0x09 : 0x08, channel, note, velocity, filter, true, MidiSendType::NOTE);
 }
 
 void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter) {
-	sendCC(source, channel, 123, 0, filter);
+	sendCC(source, channel, 123, 0, filter, MidiSendType::NOTE);
 }
 
-void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter) {
+void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter,
+                        MidiSendType type) {
 	if (value > 127) {
 		value = 127;
 	}
-	sendMidi(source, 0x0B, channel, cc, value, filter);
+	sendMidi(source, 0x0B, channel, cc, value, filter, true, type);
 }
 
 void MidiEngine::sendClock(MIDISource source, bool sendUSB, int32_t howMany) {
 	while (howMany--) {
-		sendMidi(source, 0x0F, 0x08, 0, 0, kMIDIOutputFilterNoMPE, sendUSB);
+		sendMidi(source, 0x0F, 0x08, 0, 0, kMIDIOutputFilterNoMPE, sendUSB, MidiSendType::CLOCK);
 	}
 }
 
 void MidiEngine::sendStart(MIDISource source) {
 	playbackHandler.timeLastMIDIStartOrContinueMessageSent = AudioEngine::audioSampleTimer;
-	sendMidi(source, 0x0F, 0x0A);
+	sendMidi(source, 0x0F, 0x0A, 0, 0, kMIDIOutputFilterNoMPE, true, MidiSendType::START);
 }
 
 void MidiEngine::sendContinue(MIDISource source) {
 	playbackHandler.timeLastMIDIStartOrContinueMessageSent = AudioEngine::audioSampleTimer;
-	sendMidi(source, 0x0F, 0x0B);
+	sendMidi(source, 0x0F, 0x0B, 0, 0, kMIDIOutputFilterNoMPE, true, MidiSendType::CONTINUE);
 }
 
 void MidiEngine::sendStop(MIDISource source) {
-	sendMidi(source, 0x0F, 0x0C);
+	sendMidi(source, 0x0F, 0x0C, 0, 0, kMIDIOutputFilterNoMPE, true, MidiSendType::STOP);
 }
 
 void MidiEngine::sendPositionPointer(MIDISource source, uint16_t positionPointer) {
 	uint8_t positionPointerLSB = positionPointer & (uint32_t)0x7F;
 	uint8_t positionPointerMSB = (positionPointer >> 7) & (uint32_t)0x7F;
-	sendMidi(source, 0x0F, 0x02, positionPointerLSB, positionPointerMSB);
+	sendMidi(source, 0x0F, 0x02, positionPointerLSB, positionPointerMSB, kMIDIOutputFilterNoMPE, true,
+	         MidiSendType::POSITION_POINTER);
 }
 
 void MidiEngine::sendBank(MIDISource source, int32_t channel, int32_t num, int32_t filter) {
-	sendCC(source, channel, 0, num, filter);
+	sendCC(source, channel, 0, num, filter, MidiSendType::BANK);
 }
 
 void MidiEngine::sendSubBank(MIDISource source, int32_t channel, int32_t num, int32_t filter) {
-	sendCC(source, channel, 32, num, filter);
+	sendCC(source, channel, 32, num, filter, MidiSendType::SUB_BANK);
 }
 
 void MidiEngine::sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter) {
-	sendMidi(source, 0x0C, channel, pgm, 0, filter);
+	sendMidi(source, 0x0C, channel, pgm, 0, filter, true, MidiSendType::PROGRAM_CHANGE);
 }
 
 void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint8_t lsbs, uint8_t msbs, int32_t filter) {
-	sendMidi(source, 0x0E, channel, lsbs, msbs, filter);
+	sendMidi(source, 0x0E, channel, lsbs, msbs, filter, true, MidiSendType::EXPRESSION);
 }
 
 void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter) {
-	sendMidi(source, 0x0D, channel, value, 0, filter);
+	sendMidi(source, 0x0D, channel, value, 0, filter, true, MidiSendType::EXPRESSION);
 }
 
 void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode,
                                           int32_t filter) {
-	sendMidi(source, 0x0A, channel, noteCode, value, filter);
+	sendMidi(source, 0x0A, channel, noteCode, value, filter, true, MidiSendType::EXPRESSION);
 }
 
 void MidiEngine::sendMidi(MIDISource source, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
-                          int32_t filter, bool sendUSB) {
+                          int32_t filter, bool sendUSB, MidiSendType type) {
+	if (type == MidiSendType::AUTOMATION || type == MidiSendType::FEEDBACK) {
+		// if we're sending automation or feedback data,
+		// then let's check if there's other MIDI events currently being processed
+		// if there are other events, let's wait until those events are done being processed before sending this event
+		yield([]() { return (midiEngine.eventStackTop_ == midiEngine.eventStack_.begin()); });
+	}
+
 	if (eventStackTop_ == eventStack_.end()) {
 		// We're somehow 16 messages deep, reject this message.
 		return;

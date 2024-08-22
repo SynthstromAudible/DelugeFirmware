@@ -230,7 +230,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
 
-		midiEngine.sendCC(this, masterChannel, CC_EXTERNAL_MOD_WHEEL, newValue, channel);
+		midiEngine.sendCC(this, masterChannel, CC_EXTERNAL_MOD_WHEEL, newValue, channel, MidiSendType::EXPRESSION);
 		break;
 	}
 	case Z_PRESSURE: {
@@ -848,7 +848,7 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 	{ // Y
 		int32_t outputValue7 = mpeValuesToUse[1] >> 9;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[0] = outputValue7;
-		midiEngine.sendCC(this, outputMemberChannel, outputMPEY, outputValue7 + 64, channel);
+		midiEngine.sendCC(this, outputMemberChannel, outputMPEY, outputValue7 + 64, channel, MidiSendType::EXPRESSION);
 	}
 
 	{ // Z
@@ -1022,7 +1022,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 		case 1: { // Y
 			int32_t value7 = value32 >> 25;
 			mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[0] = value7;
-			midiEngine.sendCC(this, memberChannel, outputMPEY, value7 + 64, channel);
+			midiEngine.sendCC(this, memberChannel, outputMPEY, value7 + 64, channel, MidiSendType::EXPRESSION);
 			break;
 		}
 

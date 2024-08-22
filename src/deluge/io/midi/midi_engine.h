@@ -63,14 +63,15 @@ public:
 	MidiEngine();
 
 	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
-	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter);
+	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter,
+	            MidiSendType type = MidiSendType::NONE);
 	bool checkIncomingSerialMidi();
 	void checkIncomingUsbMidi();
 
 	void checkIncomingUsbSysex(uint8_t const* message, int32_t ip, int32_t d, int32_t cable);
 
 	void sendMidi(MIDISource source, uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0,
-	              int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
+	              int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true, MidiSendType type = MidiSendType::NONE);
 	void sendClock(MIDISource source, bool sendUSB = true, int32_t howMany = 1);
 	void sendStart(MIDISource source);
 	void sendStop(MIDISource source);

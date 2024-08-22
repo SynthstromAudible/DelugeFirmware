@@ -153,6 +153,23 @@ enum class MidiLearn : uint8_t {
 	DRUM_INPUT,
 };
 
+enum class MidiSendType : uint8_t {
+	NONE,
+	CLOCK,
+	START,
+	STOP,
+	CONTINUE,
+	POSITION_POINTER,
+	BANK,
+	SUB_BANK,
+	PROGRAM_CHANGE,
+	NOTE,
+	EXPRESSION,
+	CC,
+	AUTOMATION,
+	FEEDBACK,
+};
+
 constexpr size_t kMinTimePerTimerTick = 1;
 constexpr int32_t kNumInputTicksToAverageTime = 24;
 constexpr int32_t kNumInputTicksToAllowTempoTargeting =

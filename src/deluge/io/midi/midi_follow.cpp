@@ -659,7 +659,7 @@ void MidiFollow::sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, 
 
 		int32_t midiOutputFilter = midiInput.channelOrZone;
 
-		midiEngine.sendCC(this, channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
+		midiEngine.sendCC(this, channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter, MidiSendType::FEEDBACK);
 
 		timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 	}
