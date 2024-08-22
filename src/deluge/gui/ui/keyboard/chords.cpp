@@ -21,6 +21,32 @@
 
 namespace deluge::gui::ui::keyboard {
 
+ChordQuality getChordQuality(NoteSet& notes) {
+	if (notes.count() < 3) {
+		return OTHER;
+	}
+	else if (notes.has(MAJ3) && notes.has(P5)) {
+		if (notes.has(MIN7)) {
+			return DOMINANT;
+		}
+		else {
+			return MAJOR;
+		}
+	}
+	else if (notes.has(MIN3) && notes.has(P5)) {
+		return MINOR;
+	}
+	else if (notes.has(MIN3) && notes.has(DIM5)) {
+		return DIMINISHED;
+	}
+	else if (notes.has(MAJ3) && notes.has(AUG5)) {
+		return AUGMENTED;
+	}
+	else {
+		return OTHER;
+	}
+}
+
 ChordList::ChordList()
     : chords{
         {"", NoteSet({ROOT}), {{0, NONE, NONE, NONE, NONE, NONE}}}, // TODO remove when root fixed on bottom of keyboard

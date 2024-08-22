@@ -22,8 +22,20 @@
 #include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include <array>
+#include <set>
 
 namespace deluge::gui::ui::keyboard::layout {
+
+const int32_t SCALEFIRST = 0;
+const int32_t SCALESECOND = 1;
+const int32_t SCALETHIRD = 2;
+const int32_t SCALEFOURTH = 3;
+const int32_t SCALEFIFTH = 4;
+const int32_t SCALESIXTH = 5;
+const int32_t SCALESEVENTH = 6;
+const int32_t SCALEOCTAVE = 7;
+
+const int32_t kChordKeyboardColumns = 12;
 
 /// @brief Represents a keyboard layout for chord-based input.
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
@@ -48,12 +60,27 @@ protected:
 
 private:
 	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
-	inline uint8_t noteFromCoords(int32_t x) { return getState().chordLibrary.noteOffset + x; }
 	inline int32_t getChordNo(int32_t y) { return getState().chordLibrary.chordList.chordRowOffset + y; }
 
-	std::array<RGB, kOctaveSize> noteColours;
-	std::array<RGB, kVerticalPages> pageColours;
+	std::array<RGB, kOctaveSize + kDisplayHeight> noteColours;
+	std::array<int32_t, kChordKeyboardColumns> scaleSteps = {
+	    SCALEFIRST,
+	    SCALEFIFTH,
+	    SCALETHIRD + SCALEOCTAVE,
+	    SCALESEVENTH + SCALEOCTAVE,
+	    SCALEOCTAVE,
+	    SCALETHIRD + 2 * SCALEOCTAVE,
+	    SCALESECOND + 2 * SCALEOCTAVE,
+	    SCALESIXTH + SCALEOCTAVE,
+	    SCALETHIRD + SCALEOCTAVE,
+	    SCALEFIFTH + SCALEOCTAVE,
+	    SCALESIXTH + SCALEOCTAVE,
+	    2 * SCALEOCTAVE,
+	};
 	bool initializedNoteOffset = false;
+	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,         Scale::DORIAN_SCALE,
+	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE,        Scale::MIXOLYDIAN_SCALE,
+	                                  Scale::LOCRIAN_SCALE,  Scale::MELODIC_MINOR_SCALE, Scale::HARMONIC_MINOR_SCALE};
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

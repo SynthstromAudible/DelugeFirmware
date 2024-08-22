@@ -974,6 +974,7 @@ constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    /
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
 	KeyboardLayoutTypeInKey,
+	KeyboardLayoutTypeChord,
 	KeyboardLayoutTypeChordLibrary,
 	KeyboardLayoutTypeDrums,
 	KeyboardLayoutTypeNorns,

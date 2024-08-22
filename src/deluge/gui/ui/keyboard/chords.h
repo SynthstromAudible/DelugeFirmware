@@ -19,7 +19,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "model/scale/note_set.h"
+#include <array>
 
 constexpr int32_t kMaxChordKeyboardSize = 7;
 constexpr int32_t kUniqueVoicings = 4;
@@ -27,6 +29,22 @@ constexpr int32_t kUniqueChords = 20;
 constexpr int32_t kOffScreenChords = kUniqueChords - kDisplayHeight;
 
 namespace deluge::gui::ui::keyboard {
+
+enum ChordQuality : int8_t {
+	MAJOR = 0,
+	MINOR,
+	DIMINISHED,
+	AUGMENTED,
+	DOMINANT,
+	OTHER,
+	CHORD_QUALITY_MAX,
+};
+
+const std::array<RGB, CHORD_QUALITY_MAX> qualityColours{
+    {colours::blue, colours::purple, colours::green, colours::kelly::very_light_blue, colours::cyan, colours::yellow}};
+
+// Check and return the quality of a chord, assuming the notes are defined from the root, even if it is a rootless chord
+ChordQuality getChordQuality(NoteSet& notes);
 
 /// @brief A voicing is a set of offsets from the root note of a chord
 

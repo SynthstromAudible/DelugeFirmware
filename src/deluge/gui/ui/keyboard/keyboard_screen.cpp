@@ -65,8 +65,8 @@ KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeDrums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeInKey] = (KeyboardLayout*)&keyboardLayoutInKey;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChord] = (KeyboardLayout*)&KeyboardLayoutChord;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = (KeyboardLayout*)&keyboardLayoutChordLibrary;
-	layoutList[KeyboardLayoutType::KeyboardLayoutChord] = (KeyboardLayout*)&KeyboardLayoutChord;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeNorns] = (KeyboardLayout*)&keyboardLayoutNorns;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));
@@ -640,7 +640,12 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 		     && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns)
 		    || (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayChordKeyboard)
 		            == RuntimeFeatureStateToggle::Off
-		        && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary)) {
+		        && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary)
+		    || (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayChordKeyboard)
+		            == RuntimeFeatureStateToggle::Off
+		        && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeChord)
+
+		) {
 			// Don't check the next conditions, this one is already lost
 		}
 		else if (getCurrentOutputType() == OutputType::KIT && layoutList[nextLayout]->supportsKit()) {
