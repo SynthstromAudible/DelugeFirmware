@@ -407,10 +407,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
-		if ((getCurrentOutputType() == OutputType::KIT)
-		    || (getCurrentInstrumentClip()->keyboardState.currentLayout
-		        == KeyboardLayoutType::KeyboardLayoutTypeChords)) {
-			// Kits and Chords can't do scales!
+		if ((getCurrentOutputType() == OutputType::KIT)) {
+			// Kits can't do scales!
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_KEYBOARD_VIEW_CANT_ENTER_SCALE));
 			return ActionResult::DEALT_WITH;
 		}

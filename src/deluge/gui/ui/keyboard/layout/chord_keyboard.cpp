@@ -40,7 +40,7 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 		PressedPad pressed = presses[idxPress];
 		if (pressed.active && pressed.x < kDisplayWidth) {
 
-			int32_t chordNo = pressed.y + state.chordList.chordRowOffset;
+			int32_t chordNo = getChordNo(pressed.y);
 
 			Voicing voicing = state.chordList.getChordVoicing(chordNo);
 			drawChordName(noteFromCoords(pressed.x), state.chordList.chords[chordNo].name, voicing.supplementalName);
@@ -80,7 +80,7 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 			PressedPad pressed = presses[idxPress];
 			if (pressed.active && pressed.x < kDisplayWidth) {
 
-				int32_t chordNo = pressed.y + state.chordList.chordRowOffset;
+				int32_t chordNo = getChordNo(pressed.y);
 
 				state.chordList.adjustVoicingOffset(chordNo, offset);
 			}
@@ -94,28 +94,69 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 
 void KeyboardLayoutChord::precalculate() {
 	KeyboardStateChord& state = getState().chord;
+	// On first render, offset by the root note. This can't be done in the constructor
+	// because at constructor time, root note changes from the default menu aren't seen yet
+	// or if the root note is changed in the song also isn't seen.
+	if (!initializedNoteOffset) {
+		initializedNoteOffset = true;
+		state.noteOffset += getRootNote();
+	}
 
 	// Pre-Buffer colours for next renderings
 	for (int32_t i = 0; i < noteColours.size(); ++i) {
 		noteColours[i] = getNoteColour(((state.noteOffset + i) % state.rowInterval) * state.rowColorMultiplier);
 	}
+	uint8_t hueStepSize = 192 / (kVerticalPages - 1); // 192 is the hue range for the rainbow
+	for (int32_t i = 0; i < pageColours.size(); ++i) {
+		pageColours[i] = getNoteColour(i * hueStepSize);
+	}
 }
 
 void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
 	KeyboardStateChord& state = getState().chord;
+	bool inScaleMode = getScaleModeEnabled();
+
+	// Precreate list of all scale notes per octave
+	NoteSet octaveScaleNotes;
+	if (inScaleMode) {
+		NoteSet& scaleNotes = getScaleNotes();
+		for (uint8_t idx = 0; idx < getScaleNoteCount(); ++idx) {
+			octaveScaleNotes.add(scaleNotes[idx]);
+		}
+	}
 
 	// Iterate over grid image
-	for (int32_t y = 0; y < kDisplayHeight; ++y) {
-		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			int32_t chordNo = y + state.chordList.chordRowOffset;
-			// We add a colored row every 4 chords to help with navigation
-			// We also use different colors for the rows to help with navigation
-			if (chordNo % 4 == 0) {
-				int32_t rowNo = chordNo / 4;
-				image[y][x] = noteColours[rowNo % noteColours.size()];
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		int32_t noteCode = noteFromCoords(x);
+		uint16_t noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
+
+		for (int32_t y = 0; y < kDisplayHeight; ++y) {
+			int32_t chordNo = getChordNo(y);
+			int32_t pageNo = chordNo / kDisplayHeight;
+
+			if (inScaleMode) {
+				NoteSet intervalSet = state.chordList.chords[chordNo].intervalSet;
+				NoteSet modulatedNoteSet = intervalSet.modulateByOffset(noteWithinOctave);
+
+				if (modulatedNoteSet.isSubsetOf(octaveScaleNotes)) {
+					image[y][x] = noteColours[x % noteColours.size()];
+				}
+				else {
+					image[y][x] = noteColours[x % noteColours.size()].dim(4);
+				}
 			}
 			else {
-				image[y][x] = noteColours[x % noteColours.size()];
+				// If not in scale mode, highlight the root note
+				if (noteWithinOctave == 0) {
+					image[y][x] = noteColours[x % noteColours.size()];
+				}
+				else {
+					image[y][x] = noteColours[x % noteColours.size()].dim(4);
+				}
+			}
+			// show we've reach the top of a page and the end of the chords
+			if ((chordNo % kDisplayHeight == kDisplayHeight - 1) || (chordNo == kUniqueChords - 1)) {
+				image[y][x] = pageColours[pageNo % pageColours.size()];
 			}
 		}
 	}
