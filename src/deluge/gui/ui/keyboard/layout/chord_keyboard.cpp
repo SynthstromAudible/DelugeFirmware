@@ -167,7 +167,8 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 	}
 }
 
-uint8_t KeyboardLayoutChord::noteFromCoords(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount) {
+uint8_t KeyboardLayoutChord::noteFromCoords(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
+                                            uint8_t scaleNoteCount) {
 	KeyboardStateChord& state = getState().chord;
 	int32_t octaveDisplacement;
 	octaveDisplacement = state.autoVoiceLeading ? 0 : (y + scaleSteps[x]) / scaleNoteCount;
