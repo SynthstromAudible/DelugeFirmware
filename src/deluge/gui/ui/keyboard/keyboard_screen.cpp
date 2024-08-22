@@ -42,7 +42,7 @@
 #include <cstring>
 
 #include "gui/ui/keyboard/layout.h"
-#include "gui/ui/keyboard/layout/chord_keyboard.h"
+#include "gui/ui/keyboard/layout/chord_library.h"
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
@@ -55,7 +55,7 @@ namespace deluge::gui::ui::keyboard {
 layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
 layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
 layout::KeyboardLayoutInKey keyboardLayoutInKey{};
-layout::KeyboardLayoutChord keyboardLayoutChord{};
+layout::KeyboardLayoutChordLibrary keyboardLayoutChordLibrary{};
 layout::KeyboardLayoutNorns keyboardLayoutNorns{};
 KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
 
@@ -63,7 +63,7 @@ KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeDrums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeInKey] = (KeyboardLayout*)&keyboardLayoutInKey;
-	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChords] = (KeyboardLayout*)&keyboardLayoutChord;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = (KeyboardLayout*)&keyboardLayoutChordLibrary;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeNorns] = (KeyboardLayout*)&keyboardLayoutNorns;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));
@@ -637,7 +637,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 		     && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns)
 		    || (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayChordKeyboard)
 		            == RuntimeFeatureStateToggle::Off
-		        && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeChords)) {
+		        && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary)) {
 			// Don't check the next conditions, this one is already lost
 		}
 		else if (getCurrentOutputType() == OutputType::KIT && layoutList[nextLayout]->supportsKit()) {

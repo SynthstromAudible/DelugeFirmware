@@ -28,10 +28,10 @@ namespace deluge::gui::ui::keyboard::layout {
 constexpr int8_t kVerticalPages = ((kUniqueChords + kDisplayHeight - 1) / kDisplayHeight); // Round up division
 
 /// @brief Represents a keyboard layout for chord-based input.
-class KeyboardLayoutChord : public ColumnControlsKeyboard {
+class KeyboardLayoutChordLibrary : public ColumnControlsKeyboard {
 public:
-	KeyboardLayoutChord() = default;
-	~KeyboardLayoutChord() override = default;
+	KeyboardLayoutChordLibrary() = default;
+	~KeyboardLayoutChordLibrary() override = default;
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
@@ -50,8 +50,8 @@ protected:
 
 private:
 	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
-	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.noteOffset + x; }
-	inline int32_t getChordNo(int32_t y) { return getState().chord.chordList.chordRowOffset + y; }
+	inline uint8_t noteFromCoords(int32_t x) { return getState().chordLibrary.noteOffset + x; }
+	inline int32_t getChordNo(int32_t y) { return getState().chordLibrary.chordList.chordRowOffset + y; }
 
 	std::array<RGB, kOctaveSize> noteColours;
 	std::array<RGB, kVerticalPages> pageColours;

@@ -16,7 +16,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/ui/keyboard/layout/chord_keyboard.h"
+#include "gui/ui/keyboard/layout/chord_library.h"
 #include "gui/colour/colour.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -30,9 +30,9 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
-	KeyboardStateChord& state = getState().chord;
+	KeyboardStateChordLibrary& state = getState().chordLibrary;
 
 	// We run through the presses in reverse order to display the most recent pressed chord on top
 	for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
@@ -57,22 +57,23 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
-void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
+void KeyboardLayoutChordLibrary::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
-	KeyboardStateChord& state = getState().chord;
+	KeyboardStateChordLibrary& state = getState().chordLibrary;
 
 	state.chordList.adjustChordRowOffset(offset);
 	precalculate();
 }
 
-void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                  PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+void KeyboardLayoutChordLibrary::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                         PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                         bool encoderPressed) {
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
-	KeyboardStateChord& state = getState().chord;
+	KeyboardStateChordLibrary& state = getState().chordLibrary;
 
 	if (encoderPressed) {
 		for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
@@ -92,8 +93,8 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	precalculate();
 }
 
-void KeyboardLayoutChord::precalculate() {
-	KeyboardStateChord& state = getState().chord;
+void KeyboardLayoutChordLibrary::precalculate() {
+	KeyboardStateChordLibrary& state = getState().chordLibrary;
 	// On first render, offset by the root note. This can't be done in the constructor
 	// because at constructor time, root note changes from the default menu aren't seen yet
 	// or if the root note is changed in the song also isn't seen.
@@ -112,8 +113,8 @@ void KeyboardLayoutChord::precalculate() {
 	}
 }
 
-void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	KeyboardStateChord& state = getState().chord;
+void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+	KeyboardStateChordLibrary& state = getState().chordLibrary;
 	bool inScaleMode = getScaleModeEnabled();
 
 	// Precreate list of all scale notes per octave
@@ -162,7 +163,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	}
 }
 
-void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
+void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
 	char noteName[3] = {0};
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(noteCode, noteName, &isNatural, false);
@@ -185,7 +186,7 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 	}
 }
 
-bool KeyboardLayoutChord::allowSidebarType(ColumnControlFunction sidebarType) {
+bool KeyboardLayoutChordLibrary::allowSidebarType(ColumnControlFunction sidebarType) {
 	if (sidebarType == ColumnControlFunction::CHORD) {
 		return false;
 	}
