@@ -741,8 +741,8 @@ notFound:
 			}
 
 			// Ok, found file.
-			effectiveFilePointer.sclust = smDeserializer.readFIL.obj.sclust;
-			effectiveFilePointer.objsize = smDeserializer.readFIL.obj.objsize;
+			effectiveFilePointer.sclust = activeDeserializer->readFIL.obj.sclust;
+			effectiveFilePointer.objsize = activeDeserializer->readFIL.obj.objsize;
 		}
 	}
 

@@ -1332,7 +1332,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		}
 		else if (readTagFromFile(reader, tagName)) {}
 		else {
-			result = smDeserializer.tryReadingFirmwareTagFromFile(tagName, false);
+			result = activeDeserializer->tryReadingFirmwareTagFromFile(tagName, false);
 			if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 				return result;
 			}

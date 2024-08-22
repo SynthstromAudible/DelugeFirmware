@@ -541,7 +541,7 @@ void readDevicesFromFile() {
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "dinPorts")) {
@@ -566,7 +566,7 @@ void readDevicesFromFile() {
 		reader.exitTag();
 	}
 
-	smDeserializer.closeFIL();
+	activeDeserializer->closeFIL();
 
 	recountSmallestMPEZones();
 

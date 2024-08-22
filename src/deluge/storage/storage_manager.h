@@ -45,6 +45,7 @@ class String;
 class MIDIParamCollection;
 class ParamManager;
 class SoundDrum;
+class FileItem;
 
 class SMSharedData {};
 
@@ -324,7 +325,6 @@ extern JsonDeserializer smJsonDeserializer;
 extern Serializer& GetSerializer();
 extern FileDeserializer* activeDeserializer;
 
-struct FileItem;
 namespace StorageManager {
 
 std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);

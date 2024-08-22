@@ -194,7 +194,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	String currentName;
 	int32_t currentValue = 0;
 	char const* currentTag = nullptr;

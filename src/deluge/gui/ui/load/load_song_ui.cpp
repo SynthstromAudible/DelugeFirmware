@@ -792,8 +792,10 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 			return;
 		}
 	}
-
 	reader = activeDeserializer;
+	if (activeDeserializer == &smJsonDeserializer) {
+		activeDeserializer->match('{');
+	}
 
 	int32_t previewNumPads = 40;
 	while (*(tagName = reader->readNextTagOrAttributeName())) {

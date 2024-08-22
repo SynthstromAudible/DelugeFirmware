@@ -65,7 +65,7 @@ XMLSerializer smSerializer;
 XMLDeserializer smDeserializer;
 JsonSerializer smJsonSerializer;
 JsonDeserializer smJsonDeserializer;
-FileDeserializer* activeDeserializer = NULL;
+FileDeserializer* activeDeserializer = &smDeserializer;
 
 const bool writeJsonFlag = false;
 
@@ -344,7 +344,7 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 
 	error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
 
-	FRESULT fileSuccess = smDeserializer.closeFIL();
+	FRESULT fileSuccess = activeDeserializer->closeFIL();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
@@ -438,7 +438,7 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
 
-	bool fileSuccess = smDeserializer.closeFIL() == FR_OK;
+	bool fileSuccess = activeDeserializer->closeFIL() == FR_OK;
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -585,6 +585,7 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer& rea
 	// Prep to read first Cluster shortly
 	openFilePointer(filePointer, reader);
 	Error err = reader.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
+	activeDeserializer = &reader;
 	if (err == Error::NONE)
 		return Error::NONE;
 	reader.closeFIL();
@@ -600,6 +601,7 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
 	// Prep to read first Cluster shortly
 	openFilePointer(filePointer, reader);
 	Error err = reader.openJsonFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
+	activeDeserializer = &reader;
 	if (err == Error::NONE)
 		return Error::NONE;
 	reader.closeFIL();
@@ -610,19 +612,14 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
 Error StorageManager::openDelugeFile(FileItem* currentFileItem, char const* firstTagName, char const* altTagName,
                                      bool ignoreIncorrectFirmware) {
 	Error error;
-	activeDeserializer = NULL;
 	if (currentFileItem->filename.contains(".Json")) {
 		error = StorageManager::openJsonFile(&currentFileItem->filePointer, smJsonDeserializer, firstTagName,
 		                                     altTagName, ignoreIncorrectFirmware);
-		activeDeserializer = &smJsonDeserializer;
-		activeDeserializer->match('{'); // descend into value object.
 	}
 	else {
 		error = StorageManager::openXMLFile(&currentFileItem->filePointer, smDeserializer, firstTagName, altTagName,
 		                                    ignoreIncorrectFirmware);
-		activeDeserializer = &smDeserializer;
 	}
-
 	return error;
 }
 

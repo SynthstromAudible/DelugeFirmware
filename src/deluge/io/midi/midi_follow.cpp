@@ -832,7 +832,7 @@ void MidiFollow::readDefaultsFromFile() {
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	// step into the <defaultCCMappings> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -841,7 +841,7 @@ void MidiFollow::readDefaultsFromFile() {
 		}
 		reader.exitTag();
 	}
-	smDeserializer.closeFIL();
+	activeDeserializer->closeFIL();
 	successfullyReadDefaultsFromFile = true;
 }
 

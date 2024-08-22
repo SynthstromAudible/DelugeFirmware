@@ -28,7 +28,7 @@ Error WaveTableReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t 
 			return error;
 		}
 
-		*outputBuffer = smDeserializer.fileClusterBuffer[byteIndexWithinCluster];
+		*outputBuffer = activeDeserializer->fileClusterBuffer[byteIndexWithinCluster];
 		outputBuffer++;
 		byteIndexWithinCluster++;
 	}

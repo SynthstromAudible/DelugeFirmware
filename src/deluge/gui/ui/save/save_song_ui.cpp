@@ -319,7 +319,7 @@ gotError:
 						                                                     &audioFile->filePath);
 						if (error != Error::NONE) {
 failAfterOpeningSourceFile:
-							smDeserializer.closeFIL();
+							activeDeserializer->closeFIL();
 							goto gotError;
 						}
 					}
@@ -363,7 +363,7 @@ failAfterOpeningSourceFile:
 					// Copy
 					while (true) {
 						UINT bytesRead;
-						result = f_read(&smDeserializer.readFIL, smDeserializer.fileClusterBuffer,
+						result = f_read(&activeDeserializer->readFIL, activeDeserializer->fileClusterBuffer,
 						                audioFileManager.clusterSize, &bytesRead);
 						if (result) {
 							D_PRINTLN("read fail");
@@ -375,7 +375,8 @@ fail3:
 							break; // Stop, on rare case where file ended right at end of last cluster
 						}
 
-						auto written = created.value().write({(std::byte*)smDeserializer.fileClusterBuffer, bytesRead});
+						auto written =
+						    created.value().write({(std::byte*)activeDeserializer->fileClusterBuffer, bytesRead});
 						if (!written || written.value() != bytesRead) {
 							D_PRINTLN("write fail %d", result);
 							goto fail3;
@@ -387,7 +388,7 @@ fail3:
 					}
 				}
 
-				smDeserializer.closeFIL(); // Close source file
+				activeDeserializer->closeFIL(); // Close source file
 
 				// Write has succeeded. We can mark it as existing in its normal main location (e.g. in the SAMPLES
 				// folder). Unless we were collection media, in which case it won't be there - it'll be in the new
