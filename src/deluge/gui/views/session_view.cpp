@@ -1976,9 +1976,6 @@ void SessionView::renderViewDisplay(char const* viewString) {
 			deluge::hid::display::OLED::markChanged();
 		}
 	}
-	else {
-		display->setScrollingText(viewString);
-	}
 }
 
 // This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to happen.
