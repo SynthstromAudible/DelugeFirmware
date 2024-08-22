@@ -59,8 +59,10 @@ protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
-	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
 	inline int32_t getChordNo(int32_t y) { return getState().chordLibrary.chordList.chordRowOffset + y; }
+	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
+	uint8_t noteFromCoords(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount);
+	void handleControlButton(int32_t x, int32_t y);
 
 	std::array<RGB, kOctaveSize + kDisplayHeight> noteColours;
 	std::array<int32_t, kChordKeyboardColumns> scaleSteps = {
@@ -68,8 +70,8 @@ private:
 	    SCALEFIFTH,
 	    SCALETHIRD + SCALEOCTAVE,
 	    SCALESEVENTH + SCALEOCTAVE,
-	    SCALEOCTAVE,
-	    SCALETHIRD + 2 * SCALEOCTAVE,
+	    SCALEFIFTH + SCALEOCTAVE,
+	    2 * SCALEOCTAVE,
 	    SCALESECOND + 2 * SCALEOCTAVE,
 	    SCALESIXTH + SCALEOCTAVE,
 	    SCALETHIRD + SCALEOCTAVE,
@@ -77,7 +79,6 @@ private:
 	    SCALESIXTH + SCALEOCTAVE,
 	    2 * SCALEOCTAVE,
 	};
-	bool initializedNoteOffset = false;
 	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,         Scale::DORIAN_SCALE,
 	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE,        Scale::MIXOLYDIAN_SCALE,
 	                                  Scale::LOCRIAN_SCALE,  Scale::MELODIC_MINOR_SCALE, Scale::HARMONIC_MINOR_SCALE};

@@ -36,6 +36,7 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 
 	NoteSet& scaleNotes = getScaleNotes();
 	uint8_t scaleNoteCount = getScaleNoteCount();
+	int32_t root = getRootNote() + state.noteOffset;
 	for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
 
 		PressedPad pressed = presses[idxPress];
@@ -43,23 +44,17 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 			continue;
 		}
 		if (pressed.x < kChordKeyboardColumns) {
-
-			int32_t root = getRootNote() + state.noteOffset;
-			int32_t octaveDisplacement = (pressed.y + scaleSteps[pressed.x]) / scaleNoteCount;
-			int32_t steps = scaleNotes[(pressed.y + scaleSteps[pressed.x]) % scaleNoteCount];
-
-			int32_t note = root + steps + octaveDisplacement * kOctaveSize;
+			int32_t note = noteFromCoords(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
 			enableNote(note, velocity);
 		}
 		else if (pressed.x == kChordKeyboardColumns) {
 			for (int32_t i = 0; i < 3; ++i) {
-				int32_t root = getRootNote() + state.noteOffset;
-				int32_t octaveDisplacement = (pressed.y + scaleSteps[i]) / scaleNoteCount;
-				int32_t steps = scaleNotes[(pressed.y + scaleSteps[i]) % scaleNoteCount];
-
-				int32_t note = root + steps + octaveDisplacement * kOctaveSize;
+				int32_t note = noteFromCoords(i, pressed.y, root, scaleNotes, scaleNoteCount);
 				enableNote(note, velocity);
 			}
+		}
+		else if (pressed.x < kDisplayWidth) {
+			handleControlButton(pressed.x, pressed.y);
 		}
 	}
 	ColumnControlsKeyboard::evaluatePads(presses);
@@ -78,8 +73,12 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 		return;
 	}
 	KeyboardStateChord& state = getState().chord;
-
-	state.noteOffset += offset;
+	if (encoderPressed) {
+		state.noteOffset += offset * kOctaveSize;
+	}
+	else {
+		state.noteOffset += offset;
+	}
 
 	precalculate();
 }
@@ -107,10 +106,6 @@ void KeyboardLayoutChord::precalculate() {
 			ChordQuality chordQuality = getChordQuality(scaleMode);
 			noteColours[i] = qualityColours[chordQuality];
 		}
-
-		// for (int32_t i = 0; i < noteColours.size(); ++i) {
-		// 	noteColours[i] = colours::cyan;
-		// }
 	}
 }
 
@@ -128,6 +123,23 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			else {
 				image[y][x] = colours::black;
 			}
+		}
+	}
+	if (state.autoVoiceLeading) {
+		image[0][kDisplayWidth - 1] = colours::green;
+	}
+	else {
+		image[0][kDisplayWidth - 1] = colours::red;
+	}
+}
+
+void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
+	KeyboardStateChord& state = getState().chord;
+	if (x == kDisplayWidth - 1 && y == 0) {
+		state.autoVoiceLeading = !state.autoVoiceLeading;
+		if (state.autoVoiceLeading) {
+			char const* shortLong[2] = {"AUTO", "Auto Voice Leading"};
+			display->displayPopup(shortLong);
 		}
 	}
 }
@@ -153,6 +165,14 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 		int8_t drawDot = !isNatural ? 0 : 255;
 		display->setScrollingText(fullChordName, 0);
 	}
+}
+
+uint8_t KeyboardLayoutChord::noteFromCoords(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount) {
+	KeyboardStateChord& state = getState().chord;
+	int32_t octaveDisplacement;
+	octaveDisplacement = state.autoVoiceLeading ? 0 : (y + scaleSteps[x]) / scaleNoteCount;
+	int32_t steps = scaleNotes[(y + scaleSteps[x]) % scaleNoteCount];
+	return root + steps + octaveDisplacement * kOctaveSize;
 }
 
 bool KeyboardLayoutChord::allowSidebarType(ColumnControlFunction sidebarType) {
