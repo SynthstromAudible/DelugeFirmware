@@ -1301,7 +1301,7 @@ void getThingFilename(char const* thingName, int16_t currentSlot, int8_t current
 }
 
 bool isAudioFilename(char const* filename) {
-	if (*filename == '.') {
+	if (filename[0] == '.') {
 		return false;
 	}
 	char* dotPos = strrchr(filename, '.');
