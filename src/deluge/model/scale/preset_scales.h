@@ -63,7 +63,7 @@
 	DEF(BLUES_SCALE, "BLUES", DEF_NOTES(0, 3, 5, 6, 7, 10, 0))                                                         \
 	/* ============================== 5-note scales ============================== */                                  \
 	/* PENT Pentatonic Minor (matches Launchpad and Lumi scale) */                                                     \
-	DEF(PENTATONIC_MINOR_SCALE, "PENTANOTIC MINOR", DEF_NOTES(0, 3, 5, 7, 10))                                         \
+	DEF(PENTATONIC_MINOR_SCALE, "PENTATONIC MINOR", DEF_NOTES(0, 3, 5, 7, 10))                                         \
 	/* HIRA Hirajoshi (matches Launchpad scale) */                                                                     \
 	DEF(HIRAJOSHI_SCALE, "HIRAJOSHI", DEF_NOTES(0, 2, 3, 7, 8))
 
