@@ -281,19 +281,34 @@ void PlaybackHandler::recordButtonPressed() {
 	}
 }
 
-void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency, bool allowCountIn) {
+void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency, bool allowCountIn,
+                                                      bool restartingPlayback) {
 	if (!currentSong) {
 		return;
 	}
 
 	decideOnCurrentPlaybackMode(); // Must be done up here - we reference currentPlaybackMode a bit below
 
-	// Allow playback to start from current scroll if holding down <> knob
-	// or if you're in arranger view and in cross screen auto scrolling mode
 	int32_t newPos = 0;
+
 	RootUI* rootUI = getRootUI();
+
 	bool isArrangerView = rootUI == &arrangerView;
-	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)
+
+	bool alternativePlaybackStartBehaviour =
+	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour)
+	    == RuntimeFeatureStateToggle::On;
+
+	bool isHorizontalEncoderPressed = Buttons::isButtonPressed(deluge::hid::button::X_ENC);
+
+	/*
+	Allow playback to start from current scroll if:
+	    1) horizontal encoder (<>) is held and alternative playback start behaviour is disabled or restarting playback
+	    2) or horizontal encoder (<>) is not held and alternative playback start behaviour is enabled
+	    3) or if you're in arranger view and in cross screen auto scrolling mode
+	*/
+	if ((isHorizontalEncoderPressed && (!alternativePlaybackStartBehaviour || restartingPlayback))
+	    || (!isHorizontalEncoderPressed && alternativePlaybackStartBehaviour)
 	    || (isArrangerView && (recording == RecordingMode::NORMAL || currentSong->arrangerAutoScrollModeActive))) {
 
 		int32_t navSys;
@@ -2331,7 +2346,7 @@ void PlaybackHandler::forceResetPlayPos(Song* song) {
 		}
 
 		else {
-			setupPlaybackUsingInternalClock();
+			setupPlaybackUsingInternalClock(0, false, true);
 		}
 	}
 }

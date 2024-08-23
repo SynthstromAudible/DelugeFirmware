@@ -57,7 +57,8 @@ public:
 
 	void playButtonPressed(int32_t buttonPressLatency);
 	void recordButtonPressed();
-	void setupPlaybackUsingInternalClock(int32_t buttonPressLatencyForTempolessRecord = 0, bool allowCountIn = true);
+	void setupPlaybackUsingInternalClock(int32_t buttonPressLatencyForTempolessRecord = 0, bool allowCountIn = true,
+	                                     bool restartingPlayback = false);
 	void setupPlaybackUsingExternalClock(bool switchingFromInternalClock = false, bool fromContinueCommand = false);
 	void setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false,
 	                   bool shouldShiftAccordingToClipInstance = true,
