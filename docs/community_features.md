@@ -1195,6 +1195,10 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * When On, a red and white playhead will be rendered in Song Grid and Performance Views that let's you know that a maximum of one bar (16 notes) is remaining before a clip or section launch event is scheduled to occur.
 * `Chord Library Keyboard (CHRD)`
     * When On, enables the `CHORD Library` keyboard layout which allows playing chords on the pads. See [Chord Library Keyboard Layout](#4416---display-chord-library-keyboard-layout) for more information.
+* `Alternative Playback Start Behaviour (STAR)`
+    * When On, the behaviour of playback start shortcuts changes as follows:
+      * With playback off, pressing `PLAY` will start playback from the current grid scroll position
+      * With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
 
 ## 6. Sysex Handling
 
