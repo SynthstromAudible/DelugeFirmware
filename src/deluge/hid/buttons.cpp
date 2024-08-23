@@ -38,6 +38,7 @@ namespace Buttons {
 
 bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
+uint32_t timeCrossScreenButtonPressed;
 /**
  * AudioEngine::audioSampleTimer value at which the shift button was pressed. Used to distinguish between short and
  * long shift presses, for sticky keys.
@@ -121,7 +122,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			}
 		}
 	}
-	if (b == BACK) [[unlikely]] {
+	else if (b == BACK) [[unlikely]] {
 		if (on) {
 			uiTimerManager.setTimer(TimerName::BACK_MENU_EXIT, LONG_PRESS_DURATION);
 		}
@@ -129,6 +130,12 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			uiTimerManager.unsetTimer(TimerName::BACK_MENU_EXIT);
 		}
 	}
+	else if (b == CROSS_SCREEN_EDIT) {
+		if (on) {
+			timeCrossScreenButtonPressed = AudioEngine::audioSampleTimer;
+		}
+	}
+
 	result = getCurrentUI()->buttonAction(b, on, inCardRoutine);
 
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
