@@ -289,13 +289,16 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	decideOnCurrentPlaybackMode(); // Must be done up here - we reference currentPlaybackMode a bit below
 
 	// Allow playback to start from current scroll if holding down <> knob
+	// or if you're in arranger view and in cross screen auto scrolling mode
 	int32_t newPos = 0;
+	RootUI* rootUI = getRootUI();
+	bool isArrangerView = rootUI == &arrangerView;
 	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)
-	    || (getRootUI() == &arrangerView && recording == RecordingMode::NORMAL)) {
+	    || (isArrangerView && (recording == RecordingMode::NORMAL || currentSong->arrangerAutoScrollModeActive))) {
 
 		int32_t navSys;
-		if (getRootUI()) {
-			if (auto* timelineView = getRootUI()->toTimelineView()) {
+		if (rootUI) {
+			if (auto* timelineView = rootUI->toTimelineView()) {
 				navSys = timelineView->getNavSysId();
 			}
 		}
@@ -315,8 +318,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	// See if we want a count-in
 	if (allowCountIn && !doingTempolessRecord && recording == RecordingMode::NORMAL && countInBars
-	    && (!currentUIMode || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
-	    && getCurrentUI() == getRootUI()) {
+	    && (!currentUIMode || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) && getCurrentUI() == rootUI) {
 
 		ticksLeftInCountIn = currentSong->getBarLength() * countInBars;
 		currentVisualCountForCountIn = 0; // Reset it. In a moment it'll display as 4 - 12.
