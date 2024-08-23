@@ -1199,6 +1199,9 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * When On, the behaviour of playback start shortcuts changes as follows:
       * With playback off, pressing `PLAY` will start playback from the current grid scroll position
       * With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
+* `Accessibility Shortcuts (ACCE)`
+    * When On, the following shortcut combinations are changed in favour more accessible shortcut combinations for users with mobility restrictions:
+      * `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
 
 ## 6. Sysex Handling
 

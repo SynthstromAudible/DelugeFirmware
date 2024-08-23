@@ -28,6 +28,7 @@
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
@@ -183,8 +184,16 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 	// Or if currently playing...
 	else {
 		D_PRINTLN("~Play");
+
+		bool accessibility = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AccessibilityShortcuts)
+		                     == RuntimeFeatureStateToggle::On;
+
+		bool isRestartShortcutPressed =
+		    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
+		    || (!accessibility && Buttons::isButtonPressed(deluge::hid::button::X_ENC));
+
 		// If holding <> encoder down...
-		if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
+		if (isRestartShortcutPressed) {
 
 			// If wanting to switch into arranger...
 			if (currentPlaybackMode == &session && getCurrentUI() == &arrangerView) {
@@ -299,16 +308,20 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour)
 	    == RuntimeFeatureStateToggle::On;
 
-	bool isHorizontalEncoderPressed = Buttons::isButtonPressed(deluge::hid::button::X_ENC);
+	bool accessibility =
+	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AccessibilityShortcuts) == RuntimeFeatureStateToggle::On;
+
+	bool isRestartShortcutPressed = (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
+	                                || (!accessibility && Buttons::isButtonPressed(deluge::hid::button::X_ENC));
 
 	/*
 	Allow playback to start from current scroll if:
-	    1) horizontal encoder (<>) is held and alternative playback start behaviour is disabled or restarting playback
-	    2) or horizontal encoder (<>) is not held and alternative playback start behaviour is enabled
-	    3) or if you're in arranger view and in cross screen auto scrolling mode
+	    1) horizontal encoder (<>) or cross screen is held and alternative playback start behaviour is disabled or
+	restarting playback 2) or horizontal encoder (<>) or cross screen is not held and alternative playback start
+	behaviour is enabled 3) or if you're in arranger view and in cross screen auto scrolling mode
 	*/
-	if ((isHorizontalEncoderPressed && (!alternativePlaybackStartBehaviour || restartingPlayback))
-	    || (!isHorizontalEncoderPressed && alternativePlaybackStartBehaviour)
+	if ((isRestartShortcutPressed && (!alternativePlaybackStartBehaviour || restartingPlayback))
+	    || (!isRestartShortcutPressed && alternativePlaybackStartBehaviour)
 	    || (isArrangerView && (recording == RecordingMode::NORMAL || currentSong->arrangerAutoScrollModeActive))) {
 
 		int32_t navSys;
