@@ -518,6 +518,12 @@ The Song menu contains the following menu hierarchy:
 		- Normalization (NORM)
 			- Disabled (OFF)
 			- Enabled (ON)
+		- Export to Silence (SILE)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Song FX (SONG)
+			- Disabled (OFF)
+			- Enabled (ON)
 </details>
 </details>
 
@@ -1304,6 +1310,9 @@ The Audio Clip menu is accessible from Audio clips by pressing on the `SELECT EN
 The Audio Clip menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Actions (ACT)</summary>
+	- Set Clip Length to Sample Length (LEN)
+</details>
 <details><summary>Audio Source (AUDI)</summary>
 
 	- Disabled (OFF)

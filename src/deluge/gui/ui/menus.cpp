@@ -1,4 +1,5 @@
 #include "gui/l10n/strings.h"
+#include "gui/menu_item/active_scales.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_probability.h"
@@ -18,6 +19,7 @@
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
 #include "gui/menu_item/audio_clip/reverse.h"
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
+#include "gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h"
 #include "gui/menu_item/audio_clip/transpose.h"
 #include "gui/menu_item/audio_compressor/compressor_params.h"
 #include "gui/menu_item/audio_compressor/compressor_values.h"
@@ -610,6 +612,15 @@ Submenu globalSidechainMenu{
 
 // AudioClip stuff ---------------------------------------------------------------------------
 
+audio_clip::SetClipLengthEqualToSampleLength setClipLengthMenu{STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH};
+
+Submenu audioClipActionsMenu{
+    STRING_FOR_ACTIONS,
+    {
+        &setClipLengthMenu,
+    },
+};
+
 audio_clip::AudioSourceSelector audioSourceSelectorMenu{STRING_FOR_AUDIO_SOURCE};
 audio_clip::SpecificSourceOutputSelector specificOutputSelectorMenu{STRING_FOR_TRACK};
 audio_clip::Transpose audioClipTransposeMenu{STRING_FOR_TRANSPOSE};
@@ -1005,7 +1016,7 @@ IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 24
 IntegerRange defaultSwingAmountMenu{STRING_FOR_SWING_AMOUNT, STRING_FOR_DEFAULT_SWING, 1, 99};
 defaults::SwingInterval defaultSwingIntervalMenu{STRING_FOR_SWING_INTERVAL, STRING_FOR_DEFAULT_SWING};
 KeyRange defaultKeyMenu{STRING_FOR_KEY, STRING_FOR_DEFAULT_KEY};
-defaults::Scale defaultScaleMenu{STRING_FOR_SCALE, STRING_FOR_DEFAULT_SCALE};
+defaults::DefaultScale defaultScaleMenu{STRING_FOR_INIT_SCALE};
 defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_VELOC_MENU_TITLE};
 defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
 defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
@@ -1020,6 +1031,14 @@ ToggleBool defaultHighCPUUsageIndicatorMode{STRING_FOR_DEFAULT_HIGH_CPU_USAGE_IN
                                             FlashStorage::highCPUUsageIndicator};
 defaults::HoldTime defaultHoldTimeMenu{STRING_FOR_HOLD_TIME, STRING_FOR_HOLD_TIME};
 
+ActiveScaleMenu defaultActiveScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::DEFAULT};
+
+Submenu defaultScalesSubmenu{STRING_FOR_SCALE,
+                             {
+                                 &defaultScaleMenu,
+                                 &defaultActiveScaleMenu,
+                             }};
+
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1029,7 +1048,7 @@ Submenu defaultsSubmenu{
         &defaultSwingAmountMenu,
         &defaultSwingIntervalMenu,
         &defaultKeyMenu,
-        &defaultScaleMenu,
+        &defaultScalesSubmenu,
         &defaultVelocityMenu,
         &defaultMagnitudeMenu,
         &defaultBendRangeMenu,
@@ -1183,6 +1202,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
 menu_item::Submenu soundEditorRootMenuAudioClip{
     STRING_FOR_AUDIO_CLIP,
     {
+        &audioClipActionsMenu,
         &audioSourceSelectorMenu,
         &specificOutputSelectorMenu,
         &audioClipMasterMenu,
@@ -1220,9 +1240,15 @@ menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT_STEMS}
 
 ToggleBool configureNormalizationMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
                                       STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, stemExport.allowNormalization};
+ToggleBool configureSilenceMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE, STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE,
+                                stemExport.exportToSilence};
+ToggleBool configureSongFXMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX,
+                               stemExport.includeSongFX};
 menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
                                            {
                                                &configureNormalizationMenu,
+                                               &configureSilenceMenu,
+                                               &configureSongFXMenu,
                                            }};
 
 menu_item::Submenu stemExportMenu{
@@ -1232,6 +1258,8 @@ menu_item::Submenu stemExportMenu{
         &configureStemExportMenu,
     },
 };
+
+ActiveScaleMenu activeScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::SONG};
 
 song_macros::Configure configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
 
@@ -1243,6 +1271,7 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalFiltersMenu,
         &globalFXMenu,
         &swingIntervalMenu,
+        &activeScaleMenu,
         &midiLoopbackMenu,
         &configureSongMacrosMenu,
         &stemExportMenu,

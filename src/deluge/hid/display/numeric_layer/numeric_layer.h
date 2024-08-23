@@ -22,12 +22,14 @@
 
 class NumericLayer {
 public:
-	NumericLayer();
+	NumericLayer() = default;
+	NumericLayer(uint8_t fixedDot_) : NumericLayer() { fixedDot = fixedDot_; }
 	virtual ~NumericLayer();
 	virtual bool callBack() = 0;
 	virtual void render(uint8_t* returnSegments) = 0;
 	virtual void renderWithoutBlink(uint8_t* returnSegments);
 	virtual void isNowOnTop() = 0;
 
-	NumericLayer* next;
+	NumericLayer* next = nullptr;
+	uint8_t fixedDot = 255;
 };

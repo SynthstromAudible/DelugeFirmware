@@ -32,15 +32,19 @@ public:
 	void startStemExportProcess(StemExportType stemExportType);
 	void stopStemExportProcess();
 	void startOutputRecordingUntilLoopEndAndSilence();
-	void stopOutputRecordingAndPlayback();
+	void stopPlayback();
+	void stopOutputRecording();
 	bool checkForLoopEnd();
-	void checkForSilence();
+	bool checkForSilence();
 	bool processStarted;
-	bool stopOutputRecordingAtSilence;
+	bool stopRecording;
 	StemExportType currentStemExportType;
+	uint32_t timePlaybackStopped;
 
 	// export config variables
 	bool allowNormalization;
+	bool exportToSilence;
+	bool includeSongFX;
 
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport();

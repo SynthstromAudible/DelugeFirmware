@@ -18,19 +18,27 @@ void Selection::drawValue() {
 }
 
 void Selection::drawPixelsForOled() {
-	auto value = this->getValue();
-	// Move scroll
-	if (soundEditor.menuCurrentScroll > value) {
-		soundEditor.menuCurrentScroll = value;
+	int32_t current = getValue();
+	// Earliest item that might be on the screen.
+	int32_t before = std::max<int32_t>(0, current - kOLEDMenuNumOptionsVisible);
+	int32_t nBefore = current - before;
+	// First item offscreen.
+	int32_t after = std::min<int32_t>(current + kOLEDMenuNumOptionsVisible, size());
+	int32_t nAfter = after - current;
+
+	// Ideally we'd have the selected item in the middle (rounding down for even cases)
+	// ...but sometimes that's not going to happen.
+	size_t pos = (kOLEDMenuNumOptionsVisible - 1) / 2;
+	size_t tail = kOLEDMenuNumOptionsVisible - pos;
+	if (nBefore < pos) {
+		pos = nBefore;
 	}
-	else if (soundEditor.menuCurrentScroll < value - kOLEDMenuNumOptionsVisible + 1) {
-		soundEditor.menuCurrentScroll = value - kOLEDMenuNumOptionsVisible + 1;
+	else if (nAfter < tail) {
+		tail = nAfter;
+		pos = std::min<int32_t>(kOLEDMenuNumOptionsVisible - tail, nBefore);
 	}
 
-	const int32_t selectedOption = value - soundEditor.menuCurrentScroll;
-
-	MenuItem::drawItemsForOled(std::span{getOptions().data(), getOptions().size()}, selectedOption,
-	                           soundEditor.menuCurrentScroll);
+	MenuItem::drawItemsForOled(std::span{getOptions().data(), getOptions().size()}, pos, current - pos);
 }
 
 // renders check box on OLED and dot on 7seg

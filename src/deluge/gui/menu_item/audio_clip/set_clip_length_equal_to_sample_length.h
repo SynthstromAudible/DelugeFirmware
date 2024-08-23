@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,13 +14,20 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#pragma once
+#include "gui/menu_item/menu_item.h"
+#include "gui/views/audio_clip_view.h"
 
-#include "hid/display/numeric_layer/numeric_layer.h"
+namespace deluge::gui::menu_item::audio_clip {
+class SetClipLengthEqualToSampleLength final : public MenuItem {
+public:
+	using MenuItem::MenuItem;
 
-NumericLayer::~NumericLayer() {
-	// TODO Auto-generated destructor stub
-}
+	MenuItem* selectButtonPress() override {
+		audioClipView.setClipLengthEqualToSampleLength();
+		return NO_NAVIGATION;
+	}
 
-void NumericLayer::renderWithoutBlink(uint8_t* returnSegments) {
-	render(returnSegments);
-}
+	bool shouldEnterSubmenu() override { return false; }
+};
+} // namespace deluge::gui::menu_item::audio_clip

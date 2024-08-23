@@ -170,6 +170,7 @@
         "STRING_FOR_MIX_PRE_FX": "Deluge mix (pre fx)",
         "STRING_FOR_MIX_POST_FX": "Deluge output (post fx)",
         "STRING_FOR_TRACK": "Specific Track",
+        "STRING_FOR_TRACK_WITH_FX": "Specific Track (FX processing)",
 
         "STRING_FOR_DEFAULT_LAUNCH": "Infinite",
         "STRING_FOR_FILL_LAUNCH": "Fill",
@@ -337,6 +338,7 @@
         "STRING_FOR_UPSTREAM_USB_PORT_2": "upstream USB port 2",
         "STRING_FOR_UPSTREAM_USB_PORT_1": "upstream USB port 1",
         "STRING_FOR_HELLO_SYSEX": "hello sysex",
+        "STRING_FOR_ACTIVE_SCALES": "Active scales",
         "STRING_FOR_USER_SCALE": "User scale",
         "STRING_FOR_CANT_CHANGE_SCALE": "Can't change scale",
         "STRING_FOR_NO_FURTHER_UNUSED_INSTRUMENT_NUMBERS": "No further unused instrument numbers",
@@ -631,7 +633,7 @@
         "STRING_FOR_DEFAULT_SWING": "Default swing",
         "STRING_FOR_KEY": "KEY",
         "STRING_FOR_DEFAULT_KEY": "Default key",
-        "STRING_FOR_DEFAULT_SCALE": "Default scale",
+        "STRING_FOR_INIT_SCALE": "Init scale",
         "STRING_FOR_VELOCITY": "VELOCITY",
         "STRING_FOR_RESOLUTION": "RESOLUTION",
         "STRING_FOR_DEFAULT_BEND_R": "Default bend r",
@@ -867,6 +869,8 @@
         "STRING_FOR_START_EXPORT_STEMS": "Start Export",
         "STRING_FOR_CONFIGURE_EXPORT_STEMS": "Configure Export",
         "STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION": "Normalization",
+        "STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE": "Export to Silence",
+        "STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX": "Song FX",
         "STRING_FOR_CANT_EXPORT_STEMS": "Turn off playback and/or recording",
         "STRING_FOR_STOP_EXPORT_STEMS_QMARK": "Cancel Export?",
         "STRING_FOR_STOP_EXPORT_STEMS": "Export Cancelled",
@@ -880,6 +884,10 @@
         "STRING_FOR_SONG_MACRO_KIND_CLIP": "Kind: Clip",
         "STRING_FOR_SONG_MACRO_KIND_OUTPUT": "Kind: Output",
         "STRING_FOR_SONG_MACRO_KIND_SECTION": "Kind: Section",
-        "STRING_FOR_SONG_MACRO_KIND_NONE": "Kind: None"
+        "STRING_FOR_SONG_MACRO_KIND_NONE": "Kind: None",
+
+        "STRING_FOR_ACTIONS": "Actions",
+        "STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH": "Set Clip Length Equal to Sample Length", 
+        "STRING_FOR_CLIP_LENGTH_ADJUSTED": "Clip Length Adjusted"       
     }
 }

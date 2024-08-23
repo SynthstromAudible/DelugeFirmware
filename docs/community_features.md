@@ -241,10 +241,11 @@ as the micromonsta and the dreadbox nymphes.
   - Not included in c1.1.0
 - ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose which track to record from.
 
-#### 3.18 - Remove Timestretching From Audio Clip Sample
-- ([#1542]) Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
-  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
-  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+#### 3.18 - Set Audio Clip Length Equal to Sample Length
+- ([#1542]) Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
+  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample.
+    - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
+  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 
 #### 3.19 - Sample Slice Default Mode
 
@@ -275,7 +276,7 @@ as the micromonsta and the dreadbox nymphes.
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Stem Export Documentation]
 - ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
 - ([#2327]) You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
-- ([#2330]) You can configure settings for the stem export via the `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT STEMS\CONFIGURE EXPORT\` to configure various stem export settings. Currently only one configuration object has been added (`NORMALIZATION`) but more will be added in the near future.
+- ([#2330]) You can configure settings for the stem export via the `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT STEMS\CONFIGURE EXPORT\` to configure various stem export settings.
 
 #### 3.24 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
 - ([#2315]) A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
@@ -1006,13 +1007,20 @@ to each individual note onset. ([#1978])
       Deluge will omit those scales, and cycle back to the beginning of the Scales list (that is, going back to the
       Major scale).
 
-- ([#2365]) Added support for learning a user specified scale.
+- ([#2365]) Added learning a user specified scale.
     - Hold `LEARN` and press `SCALE` while in clip view. Notes from current clip & all scale mode clips are learned as the "USER"
-      scale. This scale is part of the normal scale rotation, accessible with `SHIFT` + `SCALE`. If another user scale is learned,
-      the previous one is discarded.
-    - Additionally, if you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
-      preset scales, it will be learned as a user scale - similarly overwriting the previous `USER` scale.
-    - NOTE: extended support for user scales is planned, allowing multiple user scales to be learned, saved, and loaded.
+      scale. This scale is part of the normal scale rotation, accessible with `SHIFT` + `SCALE`, and saved as part of the song.
+      If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
+    - If you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing
+      preset scales, it will be learned as a user scale, overwriting the previous `USER` scale.
+    - NOTE: extended support for user scales is planned, allowing multiple user scales to be learned, saved, and loaded. Soon!
+
+- ([#2376]) Added `ACTIVE SCALES` menu.
+    - `SONG > ACTIVE SCALES` toggles scales on and off from the `SHIFT + SCALE` rotation for the current song. Active scales
+      are saved as part of the song. On 7-segment display dot indicates that the named scale is active, lack of dot indicates
+      it has been disabled.
+    - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as
+      `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
 
 ### 4.5 - Instrument Clip View - Synth/Kit Clip Features
 
