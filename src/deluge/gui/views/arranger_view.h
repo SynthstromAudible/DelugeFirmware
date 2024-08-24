@@ -142,6 +142,7 @@ private:
 	void deleteClipInstance(Output* output, int32_t clipInstanceIndex, ClipInstance* clipInstance, Action* action,
 	                        bool clearingWholeArrangement = false);
 	void clearArrangement();
+	void interactWithClipInstance(Output* output, int32_t yDisplay, ClipInstance* clipInstance);
 	void rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance);
 	void deleteOutput();
 	void auditionEnded();
@@ -153,7 +154,19 @@ private:
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
 	                        int32_t imageWidth);
-	void drawClipName(Output* output, Clip* clip);
+	void renderDisplay();
+
+	// edit pad actions
+	void cloneClipInstanceToWhite(Output* output, int32_t x, int32_t y, int32_t xScroll);
+	void createNewClipInstance(Output* output, int32_t x, int32_t y, int32_t squareStart, int32_t squareEnd,
+	                           int32_t xScroll);
+	ClipInstance* createClipInstance(Output* output, int32_t y, int32_t squareStart);
+	Clip* getClipForNewClipInstance(Output* output, Output* lastOutputInteractedWith, ClipInstance* lastClipInstance);
+	Clip* getClipFromSection(Output* output);
+	void adjustClipInstanceLength(Output* output, int32_t xPressed, int32_t y, int32_t squareStart, int32_t squareEnd);
+	void deleteClipInstance(Output* output, ClipInstance* clipInstance);
+	void createNewClipForClipInstance(Output* output, ClipInstance* clipInstance);
+	void recordEditPadPress(Output* output, ClipInstance* clipInstance, int32_t x, int32_t y, int32_t xScroll);
 };
 
 extern ArrangerView arrangerView;

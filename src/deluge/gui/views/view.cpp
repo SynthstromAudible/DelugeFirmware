@@ -1988,9 +1988,9 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 oledDrawString:
 			deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 31;
 #else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 19;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 18;
 #endif
 
 			int32_t textSpacingX = kTextTitleSpacingX;
@@ -2008,11 +2008,13 @@ oledDrawString:
 			}
 
 			if (clip) {
-				yPos = yPos + 13;
-				canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
-				deluge::hid::display::OLED::setupSideScroller(1, clip->clipName.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
-				                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
-				                                              false);
+				if (!clip->clipName.isEmpty()) {
+					yPos = yPos + 14;
+					canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
+					deluge::hid::display::OLED::setupSideScroller(1, clip->clipName.get(), 0, OLED_MAIN_WIDTH_PIXELS,
+					                                              yPos, yPos + kTextSpacingY, kTextSpacingX,
+					                                              kTextSpacingY, false);
+				}
 			}
 		}
 		else {
