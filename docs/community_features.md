@@ -239,7 +239,8 @@ as the micromonsta and the dreadbox nymphes.
 #### 3.17 - Select Audio Clip Source from Audio Clip Menu
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
-- ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose which track to record from.
+- ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose 
+which track to record from. To run the instrument through the audio clip's FX choose the FX PROCESSING option
 
 #### 3.18 - Set Audio Clip Length Equal to Sample Length
 - ([#1542]) Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
@@ -422,6 +423,15 @@ Here is a list of features that have been added to the firmware as a list, group
         4. The new clip that was just created will be selected and start recording at the beginning of the next bar
         5. You can press `RECORD` to stop recording or press that new clip to stop recording.
         6. Repeat steps as required.
+- ([#2421]) Allow true overdubbing for grid audio clips
+  - Traditional guitar style looping is now possible for audio clips in grid mode. To use it monitoring must be active 
+  - The loop will capture all fx in the audio clip (e.g. it's recording at the end of the signal chain) and then reset the fx
+  - LOOP will begin an auto extending overdub. The initial sample will loop and the clip will extend as you keep playing
+  - Pressing LOOP again will end recording quantized to the original length (e.g. LOOPing on a 1-bar clip will quantize to 1 bar)
+    - This works similarly to increasing loop length on an EDP style looper but without needing to set it in advance 
+  - LAYER will continuously layer over the existing audio without extending the loop
+    - This works like an overdub on a pedal style looper
+  - Only the midi loop commands work at this time but loop controls will be added to grid down the road
 
 #### 4.1.6 - Performance View
 
@@ -1458,6 +1468,7 @@ different firmware
 [#2367]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2367
 
 [#2385]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2385
+[#2421]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2421
 
 [#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
 

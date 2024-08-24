@@ -19,9 +19,16 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
+#include "gui/views/audio_clip_view.h"
+#include "gui/waveform/waveform_render_data.h"
 #include "io/midi/learned_midi.h"
+#include "model/clip/clip.h"
+#include "model/sample/sample_controls.h"
+#include "model/sample/sample_holder_for_clip.h"
+#include "model/sample/sample_playback_guide.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
+#include "util/d_string.h"
 #include <cstdint>
 
 class Song;
@@ -38,6 +45,7 @@ class Serializer;
 class Deserializer;
 
 class Clip : public TimelineCounter {
+
 public:
 	Clip(ClipType newType);
 	~Clip() override;
@@ -104,6 +112,13 @@ public:
 	bool opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounter* modelStack, bool* newOutputCreated,
 	                                              int32_t buttonPressLatency);
 	virtual Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) = 0;
+
+	/// returns whether the clip needs to be cloned for overdubs (old style) or will actually overdub its audio like a
+	/// normal looper
+	virtual bool shouldCloneForOverdubs() {
+		return true; // instrument version of in place overdub doesn't quite work so never do it for now
+	};
+	void setupOverdubInPlace(OverDubType type);
 	virtual bool getCurrentlyRecordingLinearly() = 0;
 	virtual bool currentlyScrollableAndZoomable() = 0;
 	virtual void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,

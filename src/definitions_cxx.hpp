@@ -637,6 +637,7 @@ enum class ArmState {
 	OFF,
 	ON_NORMAL, // Arming to stop or start normally, or to stop soloing
 	ON_TO_SOLO,
+	ON_TO_RECORD,
 };
 
 constexpr int32_t kNumProbabilityValues = 20;
