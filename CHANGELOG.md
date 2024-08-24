@@ -58,7 +58,7 @@ use the TRACK menu to select the specific track to record from
 
 ### Keyboard View Improvements
 
-- New `CHORD LIBRARY` keyboard layout. `CHORD LIBRARY` keyboard is a library of chords split up into columns, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD LIBRARY` keyboard.
+- New `CHORD` keyboard layout. `CHORD` keyboard is split up into columns of chords, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard.
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.

@@ -87,9 +87,6 @@ public:
 	 * overridden by what actual note is present
 	 */
 	void addMajorDependentModeNotes(uint8_t i, bool preferHigher, const NoteSet notesWithinOctavePresent);
-	/** Function to modulate NoteSet up offset semitones
-	 */
-	NoteSet modulateByOffset(uint8_t offset);
 	/** Size of NoteSet, ie. the maximum number of notes it can hold.
 	 */
 	NoteSet toImpliedScale() const;

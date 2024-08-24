@@ -16,7 +16,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/ui/keyboard/layout/chord_library.h"
+#include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/colour/colour.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -30,9 +30,9 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
+void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) {
 	currentNotesState = NotesState{}; // Erase active notes
-	KeyboardStateChordLibrary& state = getState().chordLibrary;
+	KeyboardStateChord& state = getState().chord;
 
 	// We run through the presses in reverse order to display the most recent pressed chord on top
 	for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
@@ -40,7 +40,7 @@ void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboard
 		PressedPad pressed = presses[idxPress];
 		if (pressed.active && pressed.x < kDisplayWidth) {
 
-			int32_t chordNo = getChordNo(pressed.y);
+			int32_t chordNo = pressed.y + state.chordList.chordRowOffset;
 
 			Voicing voicing = state.chordList.getChordVoicing(chordNo);
 			drawChordName(noteFromCoords(pressed.x), state.chordList.chords[chordNo].name, voicing.supplementalName);
@@ -57,23 +57,22 @@ void KeyboardLayoutChordLibrary::evaluatePads(PressedPad presses[kMaxNumKeyboard
 	ColumnControlsKeyboard::evaluatePads(presses);
 }
 
-void KeyboardLayoutChordLibrary::handleVerticalEncoder(int32_t offset) {
+void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
-	KeyboardStateChordLibrary& state = getState().chordLibrary;
+	KeyboardStateChord& state = getState().chord;
 
 	state.chordList.adjustChordRowOffset(offset);
 	precalculate();
 }
 
-void KeyboardLayoutChordLibrary::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                         PressedPad presses[kMaxNumKeyboardPadPresses],
-                                                         bool encoderPressed) {
+void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+                                                  PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
-	KeyboardStateChordLibrary& state = getState().chordLibrary;
+	KeyboardStateChord& state = getState().chord;
 
 	if (encoderPressed) {
 		for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
@@ -81,7 +80,7 @@ void KeyboardLayoutChordLibrary::handleHorizontalEncoder(int32_t offset, bool sh
 			PressedPad pressed = presses[idxPress];
 			if (pressed.active && pressed.x < kDisplayWidth) {
 
-				int32_t chordNo = getChordNo(pressed.y);
+				int32_t chordNo = pressed.y + state.chordList.chordRowOffset;
 
 				state.chordList.adjustVoicingOffset(chordNo, offset);
 			}
@@ -93,77 +92,36 @@ void KeyboardLayoutChordLibrary::handleHorizontalEncoder(int32_t offset, bool sh
 	precalculate();
 }
 
-void KeyboardLayoutChordLibrary::precalculate() {
-	KeyboardStateChordLibrary& state = getState().chordLibrary;
-	// On first render, offset by the root note. This can't be done in the constructor
-	// because at constructor time, root note changes from the default menu aren't seen yet
-	// or if the root note is changed in the song also isn't seen.
-	if (!initializedNoteOffset) {
-		initializedNoteOffset = true;
-		state.noteOffset += getRootNote();
-	}
+void KeyboardLayoutChord::precalculate() {
+	KeyboardStateChord& state = getState().chord;
 
 	// Pre-Buffer colours for next renderings
 	for (int32_t i = 0; i < noteColours.size(); ++i) {
 		noteColours[i] = getNoteColour(((state.noteOffset + i) % state.rowInterval) * state.rowColorMultiplier);
 	}
-	uint8_t hueStepSize = 192 / (kVerticalPages - 1); // 192 is the hue range for the rainbow
-	for (int32_t i = 0; i < pageColours.size(); ++i) {
-		pageColours[i] = getNoteColour(i * hueStepSize);
-	}
 }
 
-void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
-	KeyboardStateChordLibrary& state = getState().chordLibrary;
-	bool inScaleMode = getScaleModeEnabled();
-
-	// Precreate list of all scale notes per octave
-	NoteSet octaveScaleNotes;
-	if (inScaleMode) {
-		NoteSet& scaleNotes = getScaleNotes();
-		for (uint8_t idx = 0; idx < getScaleNoteCount(); ++idx) {
-			octaveScaleNotes.add(scaleNotes[idx]);
-		}
-	}
+void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) {
+	KeyboardStateChord& state = getState().chord;
 
 	// Iterate over grid image
-	for (int32_t x = 0; x < kDisplayWidth; x++) {
-		int32_t noteCode = noteFromCoords(x);
-		uint16_t noteWithinOctave = (uint16_t)((noteCode + kOctaveSize) - getRootNote()) % kOctaveSize;
-
-		for (int32_t y = 0; y < kDisplayHeight; ++y) {
-			int32_t chordNo = getChordNo(y);
-			int32_t pageNo = chordNo / kDisplayHeight;
-
-			if (inScaleMode) {
-				NoteSet intervalSet = state.chordList.chords[chordNo].intervalSet;
-				NoteSet modulatedNoteSet = intervalSet.modulateByOffset(noteWithinOctave);
-
-				if (modulatedNoteSet.isSubsetOf(octaveScaleNotes)) {
-					image[y][x] = noteColours[x % noteColours.size()];
-				}
-				else {
-					image[y][x] = noteColours[x % noteColours.size()].dim(4);
-				}
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			int32_t chordNo = y + state.chordList.chordRowOffset;
+			// We add a colored row every 4 chords to help with navigation
+			// We also use different colors for the rows to help with navigation
+			if (chordNo % 4 == 0) {
+				int32_t rowNo = chordNo / 4;
+				image[y][x] = noteColours[rowNo % noteColours.size()];
 			}
 			else {
-				// If not in scale mode, highlight the root note
-				if (noteWithinOctave == 0) {
-					image[y][x] = noteColours[x % noteColours.size()];
-				}
-				else {
-					image[y][x] = noteColours[x % noteColours.size()].dim(4);
-				}
-			}
-			// show we've reach the top of a page and the end of the chords
-			if ((chordNo % kDisplayHeight == kDisplayHeight - 1) || (chordNo == kUniqueChords - 1)) {
-				image[y][x] = pageColours[pageNo % pageColours.size()];
+				image[y][x] = noteColours[x % noteColours.size()];
 			}
 		}
 	}
 }
 
-void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
+void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
 	char noteName[3] = {0};
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(noteCode, noteName, &isNatural, false);
@@ -186,8 +144,10 @@ void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* cho
 	}
 }
 
-bool KeyboardLayoutChordLibrary::allowSidebarType(ColumnControlFunction sidebarType) {
-	if (sidebarType == ColumnControlFunction::CHORD) {
+bool KeyboardLayoutChord::allowSidebarType(ColumnControlFunction sidebarType) {
+	if ((sidebarType == ColumnControlFunction::CHORD) ||
+	    // TODO, when scales for chord keyboard are implemented, add this back in
+	    (sidebarType == ColumnControlFunction::SCALE_MODE)) {
 		return false;
 	}
 	return true;

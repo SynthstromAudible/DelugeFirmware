@@ -25,13 +25,11 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-constexpr int8_t kVerticalPages = ((kUniqueChords + kDisplayHeight - 1) / kDisplayHeight); // Round up division
-
 /// @brief Represents a keyboard layout for chord-based input.
-class KeyboardLayoutChordLibrary : public ColumnControlsKeyboard {
+class KeyboardLayoutChord : public ColumnControlsKeyboard {
 public:
-	KeyboardLayoutChordLibrary() = default;
-	~KeyboardLayoutChordLibrary() override = default;
+	KeyboardLayoutChord() = default;
+	~KeyboardLayoutChord() override = default;
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
@@ -41,21 +39,20 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	char const* name() override { return "Chord Library"; }
+	char const* name() override { return "Chord"; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
+
+	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }
 
 protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
 	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
-	inline uint8_t noteFromCoords(int32_t x) { return getState().chordLibrary.noteOffset + x; }
-	inline int32_t getChordNo(int32_t y) { return getState().chordLibrary.chordList.chordRowOffset + y; }
+	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.noteOffset + x; }
 
 	std::array<RGB, kOctaveSize> noteColours;
-	std::array<RGB, kVerticalPages> pageColours;
-	bool initializedNoteOffset = false;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

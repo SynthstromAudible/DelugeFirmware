@@ -121,29 +121,6 @@ void NoteSet::addMajorDependentModeNotes(uint8_t i, bool preferHigher, const Not
 	}
 }
 
-// Function to modulate NoteSet up offset semitones
-NoteSet NoteSet::modulateByOffset(uint8_t offset) {
-	NoteSet newSet = *this;
-	// Normalize offset to be within the range [0, 11]
-	offset = offset % 12;
-
-	// If offset by 0, return the original chord
-	if (offset == 0) {
-		return newSet;
-	}
-	// Extract the last 12 bits
-	uint16_t newBits = bits & 0x0FFF; // 0x0FFF = 0000 1111 1111 1111 in binary
-
-	// Bits that will wrap around
-	uint16_t wrapAroundBits = (newBits >> (12 - offset)) & ((1 << offset) - 1);
-
-	// Shift new bits to the left by offset and wrap around
-	newBits = ((newBits << offset) & 0x0FFF) | wrapAroundBits;
-
-	newSet.bits = (bits & 0xF000) | newBits;
-	return newSet;
-}
-
 NoteSet NoteSet::toImpliedScale() const {
 	bool moreMajor = (majorness() >= 0);
 

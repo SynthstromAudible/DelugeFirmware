@@ -41,7 +41,7 @@ struct KeyboardStateInKey {
 	int32_t rowInterval = kDefaultInKeyRowInterval;
 };
 
-struct KeyboardStateChordLibrary {
+struct KeyboardStateChord {
 	int32_t rowInterval = kOctaveSize;
 	int32_t scrollOffset = 0;
 	int32_t noteOffset = (rowInterval * 4);
@@ -56,7 +56,7 @@ struct KeyboardState {
 	KeyboardStateIsomorphic isomorphic;
 	KeyboardStateDrums drums;
 	KeyboardStateInKey inKey;
-	KeyboardStateChordLibrary chordLibrary;
+	KeyboardStateChord chord;
 
 	layout::ColumnControlState columnControl;
 };
