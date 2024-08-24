@@ -17,6 +17,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
+#include "gui/ui/ui.h"
 #include "gui/views/performance_session_view.h"
 #include "hid/led/indicator_leds.h"
 #include "model/model_stack.h"
@@ -26,8 +27,10 @@ namespace deluge::gui::menu_item::performance_session_view {
 class EditingMode final : public Selection {
 public:
 	using Selection::Selection;
+
+	PerformanceEditingMode currentMode;
+
 	void readCurrentValue() override {
-		PerformanceEditingMode currentMode;
 		if (!performanceSessionView.defaultEditingMode) {
 			currentMode = PerformanceEditingMode::DISABLED;
 		}
@@ -39,12 +42,14 @@ public:
 		}
 		this->setValue(currentMode);
 	}
-	void writeCurrentValue() override {
-		PerformanceEditingMode currentMode = this->getValue<PerformanceEditingMode>();
+
+	void writeCurrentValue() override { currentMode = this->getValue<PerformanceEditingMode>(); }
+
+	MenuItem* selectButtonPress() override {
 		if (currentMode == PerformanceEditingMode::DISABLED) {
-			performanceSessionView.defaultEditingMode = false;
-			performanceSessionView.editingParam = false;
+			return nullptr; // go up a level
 		}
+		// here we're going to want to step into the value editing or param editing UI
 		else if (currentMode == PerformanceEditingMode::VALUE) {
 			performanceSessionView.defaultEditingMode = true;
 			performanceSessionView.editingParam = false;
@@ -52,13 +57,6 @@ public:
 		else { // PerformanceEditingMode::PARAM
 			performanceSessionView.defaultEditingMode = true;
 			performanceSessionView.editingParam = true;
-		}
-
-		if (performanceSessionView.defaultEditingMode) {
-			indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
-		}
-		else {
-			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 		}
 
 		if (!performanceSessionView.editingParam) {
@@ -70,8 +68,11 @@ public:
 			performanceSessionView.resetPerformanceView(modelStack);
 		}
 
-		uiNeedsRendering(&performanceSessionView, 0xFFFFFFFF, 0); // refresh main pads only);
+		display->setNextTransitionDirection(1);
+		openUI(&performanceSessionView);
+		return NO_NAVIGATION;
 	}
+
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {

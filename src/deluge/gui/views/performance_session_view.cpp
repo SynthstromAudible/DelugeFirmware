@@ -247,6 +247,15 @@ void PerformanceSessionView::initDefaultFXValues(int32_t xDisplay) {
 	}
 }
 
+bool PerformanceSessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+	if (defaultEditingMode) {
+		*cols = 0x03;
+		*rows = 0;
+		return true;
+	}
+	return false;
+}
+
 bool PerformanceSessionView::opened() {
 	if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 		PadLEDs::skipGreyoutFade();
@@ -495,7 +504,14 @@ void PerformanceSessionView::renderViewDisplay() {
 			deluge::hid::display::OLED::markChanged();
 		}
 		else {
-			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORM_EDITOR));
+			char const* editingModeType;
+			if (editingParam) {
+				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM);
+			}
+			else {
+				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
+			}
+			display->setScrollingText(editingModeType);
 		}
 	}
 	else {
@@ -614,15 +630,16 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 				else { // 64ths stutter: all 4 leds turned on
 					buffer = "64th";
 				}
-				display->displayPopup(buffer, 3, true);
+				display->setText(buffer, true);
 			}
 			else {
 				char buffer[5];
 				intToString(knobPos, buffer);
-				display->displayPopup(buffer, 3, true);
+				display->setText(buffer, true);
 			}
 		}
 	}
+
 	onFXDisplay = true;
 }
 
@@ -633,17 +650,16 @@ void PerformanceSessionView::renderFXDisplay(params::Kind paramKind, int32_t par
 bool PerformanceSessionView::possiblyRefreshPerformanceViewDisplay(params::Kind kind, int32_t id, int32_t newKnobPos) {
 	// check if you're not in editing mode
 	// and a param hold press is currently active
-	if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
-		if ((kind == performanceSessionView.lastPadPress.paramKind)
-		    && (id == performanceSessionView.lastPadPress.paramID)) {
+	if (!defaultEditingMode && lastPadPress.isActive) {
+		if ((kind == lastPadPress.paramKind) && (id == lastPadPress.paramID)) {
 			int32_t valueForDisplay = view.calculateKnobPosForDisplay(kind, id, newKnobPos + kKnobPosOffset);
-			performanceSessionView.renderFXDisplay(kind, id, valueForDisplay);
+			renderFXDisplay(kind, id, valueForDisplay);
 			return true;
 		}
 	}
 	// if a specific param is not active, reset display
-	else if (performanceSessionView.onFXDisplay) {
-		performanceSessionView.renderViewDisplay();
+	else if (onFXDisplay) {
+		renderViewDisplay();
 	}
 	return false;
 }
@@ -670,16 +686,16 @@ void PerformanceSessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::CV, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
-	indicator_leds::setLedState(IndicatorLED::BACK, false);
-
 	// if you're in the default editing mode (editing param values, or param layout)
 	// blink keyboard button to show that you're in editing mode
 	// if there are changes to save while in editing mode, blink save button
 	// if you're not in editing mode, light up keyboard button to show that you're
 	// in performance view but not editing mode. also turn off save button led
 	// as we only blink save button when we're in editing mode
+	// blink back button to indicate that you can back out of this mode to the previous UI
 	if (defaultEditingMode) {
 		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
+		indicator_leds::blinkLed(IndicatorLED::BACK);
 		if (anyChangesToSave) {
 			indicator_leds::blinkLed(IndicatorLED::SAVE);
 		}
@@ -690,6 +706,7 @@ void PerformanceSessionView::setCentralLEDStates() {
 	else {
 		indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
+		indicator_leds::setLedState(IndicatorLED::BACK, false);
 	}
 }
 
@@ -791,6 +808,18 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 	}
 
+	// back out of editing mode into regular performance view UI or the sound editor menu
+	// (depends on where you entered the editing mode UI from - shortcut or menu)
+	else if (b == BACK && defaultEditingMode) {
+		if (on) {
+			defaultEditingMode = false;
+			editingParam = false;
+			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
+			display->setNextTransitionDirection(-1);
+			close();
+		}
+	}
+
 	// save performance view layout
 	else if (b == KEYBOARD && isUIModeActive(UI_MODE_HOLDING_SAVE_BUTTON)) {
 		if (on) {
@@ -823,9 +852,11 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			display->setNextTransitionDirection(1);
-			soundEditor.setup();
-			openUI(&soundEditor);
+			if (!defaultEditingMode) {
+				display->setNextTransitionDirection(1);
+				soundEditor.setup();
+				openUI(&soundEditor);
+			}
 		}
 	}
 
@@ -851,27 +882,33 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					defaultEditingMode = false;
 					editingParam = false;
 					indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
+
+					display->setNextTransitionDirection(-1);
+					close();
 				}
 				else {
-					if (!defaultEditingMode) {
-						indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
-					}
-					else {
+					bool inEditingMode = defaultEditingMode;
+					if (defaultEditingMode) {
 						editingParam = true;
 					}
 					defaultEditingMode = true;
+					if (!editingParam) {
+						// reset performance view when you switch modes
+						// but not when in param editing mode cause that would reset param assignments to FX columns
+						resetPerformanceView(modelStack);
+					}
+					if (!inEditingMode) {
+						display->setNextTransitionDirection(1);
+						openUI(&performanceSessionView);
+					}
+					else {
+						updateLayoutChangeStatus();
+						renderViewDisplay();
+						uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
+					}
 				}
-				if (!editingParam) {
-					// reset performance view when you switch modes
-					// but not when in param editing mode cause that would reset param assignments to FX columns
-					resetPerformanceView(modelStack);
-				}
-				updateLayoutChangeStatus();
-				renderViewDisplay();
-				uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 			}
 			else {
-				gridModeActive = false;
 				releaseViewOnExit(modelStack);
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					changeRootUI(&arrangerView);
@@ -924,8 +961,14 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 		if (xDisplay < kDisplayWidth) {
 			if (on) {
 				// if it's a shortcut press, enter soundEditor menu for that parameter
+				// but not if you're in default editing mode
 				if (Buttons::isShiftButtonPressed()) {
-					return soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
+					if (defaultEditingMode) {
+						return ActionResult::DEALT_WITH;
+					}
+					else {
+						return soundEditor.potentialShortcutPadAction(xDisplay, yDisplay, on);
+					}
 				}
 			}
 			// if not in param editor (so, regular performance view or value editor)
@@ -943,8 +986,8 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			}
 			uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
 		}
-		// if pad was pressed in sidebar
-		else if (xDisplay >= kDisplayWidth) {
+		// if pad was pressed in sidebar and you're not in an editing mode
+		else if ((xDisplay >= kDisplayWidth) && !defaultEditingMode) {
 			// don't interact with sidebar if VU Meter is displayed
 			// and you're in the volume/pan mod knob mode (0)
 			if (view.displayVUMeter && (view.getModKnobMode() == 0)) {
@@ -989,14 +1032,12 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 								if (!on
 								    && ((AudioEngine::audioSampleTimer - timeGridModePress)
 								        >= FlashStorage::holdTime)) {
-									gridModeActive = false;
 									releaseViewOnExit(modelStack);
 									changeRootUI(&sessionView);
 								}
 							}
 							// if you pressed the green or blue mode pads, go back to grid view and change mode
 							else if ((yDisplay == 7) || (yDisplay == 6)) {
-								gridModeActive = false;
 								releaseViewOnExit(modelStack);
 								changeRootUI(&sessionView);
 								sessionView.gridHandlePads(xDisplay, yDisplay, on);
@@ -1047,8 +1088,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 					}
 				}
 			}
-			padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay,
-			               !defaultEditingMode);
+			padPressAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, yDisplay);
 		}
 	}
 	// releasing a pad
@@ -1078,7 +1118,7 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 				fxPress[xDisplay].previousKnobPosition = backupFXPress[firstPadPress.xDisplay].currentKnobPosition;
 			}
 
-			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, !defaultEditingMode);
+			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay);
 		}
 		// if releasing a pad that was quickly pressed, give it held status
 		else if (!params::isParamStutter(lastSelectedParamKind, lastSelectedParamID)
@@ -1091,24 +1131,6 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 			logPerformanceViewPress(xDisplay);
 		}
 		updateLayoutChangeStatus();
-	}
-
-	// if you're in editing mode and not editing a param, pressing an FX column will open soundEditor menu
-	// if a parameter has been assigned to that FX column
-	if (defaultEditingMode && on) {
-		int32_t lastSelectedParamShortcutX = layoutForPerformance[lastPadPress.xDisplay].xDisplay;
-		int32_t lastSelectedParamShortcutY = layoutForPerformance[lastPadPress.xDisplay].yDisplay;
-
-		// if you're not already in soundEditor, enter soundEditor
-		// or if you're already in soundEditor, check if you're in the right menu
-		if ((getCurrentUI() != &soundEditor)
-		    || ((getCurrentUI() == &soundEditor)
-		        && (soundEditor.getCurrentMenuItem()
-		            != paramShortcutsForSongView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]))) {
-			soundEditor.potentialShortcutPadAction(layoutForPerformance[xDisplay].xDisplay,
-			                                       layoutForPerformance[xDisplay].yDisplay, on);
-		}
-		// otherwise no need to do anything as you're already displaying the menu for the parameter
 	}
 }
 
@@ -1177,7 +1199,7 @@ void PerformanceSessionView::paramEditorPadAction(ModelStackWithThreeMainThings*
 				firstPadPress.paramID = paramIDShortcutsForPerformanceView[xDisplay][yDisplay];
 				firstPadPress.xDisplay = xDisplay;
 				firstPadPress.yDisplay = yDisplay;
-				renderFXDisplay(firstPadPress.paramKind, firstPadPress.paramID);
+				renderFXDisplay(firstPadPress.paramKind, firstPadPress.paramID, false);
 			}
 		}
 		// if you are holding a param shortcut pad and are now pressing a pad in an FX column
@@ -1331,9 +1353,13 @@ void PerformanceSessionView::resetFXColumn(ModelStackWithThreeMainThings* modelS
 }
 
 /// reset press info and stutter when exiting performance view
+/// exit out of default editing mode
 void PerformanceSessionView::releaseViewOnExit(ModelStackWithThreeMainThings* modelStack) {
 	resetPadPressInfo();
 	releaseStutter(modelStack);
+	defaultEditingMode = false;
+	editingParam = false;
+	gridModeActive = false;
 }
 
 /// initialize pad press info structs
@@ -1467,42 +1493,28 @@ int32_t PerformanceSessionView::getKnobPosForSinglePadPress(int32_t xDisplay, in
 
 /// Used to edit a pad's value in editing mode
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
-	if (lastPadPress.isActive && defaultEditingMode && !editingParam && (getCurrentUI() == &soundEditor)) {
-		int32_t lastSelectedParamShortcutX = layoutForPerformance[lastPadPress.xDisplay].xDisplay;
-		int32_t lastSelectedParamShortcutY = layoutForPerformance[lastPadPress.xDisplay].yDisplay;
+	if (lastPadPress.isActive && defaultEditingMode && !editingParam) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack =
+		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		if (soundEditor.getCurrentMenuItem()
-		    == paramShortcutsForSongView[lastSelectedParamShortcutX][lastSelectedParamShortcutY]) {
+		getParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay, false);
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* modelStack =
-			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+		defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] =
+		    calculateKnobPosForSelectEncoderTurn(fxPress[lastPadPress.xDisplay].currentKnobPosition, offset);
 
-			getParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay, false);
-
-			defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] =
-			    calculateKnobPosForSelectEncoderTurn(fxPress[lastPadPress.xDisplay].currentKnobPosition, offset);
-
-			if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
-			                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay], false)) {
-				updateLayoutChangeStatus();
-			}
-			goto exit;
+		if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
+		                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay])) {
+			updateLayoutChangeStatus();
 		}
+		return;
 	}
-	if (getCurrentUI() == &soundEditor) {
-		soundEditor.getCurrentMenuItem()->selectEncoderAction(offset);
+	else if (currentSong->lastClipInstanceEnteredStartPos == -1) {
+		sessionView.selectEncoderAction(offset);
 	}
 	else {
-		if (currentSong->lastClipInstanceEnteredStartPos == -1) {
-			sessionView.selectEncoderAction(offset);
-		}
-		else {
-			arrangerView.selectEncoderAction(offset);
-		}
+		arrangerView.selectEncoderAction(offset);
 	}
-exit:
-	return;
 }
 
 /// used to calculate new knobPos when you turn the select encoder
