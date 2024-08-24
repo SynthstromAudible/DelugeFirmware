@@ -320,9 +320,9 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	Allow playback to start from current scroll if:
 	    1) horizontal encoder (<>) or cross screen is held and alternative playback start behaviour is disabled or
 	restarting playback;
-      2) or horizontal encoder (<>) or cross screen is not held and alternative playback start
+	  2) or horizontal encoder (<>) or cross screen is not held and alternative playback start
 	behaviour is enabled;
-      3) or if you're in arranger view and in cross screen auto scrolling mode
+	  3) or if you're in arranger view and in cross screen auto scrolling mode
 	*/
 	if ((isRestartShortcutPressed && (!alternativePlaybackStartBehaviour || restartingPlayback))
 	    || (!isRestartShortcutPressed && alternativePlaybackStartBehaviour)
