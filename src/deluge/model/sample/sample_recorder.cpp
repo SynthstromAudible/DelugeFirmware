@@ -52,6 +52,7 @@ SampleRecorder::~SampleRecorder() {
 	if (sample != nullptr) {
 		detachSample();
 	}
+	outputRecordingFrom->removeRecorder();
 }
 
 // This can be called when this SampleRecorder is destructed routinely - or earlier if we've aborted and the sample file
@@ -861,7 +862,8 @@ void SampleRecorder::finishCapturing() {
 
 // Only call this after checking that status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING
 // Watch out - this could be called during SD writing - including during cardRoutine() for this class!
-void SampleRecorder::feedAudio(int32_t* __restrict__ inputAddress, int32_t numSamples, bool applyGain) {
+void SampleRecorder::feedAudio(int32_t* __restrict__ inputAddress, int32_t numSamples, bool applyGain,
+                               uint8_t gainToApply) {
 
 	do {
 		int32_t numSamplesThisCycle = numSamples;
@@ -951,7 +953,7 @@ doFinishCapturing:
 				do {
 					int32_t rxL = *inputAddress;
 					if (applyGain) {
-						rxL = lshiftAndSaturate<5>(rxL);
+						rxL = lshiftAndSaturateUnknown(rxL, gainToApply);
 					}
 
 					char* __restrict__ readPos = (char*)&rxL + 1;
@@ -988,7 +990,7 @@ doFinishCapturing:
 					if (recordingNumChannels == 2) {
 						int32_t rxR = *(inputAddress + 1);
 						if (applyGain) {
-							rxR = lshiftAndSaturate<5>(rxR);
+							rxR = lshiftAndSaturateUnknown(rxR, gainToApply);
 						}
 
 						readPos = (char*)&rxR + 1;
