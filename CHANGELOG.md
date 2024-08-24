@@ -51,6 +51,9 @@ use the TRACK menu to select the specific track to record from
 - Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
 - Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
 - Changed the behaviour of the `PLAY` button while in `ARRANGER VIEW` with `CROSS SCREEN AUTO SCROLL MODE` active. Pressing `PLAY` while playback is off will now start playback from the current scroll position.
+- Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
+  - With playback off, pressing `PLAY` will start playback from the current grid scroll position
+  - With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
 
 ### Keyboard View Improvements
 
