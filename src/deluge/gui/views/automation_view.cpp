@@ -1944,7 +1944,7 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 void AutomationView::handleCrossScreenButtonAction(bool on) {
 	if (!on && currentUIMode == UI_MODE_NONE) {
 		// if cross screen button wasn't held
-		if ((int32_t)(AudioEngine::audioSampleTimer - Buttons::timeCrossScreenButtonPressed) < FlashStorage::holdTime) {
+		if (isShortPress(Buttons::timeCrossScreenButtonPressed)) {
 			if (onArrangerView) {
 				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
 				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);

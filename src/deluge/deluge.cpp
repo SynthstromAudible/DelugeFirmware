@@ -231,6 +231,10 @@ extern "C" void closeUSBPeripheral(void);
 uint32_t picFirmwareVersion = 0;
 bool picSaysOLEDPresent = false;
 
+bool isShortPress(uint32_t pressTime) {
+	return ((int32_t)(AudioEngine::audioSampleTimer - pressTime) < FlashStorage::holdTime);
+}
+
 bool readButtonsAndPads() {
 
 	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
