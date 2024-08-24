@@ -125,6 +125,7 @@ public:
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(MIDIDevice* device,
 	                                                                                 SoundDrum* drum, Kit* kit);
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
+	void getCurrentRootNoteAndScaleName(StringBuf& buffer);
 	void displayCurrentRootNoteAndScaleName();
 
 	// Scale-related methods

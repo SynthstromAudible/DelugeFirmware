@@ -22,6 +22,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -30,6 +31,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -2051,7 +2053,9 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	// Otherwise, change tempo
 	else {
 		if (!isExternalClockActive()) {
-			if (display->hasPopupOfType(PopupType::TEMPO)) {
+			UI* currentUI = getCurrentUI();
+			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			if (display->hasPopupOfType(PopupType::TEMPO) || isOLEDSessionView) {
 				// Truth table for how we decide between adjusting coarse and fine tempo:
 				//
 				// Setting | Button | Mode
@@ -2207,18 +2211,32 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 	return currentSong->calculateBPM();
 }
 
+void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
+	if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
+		buffer.append("FAST");
+	}
+	else {
+		buffer.appendFloat(tempoBPM, 1, 1);
+	}
+}
+
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	// The 7-seg needs to work so much harder there's no point trying to share the code.
 	DEF_STACK_STRING_BUF(text, 27);
 	if (display->haveOLED()) {
-		text.append("Tempo: ");
-		if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
-			text.append("FAST");
+		UI* currentUI = getCurrentUI();
+		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
+		if (currentUI == &sessionView || currentUI == &arrangerView) {
+			sessionView.lastDisplayedTempo = tempoBPM;
+			getTempoStringForOLED(tempoBPM, text);
+			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
+			deluge::hid::display::OLED::markChanged();
 		}
 		else {
-			text.appendFloat(tempoBPM, 0, 3);
+			text.append("Tempo: ");
+			getTempoStringForOLED(tempoBPM, text);
+			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 		}
-		display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 	}
 	else {
 		if (tempoBPM >= 9999.5) {
