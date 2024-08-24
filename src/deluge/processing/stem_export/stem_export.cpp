@@ -67,6 +67,8 @@ StemExport::StemExport() {
 	allowNormalization = false;
 	exportToSilence = true;
 	includeSongFX = false;
+
+	timePlaybackStopped = 0xFFFFFFFF;
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
@@ -138,6 +140,7 @@ void StemExport::stopStemExportProcess() {
 
 /// Simulate pressing record and play in order to trigger resampling of out output that ends when loop ends
 void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
+	timePlaybackStopped = 0xFFFFFFFF;
 	playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	if (playbackHandler.isEitherClockActive()) {
 		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, AudioInputChannel::MIX, writeLoopEndPos(),
@@ -197,12 +200,19 @@ bool StemExport::checkForLoopEnd() {
 }
 
 /// we want to check for silence so we can stop recording
+/// if we don't find silence after 60 seconds, stop recording
 bool StemExport::checkForSilence() {
 	float approxRMSLevel = std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r);
-	if (approxRMSLevel <= 9) {
+	if (approxRMSLevel < 9) {
 		return true;
 	}
-	return false;
+	// if this is the first time we are checking for silence, it means we just stopped playback
+	// so save this time so we can keep track of how long we've been checking for silence
+	if (timePlaybackStopped == 0xFFFFFFFF) {
+		timePlaybackStopped = AudioEngine::audioSampleTimer;
+	}
+	// have we been checking for silence for 60 seconds or longer? then stop recording
+	return ((uint32_t)(AudioEngine::audioSampleTimer - timePlaybackStopped) >= (kSampleRate * 60));
 }
 
 /// disarms and prepares all the instruments so that they can be exported
