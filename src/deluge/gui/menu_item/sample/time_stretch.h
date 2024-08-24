@@ -58,10 +58,8 @@ public:
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return -48; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 48; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final {
+		return isSampleModeSample(modControllable, whichThing);
 	}
 };
 } // namespace deluge::gui::menu_item::sample

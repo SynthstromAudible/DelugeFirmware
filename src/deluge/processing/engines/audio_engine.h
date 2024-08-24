@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
+#include "dsp/envelope_follower/absolute_value.h"
 #include "model/output.h"
 #include <cstdint>
 
@@ -44,6 +45,7 @@ class Metronome;
 class RMSFeedbackCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
+class AbsValueFollower;
 
 namespace deluge::dsp {
 class Reverb;
@@ -207,4 +209,5 @@ extern RMSFeedbackCompressor mastercompressor;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;
+extern AbsValueFollower envelopeFollower;
 } // namespace AudioEngine

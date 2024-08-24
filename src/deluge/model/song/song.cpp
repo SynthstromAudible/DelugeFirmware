@@ -55,6 +55,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
@@ -147,6 +148,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	fillModeActive = false;
 
 	key.modeNotes = presetScaleNotes[MAJOR_SCALE];
+	disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
 
 	swingAmount = 0;
 
@@ -241,40 +243,39 @@ Clip* Song::getCurrentClip() {
 	return currentClip;
 }
 
+// It's not super clear to me why this isn't done as part of the constructor.
 void Song::setupDefault() {
 	inClipMinderViewOnLoad = true;
 
 	seedRandom();
 
-	setBPMInner(defaultTempoMenu.getRandomValueInRange(), false);
+	setBPM(defaultTempoMenu.getRandomValueInRange(), false);
 	swingAmount = defaultSwingAmountMenu.getRandomValueInRange() - 50;
 	key.rootNote = defaultKeyMenu.getRandomValueInRange();
 
 	// Do scale
-	uint8_t whichScale = FlashStorage::defaultScale;
-	if (whichScale == PRESET_SCALE_RANDOM) {
-		whichScale = random(NUM_PRESET_SCALES - 1);
+	disabledPresetScales = FlashStorage::defaultDisabledPresetScales;
+	ensureNotAllPresetScalesDisabled(disabledPresetScales);
+	Scale whichScale = flashStorageCodeToScale(FlashStorage::defaultScale);
+	if (whichScale == RANDOM_SCALE) {
+		do {
+			whichScale = static_cast<Scale>(random(LAST_PRESET_SCALE));
+		} while (disabledPresetScales[whichScale]);
 	}
-	else if (whichScale == PRESET_SCALE_NONE) {
-		whichScale = 0; // Major. Still need the *song*, (as opposed to the Clip) to have a scale
+	else if (whichScale > LAST_PRESET_SCALE) {
+		// Both USER_SCALE and NO_SCALE, and any bogus values. Same handling for different reasons.
+		//
+		// - USER_SCALE isn't yet stored, so though you can set it as default, we can't
+		//   activate it.
+		//
+		// - for NO_SCALE *song* still needs a scale.
+		//
+		// - bogus values just need ignoring
+		whichScale = MAJOR_SCALE;
 	}
-	else {
-		if (whichScale >= OFFSET_5_NOTE_SCALE) {
-			// remove offset for 5 note scales
-			whichScale = FIRST_5_NOTE_SCALE_INDEX + whichScale - OFFSET_5_NOTE_SCALE;
-		}
-		else if (whichScale >= OFFSET_6_NOTE_SCALE) {
-			// remove offset for 6 note scales
-			whichScale = FIRST_6_NOTE_SCALE_INDEX + whichScale - OFFSET_6_NOTE_SCALE;
-		}
-		if (whichScale >= NUM_PRESET_SCALES) {
-			// Index is out of bounds, so reset to 0
-			whichScale = 0;
-		}
-	}
-	if (whichScale >= NUM_PRESET_SCALES) {
-		FREEZE_WITH_ERROR("DS01");
-	}
+
+	// Whichever scale we ended up with, make sure it's enabled.
+	disabledPresetScales[whichScale] = false;
 
 	key.modeNotes = presetScaleNotes[whichScale];
 }
@@ -1289,6 +1290,12 @@ weAreInArrangementEditorOrInClipInstance:
 		writer.writeClosingTag("sessionMacros");
 	}
 
+	// Scale stuff
+	writer.writeOpeningTag("scales");
+	writer.writeTag("userScale", userScaleNotes.toBits());
+	writer.writeTag("disabledPresetScales", disabledPresetScales.to_ulong());
+	writer.writeClosingTag("scales");
+
 	writer.writeClosingTag("song");
 }
 
@@ -1759,6 +1766,20 @@ unknownTag:
 				}
 				reader.exitTag("chordMem");
 			}
+
+			else if (!strcmp(tagName, "scales")) {
+				while (*(tagName = reader.readNextTagOrAttributeName())) {
+					if (!strcmp(tagName, "userScale")) {
+						userScaleNotes = NoteSet(reader.readTagOrAttributeValueInt());
+					}
+					else if (!strcmp(tagName, "disabledPresetScales")) {
+						disabledPresetScales = std::bitset<NUM_PRESET_SCALES>(reader.readTagOrAttributeValueInt());
+					}
+					reader.exitTag(tagName);
+				}
+				reader.exitTag("scales");
+			}
+
 			else if (!strcmp(tagName, "sections")) {
 				// Read in all the sections
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1949,6 +1970,10 @@ loadOutput:
 
 	setTimePerTimerTick(newTimePerTimerTick);
 
+	// make sure the bpm param matches the ticks in case something went wrong? ref issue 2455, possible cause is invalid
+	// tempo param
+	setBPM(calculateBPM(), false);
+
 	// Ensure all arranger-only Clips have their section as 255
 	for (int32_t t = 0; t < arrangementOnlyClips.getNumElements(); t++) {
 		Clip* clip = arrangementOnlyClips.getClipAtIndex(t);
@@ -2080,7 +2105,7 @@ skipInstance:
 		if (thisOutput->type == OutputType::AUDIO) {
 			auto ao = (AudioOutput*)thisOutput;
 			if (ao->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
-				ao->outputRecordingFrom = getOutputFromIndex(ao->outputRecordingFromIndex);
+				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex), ao->echoing);
 			}
 		}
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
@@ -2327,8 +2352,10 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 		bool isClipActiveNow =
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		DISABLE_ALL_INTERRUPTS();
-		output->renderOutput(modelStack, outputBuffer, outputBuffer + numSamples, numSamples, reverbBuffer,
-		                     volumePostFX >> 1, sideChainHitPending, !isClipActiveNow, isClipActiveNow);
+		if (output->shouldRenderInSong()) {
+			output->renderOutput(modelStack, outputBuffer, outputBuffer + numSamples, numSamples, reverbBuffer,
+			                     volumePostFX >> 1, sideChainHitPending, !isClipActiveNow, isClipActiveNow);
+		}
 		ENABLE_INTERRUPTS();
 #if DO_AUDIO_LOG
 		char buf[64];
@@ -2835,7 +2862,9 @@ Scale Song::cycleThroughScales() {
 	// NUM_PRESET_SCALES stands for the user scale.
 	do {
 		newScale = static_cast<Scale>(mod(newScale + 1, NUM_PRESET_SCALES + 1));
-		currentScale = setScale(newScale);
+		if (newScale == USER_SCALE || !disabledPresetScales[newScale]) {
+			currentScale = setScale(newScale);
+		}
 	} while (newScale != currentScale && newScale != startScale);
 	return newScale;
 }
@@ -5670,16 +5699,30 @@ doHibernatingInstruments:
 	return Error::NONE;
 }
 
-void Song::displayCurrentRootNoteAndScaleName() {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
+void Song::getCurrentRootNoteAndScaleName(StringBuf& buffer) {
 	char noteName[5];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
 
-	popupMsg.append(noteName);
+	buffer.append(noteName);
 	if (display->haveOLED()) {
-		popupMsg.append(" ");
-		popupMsg.append(getScaleName(getCurrentScale()));
+		buffer.append(" ");
+		buffer.append(getScaleName(getCurrentScale()));
+	}
+}
+
+void Song::displayCurrentRootNoteAndScaleName() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+	getCurrentRootNoteAndScaleName(popupMsg);
+	if (display->haveOLED()) {
+		UI* currentUI = getCurrentUI();
+		bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
+		// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
+		if (isSessionView) {
+			sessionView.displayCurrentRootNoteAndScaleName(deluge::hid::display::OLED::main, popupMsg, true);
+			deluge::hid::display::OLED::markChanged();
+			return;
+		}
 	}
 	display->displayPopup(popupMsg.c_str());
 }
@@ -5751,8 +5794,10 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 	return modelStackWithParam;
 }
 void Song::updateBPMFromAutomation() {
+	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
+	// that
 	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
-	if (currentTempo != intBPM) {
+	if (currentTempo && currentTempo != intBPM) {
 		setBPMInner((float)currentTempo / 100, false);
 		intBPM = currentTempo;
 	}

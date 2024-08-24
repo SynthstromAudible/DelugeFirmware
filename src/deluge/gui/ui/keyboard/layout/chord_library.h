@@ -21,14 +21,17 @@
 #include "definitions.h"
 #include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
+#include <array>
 
 namespace deluge::gui::ui::keyboard::layout {
 
+constexpr int8_t kVerticalPages = ((kUniqueChords + kDisplayHeight - 1) / kDisplayHeight); // Round up division
+
 /// @brief Represents a keyboard layout for chord-based input.
-class KeyboardLayoutChord : public ColumnControlsKeyboard {
+class KeyboardLayoutChordLibrary : public ColumnControlsKeyboard {
 public:
-	KeyboardLayoutChord() = default;
-	~KeyboardLayoutChord() override = default;
+	KeyboardLayoutChordLibrary() = default;
+	~KeyboardLayoutChordLibrary() override = default;
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
@@ -38,30 +41,21 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
-
-	char const* name() override { return "Chord"; }
+	char const* name() override { return "Chord Library"; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 
-	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }
-
-	uint8_t chordSemitoneOffsets[kMaxChordKeyboardSize] = {0};
+protected:
+	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
-	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
-		return getState().chord.noteOffset + x + y * getState().chord.rowInterval;
-	}
+	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
+	inline uint8_t noteFromCoords(int32_t x) { return getState().chordLibrary.noteOffset + x; }
+	inline int32_t getChordNo(int32_t y) { return getState().chordLibrary.chordList.chordRowOffset + y; }
 
-	void offsetPads(int32_t offset, bool shiftEnabled);
-
-	// A modified version of noteCodeToString
-	// Because sometimes the note name is not displayed correctly
-	// and we need to add a null terminator to the note name string
-	// TODO: work out how to fix this with the noteCodeToString function
-	inline uint8_t noteFromCoords(int32_t x) { return getState().chord.noteOffset + x; }
-
-	RGB noteColours[kOctaveSize];
+	std::array<RGB, kOctaveSize> noteColours;
+	std::array<RGB, kVerticalPages> pageColours;
+	bool initializedNoteOffset = false;
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

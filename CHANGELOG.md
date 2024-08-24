@@ -14,10 +14,11 @@ use the TRACK menu to select the specific track to record from
 
 ### User Interface
 
-- Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
-- Added new shortcut to remove timestretching from an audio clip and shorten / extend an audio clip without timestretching. 
-  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample. This will effectively remove timestretching from the audio sample.
-  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to shorten / lengthen the audio clip without timestretching.
+- Added ability to select audio source from within an Audio Clip by opening the `Audio Clip Sound Menu` (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
+- Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
+  - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample.
+    - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
+  - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 - The maximum zoom level for timelines has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
@@ -47,10 +48,12 @@ use the TRACK menu to select the specific track to record from
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 - Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
 - Updated `PERFORMANCE VIEW` UI for exiting out of `EDITING MODE`. While in `EDITING MODE`, you can now press `BACK` to exit out to the previous screen.
+- Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
+- Changed the behaviour of the `PLAY` button while in `ARRANGER VIEW` with `CROSS SCREEN AUTO SCROLL MODE` active. Pressing `PLAY` while playback is off will now start playback from the current scroll position.
 
 ### Keyboard View Improvements
 
-- New `CHORD` keyboard layout. `CHORD` keyboard is split up into columns of chords, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard.
+- New `CHORD LIBRARY` keyboard layout. `CHORD LIBRARY` keyboard is a library of chords split up into columns, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD LIBRARY` keyboard.
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.

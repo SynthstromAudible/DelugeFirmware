@@ -15,22 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/selection.h"
-#include "processing/sound/sound.h"
+#include "gui/menu_item/menu_item.h"
+#include "gui/views/audio_clip_view.h"
 
-namespace deluge::gui::menu_item::sample {
-template <size_t n>
-class Selection : public menu_item::Selection {
+namespace deluge::gui::menu_item::audio_clip {
+class SetClipLengthEqualToSampleLength final : public MenuItem {
 public:
-	using menu_item::Selection::Selection;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		if (sound == nullptr) {
-			return true; // For AudioClips
-		}
+	using MenuItem::MenuItem;
 
-		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE
-		        && source->hasAtLeastOneAudioFileLoaded());
+	MenuItem* selectButtonPress() override {
+		audioClipView.setClipLengthEqualToSampleLength();
+		return NO_NAVIGATION;
 	}
+
+	bool shouldEnterSubmenu() override { return false; }
 };
-} // namespace deluge::gui::menu_item::sample
+} // namespace deluge::gui::menu_item::audio_clip

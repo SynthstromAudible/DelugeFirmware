@@ -359,13 +359,7 @@ dontDeactivateMarker:
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
-
-				AudioClip* audioClip = getCurrentAudioClip();
-				SamplePlaybackGuide guide = audioClip->guide;
-				SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
-				if (sampleHolder) {
-					adjustLoopLength(sampleHolder->getLoopLengthAtSystemSampleRate(true));
-				}
+				setClipLengthEqualToSampleLength();
 			}
 		}
 		// if shift is pressed then we're resizing the clip without time stretching
@@ -669,6 +663,19 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	}
 
 	view.navigateThroughAudioOutputsForAudioClip(offset, getCurrentAudioClip());
+}
+
+void AudioClipView::setClipLengthEqualToSampleLength() {
+	AudioClip* audioClip = getCurrentAudioClip();
+	SamplePlaybackGuide guide = audioClip->guide;
+	SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
+	if (sampleHolder) {
+		adjustLoopLength(sampleHolder->getLoopLengthAtSystemSampleRate(true));
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_LENGTH_ADJUSTED));
+	}
+	else {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
+	}
 }
 
 void AudioClipView::adjustLoopLength(int32_t newLength) {

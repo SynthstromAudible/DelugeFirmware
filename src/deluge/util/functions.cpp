@@ -1301,9 +1301,11 @@ void getThingFilename(char const* thingName, int16_t currentSlot, int8_t current
 }
 
 bool isAudioFilename(char const* filename) {
+	if (filename[0] == '.') {
+		return false;
+	}
 	char* dotPos = strrchr(filename, '.');
-	return (dotPos != 0
-	        && (!strcasecmp(dotPos, ".WAV") || !strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
+	return (!strcasecmp(dotPos, ".WAV") || !strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF"));
 }
 
 bool isAiffFilename(char const* filename) {

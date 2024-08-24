@@ -199,7 +199,8 @@ investigatePrevNode:
 			// everywhere from here to the next node - we don't need to preserve the "original" value in any part of
 			// that region because it's going to get overridden any time another note is inserted into it, anyway. And
 			// we want our value to last as long as possible, for the note's release-tail.
-			if (doMPEMode) {
+			// might as well do this for when the ticks are longer than 0.2s too
+			if (doMPEMode || ticksToClear == 0) {
 				leftI = setNodeAtPos(livePos, value, reversed || shouldInterpolateRegionStart);
 				if (leftI == -1) {
 					goto getOut;

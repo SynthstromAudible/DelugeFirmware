@@ -51,7 +51,7 @@ def main():
     args = parser.parse_args()
 
     with open(args.input) as inf:
-        with open(args.output, "w") as outf:
+        with open(args.output, "w", newline="\n") as outf:
             process(inf, outf)
 
 

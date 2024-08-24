@@ -81,7 +81,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
 
 	affectEntire = true;
 
-	inScaleMode = (FlashStorage::defaultScale != PRESET_SCALE_NONE);
+	inScaleMode = flashStorageCodeToScale(FlashStorage::defaultScale) != NO_SCALE;
 	onKeyboardScreen = false;
 
 	if (song) {

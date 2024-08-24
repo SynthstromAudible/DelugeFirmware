@@ -139,6 +139,16 @@ public:
 	char const* getMacroKindString(SessionMacroKind kind);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
+	// display tempo
+	void displayPotentialTempoChange(UI* ui);
+	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM, bool clearArea);
+	float lastDisplayedTempo = 0;
+
+	// display root note and scale name
+	void displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
+	                                        StringBuf& rootNoteAndScaleName, bool clearArea);
+	int16_t lastDisplayedRootNote = 0;
+
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
 	// no dispatch logic.

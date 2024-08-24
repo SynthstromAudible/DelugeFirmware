@@ -125,6 +125,7 @@ public:
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(MIDIDevice* device,
 	                                                                                 SoundDrum* drum, Kit* kit);
 	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
+	void getCurrentRootNoteAndScaleName(StringBuf& buffer);
 	void displayCurrentRootNoteAndScaleName();
 
 	// Scale-related methods
@@ -219,6 +220,7 @@ public:
 	Section sections[kMaxNumSections];
 
 	MusicalKey key;
+	std::bitset<NUM_PRESET_SCALES> disabledPresetScales;
 
 	uint16_t slot;
 	int8_t subSlot;
@@ -434,6 +436,17 @@ public:
 	// Tempo automation
 	void clearTempoAutomation();
 	void updateBPMFromAutomation();
+	float calculateBPM() {
+		float timePerTimerTick = getTimePerTimerTickFloat();
+		if (insideWorldTickMagnitude > 0) {
+			timePerTimerTick *= ((uint32_t)1 << (insideWorldTickMagnitude));
+		}
+		float tempoBPM = (float)110250 / timePerTimerTick;
+		if (insideWorldTickMagnitude < 0) {
+			tempoBPM *= ((uint32_t)1 << (-insideWorldTickMagnitude));
+		}
+		return tempoBPM;
+	}
 
 	int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
 
@@ -452,7 +465,7 @@ private:
 	void setupClipIndexesForSaving();
 	void setBPMInner(float tempoBPM, bool shouldLogAction);
 	void clearTempoAutomation(float tempoBPM);
-	int32_t intBPM;
+	int32_t intBPM{0};
 };
 
 extern Song* currentSong;

@@ -28,9 +28,6 @@ constexpr int32_t kMinIsomorphicRowInterval = 1;
 constexpr int32_t kMaxIsomorphicRowInterval = 16;
 constexpr uint32_t kHalfStep = 0x7FFFFF;
 
-ColumnControlFunction nextControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
-ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
-
 enum BeatRepeat {
 	NO_BEAT_REPEAT = 0,
 	DOT_EIGHT,
@@ -69,6 +66,10 @@ public:
 	bool verticalEncoderHandledByColumns(int32_t offset);
 	bool horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled);
 
+	ColumnControlFunction nextControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
+	ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
+	ColumnControlFunction stepControlFunction(int32_t offset, ColumnControlFunction cur, ColumnControlFunction skip);
+
 	virtual void renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
 	void checkNewInstrument(Instrument* newInstrument) override;
@@ -77,6 +78,10 @@ public:
 
 	int8_t leftColHeld = -1;
 	int8_t rightColHeld = -1;
+
+protected:
+	// Subclasses can override this to allow or disallow certain ControlColumn types
+	virtual bool allowSidebarType(ColumnControlFunction sidebarType) { return true; };
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

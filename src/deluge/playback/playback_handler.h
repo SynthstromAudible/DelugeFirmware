@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "util/d_string.h"
 #include <cstdint>
 
 enum class RecordingMode {
@@ -224,6 +225,7 @@ public:
 	void commandDisplayTempo(int8_t offset);
 
 	void commandClearTempoAutomation();
+	void getTempoStringForOLED(float tempoBPM, StringBuf& buffer);
 
 private:
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);
@@ -241,6 +243,8 @@ private:
 
 	int32_t numOutputClocksWaitingToBeSent;
 	int32_t numInputTicksToSkip;
+	uint32_t skipAnalogClocks;
+	uint32_t skipMidiClocks;
 
 	void resetTimePerInternalTickMovingAverage();
 	void getCurrentTempoParams(int32_t* magnitude, int8_t* whichValue);

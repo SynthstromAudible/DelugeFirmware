@@ -1093,14 +1093,16 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 	}
 	// releasing a pad
 	else {
-		// if releasing stutter pad
-		// or releasing a pad with "held" status shortly after being given that status
+		bool previousPressActive =
+		    (fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay);
+		// releasing a pad with "held" status shortly after being given that status
 		// or releasing a pad that was not in "held" status but was a longer press and release
-		if (params::isParamStutter(lastSelectedParamKind, lastSelectedParamID)
-		    || (fxPress[xDisplay].padPressHeld
-		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < FlashStorage::holdTime))
-		    || ((fxPress[xDisplay].previousKnobPosition != kNoSelection) && (fxPress[xDisplay].yDisplay == yDisplay)
-		        && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) >= FlashStorage::holdTime))) {
+		if ((fxPress[xDisplay].padPressHeld
+		     && ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress) < FlashStorage::holdTime))
+		    || (previousPressActive
+		        && (params::isParamStutter(lastSelectedParamKind, lastSelectedParamID)
+		            || ((AudioEngine::audioSampleTimer - fxPress[xDisplay].timeLastPadPress)
+		                >= FlashStorage::holdTime)))) {
 
 			// if there was a previously held pad in this column and you pressed another pad
 			// but didn't set that pad to held, then when we let go of this pad, we want the

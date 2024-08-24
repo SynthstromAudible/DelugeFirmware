@@ -29,12 +29,7 @@
 namespace deluge::gui::menu_item::sample {
 
 bool LoopPoint::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
-
-	Sound* sound = static_cast<Sound*>(modControllable);
-
-	Source* source = &sound->sources[whichThing];
-
-	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
+	return isSampleModeSample(modControllable, whichThing);
 }
 
 MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
@@ -47,7 +42,7 @@ MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* mo
 	Sound* sound = static_cast<Sound*>(modControllable);
 
 	MenuPermission permission =
-	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, true, currentRange);
+	    soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
 
 	// Before going ahead, make sure a Sample is loaded
 	if (permission == MenuPermission::YES) {

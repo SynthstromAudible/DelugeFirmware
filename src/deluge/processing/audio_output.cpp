@@ -211,7 +211,8 @@ renderEnvelope:
 		}
 	}
 
-	if (echoing && modelStack->song->isOutputActiveInArrangement(this)) {
+	if (echoing && modelStack->song->isOutputActiveInArrangement(this)
+	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
 		StereoSample* __restrict__ outputPos = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
 		StereoSample const* const outputPosEnd = outputPos + numSamples;
@@ -274,6 +275,16 @@ renderEnvelope:
 				inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		} while (outputPos < outputPosEnd);
+	}
+	else if (echoing && modelStack->song->isOutputActiveInArrangement(this)
+	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom) {
+		rendered = true;
+		StereoSample* __restrict__ outputBuffer = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+		outputRecordingFrom->renderOutput(songModelStack, outputBuffer, outputBuffer + numSamples, numSamples,
+		                                  reverbBuffer, reverbAmountAdjust, sideChainHitPending,
+		                                  shouldLimitDelayFeedback, isClipActive);
 	}
 	return rendered;
 }

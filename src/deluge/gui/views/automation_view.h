@@ -93,6 +93,7 @@ public:
 	// vertical encoder action
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult scrollVertical(int32_t scrollAmount);
+	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 
 	// mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
@@ -181,7 +182,8 @@ private:
 	bool toggleVelocityPadSelectionMode(SquareInfo& squareInfo);
 	bool toggleAutomationPadSelectionMode(ModelStackWithAutoParam* modelStackWithParam, int32_t effectiveLength,
 	                                      int32_t xScroll, int32_t xZoom);
-	void handleParameterSelection(Clip* clip, OutputType outputType, int32_t xDisplay, int32_t yDisplay);
+	void handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
+	                              int32_t yDisplay);
 	void noteEditPadAction(ModelStackWithNoteRow* modelStackWithNoteRow, NoteRow* noteRow, InstrumentClip* clip,
 	                       int32_t x, int32_t y, int32_t velocity, int32_t effectiveLength, SquareInfo& squareInfo);
 	void velocityPadSelectionAction(ModelStackWithNoteRow* modelStackWithNoteRow, InstrumentClip* clip, int32_t x,
@@ -219,7 +221,8 @@ private:
 	void renderAutomationOverview(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                              ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
 	                              OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
-	                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay);
+	                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
+	                              bool isMIDICVDrum);
 	void renderAutomationEditor(ModelStackWithAutoParam* modelStackWithParam, Clip* clip,
 	                            RGB image[][kDisplayWidth + kSideBarWidth],
 	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
@@ -253,10 +256,20 @@ private:
 	                         RGB image[][kDisplayWidth + kSideBarWidth],
 	                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t imageWidth,
 	                         TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay);
-	void renderDisplayOLED(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
+	void renderDisplayOLED(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
-	void renderDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft = kNoSelection,
+	void renderAutomationOverviewDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, Output* output,
+	                                         OutputType outputType);
+	void renderAutomationEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, Clip* clip,
+	                                       OutputType outputType, int32_t knobPosLeft, int32_t knobPosRight);
+	void renderNoteEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, InstrumentClip* clip,
+	                                 OutputType outputType, int32_t knobPosLeft, int32_t knobPosRight);
+	void renderDisplay7SEG(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       bool modEncoderAction = false);
+	void renderAutomationOverviewDisplay7SEG(Output* output, OutputType outputType);
+	void renderAutomationEditorDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft,
+	                                       bool modEncoderAction);
+	void renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft);
 
 	// Enter/Exit Scale Mode
 	void enterScaleMode(uint8_t yDisplay = 255);
