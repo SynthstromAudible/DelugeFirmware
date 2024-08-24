@@ -942,6 +942,10 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 	}
 
 	markChanged();
+	// Workaround for glitches during scrolling. Not entirely obvious _why_
+	// it glitches, though. Some sort of timing issue between doAnyPendingUIRendering,
+	// uiTimerManager.routine() ?
+	sendMainImage();
 
 	int32_t timeInterval;
 	if (!finished) {
