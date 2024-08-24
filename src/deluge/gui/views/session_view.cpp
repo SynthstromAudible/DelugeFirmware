@@ -1894,6 +1894,16 @@ void SessionView::redrawNumericDisplay() {
 		return;
 	}
 
+	UI* currentUI = getCurrentUI();
+
+	bool isPerformanceView = (currentUI == &performanceSessionView);
+
+	bool isSessionView =
+	    ((currentUI == &sessionView) || (isPerformanceView && currentSong->lastClipInstanceEnteredStartPos == -1));
+
+	bool isArrangerView =
+	    ((currentUI == &arrangerView) || (isPerformanceView && currentSong->lastClipInstanceEnteredStartPos != -1));
+
 	// If playback on...
 	if (playbackHandler.isEitherClockActive()) {
 
@@ -1903,49 +1913,45 @@ void SessionView::redrawNumericDisplay() {
 				goto nothingToDisplay;
 			}
 
-			if (getCurrentUI() == &loadSongUI) {
+			if (currentUI == &loadSongUI) {
 				if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-yesDoIt:
-					char buffer[5];
-					intToString(session.numRepeatsTilLaunch, buffer);
-					display->setText(buffer, true, 255, true, NULL, false, true);
+					displayRepeatsTilLaunch();
 				}
 			}
 
-			else if (getCurrentUI() == &arrangerView) {
+			else if (isArrangerView) {
 				if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
 				    || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 					if (session.switchToArrangementAtLaunchEvent) {
-						goto yesDoIt;
+						displayRepeatsTilLaunch();
 					}
 					else {
-						goto setBlank;
+						clearNumericDisplay();
 					}
 				}
 			}
 
-			else if (getCurrentUI() == this) {
+			else if (isSessionView) {
 				if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD) {
-					goto yesDoIt;
+					displayRepeatsTilLaunch();
 				}
 			}
 		}
 
 		else { // Arrangement playback
-			if (getCurrentUI() == &arrangerView) {
+			if (isArrangerView) {
 
 				if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 					if (playbackHandler.stopOutputRecordingAtLoopEnd) {
 						display->setText("1", true, 255, true, NULL, false, true);
 					}
 					else {
-						goto setBlank;
+						clearNumericDisplay();
 					}
 				}
 			}
-			else if (getCurrentUI() == this) {
-setBlank:
-				display->setText("");
+			else if (isSessionView) {
+				clearNumericDisplay();
 			}
 		}
 	}
@@ -1953,14 +1959,32 @@ setBlank:
 	// Or if no playback active...
 	else {
 nothingToDisplay:
-		if (getCurrentUI() == this || getCurrentUI() == &arrangerView) {
+		if ((isSessionView || isArrangerView)) {
 			if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD) {
-				display->setText("");
+				clearNumericDisplay();
 			}
 		}
 	}
 
-	setCentralLEDStates();
+	// don't override LED states set by performance view
+	if (!isPerformanceView) {
+		setCentralLEDStates();
+	}
+}
+
+void SessionView::clearNumericDisplay() {
+	if (getCurrentUI() == &performanceSessionView) {
+		performanceSessionView.renderViewDisplay();
+	}
+	else {
+		display->setText("");
+	}
+}
+
+void SessionView::displayRepeatsTilLaunch() {
+	char buffer[5];
+	intToString(session.numRepeatsTilLaunch, buffer);
+	display->setText(buffer, true, 255, true, NULL, false, true);
 }
 
 /// render session view display on opening

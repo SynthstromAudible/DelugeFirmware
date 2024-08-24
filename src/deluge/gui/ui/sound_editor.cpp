@@ -182,11 +182,6 @@ bool SoundEditor::opened() {
 
 	setLedStates();
 
-	// update save button blinking status when in performance session view
-	if (getRootUI() == &performanceSessionView) {
-		performanceSessionView.updateLayoutChangeStatus();
-	}
-
 	return true;
 }
 
@@ -209,11 +204,6 @@ void SoundEditor::focusRegained() {
 	}
 
 	setLedStates();
-
-	// update save button blinking status when in performance session view
-	if (getRootUI() == &performanceSessionView) {
-		performanceSessionView.updateLayoutChangeStatus();
-	}
 }
 
 void SoundEditor::displayOrLanguageChanged() {
@@ -264,8 +254,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Encoder button
 	if (b == SELECT_ENC) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
-		    || getRootUI() == &performanceSessionView) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -306,8 +295,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Back button
 	else if (b == BACK) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
-		    || getRootUI() == &performanceSessionView) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -525,12 +513,6 @@ void SoundEditor::exitCompletely() {
 	// a bit ad-hoc but the current memory allocator
 	// is not happy with these strings being around
 	patchCablesMenu.options.clear();
-
-	// don't save any of the logs created while using the sound editor to edit param values
-	// in performance view value editing mode
-	if ((getRootUI() == &performanceSessionView) && (performanceSessionView.defaultEditingMode)) {
-		actionLogger.deleteAllLogs();
-	}
 
 	setupKitGlobalFXMenu = false;
 }
@@ -772,13 +754,9 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 
 	RootUI* rootUI = getRootUI();
 
-	// if you're in the performance view, let it handle the select encoder action
-	if (rootUI == &performanceSessionView) {
-		performanceSessionView.selectEncoderAction(offset);
-	}
 	// if you're not on the automation overview and you haven't selected a multi pad press
 	// (multi pad press values are only editable with mod encoders to edit left and right position)
-	else if (rootUI == &automationView && isEditingAutomationViewParam() && !automationView.multiPadPressSelected) {
+	if (rootUI == &automationView && isEditingAutomationViewParam() && !automationView.multiPadPressSelected) {
 		automationView.modEncoderAction(0, offset);
 	}
 	else {
@@ -838,21 +816,10 @@ void SoundEditor::markInstrumentAsEdited() {
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
-
-	bool isUIPerformanceSessionView =
-	    (getRootUI() == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
-
 	bool ignoreAction = false;
 	if (!Buttons::isShiftButtonPressed()) {
-		// if in Performance Session View
-		if (isUIPerformanceSessionView) {
-			// ignore if you're not in editing mode or if you're in editing mode but editing a param
-			ignoreAction = (!performanceSessionView.defaultEditingMode || performanceSessionView.editingParam);
-		}
-		else {
-			// ignore if you're not auditioning and in instrument clip view
-			ignoreAction = !(isUIModeActive(UI_MODE_AUDITIONING) && getRootUI() == &instrumentClipView);
-		}
+		// ignore if you're not auditioning and in instrument clip view
+		ignoreAction = !(isUIModeActive(UI_MODE_AUDITIONING) && getRootUI() == &instrumentClipView);
 	}
 	else {
 		// allow automation view to handle interpolation and pad selection shortcut
@@ -869,9 +836,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	bool isUISessionView = isUIPerformanceSessionView || !rootUIIsClipMinderScreen();
-
-	if (on && (isUIModeWithinRange(shortcutPadUIModes) || isUIPerformanceSessionView)) {
+	if (on && isUIModeWithinRange(shortcutPadUIModes)) {
 
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -880,7 +845,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		const MenuItem* item = nullptr;
 
 		// session views (arranger, song, performance)
-		if (isUISessionView) {
+		if (!rootUIIsClipMinderScreen()) {
 			if (x <= (kDisplayWidth - 2)) {
 				item = paramShortcutsForSongView[x][y];
 			}
@@ -1125,18 +1090,6 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	RootUI* rootUI = getRootUI();
 
-	bool isUIPerformanceSessionView =
-	    (rootUI == &performanceSessionView) || (getCurrentUI() == &performanceSessionView);
-
-	// used to convert column press to a shortcut to change Perform FX menu displayed
-	if (isUIPerformanceSessionView && !Buttons::isShiftButtonPressed() && performanceSessionView.defaultEditingMode
-	    && !performanceSessionView.editingParam) {
-		if (x < kDisplayWidth) {
-			performanceSessionView.padAction(x, y, on);
-			return ActionResult::DEALT_WITH;
-		}
-	}
-
 	if (!inSettingsMenu()) {
 		ActionResult result = potentialShortcutPadAction(x, y, on);
 		if (result != ActionResult::NOT_DEALT_WITH) {
@@ -1333,12 +1286,8 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 	UI* currentUI = getCurrentUI();
 
-	bool isUIPerformanceView = ((getRootUI() == &performanceSessionView) || currentUI == &performanceSessionView);
-
-	bool isUISessionView = isUIPerformanceView || !rootUIIsClipMinderScreen();
-
 	// getParamManager and ModControllable for Performance Session View (and Session View)
-	if (isUISessionView) {
+	if (!rootUIIsClipMinderScreen()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1541,10 +1490,6 @@ MenuItem* SoundEditor::getCurrentMenuItem() {
 
 bool SoundEditor::inSettingsMenu() {
 	return (menuItemNavigationRecord[0] == &settingsRootMenu);
-}
-
-bool SoundEditor::inSongMenu() {
-	return ((menuItemNavigationRecord[0] == &soundEditorRootMenuSongView) || (getRootUI() == &performanceSessionView));
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
