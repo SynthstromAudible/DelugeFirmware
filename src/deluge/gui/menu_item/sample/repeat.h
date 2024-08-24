@@ -95,6 +95,8 @@ public:
 		    l10n::getView(l10n::String::STRING_FOR_STRETCH),
 		};
 	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 };
 
 } // namespace deluge::gui::menu_item::sample

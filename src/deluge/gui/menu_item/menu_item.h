@@ -265,10 +265,10 @@ public:
 
 	// TODO: Document new menu methods
 	virtual void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height);
-	virtual bool hasInputAction() { return false; }
 	virtual void focusChild(const MenuItem* child);
 	virtual bool isSubmenu() { return false; }
 	virtual void setupNumberEditor() {}
+	virtual bool shortcutToHorizontalMenuAllowed() const { return true; }
 
 	/// @}
 

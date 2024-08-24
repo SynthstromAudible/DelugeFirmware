@@ -19,6 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "gui/fonts/fonts.h"
 
+#include "io/debug/log.h"
+
 using deluge::hid::display::oled_canvas::Canvas;
 
 void Canvas::clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
@@ -450,6 +452,15 @@ void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_
 		currentPos++;
 		graphicPos += numBytesTall;
 	}
+}
+
+void Canvas::drawIcon(const Icon& icon, int32_t startX, int32_t startY) {
+	int32_t stride = icon.height / 8;
+	if (stride * 8 < icon.height) {
+		stride += 1;
+	}
+	D_PRINTLN("stride = %d", stride);
+	drawGraphicMultiLine(icon.image, startX, startY, icon.width, icon.height, stride);
 }
 
 /// Draw a screen title and underline it.

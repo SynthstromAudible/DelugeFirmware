@@ -23,6 +23,12 @@
 #include <cstring>
 #include <string_view>
 
+struct Icon {
+	uint8_t width;
+	uint8_t height;
+	const uint8_t* image;
+};
+
 namespace deluge::hid::display {
 class OLED;
 
@@ -164,6 +170,8 @@ public:
 	/// @param numBytesTall Number of bytes in the Y direction, determines the stride in the graphic array
 	void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height = 8,
 	                          int32_t numBytesTall = 1);
+
+	void drawIcon(const Icon& icon, int32_t startX, int32_t startY);
 
 	/// Draw a screen title and underline it.
 	///

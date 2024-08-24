@@ -220,6 +220,9 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	}
 	D_PRINTLN("- current: %s", (*currentItem)->getName().data());
 	MenuItem* child = *currentItem;
+	D_PRINTLN("shift = %d", (int)Buttons::isShiftButtonPressed());
+	D_PRINTLN("sub = %d", (int)child->isSubmenu());
+	D_PRINTLN("style = %d", (int)renderingStyle());
 	if (Buttons::isShiftButtonPressed() && !child->isSubmenu() && renderingStyle() == RenderingStyle::HORIZONTAL) {
 		child->setupNumberEditor();
 		child->selectEncoderAction(offset);
@@ -228,7 +231,7 @@ void Submenu::selectEncoderAction(int32_t offset) {
 		// that would trigger for scrolling in the menu as well.
 		soundEditor.markInstrumentAsEdited();
 	}
-	if (offset > 0) {
+	else if (offset > 0) {
 		// Scan items forward, counting relevant items.
 		auto lastRelevant = currentItem;
 		do {

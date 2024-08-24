@@ -976,7 +976,10 @@ doSetup:
 					// If we're on OLED, and there's a parent menu & user has asked for horizontal menus,
 					// then we swap the parent in place of the child.
 					if (parent && display->haveOLED()
-					    && runtimeFeatureSettings.horizontalMenuSetting() != HorizontalMenuSetting::Off) {
+					    && runtimeFeatureSettings.horizontalMenuSetting() != HorizontalMenuSetting::Off
+						&& (!item || item->shortcutToHorizontalMenuAllowed())) {
+						D_PRINTLN("ITEM = %s", item->getName().data());
+						D_PRINTLN("PARENT = %s", parent->getName().data());
 						parent->focusChild(item);
 						item = parent;
 					}

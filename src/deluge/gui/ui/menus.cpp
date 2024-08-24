@@ -1331,7 +1331,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
 };
 MenuItem* parentsForSoundShortcuts[][8] = {
     {&sample0Menu,            &sample0Menu,            &sample0Menu,                   &sample0Menu,                   &sample0Menu,         &sample0Menu,           &sample0Menu,             &sample0Menu                       },
-    {&sample1Menu,            &sample1Menu,            &sample1Menu,                   &sample1Menu,                   &sample1Menu,         &sample1Menu,           &sample1Menu,             &sample0Menu                       },
+    {&sample1Menu,            &sample1Menu,            &sample1Menu,                   &sample1Menu,                   &sample1Menu,         &sample1Menu,           &sample1Menu,             &sample1Menu                       },
     {&mixerMenu,              &osc0Menu,               &osc0Menu,                      &osc0Menu,                      &osc0Menu,            &osc0Menu,              &osc0Menu,                &mixerMenu                         },
     {&mixerMenu,              &osc1Menu,               &osc1Menu,                      &osc1Menu,                      &osc1Menu,            &osc1Menu,              &osc1Menu,                &osc1Menu                          },
     {&modulator0Menu,         &modulator0Menu,         nullptr,                        nullptr,                        &modulator0Menu,      &modulator0Menu,        &modulator0Menu,          nullptr /* seqDirection */         },
