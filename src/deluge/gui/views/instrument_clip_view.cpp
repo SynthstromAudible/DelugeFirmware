@@ -1559,14 +1559,17 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 			// are we trying to enter the automation view velocity note editor
 			// by pressing audition pad + velocity shortcut?
 			if (isUIModeActive(UI_MODE_AUDITIONING) && (x == kVelocityShortcutX && y == kVelocityShortcutY)) {
-				if (automationView.inAutomationEditor()) {
-					automationView.initParameterSelection(false);
-				}
-				automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
 				Clip* clip = getCurrentClip();
-				clip->lastSelectedParamShortcutX = x;
-				clip->lastSelectedParamShortcutY = y;
-				changeRootUI(&automationView);
+				// don't enter if you're in a kit with affect entire on
+				if (!(clip->output->type == OutputType::KIT && automationView.getAffectEntire())) {
+					if (automationView.inAutomationEditor()) {
+						automationView.initParameterSelection(false);
+					}
+					automationView.automationParamType = AutomationParamType::NOTE_VELOCITY;
+					clip->lastSelectedParamShortcutX = x;
+					clip->lastSelectedParamShortcutY = y;
+					changeRootUI(&automationView);
+				}
 				return ActionResult::DEALT_WITH;
 			}
 			// otherwise let's check for another shortcut pad action
@@ -1739,6 +1742,7 @@ uint8_t InstrumentClipView::getEditPadPressXDisplayOnScreen(uint8_t yDisplay) {
 }
 
 void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom) {
+	RootUI* rootUI = getRootUI();
 
 	uint32_t squareStart = getPosFromSquare(xDisplay);
 
@@ -1883,7 +1887,9 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 					editPadPresses[i].intendedLength = newLength;
 				}
 				editPadPresses[i].deleteOnDepress = false;
-				uiNeedsRendering(this, 1 << yDisplay, 0);
+				if (rootUI == this) {
+					uiNeedsRendering(this, 1 << yDisplay, 0);
+				}
 
 				if (instrument->type == OutputType::KIT) {
 					setSelectedDrum(noteRow->drum);
@@ -2077,7 +2083,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				}
 
 				// Might need to re-render row, if it was changed
-				if (squareType == SQUARE_NEW_NOTE || squareType == SQUARE_NOTE_TAIL_MODIFIED) {
+				if (rootUI == this && (squareType == SQUARE_NEW_NOTE || squareType == SQUARE_NOTE_TAIL_MODIFIED)) {
 					uiNeedsRendering(this, whichRowsToReRender, 0);
 				}
 			}
@@ -2125,12 +2131,16 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 				noteRow->clearMPEUpUntilNextNote(modelStackWithNoteRow, squareStart, wrapEditLevel, true);
 
-				uiNeedsRendering(this, 1 << yDisplay, 0);
+				if (rootUI == this) {
+					uiNeedsRendering(this, 1 << yDisplay, 0);
+				}
 			}
 
 			// Or if not deleting...
 			else {
-				instrument->defaultVelocity = velocity;
+				if (rootUI == this) {
+					instrument->defaultVelocity = velocity;
+				}
 			}
 
 			// Close last note nudge action, if there was one - so each such action is for one consistent set of notes
