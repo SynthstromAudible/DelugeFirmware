@@ -651,7 +651,12 @@ doActualSimpleChange:
 	}
 	else if (b == Y_ENC) {
 		if (on && !Buttons::isShiftButtonPressed()) {
-			currentSong->displayCurrentRootNoteAndScaleName();
+			UI* currentUI = getCurrentUI();
+			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
+			if (!isOLEDSessionView) {
+				currentSong->displayCurrentRootNoteAndScaleName();
+			}
 		}
 	}
 	else {
@@ -930,9 +935,9 @@ midiLearnMelodicInstrumentAction:
 					if (yDisplay == selectedClipPressYDisplay && xDisplay == selectedClipPressXDisplay) {
 justEndClipPress:
 						if (sdRoutineLock) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // If in card routine, might mean it's
-							                                                     // still loading an Instrument they
-							                                                     // selected,
+							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // If in card routine, might mean
+							                                                     // it's still loading an Instrument
+							                                                     // they selected,
 						}
 						// and we don't want the loading animation or anything to get stuck onscreen
 						clipPressEnded();
@@ -947,11 +952,12 @@ justEndClipPress:
 				}
 			}
 
-			// In all other cases, then if also inside card routine, do get it to remind us after. Especially important
-			// because it could be that the user has actually pressed down on a pad, that's caused a new clip to be
-			// created and preset to load, which is still loading right now, but the uiMode hasn't been set to "holding
-			// down" yet and control hasn't been released back to the user, and this is the user releasing their press,
-			// so we definitely want to be reminded of this later after the above has happened.
+			// In all other cases, then if also inside card routine, do get it to remind us after. Especially
+			// important because it could be that the user has actually pressed down on a pad, that's caused a new
+			// clip to be created and preset to load, which is still loading right now, but the uiMode hasn't been
+			// set to "holding down" yet and control hasn't been released back to the user, and this is the user
+			// releasing their press, so we definitely want to be reminded of this later after the above has
+			// happened.
 			else {
 				if (sdRoutineLock) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -1959,29 +1965,85 @@ nothingToDisplay:
 
 /// render session view display on opening
 void SessionView::renderViewDisplay(char const* viewString) {
-	if (display->haveOLED()) {
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
-		hid::display::OLED::clearMainImage();
+	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+	hid::display::OLED::clearMainImage();
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
 #else
-		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-		yPos = yPos + 12;
+	canvas.drawStringCentred(viewString, yPos, kTextSpacingX, kTextSpacingY);
 
-		canvas.drawStringCentred(viewString, yPos, kTextSpacingX, kTextSpacingY);
-		if (!display->hasPopup()) {
-			deluge::hid::display::OLED::markChanged();
-		}
+	DEF_STACK_STRING_BUF(tempoBPM, 10);
+	lastDisplayedTempo = currentSong->calculateBPM();
+	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
+	displayTempoBPM(canvas, tempoBPM, false);
+
+#if OLED_MAIN_HEIGHT_PIXELS == 64
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 31;
+#else
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 18;
+#endif
+
+	char const* name;
+	if (currentSong->name.isEmpty()) {
+		name = "UNSAVED";
 	}
 	else {
-		display->setScrollingText(viewString);
+		name = currentSong->name.get();
 	}
+
+	int32_t textSpacingX = kTextTitleSpacingX;
+	int32_t textSpacingY = kTextTitleSizeY;
+
+	int32_t textLength = strlen(name);
+	int32_t stringLengthPixels = textLength * textSpacingX;
+	if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
+		canvas.drawStringCentred(name, yPos, textSpacingX, textSpacingY);
+	}
+	else {
+		canvas.drawString(name, 0, yPos, textSpacingX, textSpacingY);
+		deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos, yPos + textSpacingY,
+		                                              textSpacingX, textSpacingY, false);
+	}
+
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
+
+	DEF_STACK_STRING_BUF(rootNoteAndScaleName, 40);
+	currentSong->getCurrentRootNoteAndScaleName(rootNoteAndScaleName);
+	displayCurrentRootNoteAndScaleName(canvas, rootNoteAndScaleName, false);
+
+	deluge::hid::display::OLED::markChanged();
 }
 
-// This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to happen.
+void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM,
+                                  bool clearArea) {
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
+
+	if (clearArea) {
+		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * 5), OLED_MAIN_TOPMOST_PIXEL,
+		                      OLED_MAIN_WIDTH_PIXELS, yPos + kTextSpacingY);
+	}
+
+	canvas.drawStringAlignRight(tempoBPM.c_str(), yPos, kTextSpacingX, kTextSpacingY);
+}
+
+void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                                     StringBuf& rootNoteAndScaleName, bool clearArea) {
+
+	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
+
+	if (clearArea) {
+		canvas.clearAreaExact(0, yPos, OLED_MAIN_WIDTH_PIXELS, yPos + kTextSpacingY);
+	}
+
+	canvas.drawString(rootNoteAndScaleName.c_str(), 0, yPos, kTextSpacingX, kTextSpacingY);
+}
+
+// This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to
+// happen.
 void SessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
@@ -2045,7 +2107,8 @@ ramError:
 		newIndex = currentSong->sessionClips.getNumElements();
 	}
 
-	currentSong->sessionClips.insertClipAtIndex(newClip, newIndex); // Can't fail - we ensured enough space in advance
+	currentSong->sessionClips.insertClipAtIndex(newClip,
+	                                            newIndex); // Can't fail - we ensured enough space in advance
 
 	redrawClipsOnScreen();
 }
@@ -2074,6 +2137,10 @@ void SessionView::graphicsRoutine() {
 
 	if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 		PadLEDs::sendOutSidebarColours();
+	}
+
+	if (display->haveOLED()) {
+		displayPotentialTempoChange(this);
 	}
 
 	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
@@ -2218,6 +2285,20 @@ void SessionView::graphicsRoutine() {
 	}
 
 	PadLEDs::setTickSquares(tickSquares, colours);
+}
+
+// checks if tempo has changed since it was last rendered on the display and updates it if required
+void SessionView::displayPotentialTempoChange(UI* ui) {
+	// check UI in case graphics routine is called while we're in another UI (e.g. menu)
+	if (getCurrentUI() == ui) {
+		float tempo = currentSong->calculateBPM();
+		if (tempo != lastDisplayedTempo) {
+			DEF_STACK_STRING_BUF(tempoBPM, 10);
+			playbackHandler.getTempoStringForOLED(tempo, tempoBPM);
+			displayTempoBPM(deluge::hid::display::OLED::main, tempoBPM, true);
+			deluge::hid::display::OLED::markChanged();
+		}
+	}
 }
 
 /// display number of bars or quarter notes remaining until a launch event

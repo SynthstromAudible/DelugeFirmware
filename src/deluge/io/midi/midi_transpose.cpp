@@ -1,8 +1,10 @@
 #include "midi_transpose.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/session_view.h"
 #include "hid/display/display.h"
 #include "midi_device.h"
 #include "model/clip/instrument_clip.h"
@@ -62,6 +64,15 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 	else {
 		// off events tracked, in future can track
 		// held notes in a chord.
+	}
+
+	UI* currentUI = getCurrentUI();
+	bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+	if (isOLEDSessionView) {
+		if (currentSong->key.rootNote != sessionView.lastDisplayedRootNote) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+			sessionView.lastDisplayedRootNote = currentSong->key.rootNote;
+		}
 	}
 }
 
