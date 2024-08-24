@@ -47,10 +47,12 @@ use the TRACK menu to select the specific track to record from
   - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`  
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 - Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
+- Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
+- Changed the behaviour of the `PLAY` button while in `ARRANGER VIEW` with `CROSS SCREEN AUTO SCROLL MODE` active. Pressing `PLAY` while playback is off will now start playback from the current scroll position.
 
 ### Keyboard View Improvements
 
-- New `CHORD` keyboard layout. `CHORD` keyboard is split up into columns of chords, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard.
+- New `CHORD LIBRARY` keyboard layout. `CHORD LIBRARY` keyboard is a library of chords split up into columns, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD LIBRARY` keyboard.
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.

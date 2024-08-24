@@ -394,7 +394,12 @@ doActualSimpleChange:
 
 	else if (b == Y_ENC) {
 		if (on && !Buttons::isShiftButtonPressed()) {
-			currentSong->displayCurrentRootNoteAndScaleName();
+			UI* currentUI = getCurrentUI();
+			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
+			if (!isOLEDSessionView) {
+				currentSong->displayCurrentRootNoteAndScaleName();
+			}
 		}
 	}
 
@@ -3047,6 +3052,10 @@ void ArrangerView::graphicsRoutine() {
 
 	if (view.potentiallyRenderVUMeter(PadLEDs::image)) {
 		PadLEDs::sendOutSidebarColours();
+	}
+
+	if (display->haveOLED()) {
+		sessionView.displayPotentialTempoChange(this);
 	}
 
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {

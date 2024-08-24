@@ -784,7 +784,7 @@
         "STRING_FOR_PAD_SELECTION_OFF": "Pad Selection Off",
         "STRING_FOR_PAD_SELECTION_ON": "Pad Selection On",
 
-        "STRING_FOR_PERFORM_VIEW": "Performance View",
+        "STRING_FOR_PERFORM_VIEW": "Performance",
         "STRING_FOR_PERFORM_FX": "Perform FX",
         "STRING_FOR_PERFORM_EDITOR": "Editing Mode",
         "STRING_FOR_PERFORM_EDIT_PARAM": "Param",
@@ -794,9 +794,9 @@
 
         "STRING_FOR_MIDILOOPBACK": "MIDI Loopback",
 
-        "STRING_FOR_SONG_VIEW": "Song View",
+        "STRING_FOR_SONG_VIEW": "Song",
 
-        "STRING_FOR_ARRANGER_VIEW": "Arranger View",
+        "STRING_FOR_ARRANGER_VIEW": "Arranger",
 
         "STRING_FOR_KIT_GLOBAL_FX": "Kit FX",
         "STRING_FOR_PITCH": "Pitch",
@@ -850,7 +850,7 @@
         "STRING_FOR_STOP_EXPORT_STEMS": "Export Cancelled",
         "STRING_FOR_DONE_EXPORT_STEMS": "Export Done!",
 
-        "STRING_FOR_KEYBOARD_VIEW_CANT_ENTER_SCALE": "Can't enter scale mode, not supported by this keyboard view",
+        "STRING_FOR_KEYBOARD_VIEW_CANT_ENTER_SCALE": "Can't enter scale mode in this keyboard view",
 
         "STRING_FOR_CONFIGURE_SONG_MACROS": "Configure Macros",
         "STRING_FOR_CONFIGURE_SONG_MACROS_SHORT": "Config Macros",
@@ -861,7 +861,7 @@
         "STRING_FOR_SONG_MACRO_KIND_NONE": "Kind: None",
 
         "STRING_FOR_ACTIONS": "Actions",
-        "STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH": "Set Clip Length Equal to Sample Length", 
-        "STRING_FOR_CLIP_LENGTH_ADJUSTED": "Clip Length Adjusted"       
+        "STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH": "Set Clip Length Equal to Sample Length",
+        "STRING_FOR_CLIP_LENGTH_ADJUSTED": "Clip Length Adjusted"
     }
 }

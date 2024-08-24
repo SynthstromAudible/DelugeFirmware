@@ -22,6 +22,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -30,6 +31,7 @@
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -289,13 +291,16 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	decideOnCurrentPlaybackMode(); // Must be done up here - we reference currentPlaybackMode a bit below
 
 	// Allow playback to start from current scroll if holding down <> knob
+	// or if you're in arranger view and in cross screen auto scrolling mode
 	int32_t newPos = 0;
+	RootUI* rootUI = getRootUI();
+	bool isArrangerView = rootUI == &arrangerView;
 	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)
-	    || (getRootUI() == &arrangerView && recording == RecordingMode::NORMAL)) {
+	    || (isArrangerView && (recording == RecordingMode::NORMAL || currentSong->arrangerAutoScrollModeActive))) {
 
 		int32_t navSys;
-		if (getRootUI()) {
-			if (auto* timelineView = getRootUI()->toTimelineView()) {
+		if (rootUI) {
+			if (auto* timelineView = rootUI->toTimelineView()) {
 				navSys = timelineView->getNavSysId();
 			}
 		}
@@ -315,8 +320,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	// See if we want a count-in
 	if (allowCountIn && !doingTempolessRecord && recording == RecordingMode::NORMAL && countInBars
-	    && (!currentUIMode || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
-	    && getCurrentUI() == getRootUI()) {
+	    && (!currentUIMode || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) && getCurrentUI() == rootUI) {
 
 		ticksLeftInCountIn = currentSong->getBarLength() * countInBars;
 		currentVisualCountForCountIn = 0; // Reset it. In a moment it'll display as 4 - 12.
@@ -2049,7 +2053,9 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	// Otherwise, change tempo
 	else {
 		if (!isExternalClockActive()) {
-			if (display->hasPopupOfType(PopupType::TEMPO)) {
+			UI* currentUI = getCurrentUI();
+			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			if (display->hasPopupOfType(PopupType::TEMPO) || isOLEDSessionView) {
 				// Truth table for how we decide between adjusting coarse and fine tempo:
 				//
 				// Setting | Button | Mode
@@ -2205,18 +2211,32 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 	return currentSong->calculateBPM();
 }
 
+void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
+	if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
+		buffer.append("FAST");
+	}
+	else {
+		buffer.appendFloat(tempoBPM, 1, 1);
+	}
+}
+
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	// The 7-seg needs to work so much harder there's no point trying to share the code.
 	DEF_STACK_STRING_BUF(text, 27);
 	if (display->haveOLED()) {
-		text.append("Tempo: ");
-		if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
-			text.append("FAST");
+		UI* currentUI = getCurrentUI();
+		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
+		if (currentUI == &sessionView || currentUI == &arrangerView) {
+			sessionView.lastDisplayedTempo = tempoBPM;
+			getTempoStringForOLED(tempoBPM, text);
+			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
+			deluge::hid::display::OLED::markChanged();
 		}
 		else {
-			text.appendFloat(tempoBPM, 0, 3);
+			text.append("Tempo: ");
+			getTempoStringForOLED(tempoBPM, text);
+			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 		}
-		display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 	}
 	else {
 		if (tempoBPM >= 9999.5) {
