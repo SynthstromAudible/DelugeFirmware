@@ -444,6 +444,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD, "Launch Event Playhead"},
         {STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD, "Chord Keyboard"},
         {STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR, "Alternative Playback Start Behaviour"},
+        {STRING_FOR_COMMUNITY_FEATURE_ACCESSIBILITY_SHORTCUTS, "Accessibility Shortcuts"},
+        {STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, "Grid View Loop Layer Pads"},
         {STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION, "Track still has clips in session"},
         {STRING_FOR_DELETE_ALL_TRACKS_CLIPS_FIRST, "Delete all track's clips first"},
         {STRING_FOR_CANT_DELETE_FINAL_CLIP, "Can't delete final Clip"},

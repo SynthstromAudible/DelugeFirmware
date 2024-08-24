@@ -55,6 +55,9 @@ use the TRACK menu to select the specific track to record from
 - Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
   - With playback off, pressing `PLAY` will start playback from the current grid scroll position
   - With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
+- Added community feature toggle `Accessibility Shortcuts (ACCE)` to make specific shortcut combinations more accessible for users with mobility restrictions.
+  - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
+- Added community feature toggle `Grid View Loop Pads (LOOP)` to illuminate two pads (Red and Magenta) in the `GRID VIEW` sidebar for triggering the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
 
 ### Keyboard View Improvements
 
