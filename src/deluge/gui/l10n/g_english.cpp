@@ -778,7 +778,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_STOP_EXPORT_STEMS_QMARK, "Cancel Export?"},
         {STRING_FOR_STOP_EXPORT_STEMS, "Export Cancelled"},
         {STRING_FOR_DONE_EXPORT_STEMS, "Export Done!"},
-        {STRING_FOR_KEYBOARD_VIEW_CANT_ENTER_SCALE, "Can't enter scale mode, not supported by this keyboard view"},
+        {STRING_FOR_KEYBOARD_VIEW_CANT_ENTER_SCALE, "Can't enter scale mode in this keyboard view"},
         {STRING_FOR_CONFIGURE_SONG_MACROS, "Configure Macros"},
         {STRING_FOR_CONFIGURE_SONG_MACROS_SHORT, "Config Macros"},
         {STRING_FOR_CONFIGURE_SONG_MACROS_EXIT, "OK"},
