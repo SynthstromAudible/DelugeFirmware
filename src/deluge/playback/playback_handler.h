@@ -224,9 +224,11 @@ public:
 	void commandEditTempoCoarse(int8_t offset);
 	void commandEditTempoFine(int8_t offset);
 	void commandDisplayTempo(int8_t offset);
-
 	void commandClearTempoAutomation();
+
 	void getTempoStringForOLED(float tempoBPM, StringBuf& buffer);
+
+	void tryLoopCommand(GlobalMIDICommand command);
 
 private:
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);

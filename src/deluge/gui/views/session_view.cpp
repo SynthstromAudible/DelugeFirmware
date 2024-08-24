@@ -3108,6 +3108,10 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 	bool modeExists = true;
 	bool modeActive = false;
 	RGB modeColour = colours::black;
+
+	bool enableLoopPads =
+	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGridViewLoopPads) == RuntimeFeatureStateToggle::On;
+
 	switch (y) {
 	case GridMode::GREEN: {
 		modeActive = (gridModeActive == SessionGridModeLaunch);
@@ -3119,9 +3123,23 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 		modeColour = colours::blue; // Blue
 		break;
 	}
+	case GridMode::RED: {
+		if (enableLoopPads) {
+			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, RED);
+			modeColour = colours::red; // Red
+		}
+		break;
+	}
+	case GridMode::MAGENTA: {
+		if (enableLoopPads) {
+			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, MAGENTA);
+			modeColour = colours::magenta; // Magenta
+		}
+		break;
+	}
 	case GridMode::PINK: {
 		modeActive = performanceSessionView.gridModeActive;
-		modeColour = colours::magenta; // Pink
+		modeColour = colours::pastel::pink; // Pink
 	}
 
 	default: {
@@ -3671,6 +3689,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		if (on) {
 			clipPressEnded();
 			gridActiveModeUsed = false;
+			bool enableLoopPads = runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGridViewLoopPads)
+			                      == RuntimeFeatureStateToggle::On;
 			switch (y) {
 			case GridMode::GREEN: {
 				gridModeActive = SessionGridModeLaunch;
@@ -3678,6 +3698,18 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			}
 			case GridMode::BLUE: {
 				gridModeActive = SessionGridModeEdit;
+				break;
+			}
+			case GridMode::RED: {
+				if (enableLoopPads) {
+					playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP);
+				}
+				break;
+			}
+			case GridMode::MAGENTA: {
+				if (enableLoopPads) {
+					playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING);
+				}
 				break;
 			}
 			case GridMode::PINK: {

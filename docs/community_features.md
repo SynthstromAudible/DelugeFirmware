@@ -1202,6 +1202,8 @@ list of all options as listed in OLED and 7SEG displays and what they do:
 * `Accessibility Shortcuts (ACCE)`
     * When On, the following shortcut combinations are changed in favour more accessible shortcut combinations for users with mobility restrictions:
       * `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
+* `Grid View Loop Pads (LOOP)`
+    * When On, two pads (Red and Magenta) in the `GRID VIEW` sidebar will be illuminated and enable you to trigger the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
 
 ## 6. Sysex Handling
 
