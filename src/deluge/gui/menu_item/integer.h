@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "hid/display/oled.h"
 #include "number.h"
 
 namespace deluge::gui::menu_item {
@@ -25,6 +26,7 @@ class Integer : public Number {
 public:
 	using Number::Number;
 	void selectEncoderAction(int32_t offset) override;
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 
 protected:
 	virtual int32_t getDisplayValue() { return this->getValue(); }

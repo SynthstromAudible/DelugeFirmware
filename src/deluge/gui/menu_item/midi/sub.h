@@ -21,8 +21,8 @@ namespace deluge::gui::menu_item::midi {
 class Sub final : public Preset {
 public:
 	using Preset::Preset;
-	void readCurrentValue() { this->setValue(getCurrentInstrumentClip()->midiSub); }
-	void writeCurrentValue() {
+	void readCurrentValue() override { this->setValue(getCurrentInstrumentClip()->midiSub); }
+	void writeCurrentValue() override {
 		auto& currentClip = *getCurrentInstrumentClip();
 		currentClip.midiSub = this->getValue();
 		if (currentClip.isActiveOnOutput()) {

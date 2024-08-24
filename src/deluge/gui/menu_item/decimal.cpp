@@ -27,20 +27,24 @@
 #include "util/cfunctions.h"
 #include "util/functions.h"
 
+#include "io/debug/log.h"
+
 namespace deluge::gui::menu_item {
 
 void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
-	soundEditor.numberScrollAmount = 0;
-	soundEditor.numberEditPos = getDefaultEditPos();
-	soundEditor.numberEditSize = 1;
-
-	for (int32_t i = 0; i < soundEditor.numberEditPos; i++) {
-		soundEditor.numberEditSize *= 10;
-	}
-
+	setupNumberEditor();
 	readCurrentValue();
 	scrollToGoodPos();
 	drawValue();
+}
+
+void Decimal::setupNumberEditor() {
+	soundEditor.numberScrollAmount = 0;
+	soundEditor.numberEditPos = getDefaultEditPos();
+	soundEditor.numberEditSize = 1;
+	for (int32_t i = 0; i < soundEditor.numberEditPos; i++) {
+		soundEditor.numberEditSize *= 10;
+	}
 }
 
 void Decimal::drawValue() {
@@ -189,6 +193,40 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	                 true,   // doBlink
 	                 blinkMask,
 	                 false); // blinkImmediately
+}
+
+// TODO: pretty-much identical with PatchCableStrenth version
+void Decimal::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	std::string_view name = getName();
+	size_t len = std::min((size_t)(width / kTextSpacingX), name.size());
+	// If we can fit the whole name, we do, if we can't we chop one letter off. It just looks and
+	// feels better, at least with the names we have now.
+	if (name.size() > len) {
+		len -= 1;
+	}
+	std::string_view shortName(name.data(), len);
+	image.drawString(shortName, startX, startY, kTextSpacingX, kTextSpacingY, 0, startX + width);
+
+	DEF_STACK_STRING_BUF(paramValue, 10);
+	float value = getValue() / (float)getEditorScale();
+	if (isDisabledBelowZero() && value < 0) {
+		paramValue.append("OFF");
+	}
+	else {
+		int32_t d = getNumDecimalPlaces();
+		paramValue.appendFloat(value, d, d);
+	}
+	int32_t pxLen;
+	// Trim characters from the end until it fits.
+	while ((pxLen = image.getStringWidthInPixels(paramValue.c_str(), kTextTitleSizeY)) >= width) {
+		paramValue.data()[paramValue.size() - 1] = 0;
+	}
+	// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
+	int32_t pad = (width + 1 - pxLen) / 2;
+	image.drawString(paramValue.c_str(), startX + pad, startY + kTextSpacingY + 2, kTextTitleSpacingX, kTextTitleSizeY,
+	                 0, startX + width);
 }
 
 } // namespace deluge::gui::menu_item

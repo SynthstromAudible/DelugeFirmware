@@ -77,6 +77,25 @@ static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, deluge
 	};
 }
 
+static void SetupHorizontalMenuSetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
+                                       std::string_view xmlName, HorizontalMenuSetting def) {
+	setting.displayName = displayName;
+	setting.xmlName = xmlName;
+	setting.value = util::to_underlying(def);
+
+	bool oled = display->haveOLED();
+	setting.options = {
+	    {
+	        .displayName = "OFF",
+	        .value = util::to_underlying(HorizontalMenuSetting::Off),
+	    },
+	    {
+	        .displayName = "ON",
+	        .value = util::to_underlying(HorizontalMenuSetting::On),
+	    },
+	};
+}
+
 static void SetupEmulatedDisplaySetting(RuntimeFeatureSetting& setting, deluge::l10n::String displayName,
                                         std::string_view xmlName, RuntimeFeatureStateEmulatedDisplay def) {
 	setting.displayName = displayName;
@@ -180,6 +199,10 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DisplayChordKeyboard],
 	                  STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD, "displayChordKeyboard",
 	                  RuntimeFeatureStateToggle::Off);
+
+	SetupHorizontalMenuSetting(settings[RuntimeFeatureSettingType::HorizontalMenus],
+	                           STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, "enableHorizontalMenus",
+	                           HorizontalMenuSetting::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {

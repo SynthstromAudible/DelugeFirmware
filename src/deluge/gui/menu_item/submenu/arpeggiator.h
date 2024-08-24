@@ -23,15 +23,15 @@
 
 namespace deluge::gui::menu_item::submenu {
 
-class Arpeggiator final : public Submenu {
+class Arpeggiator final : public HorizontalMenu {
 public:
-	using Submenu::Submenu;
+	using HorizontalMenu::HorizontalMenu;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 
 		soundEditor.currentArpSettings = soundEditor.editingKit()
 		                                     ? &(static_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
 		                                     : &getCurrentInstrumentClip()->arpSettings;
-		Submenu::beginSession(navigatedBackwardFrom);
+		HorizontalMenu::beginSession(navigatedBackwardFrom);
 	}
 };
 

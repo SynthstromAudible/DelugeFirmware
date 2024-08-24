@@ -28,6 +28,7 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             MultiRange** currentRange) override;
+	bool shortcutToHorizontalMenuAllowed() const override { return false; }
 };
 
 extern FileSelector fileSelectorMenu;

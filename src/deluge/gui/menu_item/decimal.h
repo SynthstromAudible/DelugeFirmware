@@ -27,6 +27,10 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int32_t offset) final;
 	void horizontalEncoderAction(int32_t offset) override;
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+	void setupNumberEditor() override;
+	/// How getValue() relates to displayed number? Default is divide by 100.
+	[[nodiscard]] virtual int32_t getEditorScale() const { return 100; }
 
 protected:
 	void drawValue() override;

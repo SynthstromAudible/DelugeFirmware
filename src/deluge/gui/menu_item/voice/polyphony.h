@@ -76,6 +76,8 @@ public:
 		}
 	}
 
+	bool wrapAround() override { return true; }
+
 	deluge::vector<std::string_view> getOptions() override {
 		deluge::vector<std::string_view> options = {
 		    l10n::getView(l10n::String::STRING_FOR_AUTO),

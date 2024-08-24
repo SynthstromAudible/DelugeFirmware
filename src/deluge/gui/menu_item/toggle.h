@@ -21,6 +21,8 @@ public:
 	// renders toggle item type in submenus after the item name
 	void renderSubmenuItemTypeForOled(int32_t yPixel) override;
 
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+
 	// toggles boolean ON / OFF
 	void toggleValue() {
 		readCurrentValue();

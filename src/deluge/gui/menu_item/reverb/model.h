@@ -21,5 +21,7 @@ public:
 		    l10n::getView(STRING_FOR_MUTABLE),
 		};
 	}
+
+	bool wrapAround() override { return true; }
 };
 } // namespace deluge::gui::menu_item::reverb

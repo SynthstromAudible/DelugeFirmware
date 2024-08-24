@@ -17,7 +17,7 @@ pulse_width = Menu(
     "pulseWidthMenu",
     ["{name}", "{title}", "params::LOCAL_OSC_A_PHASE_WIDTH"],
     "oscillator/pulse_width.md",
-    name="STRING_FOR_PULSE_WIDTH",
+    name="STRING_FOR_PW",
     title="STRING_FOR_OSC_P_WIDTH_MENU_TITLE",
     available_when="Voice is in subtractive or ring-mod mode and oscillator is not in a sample or input monitoring mode",
 )
@@ -27,7 +27,8 @@ sync = Menu(
     "oscSyncMenu",
     ["{name}"],
     "oscillator/sync.md",
-    name="STRING_FOR_OSCILLATOR_SYNC",
+    name="STRING_FOR_SYNC",
+    title="STRING_FOR_OSCILLATOR_SYNC",
     available_when="Voice is in subtractive or ring-mod mode and oscillator 1 is in a synthesis mode.",
 )
 
@@ -36,7 +37,7 @@ retrigger_phase = Menu(
     "oscPhaseMenu",
     ["{name}", "{title}", "false"],
     "oscillator/retrigger_phase.md",
-    name="STRING_FOR_RETRIGGER_PHASE",
+    name="STRING_FOR_PHASE",
     title="STRING_FOR_OSC_R_PHASE_MENU_TITLE",
     available_when="Voice is in FM mode, or the oscillator is not in sample mode",
 )
@@ -44,29 +45,39 @@ retrigger_phase = Menu(
 menus = [
     Submenu(
         "submenu::ActualSource",
-        f"source{i}Menu",
+        f"osc{i}Menu",
         ["{name}", "%%CHILDREN%%", str(i)],
         "oscillator/index.md",
         [
             ty,
-            source.volume,
             source.wave_index,
             source.feedback,
-            file_selector.with_context("oscillator/file_browser.md"),
-            sample.recorder,
-            sample.reverse,
-            sample.repeat,
-            sample.start,
-            sample.end,
             sample.transpose,
-            sample.pitch_speed,
-            sample.timestretch,
-            sample.interpolation,
             pulse_width,
-            sync,
             retrigger_phase,
+            sync,
         ],
         name=f"STRING_FOR_OSCILLATOR_{i+1}",
+    )
+    for i in range(2)
+] + [
+    Submenu(
+        "submenu::ActualSource",
+        f"sample{i}Menu",
+        ["{name}", "%%CHILDREN%%", str(i)],
+        "oscillator/index.md",
+        [
+            sample.repeat,
+            sample.reverse,
+            sample.timestretch,
+            sample.pitch_speed,
+            sample.interpolation,
+            file_selector.with_context("oscillator/file_browser.md"),
+            sample.recorder,
+            sample.start,
+            sample.end,
+        ],
+        name=f"STRING_FOR_SAMPLE_{i+1}",
     )
     for i in range(2)
 ]

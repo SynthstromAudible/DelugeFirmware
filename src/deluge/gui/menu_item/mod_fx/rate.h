@@ -15,15 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/formatted_title.h"
-#include "gui/menu_item/source/patched_param.h"
+#include "gui/menu_item/unpatched_param.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 
-namespace deluge::gui::menu_item::envelope {
-class Segment : public source::PatchedParam, public FormattedTitle {
+namespace deluge::gui::menu_item::mod_fx {
+class Rate final : public UnpatchedParam {
 public:
-	Segment(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+	using UnpatchedParam::UnpatchedParam;
 
-	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+		return modControllable->getModFXType() != ModFXType::NONE;
+	}
 };
-} // namespace deluge::gui::menu_item::envelope
+} // namespace deluge::gui::menu_item::mod_fx

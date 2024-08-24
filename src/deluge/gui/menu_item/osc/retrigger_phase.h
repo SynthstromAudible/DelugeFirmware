@@ -22,6 +22,8 @@
 #include "hid/display/oled.h"
 #include "processing/sound/sound.h"
 
+#include "io/debug/log.h"
+
 namespace deluge::gui::menu_item::osc {
 class RetriggerPhase final : public Decimal, public FormattedTitle {
 public:
@@ -34,6 +36,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 360; }
 	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
 	[[nodiscard]] int32_t getDefaultEditPos() const override { return 1; }
+	[[nodiscard]] int32_t getEditorScale() const override { return 1; }
 
 	void readCurrentValue() override {
 		uint32_t value = *getValueAddress();
@@ -80,6 +83,8 @@ public:
 			Decimal::horizontalEncoderAction(offset);
 		}
 	}
+
+	bool isDisabledBelowZero() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);

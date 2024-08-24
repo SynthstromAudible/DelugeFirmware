@@ -21,13 +21,13 @@
 extern void setModulatorNumberForTitles(int32_t);
 
 namespace deluge::gui::menu_item::submenu {
-class Modulator final : public SubmenuReferringToOneThing {
+class Modulator final : public HorizontalMenuReferringToOneThing {
 public:
-	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
+	using HorizontalMenuReferringToOneThing::HorizontalMenuReferringToOneThing;
 
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		setModulatorNumberForTitles(this->thingIndex);
-		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
+		HorizontalMenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {

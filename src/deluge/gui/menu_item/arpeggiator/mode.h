@@ -59,12 +59,14 @@ public:
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_OFF), //<
-		    l10n::getView(STRING_FOR_ARP), //<
+		    l10n::getView(STRING_FOR_ON),  //<
 		};
 	}
 
 	// flag this selection menu as a toggle menu so we can use a checkbox to toggle value
 	bool isToggle() override { return true; }
+
+	bool wrapAround() override { return true; }
 
 	// don't enter menu on select button press
 	bool shouldEnterSubmenu() override { return false; }

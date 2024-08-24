@@ -23,6 +23,12 @@
 #include <cstring>
 #include <string_view>
 
+struct Icon {
+	uint8_t width;
+	uint8_t height;
+	const uint8_t* image;
+};
+
 namespace deluge::hid::display {
 class OLED;
 
@@ -165,6 +171,8 @@ public:
 	void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height = 8,
 	                          int32_t numBytesTall = 1);
 
+	void drawIcon(const Icon& icon, int32_t startX, int32_t startY);
+
 	/// Draw a screen title and underline it.
 	///
 	/// @param text Title text
@@ -177,6 +185,8 @@ public:
 	/// @param startY Minimum Y coordinate, inclusive
 	/// @param endY Maximum Y coordinate, inclusive
 	void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
+
+	void invertAreaOfSubstring(const char* string, size_t start, size_t len, int32_t startY, int32_t endY);
 
 	/// @}
 

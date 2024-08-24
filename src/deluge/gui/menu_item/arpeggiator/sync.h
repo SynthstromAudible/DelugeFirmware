@@ -22,11 +22,11 @@ namespace deluge::gui::menu_item::arpeggiator {
 class Sync final : public SyncLevel {
 public:
 	using SyncLevel::SyncLevel;
-	void readCurrentValue() {
+	void readCurrentValue() override {
 		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentArpSettings->syncType,
 		                                            soundEditor.currentArpSettings->syncLevel));
 	}
-	void writeCurrentValue() {
+	void writeCurrentValue() override {
 		soundEditor.currentArpSettings->syncType = syncValueToSyncType(this->getValue());
 		soundEditor.currentArpSettings->syncLevel = syncValueToSyncLevel(this->getValue());
 	}

@@ -28,6 +28,7 @@ public:
 	using Enumeration::Enumeration;
 
 	virtual deluge::vector<std::string_view> getOptions() = 0;
+	virtual deluge::vector<std::string_view> getShortOptions() { return getOptions(); };
 
 	void drawValue() override;
 
@@ -80,5 +81,7 @@ public:
 			return 255;
 		}
 	}
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 };
 } // namespace deluge::gui::menu_item

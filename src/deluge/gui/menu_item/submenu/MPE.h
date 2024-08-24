@@ -26,7 +26,7 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		// not relevant for cv currently
 		const auto type = getCurrentOutputType();
-		return (type == OutputType::MIDI_OUT);
+		return (type == OutputType::MIDI_OUT) && Submenu::isRelevant(modControllable, whichThing);
 	}
 };
 

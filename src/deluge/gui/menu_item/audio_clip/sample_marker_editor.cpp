@@ -19,6 +19,7 @@
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
+#include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"

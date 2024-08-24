@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2017-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,26 +14,31 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+
 #pragma once
-#include "gui/menu_item/patched_param/integer_non_fm.h"
+
+#include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
-#include "modulation/patch/patch_cable_set.h"
+#include "menu_item.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "util/containers.h"
+#include <initializer_list>
+#include <span>
 
-namespace deluge::gui::menu_item::filter {
+namespace deluge::gui::menu_item {
 
-class HPFFreq final : public patched_param::Integer {
+class HorizontalMenu : public Submenu {
 public:
-	using patched_param::Integer::Integer;
-	// 7Seg ONLY
-	void drawValue() override {
-		if (this->getValue() == kMinMenuValue
-		    && !soundEditor.currentParamManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(
-		        deluge::modulation::params::LOCAL_HPF_FREQ)) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED));
+	using Submenu::Submenu;
+	RenderingStyle renderingStyle() override {
+		auto setting = runtimeFeatureSettings.horizontalMenuSetting();
+		if (setting == HorizontalMenuSetting::On) {
+			return RenderingStyle::HORIZONTAL;
 		}
 		else {
-			patched_param::Integer::drawValue();
+			return RenderingStyle::VERTICAL;
 		}
 	}
 };
-} // namespace deluge::gui::menu_item::filter
+
+} // namespace deluge::gui::menu_item

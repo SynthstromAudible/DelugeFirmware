@@ -14,7 +14,7 @@ public:
 	virtual size_t size() = 0;
 	/// @brief  Should this menu wrap around? Destined to be virtualized and moved higher
 	/// in the class hierarchy.
-	bool wrapAround();
+	virtual bool wrapAround() { return false; }
 
 protected:
 	virtual void drawPixelsForOled() override = 0;

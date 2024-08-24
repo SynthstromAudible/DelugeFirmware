@@ -52,4 +52,52 @@ void SyncLevel::drawPixelsForOled() {
 int32_t SyncLevel::syncTypeAndLevelToMenuOption(::SyncType type, ::SyncLevel level) {
 	return static_cast<int32_t>(type) + (static_cast<int32_t>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));
 }
+
+void SyncLevel::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) {
+	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+
+	// Render item name
+
+	std::string_view name = getName();
+	size_t nameLen = std::min((size_t)(width / kTextSpacingX), name.size());
+	// If we can fit the whole name, we do, if we can't we chop one letter off. It just looks and
+	// feels better, at least with the names we have now.
+	if (name.size() > nameLen) {
+		nameLen -= 1;
+	}
+	DEF_STACK_STRING_BUF(shortName, 10);
+	for (uint8_t p = 0; p < nameLen; p++) {
+		shortName.append(name[p]);
+	}
+	image.drawString(shortName.c_str(), startX, startY, kTextSpacingX, kTextSpacingY, 0, startX + width);
+
+	// Render current value
+
+	char const* text = l10n::get(l10n::String::STRING_FOR_OFF);
+	DEF_STACK_STRING_BUF(shortOpt, 6);
+	int32_t pxLen;
+	if (this->getValue() != 0) {
+		DEF_STACK_STRING_BUF(opt, 30);
+		getNoteLengthName(opt);
+		// Grab 6-char prefix with spaces removed.
+		for (uint8_t p = 0; p < opt.size() && shortOpt.size() < shortOpt.capacity(); p++) {
+			if (opt.data()[p] != ' ' && opt.data()[p] != '-') {
+				shortOpt.append(opt.data()[p]);
+			}
+		}
+		// Trim characters from the end until it fits.
+		while ((pxLen = image.getStringWidthInPixels(shortOpt.c_str(), kTextTitleSizeY)) >= width) {
+			shortOpt.data()[shortOpt.size() - 1] = 0;
+		}
+		text = shortOpt.data();
+	}
+	else {
+		pxLen = image.getStringWidthInPixels(text, kTextTitleSizeY);
+	}
+	// Padding to center the string. If we can't center exactly, 1px right is better than 1px left.
+	int32_t pad = (width + 1 - pxLen) / 2;
+	image.drawString(text, startX + pad, startY + kTextSpacingY + 2, kTextTitleSpacingX, kTextTitleSizeY, 0,
+	                 startX - pad + width);
+}
+
 } // namespace deluge::gui::menu_item

@@ -21,15 +21,15 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::submenu {
-class Sidechain final : public Submenu {
+class Sidechain final : public deluge::gui::menu_item::HorizontalMenu {
 public:
 	Sidechain(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems,
 	          bool newForReverbSidechain)
-	    : Submenu(newName, title, newItems), forReverbSidechain(newForReverbSidechain) {}
+	    : HorizontalMenu(newName, title, newItems), forReverbSidechain(newForReverbSidechain) {}
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 		soundEditor.currentSidechain =
 		    forReverbSidechain ? &AudioEngine::reverbSidechain : &soundEditor.currentSound->sidechain;
-		Submenu::beginSession(navigatedBackwardFrom);
+		HorizontalMenu::beginSession(navigatedBackwardFrom);
 	}
 
 	bool forReverbSidechain;

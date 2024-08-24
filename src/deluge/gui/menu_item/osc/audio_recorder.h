@@ -58,5 +58,6 @@ public:
 
 		return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
 	}
+	bool shortcutToHorizontalMenuAllowed() const override { return false; }
 };
 } // namespace deluge::gui::menu_item::osc

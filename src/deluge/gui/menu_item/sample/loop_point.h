@@ -31,6 +31,7 @@ public:
 	bool isRangeDependent() final { return true; }
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) final;
+	bool shortcutToHorizontalMenuAllowed() const override { return false; }
 
 	int32_t xZoom;
 	int32_t xScroll;

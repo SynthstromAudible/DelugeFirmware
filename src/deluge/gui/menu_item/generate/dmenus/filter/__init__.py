@@ -2,8 +2,9 @@ from dmui.dsl import *
 from . import lpf
 from . import hpf
 
+# TODO: remove?
 routing = Menu(
-    "FilterRouting",
+    "FilterRoutingMenu",
     "filterRoutingMenu",
     ["{title}"],
     "filter/routing.md",

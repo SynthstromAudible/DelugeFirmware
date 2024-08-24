@@ -15,14 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "processing/sound/sound.h"
 
+#include <cstdint>
+
 namespace deluge::gui::menu_item {
-class FilterRouting final : public Selection {
+class FilterRoutingMenu final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue<::FilterRoute>(soundEditor.currentModControllable->filterRoute); }
@@ -36,5 +40,9 @@ public:
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
 	}
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
+
+protected:
+	bool wrapAround() override { return true; }
 };
 } // namespace deluge::gui::menu_item

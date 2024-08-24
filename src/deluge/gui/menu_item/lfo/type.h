@@ -33,6 +33,8 @@ public:
 		// would be enough?
 		soundEditor.currentSound->resyncGlobalLFO();
 	}
+	bool wrapAround() override { return true; }
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 
 private:
 	uint8_t lfoId_;

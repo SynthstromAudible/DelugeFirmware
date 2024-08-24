@@ -1,5 +1,6 @@
 #include "enumeration.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
 
 #include "io/debug/log.h"
 
@@ -7,12 +8,6 @@ namespace deluge::gui::menu_item {
 void Enumeration::beginSession(MenuItem* navigatedBackwardFrom) {
 	Value::beginSession(navigatedBackwardFrom);
 	drawValue();
-}
-
-bool Enumeration::wrapAround() {
-	// This is the legacy behaviour, but OLED should wrap at least in some contexts
-	// as well probably.
-	return display->have7SEG();
 }
 
 void Enumeration::selectEncoderAction(int32_t offset) {
@@ -45,4 +40,5 @@ void Enumeration::drawValue() {
 		display->setTextAsNumber(getValue());
 	}
 }
+
 } // namespace deluge::gui::menu_item

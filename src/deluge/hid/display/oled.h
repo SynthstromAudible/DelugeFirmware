@@ -30,6 +30,7 @@
 #endif
 
 namespace deluge::hid::display {
+
 class OLED : public Display {
 public:
 	OLED() : Display(DisplayType::OLED) {
@@ -100,6 +101,10 @@ public:
 	static const uint8_t checkedBoxIcon[];
 	static const uint8_t uncheckedBoxIcon[];
 	static const uint8_t submenuArrowIcon[];
+	static const Icon playModeCutIcon;
+	static const Icon playModeOnceIcon;
+	static const Icon playModeLoopIcon;
+	static const Icon playModeStretchIcon;
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;

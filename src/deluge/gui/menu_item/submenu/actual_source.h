@@ -23,26 +23,26 @@
 extern void setOscillatorNumberForTitles(int32_t);
 
 namespace deluge::gui::menu_item::submenu {
-class ActualSource final : public SubmenuReferringToOneThing {
+class ActualSource final : public HorizontalMenuReferringToOneThing {
 public:
-	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
+	using HorizontalMenuReferringToOneThing::HorizontalMenuReferringToOneThing;
 
 	// OLED Only
 	void beginSession(MenuItem* navigatedBackwardFrom) {
 		setOscillatorNumberForTitles(this->thingIndex);
-		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
+		HorizontalMenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
 
 	// 7seg Only
 	void drawName() override {
-		if (soundEditor.currentSound->getSynthMode() == SynthMode::FM) {
+		if (soundEditor.currentSound->getSynthMode() == ::SynthMode::FM) {
 			char buffer[5];
 			strcpy(buffer, "CAR");
 			intToString(this->thingIndex + 1, buffer + 3);
 			display->setText(buffer);
 		}
 		else {
-			SubmenuReferringToOneThing::drawName();
+			HorizontalMenuReferringToOneThing::drawName();
 		}
 	}
 };

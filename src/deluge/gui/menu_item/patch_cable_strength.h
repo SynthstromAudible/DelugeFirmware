@@ -27,7 +27,7 @@ class PatchCableStrength : public Decimal, public MenuItemWithCCLearning, public
 public:
 	using Decimal::Decimal;
 	void beginSession(MenuItem* navigatedBackwardFrom) final;
-	void readCurrentValue() final;
+	void readCurrentValue() override;
 	void writeCurrentValue() override;
 	[[nodiscard]] int32_t getMinValue() const final { return kMinMenuPatchCableValue; }
 	[[nodiscard]] int32_t getMaxValue() const final { return kMaxMenuPatchCableValue; }
@@ -59,6 +59,8 @@ public:
 
 	/// Used when scrolling horizontally to briefly catch on min / max decimal number edit position
 	uint32_t delayHorizontalScrollUntil = 0;
+
+	void renderInHorizontalMenu(int32_t startX, int32_t width, int32_t startY, int32_t height) override;
 
 protected:
 	bool preferBarDrawing = false;
