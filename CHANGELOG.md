@@ -47,6 +47,7 @@ use the TRACK menu to select the specific track to record from
   - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`  
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 - Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
+- Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
 - Changed the behaviour of the `PLAY` button while in `ARRANGER VIEW` with `CROSS SCREEN AUTO SCROLL MODE` active. Pressing `PLAY` while playback is off will now start playback from the current scroll position.
 
 ### Keyboard View Improvements

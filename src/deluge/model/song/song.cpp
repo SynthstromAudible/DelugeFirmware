@@ -5699,16 +5699,30 @@ doHibernatingInstruments:
 	return Error::NONE;
 }
 
-void Song::displayCurrentRootNoteAndScaleName() {
-	DEF_STACK_STRING_BUF(popupMsg, 40);
+void Song::getCurrentRootNoteAndScaleName(StringBuf& buffer) {
 	char noteName[5];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
 
-	popupMsg.append(noteName);
+	buffer.append(noteName);
 	if (display->haveOLED()) {
-		popupMsg.append(" ");
-		popupMsg.append(getScaleName(getCurrentScale()));
+		buffer.append(" ");
+		buffer.append(getScaleName(getCurrentScale()));
+	}
+}
+
+void Song::displayCurrentRootNoteAndScaleName() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+	getCurrentRootNoteAndScaleName(popupMsg);
+	if (display->haveOLED()) {
+		UI* currentUI = getCurrentUI();
+		bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
+		// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
+		if (isSessionView) {
+			sessionView.displayCurrentRootNoteAndScaleName(deluge::hid::display::OLED::main, popupMsg, true);
+			deluge::hid::display::OLED::markChanged();
+			return;
+		}
 	}
 	display->displayPopup(popupMsg.c_str());
 }
@@ -5780,7 +5794,8 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 	return modelStackWithParam;
 }
 void Song::updateBPMFromAutomation() {
-	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore that
+	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
+	// that
 	int32_t currentTempo = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_TEMPO);
 	if (currentTempo && currentTempo != intBPM) {
 		setBPMInner((float)currentTempo / 100, false);
