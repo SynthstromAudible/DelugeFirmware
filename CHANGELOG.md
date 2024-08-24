@@ -10,7 +10,9 @@
 - Added blend control to compressors
 - Added ability to record from a specific track's output. Set an audio clips input to TRACK, then in the audio clip menu
 use the TRACK menu to select the specific track to record from
+  - To hear the instrument through the audio clip's FX set the input to TRACK (FX)
 - Added filters in FM synth mode. They're set to OFF by default, enable by changing them to any other mode using the menu or db/oct shortcut.
+- Audio clips with monitoring (or FX) active in grid mode now support in place overdub using the global midi loop/layer commands
 
 ### User Interface
 
@@ -55,6 +57,9 @@ use the TRACK menu to select the specific track to record from
   - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
 - Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
 - Changed the behaviour of the `PLAY` button while in `ARRANGER VIEW` with `CROSS SCREEN AUTO SCROLL MODE` active. Pressing `PLAY` while playback is off will now start playback from the current scroll position.
+- Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
+  - With playback off, pressing `PLAY` will start playback from the current grid scroll position
+  - With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
 
 ### Keyboard View Improvements
 

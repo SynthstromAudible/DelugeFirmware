@@ -24,6 +24,8 @@
 #include "model/sample/sample_controls.h"
 #include "model/sample/sample_holder_for_clip.h"
 #include "model/sample/sample_playback_guide.h"
+#include "model/song/song.h"
+#include "processing/audio_output.h"
 #include "util/d_string.h"
 
 class VoiceSample;
@@ -57,6 +59,13 @@ public:
 	void quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack, int32_t lengthSoFar,
 	                                           uint32_t timeRemainder, int32_t suggestedLength,
 	                                           int32_t alternativeLongerLength) override;
+
+	// we can only do in place overdubs if input monitoring is on right now, recording input seperately might come later
+	// if we're in rows mode then use the old cloning method instead
+	bool shouldCloneForOverdubs() override {
+		return currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows
+		       || !(((AudioOutput*)output)->echoing);
+	};
 	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) override;
 	int64_t getSamplesFromTicks(int32_t ticks);
 	void unassignVoiceSample(bool wontBeUsedAgain);
@@ -86,7 +95,7 @@ public:
 	Error readFromFile(Deserializer& reader, Song* song) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;
 	char const* getXMLTag() override { return "audioClip"; }
-
+	int32_t nextSampleRestartPos;
 	SampleControls sampleControls;
 
 	SampleHolderForClip sampleHolder;
@@ -98,10 +107,9 @@ public:
 	String outputNameWhileLoading; // Only valid while loading
 
 	WaveformRenderData renderData;
-
+	// TODO: For looping without monitoring we'll need a second recorder plus maybe a second sample player?
 	SampleRecorder* recorder; // Will be set to NULL right at the end of the loop's recording, even though the
 	                          // SampleRecorder itself will usually persist slightly longer
-
 	int32_t attack;
 
 	VoicePriority voicePriority;

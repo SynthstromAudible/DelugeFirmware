@@ -319,8 +319,10 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	/*
 	Allow playback to start from current scroll if:
 	    1) horizontal encoder (<>) or cross screen is held and alternative playback start behaviour is disabled or
-	restarting playback 2) or horizontal encoder (<>) or cross screen is not held and alternative playback start
-	behaviour is enabled 3) or if you're in arranger view and in cross screen auto scrolling mode
+	restarting playback;
+      2) or horizontal encoder (<>) or cross screen is not held and alternative playback start
+	behaviour is enabled;
+      3) or if you're in arranger view and in cross screen auto scrolling mode
 	*/
 	if ((isRestartShortcutPressed && (!alternativePlaybackStartBehaviour || restartingPlayback))
 	    || (!isRestartShortcutPressed && alternativePlaybackStartBehaviour)
@@ -334,6 +336,11 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 		}
 		else {
 			navSys = NAVIGATION_CLIP; // Keyboard view will cause this case
+		}
+
+		// this is so that if you enter a clip from arranger, the arrangement will playback from that clip
+		if (navSys == NAVIGATION_CLIP && currentSong->lastClipInstanceEnteredStartPos != -1) {
+			navSys = NAVIGATION_ARRANGEMENT;
 		}
 
 		newPos = currentSong->xScroll[navSys];

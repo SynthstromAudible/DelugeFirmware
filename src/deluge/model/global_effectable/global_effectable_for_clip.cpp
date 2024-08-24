@@ -150,7 +150,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 		compressor.reset();
 	}
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-		recorder->feedAudio((int32_t*)globalEffectableBuffer, numSamples, false);
+		// we need to double it because for reasons I don't understand audio clips max volume is half the sample volume
+		recorder->feedAudio((int32_t*)globalEffectableBuffer, numSamples, true, 2);
 	}
 	addAudio(globalEffectableBuffer, outputBuffer, numSamples);
 
