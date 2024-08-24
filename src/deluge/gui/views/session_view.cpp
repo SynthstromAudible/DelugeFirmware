@@ -3539,6 +3539,9 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			yield([]() { return (currentUIMode != UI_MODE_CREATING_CLIP); });
 			if (createClip) {
 				newClip = createNewClip(lastTypeCreated, -1);
+				if (newClip == nullptr) {
+					clipPressEnded();
+				}
 			}
 		}
 		else {
@@ -3546,11 +3549,11 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		}
 	}
 
-	// Set new clip section and add it to the list
 	if (newClip == nullptr) {
 		return nullptr;
 	}
 
+	// Set new clip section and add it to the list
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(newClip);
@@ -3831,7 +3834,8 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 						gridToggleClipPlay(clip, true);
 					}
 					// if the pad has already been released while we yielded just get out of here
-					if (x != gridFirstPressedX || y != gridFirstPressedY) {
+					// don't update clip selection if we didn't create a clip
+					if (clip != nullptr && (x != gridFirstPressedX || y != gridFirstPressedY)) {
 						currentSong->setCurrentClip(clip);
 						return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 					}
@@ -3902,11 +3906,25 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 }
 void SessionView::setupTrackCreation() const { // start clip creation, blink all LEDs to tell user
 	currentUIMode = UI_MODE_CREATING_CLIP;
-	indicator_leds::blinkLed(IndicatorLED::SYNTH);
-	indicator_leds::blinkLed(IndicatorLED::MIDI);
-	indicator_leds::blinkLed(IndicatorLED::KIT);
-	indicator_leds::blinkLed(IndicatorLED::CV);
-	indicator_leds::blinkLed(IndicatorLED::CROSS_SCREEN_EDIT);
+	switch (lastTypeCreated) {
+	case OutputType::AUDIO:
+		indicator_leds::blinkLed(IndicatorLED::CROSS_SCREEN_EDIT);
+		break;
+	case OutputType::SYNTH:
+		indicator_leds::blinkLed(IndicatorLED::SYNTH);
+		break;
+	case OutputType::KIT:
+		indicator_leds::blinkLed(IndicatorLED::KIT);
+		break;
+	case OutputType::MIDI_OUT:
+		indicator_leds::blinkLed(IndicatorLED::MIDI);
+		break;
+	case OutputType::CV:
+		indicator_leds::blinkLed(IndicatorLED::CV);
+		break;
+	default:
+		break;
+	}
 	indicator_leds::blinkLed(IndicatorLED::BACK);
 	if (display->haveOLED()) {
 		char popupText[32] = {0};
@@ -4024,17 +4042,21 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				    && playbackHandler.recording == RecordingMode::NORMAL && FlashStorage::gridEmptyPadsCreateRec) {
 					gridToggleClipPlay(clip, Buttons::isShiftButtonPressed());
 				}
-				currentSong->setCurrentClip(clip);
 
-				// Allow clip control (selection) if still holding it
-				if (x == gridFirstPressedX && y == gridFirstPressedY) {
-					currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
-					view.displayOutputName(clip->output, true, clip);
-					display->cancelPopup();
+				// if you didn't create a clip, don't change clip selection, don't update display and mod controllable
+				if (clip != nullptr) {
+					currentSong->setCurrentClip(clip);
 
-					// this needs to be called after the current clip is set in order to ensure that
-					// if midi follow feedback is enabled, it sends feedback for the right clip
-					view.setActiveModControllableTimelineCounter(clip);
+					// Allow clip control (selection) if still holding it
+					if (x == gridFirstPressedX && y == gridFirstPressedY) {
+						currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+						view.displayOutputName(clip->output, true, clip);
+						display->cancelPopup();
+
+						// this needs to be called after the current clip is set in order to ensure that
+						// if midi follow feedback is enabled, it sends feedback for the right clip
+						view.setActiveModControllableTimelineCounter(clip);
+					}
 				}
 
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
