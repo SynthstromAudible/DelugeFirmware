@@ -112,9 +112,12 @@ public:
 	bool opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounter* modelStack, bool* newOutputCreated,
 	                                              int32_t buttonPressLatency);
 	virtual Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) = 0;
+
+	/// returns whether the clip needs to be cloned for overdubs (old style) or will actually overdub its audio like a
+	/// normal looper
 	virtual bool shouldCloneForOverdubs() {
-		return true;
-	}; // instrument version of in place overdub doesn't quite work so never do it for those
+		return true; // instrument version of in place overdub doesn't quite work so never do it for now
+	};
 	void setupOverdubInPlace(OverDubType type);
 	virtual bool getCurrentlyRecordingLinearly() = 0;
 	virtual bool currentlyScrollableAndZoomable() = 0;
@@ -229,5 +232,4 @@ protected:
 	Error solicitParamManager(Song* song, ParamManager* newParamManager = NULL,
 	                          Clip* favourClipForCloningParamManager = NULL);
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
-	bool doTrueOverdubs{true};
 };

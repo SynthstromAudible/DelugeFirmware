@@ -111,7 +111,6 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 void AudioClip::copyBasicsFrom(Clip const* otherClip) {
 	Clip::copyBasicsFrom(otherClip);
 	overdubsShouldCloneOutput = ((AudioClip*)otherClip)->overdubsShouldCloneOutput;
-	doTrueOverdubs = ((AudioClip*)otherClip)->doTrueOverdubs;
 }
 
 void AudioClip::abortRecording() {

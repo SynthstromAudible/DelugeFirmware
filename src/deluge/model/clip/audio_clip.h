@@ -107,10 +107,9 @@ public:
 	String outputNameWhileLoading; // Only valid while loading
 
 	WaveformRenderData renderData;
-
-	SampleRecorder* recorder;      // Will be set to NULL right at the end of the loop's recording, even though the
-	                               // SampleRecorder itself will usually persist slightly longer
-	SampleRecorder* inputRecorder; // for sampling + saving the raw input if doing true overdubs
+	// TODO: For looping without monitoring we'll need a second recorder plus maybe a second sample player?
+	SampleRecorder* recorder; // Will be set to NULL right at the end of the loop's recording, even though the
+	                          // SampleRecorder itself will usually persist slightly longer
 	int32_t attack;
 
 	VoicePriority voicePriority;
@@ -135,5 +134,4 @@ private:
 	void removeClipFromSection(AudioClip* clip);
 	void detachAudioClipFromOutput(Song* song, bool shouldRetainLinksToOutput, bool shouldTakeParamManagerWith = false);
 	LoopType getLoopingType(ModelStackWithTimelineCounter const* modelStack);
-	bool recordPostFX{true};
 };
