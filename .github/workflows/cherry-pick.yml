@@ -22,9 +22,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Cherry pick into release/1.1
+      - name: Cherry pick into release/1.2
         uses: carloscastrojumo/github-cherry-pick-action@v1.0.10
         with:
-          branch: release/1.1
+          branch: release/1.2
           labels: |
             cherry-picked

@@ -43,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 'release/1.1'
+          ref: 'release/1.2'
           fetch-depth: 0 # Required to count the commits
       - name: Get new commits
         id: count-commits
@@ -59,10 +59,10 @@ jobs:
       firmware-retention-days: 30
       build-type: 'Release'
       build-tag: 'beta'
-      branch: 'release/1.1'
+      branch: 'release/1.2'
   beta-publish:
     uses: ./.github/workflows/publish.yml
     needs: beta-build
     with:
       tag: 'beta'
-      branch: 'release/1.1'
+      branch: 'release/1.2'
