@@ -64,6 +64,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	EnableLaunchEventPlayhead,
 	DisplayChordKeyboard,
 	AlternativePlaybackStartBehaviour,
+	AccessibilityShortcuts,
 	MaxElement // Keep as boundary
 };
 

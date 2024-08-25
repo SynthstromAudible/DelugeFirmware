@@ -42,4 +42,5 @@ void clearShiftSticky();
 bool shiftHasChanged();
 
 extern bool recordButtonPressUsedUp;
+extern uint32_t timeCrossScreenButtonPressed;
 } // namespace Buttons
