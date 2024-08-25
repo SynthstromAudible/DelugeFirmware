@@ -62,7 +62,9 @@
 #include <new>
 #include <stdint.h>
 
-extern "C" {}
+extern "C" {
+#include "RZA1/cache/cache.h"
+}
 
 namespace params = deluge::modulation::params;
 
@@ -1300,6 +1302,7 @@ weAreInArrangementEditorOrInClipInstance:
 }
 
 Error Song::readFromFile(Deserializer& reader) {
+	L2CacheFlushAll();
 	D_PRINTLN("DEBUG: readFromFile");
 
 	outputClipInstanceListIsCurrentlyInvalid = true;

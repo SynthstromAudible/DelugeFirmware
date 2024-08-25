@@ -54,6 +54,7 @@
 #include "RZA1/system/r_typedefs.h"
 
 #include "RZA1/bsc/bsc_userdef.h" //sdram init
+#include "RZA1/cache/cache.h"
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/stb/stb.h"
@@ -71,8 +72,6 @@
     && !defined(__ARM_ARCH_4T__)
 #define HAVE_CALL_INDIRECT
 #endif
-
-extern int R_CACHE_L1Init(void);
 
 extern void __libc_init_array(void);
 
@@ -175,7 +174,13 @@ void resetprg(void) {
 	setPinMux(2, 6, 1); // RD/!WR
 
 	R_INTC_Init(); // Set up interrupt controller
+	L2CacheDisable();
 
+	/* ==== Invalidate all L2 cache by Way ==== */
+	L2CacheFlushAll();
+
+	/* ==== Enable L2 cache ==== */
+	L2CacheEnable();
 	R_CACHE_L1Init(); // Makes everything go about 1000x faster
 
 	__enable_irq();
