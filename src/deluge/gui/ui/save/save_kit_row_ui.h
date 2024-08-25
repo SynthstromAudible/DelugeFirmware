@@ -33,7 +33,7 @@ public:
 	// void selectEncoderAction(int8_t offset);
 	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
 	void endSession(){};
-	bool performSave(StorageManager& bdsm, bool mayOverwrite);
+	bool performSave(bool mayOverwrite);
 
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {

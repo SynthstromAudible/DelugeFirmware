@@ -172,11 +172,11 @@ void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32
 	}
 
 	int32_t* valueForOverride = valuesForOverride ? &valuesForOverride[p] : NULL;
-
+	writer.insertCommaIfNeeded();
 	writer.write("\n");
 	writer.printIndents();
-	writer.write(name);
-	writer.write("=\"");
+	writer.writeTagNameAndSeperator(name);
+	writer.write("\"");
 	params[p].writeToFile(writer, writeAutomation, valueForOverride);
 	writer.write("\"");
 }

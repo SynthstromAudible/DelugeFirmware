@@ -420,13 +420,13 @@ void LivePitchShifter::hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInput
 	}
 
 	/*
-	minSearch = storageManager.devVarA << 7;
-	maxSearch = storageManager.devVarB << 7;
-	nextCrossfadeLength = storageManager.devVarC << 4;
-	percThresholdForCut = storageManager.devVarD;
-	maxHopLength = storageManager.devVarE * 100;
-	//int32_t searchSizeFactor = storageManager.devVarF;
-	randomElement = storageManager.devVarG << 16;
+	minSearch = StorageManager::devVarA << 7;
+	maxSearch = StorageManager::devVarB << 7;
+	nextCrossfadeLength = StorageManager::devVarC << 4;
+	percThresholdForCut = StorageManager::devVarD;
+	maxHopLength = StorageManager::devVarE * 100;
+	//int32_t searchSizeFactor = StorageManager::devVarF;
+	randomElement = StorageManager::devVarG << 16;
 	*/
 
 	// Collect info on those moving average for the now-older play-head, which we're going to fade out -

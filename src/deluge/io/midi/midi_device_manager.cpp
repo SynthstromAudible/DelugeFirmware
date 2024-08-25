@@ -448,7 +448,7 @@ void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint
 	}
 }
 
-void writeDevicesToFile(StorageManager& bdsm) {
+void writeDevicesToFile() {
 	if (!anyChangesToSave) {
 		return;
 	}
@@ -480,13 +480,13 @@ void writeDevicesToFile(StorageManager& bdsm) {
 	return;
 
 worthIt:
-	Error error = bdsm.createXMLFile("MIDIDevices.XML", smSerializer, true);
+	Error error = StorageManager::createXMLFile("MIDIDevices.XML", smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
 
 	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
-	Serializer& writer = smSerializer;
+	Serializer& writer = GetSerializer();
 	writer.writeOpeningTagBeginning("midiDevices");
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.0.0");
@@ -526,22 +526,22 @@ worthIt:
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
-void readDevicesFromFile(StorageManager& bdsm) {
+void readDevicesFromFile() {
 	if (successfullyReadDevicesFromFile) {
 		return; // Yup, we only want to do this once
 	}
 
 	FilePointer fp;
-	bool success = bdsm.fileExists("MIDIDevices.XML", &fp);
+	bool success = StorageManager::fileExists("MIDIDevices.XML", &fp);
 	if (!success) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&fp, smDeserializer, "midiDevices");
+	Error error = StorageManager::openXMLFile(&fp, smDeserializer, "midiDevices");
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "dinPorts")) {
@@ -566,7 +566,7 @@ void readDevicesFromFile(StorageManager& bdsm) {
 		reader.exitTag();
 	}
 
-	bdsm.closeFile();
+	activeDeserializer->closeFIL();
 
 	recountSmallestMPEZones();
 

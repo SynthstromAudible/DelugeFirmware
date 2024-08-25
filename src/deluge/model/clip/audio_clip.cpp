@@ -1050,7 +1050,7 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("linearInterpolation", 1);
 	}
 	if (sampleControls.reversed) {
-		writer.writeAttribute("reversed", "1");
+		writer.writeAttribute("reversed", 1);
 	}
 	writer.writeAttribute("attack", attack);
 	writer.writeAttribute("priority", util::to_underlying(voicePriority));
@@ -1065,7 +1065,7 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
 
 	if (onAutomationClipView) {
-		writer.writeAttribute("onAutomationInstrumentClipView", (char*)"1");
+		writer.writeAttribute("onAutomationInstrumentClipView", 1);
 	}
 	if (lastSelectedParamID != kNoSelection) {
 		writer.writeAttribute("lastSelectedParamID", lastSelectedParamID);

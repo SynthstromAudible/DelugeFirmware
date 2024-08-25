@@ -766,10 +766,10 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 
 	// MIDI knobs
 	if (midiKnobArray.getNumElements()) {
-		writer.writeOpeningTag("midiKnobs");
+		writer.writeArrayStart("midiKnobs");
 		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			MIDIKnob* knob = midiKnobArray.getElement(k);
-			writer.writeOpeningTagBeginning("midiKnob");
+			writer.writeOpeningTagBeginning("midiKnob", true);
 			knob->midiInput.writeAttributesToFile(
 			    writer,
 			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
@@ -791,13 +791,13 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 			if (knob->midiInput.device) {
 				writer.writeOpeningTagEnd();
 				knob->midiInput.device->writeReferenceToFile(writer);
-				writer.writeClosingTag("midiKnob");
+				writer.writeClosingTag("midiKnob", true, true);
 			}
 			else {
 				writer.closeTag();
 			}
 		}
-		writer.writeClosingTag("midiKnobs");
+		writer.writeArrayEnding("midiKnobs");
 	}
 
 	// Sidechain (renamed from "compressor" from the official firmware)
@@ -861,6 +861,7 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
 	if (!strcmp(tagName, "equalizer")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "bass")) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_BASS,
@@ -883,7 +884,7 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
 				reader.exitTag("trebleFrequency");
 			}
 		}
-		reader.exitTag("equalizer");
+		reader.exitTag("equalizer", true);
 	}
 
 	else if (!strcmp(tagName, "stutterRate")) {
@@ -957,7 +958,7 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 		// Set default values in case they are not configured
 		delay.syncType = SYNC_TYPE_EVEN;
 		delay.syncLevel = SYNC_LEVEL_NONE;
-
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 			// These first two ensure compatibility with old files (pre late 2016 I think?)
@@ -1006,10 +1007,11 @@ doReadPatchedParam:
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("delay");
+		reader.exitTag("delay", true);
 	}
 
 	else if (!strcmp(tagName, "audioCompressor")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				q31_t masterCompressorAttack = reader.readTagOrAttributeValueInt();
@@ -1045,7 +1047,7 @@ doReadPatchedParam:
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("AudioCompressor");
+		reader.exitTag("AudioCompressor", true);
 	}
 	// this is actually the sidechain but pre c1.1 songs save it as compressor
 	else if (!strcmp(tagName, "compressor") || !strcmp(tagName, "sidechain")) { // Remember, Song doesn't use this
@@ -1054,6 +1056,7 @@ doReadPatchedParam:
 		sidechain.syncType = SYNC_TYPE_EVEN;
 		sidechain.syncLevel = SYNC_LEVEL_NONE;
 
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				sidechain.attack = reader.readTagOrAttributeValueInt();
@@ -1076,13 +1079,13 @@ doReadPatchedParam:
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag(name);
+		reader.exitTag(name, true);
 	}
 
 	else if (!strcmp(tagName, "midiKnobs")) {
-
+		reader.match('[');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (!strcmp(tagName, "midiKnob")) {
+			if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
 
 				MIDIDevice* device = nullptr;
 				uint8_t channel;
@@ -1121,6 +1124,8 @@ doReadPatchedParam:
 					}
 					reader.exitTag();
 				}
+				reader.match('}'); // close value object.
+				reader.match('}'); // close box.
 
 				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
 					MIDIKnob* newKnob = midiKnobArray.insertKnobAtEnd();
@@ -1144,6 +1149,7 @@ doReadPatchedParam:
 			}
 			reader.exitTag();
 		}
+		reader.match(']'); // close array.
 		reader.exitTag("midiKnobs");
 	}
 

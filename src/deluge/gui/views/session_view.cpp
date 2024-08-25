@@ -1554,8 +1554,8 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 		String newPresetName;
 		result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
 		result.error =
-		    storageManager.loadInstrumentFromFile(currentSong, NULL, outputType, false, &newInstrument,
-		                                          &result.fileItem->filePointer, &newPresetName, &Browser::currentDir);
+		    StorageManager::loadInstrumentFromFile(currentSong, NULL, outputType, false, &newInstrument,
+		                                           &result.fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
 
 	Browser::emptyFileItems();
