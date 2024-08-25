@@ -50,7 +50,6 @@ ChordQuality getChordQuality(NoteSet& notes) {
 }
 
 void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
-	D_PRINTLN("Note code: %d, chord name: %s, voicing name: %s", noteCode, chordName, voicingName);
 	char noteName[3] = {0};
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(noteCode, noteName, &isNatural, false);

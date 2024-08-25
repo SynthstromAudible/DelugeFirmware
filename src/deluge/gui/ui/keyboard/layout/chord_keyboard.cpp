@@ -67,11 +67,15 @@ void KeyboardLayoutChord::evaluatePadsRow(deluge::gui::ui::keyboard::PressedPad 
 
 	if (pressed.x < kChordKeyboardColumns - 1) {
 		int32_t note = noteFromCoordsRow(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
+		drawChordName(note); // TODO: print full chord played on all pads?
 		enableNote(note, velocity);
 	}
 	else if (pressed.x == kChordKeyboardColumns - 1) {
 		for (int32_t i = 0; i < 3; ++i) {
 			int32_t note = noteFromCoordsRow(i, pressed.y, root, scaleNotes, scaleNoteCount);
+			if (i == 0) {
+				drawChordName(note); // TODO: print quality
+			}
 			enableNote(note, velocity);
 		}
 	}
@@ -186,8 +190,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	else {
 		image[0][kDisplayWidth - 1] = colours::red;
 	}
-	image[kDisplayHeight - 1][kDisplayWidth - 1] =
-	    mode == ROW ? colours::blue : colours::blue.forTail(); // Row mode
+	image[kDisplayHeight - 1][kDisplayWidth - 1] = mode == ROW ? colours::blue : colours::blue.forTail(); // Row mode
 	image[kDisplayHeight - 2][kDisplayWidth - 1] =
 	    mode == COLUMN ? colours::purple : colours::purple.forTail(); // Column mode
 }
@@ -214,7 +217,7 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 }
 
 uint8_t KeyboardLayoutChord::noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
-                                                 uint8_t scaleNoteCount) {
+                                               uint8_t scaleNoteCount) {
 	KeyboardStateChord& state = getState().chord;
 	int32_t octaveDisplacement = state.autoVoiceLeading ? 0 : (y + scaleSteps[x]) / scaleNoteCount;
 	int32_t steps = scaleNotes[(y + scaleSteps[x]) % scaleNoteCount];

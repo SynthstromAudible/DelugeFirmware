@@ -47,7 +47,7 @@ const std::array<RGB, CHORD_QUALITY_MAX> qualityColours{
 // Check and return the quality of a chord, assuming the notes are defined from the root, even if it is a rootless chord
 ChordQuality getChordQuality(NoteSet& notes);
 
-void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName);
+void drawChordName(int16_t noteCode, const char* chordName = "", const char* voicingName = "");
 
 /// @brief A voicing is a set of offsets from the root note of a chord
 
