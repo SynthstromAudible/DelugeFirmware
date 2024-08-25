@@ -1942,45 +1942,48 @@ void AutomationView::handleClipButtonAction(bool on, bool isAudioClip) {
 
 // call by button action if b == CROSS_SCREEN_EDIT
 void AutomationView::handleCrossScreenButtonAction(bool on) {
-	if (on && currentUIMode == UI_MODE_NONE) {
-		if (onArrangerView) {
-			currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
-			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
+	if (!on && currentUIMode == UI_MODE_NONE) {
+		// if cross screen button wasn't held
+		if (isShortPress(Buttons::timeCrossScreenButtonPressed)) {
+			if (onArrangerView) {
+				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
 
-			if (currentSong->arrangerAutoScrollModeActive) {
-				arrangerView.reassessWhetherDoingAutoScroll();
-			}
-			else {
-				arrangerView.doingAutoScrollNow = false;
-			}
-		}
-		else {
-			InstrumentClip* clip = getCurrentInstrumentClip();
-			if (clip) {
-				if (clip->wrapEditing) {
-					clip->wrapEditing = false;
+				if (currentSong->arrangerAutoScrollModeActive) {
+					arrangerView.reassessWhetherDoingAutoScroll();
 				}
 				else {
-					clip->wrapEditLevel = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
-					// Ensure that there are actually multiple screens to edit across
-					if (clip->wrapEditLevel < clip->loopLength) {
-						clip->wrapEditing = true;
+					arrangerView.doingAutoScrollNow = false;
+				}
+			}
+			else {
+				InstrumentClip* clip = getCurrentInstrumentClip();
+				if (clip) {
+					if (clip->wrapEditing) {
+						clip->wrapEditing = false;
 					}
-					// If in we're in the note editor, we can check if the note row has multiple screens
-					else if (inNoteEditor()) {
-						char modelStackMemory[MODEL_STACK_MAX_SIZE];
-						ModelStackWithTimelineCounter* modelStack =
-						    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-						ModelStackWithNoteRow* modelStackWithNoteRow =
-						    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-						                             modelStack); // don't create
-						if (clip->wrapEditLevel < modelStackWithNoteRow->getLoopLength()) {
+					else {
+						clip->wrapEditLevel = currentSong->xZoom[NAVIGATION_CLIP] * kDisplayWidth;
+						// Ensure that there are actually multiple screens to edit across
+						if (clip->wrapEditLevel < clip->loopLength) {
 							clip->wrapEditing = true;
 						}
+						// If in we're in the note editor, we can check if the note row has multiple screens
+						else if (inNoteEditor()) {
+							char modelStackMemory[MODEL_STACK_MAX_SIZE];
+							ModelStackWithTimelineCounter* modelStack =
+							    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+							ModelStackWithNoteRow* modelStackWithNoteRow =
+							    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
+							                             modelStack); // don't create
+							if (clip->wrapEditLevel < modelStackWithNoteRow->getLoopLength()) {
+								clip->wrapEditing = true;
+							}
+						}
 					}
-				}
 
-				setLedStates();
+					setLedStates();
+				}
 			}
 		}
 	}
