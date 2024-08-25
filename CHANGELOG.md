@@ -76,6 +76,12 @@ use the TRACK menu to select the specific track to record from
 ### User Interface
 
 - Added `BASS FREQUENCY` and `TREBLE FREQUENCY` parameters to the list of assignable parameters in `PERFORMANCE VIEW`.
+- Fixed `PERFORMANCE VIEW` bug where stutter pad could get stuck in active state which should not be possible.
+- Fixed a couple bugs around `VU METER` rendering.
+- Fixed a `MIDI FOLLOW` bug where the Deluge could crash if sending a note while loading a new song.
+- Fixed `KIT CLIP` bug where having a note row without a drum blocked creating a drum in that row
+- Fixed `SONG GRID VIEW` bug where `SECTIONS` would playback in the order of `SONG ROW VIEW`
+- Fixed an `ARRANGER VIEW` bug where you could not move a `WHITE` clip to `SONG GRID VIEW` without the Deluge freezing.
 
 ## c1.1.0 Beethoven
 
