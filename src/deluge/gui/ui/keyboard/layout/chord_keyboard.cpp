@@ -41,11 +41,10 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 			continue;
 		}
 		if (pressed.x < kChordKeyboardColumns) {
-			if (mode == BUILD) {
-				evaluatePadsBuild(pressed);
+			if (mode == ROW) {
+				evaluatePadsRow(pressed);
 			}
 			else if (mode == COLUMN) {
-				// int32_t note = noteFromCoordsBuild(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
 				evaluatePadsColumn(pressed);
 			}
 			else {
@@ -60,19 +59,19 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	precalculate(); // Update chord quality colors if scale has changed
 }
 
-void KeyboardLayoutChord::evaluatePadsBuild(deluge::gui::ui::keyboard::PressedPad pressed) {
+void KeyboardLayoutChord::evaluatePadsRow(deluge::gui::ui::keyboard::PressedPad pressed) {
 	KeyboardStateChord& state = getState().chord;
 	NoteSet& scaleNotes = getScaleNotes();
 	uint8_t scaleNoteCount = getScaleNoteCount();
 	int32_t root = getRootNote() + state.noteOffset;
 
 	if (pressed.x < kChordKeyboardColumns - 1) {
-		int32_t note = noteFromCoordsBuild(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
+		int32_t note = noteFromCoordsRow(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
 		enableNote(note, velocity);
 	}
 	else if (pressed.x == kChordKeyboardColumns - 1) {
 		for (int32_t i = 0; i < 3; ++i) {
-			int32_t note = noteFromCoordsBuild(i, pressed.y, root, scaleNotes, scaleNoteCount);
+			int32_t note = noteFromCoordsRow(i, pressed.y, root, scaleNotes, scaleNoteCount);
 			enableNote(note, velocity);
 		}
 	}
@@ -166,7 +165,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
 			if (x < kChordKeyboardColumns) {
-				if (mode == BUILD) {
+				if (mode == ROW) {
 					image[y][x] = noteColours[y];
 				}
 				else {
@@ -176,7 +175,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			else {
 				image[y][x] = colours::black;
 			}
-			if ((x == kChordKeyboardColumns - 1) && (mode == BUILD)) {
+			if ((x == kChordKeyboardColumns - 1) && (mode == ROW)) {
 				image[y][x] = colours::orange;
 			}
 		}
@@ -188,7 +187,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 		image[0][kDisplayWidth - 1] = colours::red;
 	}
 	image[kDisplayHeight - 1][kDisplayWidth - 1] =
-	    mode == BUILD ? colours::blue : colours::blue.forTail(); // Build mode
+	    mode == ROW ? colours::blue : colours::blue.forTail(); // Row mode
 	image[kDisplayHeight - 2][kDisplayWidth - 1] =
 	    mode == COLUMN ? colours::purple : colours::purple.forTail(); // Column mode
 }
@@ -203,8 +202,8 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 		}
 	}
 	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
-		mode = BUILD;
-		char const* shortLong[2] = {"BLD", "Chord Build Mode"};
+		mode = ROW;
+		char const* shortLong[2] = {"ROW", "Chord Row Mode"};
 		display->displayPopup(shortLong);
 	}
 	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 2) {
@@ -214,7 +213,7 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	}
 }
 
-uint8_t KeyboardLayoutChord::noteFromCoordsBuild(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
+uint8_t KeyboardLayoutChord::noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
                                                  uint8_t scaleNoteCount) {
 	KeyboardStateChord& state = getState().chord;
 	int32_t octaveDisplacement = state.autoVoiceLeading ? 0 : (y + scaleSteps[x]) / scaleNoteCount;

@@ -39,7 +39,7 @@ const int32_t SCALEOCTAVE = 7;
 const int32_t kChordKeyboardColumns = 14;
 
 enum ChordKeyboardMode : int8_t {
-	BUILD = 0,
+	ROW = 0,
 	COLUMN,
 	CHORD_MODE_MAX,
 };
@@ -66,11 +66,10 @@ protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
-	// void printChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
-	uint8_t noteFromCoordsBuild(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount);
+	uint8_t noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount);
 	void handleControlButton(int32_t x, int32_t y);
+	void evaluatePadsRow(PressedPad pressed);
 	void evaluatePadsColumn(PressedPad pressed);
-	void evaluatePadsBuild(deluge::gui::ui::keyboard::PressedPad pressed);
 
 	ChordKeyboardMode mode = ChordKeyboardMode::COLUMN;
 
