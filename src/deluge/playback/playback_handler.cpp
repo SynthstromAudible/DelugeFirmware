@@ -2620,15 +2620,16 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 	bool foundAnything = false;
 
 	for (int32_t c = 0; c < kNumGlobalMIDICommands; c++) {
+		GlobalMIDICommand command = static_cast<GlobalMIDICommand>(c);
 
 		if (midiEngine.globalMIDICommands[c].equalsChannelOrZone(device, channel)
-		    && static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::TRANSPOSE) {
+		    && command == GlobalMIDICommand::TRANSPOSE) {
 			foundAnything = true;
 			MIDITranspose::doTranspose(true, note);
 		}
 
 		else if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
-			switch (static_cast<GlobalMIDICommand>(c)) {
+			switch (command) {
 			case GlobalMIDICommand::PLAYBACK_RESTART:
 				if (recording != RecordingMode::ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
@@ -2645,14 +2646,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 
 			case GlobalMIDICommand::LOOP:
 			case GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING:
-				if (actionLogger.allowedToDoReversion()
-				    // Not quite sure if this describes exactly what we want but it'll do...
-				    || currentUIMode == UI_MODE_RECORD_COUNT_IN) {
-					OverDubType overdubNature = (static_cast<GlobalMIDICommand>(c) == GlobalMIDICommand::LOOP)
-					                                ? OverDubType::Normal
-					                                : OverDubType::ContinuousLayering;
-					loopCommand(overdubNature);
-				}
+				tryLoopCommand(command);
 				break;
 
 			case GlobalMIDICommand::REDO:
@@ -2662,7 +2656,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 					// Firstly, we don't want to do it while we may be in some card access routine - e.g. by a
 					// SampleRecorder. Secondly, reversion can take a lot of time, and may want to call the audio
 					// routine - which is locked cos we're in it!
-					pendingGlobalMIDICommand = static_cast<GlobalMIDICommand>(c);
+					pendingGlobalMIDICommand = command;
 					pendingGlobalMIDICommandNumClustersWritten = 0;
 				}
 				break;
@@ -2686,6 +2680,16 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 	}
 
 	return foundAnything;
+}
+
+void PlaybackHandler::tryLoopCommand(GlobalMIDICommand command) {
+	if (actionLogger.allowedToDoReversion()
+	    // Not quite sure if this describes exactly what we want but it'll do...
+	    || currentUIMode == UI_MODE_RECORD_COUNT_IN) {
+		OverDubType overdubNature =
+		    (command == GlobalMIDICommand::LOOP) ? OverDubType::Normal : OverDubType::ContinuousLayering;
+		loopCommand(overdubNature);
+	}
 }
 
 // Returns whether the message has been used up by a note-off command
