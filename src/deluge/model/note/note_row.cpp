@@ -3104,7 +3104,7 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 
 	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams before we
 	                           // know what kind of Drum (if any) we have.
-
+	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(50);
 
@@ -3160,7 +3160,7 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 
 			// Sneaky sorta hack for 2016 files - allow more params to be loaded into a ParamManager that already had
 			// some loading done by the Drum
-			if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
+			if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
 
 				SoundDrum* actualDrum = (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)drum);
 
@@ -3184,7 +3184,7 @@ finishedNormalStuff:
 			Sound::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
 		}
 
-		// Notes stored as XML (before V1.4)
+		// Notes stored as XML (before V1.4) - NOT CONVERTED TO ALSO WORK WITH JSON.
 		else if (!strcmp(tagName, "notes")) {
 			// Read each Note
 			uint32_t minPos = 0;
@@ -3270,7 +3270,7 @@ doReadNoteData:
 				if (numElementsToAllocateFor <= 0) {
 
 					// See how many more chars before the end of the cluster. If there are any...
-					uint32_t charsRemaining = reader.getNumCharsRemainingInValue();
+					uint32_t charsRemaining = reader.getNumCharsRemainingInValueBeforeEndOfCluster();
 					if (charsRemaining) {
 
 						// Allocate space for the right number of notes, and remember how long it'll be before we need
@@ -3364,12 +3364,12 @@ getOut: {}
 			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 		}
 	}
-
+	reader.match('}');
 	return Error::NONE;
 }
 
 void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip) {
-	writer.writeOpeningTagBeginning("noteRow");
+	writer.writeOpeningTagBeginning("noteRow", true);
 
 	bool forKit = (clip->output->type == OutputType::KIT);
 
@@ -3392,10 +3392,11 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	}
 
 	if (notes.getNumElements()) {
+		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
-		writer.write("noteDataWithLift=\"0x");
-
+		writer.writeTagNameAndSeperator("noteDataWithLift");
+		writer.write("\"0x");
 		for (int32_t n = 0; n < notes.getNumElements(); n++) {
 			Note* thisNote = notes.getElement(n);
 
@@ -3435,7 +3436,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 
 			writer.writeOpeningTagBeginning("soundParams");
 			Sound::writeParamsToFile(writer, &paramManager, true);
-			writer.writeClosingTag("soundParams");
+			writer.writeClosingTag("soundParams", true);
 		}
 	}
 
@@ -3445,11 +3446,11 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	}
 
 	if (closedOurTagYet) {
-		writer.writeClosingTag("noteRow");
+		writer.writeClosingTag("noteRow", true, true);
 	}
 
 	else {
-		writer.closeTag();
+		writer.closeTag(true);
 	}
 }
 

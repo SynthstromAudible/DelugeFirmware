@@ -564,7 +564,7 @@ void autoPilotStuff() {
 			// matrixDriver.buttonAction(LOAD, true, false);
 			// matrixDriver.buttonAction(LOAD, false, false);
 
-			loadSongUI.performLoad(storageManager);
+			loadSongUI.performLoad();
 		}
 
 		break;

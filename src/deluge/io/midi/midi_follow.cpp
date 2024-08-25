@@ -804,13 +804,13 @@ bool MidiFollow::isFeedbackEnabled() {
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void MidiFollow::writeDefaultsToFile(StorageManager& bdsm) {
+void MidiFollow::writeDefaultsToFile() {
 	// MidiFollow.xml
-	Error error = bdsm.createXMLFile(MIDI_DEFAULTS_XML, smSerializer, true);
+	Error error = StorageManager::createXMLFile(MIDI_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = smSerializer;
+	Serializer& writer = GetSerializer();
 	//<defaults>
 	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();
@@ -855,7 +855,7 @@ void MidiFollow::writeDefaultMappingsToFile() {
 			if (writeTag) {
 				char buffer[10];
 				intToString(paramToCC[xDisplay][yDisplay], buffer);
-				Serializer& writer = smSerializer;
+				Serializer& writer = GetSerializer();
 				writer.writeTag(paramName, buffer);
 			}
 		}
@@ -863,7 +863,7 @@ void MidiFollow::writeDefaultMappingsToFile() {
 }
 
 /// read defaults from XML
-void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
+void MidiFollow::readDefaultsFromFile() {
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -874,21 +874,21 @@ void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 
 	FilePointer fp;
 	// MIDIFollow.XML
-	bool success = bdsm.fileExists(MIDI_DEFAULTS_XML, &fp);
+	bool success = StorageManager::fileExists(MIDI_DEFAULTS_XML, &fp);
 	if (!success) {
-		writeDefaultsToFile(bdsm);
+		writeDefaultsToFile();
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
 
 	//<defaults>
-	Error error = bdsm.openXMLFile(&fp, smDeserializer, MIDI_DEFAULTS_TAG);
+	Error error = StorageManager::openXMLFile(&fp, smDeserializer, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
-		writeDefaultsToFile(bdsm);
+		writeDefaultsToFile();
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	// step into the <defaultCCMappings> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -897,9 +897,7 @@ void MidiFollow::readDefaultsFromFile(StorageManager& bdsm) {
 		}
 		reader.exitTag();
 	}
-
-	bdsm.closeFile();
-
+	activeDeserializer->closeFIL();
 	successfullyReadDefaultsFromFile = true;
 }
 

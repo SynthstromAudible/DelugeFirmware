@@ -24,7 +24,6 @@
 
 class Clip;
 class ModelStackWithParamCollection;
-class StorageManager;
 class Serializer;
 class Deserializer;
 

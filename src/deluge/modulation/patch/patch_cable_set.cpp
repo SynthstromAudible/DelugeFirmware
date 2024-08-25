@@ -802,9 +802,11 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 	int32_t rangeAdjustableCableP = 255;
 
 	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName()) && numPatchCables < kMaxNumPatchCables) {
+	reader.match('[');
+	while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())
+	       && numPatchCables < kMaxNumPatchCables) { // box and name.
 		if (!strcmp(tagName, "patchCable")) {
-
+			reader.match('{'); // inner object value.
 			int32_t numCablesAtStartOfThing = numPatchCables;
 
 			PatchSource source = PatchSource::NONE;
@@ -827,10 +829,12 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 				else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
 					rangeAdjustable = reader.readTagOrAttributeValueInt();
 				}
-				else if (!strcmp(tagName, "depthControlledBy")) {
-					while (*(tagName = reader.readNextTagOrAttributeName())
+				else if (!strcmp(tagName, "depthControlledBy")) { // *** JFF still need to do this one.
+					reader.match('[');
+					while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())
 					       && numPatchCables < kMaxNumPatchCables - 1) {
 						if (!strcmp(tagName, "patchCable")) {
+							reader.match('{');
 							PatchSource rangeSource = PatchSource::NONE;
 							AutoParam tempRangeParam;
 							while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -842,7 +846,8 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 								}
 								reader.exitTag();
 							}
-
+							reader.match('}'); // leave value
+							reader.match('}'); // leave box.
 							if (rangeSource != PatchSource::NONE && tempRangeParam.containsSomething(0)) {
 								// Ensure no previous patch cable matches this combination
 								for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
@@ -857,11 +862,13 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 
 								numPatchCables++;
 							}
-						}
+						} // end of patchcable
 doneWithThisRangeCable:
 						reader.exitTag();
-					}
-				}
+					} // end of inner patchCable array
+
+				} // end of DepthControlledBy kvp handler
+				reader.match(']');
 				reader.exitTag();
 			}
 			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull() && tempParam.containsSomething(0)) {
@@ -913,8 +920,11 @@ abandonThisCable:
 				numPatchCables = numCablesAtStartOfThing;
 			}
 		}
-		reader.exitTag();
+
+		reader.exitTag(NULL, true); // exit outer patchCable element.
+		reader.match('}');          // leave box.
 	}
+	reader.match(']');
 
 	if (rangeAdjustableCableP != 255) {
 		for (int32_t c = 0; c < numPatchCables; c++) {
@@ -932,7 +942,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 	}
 
 	// Patch cables
-	writer.writeOpeningTag("patchCables");
+	writer.writeArrayStart("patchCables");
 	for (int32_t c = 0; c < numPatchCables;
 	     c++) { // I have a feeling this should actually only do up to "numUsablePatchCables"... otherwise we end up
 		        // with like FM-related cables written to file for a subtractive preset... etc.
@@ -940,15 +950,16 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 			continue; // If it's a depth-controlling cable, we'll deal with that separately, below.
 		}
 
-		writer.writeOpeningTagBeginning("patchCable");
+		writer.writeOpeningTagBeginning("patchCable", true);
 		writer.writeAttribute("source", sourceToString(patchCables[c].from));
 		writer.writeAttribute("destination",
 		                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
 		                                               patchCables[c].destinationParamDescriptor.getJustTheParam()));
-
+		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
-		writer.write("amount=\"");
+		writer.writeTagNameAndSeperator("amount");
+		writer.write("\"");
 		patchCables[c].param.writeToFile(writer, writeAutomation);
 		writer.write("\"");
 
@@ -961,30 +972,31 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 				if (!anyDepthControllingCablesFound) {
 					anyDepthControllingCablesFound = true;
 					writer.writeOpeningTagEnd();
-					writer.writeOpeningTag("depthControlledBy");
+					writer.writeArrayStart("depthControlledBy");
 				}
 
-				writer.writeOpeningTagBeginning("patchCable");
+				writer.writeOpeningTagBeginning("patchCable", true);
 				writer.writeAttribute("source", sourceToString(patchCables[d].from));
-
+				writer.insertCommaIfNeeded();
 				writer.write("\n");
 				writer.printIndents();
-				writer.write("amount=\"");
+				writer.writeTagNameAndSeperator("amount");
+				writer.write("\"");
 				patchCables[d].param.writeToFile(writer, writeAutomation);
 				writer.write("\"");
-				writer.closeTag();
+				writer.closeTag(true);
 			}
 		}
 
 		if (anyDepthControllingCablesFound) {
-			writer.writeClosingTag("depthControlledBy");
-			writer.writeClosingTag("patchCable");
+			writer.writeArrayEnding("depthControlledBy");
+			writer.writeClosingTag("patchCable", true, true);
 		}
 		else {
-			writer.closeTag();
+			writer.closeTag(true);
 		}
 	}
-	writer.writeClosingTag("patchCables");
+	writer.writeArrayEnding("patchCables");
 }
 
 int32_t PatchCableSet::getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s) {

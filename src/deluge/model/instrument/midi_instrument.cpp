@@ -348,8 +348,8 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 
 	if (!strcmp(tagName, "modKnobs")) {
 		readModKnobAssignmentsFromFile(
-		    storageManager, kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get
-		                                         // it. I think it'd only be relevant for pre-V2.0 song file... maybe?
+		    kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get
+		                         // it. I think it'd only be relevant for pre-V2.0 song file... maybe?
 	}
 	else if (!strcmp(tagName, "polyToMonoConversion")) {
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -404,11 +404,11 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 
 // paramManager is sometimes NULL (when called from the above function), for reasons I've kinda forgotten, yet
 // everything seems to still work...
-Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos,
+Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
                                                      ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
 			MIDIParamCollection* midiParamCollection = NULL;

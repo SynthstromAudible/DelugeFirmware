@@ -283,7 +283,7 @@ void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
 		currentInstrumentLoadError = performLoadSynthToKit();
 	}
 	else {
-		currentInstrumentLoadError = performLoad(storageManager);
+		currentInstrumentLoadError = performLoad();
 	}
 	currentUIMode = UI_MODE_NONE;
 	//}
@@ -315,7 +315,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 				currentInstrumentLoadError = performLoadSynthToKit();
 			}
 			else {
-				currentInstrumentLoadError = performLoad(storageManager);
+				currentInstrumentLoadError = performLoad();
 			}
 			if (currentInstrumentLoadError != Error::NONE) {
 				display->displayError(currentInstrumentLoadError);
@@ -410,7 +410,7 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 			return ActionResult::DEALT_WITH;
 		}
 
-		bool fileExists = storageManager.fileExists(filePath.get(), &currentFileItem->filePointer);
+		bool fileExists = StorageManager::fileExists(filePath.get(), &currentFileItem->filePointer);
 		if (!fileExists) {
 			display->displayError(Error::FILE_NOT_FOUND);
 			return ActionResult::DEALT_WITH;
@@ -501,11 +501,11 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
-		performLoad(storageManager);
+		performLoad();
 	}
 }
 
-void LoadInstrumentPresetUI::revertToInitialPreset(StorageManager& bdsm) {
+void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 	// Can only do this if we've changed Instrument in one of the two ways, but not both.
 	// TODO: that's very limiting, and I can't remember why I mandated this, or what would be so hard about allowing
@@ -574,7 +574,7 @@ void LoadInstrumentPresetUI::revertToInitialPreset(StorageManager& bdsm) {
 
 			// Otherwise, create a new one
 			initialInstrument =
-			    bdsm.createNewNonAudioInstrument(initialOutputType, initialChannel, initialChannelSuffix);
+			    StorageManager::createNewNonAudioInstrument(initialOutputType, initialChannel, initialChannelSuffix);
 			if (!initialInstrument) {
 				return;
 			}
@@ -611,14 +611,14 @@ void LoadInstrumentPresetUI::revertToInitialPreset(StorageManager& bdsm) {
 
 				FilePointer tempFilePointer;
 
-				bool success = bdsm.fileExists(filePath.get(), &tempFilePointer);
+				bool success = StorageManager::fileExists(filePath.get(), &tempFilePointer);
 				if (!success) {
 					return;
 				}
 
-				error =
-				    bdsm.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType, false,
-				                                &initialInstrument, &tempFilePointer, &initialName, &initialDirPath);
+				error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, initialOutputType,
+				                                               false, &initialInstrument, &tempFilePointer,
+				                                               &initialName, &initialDirPath);
 				if (error != Error::NONE) {
 					return;
 				}
@@ -841,7 +841,7 @@ addNumber:
 }
 
 // I thiiink you're supposed to check currentFileExists before calling this?
-Error LoadInstrumentPresetUI::performLoad(StorageManager& bdsm, bool doClone) {
+Error LoadInstrumentPresetUI::performLoad(bool doClone) {
 
 	FileItem* currentFileItem = getCurrentFileItem();
 	if (currentFileItem == nullptr) {
@@ -921,8 +921,9 @@ giveUsedError:
 		// Browser::checkFP();
 
 		// synth or kit
-		error = bdsm.loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
-		                                    &newInstrument, &currentFileItem->filePointer, &enteredText, &currentDir);
+		error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
+		                                               &newInstrument, &currentFileItem->filePointer, &enteredText,
+		                                               &currentDir);
 
 		if (error != Error::NONE) {
 			return error;
@@ -1043,8 +1044,8 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
 	// swaps out the drum pointed to by soundDrumToReplace
-	Error error = storageManager.loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
-	                                             &currentFileItem->filePointer, &enteredText, &currentDir);
+	Error error = StorageManager::loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
+	                                              &currentFileItem->filePointer, &enteredText, &currentDir);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -1075,7 +1076,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 }
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {
-	revertToInitialPreset(storageManager);
+	revertToInitialPreset();
 	LoadUI::exitAction();
 }
 
@@ -1570,8 +1571,8 @@ doPendingPresetNavigation:
 	// if anything other than unused is passed in
 	if (!toReturn.fileItem->instrument) {
 		toReturn.error =
-		    storageManager.loadInstrumentFromFile(currentSong, NULL, outputType, false, &toReturn.fileItem->instrument,
-		                                          &toReturn.fileItem->filePointer, &newName, &Browser::currentDir);
+		    StorageManager::loadInstrumentFromFile(currentSong, NULL, outputType, false, &toReturn.fileItem->instrument,
+		                                           &toReturn.fileItem->filePointer, &newName, &Browser::currentDir);
 		if (toReturn.error != Error::NONE) {
 			goto emptyFileItemsAndReturn;
 		}

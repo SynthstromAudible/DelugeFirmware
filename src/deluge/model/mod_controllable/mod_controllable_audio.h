@@ -48,7 +48,6 @@ class ModelStack;
 class ModelStackWithTimelineCounter;
 class ParamManager;
 class Serializer;
-class StorageManager;
 class Serializer;
 class Deserializer;
 

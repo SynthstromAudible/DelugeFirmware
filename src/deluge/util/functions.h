@@ -192,7 +192,6 @@ char const* launchStyleToString(LaunchStyle launchStyle);
 LaunchStyle stringToLaunchStyle(char const* string);
 
 char const* getInstrumentFolder(OutputType outputType);
-void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);
 
 int32_t getExp(int32_t presetValue, int32_t adjustment);
 

@@ -45,7 +45,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Collect media
 		saveSongUI.collectingSamples = true;
-		return saveSongUI.performSave(storageManager);
+		return saveSongUI.performSave();
 
 	case 1: { // Create folder
 		Browser* browser = (Browser*)getUIUpOneLevel();

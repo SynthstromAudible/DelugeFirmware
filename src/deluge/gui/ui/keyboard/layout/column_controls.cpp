@@ -281,9 +281,11 @@ void ColumnControlState::writeToFile(Serializer& writer) {
 
 void ColumnControlState::readFromFile(Deserializer& reader) {
 	char const* tagName;
+	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		bool isLeft = !strcmp(tagName, "leftCol");
 		if (isLeft || !strcmp(tagName, "rightCol")) {
+			reader.match('{');
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "type")) {
 					auto value = stringToColumnFunction(reader.readTagOrAttributeValue());
@@ -294,12 +296,13 @@ void ColumnControlState::readFromFile(Deserializer& reader) {
 					reader.exitTag(tagName);
 				}
 			}
+			reader.match('}');
 		}
 		else if (!strcmp(tagName, "chordMem")) {
 			chordMemColumn.readFromFile(reader);
 		}
 	}
-
+	reader.match('}');
 	leftCol = getColumnForFunc(leftColFunc);
 	rightCol = getColumnForFunc(rightColFunc);
 }

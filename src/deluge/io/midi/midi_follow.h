@@ -35,7 +35,7 @@ enum class MIDIMatchType;
 class MidiFollow final {
 public:
 	MidiFollow();
-	void readDefaultsFromFile(StorageManager& bdsm);
+	void readDefaultsFromFile();
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
@@ -97,7 +97,7 @@ private:
 	bool isFeedbackEnabled();
 
 	// saving
-	void writeDefaultsToFile(StorageManager& bdsm);
+	void writeDefaultsToFile();
 	void writeDefaultMappingsToFile();
 
 	// loading

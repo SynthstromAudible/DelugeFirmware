@@ -366,13 +366,13 @@ aborted:
 		// If file not created yet, do that
 		if (filePathCreated.isEmpty()) {
 
-			error = storageManager.initSD();
+			error = StorageManager::initSD();
 			if (error != Error::NONE) {
 				goto gotError;
 			}
 
 			// Check there's space on the card
-			error = storageManager.checkSpaceOnCard();
+			error = StorageManager::checkSpaceOnCard();
 			if (error != Error::NONE) {
 				goto gotError;
 			}
@@ -426,7 +426,7 @@ aborted:
 			}
 
 			// Recording could finish or abort during this!
-			auto created = storageManager.createFile(filePathCreated.get(), mayOverwrite);
+			auto created = StorageManager::createFile(filePathCreated.get(), mayOverwrite);
 			if (!created) {
 				filePathCreated.clear();
 				goto gotError;
@@ -709,8 +709,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 				if (firstSampleCluster->sdAddress == 0) {
 					FREEZE_WITH_ERROR("E268");
 				}
-				if ((firstSampleCluster->sdAddress - fileSystemStuff.fileSystem.database)
-				    & (fileSystemStuff.fileSystem.csize - 1)) {
+				if ((firstSampleCluster->sdAddress - fileSystem.database) & (fileSystem.csize - 1)) {
 					FREEZE_WITH_ERROR("E269");
 				}
 
@@ -781,7 +780,7 @@ Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes) {
 	sampleCluster = sample->clusters.getElement(clusterIndex);
 
 	// Grab the SD address, for later
-	sampleCluster->sdAddress = clst2sect(&fileSystemStuff.fileSystem, file->inner().clust);
+	sampleCluster->sdAddress = clst2sect(&fileSystem, file->inner().clust);
 	return Error::NONE;
 }
 
@@ -1294,7 +1293,7 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 			if (sdAddress == 0) {
 				FREEZE_WITH_ERROR("E268");
 			}
-			if ((sdAddress - fileSystemStuff.fileSystem.database) & (fileSystemStuff.fileSystem.csize - 1)) {
+			if ((sdAddress - fileSystem.database) & (fileSystem.csize - 1)) {
 				FREEZE_WITH_ERROR("E275");
 			}
 
@@ -1469,7 +1468,7 @@ writeFailed:
 		if (sdAddress == 0) {
 			FREEZE_WITH_ERROR("E268");
 		}
-		if ((sdAddress - fileSystemStuff.fileSystem.database) & (fileSystemStuff.fileSystem.csize - 1)) {
+		if ((sdAddress - fileSystem.database) & (fileSystem.csize - 1)) {
 			FREEZE_WITH_ERROR("E276");
 		}
 

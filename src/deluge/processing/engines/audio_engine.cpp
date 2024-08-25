@@ -393,11 +393,6 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 
 extern uint16_t g_usb_usbmode;
 
-#if JFTRACE
-Debug::AverageDT aeCtr("audio", Debug::mS);
-Debug::AverageDT rvb("reverb", Debug::uS);
-#endif
-
 uint8_t numRoutines = 0;
 
 // not in header (private to audio engine)
@@ -527,9 +522,6 @@ void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
 /// inner loop of audio rendering, deliberately not in header
 [[gnu::hot]] void routine_() {
-#if JFTRACE
-	aeCtr.note();
-#endif
 
 #ifndef USE_TASK_MANAGER
 	playbackHandler.routine();
@@ -781,14 +773,8 @@ void renderReverb(size_t numSamples) {
 		if (sideChainHitPending != 0) {
 			reverbSidechain.registerHit(sideChainHitPending);
 		}
-#if JFTRACE
-		rvb.begin();
-#endif
 
 		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect);
-#if JFTRACE
-		rvb.note();
-#endif
 	}
 
 	int32_t reverbAmplitudeL;
@@ -1220,7 +1206,7 @@ void dumpAudioLog() {
 	uint16_t currentTime = *TCNT[TIMER_SYSTEM_FAST];
 	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
 	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
-	if (definitelyLog || timePassedUSA > (storageManager.devVarA * 10)) {
+	if (definitelyLog || timePassedUSA > (StorageManager::devVarA * 10)) {
 
 		D_PRINTLN("");
 		for (int32_t i = 0; i < numAudioLogItems; i++) {

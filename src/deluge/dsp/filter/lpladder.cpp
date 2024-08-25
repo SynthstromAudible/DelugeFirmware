@@ -62,7 +62,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 
 		int32_t logFreq = quickLog(lpfFrequency);
 
-		doOversampling = false; // storageManager.devVarA;
+		doOversampling = false; // StorageManager::devVarA;
 
 		logFreq = std::min(logFreq, (int32_t)63 << 24);
 
@@ -79,7 +79,7 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 
 			// Adjustment for how the oversampling shifts the frequency just slightly
 			lpfFrequency -= (multiply_32x32_rshift32_rounded(logFreq, lpfFrequency) >> 8) * 34;
-			// + (lpfFrequency >> 8) * storageManager.devVarB;
+			// + (lpfFrequency >> 8) * StorageManager::devVarB;
 
 			// Enforce a max frequency. Otherwise we'll generate stuff which will cause problems for down-sampling
 			// again. But only if resonance is high. If it's low, we need to be able to get the freq high, to let all
@@ -326,9 +326,9 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 }
 [[gnu::always_inline]] inline q31_t LpLadderFilter::do12dBLPFOnSample(q31_t input, LpLadderState& state) {
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
-	q31_t noise = getNoise() >> 2; // storageManager.devVarA;// 2;
+	q31_t noise = getNoise() >> 2; // StorageManager::devVarA;// 2;
 	q31_t distanceToGo = noise - state.noiseLastValue;
-	state.noiseLastValue += distanceToGo >> 7; // storageManager.devVarB;
+	state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
 	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
 	q31_t feedbacksSum = state.lpfLPF1.getFeedbackOutput(lpf1Feedback) + state.lpfLPF2.getFeedbackOutput(lpf2Feedback)
@@ -345,9 +345,9 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 [[gnu::always_inline]] inline q31_t LpLadderFilter::do24dBLPFOnSample(q31_t input, LpLadderState& state) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
-	q31_t noise = getNoise() >> 2; // storageManager.devVarA;// 2;
+	q31_t noise = getNoise() >> 2; // StorageManager::devVarA;// 2;
 	q31_t distanceToGo = noise - state.noiseLastValue;
-	state.noiseLastValue += distanceToGo >> 7; // storageManager.devVarB;
+	state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
 	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
 	q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)
@@ -378,9 +378,9 @@ q31_t LpLadderFilter::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMo
 [[gnu::always_inline]] inline q31_t LpLadderFilter::doDriveLPFOnSample(q31_t input, LpLadderState& state) {
 
 	// For drive filter, apply some heavily lowpassed noise to the filter frequency, to add analog-ness
-	q31_t noise = getNoise() >> 2; // storageManager.devVarA;// 2;
+	q31_t noise = getNoise() >> 2; // StorageManager::devVarA;// 2;
 	q31_t distanceToGo = noise - state.noiseLastValue;
-	state.noiseLastValue += distanceToGo >> 7; // storageManager.devVarB;
+	state.noiseLastValue += distanceToGo >> 7; // StorageManager::devVarB;
 	q31_t noisy_m = moveability + multiply_32x32_rshift32(moveability, state.noiseLastValue);
 
 	q31_t feedbacksSum = (state.lpfLPF1.getFeedbackOutputWithoutLshift(lpf1Feedback)

@@ -190,7 +190,7 @@ gotError:
 	}
 
 	ParamManagerForTimeline newParamManager;
-	Instrument* newInstrument = storageManager.createNewInstrument(newOutputType, &newParamManager);
+	Instrument* newInstrument = StorageManager::createNewInstrument(newOutputType, &newParamManager);
 	if (!newInstrument) {
 		error = Error::INSUFFICIENT_RAM;
 		goto gotError;

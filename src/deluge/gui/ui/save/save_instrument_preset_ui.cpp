@@ -113,14 +113,14 @@ gotError:
 	String filePath;
 	error = getCurrentFilePath(&filePath);
 	if (error != Error::NONE) goto gotError;
-	currentFileExists = storageManager.fileExists(filePath.get());
+	currentFileExists = StorageManager::fileExists(filePath.get());
 */
 
 	focusRegained();
 	return true;
 }
 
-bool SaveInstrumentPresetUI::performSave(StorageManager& bdsm, bool mayOverwrite) {
+bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
 	if (display->have7SEG()) {
 		display->displayLoadingAnimation();
 	}
@@ -152,7 +152,7 @@ fail:
 		return false;
 	}
 
-	error = bdsm.createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
+	error = StorageManager::createXMLFile(filePath.get(), smSerializer, mayOverwrite, false);
 
 	if (error == Error::FILE_ALREADY_EXISTS) {
 		gui::context_menu::overwriteFile.currentSaveUI = this;
@@ -178,7 +178,7 @@ fail:
 		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 	}
 
-	instrumentToSave->writeToFile(bdsm, getCurrentClip(), currentSong);
+	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
 
 	char const* endString;
 	switch (outputTypeToLoad) {
@@ -192,8 +192,8 @@ fail:
 		endString = "\n</midi>\n";
 	}
 
-	error =
-	    smSerializer.closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", endString);
+	error = GetSerializer().closeFileAfterWriting(filePath.get(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+	                                              endString);
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
 		goto fail;
@@ -224,7 +224,7 @@ void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 
         int32_t previouslySavedSlot = instrument->name.isEmpty() ? instrument->slot : -1;
 
-        Error error = storageManager.decideNextSaveableSlot(offset,
+        Error error = StorageManager::decideNextSaveableSlot(offset,
                 &currentSlot, &currentSubSlot, &enteredText, &currentFileIsFolder,
                 previouslySavedSlot, &currentFileExists, numInstrumentSlots, getThingName(outputType), currentDir.get(),
 outputType, getCurrentInstrument()); if (error != Error::NONE) { display->displayError(error); if (error !=
@@ -259,7 +259,7 @@ Error::FOLDER_DOESNT_EXIST) { close();
         Instrument* nothingInstrument;
         bool nothing2;
 
-        storageManager.findNextInstrumentPreset(-1, outputType,
+        StorageManager::findNextInstrumentPreset(-1, outputType,
                 &bestSlotFound, &bestSubSlotFound, NULL, NULL, // No folders allowed.
                 currentSlot + 1, -1, NULL, currentDir.get(),
                 &nothing, Availability::ANY, &nothingInstrument, &nothing2);

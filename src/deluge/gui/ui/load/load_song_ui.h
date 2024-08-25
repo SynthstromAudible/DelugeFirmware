@@ -31,7 +31,7 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	bool opened();
 	void selectEncoderAction(int8_t offset);
-	void performLoad(StorageManager& bdsm);
+	void performLoad();
 	void displayLoopsRemainingPopup();
 
 	bool deletedPartsOfOldSong;
@@ -48,7 +48,7 @@ protected:
 	void exitAction();
 
 private:
-	void drawSongPreview(StorageManager& bdsm, bool toStore = true);
+	void drawSongPreview(bool toStore = true);
 	void displayArmedPopup();
 
 	bool scrollingIntoSlot;

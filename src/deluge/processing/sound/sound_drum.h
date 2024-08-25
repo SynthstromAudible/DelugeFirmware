@@ -48,7 +48,7 @@ public:
 	Error loadAllSamples(bool mayActuallyReadFiles);
 	void prepareForHibernation();
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager);
-	void writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, ParamManager* paramManager);
+	void writeToFileAsInstrument(bool savingSong, ParamManager* paramManager);
 	void getName(char* buffer);
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void choke(ModelStackWithSoundFlags* modelStack);

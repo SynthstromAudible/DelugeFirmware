@@ -120,7 +120,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 	}
 	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, clipForSavingOutputOnly == NULL);
 
-	writer.writeOpeningTag("soundSources"); // TODO: change this?
+	writer.writeArrayStart("soundSources"); // TODO: change this?
 	int32_t selectedDrumIndex = -1;
 	int32_t drumIndex = 0;
 
@@ -229,7 +229,7 @@ moveOn:
 		prevPointer = &thisDrum->next;
 	}
 
-	writer.writeClosingTag("soundSources");
+	writer.writeArrayEnding("soundSources");
 
 	*newLastDrum = firstDrum;
 	firstDrum = newFirstDrum;
@@ -261,17 +261,20 @@ Error Kit::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t re
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "soundSources")) {
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
+			reader.match('[');
+			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 				DrumType drumType;
 
 				if (!strcmp(tagName, "sample") || !strcmp(tagName, "synth") || !strcmp(tagName, "sound")) {
 					drumType = DrumType::SOUND;
 doReadDrum:
-					Error error = readDrumFromFile(storageManager, song, clip, drumType, readAutomationUpToPos);
+					reader.match('{');
+					Error error = readDrumFromFile(reader, song, clip, drumType, readAutomationUpToPos);
 					if (error != Error::NONE) {
 						return error;
 					}
-					reader.exitTag();
+					reader.match('}');          // Exit value.
+					reader.exitTag(NULL, true); // Exit box.
 				}
 				else if (!strcmp(tagName, "midiOutput")) {
 					drumType = DrumType::MIDI;
@@ -285,6 +288,7 @@ doReadDrum:
 					reader.exitTag(tagName);
 				}
 			}
+			reader.match(']');
 			reader.exitTag("soundSources");
 		}
 		else if (!strcmp(tagName, "selectedDrumIndex")) {
@@ -305,7 +309,7 @@ doReadDrum:
 			else {
 				if (Instrument::readTagFromFile(reader, tagName)) {}
 				else {
-					Error result = smDeserializer.tryReadingFirmwareTagFromFile(tagName);
+					Error result = reader.tryReadingFirmwareTagFromFile(tagName, false);
 					if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 						return result;
 					}
@@ -327,15 +331,14 @@ doReadDrum:
 	return Error::NONE;
 }
 
-Error Kit::readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumType drumType,
+Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumType drumType,
                             int32_t readAutomationUpToPos) {
 
-	Drum* newDrum = bdsm.createNewDrum(drumType);
+	Drum* newDrum = StorageManager::createNewDrum(drumType);
 	if (!newDrum) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	Deserializer& reader = smDeserializer;
 	Error error = newDrum->readFromFile(
 	    reader, song, clip,
 	    readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
@@ -909,7 +912,7 @@ void Kit::prepareForHibernationOrDeletion() {
 void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song) {
 
 	// If it was a pre-V1.2.0 firmware file, we need to compensate for resonance
-	if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0})
+	if (song_firmware_version < FirmwareVersion::official({1, 2, 0})
 	    && !paramManager->resonanceBackwardsCompatibilityProcessed) {
 
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();

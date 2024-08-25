@@ -41,7 +41,7 @@ Sized<char const**> OverwriteFile::getOptions() {
 }
 
 bool OverwriteFile::acceptCurrentOption() {
-	bool dealtWith = currentSaveUI->performSave(storageManager, true);
+	bool dealtWith = currentSaveUI->performSave(true);
 
 	return dealtWith;
 }

@@ -2277,7 +2277,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 						goto gotAnInstrument;
 					}
 				}
-				newInstrument = storageManager.createNewNonAudioInstrument(outputType, newChannel, newChannelSuffix);
+				newInstrument = StorageManager::createNewNonAudioInstrument(outputType, newChannel, newChannelSuffix);
 				if (!newInstrument) {
 					display->displayError(Error::INSUFFICIENT_RAM);
 					return;

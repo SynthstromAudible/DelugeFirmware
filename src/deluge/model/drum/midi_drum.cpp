@@ -46,7 +46,7 @@ void MIDIDrum::unassignAllVoices() {
 }
 
 void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
-	writer.writeOpeningTagBeginning("midiOutput");
+	writer.writeOpeningTagBeginning("midiOutput", true);
 
 	writer.writeAttribute("channel", channel, false);
 	writer.writeAttribute("note", note, false);
@@ -54,10 +54,10 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 	if (savingSong) {
 		writer.writeOpeningTagEnd();
 		Drum::writeMIDICommandsToFile(writer);
-		writer.writeClosingTag("midiOutput");
+		writer.writeClosingTag("midiOutput", true, true);
 	}
 	else {
-		writer.closeTag();
+		writer.closeTag(true);
 	}
 }
 

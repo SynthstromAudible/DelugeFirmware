@@ -2857,16 +2857,6 @@ bool PlaybackHandler::subModeAllowsRecording() {
 	        || currentUIMode == UI_MODE_HORIZONTAL_SCROLL);
 }
 
-void PlaybackHandler::songSelectReceived(uint8_t songId) {
-	// I've disabled this, people won't need it. If I was going to do it, I'd have to have it check that the SD card
-	// isn't currently being accessed, and nothing else crucial was happening
-	/*
-	if (storageManager.openXMLFile("SONGS", getThingFilename("SONG", songId, -1), "song")) {
-	    storageManager.loadSong(songId, -1);
-	}
-	*/
-}
-
 bool PlaybackHandler::isCurrentlyRecording() {
 	return (playbackState && recording != RecordingMode::OFF);
 }

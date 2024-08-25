@@ -919,6 +919,7 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
 	if (!strcmp(tagName, "delay")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "rate")) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_DELAY_RATE,
@@ -931,10 +932,11 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 				reader.exitTag("feedback");
 			}
 		}
-		reader.exitTag("delay");
+		reader.exitTag("delay", true);
 	}
 
 	else if (!strcmp(tagName, "lpf")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "frequency")) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_LPF_FREQ,
@@ -953,10 +955,11 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 				reader.exitTag("morph");
 			}
 		}
-		reader.exitTag("lpf");
+		reader.exitTag("lpf", true);
 	}
 
 	else if (!strcmp(tagName, "hpf")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "frequency")) {
 				unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_HPF_FREQ,
@@ -975,7 +978,7 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 				reader.exitTag("morph");
 			}
 		}
-		reader.exitTag("hpf");
+		reader.exitTag("hpf", true);
 	}
 
 	else if (!strcmp(tagName, "reverbAmount")) {

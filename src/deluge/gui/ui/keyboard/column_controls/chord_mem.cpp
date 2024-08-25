@@ -81,23 +81,25 @@ void ChordMemColumn::writeToFile(Serializer& writer) {
 		return; // no state to save
 	}
 
-	writer.writeOpeningTag("chordMem");
+	writer.writeArrayStart("chordMem", true, true);
 	for (int32_t y = 0; y < num; y++) {
-		writer.writeOpeningTag("chordSlot");
+		writer.writeArrayStart("chordSlot", true, true);
 		for (int i = 0; i < chordMemNoteCount[y]; i++) {
-			writer.writeOpeningTagBeginning("note");
+			writer.writeOpeningTagBeginning("note", true);
 			writer.writeAttribute("code", chordMem[y][i]);
-			writer.closeTag();
+			writer.closeTag(true);
 		}
-		writer.writeClosingTag("chordSlot");
+		writer.writeArrayEnding("chordSlot", true, true);
 	}
-	writer.writeClosingTag("chordMem");
+	writer.writeArrayEnding("chordMem", true, true);
 }
 
+// Need to match logic in the other chordMem handler.
 void ChordMemColumn::readFromFile(Deserializer& reader) {
+	reader.match('[');
 	int slot_index = 0;
 	const char* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "chordSlot")) {
 			int y = slot_index++;
 			if (y >= kDisplayHeight) {
@@ -105,8 +107,10 @@ void ChordMemColumn::readFromFile(Deserializer& reader) {
 				continue;
 			}
 			int i = 0;
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
+			reader.match('[');
+			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "note")) {
+					reader.match('{');
 					while (*(tagName = reader.readNextTagOrAttributeName())) {
 						if (!strcmp(tagName, "code")) {
 							if (i < kMaxNotesChordMem) {
@@ -118,17 +122,22 @@ void ChordMemColumn::readFromFile(Deserializer& reader) {
 						}
 					}
 					i++;
+					reader.match('}'); // note value object
+					reader.match('}'); // note box
 				}
 				else {
 					reader.exitTag();
 				}
 			}
 			chordMemNoteCount[y] = std::min((int)kMaxNotesChordMem, i);
+			reader.match(']'); // close note array.
+			reader.match('}'); // close chordSlot box.
 		}
 		else {
 			reader.exitTag();
 		}
 	}
+	reader.match(']'); // close chordMem array.
 }
 
 } // namespace deluge::gui::ui::keyboard::controls

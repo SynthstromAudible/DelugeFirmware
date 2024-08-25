@@ -44,7 +44,7 @@ bool LoadInstrumentPreset::acceptCurrentOption() {
 		return true;
 		*/
 	default: // Clone
-		error = loadInstrumentPresetUI.performLoad(storageManager, true);
+		error = loadInstrumentPresetUI.performLoad(true);
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return true;

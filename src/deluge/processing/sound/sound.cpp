@@ -290,7 +290,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 void Sound::possiblySetupDefaultExpressionPatching(ParamManager* paramManager) {
 
-	if (smDeserializer.firmware_version < FirmwareVersion::official({4, 0, 0, "beta"})) {
+	if (song_firmware_version < FirmwareVersion::official({4, 0, 0, "beta"})) {
 
 		if (!paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::AFTERTOUCH)
 		    && !paramManager->getPatchCableSet()->isSourcePatchedToSomethingManuallyCheckCables(PatchSource::X)
@@ -472,19 +472,21 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) {
 
 	if (!strcmp(tagName, "osc1")) {
+		reader.match('{');
 		Error error = readSourceFromFile(reader, 0, paramManager, readAutomationUpToPos);
 		if (error != Error::NONE) {
 			return error;
 		}
-		reader.exitTag("osc1");
+		reader.exitTag("osc1", true);
 	}
 
 	else if (!strcmp(tagName, "osc2")) {
+		reader.match('{');
 		Error error = readSourceFromFile(reader, 1, paramManager, readAutomationUpToPos);
 		if (error != Error::NONE) {
 			return error;
 		}
-		reader.exitTag("osc2");
+		reader.exitTag("osc2", true);
 	}
 
 	else if (!strcmp(tagName, "mode")) {
@@ -499,6 +501,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 
 	// Backwards-compatible reading of old-style oscs, from pre-mid-2016 files
 	else if (!strcmp(tagName, "oscillatorA")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 			if (!strcmp(tagName, "type")) {
@@ -530,10 +533,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("oscillatorA");
+		reader.exitTag("oscillatorA", true);
 	}
 
 	else if (!strcmp(tagName, "oscillatorB")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
 				sources[1].oscType = stringToOscType(reader.readTagOrAttributeValue());
@@ -565,10 +569,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("oscillatorB");
+		reader.exitTag("oscillatorB", true);
 	}
 
 	else if (!strcmp(tagName, "modulator1")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
@@ -592,10 +597,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("modulator1");
+		reader.exitTag("modulator1", true);
 	}
 
 	else if (!strcmp(tagName, "modulator2")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "volume")) {
 				ENSURE_PARAM_MANAGER_EXISTS
@@ -626,14 +632,14 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("modulator2");
+		reader.exitTag("modulator2", true);
 	}
 
 	else if (!strcmp(tagName, "arpeggiator")) {
 		// Set default values in case they are not configured
 		arpSettings->syncType = SYNC_TYPE_EVEN;
 		arpSettings->syncLevel = SYNC_LEVEL_NONE;
-
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 			if (!strcmp(tagName,
@@ -690,22 +696,25 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("arpMode");
 			}
-			else if (!strcmp(tagName, "mode")
-			         && smDeserializer.firmware_version < FirmwareVersion::community({1, 2, 0})) {
-				// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
-				// but only if the new params are not already read and set,
-				// that is, if we detect they have a value other than default
-				if (arpSettings) {
-					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
-					if (arpSettings->mode == ArpMode::OFF && arpSettings->noteMode == ArpNoteMode::UP
-					    && arpSettings->octaveMode == ArpOctaveMode::UP) {
-						arpSettings->mode = oldModeToArpMode(oldMode);
-						arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
-						arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
-						arpSettings->updatePresetFromCurrentSettings();
+			else if (!strcmp(tagName, "mode")) {
+				if (song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
+					// Import the old "mode" into the new splitted params "arpMode", "noteMode", and "octaveMode
+					// but only if the new params are not already read and set,
+					// that is, if we detect they have a value other than default
+					if (arpSettings) {
+						OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
+						if (arpSettings->mode == ArpMode::OFF && arpSettings->noteMode == ArpNoteMode::UP
+						    && arpSettings->octaveMode == ArpOctaveMode::UP) {
+							arpSettings->mode = oldModeToArpMode(oldMode);
+							arpSettings->noteMode = oldModeToArpNoteMode(oldMode);
+							arpSettings->octaveMode = oldModeToArpOctaveMode(oldMode);
+							arpSettings->updatePresetFromCurrentSettings();
+						}
 					}
+					reader.exitTag("mode");
 				}
-				reader.exitTag("mode");
+				else
+					reader.exitTag("mode");
 			}
 			else if (!strcmp(tagName,
 			                 "gate")) { // This is here for compatibility only for people (Lou and Ian) who saved songs
@@ -720,7 +729,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 		}
 
-		reader.exitTag("arpeggiator");
+		reader.exitTag("arpeggiator", true);
 	}
 
 	else if (!strcmp(tagName, "transpose")) {
@@ -784,6 +793,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 	}
 
 	else if (!strcmp(tagName, "unison")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "num")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
@@ -804,7 +814,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("unison");
+		reader.exitTag("unison", true);
 	}
 
 	else if (!strcmp(tagName, "oscAPitchAdjust")) {
@@ -877,7 +887,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("reversed");
 	}
 	else if (!strcmp(tagName, "zone")) {
-
+		reader.match('{');
 		MultisampleRange* range = (MultisampleRange*)sources[0].getOrCreateFirstRange();
 		if (!range) {
 			return Error::INSUFFICIENT_RAM;
@@ -907,7 +917,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag("endMilliseconds");
 			}
 		}
-		reader.exitTag("zone");
+		reader.exitTag("zone", true);
 	}
 
 	else if (!strcmp(tagName, "ringMod")) {
@@ -922,10 +932,10 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 
 		int32_t k = 0;
 		int32_t w = 0;
-
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
+		reader.match('[');
+		while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "modKnob")) {
-
+				reader.match('{');
 				uint8_t p = params::GLOBAL_NONE;
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
@@ -943,6 +953,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 					}
 					reader.exitTag(tagName);
 				}
+				reader.match('}'); // exit modKnobs value field.
 
 				if (k < kNumModButtons) { // Ensure we're not loading more than actually fit in our array
 					if (p != params::GLOBAL_NONE
@@ -970,9 +981,10 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 					k++;
 				}
 			}
-			reader.exitTag();
+			reader.exitTag(NULL, true); // Exit modKnob proper
 		}
 		reader.exitTag("modKnobs");
+		reader.match(']');
 	}
 
 	else if (!strcmp(tagName, "patchCables")) {
@@ -1063,7 +1075,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		// Set default values in case they are not configured.
 		lfoConfig[LFO1_ID].syncLevel = SYNC_LEVEL_NONE;
 		lfoConfig[LFO1_ID].syncType = SYNC_TYPE_EVEN;
-
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
 				lfoConfig[LFO1_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
@@ -1087,7 +1099,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("lfo1");
+		reader.exitTag("lfo1", true);
 		resyncGlobalLFO();
 	}
 
@@ -1095,7 +1107,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		// Set default values in case they are not configured.
 		lfoConfig[LFO2_ID].syncLevel = SYNC_LEVEL_NONE;
 		lfoConfig[LFO2_ID].syncType = SYNC_TYPE_EVEN;
-
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
 				lfoConfig[LFO2_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
@@ -1120,7 +1132,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				reader.exitTag(tagName);
 			}
 		}
-		reader.exitTag("lfo2");
+		reader.exitTag("lfo2", true);
 		// No resync for LFO2
 	}
 
@@ -1131,6 +1143,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 
 	else if (!strcmp(tagName, "lpf")) {
 		bool switchedOn = true; // For backwards compatibility with pre November 2015 files
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "status")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
@@ -1167,11 +1180,12 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			    getParamFromUserValue(params::LOCAL_LPF_FREQ, 50));
 		}
 
-		reader.exitTag("lpf");
+		reader.exitTag("lpf", true);
 	}
 
 	else if (!strcmp(tagName, "hpf")) {
 		bool switchedOn = true; // For backwards compatibility with pre November 2015 files
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "status")) {
 				int32_t contents = reader.readTagOrAttributeValueInt();
@@ -1204,10 +1218,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			    getParamFromUserValue(params::LOCAL_HPF_FREQ, 50));
 		}
 
-		reader.exitTag("hpf");
+		reader.exitTag("hpf", true);
 	}
 
 	else if (!strcmp(tagName, "envelope1")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				ENSURE_PARAM_MANAGER_EXISTS
@@ -1238,10 +1253,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 		}
 
-		reader.exitTag("envelope1");
+		reader.exitTag("envelope1", true);
 	}
 
 	else if (!strcmp(tagName, "envelope2")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				ENSURE_PARAM_MANAGER_EXISTS
@@ -1272,7 +1288,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 			}
 		}
 
-		reader.exitTag("envelope2");
+		reader.exitTag("envelope2", true);
 	}
 
 	else if (!strcmp(tagName, "polyphonic")) {
@@ -1316,7 +1332,7 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		}
 		else if (readTagFromFile(reader, tagName)) {}
 		else {
-			result = smDeserializer.tryReadingFirmwareTagFromFile(tagName);
+			result = activeDeserializer->tryReadingFirmwareTagFromFile(tagName, false);
 			if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 				return result;
 			}
@@ -3097,13 +3113,14 @@ bool Sound::hasFilters() {
 void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
                                int32_t readAutomationUpToPos) {
 	char const* tagName;
-
+	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
 		else {
 			reader.exitTag(tagName);
 		}
 	}
+	reader.match('}');
 }
 
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
@@ -3133,14 +3150,14 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	}
 
 	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
-	if (synthMode == SynthMode::FM && reader.getFirmwareVersion() < FirmwareVersion::community({1, 2, 0})) {
+	if (synthMode == SynthMode::FM && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
 		hpfMode = FilterMode::OFF;
 		lpfMode = FilterMode::OFF;
 	}
 
 	// If we actually got a paramManager, we can do resonance compensation on it
 	if (paramManager.containsAnyMainParamCollections()) {
-		if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0})) {
+		if (song_firmware_version < FirmwareVersion::official({1, 2, 0})) {
 			compensateVolumeForResonance(modelStack->addParamManager(&paramManager));
 		}
 
@@ -3179,7 +3196,7 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {
 
 	// If it was an old-firmware file, we need to compensate for resonance
-	if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0}) && synthMode != SynthMode::FM) {
+	if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && synthMode != SynthMode::FM) {
 		if (modelStack->paramManager->resonanceBackwardsCompatibilityProcessed) {
 			return;
 		}
@@ -3331,6 +3348,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			range->sampleHolder.endMSec = 0;
 			range->sampleHolder.startPos = 0;
 			range->sampleHolder.endPos = 0;
+			reader.match('{');
 
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "startSeconds")) {
@@ -3372,11 +3390,11 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 					reader.exitTag(tagName);
 				}
 			}
-			reader.exitTag("zone");
+			reader.exitTag("zone", true);
 		}
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
-
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
+			reader.match('[');
+			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 
 				if (!strcmp(tagName, "sampleRange") || !strcmp(tagName, "wavetableRange")) {
 
@@ -3391,7 +3409,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 					}
 
 					AudioFileHolder* holder = tempRange->getAudioFileHolder();
-
+					reader.match('{');
 					while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 						if (!strcmp(tagName, "fileName")) {
@@ -3404,7 +3422,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 						}
 						else if (source->oscType != OscType::WAVETABLE) {
 							if (!strcmp(tagName, "zone")) {
-
+								reader.match('{');
 								while (*(tagName = reader.readNextTagOrAttributeName())) {
 									if (!strcmp(tagName, "startSamplePos")) {
 										((SampleHolder*)holder)->startPos = reader.readTagOrAttributeValueInt();
@@ -3429,7 +3447,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 										reader.exitTag(tagName);
 									}
 								}
-								reader.exitTag("zone");
+								reader.exitTag("zone", true);
 							}
 							else if (!strcmp(tagName, "transpose")) {
 								((SampleHolderForVoice*)holder)->transpose = reader.readTagOrAttributeValueInt();
@@ -3470,15 +3488,16 @@ gotError:
 
 					void* destinationRange = (MultisampleRange*)source->ranges.getElementAddress(i);
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);
-
-					reader.exitTag();
-				}
+					reader.match('}');          // exit value object
+					reader.exitTag(NULL, true); // exit box.
+				}                               // was a sampleRange or wavetableRange
 				else {
 					reader.exitTag();
 				}
 			}
 
 			reader.exitTag();
+			reader.match(']');
 		}
 		else {
 			reader.exitTag();
@@ -3514,14 +3533,14 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 
 		if (numRanges > 1) {
 			writer.writeOpeningTagEnd();
-			writer.writeOpeningTag("sampleRanges");
+			writer.writeArrayStart("sampleRanges");
 		}
 
 		for (int32_t e = 0; e < numRanges; e++) {
 			MultisampleRange* range = (MultisampleRange*)source->ranges.getElement(e);
 
 			if (numRanges > 1) {
-				writer.writeOpeningTagBeginning("sampleRange");
+				writer.writeOpeningTagBeginning("sampleRange", true);
 
 				if (e != numRanges - 1) {
 					writer.writeAttribute("rangeTopNote", range->topNote);
@@ -3552,12 +3571,12 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			writer.closeTag();
 
 			if (numRanges > 1) {
-				writer.writeClosingTag("sampleRange");
+				writer.writeClosingTag("sampleRange", true, true);
 			}
 		}
 
 		if (numRanges > 1) {
-			writer.writeClosingTag("sampleRanges");
+			writer.writeArrayEnding("sampleRanges");
 		}
 		else if (numRanges == 0) {
 			writer.writeOpeningTagEnd();
@@ -3582,14 +3601,14 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 
 			if (numRanges > 1) {
 				writer.writeOpeningTagEnd();
-				writer.writeOpeningTag("wavetableRanges");
+				writer.writeArrayStart("wavetableRanges");
 			}
 
 			for (int32_t e = 0; e < numRanges; e++) {
 				MultisampleRange* range = (MultisampleRange*)source->ranges.getElement(e);
 
 				if (numRanges > 1) {
-					writer.writeOpeningTagBeginning("wavetableRange");
+					writer.writeOpeningTagBeginning("wavetableRange", true);
 
 					if (e != numRanges - 1) {
 						writer.writeAttribute("rangeTopNote", range->topNote);
@@ -3601,12 +3620,12 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 				                                      : range->sampleHolder.filePath.get());
 
 				if (numRanges > 1) {
-					writer.closeTag();
+					writer.closeTag(true);
 				}
 			}
 
 			if (numRanges > 1) {
-				writer.writeClosingTag("wavetableRanges");
+				writer.writeArrayEnding("wavetableRanges");
 				writer.writeClosingTag(tagName);
 			}
 			else {
@@ -3744,6 +3763,7 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 	}
 
 	else if (!strcmp(tagName, "envelope1")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_0_ATTACK,
@@ -3766,9 +3786,10 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 				reader.exitTag("release");
 			}
 		}
-		reader.exitTag("envelope1");
+		reader.exitTag("envelope1", true);
 	}
 	else if (!strcmp(tagName, "envelope2")) {
+		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "attack")) {
 				patchedParams->readParam(reader, patchedParamsSummary, params::LOCAL_ENV_1_ATTACK,
@@ -3791,7 +3812,7 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 				reader.exitTag("release");
 			}
 		}
-		reader.exitTag("envelope2");
+		reader.exitTag("envelope2", true);
 	}
 	else if (!strcmp(tagName, "lfo1Rate")) {
 		patchedParams->readParam(reader, patchedParamsSummary, params::GLOBAL_LFO_FREQ, readAutomationUpToPos);
@@ -4056,9 +4077,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writer.closeTag();
 
 	if (paramManager) {
-		writer.writeOpeningTagBeginning("defaultParams");
+		writer.writeOpeningTagBeginning("defaultParams", true);
 		Sound::writeParamsToFile(writer, paramManager, false);
-		writer.writeClosingTag("defaultParams");
+		writer.writeClosingTag("defaultParams", true, true);
 	}
 
 	if (arpSettings) {
@@ -4075,11 +4096,11 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	}
 
 	// Mod knobs
-	writer.writeOpeningTag("modKnobs");
+	writer.writeArrayStart("modKnobs");
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
 			ModKnob* knob = &modKnobs[k][w];
-			writer.writeOpeningTagBeginning("modKnob");
+			writer.writeOpeningTagBeginning("modKnob", true);
 			writer.writeAttribute(
 			    "controlsParam",
 			    params::paramNameForFile(params::Kind::UNPATCHED_SOUND, knob->paramDescriptor.getJustTheParam()),
@@ -4093,10 +4114,10 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 					                      sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
 				}
 			}
-			writer.closeTag();
+			writer.closeTag(true);
 		}
 	}
-	writer.writeClosingTag("modKnobs");
+	writer.writeArrayEnding("modKnobs");
 
 	ModControllableAudio::writeTagsToFile(writer);
 }

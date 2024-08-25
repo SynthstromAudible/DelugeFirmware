@@ -816,8 +816,8 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 		String newPresetName;
 		result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
 		result.error =
-		    storageManager.loadInstrumentFromFile(currentSong, NULL, newOutputType, false, &newInstrument,
-		                                          &result.fileItem->filePointer, &newPresetName, &Browser::currentDir);
+		    StorageManager::loadInstrumentFromFile(currentSong, NULL, newOutputType, false, &newInstrument,
+		                                           &result.fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
 
 	Browser::emptyFileItems();

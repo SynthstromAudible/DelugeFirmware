@@ -36,7 +36,7 @@ Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating)
 		tempFilePath.set(newInstrument->dirPath.get());
 		tempFilePath.concatenate("/");
 		tempFilePath.concatenate(filename.get());
-		existsOnCard = storageManager.fileExists(tempFilePath.get(), &filePointer);
+		existsOnCard = StorageManager::fileExists(tempFilePath.get(), &filePointer);
 		if (!existsOnCard) {
 			// this is recoverable later - will make a default synth or browse from top folder when encountering the
 			// null filepointer

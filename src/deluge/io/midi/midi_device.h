@@ -35,7 +35,6 @@
 #define MPE_ZONE_UPPER_NUMBERED_FROM_0 1
 
 class MIDIDevice;
-class StorageManager;
 class Serializer;
 class Deserializer;
 

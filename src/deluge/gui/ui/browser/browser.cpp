@@ -61,7 +61,7 @@ char const* Browser::filenameToStartSearchAt;
 int8_t Browser::numberEditPos;
 NumericLayerScrollingText* Browser::scrollingText;
 
-char const* allowedFileExtensionsXML[] = {"XML", NULL};
+char const* allowedFileExtensionsXML[] = {"XML", "Json", NULL};
 
 Browser::Browser() {
 	fileIcon = deluge::hid::display::OLED::songIcon;
@@ -99,7 +99,7 @@ bool Browser::checkFP() {
 	}
 
 	FilePointer tempfp;
-	bool fileExists = storageManager.fileExists(filePath.get(), &tempfp);
+	bool fileExists = StorageManager::fileExists(filePath.get(), &tempfp);
 	if (!fileExists) {
 		D_PRINTLN("couldn't get filepath");
 		return false;
@@ -262,7 +262,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	emptyFileItems();
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 		return error;
 	}

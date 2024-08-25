@@ -111,7 +111,7 @@ bool SampleBrowser::opened() {
 		instrumentClipView.cancelAllAuditioning();
 	}
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 sdError:
 		display->displayError(error);

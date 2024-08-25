@@ -1314,17 +1314,6 @@ char const* getInstrumentFolder(OutputType outputType) {
 	}
 }
 
-void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer) {
-	strcpy(buffer, thingName);
-	intToString(currentSlot, &buffer[strlen(thingName)], 3);
-	if (currentSubSlot != -1) {
-		buffer[strlen(thingName) + 3] = currentSubSlot + 65;
-		buffer[strlen(thingName) + 4] = 0;
-	}
-
-	strcat(buffer, ".XML");
-}
-
 bool isAudioFilename(char const* filename) {
 	if (filename[0] == '.') {
 		return false;

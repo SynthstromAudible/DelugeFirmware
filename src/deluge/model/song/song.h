@@ -274,7 +274,7 @@ public:
 	void doubleClipLength(InstrumentClip* clip, Action* action = NULL);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);
 	Error readFromFile(Deserializer& reader);
-	void writeToFile(StorageManager& bdsm);
+	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	void renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
 	                 int32_t sideChainHitPending);
