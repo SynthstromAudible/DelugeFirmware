@@ -378,7 +378,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 		ParamManager newParamManager; // Deliberate don't set up.
 
 		ReturnOfConfirmPresetOrNextUnlaunchedOne result;
-		result.error = storageManager.initSD(); // Still want this here?
+		result.error = StorageManager::initSD(); // Still want this here?
 		if (result.error != Error::NONE) {
 			goto couldntLoad;
 		}
@@ -396,9 +396,9 @@ bool Song::ensureAtLeastOneSessionClip() {
 		if (result.error == Error::NONE) {
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = storageManager.loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false,
-			                                                     &newInstrument, &result.fileItem->filePointer,
-			                                                     &newPresetName, &Browser::currentDir);
+			result.error = StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false,
+			                                                      &newInstrument, &result.fileItem->filePointer,
+			                                                      &newPresetName, &Browser::currentDir);
 
 			Browser::emptyFileItems();
 			if (result.error != Error::NONE) {
@@ -407,7 +407,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 		}
 		else {
 couldntLoad:
-			newInstrument = storageManager.createNewInstrument(OutputType::SYNTH, &newParamManager);
+			newInstrument = StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
 
 			// TODO: Clean this up and get rid of infinite loop traps (proper error recovery)
 
@@ -1035,29 +1035,35 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 
 void Song::writeTemplateSong(const char* templatePath) {
 	name.set("DEFAULT");
-	Error error = storageManager.createXMLFile(templatePath, smSerializer, false, false);
+	Error error = StorageManager::createXMLFile(templatePath, smSerializer, false, false);
 	if (error != Error::NONE) {
 		return;
 	}
-	writeToFile(storageManager);
-	smSerializer.closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
-	                                   "\n</song>\n");
+	writeToFile();
+	GetSerializer().closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
+	                                      "\n</song>\n");
 }
 
-void Song::writeToFile(StorageManager& bdsm) {
+void Song::writeToFile() {
 
 	setupClipIndexesForSaving();
-	Serializer& writer = smSerializer;
-	writer.writeOpeningTagBeginning("song");
+	Serializer& writer = GetSerializer();
+	writer.reset();
+	if (!writeJsonFlag) {
+		writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	}
+	writer.writeOpeningTagBeginning("song", true, false);
 
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 
-	writer.writeAttribute("previewNumPads", "144");
-
+	writer.writeAttribute("previewNumPads", 144);
+	writer.insertCommaIfNeeded();
 	writer.write("\n");
 	writer.printIndents();
-	writer.write("preview=\"");
+
+	writer.writeTagNameAndSeperator("preview");
+	writer.write("\"");
 
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
@@ -1123,11 +1129,11 @@ weAreInArrangementEditorOrInClipInstance:
 
 	writer.writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
 
-	writer.writeOpeningTag("modeNotes");
+	writer.writeArrayStart("modeNotes");
 	for (int32_t i = 0; i < key.modeNotes.count(); i++) {
-		writer.writeTag("modeNote", key.modeNotes[i]);
+		writer.writeTag("modeNote", key.modeNotes[i], true);
 	}
-	writer.writeClosingTag("modeNotes");
+	writer.writeArrayEnding("modeNotes");
 
 	writer.writeOpeningTagBeginning("reverb");
 	deluge::dsp::Reverb::Model model = AudioEngine::reverb.getModel();
@@ -1166,16 +1172,15 @@ weAreInArrangementEditorOrInClipInstance:
 	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
 	writer.writeClosingTag("songParams");
 
-	writer.writeOpeningTag("instruments");
+	writer.writeArrayStart("instruments");
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->writeToFile(bdsm, NULL, this);
+		thisOutput->writeToFile(NULL, this);
 	}
-	writer.writeClosingTag("instruments");
-
-	writer.writeOpeningTag("sections");
+	writer.writeArrayEnding("instruments");
+	writer.writeArrayStart("sections");
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
 		if (true || sections[s].launchMIDICommand.containsSomething() || sections[s].numRepetitions) {
-			writer.writeOpeningTagBeginning("section");
+			writer.writeOpeningTagBeginning("section", true);
 			writer.writeAttribute("id", s, false);
 			if (true || sections[s].numRepetitions) {
 				writer.writeAttribute("numRepeats", sections[s].numRepetitions, false);
@@ -1188,25 +1193,25 @@ weAreInArrangementEditorOrInClipInstance:
 				if (sections[s].launchMIDICommand.device) {
 					writer.writeOpeningTagEnd();
 					sections[s].launchMIDICommand.device->writeReferenceToFile(writer, "midiCommandDevice");
-					writer.writeClosingTag("section");
+					writer.writeClosingTag("section", true, true);
 					continue; // We now don't need to close the tag.
 				}
 			}
-			writer.closeTag();
+			writer.closeTag(true);
 		}
 	}
-	writer.writeClosingTag("sections");
+	writer.writeArrayEnding("sections");
 
-	writer.writeOpeningTag("sessionClips");
+	writer.writeArrayStart("sessionClips");
 	for (int32_t c = 0; c < sessionClips.getNumElements(); c++) {
 		Clip* clip = sessionClips.getClipAtIndex(c);
 		clip->writeToFile(writer, this);
 	}
-	writer.writeClosingTag("sessionClips");
+	writer.writeArrayEnding("sessionClips");
 
 	if (arrangementOnlyClips.getNumElements()) {
 
-		writer.writeOpeningTag("arrangementOnlyTracks");
+		writer.writeArrayStart("arrangementOnlyTracks");
 		for (int32_t c = 0; c < arrangementOnlyClips.getNumElements(); c++) {
 			Clip* clip = arrangementOnlyClips.getClipAtIndex(c);
 			if (!clip->output->clipHasInstance(clip)) {
@@ -1215,7 +1220,7 @@ weAreInArrangementEditorOrInClipInstance:
 			}
 			clip->writeToFile(writer, this);
 		}
-		writer.writeClosingTag("arrangementOnlyTracks");
+		writer.writeArrayEnding("arrangementOnlyTracks");
 	}
 
 	// Chord mem
@@ -1228,17 +1233,17 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 	if (maxChordPosToSave > 0) {
 		// some chords to save
-		writer.writeOpeningTag("chordMem");
+		writer.writeArrayStart("chordMem");
 		for (int32_t y = 0; y < maxChordPosToSave; y++) {
-			writer.writeOpeningTag("chord");
+			writer.writeArrayStart("chord", true, true);
 			for (int i = 0; i < chordMemNoteCount[y]; i++) {
-				writer.writeOpeningTagBeginning("note");
+				writer.writeOpeningTagBeginning("note", true);
 				writer.writeAttribute("code", chordMem[y][i]);
-				writer.closeTag();
+				writer.closeTag(true);
 			}
-			writer.writeClosingTag("chord");
+			writer.writeArrayEnding("chord", true, true);
 		}
-		writer.writeClosingTag("chordMem");
+		writer.writeArrayEnding("chordMem");
 	}
 
 	// macros
@@ -1250,10 +1255,10 @@ weAreInArrangementEditorOrInClipInstance:
 	}
 	if (maxSessionMacroToSave > 0) {
 		// some macros to save
-		writer.writeOpeningTag("sessionMacros");
+		writer.writeArrayStart("sessionMacros");
 		for (int32_t y = 0; y < maxSessionMacroToSave; y++) {
 			auto& m = sessionMacros[y];
-			writer.writeOpeningTagBeginning("macro");
+			writer.writeOpeningTagBeginning("macro", true);
 			switch (m.kind) {
 			case CLIP_LAUNCH: {
 				int32_t index = sessionClips.getIndexForClip(m.clip);
@@ -1285,9 +1290,9 @@ weAreInArrangementEditorOrInClipInstance:
 			case NO_MACRO:
 				break;
 			}
-			writer.closeTag();
+			writer.closeTag(true);
 		}
-		writer.writeClosingTag("sessionMacros");
+		writer.writeArrayEnding("sessionMacros");
 	}
 
 	// Scale stuff
@@ -1296,7 +1301,7 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeTag("disabledPresetScales", disabledPresetScales.to_ulong());
 	writer.writeClosingTag("scales");
 
-	writer.writeClosingTag("song");
+	writer.writeClosingTag("song", true, true);
 }
 
 Error Song::readFromFile(Deserializer& reader) {
@@ -1319,10 +1324,12 @@ Error Song::readFromFile(Deserializer& reader) {
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
 	// reverb mode
-	if (smDeserializer.firmware_version < FirmwareVersion::official({4, 1, 4})) {
-		model = deluge::dsp::Reverb::Model::FREEVERB;
+	if (song_firmware_version < FirmwareVersion::official({4, 1, 4})) {
+		AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
 	}
 
+	if (!reader.match('{'))
+		return Error::FILE_CORRUPTED;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 		switch (*(uint32_t*)tagName) {
@@ -1330,6 +1337,7 @@ Error Song::readFromFile(Deserializer& reader) {
 		// "reve" -> reverb
 		case 0x65766572:
 			if (!strcmp(tagName, "reverb")) {
+				reader.match('{');
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "model")) {
 						model = static_cast<deluge::dsp::Reverb::Model>(reader.readTagOrAttributeValueInt());
@@ -1357,6 +1365,7 @@ Error Song::readFromFile(Deserializer& reader) {
 						reader.exitTag("pan");
 					}
 					else if (!strcmp(tagName, "compressor")) {
+						reader.match('{');
 						while (*(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "attack")) {
 								reverbSidechainAttack = reader.readTagOrAttributeValueInt();
@@ -1384,7 +1393,7 @@ Error Song::readFromFile(Deserializer& reader) {
 								reader.exitTag(tagName);
 							}
 						}
-						reader.exitTag("compressor");
+						reader.exitTag("compressor", true);
 					}
 					else {
 						reader.exitTag(tagName);
@@ -1394,7 +1403,7 @@ Error Song::readFromFile(Deserializer& reader) {
 			else {
 				goto unknownTag;
 			}
-			reader.exitTag();
+			reader.exitTag(NULL, true); // exit value object
 			break;
 
 		case charsToIntegerConstant('x', 'S', 'c', 'r'):
@@ -1492,11 +1501,11 @@ Error Song::readFromFile(Deserializer& reader) {
 		default:
 unknownTag:
 			if (!strcmp(tagName, "firmwareVersion") || !strcmp(tagName, "earliestCompatibleFirmware")) {
-				smDeserializer.tryReadingFirmwareTagFromFile(tagName);
+				reader.tryReadingFirmwareTagFromFile(tagName, false);
 				reader.exitTag(tagName);
 			}
 			else if (!strcmp(tagName, "preview") || !strcmp(tagName, "previewNumPads")) {
-				smDeserializer.tryReadingFirmwareTagFromFile(tagName);
+				reader.tryReadingFirmwareTagFromFile(tagName, false);
 				reader.exitTag(tagName);
 			}
 			else if (!strcmp(tagName, "sessionLayout")) {
@@ -1660,22 +1669,25 @@ unknownTag:
 
 			else if (!strcmp(tagName, "modeNotes")) {
 				key.modeNotes.clear();
+				reader.match('[');
 				// Read in all the modeNotes
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
+				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "modeNote")) {
 						key.modeNotes.addUntrusted(reader.readTagOrAttributeValueInt());
-						reader.exitTag("modeNote");
+						reader.exitTag("modeNote", true);
 					}
 					else {
 						reader.exitTag(tagName);
 					}
 				}
 				reader.exitTag("modeNotes");
+				reader.match(']');
 			}
 
 			else if (!strcmp(tagName, "chordMem")) {
+				reader.match('[');
 				int slot_index = 0;
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
+				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "chord")) {
 						int y = slot_index++;
 						if (y >= kDisplayHeight) {
@@ -1683,8 +1695,10 @@ unknownTag:
 							continue;
 						}
 						int i = 0;
-						while (*(tagName = reader.readNextTagOrAttributeName())) {
+						reader.match('[');
+						while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "note")) {
+								reader.match('{');
 								while (*(tagName = reader.readNextTagOrAttributeName())) {
 									if (!strcmp(tagName, "code")) {
 										if (i < MAX_NOTES_CHORD_MEM) {
@@ -1696,30 +1710,37 @@ unknownTag:
 									}
 								}
 								i++;
+								reader.match('}'); // note value object
+								reader.match('}'); // note box
 							}
 							else {
 								reader.exitTag();
 							}
 						}
 						chordMemNoteCount[y] = std::min(MAX_NOTES_CHORD_MEM, i);
+						reader.match(']'); // close note array.
+						reader.match('}'); // close chord box.
 					}
 					else {
 						reader.exitTag();
 					}
 				}
+				reader.match(']');
 				reader.exitTag("chordMem");
 			}
 
 			else if (!strcmp(tagName, "sessionMacros")) {
 				int slot_index = 0;
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
+				reader.match('[');
+				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "macro")) {
 						int y = slot_index++;
 						if (y >= 8) {
-							reader.exitTag("macro");
+							reader.exitTag("macro", true);
 							continue;
 						}
 						auto& m = sessionMacros[y];
+						reader.match('{'); // enter value object
 						while (*(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "kind")) {
 								const char* kind = reader.readTagOrAttributeValue();
@@ -1763,11 +1784,15 @@ unknownTag:
 					else {
 						reader.exitTag();
 					}
+					reader.match('}'); // end value object
+					reader.match('}'); // end box
 				}
-				reader.exitTag("chordMem");
+				reader.match(']'); // end array
+				reader.exitTag("sessionMacros");
 			}
 
 			else if (!strcmp(tagName, "scales")) {
+				reader.match('{');
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "userScale")) {
 						userScaleNotes = NoteSet(reader.readTagOrAttributeValueInt());
@@ -1777,12 +1802,13 @@ unknownTag:
 					}
 					reader.exitTag(tagName);
 				}
-				reader.exitTag("scales");
+				reader.exitTag("scales", true);
 			}
 
 			else if (!strcmp(tagName, "sections")) {
 				// Read in all the sections
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
+				reader.match('[');
+				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "section")) {
 
 						uint8_t id = 255;
@@ -1790,7 +1816,7 @@ unknownTag:
 						uint8_t channel = 255;
 						uint8_t note = 255;
 						int16_t numRepeats = 0;
-
+						reader.match('{');
 						while (*(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "id")) {
 								id = reader.readTagOrAttributeValueInt();
@@ -1817,7 +1843,7 @@ unknownTag:
 								note = reader.readTagOrAttributeValueInt();
 							}
 
-							reader.exitTag(tagName);
+							reader.exitTag(tagName); // exit undefined tag.
 						}
 
 						if (id < kMaxNumSections) {
@@ -1828,19 +1854,21 @@ unknownTag:
 							}
 							sections[id].numRepetitions = numRepeats;
 						}
-						reader.exitTag("section");
+						reader.match('}');               // leave values object
+						reader.exitTag("section", true); // leave box.
 					}
 					else {
 						reader.exitTag(tagName);
 					}
 				}
 				reader.exitTag("sections");
+				reader.match(']');
 			}
 
 			else if (!strcmp(tagName, "instruments")) {
-
+				reader.match('[');
 				Output** lastPointer = &firstOutput;
-				while (*(tagName = reader.readNextTagOrAttributeName())) {
+				while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 
 					void* memory;
 					Output* newOutput;
@@ -1853,6 +1881,7 @@ unknownTag:
 							return Error::INSUFFICIENT_RAM;
 						}
 						newOutput = new (memory) AudioOutput();
+						reader.match('{');
 						goto loadOutput;
 					}
 
@@ -1861,6 +1890,7 @@ unknownTag:
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
+						reader.match('{');
 						newOutput = new (memory) SoundInstrument();
 						defaultDirPath = "SYNTHS";
 
@@ -1877,12 +1907,14 @@ loadOutput:
 						error = newOutput->readFromFile(
 						    reader, this, NULL,
 						    0); // If it finds any default params, it'll make a ParamManager and "back it up"
+
 						if (error != Error::NONE) {
 							goto gotError;
 						}
 						((Instrument*)newOutput)->existsOnCard = true;
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
+						reader.match('}');
 					}
 
 					else if (!strcmp(tagName, "kit")) {
@@ -1890,6 +1922,7 @@ loadOutput:
 						if (!memory) {
 							return Error::INSUFFICIENT_RAM;
 						}
+						reader.match('{');
 						newOutput = new (memory) Kit();
 						defaultDirPath = "KITS";
 						goto setDirPathFirst;
@@ -1915,14 +1948,16 @@ loadOutput:
 						goto loadOutput;
 					}
 
-					reader.exitTag(tagName);
+					reader.exitTag(tagName, true);
 				}
 				reader.exitTag("instruments");
+				reader.match(']');
 			}
 
 			else if (!strcmp(tagName, "songParams")) {
+				reader.match('{');
 				GlobalEffectableForClip::readParamsFromFile(reader, &paramManager, 2147483647);
-				reader.exitTag("songParams");
+				reader.exitTag("songParams", true);
 			}
 
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
@@ -1948,7 +1983,7 @@ loadOutput:
 					return result;
 				}
 				else {
-					Error result = smDeserializer.tryReadingFirmwareTagFromFile(tagName);
+					Error result = reader.tryReadingFirmwareTagFromFile(tagName, false);
 					if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 						return result;
 					}
@@ -1961,7 +1996,7 @@ loadOutput:
 		}
 	}
 
-	if (smDeserializer.firmware_version >= FirmwareVersion::official({3, 1, 0, "alpha2"})) {
+	if (song_firmware_version >= FirmwareVersion::official({3, 1, 0, "alpha2"})) {
 		// Basically, like all other "sync" type parameters, the file value and internal value are different for
 		// swingInterval. But unlike other ones, which get converted as we go, we do this one at the end once we
 		// know we have enough info to do the conversion
@@ -2012,7 +2047,7 @@ loadOutput:
 
 			// Correct different non-synced rates of old song files
 			// In a perfect world, we'd do this for Kits, MIDI and CV too
-			if (smDeserializer.firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
+			if (song_firmware_version < FirmwareVersion::official({1, 5, 0, "pretest"})
 			    && thisClip->output->type == OutputType::SYNTH) {
 				if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
 				    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
@@ -2109,7 +2144,7 @@ skipInstance:
 			}
 		}
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
-		if (smDeserializer.firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
+		if (song_firmware_version < FirmwareVersion::official({2, 1, 0, "beta"})) {
 			if (thisOutput->type == OutputType::SYNTH) {
 				SoundInstrument* sound = (SoundInstrument*)thisOutput;
 
@@ -2150,7 +2185,7 @@ skipInstance:
 	}
 
 	// Pre V1.2...
-	if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0})) {
+	if (song_firmware_version < FirmwareVersion::official({1, 2, 0})) {
 
 		deleteAllBackedUpParamManagers(true); // Before V1.2, lots of extras of these could be created during loading
 		globalEffectable.compensateVolumeForResonance(&paramManager);
@@ -2189,8 +2224,8 @@ skipInstance:
 
 Error Song::readClipsFromFile(Deserializer& reader, ClipArray* clipArray) {
 	char const* tagName;
-
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	reader.match('[');
+	while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
 
 		int32_t allocationSize;
 		ClipType clipType;
@@ -2226,7 +2261,8 @@ readClip:
 
 			clipArray->insertClipAtIndex(newClip, clipArray->getNumElements()); // We made sure enough space, above
 
-			reader.exitTag();
+			reader.exitTag(NULL, true); // exit value object
+			reader.match('}');          // exit box.
 		}
 		else if (!strcmp(tagName, "audioClip")) {
 			allocationSize = sizeof(AudioClip);
@@ -2234,11 +2270,11 @@ readClip:
 
 			goto readClip;
 		}
-		else {
+		else if (*tagName) {
 			reader.exitTag(tagName);
 		}
 	}
-
+	reader.match(']'); // leave array.
 	return Error::NONE;
 }
 
@@ -4802,7 +4838,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 				goto gotAnInstrument;
 			}
 		}
-		newInstrument = storageManager.createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
+		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
 			display->displayError(Error::INSUFFICIENT_RAM);
 			return NULL;
@@ -4833,9 +4869,9 @@ gotAnInstrument: {}
 		if (!newInstrument) {
 			String newPresetName;
 			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = storageManager.loadInstrumentFromFile(this, NULL, newOutputType, false, &newInstrument,
-			                                                     &result.fileItem->filePointer, &newPresetName,
-			                                                     &Browser::currentDir);
+			result.error = StorageManager::loadInstrumentFromFile(this, NULL, newOutputType, false, &newInstrument,
+			                                                      &result.fileItem->filePointer, &newPresetName,
+			                                                      &Browser::currentDir);
 		}
 
 		Browser::emptyFileItems();
@@ -5110,7 +5146,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 				goto gotAnInstrument;
 			}
 		}
-		newInstrument = storageManager.createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
+		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
 			display->displayError(Error::INSUFFICIENT_RAM);
 			return NULL;

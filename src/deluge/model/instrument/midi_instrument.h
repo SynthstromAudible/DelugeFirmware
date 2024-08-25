@@ -43,7 +43,7 @@ public:
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(Deserializer& reader, char const* tagName);
-	Error readModKnobAssignmentsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos,
+	Error readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
 	void sendMIDIPGM();
 

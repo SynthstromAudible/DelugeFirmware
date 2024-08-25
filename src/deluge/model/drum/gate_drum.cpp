@@ -36,17 +36,17 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 }
 
 void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
-	writer.writeOpeningTagBeginning("gateOutput");
+	writer.writeOpeningTagBeginning("gateOutput", true);
 
 	writer.writeAttribute("channel", channel, false);
 
 	if (savingSong) {
 		writer.writeOpeningTagEnd();
 		Drum::writeMIDICommandsToFile(writer);
-		writer.writeClosingTag("gateOutput");
+		writer.writeClosingTag("gateOutput", true, true);
 	}
 	else {
-		writer.closeTag();
+		writer.closeTag(true);
 	}
 }
 
