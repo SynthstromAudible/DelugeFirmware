@@ -24,3 +24,4 @@ extern int16_t zeroMPEValues[];
 extern bool allowSomeUserActionsEvenWhenInCardRoutine;
 extern bool readButtonsAndPads();
 extern uint32_t picFirmwareVersion;
+extern bool isShortPress(uint32_t pressTime);

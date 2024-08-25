@@ -37,10 +37,13 @@ use the TRACK menu to select the specific track to record from
 - Submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 - Added ability to `AUTOMATE TEMPO` in arranger view
 - Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and updated the button used to Create Audio Clips in `SONG GRID VIEW` from the `SELECT ENCODER` to the `CROSS SCREEN BUTTON`.
-  - When you press a pad in a new track, a popup will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. It will tell you on the display what that clip type is. 
-    - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last clip type.
-    - If you press and hold a pad, you can choose a different type by pressing one of the `BLINKING` clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV` or `CROSS SCREEN` (for Audio Clips)). If you let go of the pad without selecting a different type, it will create the clip using the last selected clip type.
-    - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.    
+  - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
+    - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last created clip type.
+    - If you press and hold a pad, you can choose a different type to create in a number of ways:
+      - by turning the select encoder to switch between the various clip types. You can create that clip type by pressing on the select encoder or letting go of the pad.
+      - by pressing one of the clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV` or `CROSS SCREEN` (for Audio Clips)). 
+      - If you let go of the pad without selecting a different type, it will create the clip using the last create type (or the last selected type if you changed selection using select encoder).
+    - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.  
     - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 - Updated the `SONG GRID VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `CROSS SCREEN BUTTON` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
   - This replaces the previous shortcut of `HOLDING PAD FOR THE CLIP` + `SELECT ENCODER`.
