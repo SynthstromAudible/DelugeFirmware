@@ -1592,8 +1592,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
 
-			clip->assignDrumsToNoteRows(modelStack); // Does a setupPatching() for each Drum
-			clip->yScroll = 0;
+			clip->setupAsNewKitClipIfNecessary(modelStack);
 		}
 	}
 	else {
