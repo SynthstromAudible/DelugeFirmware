@@ -21,6 +21,7 @@
 #include "definitions.h"
 #include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
+#include "util/containers.h"
 #include <array>
 #include <set>
 
@@ -90,8 +91,8 @@ private:
 	    SCALETHIRD + 2 * SCALEOCTAVE,
 	};
 
-	std::array<std::array<Chord, kDisplayHeight>, ChordQuality::CHORD_QUALITY_MAX> chordColumns = {
-	    majorChords, minorChords, diminishedChords, augmentedChords, dominateChords, otherChords};
+	deluge::vector<deluge::vector<Chord>> chordColumns = {majorChords,     minorChords,    diminishedChords,
+	                                                      augmentedChords, dominateChords, otherChords};
 
 	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,         Scale::DORIAN_SCALE,
 	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE,        Scale::MIXOLYDIAN_SCALE,

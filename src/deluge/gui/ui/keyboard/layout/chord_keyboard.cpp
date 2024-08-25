@@ -82,13 +82,14 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 	KeyboardStateChord& state = getState().chord;
 
 	NoteSet& scaleNotes = getScaleNotes();
-	int32_t octaveDisplacement = state.autoVoiceLeading ? 0 : (pressed.x) / scaleNotes.count();
+	int32_t octaveDisplacement = (pressed.x) / scaleNotes.count();
 	int32_t steps = scaleNotes[pressed.x % scaleNotes.count()];
 	int32_t root = getRootNote() + state.noteOffset + steps;
 
 	NoteSet scaleMode = scaleNotes.modulateByOffset(kOctaveSize - steps);
 	ChordQuality quality = getChordQuality(scaleMode);
-	Chord chord = chordColumns[quality][pressed.y];
+	deluge::vector<Chord> chords = chordColumns[quality];
+	Chord chord = chords[pressed.y % chords.size()];
 
 	Voicing voicing = chord.voicings[0];
 	drawChordName(root, chord.name, voicing.supplementalName);
@@ -99,18 +100,15 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 			continue;
 		}
 
-		// uint8_t note;
-		// if (state.autoVoiceLeading) {
-		// 	note = root + (offset + octaveDisplacement * kOctaveSize) % kOctaveSize;
-		// }
-		// else {
-		// 	note = root + offset + octaveDisplacement * kOctaveSize;
-		// }
-		enableNote(root + offset + octaveDisplacement * kOctaveSize, velocity);
+		uint8_t note;
+		if (state.autoVoiceLeading) {
+			note = root + (offset + octaveDisplacement * kOctaveSize) % kOctaveSize;
+		}
+		else {
+			note = root + offset + octaveDisplacement * kOctaveSize;
+		}
+		enableNote(note, velocity);
 	}
-	D_PRINTLN("popup present: %d", display->hasPopup());
-	// display->cancelPopup();
-	// display->removeWorkingAnimation();
 }
 
 void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
@@ -200,7 +198,7 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	if (x == kDisplayWidth - 1 && y == 0) {
 		state.autoVoiceLeading = !state.autoVoiceLeading;
 		if (state.autoVoiceLeading) {
-			char const* shortLong[2] = {"AUTO", "Auto Voice Leading"};
+			char const* shortLong[2] = {"AUTO", "Auto Voice Leading: Beta"};
 			display->displayPopup(shortLong);
 		}
 	}
@@ -215,31 +213,6 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 		display->displayPopup(shortLong);
 	}
 }
-
-// void KeyboardLayoutChord::printChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
-// 	char noteName[3] = {0};
-// 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-// 	D_PRINTLN("Note code: %d, chord name: %s, voicing name: %s", noteCode, chordName, voicingName);
-// 	noteCodeToString(noteCode, noteName, &isNatural, false);
-
-// 	char fullChordName[300];
-
-// 	if (voicingName && *voicingName) {
-// 		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
-// 	}
-// 	else {
-// 		sprintf(fullChordName, "%s%s", noteName, chordName);
-// 	}
-// 	D_PRINTLN("Full chord name: %s", fullChordName);
-
-// 	if (display->haveOLED()) {
-// 		display->popupTextTemporary(fullChordName);
-// 	}
-// 	else {
-// 		int8_t drawDot = !isNatural ? 0 : 255;
-// 		display->setScrollingText(fullChordName, 0);
-// 	}
-// }
 
 uint8_t KeyboardLayoutChord::noteFromCoordsBuild(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
                                                  uint8_t scaleNoteCount) {

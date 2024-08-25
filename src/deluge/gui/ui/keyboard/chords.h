@@ -21,6 +21,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "model/scale/note_set.h"
+#include "util/containers.h"
 #include <array>
 
 constexpr int32_t kMaxChordKeyboardSize = 7;
@@ -122,12 +123,12 @@ extern const Chord k2;
 extern const Chord k69;
 extern const Chord kMinor6;
 
-extern const std::array<Chord, kDisplayHeight> majorChords;
-extern const std::array<Chord, kDisplayHeight> minorChords;
-extern const std::array<Chord, kDisplayHeight> dominateChords;
-extern const std::array<Chord, kDisplayHeight> diminishedChords;
-extern const std::array<Chord, kDisplayHeight> augmentedChords;
-extern const std::array<Chord, kDisplayHeight> otherChords;
+extern const deluge::vector<Chord> majorChords;
+extern const deluge::vector<Chord> minorChords;
+extern const deluge::vector<Chord> dominateChords;
+extern const deluge::vector<Chord> diminishedChords;
+extern const deluge::vector<Chord> augmentedChords;
+extern const deluge::vector<Chord> otherChords;
 
 /// @brief A collection of chords
 class ChordList {

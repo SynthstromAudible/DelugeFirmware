@@ -514,7 +514,8 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	// If we're in Chords mode, don't display the note name because the Chord class will display the chord name
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	if (clip->onKeyboardScreen
-	    && clip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary) {
+	    && ((clip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary)
+	        || (clip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChord))) {
 		return;
 	}
 

@@ -290,27 +290,27 @@ const Chord kMinor6 = {"-6",
                            {ROOT, MIN3, P5, MAJ6, NONE, NONE, NONE},
                        }};
 
-const std::array<Chord, kDisplayHeight> majorChords = {
+const deluge::vector<Chord> majorChords = {
     kMajor, kM7, k6, k2, k69, kM9, kM11, kM13,
 };
 
-const std::array<Chord, kDisplayHeight> minorChords = {
+const deluge::vector<Chord> minorChords = {
     kMinor, kMinor7, kMinor9, kMinor11, kMinor13, kMinor6,
 };
 
-const std::array<Chord, kDisplayHeight> dominateChords = {
+const deluge::vector<Chord> dominateChords = {
     kMajor, k7, k69, k9, k11, k13,
 };
 
-const std::array<Chord, kDisplayHeight> diminishedChords = {
+const deluge::vector<Chord> diminishedChords = {
     kDim, kMinor7b5, kMinor9b5, kMinor7b5b9, kFullDim,
 };
 
-const std::array<Chord, kDisplayHeight> augmentedChords = {
+const deluge::vector<Chord> augmentedChords = {
     kAug,
 };
 
-const std::array<Chord, kDisplayHeight> otherChords = {
+const deluge::vector<Chord> otherChords = {
     kSus2,
     kSus4,
 };
