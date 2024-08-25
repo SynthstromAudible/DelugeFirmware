@@ -54,6 +54,7 @@ public:
 
 	const char* getName() { return "session_view"; }
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult horizontalEncoderAction(int32_t offset);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
@@ -130,8 +131,8 @@ public:
 	UIType getUIType() { return UIType::SESSION; }
 
 	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
-	Clip* newClipToCreate;
-	bool createClip = false;
+	bool createClip{false};
+	OutputType lastTypeCreated{OutputType::AUDIO};
 
 	// Grid macros config mode
 	void enterMacrosConfigMode();
@@ -219,8 +220,6 @@ private:
 	int32_t gridFirstPressedY = -1;
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
-	bool creatingClip{false};
-	OutputType lastTypeCreated{OutputType::AUDIO};
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
 
 	inline void gridResetPresses(bool first = true, bool second = true) {
@@ -269,7 +268,6 @@ private:
 		}
 	}
 	void setupTrackCreation() const;
-	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
 	void exitTrackCreation();
 };
 
