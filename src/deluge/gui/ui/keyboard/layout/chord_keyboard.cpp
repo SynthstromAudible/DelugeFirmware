@@ -34,9 +34,6 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	currentNotesState = NotesState{}; // Erase active notes
 	KeyboardStateChord& state = getState().chord;
 
-	NoteSet& scaleNotes = getScaleNotes();
-	uint8_t scaleNoteCount = getScaleNoteCount();
-	int32_t root = getRootNote() + state.noteOffset;
 	for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
 
 		PressedPad pressed = presses[idxPress];
@@ -44,13 +41,15 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 			continue;
 		}
 		if (pressed.x < kChordKeyboardColumns) {
-			int32_t note = noteFromCoords(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
-			enableNote(note, velocity);
-		}
-		else if (pressed.x == kChordKeyboardColumns) {
-			for (int32_t i = 0; i < 3; ++i) {
-				int32_t note = noteFromCoords(i, pressed.y, root, scaleNotes, scaleNoteCount);
-				enableNote(note, velocity);
+			if (mode == BUILD) {
+				evaluatePadsBuild(pressed);
+			}
+			else if (mode == COLUMN) {
+				// int32_t note = noteFromCoordsBuild(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
+				evaluatePadsColumn(pressed);
+			}
+			else {
+				D_PRINTLN("Invalid mode");
 			}
 		}
 		else if (pressed.x < kDisplayWidth) {
@@ -59,6 +58,59 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	}
 	ColumnControlsKeyboard::evaluatePads(presses);
 	precalculate(); // Update chord quality colors if scale has changed
+}
+
+void KeyboardLayoutChord::evaluatePadsBuild(deluge::gui::ui::keyboard::PressedPad pressed) {
+	KeyboardStateChord& state = getState().chord;
+	NoteSet& scaleNotes = getScaleNotes();
+	uint8_t scaleNoteCount = getScaleNoteCount();
+	int32_t root = getRootNote() + state.noteOffset;
+
+	if (pressed.x < kChordKeyboardColumns - 1) {
+		int32_t note = noteFromCoordsBuild(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
+		enableNote(note, velocity);
+	}
+	else if (pressed.x == kChordKeyboardColumns - 1) {
+		for (int32_t i = 0; i < 3; ++i) {
+			int32_t note = noteFromCoordsBuild(i, pressed.y, root, scaleNotes, scaleNoteCount);
+			enableNote(note, velocity);
+		}
+	}
+}
+
+void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
+	KeyboardStateChord& state = getState().chord;
+
+	NoteSet& scaleNotes = getScaleNotes();
+	int32_t octaveDisplacement = state.autoVoiceLeading ? 0 : (pressed.x) / scaleNotes.count();
+	int32_t steps = scaleNotes[pressed.x % scaleNotes.count()];
+	int32_t root = getRootNote() + state.noteOffset + steps;
+
+	NoteSet scaleMode = scaleNotes.modulateByOffset(kOctaveSize - steps);
+	ChordQuality quality = getChordQuality(scaleMode);
+	Chord chord = chordColumns[quality][pressed.y];
+
+	Voicing voicing = chord.voicings[0];
+	drawChordName(root, chord.name, voicing.supplementalName);
+
+	for (int i = 0; i < kMaxChordKeyboardSize; i++) {
+		int32_t offset = voicing.offsets[i];
+		if (offset == NONE) {
+			continue;
+		}
+
+		// uint8_t note;
+		// if (state.autoVoiceLeading) {
+		// 	note = root + (offset + octaveDisplacement * kOctaveSize) % kOctaveSize;
+		// }
+		// else {
+		// 	note = root + offset + octaveDisplacement * kOctaveSize;
+		// }
+		enableNote(root + offset + octaveDisplacement * kOctaveSize, velocity);
+	}
+	D_PRINTLN("popup present: %d", display->hasPopup());
+	// display->cancelPopup();
+	// display->removeWorkingAnimation();
 }
 
 void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
@@ -99,7 +151,8 @@ void KeyboardLayoutChord::precalculate() {
 	}
 	else {
 		NoteSet& scaleNotes = getScaleNotes();
-		for (int32_t i = 0; i < kDisplayHeight; ++i) {
+
+		for (int32_t i = 0; i < noteColours.size(); ++i) {
 			// Since each row is an degree of our scale, if we modulate by the inverse of the scale note,
 			//  we get the scale modes.
 			NoteSet scaleMode = scaleNotes.modulateByOffset(kOctaveSize - scaleNotes[i % scaleNotes.count()]);
@@ -115,13 +168,18 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
 			if (x < kChordKeyboardColumns) {
-				image[y][x] = noteColours[y];
-			}
-			else if (x == kChordKeyboardColumns) {
-				image[y][x] = colours::orange;
+				if (mode == BUILD) {
+					image[y][x] = noteColours[y];
+				}
+				else {
+					image[y][x] = noteColours[x];
+				}
 			}
 			else {
 				image[y][x] = colours::black;
+			}
+			if ((x == kChordKeyboardColumns - 1) && (mode == BUILD)) {
+				image[y][x] = colours::orange;
 			}
 		}
 	}
@@ -131,6 +189,10 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	else {
 		image[0][kDisplayWidth - 1] = colours::red;
 	}
+	image[kDisplayHeight - 1][kDisplayWidth - 1] =
+	    mode == BUILD ? colours::blue : colours::blue.forTail(); // Build mode
+	image[kDisplayHeight - 2][kDisplayWidth - 1] =
+	    mode == COLUMN ? colours::purple : colours::purple.forTail(); // Column mode
 }
 
 void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
@@ -142,36 +204,47 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 			display->displayPopup(shortLong);
 		}
 	}
-}
-
-void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
-	char noteName[3] = {0};
-	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(noteCode, noteName, &isNatural, false);
-
-	char fullChordName[300];
-
-	if (voicingName && *voicingName) {
-		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
+	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
+		mode = BUILD;
+		char const* shortLong[2] = {"BLD", "Chord Build Mode"};
+		display->displayPopup(shortLong);
 	}
-	else {
-		sprintf(fullChordName, "%s%s", noteName, chordName);
-	}
-
-	if (display->haveOLED()) {
-		display->popupTextTemporary(fullChordName);
-	}
-	else {
-		int8_t drawDot = !isNatural ? 0 : 255;
-		display->setScrollingText(fullChordName, 0);
+	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 2) {
+		mode = COLUMN;
+		char const* shortLong[2] = {"COLM", "Chord Column Mode"};
+		display->displayPopup(shortLong);
 	}
 }
 
-uint8_t KeyboardLayoutChord::noteFromCoords(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
-                                            uint8_t scaleNoteCount) {
+// void KeyboardLayoutChord::printChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
+// 	char noteName[3] = {0};
+// 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+// 	D_PRINTLN("Note code: %d, chord name: %s, voicing name: %s", noteCode, chordName, voicingName);
+// 	noteCodeToString(noteCode, noteName, &isNatural, false);
+
+// 	char fullChordName[300];
+
+// 	if (voicingName && *voicingName) {
+// 		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
+// 	}
+// 	else {
+// 		sprintf(fullChordName, "%s%s", noteName, chordName);
+// 	}
+// 	D_PRINTLN("Full chord name: %s", fullChordName);
+
+// 	if (display->haveOLED()) {
+// 		display->popupTextTemporary(fullChordName);
+// 	}
+// 	else {
+// 		int8_t drawDot = !isNatural ? 0 : 255;
+// 		display->setScrollingText(fullChordName, 0);
+// 	}
+// }
+
+uint8_t KeyboardLayoutChord::noteFromCoordsBuild(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
+                                                 uint8_t scaleNoteCount) {
 	KeyboardStateChord& state = getState().chord;
-	int32_t octaveDisplacement;
-	octaveDisplacement = state.autoVoiceLeading ? 0 : (y + scaleSteps[x]) / scaleNoteCount;
+	int32_t octaveDisplacement = state.autoVoiceLeading ? 0 : (y + scaleSteps[x]) / scaleNoteCount;
 	int32_t steps = scaleNotes[(y + scaleSteps[x]) % scaleNoteCount];
 	return root + steps + octaveDisplacement * kOctaveSize;
 }

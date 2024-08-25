@@ -35,7 +35,13 @@ const int32_t SCALESIXTH = 5;
 const int32_t SCALESEVENTH = 6;
 const int32_t SCALEOCTAVE = 7;
 
-const int32_t kChordKeyboardColumns = 12;
+const int32_t kChordKeyboardColumns = 14;
+
+enum ChordKeyboardMode : int8_t {
+	BUILD = 0,
+	COLUMN,
+	CHORD_MODE_MAX,
+};
 
 /// @brief Represents a keyboard layout for chord-based input.
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
@@ -59,12 +65,15 @@ protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
-	inline int32_t getChordNo(int32_t y) { return getState().chordLibrary.chordList.chordRowOffset + y; }
-	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
-	uint8_t noteFromCoords(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount);
+	// void printChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
+	uint8_t noteFromCoordsBuild(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount);
 	void handleControlButton(int32_t x, int32_t y);
+	void evaluatePadsColumn(PressedPad pressed);
+	void evaluatePadsBuild(deluge::gui::ui::keyboard::PressedPad pressed);
 
-	std::array<RGB, kOctaveSize + kDisplayHeight> noteColours;
+	ChordKeyboardMode mode = ChordKeyboardMode::COLUMN;
+
+	std::array<RGB, kOctaveSize + kDisplayHeight + kDisplayWidth> noteColours;
 	std::array<int32_t, kChordKeyboardColumns> scaleSteps = {
 	    SCALEFIRST,
 	    SCALEFIFTH,
@@ -78,7 +87,12 @@ private:
 	    SCALEFIFTH + SCALEOCTAVE,
 	    SCALESIXTH + SCALEOCTAVE,
 	    2 * SCALEOCTAVE,
+	    SCALETHIRD + 2 * SCALEOCTAVE,
 	};
+
+	std::array<std::array<Chord, kDisplayHeight>, ChordQuality::CHORD_QUALITY_MAX> chordColumns = {
+	    majorChords, minorChords, diminishedChords, augmentedChords, dominateChords, otherChords};
+
 	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,         Scale::DORIAN_SCALE,
 	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE,        Scale::MIXOLYDIAN_SCALE,
 	                                  Scale::LOCRIAN_SCALE,  Scale::MELODIC_MINOR_SCALE, Scale::HARMONIC_MINOR_SCALE};

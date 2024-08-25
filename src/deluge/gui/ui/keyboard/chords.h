@@ -46,6 +46,8 @@ const std::array<RGB, CHORD_QUALITY_MAX> qualityColours{
 // Check and return the quality of a chord, assuming the notes are defined from the root, even if it is a rootless chord
 ChordQuality getChordQuality(NoteSet& notes);
 
+void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName);
+
 /// @brief A voicing is a set of offsets from the root note of a chord
 
 // Interval offsets for convenience
@@ -62,6 +64,7 @@ const int32_t P5 = 7;
 const int32_t AUG5 = 8;
 const int32_t MIN6 = 8;
 const int32_t MAJ6 = 9;
+const int32_t DIM7 = 9;
 const int32_t MIN7 = 10;
 const int32_t DOM7 = 10;
 const int32_t MAJ7 = 11;
@@ -95,6 +98,7 @@ struct Chord {
 extern const Chord kMajor;
 extern const Chord kMinor;
 extern const Chord kDim;
+extern const Chord kFullDim;
 extern const Chord kAug;
 extern const Chord kSus2;
 extern const Chord kSus4;
@@ -102,6 +106,8 @@ extern const Chord k7;
 extern const Chord kM7;
 extern const Chord kMinor7;
 extern const Chord kMinor7b5;
+extern const Chord kMinor9b5;
+extern const Chord kMinor7b5b9;
 extern const Chord k9;
 extern const Chord kM9;
 extern const Chord kMinor9;
@@ -111,6 +117,17 @@ extern const Chord kMinor11;
 extern const Chord k13;
 extern const Chord kM13;
 extern const Chord kMinor13;
+extern const Chord k6;
+extern const Chord k2;
+extern const Chord k69;
+extern const Chord kMinor6;
+
+extern const std::array<Chord, kDisplayHeight> majorChords;
+extern const std::array<Chord, kDisplayHeight> minorChords;
+extern const std::array<Chord, kDisplayHeight> dominateChords;
+extern const std::array<Chord, kDisplayHeight> diminishedChords;
+extern const std::array<Chord, kDisplayHeight> augmentedChords;
+extern const std::array<Chord, kDisplayHeight> otherChords;
 
 /// @brief A collection of chords
 class ChordList {
