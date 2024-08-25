@@ -1747,7 +1747,7 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 				popupMsg.append("Type: ");
 				popupMsg.append(getDelaySyncTypeDisplayName());
 
-				popupMsg.append("\nLevel: ");
+				popupMsg.append("\nSync: ");
 				char displayName[30];
 				getDelaySyncLevelDisplayName(displayName);
 				popupMsg.append(displayName);
