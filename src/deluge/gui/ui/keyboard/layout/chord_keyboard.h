@@ -21,8 +21,8 @@
 #include "definitions.h"
 #include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
-#include "util/containers.h"
 #include "util/const_functions.h"
+#include "util/containers.h"
 #include <array>
 #include <set>
 
@@ -76,7 +76,7 @@ private:
 	inline int32_t getScaleSteps(int32_t i, NoteSet& scaleNotes) {
 		KeyboardStateChord& state = getState().chord;
 		return scaleNotes[mod(i + state.scaleOffset, scaleNotes.count())];
-		}
+	}
 
 	Scale lastScale = NO_SCALE;
 
