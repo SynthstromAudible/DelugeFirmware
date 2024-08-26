@@ -71,7 +71,7 @@ private:
 	void evaluatePadsRow(PressedPad pressed);
 	void evaluatePadsColumn(PressedPad pressed);
 
-	ChordKeyboardMode mode = ChordKeyboardMode::COLUMN;
+	ChordKeyboardMode mode = ChordKeyboardMode::ROW;
 
 	std::array<RGB, kOctaveSize + kDisplayHeight + kDisplayWidth> noteColours;
 	std::array<int32_t, kChordKeyboardColumns> scaleSteps = {
@@ -89,9 +89,8 @@ private:
 	    SCALETHIRD + 2 * SCALEOCTAVE,
 	    SCALESECOND + 2 * SCALEOCTAVE,
 	};
-
-	deluge::vector<deluge::vector<Chord>> chordColumns = {majorChords,     minorChords,    diminishedChords,
-	                                                      augmentedChords, dominateChords, otherChords};
+	std::array<std::array<Chord, majorChords.size()>, 6> chordColumns = {
+	    majorChords, minorChords, diminishedChords, augmentedChords, dominateChords, otherChords};
 
 	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,         Scale::DORIAN_SCALE,
 	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE,        Scale::MIXOLYDIAN_SCALE,

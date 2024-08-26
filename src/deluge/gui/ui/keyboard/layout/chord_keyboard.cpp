@@ -91,13 +91,24 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 
 	NoteSet scaleMode = scaleNotes.modulateByOffset(kOctaveSize - steps);
 	ChordQuality quality = getChordQuality(scaleMode);
-	deluge::vector<Chord> chords = chordColumns[quality];
-	Chord chord = chords[pressed.y % chords.size()];
+	auto chords = chordColumns[quality];
+	int32_t chordNo;
+	int32_t i = pressed.y;
+	while (i >= 0) {
+		if (chords[i].name == kEmptyChord.name) {
+			i--;
+		}
+		else {
+			chordNo = i;
+			break;
+		}
+	}
+	Chord chord = chords[chordNo];
 
 	Voicing voicing = chord.voicings[0];
 	drawChordName(root, chord.name, voicing.supplementalName);
 
-	for (int i = 0; i < kMaxChordKeyboardSize; i++) {
+	for (int32_t i = 0; i < kMaxChordKeyboardSize; i++) {
 		int32_t offset = voicing.offsets[i];
 		if (offset == NONE) {
 			continue;

@@ -96,6 +96,7 @@ struct Chord {
 };
 
 // ChordList
+extern const Chord kEmptyChord;
 extern const Chord kMajor;
 extern const Chord kMinor;
 extern const Chord kDim;
@@ -123,12 +124,29 @@ extern const Chord k2;
 extern const Chord k69;
 extern const Chord kMinor6;
 
-extern const deluge::vector<Chord> majorChords;
-extern const deluge::vector<Chord> minorChords;
-extern const deluge::vector<Chord> dominateChords;
-extern const deluge::vector<Chord> diminishedChords;
-extern const deluge::vector<Chord> augmentedChords;
-extern const deluge::vector<Chord> otherChords;
+const std::array<Chord, kDisplayHeight> majorChords = {
+    kMajor, kM7, k6, k2, k69, kM9, kM11, kM13,
+};
+
+const std::array<Chord, kDisplayHeight> minorChords = {
+    kMinor, kMinor7, kMinor9, kMinor11, kMinor13, kMinor6, kEmptyChord, kEmptyChord,
+};
+
+const std::array<Chord, kDisplayHeight> dominateChords = {
+    kMajor, k7, k69, k9, k11, k13, kEmptyChord, kEmptyChord,
+};
+
+const std::array<Chord, kDisplayHeight> diminishedChords = {
+    kDim, kMinor7b5, kMinor9b5, kMinor7b5b9, kFullDim, kEmptyChord, kEmptyChord, kEmptyChord,
+};
+
+const std::array<Chord, kDisplayHeight> augmentedChords = {
+    kAug, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
+};
+
+const std::array<Chord, kDisplayHeight> otherChords = {
+    kSus2, kSus4, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
+};
 
 /// @brief A collection of chords
 class ChordList {
