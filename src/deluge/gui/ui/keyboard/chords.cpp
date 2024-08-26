@@ -18,7 +18,6 @@
 #include "gui/ui/keyboard/chords.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
-#include "util/functions.h"
 #include <stdlib.h>
 
 namespace deluge::gui::ui::keyboard {
@@ -46,31 +45,6 @@ ChordQuality getChordQuality(NoteSet& notes) {
 	}
 	else {
 		return OTHER;
-	}
-}
-
-void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
-	char noteName[3] = {0};
-	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
-	noteCodeToString(noteCode, noteName, &isNatural, false);
-
-	char fullChordName[300];
-
-	if (voicingName && *voicingName) {
-		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
-	}
-	else {
-		sprintf(fullChordName, "%s%s", noteName, chordName);
-	}
-	D_PRINTLN("Note code: %d, chord name: %s, voicing name: %s", noteCode, chordName, voicingName);
-	if (display->haveOLED()) {
-		display->popupTextTemporary(fullChordName);
-		D_PRINTLN("Popup text: %s", fullChordName);
-	}
-	else {
-		int8_t drawDot = !isNatural ? 0 : 255;
-		display->setScrollingText(fullChordName, 0);
-		D_PRINTLN("Scrolling text: %s", fullChordName);
 	}
 }
 

@@ -227,6 +227,29 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	}
 }
 
+void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName, const char* voicingName) {
+	char noteName[3] = {0};
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+	noteCodeToString(noteCode, noteName, &isNatural, false);
+
+	char fullChordName[300];
+
+	if (voicingName && *voicingName) {
+		sprintf(fullChordName, "%s%s - %s", noteName, chordName, voicingName);
+	}
+	else {
+		sprintf(fullChordName, "%s%s", noteName, chordName);
+	}
+	if (display->haveOLED()) {
+		display->popupTextTemporary(fullChordName);
+		D_PRINTLN("Popup text: %s", fullChordName);
+	}
+	else {
+		int8_t drawDot = !isNatural ? 0 : 255;
+		display->setScrollingText(fullChordName, 0);
+	}
+}
+
 uint8_t KeyboardLayoutChord::noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
                                                uint8_t scaleNoteCount) {
 	KeyboardStateChord& state = getState().chord;

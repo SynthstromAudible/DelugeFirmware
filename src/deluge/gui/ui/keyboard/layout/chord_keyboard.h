@@ -70,8 +70,13 @@ private:
 	void handleControlButton(int32_t x, int32_t y);
 	void evaluatePadsRow(PressedPad pressed);
 	void evaluatePadsColumn(PressedPad pressed);
+	void drawChordName(int16_t noteCode, const char* chordName = "", const char* voicingName = "");
 
 	ChordKeyboardMode mode = ChordKeyboardMode::ROW;
+
+	std::array<RGB, CHORD_QUALITY_MAX> qualityColours = {colours::blue,  colours::purple,
+	                                                     colours::green, colours::kelly::very_light_blue,
+	                                                     colours::cyan,  colours::yellow};
 
 	std::array<RGB, kOctaveSize + kDisplayHeight + kDisplayWidth> noteColours;
 	std::array<int32_t, kChordKeyboardColumns> scaleSteps = {

@@ -19,9 +19,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/colour/colour.h"
 #include "model/scale/note_set.h"
-#include "util/containers.h"
 #include <array>
 
 constexpr int32_t kMaxChordKeyboardSize = 7;
@@ -41,15 +39,8 @@ enum ChordQuality : int8_t {
 	CHORD_QUALITY_MAX,
 };
 
-const std::array<RGB, CHORD_QUALITY_MAX> qualityColours{
-    {colours::blue, colours::purple, colours::green, colours::kelly::very_light_blue, colours::cyan, colours::yellow}};
-
 // Check and return the quality of a chord, assuming the notes are defined from the root, even if it is a rootless chord
 ChordQuality getChordQuality(NoteSet& notes);
-
-void drawChordName(int16_t noteCode, const char* chordName = "", const char* voicingName = "");
-
-/// @brief A voicing is a set of offsets from the root note of a chord
 
 // Interval offsets for convenience
 const int32_t NONE = INT32_MAX;
@@ -83,6 +74,7 @@ const int32_t MAJ13 = MAJ6 + OCT;
 const int32_t MIN14 = MIN7 + OCT;
 const int32_t MAJ14 = MAJ7 + OCT;
 
+/// @brief A voicing is a set of offsets from the root note of a chord
 struct Voicing {
 	int32_t offsets[kMaxChordKeyboardSize];
 	const char* supplementalName = "";
