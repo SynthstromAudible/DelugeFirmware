@@ -363,23 +363,27 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 				i++;
 				changed = true;
 			}
-			snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->get(), songName->get(),
-			         channelName, i);
-
-			while (StorageManager::fileExists(tempPath)) {
+			if (doingTempFolder) {
 				snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->get(),
 				         songName->get(), channelName, i);
-				i++;
-				changed = true;
+
+				while (StorageManager::fileExists(tempPath)) {
+					snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->get(),
+					         songName->get(), channelName, i);
+					i++;
+					changed = true;
+				}
 			}
 		}
 		error = filePath->set(namedPath);
 		if (error != Error::NONE) {
 			return error;
 		}
-		error = tempFilePathForRecording->set(tempPath);
-		if (error != Error::NONE) {
-			return error;
+		if (doingTempFolder) {
+			error = tempFilePathForRecording->set(tempPath);
+			if (error != Error::NONE) {
+				return error;
+			}
 		}
 	}
 
