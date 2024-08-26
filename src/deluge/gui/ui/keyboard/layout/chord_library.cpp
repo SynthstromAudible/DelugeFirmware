@@ -156,7 +156,7 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 				}
 			}
 			// show we've reach the top of a page and the end of the chords
-			if ((chordNo % kDisplayHeight == kDisplayHeight - 1) || (chordNo == kUniqueChords - 1)) {
+			if (x == kDisplayWidth - 1) {
 				image[y][x] = pageColours[pageNo % pageColours.size()];
 			}
 		}
