@@ -990,7 +990,23 @@ to each individual note onset. ([#1978])
 
 - ([#2174]) With the addition of the new Keyboard Sidebar Controls, the default behaviour of being able to immediately exit the menu by pressing a sidebar pad while in Keyboard View was removed. To accomodate users that still wish to be able to exit the menus immediately by pressing a sidebar pad, a new community feature toggle has been added (`Enable KB View Sidebar Menu Exit (EXIT)`) which will enable you to immediately exit the menu using the top left sidebar pad if you are in the `SETTINGS` or `SOUND` menu for `KEYBOARD VIEW`.
 
-#### 4.4.1.6 - Display Chord Library Keyboard Layout
+#### 4.4.1.6 - Display Chord Keyboard Layout
+
+- ([#2475]) Enables `CHORD` keyboard, in in-scale chord view with two modes, `ROW`, with chords spread out on each row across the pads, and `COLUMN`, where each column is a series a harmonically similar chords that can often sound nice substited for each other. Accessible the same way as other instrument supporting keyboards `SELECT` + `KEYBOARD` to cycle through layouts while on `SYNTH, MIDI, CV`
+
+- On the top right side of the pads, there are two a blue pad that turns on `ROW` mode, and a purple pad that turns on `COLUMN` mode. The default is `ROW` mode. In both modes, rows or chords are colored by the quality they represent (major=blue, minor=purple, dominant=cyan, dimished=green, aug=grey, other=yellow)
+
+- In `ROW` mode, the pads are spread out on each row across the pads, this mode is inspired by the Launchpad Pro's chord mode. 
+
+- In `COLUMN` mode, each column is a series a harmonically similar chords that can often sound nice substited for each other.
+
+- In the bottom right of the pads, you can toggle auto voiceleading, which keeps all the notes in the chord within a single octave. This is very beta, and more thoughful voiceleading is planned.
+
+- turning `◀︎▶︎` will cycle through the scale degrees. `▼︎▲︎` modulates the entire `CHORD` keyboard.
+
+- As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
+
+#### 4.4.1.7 - Display Chord Library Keyboard Layout
 
 - ([#2385]) Enables `CHORD LIBRARY` keyboard layout which displays a library of chords on the pads. Accessible the same way as other instrument supporting keyboards `SELECT` + `KEYBOARD` to cycle through layouts while on `SYNTH, MIDI, CV`
 
@@ -1207,7 +1223,7 @@ list of all options as listed in OLED and 7SEG displays and what they do:
 * `Launch Event Playhead (PLAY)`
     * When On, a red and white playhead will be rendered in Song Grid and Performance Views that let's you know that a maximum of one bar (16 notes) is remaining before a clip or section launch event is scheduled to occur.
 * `Chord Library Keyboard (CHRD)`
-    * When On, enables the `CHORD Library` keyboard layout which allows playing chords on the pads. See [Chord Library Keyboard Layout](#4416---display-chord-library-keyboard-layout) for more information.
+    * When On, enables the `CHORD` keyboard, which allows playing in-scale chords in a column or accross pads in a row as well as enables the `CHORD Library` keyboard layout which allows playing a library of chords on the pads. See [Chord Keyboard Layout](#4416---display-chord-keyboard-layout) and [Chord Library Keyboard Layout](#4417---display-chord-library-keyboard-layout) for more information.
 * `Alternative Playback Start Behaviour (STAR)`
     * When On, the behaviour of playback start shortcuts changes as follows:
       * With playback off, pressing `PLAY` will start playback from the current grid scroll position
@@ -1480,9 +1496,12 @@ different firmware
 [#2367]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2367
 
 [#2385]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2385
+
 [#2421]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2421
 
 [#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
+
+[#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
