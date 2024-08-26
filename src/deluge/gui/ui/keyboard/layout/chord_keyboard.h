@@ -73,6 +73,8 @@ private:
 	void evaluatePadsColumn(PressedPad pressed);
 	void drawChordName(int16_t noteCode, const char* chordName = "", const char* voicingName = "");
 
+	Scale lastScale = NO_SCALE;
+
 	ChordKeyboardMode mode = ChordKeyboardMode::ROW;
 
 	std::array<RGB, CHORD_QUALITY_MAX> qualityColours = {colours::blue,  colours::purple,

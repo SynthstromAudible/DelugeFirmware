@@ -154,6 +154,12 @@ void KeyboardLayoutChord::precalculate() {
 	D_PRINTLN("Current scale: %d", currentScale);
 
 	if (!(acceptedScales.find(currentScale) != acceptedScales.end())) {
+		if (lastScale == NO_SCALE) {
+			keyboardScreen.setScale(MAJOR_SCALE);
+		}
+		else {
+			keyboardScreen.setScale(lastScale);
+		}
 		if (display->haveOLED()) {
 			display->popupTextTemporary("Chord mode only supports modes of major and minor scales");
 		}
@@ -162,6 +168,7 @@ void KeyboardLayoutChord::precalculate() {
 		}
 	}
 	else {
+		lastScale = currentScale;
 		NoteSet& scaleNotes = getScaleNotes();
 
 		for (int32_t i = 0; i < noteColours.size(); ++i) {
