@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2023 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,11 +14,12 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/ui.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "hid/led/indicator_leds.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -31,10 +32,10 @@ public:
 	PerformanceEditingMode currentMode;
 
 	void readCurrentValue() override {
-		if (!performanceSessionView.defaultEditingMode) {
+		if (!performanceView.defaultEditingMode) {
 			currentMode = PerformanceEditingMode::DISABLED;
 		}
-		else if (!performanceSessionView.editingParam) {
+		else if (!performanceView.editingParam) {
 			currentMode = PerformanceEditingMode::VALUE;
 		}
 		else {
@@ -51,29 +52,30 @@ public:
 		}
 		// here we're going to want to step into the value editing or param editing UI
 		else if (currentMode == PerformanceEditingMode::VALUE) {
-			performanceSessionView.defaultEditingMode = true;
-			performanceSessionView.editingParam = false;
+			performanceView.defaultEditingMode = true;
+			performanceView.editingParam = false;
 		}
 		else { // PerformanceEditingMode::PARAM
-			performanceSessionView.defaultEditingMode = true;
-			performanceSessionView.editingParam = true;
+			performanceView.defaultEditingMode = true;
+			performanceView.editingParam = true;
 		}
 
-		if (!performanceSessionView.editingParam) {
+		if (!performanceView.editingParam) {
 			// reset performance view when you switch modes
 			// but not when in param editing mode cause that would reset param assignments to FX columns
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithThreeMainThings* modelStack =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-			performanceSessionView.resetPerformanceView(modelStack);
+			performanceView.resetPerformanceView(modelStack);
 		}
 
 		display->setNextTransitionDirection(1);
-		openUI(&performanceSessionView);
+		openUI(&performanceView);
 		return NO_NAVIGATION;
 	}
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_DISABLED),

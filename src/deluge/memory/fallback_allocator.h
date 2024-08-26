@@ -1,5 +1,6 @@
 #pragma once
 #include "memory/general_memory_allocator.h"
+#include "util/exceptions.h"
 #include <cstddef>
 extern "C" {
 void abort(void); // this is defined in reset_handler.S
@@ -22,20 +23,15 @@ public:
 	template <typename U>
 	constexpr fallback_allocator(const fallback_allocator<U>&) noexcept {};
 
-	[[nodiscard]] T* allocate(std::size_t n) noexcept {
+	[[nodiscard]] T* allocate(std::size_t n) noexcept(false) {
 		if (n == 0) {
 			return nullptr;
 		}
 		void* addr = GeneralMemoryAllocator::get().allocExternal(n * sizeof(T));
-		// cpp specifies we should throw. Given that we don't have excpetions
-		// we are obligated to freeze
-		// c++ wil NOT check for nullptr before calling constructors on the return address
-		if (addr) {
+		if (addr != nullptr) {
 			return static_cast<T*>(addr);
 		}
-		else {
-			abort();
-		}
+		throw deluge::exception::BAD_ALLOC;
 	}
 
 	void deallocate(T* p, std::size_t n) { GeneralMemoryAllocator::get().deallocExternal(p); }

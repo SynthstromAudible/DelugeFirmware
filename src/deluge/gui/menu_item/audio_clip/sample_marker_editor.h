@@ -19,6 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/menu_item.h"
 
+#include <hid/display/oled.h>
+
 namespace deluge::gui::menu_item::audio_clip {
 
 class SampleMarkerEditor final : public MenuItem {
@@ -29,6 +31,9 @@ public:
 	virtual MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                                     MultiRange** currentRange);
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
+	void getColumnLabel(StringBuf& label) override;
 
 	MarkerType whichMarker;
 };

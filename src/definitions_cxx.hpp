@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions.h"
+#include "model/iterance/iterance.h"
 #include "util/misc.h"
 
 #include <cstddef>
@@ -53,6 +54,16 @@
 #define ENABLE_CLIP_CUTTING_DIAGNOSTICS 1
 
 #define PITCH_DETECT_DEBUG_LEVEL 0
+
+// this is the owning raw pointer annotation used by clang tidy
+namespace gsl {
+template <typename T>
+using owner = T;
+}
+
+// Constants for the char value of the flat(♭) accidental glyph
+#define FLAT_CHAR_STR "\x81"
+#define FLAT_CHAR 0x81u
 
 constexpr uint8_t kOctaveSize = 12;
 
@@ -96,7 +107,7 @@ constexpr int32_t kEditPadPressBufferSize = 8;
 
 constexpr int32_t kNumModButtons = 8;
 
-// Display information
+// Display information (actually pads, not the display proper)
 constexpr int32_t kDisplayHeight = 8;
 constexpr int32_t kDisplayHeightMagnitude = 3;
 constexpr int32_t kDisplayWidth = 16;
@@ -194,33 +205,41 @@ constexpr int32_t kNumInstrumentSlots = 1000;
 constexpr size_t kFilenameBufferSize = 256;
 
 /// Static enum representing which view a generic UI pointer actually represents.
+/// If you update this, also update the string translations in ui.cpp!
 enum class UIType : uint8_t {
 	ARRANGER,
 	AUDIO_CLIP,
 	AUDIO_RECORDER,
 	AUTOMATION,
-	BROWSER,
 	CONTEXT_MENU,
+	DX_BROWSER,
 	INSTRUMENT_CLIP,
 	KEYBOARD_SCREEN,
 	LOAD_INSTRUMENT_PRESET,
+	LOAD_MIDI_DEVICE_DEFINITION,
+	LOAD_PATTERN,
 	LOAD_SONG,
-	PERFORMANCE_SESSION,
-	RENAME_DRUM,
-	RENAME_OUTPUT,
+	PERFORMANCE,
+	RENAME,
+	SAMPLE_BROWSER,
 	SAMPLE_MARKER_EDITOR,
+	SAVE_INSTRUMENT_PRESET,
+	SAVE_KIT_ROW,
+	SAVE_MIDI_DEVICE_DEFINITION,
+	SAVE_PATTERN,
+	SAVE_SONG,
 	SESSION,
 	SLICER,
 	SOUND_EDITOR,
-	TIMELINE,
-	RENAME_CLIPNAME,
+	// Keep these at the bottom!
+	UI_TYPE_COUNT,
 	NONE = 255,
 };
 
-enum class AutomationSubType : uint8_t {
-	ARRANGER,
-	INSTRUMENT,
-	AUDIO,
+// used for determining the active mod controllable context for a UI
+enum class UIModControllableContext : uint8_t {
+	SONG,
+	CLIP,
 	NONE = 255,
 };
 
@@ -244,6 +263,8 @@ enum class OutputType : uint8_t {
 enum class StemExportType : uint8_t {
 	CLIP,
 	TRACK,
+	DRUM,
+	MIXDOWN,
 };
 
 enum class ThingType : uint8_t {
@@ -252,6 +273,8 @@ enum class ThingType : uint8_t {
 	SONG,
 	NONE,
 };
+
+enum class MenuHighlighting : uint8_t { FULL_INVERSION, PARTIAL_INVERSION, NO_INVERSION };
 
 constexpr int32_t kModFXBufferSize = 512;
 constexpr int32_t kModFXBufferIndexMask = (kModFXBufferSize - 1);
@@ -264,7 +287,7 @@ constexpr int32_t kFlangerMinTime = (3 << 16);
 constexpr int32_t kFlangerAmplitude = (kModFXMaxDelay - kFlangerMinTime);
 constexpr int32_t kFlangerOffset = ((kModFXMaxDelay + kFlangerMinTime) >> 1);
 
-constexpr int32_t kNumEnvelopes = 2;
+constexpr int32_t kNumEnvelopes = 4;
 constexpr int32_t kNumLFOs = 2;
 constexpr int32_t kNumModulators = 2;
 
@@ -295,11 +318,15 @@ enum class VoicePriority : uint8_t {
 constexpr size_t kNumVoicePriorities = util::to_underlying(VoicePriority::HIGH) + 1;
 
 enum class PatchSource : uint8_t {
-	LFO_GLOBAL,
+	LFO_GLOBAL_1,
+	LFO_GLOBAL_2,
 	SIDECHAIN,
 	ENVELOPE_0,
 	ENVELOPE_1,
-	LFO_LOCAL,
+	ENVELOPE_2,
+	ENVELOPE_3,
+	LFO_LOCAL_1,
+	LFO_LOCAL_2,
 	X,
 	Y,
 	AFTERTOUCH,
@@ -391,9 +418,11 @@ enum LFO_ID {
 	// LFO_ID is used exlusively is as an array index, so an enum class would
 	// only add extra noise to get the underlying value in all places where this
 	// is used.
-	LFO1_ID = 0,
-	LFO2_ID = 1,
-	LFO_COUNT = 2,
+	LFO1_ID = 0, // LFO 1 (global)
+	LFO2_ID = 1, // LFO 2 (local)
+	LFO3_ID = 2, // LFO 3 (global)
+	LFO4_ID = 3, // LFO 4 (local)
+	LFO_COUNT = 4,
 };
 
 enum class LFOType : uint8_t {
@@ -403,16 +432,10 @@ enum class LFOType : uint8_t {
 	SAW,
 	SAMPLE_AND_HOLD,
 	RANDOM_WALK,
+	WARBLER,
 };
 
-constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK) + 1;
-
-enum class SynthMode : uint8_t {
-	SUBTRACTIVE,
-	FM,
-	RINGMOD,
-};
-constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
+constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::WARBLER) + 1;
 
 enum class ModFXType : uint8_t {
 	NONE,
@@ -420,11 +443,18 @@ enum class ModFXType : uint8_t {
 	CHORUS,
 	PHASER,
 	CHORUS_STEREO,
+	WARBLE,
+	DIMENSION,
 	GRAIN, // Look below if you want to add another one
 };
-
-// Warning: Currently GRAIN can be disabled and kNumModFXTypes might need to be used - 1
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
+
+enum class SynthMode : uint8_t {
+	SUBTRACTIVE,
+	FM,
+	RINGMOD,
+};
+constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
 constexpr int32_t SAMPLE_MIN_TRANSPOSE = (-96);
@@ -448,7 +478,7 @@ constexpr int32_t kNumericDisplayLength = 4;
 constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
 constexpr int32_t kMaxGoldKnobIndicatorLEDValue = kMaxKnobPos / 4;
 
-constexpr int32_t kMaxNumSections = 12;
+constexpr int32_t kMaxNumSections = 24;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 
@@ -484,6 +514,10 @@ enum class Error {
 	INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE,
 	SD_CARD_NOT_PRESENT,
 	SD_CARD_NO_FILESYSTEM,
+	INVALID_PATTERN_VERSION,
+	OUT_OF_BUFFER_SPACE,
+	INVALID_SYSEX_FORMAT,
+	POS_PAST_STRING,
 };
 
 enum class SampleRepeatMode {
@@ -522,6 +556,7 @@ enum class ArpPreset {
 	DOWN,
 	BOTH,
 	RANDOM,
+	WALK,
 	CUSTOM,
 };
 
@@ -529,8 +564,12 @@ enum class ArpNoteMode {
 	UP,
 	DOWN,
 	UP_DOWN,
-	AS_PLAYED,
 	RANDOM,
+	WALK1,
+	WALK2,
+	WALK3,
+	AS_PLAYED,
+	PATTERN,
 };
 
 enum class ArpOctaveMode {
@@ -552,6 +591,7 @@ enum class ModFXParam {
 	FEEDBACK,
 	OFFSET,
 };
+constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
 
 enum class CompParam {
 	RATIO,
@@ -562,14 +602,13 @@ enum class CompParam {
 	LAST,
 };
 
-constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
-
 enum class PatchCableAcceptance {
 	DISALLOWED,
 	EDITABLE,
 	ALLOWED,
 	YET_TO_BE_DETERMINED,
 };
+
 enum class OverDubType { Normal, ContinuousLayering };
 
 enum class GlobalMIDICommand {
@@ -584,6 +623,7 @@ enum class GlobalMIDICommand {
 	REDO,
 	FILL,
 	TRANSPOSE,
+	NEXT_SONG,
 	LAST, // Keep as boundary
 };
 constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
@@ -641,10 +681,22 @@ enum class ArmState {
 };
 
 constexpr int32_t kNumProbabilityValues = 20;
-constexpr int32_t kNumIterationValues = 35; // 1of2 to 8of8
-constexpr int32_t kFillProbabilityValue = 0;
-constexpr int32_t kNotFillProbabilityValue = 128; // This is like the "latched" state of Fill (zero ORed with 128)
+constexpr int32_t kNumIterancePresets = 35;                // 1of2 through 8of8 (indexes 1 through 35)
+constexpr int32_t kCustomIterancePreset = 36;              // The "CUSTOM" iterance value is right after "8of8"
+constexpr Iterance kCustomIteranceValue = Iterance{1, 1};  // "1of1"
+constexpr Iterance kDefaultIteranceValue = Iterance{0, 0}; // 0 means OFF
+constexpr int32_t kDefaultIterancePreset = 0;              // 0 means OFF
+constexpr int32_t kOldFillProbabilityValue = 0;
+constexpr int32_t kOldNotFillProbabilityValue = 128; // This is like the "latched" state of Fill (zero ORed with 128)
 constexpr int32_t kDefaultLiftValue = 64;
+
+enum FillMode : uint8_t {
+	OFF,
+	NOT_FILL,
+	FILL,
+};
+
+constexpr int32_t kNumFillValues = FillMode::FILL;
 
 enum Navigation {
 	NAVIGATION_CLIP,
@@ -888,6 +940,7 @@ constexpr int32_t MIDI_CHANNEL_MPE_LOWER_ZONE = 16;
 constexpr int32_t MIDI_CHANNEL_MPE_UPPER_ZONE = 17;
 constexpr int32_t NUM_CHANNELS = 18;
 constexpr int32_t MIDI_CHANNEL_NONE = 255;
+constexpr int32_t MIDI_NOTE_NONE = 255;
 constexpr int32_t MIDI_CC_NONE = 255;
 
 constexpr int32_t NUM_INTERNAL_DESTS = 1;
@@ -912,6 +965,10 @@ constexpr int32_t kOLEDMenuNumOptionsVisible = (OLED_HEIGHT_CHARS - 1);
 constexpr int32_t kConsoleImageHeight = (OLED_MAIN_HEIGHT_PIXELS);
 constexpr int32_t kConsoleImageNumRows = (OLED_MAIN_HEIGHT_PIXELS >> 3);
 
+// small characters
+constexpr int32_t kTextSmallSpacingX = 4;
+constexpr int32_t kTextSmallSizeY = 5;
+
 // non-title characters
 constexpr int32_t kTextSpacingX = 6; // the width of a character (5 px) + the space after it (1 px)
 constexpr int32_t kTextSpacingY = 9; // the height of a character (7 px) + the space above (1px) and below it (1px)
@@ -930,7 +987,9 @@ constexpr int32_t kTextHugeSizeY = 20;
 // submenu icons
 constexpr int32_t kSubmenuIconSpacingX = 7;
 
+// For kits
 constexpr int32_t kNoteForDrum = 60;
+constexpr int32_t kDefaultNoteOffVelocity = 64;
 
 enum BendRange {
 	BEND_RANGE_MAIN,
@@ -975,9 +1034,21 @@ constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    /
 constexpr uint32_t kMediumFeedbackAutomationRate = (kSampleRate / 1000) * 150; // 150 ms
 constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    // 40 ms
 
+enum class ThresholdRecordingMode : int8_t {
+	OFF,
+	LOW,
+	MEDIUM,
+	HIGH,
+};
+
+constexpr int8_t kFirstThresholdRecordingMode = util::to_underlying(ThresholdRecordingMode::OFF);
+constexpr int8_t kLastThresholdRecordingMode = util::to_underlying(ThresholdRecordingMode::HIGH);
+constexpr int8_t kNumThresholdRecordingModes = kLastThresholdRecordingMode + 1;
+
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
 	KeyboardLayoutTypeInKey,
+	KeyboardLayoutTypePiano,
 	KeyboardLayoutTypeChord,
 	KeyboardLayoutTypeChordLibrary,
 	KeyboardLayoutTypeDrums,
@@ -989,6 +1060,13 @@ enum SessionLayoutType : uint8_t {
 	SessionLayoutTypeRows,
 	SessionLayoutTypeGrid,
 	SessionLayoutTypeMaxElement // Keep as boundary
+};
+
+enum FavouritesDefaultLayout : uint8_t {
+	FavouritesDefaultLayoutFavorites,
+	FavouritesDefaultLayoutFavoritesAndBanks,
+	FavouritesDefaultLayoutOff,
+	FavouritesDefaultLayoutMaxElement // Keep as boundary
 };
 
 enum GridDefaultActiveMode : uint8_t {
@@ -1019,3 +1097,6 @@ enum class LaunchStyle { DEFAULT, FILL, ONCE };
 
 enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
 constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;
+
+constexpr uint8_t kHorizontalMenuSlotYOffset = 2;
+constexpr uint8_t kScreenTitleSeparatorY = 12 + OLED_MAIN_TOPMOST_PIXEL;

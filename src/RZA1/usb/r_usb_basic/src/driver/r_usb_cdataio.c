@@ -95,56 +95,74 @@ usb_utr_t* g_p_usb_pipe[USB_MAX_PIPE_NO + 1u];
 void (*g_usb_callback[])(usb_utr_t*, uint16_t, uint16_t) = {
 /* PCDC, PCDCC */
 #if defined(USB_CFG_PCDC_USE)
-    usb_pcdc_read_complete, usb_pcdc_write_complete, /* USB_PCDC  (0) */
-    USB_NULL, usb_pcdc_write_complete,               /* USB_PCDCC (1) */
+    usb_pcdc_read_complete,
+    usb_pcdc_write_complete, /* USB_PCDC  (0) */
+    USB_NULL,
+    usb_pcdc_write_complete, /* USB_PCDCC (1) */
 #else
-    USB_NULL, USB_NULL, /* USB_PCDC  (0) */
-    USB_NULL, USB_NULL, /* USB_PCDCC (1) */
+    USB_NULL,
+    USB_NULL, /* USB_PCDC  (0) */
+    USB_NULL,
+    USB_NULL, /* USB_PCDCC (1) */
 #endif
 
 /* PHID */
 #if defined(USB_CFG_PHID_USE)
-    usb_phid_read_complete, usb_phid_write_complete, /* USB_PHID  (2) */
+    usb_phid_read_complete,
+    usb_phid_write_complete, /* USB_PHID  (2) */
 #else
-    USB_NULL, USB_NULL, /* USB_PHID  (2) */
+    USB_NULL,
+    USB_NULL, /* USB_PHID  (2) */
 #endif
 
 /* PVNDR */
 #if defined(USB_CFG_PVNDR_USE)
-    usb_pvndr_read_complete, usb_pnvdr_write_complete, /* USB_PVND  (3) */
+    usb_pvndr_read_complete,
+    usb_pnvdr_write_complete, /* USB_PVND  (3) */
 #else
-    USB_NULL, USB_NULL, /* USB_PVND  (3) */
+    USB_NULL,
+    USB_NULL, /* USB_PVND  (3) */
 #endif
 
 /* HCDC, HCDCC */
 #if defined(USB_CFG_HCDC_USE)
-    usb_hcdc_read_complete, usb_hcdc_write_complete, /* USB_HCDC  (4) */
-    usb_hcdc_read_complete, USB_NULL,                /* USB_HCDCC (5) */
+    usb_hcdc_read_complete,
+    usb_hcdc_write_complete, /* USB_HCDC  (4) */
+    usb_hcdc_read_complete,
+    USB_NULL, /* USB_HCDCC (5) */
 #else
-    USB_NULL, USB_NULL, /* USB_HCDC  (4) */
-    USB_NULL, USB_NULL, /* USB_HCDCC (5) */
+    USB_NULL,
+    USB_NULL, /* USB_HCDC  (4) */
+    USB_NULL,
+    USB_NULL, /* USB_HCDCC (5) */
 #endif
 
 /* HHID */
 #if defined(USB_CFG_HHID_USE)
-    hhid_read_complete, hhid_write_complete, /* USB_HHID  (6) */
+    hhid_read_complete,
+    hhid_write_complete, /* USB_HHID  (6) */
 #else
-    USB_NULL, USB_NULL, /* USB_HHID  (6) */
+    USB_NULL,
+    USB_NULL, /* USB_HHID  (6) */
 #endif
 
 /* HVNDR */
 #if defined(USB_CFG_HVNDR_USE)
-    usb_hvndr_read_complete, usb_hnvdr_write_complete, /* USB_HVND  (7) */
+    usb_hvndr_read_complete,
+    usb_hnvdr_write_complete, /* USB_HVND  (7) */
 #else
-    USB_NULL, USB_NULL, /* USB_HVND  (7) */
+    USB_NULL,
+    USB_NULL, /* USB_HVND  (7) */
 #endif
 
     /* HMSC */
-    USB_NULL, USB_NULL, /* USB_HMSC  (8) */
+    USB_NULL,
+    USB_NULL, /* USB_HMSC  (8) */
 
     /* PMSC */
-    USB_NULL, USB_NULL, /* USB_PMSC  (9) */
-};                      /* const void (g_usb_callback[])(usb_utr_t *, uint16_t, uint16_t) */
+    USB_NULL,
+    USB_NULL, /* USB_PMSC  (9) */
+}; /* const void (g_usb_callback[])(usb_utr_t *, uint16_t, uint16_t) */
 
 /***********************************************************************************************************************
  Renesas Abstracted common data I/O functions

@@ -66,20 +66,21 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 	if (type == OutputType::MIDI_OUT) {
 		char const* slotXMLTag = getSlotXMLTag();
 		if (((MIDIInstrument*)this)->sendsToMPE()) {
-			writer.writeAttribute(
-			    slotXMLTag, (((NonAudioInstrument*)this)->channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
+			writer.writeAttribute(slotXMLTag, (((NonAudioInstrument*)this)->getChannel() == MIDI_CHANNEL_MPE_LOWER_ZONE)
+			                                      ? "lower"
+			                                      : "upper");
 		}
 		else if (((MIDIInstrument*)this)->sendsToInternal()) {
-			switch (((NonAudioInstrument*)this)->channel) {
+			switch (((NonAudioInstrument*)this)->getChannel()) {
 			case MIDI_CHANNEL_TRANSPOSE:
 				writer.writeAttribute(slotXMLTag, "transpose");
 				break;
 			default:
-				writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
+				writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
 			}
 		}
 		else {
-			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
+			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
 		}
 		char const* subSlotTag = getSubSlotXMLTag();
 		if (subSlotTag) {
@@ -94,7 +95,7 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 		else if (type == OutputType::CV) {
 			char const* slotXMLTag = getSlotXMLTag();
 
-			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->channel);
+			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
 		}
 		if (!dirPath.isEmpty() && (type == OutputType::SYNTH || type == OutputType::KIT)) {
 			writer.writeAttribute("presetFolder", dirPath.get());

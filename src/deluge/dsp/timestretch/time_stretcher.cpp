@@ -356,14 +356,14 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		// lookahead = interpolateTableSigned(position, 27, lookaheadCoarse, 2) >> 16;
 	}
 
-	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
+	//	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
 
 	/*
-	minBeamWidth = storageManager.devVarA * 10;
-	maxBeamWidth = storageManager.devVarB * 100;
-	crossfadeProportional = storageManager.devVarC << 24;
-	crossfadeAbsolute = storageManager.devVarD;
-	randomElement = storageManager.devVarF << 16;
+	minBeamWidth = StorageManager::devVarA * 10;
+	maxBeamWidth = StorageManager::devVarB * 100;
+	crossfadeProportional = StorageManager::devVarC << 24;
+	crossfadeAbsolute = StorageManager::devVarD;
+	randomElement = StorageManager::devVarF << 16;
 */
 
 	// Apply random element
@@ -659,7 +659,7 @@ skipPercStuff:
 		// for searching in one direction, and we're going to do both directions.
 		int32_t limit = (sample->sampleRate / 45) >> 1;
 		maxSearchSize = std::min(maxSearchSize, limit);
-		D_PRINTLN("max search length:  %d", maxSearchSize);
+		//		D_PRINTLN("max search length:  %d", maxSearchSize);
 
 		int32_t numFullDirectionsSearched = 0;
 		int32_t timesSignFlipped = 0;
@@ -856,7 +856,7 @@ stopSearch:
 		// The above is supposed to not go back beyond the start of the waveform, but there must be some bug because it
 		// does. Until I fix that, this check ensures we stay within the waveform
 		if ((newHeadBytePos - waveformStartByte) * playDirection < 0) {
-			D_PRINTLN("avoided going before 0: %s", newHeadBytePos - waveformStartByte);
+			D_PRINTLN("avoided going before 0: %i", newHeadBytePos - waveformStartByte);
 			newHeadBytePos = waveformStartByte;
 		}
 	}

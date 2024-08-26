@@ -1,7 +1,7 @@
 #include "enumeration.h"
 #include "gui/ui/sound_editor.h"
-
-#include "io/debug/log.h"
+#include "hid/display/display.h"
+#include "hid/display/oled.h"
 
 namespace deluge::gui::menu_item {
 void Enumeration::beginSession(MenuItem* navigatedBackwardFrom) {
@@ -28,8 +28,6 @@ void Enumeration::selectEncoderAction(int32_t offset) {
 		nextValue = std::clamp<int32_t>(nextValue, 0, numOptions - 1);
 	}
 
-	D_PRINTLN("value = %d", nextValue);
-
 	setValue(nextValue);
 
 	// reset offset to account for wrapping
@@ -45,4 +43,20 @@ void Enumeration::drawValue() {
 		display->setTextAsNumber(getValue());
 	}
 }
+
+void Enumeration::getShortOption(StringBuf& opt) {
+	opt.appendInt(getValue());
+}
+
+void Enumeration::renderInHorizontalMenu(const SlotPosition& slot) {
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
+
+	// Render current value
+	DEF_STACK_STRING_BUF(shortOpt, kShortStringBufferSize);
+	getShortOption(shortOpt);
+
+	image.drawStringCentered(shortOpt, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+	                         kTextSpacingY, slot.width);
+}
+
 } // namespace deluge::gui::menu_item

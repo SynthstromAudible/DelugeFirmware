@@ -21,6 +21,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
 
 NonAudioDrum::NonAudioDrum(DrumType newType) : Drum(newType) {
 	state = false;
@@ -35,6 +36,7 @@ void NonAudioDrum::unassignAllVoices() {
 	if (hasAnyVoices()) {
 		noteOff(NULL);
 	}
+	arpeggiator.reset();
 }
 
 bool NonAudioDrum::anyNoteIsOn() {
@@ -56,10 +58,7 @@ TimelineCounter* playPositionCounter) { if (whichModEncoder == 0) { channelEncod
 int8_t NonAudioDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset,
                                       uint8_t whichModEncoder) {
 
-	if ((getCurrentUI() == &instrumentClipView
-	     || (getCurrentUI() == &automationView
-	         && automationView.getAutomationSubType() == AutomationSubType::INSTRUMENT))
-	    && currentUIMode == UI_MODE_AUDITIONING) {
+	if ((getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) && (currentUIMode == UI_MODE_AUDITIONING)) {
 		if (whichModEncoder == 0) {
 			modChange(modelStack, offset, &channelEncoderCurrentOffset, &channel, getNumChannels());
 		}
@@ -106,8 +105,18 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 	instrumentClipView.drawDrumName(this, true);
 
 	if (wasOn) {
-		noteOn(modelStack, lastVelocity, NULL, zeroMPEValues);
+		noteOn(modelStack, lastVelocity, zeroMPEValues);
 	}
+}
+
+void NonAudioDrum::writeArpeggiatorToFile(Serializer& writer) {
+	writer.writeOpeningTagBeginning("arpeggiator");
+
+	arpSettings.writeCommonParamsToFile(writer, nullptr);
+
+	arpSettings.writeNonAudioParamsToFile(writer);
+
+	writer.closeTag();
 }
 
 bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
@@ -115,6 +124,19 @@ bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName
 	if (!strcmp(tagName, "channel")) {
 		channel = reader.readTagOrAttributeValueInt();
 		reader.exitTag("channel");
+	}
+	else if (!strcmp(tagName, "arpeggiator")) {
+		reader.match('{');
+		while (*(tagName = reader.readNextTagOrAttributeName())) {
+			bool readAndExited = arpSettings.readCommonTagsFromFile(reader, tagName, nullptr);
+			if (!readAndExited) {
+				readAndExited = arpSettings.readNonAudioTagsFromFile(reader, tagName);
+			}
+			if (!readAndExited) {
+				reader.exitTag(tagName);
+			}
+		}
+		reader.match('}'); // End arpeggiator value object.
 	}
 	else if (Drum::readDrumTagFromFile(reader, tagName)) {}
 	else {

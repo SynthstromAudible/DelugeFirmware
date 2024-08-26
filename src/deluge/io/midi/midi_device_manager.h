@@ -23,7 +23,6 @@ class MIDIDevice;
 class MIDIDeviceUSBUpstream;
 class MIDIDeviceDINPorts;
 class MIDIDeviceUSB;
-class StorageManager;
 class Serializer;
 class Deserializer;
 
@@ -109,9 +108,9 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);
 void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory);
 void recountSmallestMPEZones();
-void writeDevicesToFile(StorageManager& bdsm);
+void writeDevicesToFile();
 void readAHostedDeviceFromFile(Deserializer& reader);
-void readDevicesFromFile(StorageManager& bdsm);
+void readDevicesFromFile();
 
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;

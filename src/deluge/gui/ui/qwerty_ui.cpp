@@ -40,15 +40,38 @@ String QwertyUI::enteredText{};
 int16_t QwertyUI::enteredTextEditPos;
 int32_t QwertyUI::scrollPosHorizontal;
 
-QwertyUI::QwertyUI() {
-}
+uint8_t QwertyUI::currentBank = 0;
+std::optional<uint8_t> QwertyUI::currentFavourite = std::nullopt;
+bool QwertyUI::favouritesVisible = false;
+uint8_t QwertyUI::favouriteRow = 6;
+bool QwertyUI::banksVisible = false;
+FavouritesDefaultLayout QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayout::FavouritesDefaultLayoutFavorites;
+
+static constexpr float colourStep = 192 / 16;
 
 bool QwertyUI::opened() {
 
 	indicator_leds::blinkLed(IndicatorLED::BACK);
-
 	enteredTextEditPos = 0;
 	enteredText.clear();
+	switch (FlashStorage::defaultFavouritesLayout) {
+	case FavouritesDefaultLayoutFavorites: {
+		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutFavorites;
+		QwertyUI::favouriteRow = 7;
+		QwertyUI::banksVisible = false;
+		break;
+	}
+	case FavouritesDefaultLayoutFavoritesAndBanks: {
+		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutFavoritesAndBanks;
+		QwertyUI::favouriteRow = 6;
+		QwertyUI::banksVisible = true;
+		break;
+	}
+	default: {
+		QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayoutOff;
+		break;
+	}
+	}
 	return true;
 }
 
@@ -98,6 +121,9 @@ void QwertyUI::drawKeys() {
 		PadLEDs::image[kQwertyHomeRow - 1][13 + x] = colours::blue;
 	}
 
+	if (favouritesVisible) {
+		renderFavourites();
+	}
 	PadLEDs::sendOutMainPadColours();
 }
 
@@ -107,9 +133,7 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	char const* displayName = enteredText.get();
 	int32_t displayStringLength = enteredText.getLength();
 
-	bool atVeryEnd = (enteredTextEditPos == displayStringLength);
-
-	int32_t xScrollHere = 0;
+	bool atVeryEnd = enteredTextEditPos == displayStringLength;
 
 	// Prevent being scrolled too far left.
 	int32_t minXScroll = std::min(enteredTextEditPos + 3 - maxNumChars, displayStringLength - maxNumChars + atVeryEnd);
@@ -125,15 +149,6 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	canvas.drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, kTextSpacingX, kTextSpacingY, 0,
 	                  xPixel + maxNumChars * kTextSpacingX);
 
-	int32_t scrollAmount = enteredTextEditPos - scrollPosHorizontal;
-
-	// if we're at the beginning of the string, we want to show an extra inverted pixel before
-	// if we're somewhere inside the string, we want to start highlight right on the character
-	int32_t startAdjustment = scrollAmount ? 0 : 1;
-
-	int32_t highlightStartX = xPixel + kTextSpacingX * scrollAmount - startAdjustment;
-	int32_t highlightWidth = xPixelMax - highlightStartX;
-
 	if (atVeryEnd) {
 		if (getCurrentUI() == this) {
 			int32_t cursorStartX = xPixel + (displayStringLength - scrollPosHorizontal) * kTextSpacingX;
@@ -142,7 +157,16 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 		}
 	}
 	else {
-		canvas.invertArea(highlightStartX, highlightWidth, yPixel, yPixel + kTextSpacingY - 1);
+		int32_t highlightStartX;
+		int32_t scrollAmount = enteredTextEditPos - scrollPosHorizontal;
+		if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION && !scrollAmount) {
+			highlightStartX = 0;
+		}
+		else {
+			highlightStartX = xPixel + kTextSpacingX * scrollAmount - 2;
+		}
+		canvas.invertLeftEdgeForMenuHighlighting(highlightStartX, xPixelMax - highlightStartX, yPixel,
+		                                         yPixel + kTextSpacingY - 1);
 	}
 }
 
@@ -397,12 +421,48 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 	return ActionResult::DEALT_WITH;
 }
 
+void QwertyUI::renderFavourites() {
+
+	if (!favouritesVisible) {
+		return;
+	}
+	std::array<std::optional<uint8_t>, 16> colours = favouritesManager.getFavouriteColours();
+	currentBank = favouritesManager.currentBankNumber;
+	currentFavourite = favouritesManager.currentFavouriteNumber;
+
+	if (favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutOff) {
+		PadLEDs::sendOutMainPadColours();
+		return;
+	}
+
+	for (uint8_t i = 0; i < 16; i++) {
+		// Render Banks
+		if (favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks) {
+			PadLEDs::image[favouriteBankRow][i] = RGB::fromHue(static_cast<int16_t>(i * colourStep));
+		}
+		// Render Favourites
+		if (colours[i].has_value()) {
+			PadLEDs::image[favouriteRow][i] = RGB::fromHue(static_cast<int16_t>(colours[i].value() * colourStep));
+		}
+		else {
+			PadLEDs::image[favouriteRow][i] = RGB::fromHue(static_cast<int16_t>(8 * colourStep)).dim(6);
+		}
+	}
+
+	PadLEDs::sendOutMainPadColours();
+
+	// Flash selected Bank & Favourite Pads
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
+}
+
 void QwertyUI::processBackspace() {
 	if (enteredTextEditPos > 0) {
 		enteredTextEditPos--;
 	}
 	if (!enteredText.isEmpty()) {
 		enteredText.shorten(enteredTextEditPos);
+		predictExtendedText();
+		predictionInterrupted = false;
 		displayText();
 	}
 }
@@ -440,6 +500,20 @@ ActionResult QwertyUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BACKSPACE) {
 		processBackspace();
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, display->haveOLED() ? 80 : 125);
+	}
+
+	// Flash selected Bank & Favourite Pads
+	if (favouritesVisible) {
+
+		if (QwertyUI::currentFavourite.has_value()) {
+			PadLEDs::flashMainPad(QwertyUI::currentFavourite.value(), favouriteRow);
+		}
+
+		if (QwertyUI::favouritesLayoutSelected == FavouritesDefaultLayout::FavouritesDefaultLayoutFavoritesAndBanks) {
+			PadLEDs::flashMainPad(QwertyUI::currentBank, favouriteBankRow);
+		}
+
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 	}
 
 	return ActionResult::DEALT_WITH;

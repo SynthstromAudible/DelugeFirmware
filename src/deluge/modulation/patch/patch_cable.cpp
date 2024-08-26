@@ -18,10 +18,67 @@
 #include "modulation/patch/patch_cable.h"
 #include "definitions_cxx.hpp"
 
+#include <storage/flash_storage.h>
+
+Polarity stringToPolarity(const std::string_view string) {
+	if (string == "unipolar") {
+		return Polarity::UNIPOLAR;
+	}
+	if (string == "bipolar") {
+		return Polarity::BIPOLAR;
+	}
+	return Polarity::BIPOLAR; // Default to bipolar
+}
+std::string_view polarityToString(const Polarity polarity) {
+	switch (polarity) {
+	case Polarity::UNIPOLAR:
+		return "unipolar";
+	case Polarity::BIPOLAR:
+		return "bipolar";
+	default:
+		return "bipolar";
+	}
+}
+std::string_view polarityToStringShort(const Polarity polarity) {
+	switch (polarity) {
+	case Polarity::UNIPOLAR:
+		return "UPLR";
+	case Polarity::BIPOLAR:
+		return "BPLR";
+	default:
+		return "BPLR";
+	}
+}
+
+bool PatchCable::hasPolarity(PatchSource source) {
+	if (source == PatchSource::Y || source == PatchSource::X) {
+		// these can't be converted so they ignore the actual setting
+		return false;
+	}
+	return true;
+}
+
+Polarity PatchCable::getDefaultPolarity(PatchSource source) {
+	if (source == PatchSource::AFTERTOUCH) {
+		// Aftertouch is stored unipolar, using bipolar here causes near zero volume with the default patch to level
+		return Polarity::UNIPOLAR;
+	}
+	if (source == PatchSource::Y || source == PatchSource::X || source == PatchSource::SIDECHAIN) {
+		// mod wheel is stored unipolar but MPE Y is bipolar, so stuck using bipolar
+		return Polarity::BIPOLAR;
+	}
+	return FlashStorage::defaultPatchCablePolarity; // Use the default polarity from flash storage
+}
+
+void PatchCable::setDefaultPolarity() {
+	polarity = getDefaultPolarity(from);
+}
+
 void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	from = newFrom;
 	destinationParamDescriptor.setToHaveParamOnly(newTo);
 	initAmount(newAmount);
+	setDefaultPolarity();
 }
 
 bool PatchCable::isActive() {

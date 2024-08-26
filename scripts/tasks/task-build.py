@@ -3,6 +3,7 @@ import argparse
 import importlib
 import subprocess
 import sys
+from typing import Sequence
 import util
 import os
 
@@ -56,8 +57,8 @@ def argparser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> int:
-    (args, unknown_args) = argparser().parse_known_args()
+def main(argv: Sequence[str] = None) -> int:
+    (args, unknown_args) = argparser().parse_known_args(argv)
 
     os.chdir(util.get_git_root())
 

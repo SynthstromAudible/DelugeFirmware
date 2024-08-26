@@ -67,7 +67,12 @@ doReturnFalse:
 	String searchFilename;
 	searchFilename.set(&currentSong->name);
 	if (!searchFilename.isEmpty()) {
-		error = searchFilename.concatenate(".XML");
+		if (writeJsonFlag) {
+			error = searchFilename.concatenate(".Json");
+		}
+		else {
+			error = searchFilename.concatenate(".XML");
+		}
 		if (error != Error::NONE) {
 gotError:
 			display->displayError(error);
@@ -107,7 +112,7 @@ void SaveSongUI::focusRegained() {
 	return SaveUI::focusRegained();
 }
 
-bool SaveSongUI::performSave(StorageManager& bdsm, bool mayOverwrite) {
+bool SaveSongUI::performSave(bool mayOverwrite) {
 
 	if (ALPHA_OR_BETA_VERSION && currentlyAccessingCard) {
 		FREEZE_WITH_ERROR("E316");
@@ -129,7 +134,7 @@ gotError:
 		return false;
 	}
 
-	bool fileAlreadyExisted = bdsm.fileExists(filePath.get());
+	bool fileAlreadyExisted = StorageManager::fileExists(filePath.get());
 
 	if (!mayOverwrite && fileAlreadyExisted) {
 		context_menu::overwriteFile.currentSaveUI = this;
@@ -183,7 +188,7 @@ gotError:
 			if (audioFile->type == AudioFileType::SAMPLE) {
 				// If this is a recording which still exists at its temporary location, move the file
 				if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
-					bdsm.buildPathToFile(audioFile->filePath.get());
+					StorageManager::buildPathToFile(audioFile->filePath.get());
 					FRESULT result =
 					    f_rename(((Sample*)audioFile)->tempFilePathForRecording.get(), audioFile->filePath.get());
 					if (result == FR_OK) {
@@ -236,7 +241,11 @@ gotError:
 				// converted
 
 				// Open file to read
-				FRESULT result = f_open(&fileSystemStuff.currentFile, sourceFilePath, FA_READ);
+				FRESULT result = FRESULT::FR_OK;
+				// this is just blind copying to move samples to/from the song folder. The serializer is being used for
+				// the song file write so use the deserializer
+				result = f_open(&activeDeserializer->readFIL, sourceFilePath, FA_READ);
+
 				if (result != FR_OK) {
 					D_PRINTLN("open fail %s", sourceFilePath);
 					error = Error::UNSPECIFIED;
@@ -307,7 +316,7 @@ gotError:
 						                                                     &audioFile->filePath);
 						if (error != Error::NONE) {
 failAfterOpeningSourceFile:
-							f_close(&fileSystemStuff.currentFile); // Close source file
+							activeDeserializer->closeWriter();
 							goto gotError;
 						}
 					}
@@ -333,7 +342,7 @@ failAfterOpeningSourceFile:
 				}
 
 				// Create file to write
-				auto created = bdsm.createFile(destFilePath, false);
+				auto created = StorageManager::createFile(destFilePath, false);
 				if (!created) {
 					if (created.error() == Error::FILE_ALREADY_EXISTS) {
 						// No problem - the audio file was already there from
@@ -351,7 +360,7 @@ failAfterOpeningSourceFile:
 					// Copy
 					while (true) {
 						UINT bytesRead;
-						result = f_read(&fileSystemStuff.currentFile, smDeserializer.fileClusterBuffer,
+						result = f_read(&activeDeserializer->readFIL, activeDeserializer->fileClusterBuffer,
 						                audioFileManager.clusterSize, &bytesRead);
 						if (result) {
 							D_PRINTLN("read fail");
@@ -363,7 +372,8 @@ fail3:
 							break; // Stop, on rare case where file ended right at end of last cluster
 						}
 
-						auto written = created.value().write({(std::byte*)smDeserializer.fileClusterBuffer, bytesRead});
+						auto written =
+						    created.value().write({(std::byte*)activeDeserializer->fileClusterBuffer, bytesRead});
 						if (!written || written.value() != bytesRead) {
 							D_PRINTLN("write fail %d", result);
 							goto fail3;
@@ -375,7 +385,7 @@ fail3:
 					}
 				}
 
-				f_close(&fileSystemStuff.currentFile); // Close source file
+				activeDeserializer->closeWriter(); // Close source file
 
 				// Write has succeeded. We can mark it as existing in its normal main location (e.g. in the SAMPLES
 				// folder). Unless we were collection media, in which case it won't be there - it'll be in the new
@@ -403,12 +413,17 @@ fail3:
 			if (error != Error::NONE) {
 				goto gotError;
 			}
-			error = filePathDuringWrite.concatenate(".XML");
+			if (writeJsonFlag) {
+				error = filePathDuringWrite.concatenate(".Json");
+			}
+			else {
+				error = filePathDuringWrite.concatenate(".XML");
+			}
 			if (error != Error::NONE) {
 				goto gotError;
 			}
 
-			if (!bdsm.fileExists(filePathDuringWrite.get())) {
+			if (!StorageManager::fileExists(filePathDuringWrite.get())) {
 				break;
 			}
 
@@ -421,19 +436,28 @@ fail3:
 
 	D_PRINTLN("creating:  %s", filePathDuringWrite.get());
 
-	// Write the actual song file
-	error = bdsm.createXMLFile(filePathDuringWrite.get(), smSerializer, false, false);
-	if (error != Error::NONE) {
-		goto gotError;
+	if (writeJsonFlag) {
+		// Write the actual song file
+		error = StorageManager::createJsonFile(filePathDuringWrite.get(), smJsonSerializer, false, false);
+		if (error != Error::NONE) {
+			goto gotError;
+		}
+	}
+	else {
+		error = StorageManager::createXMLFile(filePathDuringWrite.get(), smSerializer, false, false);
+		if (error != Error::NONE) {
+			goto gotError;
+		}
 	}
 
 	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be
 	// for either overwriting or not.
 
-	currentSong->writeToFile(bdsm);
+	currentSong->writeToFile();
 
-	error = smSerializer.closeFileAfterWriting(filePathDuringWrite.get(),
-	                                           "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
+	error = GetSerializer().closeFileAfterWriting(
+	    filePathDuringWrite.get(),
+	    writeJsonFlag ? "{\"song\": {\n" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -465,10 +489,10 @@ cardError:
 	currentSong->dirPath.set(&currentDir);
 
 	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
-		runtimeFeatureSettings.writeSettingsToFile(bdsm);
+		runtimeFeatureSettings.writeSettingsToFile();
 	}
 	// While we're at it, save MIDI devices if there's anything new to save.
-	MIDIDeviceManager::writeDevicesToFile(bdsm);
+	MIDIDeviceManager::writeDevicesToFile();
 
 	close();
 	return true;

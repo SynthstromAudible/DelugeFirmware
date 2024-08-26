@@ -19,7 +19,7 @@
 #include "processing/engines/audio_engine.h"
 
 namespace deluge::gui::menu_item::unpatched_param {
-class UpdatingReverbParams final : public UnpatchedParam {
+class UpdatingReverbParams : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 

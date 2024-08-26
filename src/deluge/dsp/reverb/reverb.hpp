@@ -1,7 +1,9 @@
 #pragma once
 #include "base.hpp"
+#include "deluge/dsp/reverb/reverb.hpp"
+#include "digital.hpp"
 #include "freeverb/freeverb.hpp"
-#include "mutable/reverb.hpp"
+#include "mutable.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <variant>
@@ -13,12 +15,14 @@ public:
 	enum class Model {
 		FREEVERB = 0, // Freeverb is the original
 		MUTABLE,
+		DIGITAL,
 	};
 
 	Reverb()
 	    : base_(&std::get<0>(reverb_)),     //<
 	      room_size_(base_->getRoomSize()), //<
 	      damping_(base_->getDamping()),    //<
+	      lpf_(base_->getLPF()),            //<
 	      width_(base_->getWidth()) {}
 	~Reverb() override = default;
 
@@ -26,6 +30,9 @@ public:
 		switch (m) {
 		case Model::FREEVERB:
 			reverb_.emplace<reverb::Freeverb>();
+			break;
+		case Model::DIGITAL:
+			reverb_.emplace<reverb::Digital>();
 			break;
 		case Model::MUTABLE:
 			reverb_.emplace<reverb::Mutable>();
@@ -35,6 +42,7 @@ public:
 		base_->setDamping(damping_);
 		base_->setWidth(width_);
 		base_->setHPF(hpf_);
+		base_->setLPF(lpf_);
 		model_ = m;
 	}
 
@@ -48,6 +56,9 @@ public:
 			break;
 		case Model::MUTABLE:
 			reverb_as<Mutable>().process(input, output);
+			break;
+		case Model::DIGITAL:
+			reverb_as<Digital>().process(input, output);
 			break;
 		}
 	}
@@ -83,6 +94,12 @@ public:
 	}
 	[[nodiscard]] virtual float getHPF() const { return base_->getHPF(); }
 
+	virtual void setLPF(float f) {
+		lpf_ = f;
+		base_->setLPF(f);
+	}
+	[[nodiscard]] virtual float getLPF() const { return base_->getLPF(); }
+
 	template <typename T>
 	constexpr T& reverb_as() {
 		return std::get<T>(reverb_);
@@ -91,7 +108,8 @@ public:
 private:
 	std::variant<         //<
 	    reverb::Freeverb, //<
-	    reverb::Mutable   //<
+	    reverb::Mutable,  //<
+	    reverb::Digital   //<
 	    >
 	    reverb_{};
 
@@ -103,5 +121,6 @@ private:
 	float damping_;
 	float width_;
 	float hpf_;
+	float lpf_;
 };
 } // namespace deluge::dsp

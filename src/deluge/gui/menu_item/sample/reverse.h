@@ -26,40 +26,68 @@
 namespace deluge::gui::menu_item::sample {
 class Reverse final : public Toggle, public FormattedTitle {
 public:
-	Reverse(l10n::String name, l10n::String title_format_str) : Toggle(name), FormattedTitle(title_format_str) {}
+	Reverse(l10n::String name, l10n::String title_format_str, uint8_t source_id)
+	    : Toggle(name), FormattedTitle(title_format_str, source_id + 1), source_id_{source_id} {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
+	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
+		return isSampleModeSample(modControllable, source_id_);
+	}
+
 	bool usesAffectEntire() override { return true; }
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSource->sampleControls.reversed); }
+	void readCurrentValue() override {
+		const Source& source = soundEditor.currentSound->sources[source_id_];
+		setValue(source.sampleControls.reversed);
+	}
 
 	void writeCurrentValue() override {
-
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
-			Kit* kit = getCurrentKit();
+			const Kit* kit = getCurrentKit();
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
+					Source* source = &soundDrum->sources[source_id_];
 
 					soundDrum->unassignAllVoices();
-					source->setReversed(this->getValue());
+					source->setReversed(getValue());
 				}
 			}
 		}
-
 		// Or, the normal case of just one sound
 		else {
 			soundEditor.currentSound->unassignAllVoices();
-			soundEditor.currentSource->setReversed(this->getValue());
+			Source& source = soundEditor.currentSound->sources[source_id_];
+			source.setReversed(getValue());
 		}
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final {
-		return isSampleModeSample(modControllable, whichThing);
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		const bool reversed = getValue();
+		const Icon& icon = OLED::directionIcon;
+		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y + kHorizontalMenuSlotYOffset,
+		                            reversed);
 	}
+
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		valueBuf.append(l10n::get(getValue() ? l10n::String::STRING_FOR_ON : l10n::String::STRING_FOR_OFF));
+	}
+
+	void selectEncoderAction(int32_t offset) override {
+		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+			// reverse direction
+			offset *= -1;
+		}
+		Toggle::selectEncoderAction(offset);
+	}
+
+private:
+	uint8_t source_id_;
 };
 } // namespace deluge::gui::menu_item::sample

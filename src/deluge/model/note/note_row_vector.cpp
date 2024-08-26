@@ -25,7 +25,7 @@ NoteRowVector::NoteRowVector() : OrderedResizeableArray(sizeof(NoteRow), 16, 0, 
 
 NoteRowVector::~NoteRowVector() {
 	for (int32_t i = 0; i < numElements; i++) {
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		AudioEngine::routineWithClusterLoading();
 
 		getElement(i)->~NoteRow();
 	}

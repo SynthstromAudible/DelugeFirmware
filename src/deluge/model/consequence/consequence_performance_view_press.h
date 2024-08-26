@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "model/consequence/consequence.h"
 #include <cstdint>
 

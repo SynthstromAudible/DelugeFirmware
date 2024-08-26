@@ -38,10 +38,11 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
 #include "processing/stem_export/stem_export.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
+#include "util/d_string.h"
 #include <string.h>
 
 AudioRecorder audioRecorder{};
@@ -66,6 +67,7 @@ bool AudioRecorder::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool AudioRecorder::opened() {
+	updatedRecordingStatus = false;
 
 	actionLogger.deleteAllLogs();
 
@@ -114,7 +116,7 @@ gotError:
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
 		if (display->have7SEG()) {
 			display->setNextTransitionDirection(0);
-			display->setText("REC", false, 255, true);
+			display->setText("WAIT", false, 255, true);
 		}
 	}
 
@@ -126,7 +128,8 @@ gotError:
 }
 
 void AudioRecorder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
-	canvas.drawStringCentred("Recording", 19, kTextBigSpacingX, kTextBigSizeY);
+	const char* current_status_text = updatedRecordingStatus ? "Recording" : "Waiting";
+	canvas.drawStringCentred(current_status_text, 19, kTextBigSpacingX, kTextBigSizeY);
 }
 
 bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels,
@@ -187,11 +190,7 @@ void AudioRecorder::slowRoutine() {
 
 void AudioRecorder::process() {
 	while (true) {
-		if (!AudioEngine::audioRoutineLocked) {
-			// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
-			AudioEngine::routineBeenCalled = false;
-			yield([]() { return (AudioEngine::routineBeenCalled == true); });
-		}
+		AudioEngine::routineWithClusterLoading();
 
 		uiTimerManager.routine();
 
@@ -215,7 +214,7 @@ void AudioRecorder::process() {
 				soundEditor.currentSource->setOscType(OscType::SAMPLE);
 				soundEditor.currentMultiRange->getAudioFileHolder()->filePath.set(&recorder->sample->filePath);
 				soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
-				    recorder->sample, soundEditor.currentSource->sampleControls.reversed, true);
+				    recorder->sample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
 			}
 			finishRecording();
 
@@ -225,13 +224,24 @@ void AudioRecorder::process() {
 
 		// Or if recording's ongoing...
 		else {
-
 			if (recorder->recordingClippedRecently) {
 				recorder->recordingClippedRecently = false;
 
 				if (!display->hasPopup()) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
 				}
+			}
+			else if (!updatedRecordingStatus && recorder->numSamplesCaptured) {
+				if (display->have7SEG()) {
+					display->setText("REC", false, 255, true);
+				}
+				else {
+					deluge::hid::display::OLED::clearMainImage();
+					deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX,
+					                                                   kTextBigSizeY);
+					deluge::hid::display::OLED::sendMainImage();
+				}
+				updatedRecordingStatus = true;
 			}
 		}
 	}

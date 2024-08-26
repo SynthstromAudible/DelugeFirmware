@@ -45,7 +45,7 @@ bool DxSyxBrowser::opened() {
 
 	fileIndexSelected = 0;
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE)
 		goto sdError;
 

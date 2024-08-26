@@ -21,6 +21,7 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
+#include "util/misc.h"
 #include <utility>
 
 using deluge::hid::display::OLED;
@@ -95,9 +96,10 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 	return success;
 }
 
-// Called when we navigate between "root" UIs, like sessionView, instrumentClipView, automationInstrumentClipView,
+// Called when we navigate between "root" UIs, like sessionView, instrumentClipView, automationView,
 // performanceView, etc.
 void changeRootUI(UI* newUI) {
+	newUI = newUI->getUI();
 	uiNavigationHierarchy[0] = newUI;
 	numUIsOpen = 1;
 
@@ -114,12 +116,14 @@ void changeRootUI(UI* newUI) {
 
 // Only called when setting up blank song, so don't worry about this
 void setRootUILowLevel(UI* newUI) {
+	newUI = newUI->getUI();
 	uiNavigationHierarchy[0] = newUI;
 	numUIsOpen = 1;
 	PadLEDs::reassessGreyout();
 }
 
 bool changeUISideways(UI* newUI) {
+	newUI = newUI->getUI();
 	bool success = changeUIAtLevel(newUI, numUIsOpen - 1);
 	if (display->haveOLED()) {
 		renderUIsForOled();
@@ -145,15 +149,16 @@ RootUI* getRootUI() {
 
 bool currentUIIsClipMinderScreen() {
 	UI* currentUI = getCurrentUI();
-	return (currentUI && currentUI->toClipMinder());
+	return (currentUI != nullptr && (currentUI->toClipMinder() != nullptr));
 }
 
 bool rootUIIsClipMinderScreen() {
 	UI* rootUI = getRootUI();
-	return (rootUI && rootUI->toClipMinder());
+	return (rootUI != nullptr && (rootUI->toClipMinder() != nullptr));
 }
 
 void swapOutRootUILowLevel(UI* newUI) {
+	newUI = newUI->getUI();
 	uiNavigationHierarchy[0] = newUI;
 }
 
@@ -220,6 +225,7 @@ void closeUI(UI* uiToClose) {
 }
 
 bool openUI(UI* newUI) {
+	newUI = newUI->getUI();
 	UI* oldUI = getCurrentUI();
 	uiNavigationHierarchy[numUIsOpen] = newUI;
 	numUIsOpen++;
@@ -449,3 +455,35 @@ void enterUIMode(uint32_t uiMode) {
 		currentUIMode = (currentUIMode & ~EXCLUSIVE_UI_MODES_MASK) | uiMode;
 	}
 }
+
+#if ENABLE_MATRIX_DEBUG
+EnumStringMap<UIType, util::to_underlying(UIType::UI_TYPE_COUNT)> uiTypeMap = {
+    {{{UIType::ARRANGER, "arranger"},
+      {UIType::AUDIO_CLIP, "audio_clip"},
+      {UIType::AUDIO_RECORDER, "audio_recorder"},
+      {UIType::AUTOMATION, "automation"},
+      {UIType::CONTEXT_MENU, "context_menu"},
+      {UIType::DX_BROWSER, "dx_browser"},
+      {UIType::INSTRUMENT_CLIP, "instrument_clip"},
+      {UIType::KEYBOARD_SCREEN, "keyboard_screen"},
+      {UIType::LOAD_INSTRUMENT_PRESET, "load_instrument_preset"},
+      {UIType::LOAD_MIDI_DEVICE_DEFINITION, "load_midi_device_definition"},
+      {UIType::LOAD_PATTERN, "load_pattern"},
+      {UIType::LOAD_SONG, "load_song"},
+      {UIType::PERFORMANCE, "performance"},
+      {UIType::RENAME, "rename"},
+      {UIType::SAMPLE_BROWSER, "sample_browser"},
+      {UIType::SAMPLE_MARKER_EDITOR, "sample_marker_editor"},
+      {UIType::SAVE_INSTRUMENT_PRESET, "save_instrument_preset"},
+      {UIType::SAVE_KIT_ROW, "save_kit_row"},
+      {UIType::SAVE_MIDI_DEVICE_DEFINITION, "save_midi_device_definition"},
+      {UIType::SAVE_PATTERN, "save_pattern"},
+      {UIType::SAVE_SONG, "save_song"},
+      {UIType::SESSION, "session"},
+      {UIType::SLICER, "slicer"},
+      {UIType::SOUND_EDITOR, "sound_editor"}}}};
+
+const char* UI::getUIName() {
+	return uiTypeMap(getUIType());
+}
+#endif

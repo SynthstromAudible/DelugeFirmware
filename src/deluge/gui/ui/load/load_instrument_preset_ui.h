@@ -30,14 +30,14 @@ class Output;
 
 class LoadInstrumentPresetUI final : public LoadUI {
 public:
-	LoadInstrumentPresetUI();
-	bool opened();
+	LoadInstrumentPresetUI() = default;
+	bool opened() override;
 	// void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
 	void instrumentEdited(Instrument* instrument);
-	Error performLoad(StorageManager& bdsm, bool doClone = false);
+	Error performLoad(bool doClone = false);
 	Error performLoadSynthToKit();
 	ActionResult timerCallback();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
@@ -74,9 +74,9 @@ public:
 		noteRowIndex = rowIndex; // (not set value for note rows)
 		noteRow = row;
 	}
+
 	// ui
-	UIType getUIType() { return UIType::LOAD_INSTRUMENT_PRESET; }
-	const char* getName() { return "load_instrument_preset"; }
+	UIType getUIType() override { return UIType::LOAD_INSTRUMENT_PRESET; }
 
 protected:
 	void enterKeyPress();
@@ -87,7 +87,7 @@ private:
 	bool showingAuditionPads();
 	Error setupForOutputType();
 	void changeOutputType(OutputType newOutputType);
-	void revertToInitialPreset(StorageManager& bdsm);
+	void revertToInitialPreset();
 	void exitAction();
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(String* oldName, String* newName);

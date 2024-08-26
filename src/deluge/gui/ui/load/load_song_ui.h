@@ -31,14 +31,15 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	bool opened();
 	void selectEncoderAction(int8_t offset);
-	void performLoad(StorageManager& bdsm);
+	void queueLoadNextSongIfAvailable(int8_t offset);
+	void performLoad();
 	void displayLoopsRemainingPopup();
+	bool isLoadingSong();
 
 	bool deletedPartsOfOldSong;
 
 	// ui
-	UIType getUIType() { return UIType::LOAD_SONG; }
-	const char* getName() { return "load_song_ui"; }
+	UIType getUIType() override { return UIType::LOAD_SONG; }
 
 protected:
 	void displayText(bool blinkImmediately = false);
@@ -48,10 +49,13 @@ protected:
 	void exitAction();
 
 private:
-	void drawSongPreview(StorageManager& bdsm, bool toStore = true);
+	void drawSongPreview(bool toStore = true);
 	void displayArmedPopup();
 
+	bool performingLoad;
 	bool scrollingIntoSlot;
+	bool qwertyCurrentlyDrawnOnscreen;
+	void doQueueLoadNextSongIfAvailable(int8_t offset);
 	// int32_t findNextFile(int32_t offset);
 	void exitThisUI();
 	void exitActionWithError();

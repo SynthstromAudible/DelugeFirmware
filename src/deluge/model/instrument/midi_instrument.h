@@ -19,7 +19,9 @@
 
 #include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
+#include "modulation/midi/label/midi_label_collection.h"
 #include <array>
+#include <string_view>
 
 class ModelStack;
 class ModelStackWithThreeMainThings;
@@ -43,8 +45,25 @@ public:
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(Deserializer& reader, char const* tagName);
-	Error readModKnobAssignmentsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos,
+	Error readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
+
+	// midi device definition file
+	/// reading
+	Error readDeviceDefinitionFile(Deserializer& reader, bool readFromPresetOrSong);
+	void readDeviceDefinitionFileNameFromPresetOrSong(Deserializer& reader);
+	Error readCCLabelsFromFile(Deserializer& reader);
+	/// writing
+	void writeDeviceDefinitionFile(Serializer& writer, bool writeFileNameToPresetOrSong);
+	void writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer);
+	void writeCCLabelsToFile(Serializer& writer);
+	/// getting / updating cc labels
+	std::string_view getNameFromCC(int32_t cc);
+	void setNameForCC(int32_t cc, std::string_view name);
+	/// definition file
+	String deviceDefinitionFileName;
+	bool loadDeviceDefinitionFile = false;
+
 	void sendMIDIPGM();
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
@@ -73,10 +92,17 @@ public:
 	int32_t getOutputMasterChannel();
 
 	inline bool sendsToMPE() {
-		return (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE);
+		return (getChannel() == MIDI_CHANNEL_MPE_LOWER_ZONE || getChannel() == MIDI_CHANNEL_MPE_UPPER_ZONE);
 	}
-	inline bool sendsToInternal() { return (channel >= IS_A_DEST); }
-
+	inline bool sendsToInternal() { return (getChannel() >= IS_A_DEST); }
+	bool matchesPreset(OutputType otherType, int32_t otherChannel, int32_t otherSuffix, char const* otherName,
+	                   char const* otherPath) override {
+		bool match{false};
+		if (type == otherType) {
+			match = (getChannel() == otherChannel && (channelSuffix == otherSuffix));
+		}
+		return match;
+	}
 	int32_t channelSuffix{-1};
 	int32_t lastNoteCode{32767};
 	bool collapseAftertouch{false};
@@ -89,11 +115,6 @@ public:
 	// Numbers 0 to 15 can all be an MPE member depending on configuration
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];
 
-	// for tracking mono expression output
-	int32_t lastMonoExpression[3]{0};
-	int32_t lastCombinedPolyExpression[3]{0};
-	// could be int8 for aftertouch/Y but Midi 2 will allow those to be 14 bit too
-	int16_t lastOutputMonoExpression[3]{0};
 	char const* getXMLTag() { return "midi"; }
 	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel"; }
 	char const* getSubSlotXMLTag() { return "suffix"; }
@@ -102,17 +123,33 @@ public:
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                bool affectEntire, bool useMenuStack);
 
+	bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
+	                                uint32_t paramID) override {
+		if (kind == deluge::modulation::params::Kind::EXPRESSION) {
+			if (paramID == X_PITCH_BEND) {
+				// pitch is in 14 bit instead of 7
+				return old_value >> 18 != new_value >> 18;
+			}
+			// aftertouch and mod wheel are positive only and recorded into a smaller range than CCs
+			return old_value >> 24 != new_value >> 24;
+		}
+		return old_value >> 25 != new_value >> 25;
+	}
+
 protected:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                              int32_t whichExpressionDimension, ArpNote* arpNote);
-	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
-	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity);
-	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension);
+	                                              int32_t whichExpressionDimension, ArpNote* arpNote,
+	                                              int32_t noteIndex) override;
+	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) override;
+	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity, int32_t noteIndex) override;
+	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) override;
 
 private:
 	void sendMonophonicExpressionEvent(int32_t whichExpressionDimension);
 	void combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
-	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = NULL);
+	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = nullptr);
+
+	MIDILabelCollection midiLabelCollection;
 };

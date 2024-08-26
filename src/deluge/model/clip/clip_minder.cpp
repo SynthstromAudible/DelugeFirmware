@@ -17,7 +17,23 @@
 
 #include "model/clip/clip_minder.h"
 #include "definitions_cxx.hpp"
+#include "gui/views/arranger_view.h"
+#include "gui/views/session_view.h"
 
 ActionResult ClipMinder::buttonAction(deluge::hid::Button b, bool on) {
 	return ActionResult::NOT_DEALT_WITH;
+}
+
+/// Called by button action of active clip view when b == SESSION_VIEW
+void ClipMinder::transitionToArrangerOrSession() {
+	// should we transition to Arranger View?
+	if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->isArrangementOnlyClip()) {
+		// try to transition to Arranger View
+		if (arrangerView.transitionToArrangementEditor()) {
+			// successfully transitioned
+			return;
+		}
+	}
+	// if we didn't transition to arranger, then transition to Session View
+	sessionView.transitionToSessionView();
 }

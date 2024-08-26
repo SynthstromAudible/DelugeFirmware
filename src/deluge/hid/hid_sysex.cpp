@@ -31,6 +31,10 @@ void HIDSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 		request7SegDisplay(device, data, len);
 		break;
 
+	case 2:
+		readBlock(device);
+		break;
+
 	default:
 		break;
 	}
@@ -204,4 +208,31 @@ void HIDSysex::sendOLEDDataDelta(MIDIDevice* device, bool force) {
 	reply[10 + packed] = 0xf7; // end of transmission //
 	// device->sendSysex(reply, packed + 8);
 	device->sendSysex(reply, packed + 11);
+}
+
+void HIDSysex::readBlock(MIDIDevice* device) {
+	const int32_t data_size = 768;
+	const int32_t max_packed_size = 922;
+	uint8_t reply_hdr[8] = {0xF0, 0x00, 0x21, 0x7B, 0x01, 0x02, 0x40, 0x00};
+	uint8_t* reply = midiEngine.sysex_fmt_buffer;
+	// 		memcpy(reply, reply_hdr, 5);
+	memcpy(reply, reply_hdr, 8); //
+	                             //		reply[5] = 0; // nominally 32*data[5] is start pos for a delta
+	reply[8] = 0;                // nominally 32*data[8] is start pos for a delta //
+
+	int32_t packed;
+
+	//			packed = pack_8bit_to_7bit(reply + 6, max_packed_size,
+	// deluge::hid::display::OLED::oledCurrentImage[0],
+	uint8_t* srcBlock = (uint8_t*)smDeserializer.fileClusterBuffer; //  deluge::hid::display::OLED::oledCurrentImage[0];
+
+	packed = pack_8bit_to_7bit(reply + 9, max_packed_size, srcBlock,
+	                           data_size); //
+	if (packed < 0) {
+		display->popupTextTemporary("error: fail");
+	}
+	//		reply[6 + packed] = 0xf7; // end of transmission
+	reply[9 + packed] = 0xf7;              // end of transmission
+	                                       // 		device->sendSysex(reply, packed + 7); //
+	device->sendSysex(reply, packed + 10); //
 }

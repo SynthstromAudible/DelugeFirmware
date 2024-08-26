@@ -21,9 +21,21 @@
 
 class RenameUI : public QwertyUI {
 public:
-	RenameUI();
-
-	void displayText(bool blinkImmediately = false);
+	RenameUI(const char* title_);
+	bool opened();
+	void displayText(bool blinkImmediately = false) override;
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
-	const char* getName() { return "rename_ui"; }
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
+	bool exitUI() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	UIType getUIType() override { return UIType::RENAME; }
+
+protected:
+	void enterKeyPress() override;
+	virtual bool trySetName(String*) = 0;
+	virtual String getName() const = 0;
+	virtual bool canRename() const { return true; }
+	virtual bool allowEmpty() const { return true; }
 };

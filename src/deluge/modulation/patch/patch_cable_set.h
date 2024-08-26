@@ -56,6 +56,7 @@ public:
 	bool doesParamHaveSomethingPatchedToIt(int32_t p);
 
 	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override;
+	void tickTicks(int32_t numSamples, ModelStackWithParamCollection* modelStack) override {};
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) override;
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) override;
 	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) override;

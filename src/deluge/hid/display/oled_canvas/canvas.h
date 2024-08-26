@@ -19,14 +19,37 @@
 
 #include "RZA1/cpu_specific.h"
 #include "definitions.h"
+#include "deluge/util/d_string.h"
 #include <cstdint>
 #include <cstring>
+#include <functional>
+#include <optional>
 #include <string_view>
 
 namespace deluge::hid::display {
 class OLED;
+struct Icon;
 
 namespace oled_canvas {
+
+enum BorderRadius : uint8_t {
+	SMALL = 0, //< 1px
+	BIG = 1    //< 2px
+};
+
+struct Point {
+	int32_t x;
+	int32_t y;
+	bool operator==(const Point& other) const noexcept { return x == other.x && y == other.y; }
+};
+
+struct DrawLineOptions {
+	bool thick{false};
+	std::optional<uint8_t> min_x{std::nullopt};
+	std::optional<uint8_t> max_x{std::nullopt};
+	std::optional<std::function<void(Point)>> point_callback{std::nullopt};
+};
+
 class Canvas {
 public:
 	Canvas() = default;
@@ -59,6 +82,12 @@ public:
 	/// Set a single pixel
 	void drawPixel(int32_t x, int32_t y);
 
+	/// Clear a single pixel
+	void clearPixel(int32_t x, int32_t y);
+
+	/// Invert a single pixel
+	void invertPixel(int32_t x, int32_t y);
+
 	/// Draw a horizontal line.
 	///
 	/// @param pixelY Y coordinate of the line to draw
@@ -73,6 +102,14 @@ public:
 	/// @param endY Y coordinate of the line, inclusive
 	void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY);
 
+	/// Draw a line using Bresenham algorithm
+	/// @param x0 Start X coordinate of the line
+	/// @param y0 Start Y coordinate of the line
+	/// @param x1 End X coordinate of the line
+	/// @param y1 End Y coordinate of the line
+	/// @param options Draw options
+	void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, const DrawLineOptions& options = {});
+
 	/// Draw a 1-px wide rectangle.
 	///
 	/// @param minX Minimum X coordinate, inclusive
@@ -80,6 +117,21 @@ public:
 	/// @param maxX Maximum X coordinate, inclusive
 	/// @param maxY Maximum Y coordinate, inclusive
 	void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
+
+	/// Draw a 1-px wide rectangle with rounded corners
+	///
+	/// @param minX Minimum X coordinate, inclusive
+	/// @param minY Minimum Y coordinate, inclusive
+	/// @param maxX Maximum X coordinate, inclusive
+	/// @param maxY Maximum Y coordinate, inclusive
+	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius = SMALL);
+
+	/// Draw a circle using Bresenham algorithm
+	///
+	/// @param centerX Center X coordinate
+	/// @param centerY Center Y coordinate
+	/// @param radius Circle radius
+	void drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool fill = false);
 
 	/// Draw a string
 	///
@@ -105,6 +157,28 @@ public:
 	///             rendered is endX + textWidth, as the individual character rendering work can overshoot.
 	void drawStringCentred(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
 	                       int32_t centrePos = OLED_MAIN_WIDTH_PIXELS / 2);
+
+	/// Draw a string, centered between the provided startX and startX + totalWidth
+	///
+	/// @param string A null-terminated C string
+	/// @param startX Beginning X coordinate for center calculation
+	/// @param startY Y coordinate of the top side of the string
+	/// @param textSpacingX Base width in pixels of each character
+	/// @param textSpacingY Height in pixels of each character
+	/// @param totalWidth Total width for center calculation
+	void drawStringCentered(char const* string, int32_t startX, int32_t startY, int32_t textSpacingX,
+	                        int32_t textSpacingY, int32_t totalWidth);
+
+	/// Draw a string, centered between the provided startX and startX + totalWidth
+	///
+	/// @param stringBuf A string buffer
+	/// @param startX Beginning X coordinate for center calculation
+	/// @param startY Y coordinate of the top side of the string
+	/// @param textSpacingX Base width in pixels of each character
+	/// @param textSpacingY Height in pixels of each character
+	/// @param totalWidth Total width for center calculation
+	void drawStringCentered(StringBuf& stringBuf, int32_t startX, int32_t startY, int32_t textSpacingX,
+	                        int32_t textSpacingY, int32_t totalWidth);
 
 	/// Draw a string, reducing its height so the string fits within the specified width
 	///
@@ -163,20 +237,52 @@ public:
 	/// @param height Height of the graphic in pixels
 	/// @param numBytesTall Number of bytes in the Y direction, determines the stride in the graphic array
 	void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height = 8,
-	                          int32_t numBytesTall = 1);
+	                          int32_t numBytesTall = 1, bool reversed = false);
+	/// Draw an icon.
+	///
+	/// @param icon Reference to the icon
+	/// @param x X coodinate of the left edge of the icon
+	/// @param y Y coordinate of the top of the icon
+	/// @param reversed Should reverse the icon horizontally
+	void drawIcon(const Icon& icon, int32_t x, int32_t y, bool reversed = false);
+
+	/// Draw an icon, centered between the provided startX and startX + totalWidth
+	///
+	/// @param icon Reference to the icon
+	/// @param startX Beginning X coordinate for center calculation
+	/// @param totalWidth Total width for center calculation
+	/// @param y Y coordinate of the top of the icon
+	/// @param reversed Should reverse the icon horizontally
+	void drawIconCentered(const Icon& icon, int32_t startX, int32_t totalWidth, int32_t y, bool reversed = false);
 
 	/// Draw a screen title and underline it.
 	///
 	/// @param text Title text
-	void drawScreenTitle(std::string_view text);
+	void drawScreenTitle(std::string_view text, bool drawSeparator = true);
 
 	/// Invert an area of the canvas.
 	///
 	/// @param xMin Minimum X coordinate, inclusive
-	/// @param width Width of the region to invert. End coordinate is excluded, I think.
+	/// @param width Width of the region to invert. End coordinate is excluded.
 	/// @param startY Minimum Y coordinate, inclusive
 	/// @param endY Maximum Y coordinate, inclusive
 	void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
+
+	/// Invert an area of the canvas with rounded corners
+	///
+	/// @param xMin Minimum X coordinate, inclusive
+	/// @param width Width of the region to invert. End coordinate is excluded.
+	/// @param startY Minimum Y coordinate, inclusive
+	/// @param endY Maximum Y coordinate, inclusive
+	void invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius = SMALL);
+
+	/// Invert just the left edge of the canvas.
+	///
+	/// @param xMin Minimum X coordinate, inclusive
+	/// @param width Width of the region to invert. End coordinate is excluded.
+	/// @param startY Minimum Y coordinate, inclusive
+	/// @param endY Maximum Y coordinate, inclusive
+	void invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
 
 	/// @}
 

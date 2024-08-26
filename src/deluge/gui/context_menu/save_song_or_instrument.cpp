@@ -31,7 +31,7 @@ char const* SaveSongOrInstrument::getTitle() {
 	return l10n::get(STRING_FOR_OPTIONS);
 }
 
-Sized<char const**> SaveSongOrInstrument::getOptions() {
+std::span<char const*> SaveSongOrInstrument::getOptions() {
 	using enum l10n::String;
 	static char const* options[] = {
 	    l10n::get(STRING_FOR_COLLECT_MEDIA), //<
@@ -45,7 +45,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Collect media
 		saveSongUI.collectingSamples = true;
-		return saveSongUI.performSave(storageManager);
+		return saveSongUI.performSave();
 
 	case 1: { // Create folder
 		Browser* browser = (Browser*)getUIUpOneLevel();

@@ -69,6 +69,5 @@ protected:
 
 	virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
 
-private:
-	bool renderedLastTime;
+	bool renderedLastTime = false;
 };

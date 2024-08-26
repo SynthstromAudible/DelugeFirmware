@@ -42,7 +42,7 @@
 /* This option switches f_expand function. (0:Disable or 1:Enable) */
 
 
-#define FF_USE_CHMOD	0
+#define FF_USE_CHMOD	1
 /* This option switches attribute manipulation functions, f_chmod() and f_utime().
 /  (0:Disable or 1:Enable) Also FF_FS_READONLY needs to be 0 to enable this option. */
 
@@ -224,7 +224,7 @@
 / System Configurations
 /---------------------------------------------------------------------------*/
 
-#define FF_FS_TINY		1 // Set by Rohan
+#define FF_FS_TINY		0 // Set by Rohan, unset by Jamie.
 /* This option switches tiny buffer configuration. (0:Normal or 1:Tiny)
 /  At the tiny configuration, size of file object (FIL) is shrinked FF_MAX_SS bytes.
 /  Instead of private sector buffer eliminated from the file object, common sector

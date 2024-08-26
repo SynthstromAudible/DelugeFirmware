@@ -41,7 +41,6 @@ class ModelStackWithAutoParam;
 class MIDIDevice;
 class LearnedMIDI;
 class ParamManager;
-class StorageManager;
 class Serializer;
 class Deserializer;
 
@@ -83,6 +82,8 @@ class Output {
 public:
 	Output(OutputType newType);
 	virtual ~Output();
+	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
+	                           char const* dirPath) = 0;
 
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;
@@ -154,7 +155,7 @@ public:
 	virtual Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 
 	virtual bool readTagFromFile(Deserializer& reader, char const* tagName);
-	void writeToFile(StorageManager& bdsm, Clip* clipForSavingOutputOnly, Song* song);
+	void writeToFile(Clip* clipForSavingOutputOnly, Song* song);
 	virtual bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
 	                             Song* song); // Returns true if it's ended the opening tag and gone into the sub-tags
 
@@ -162,9 +163,9 @@ public:
 	virtual void loadCrucialAudioFilesOnly() {} // Caller must check that there is an activeClip.
 
 	// No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
-	virtual void resyncLFOs(){};
+	virtual void resyncLFOs() {};
 
-	virtual void sendMIDIPGM(){};
+	virtual void sendMIDIPGM() {};
 	virtual void deleteBackedUpParamManagers(Song* song) {}
 	virtual void prepareForHibernationOrDeletion() {}
 

@@ -1,79 +1,73 @@
 #include "submenu.h"
+#include "etl/vector.h"
+#include "gui/views/automation_view.h"
 #include "hid/display/display.h"
-#include "hid/display/oled.h" //todo: this probably shouldn't be needed
-#include "util/container/static_vector.hpp"
+#include "hid/display/oled.h"
+#include "hid/led/indicator_leds.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "processing/sound/sound.h"
+#include "processing/source.h"
+#include "storage/flash_storage.h"
+#include <algorithm>
+#include <numeric>
 
 namespace deluge::gui::menu_item {
 void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
-	current_item_ = items.begin();
 	soundEditor.currentMultiRange = nullptr;
-	if (navigatedBackwardFrom != nullptr) {
-		for (; *current_item_ != navigatedBackwardFrom; current_item_++) {
-			if (current_item_ == items.end()) { // If desired item not found
-				current_item_ = items.begin();
-				break;
-			}
-		}
+
+	if (navigatedBackwardFrom == nullptr && initial_index_ > 0) {
+		navigatedBackwardFrom = items[initial_index_];
+		initial_index_ = 0; // only set on first access, remember previously accessed menu otherwise.
 	}
-	auto start = current_item_;
-	bool wrapped = false;
-	// loop through non-null items until we find a relevant one
-	while ((*current_item_ != nullptr)
-	       && !(*current_item_)->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)
-	       && !(wrapped && current_item_ == start)) {
-		current_item_++;
-		if (current_item_ == items.end()) { // Not sure we need this since we don't wrap submenu items?
-			current_item_ = items.begin();
-			wrapped = true;
-		}
-	}
+	focusChild(navigatedBackwardFrom);
 	if (display->have7SEG()) {
 		updateDisplay();
 	}
 }
 
+bool Submenu::focusChild(const MenuItem* child) {
+	if (child != nullptr) {
+		// if the specific child is passed, try to find it among the items
+		// if not found or not relevant, keep the previous selection
+		auto candidate = std::find(items.begin(), items.end(), child);
+		if (candidate != items.end() && isItemRelevant(*candidate)) {
+			current_item_ = candidate;
+		}
+	}
+
+	// If the current item isn't valid or isn't relevant, set to first relevant one instead.
+	if (current_item_ == items.end() || !isItemRelevant(*current_item_)) {
+		current_item_ = std::find_if(items.begin(), items.end(), isItemRelevant);
+	}
+
+	return current_item_ != items.end();
+}
+
 void Submenu::updateDisplay() {
-	if (ensureCurrentItemIsRelevant()) {
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			(*current_item_)->drawName();
-		}
+	if (!focusChild(nullptr)) {
+		// no relevant items, back out
+		soundEditor.goUpOneLevel();
+	}
+	else if (display->haveOLED()) {
+		renderUIsForOled();
+	}
+	else {
+		(*current_item_)->drawName();
 	}
 }
 
-// sometimes when you refresh a menu, a menu item may become not relevant anymore depending on the context
-// for example, refreshing the custom note iterance menu when selecting a different note with a different divisor
-// this function ensures that when the menu is refreshed that only a relevant menu item is selected
-bool Submenu::ensureCurrentItemIsRelevant() {
-	// check if current item is relevant scrolling in backwards direction
-	for (auto it = current_item_; it >= items.begin(); it--) {
-		MenuItem* menuItem = (*it);
-		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			current_item_ = it;
-			return true;
-		}
-	}
+void Submenu::renderInHorizontalMenu(const SlotPosition& slot) {
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
-	// if we still didn't find a relevant one...
-	// then maybe there is a relevant one in the forward direction...
-	for (auto it = current_item_; it <= items.end(); it++) {
-		MenuItem* menuItem = (*it);
-		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
-			current_item_ = it;
-			return true;
-		}
-	}
-
-	// if we still didn't find one...something went really wrong...exit out of this menu
-	soundEditor.goUpOneLevel();
-	return false;
+	// Draw arrow icon centered indicating that there is another layer
+	const int32_t arrow_y = slot.start_y + kHorizontalMenuSlotYOffset;
+	const int32_t arrow_x = slot.start_x + (slot.width - kSubmenuIconSpacingX) / 2 - 1;
+	image.drawGraphicMultiLine(hid::display::OLED::submenuArrowIconBold, arrow_x, arrow_y, kSubmenuIconSpacingX);
 }
 
 void Submenu::drawPixelsForOled() {
 	// Collect items before the current item, this is possibly more than we need.
-	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
+	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> before = {};
 	for (auto it = current_item_ - 1; it != items.begin() - 1 && before.size() < before.capacity(); it--) {
 		MenuItem* menuItem = (*it);
 		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
@@ -83,7 +77,7 @@ void Submenu::drawPixelsForOled() {
 	std::reverse(before.begin(), before.end());
 
 	// Collect current item and fill the tail
-	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> after = {};
+	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> after = {};
 	for (auto it = current_item_; it != items.end() && after.size() < after.capacity(); it++) {
 		MenuItem* menuItem = (*it);
 		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
@@ -105,7 +99,7 @@ void Submenu::drawPixelsForOled() {
 	}
 
 	// Put it together.
-	static_vector<MenuItem*, kOLEDMenuNumOptionsVisible> visible;
+	etl::vector<MenuItem*, kOLEDMenuNumOptionsVisible> visible;
 	visible.insert(visible.begin(), before.end() - pos, before.end());
 	visible.insert(visible.begin() + pos, after.begin(), after.begin() + tail);
 
@@ -135,7 +129,7 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 		// if you've selected a menu item, invert the area to show that it is selected
 		// and setup scrolling in case that menu item is too long to display fully
 		if (o == selectedOption) {
-			image.invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
+			image.invertLeftEdgeForMenuHighlighting(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
 			deluge::hid::display::OLED::setupSideScroller(0, menuItem->getName(), kTextSpacingX, endX, yPixel,
 			                                              yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}
@@ -143,16 +137,17 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 }
 
 bool Submenu::wrapAround() {
-	return display->have7SEG();
+	return display->have7SEG() || renderingStyle() == HORIZONTAL;
 }
 
 void Submenu::selectEncoderAction(int32_t offset) {
-	if (!items.size()) {
+	if (current_item_ == items.end()) {
 		return;
 	}
-	auto lastRelevant = current_item_;
+
 	if (offset > 0) {
 		// Scan items forward, counting relevant items.
+		auto lastRelevant = current_item_;
 		do {
 			current_item_++;
 			if (current_item_ == items.end()) {
@@ -172,6 +167,7 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	}
 	else if (offset < 0) {
 		// Scan items backwad, counting relevant items.
+		auto lastRelevant = current_item_;
 		do {
 			if (current_item_ == items.begin()) {
 				if (wrapAround()) {
@@ -192,8 +188,45 @@ void Submenu::selectEncoderAction(int32_t offset) {
 	updateDisplay();
 }
 
+bool Submenu::shouldForwardButtons() {
+	// Should we deliver buttons to selected menu item instead?
+	return (*current_item_)->isSubmenu() == false && renderingStyle() == RenderingStyle::HORIZONTAL;
+}
+
 MenuItem* Submenu::selectButtonPress() {
-	return *current_item_;
+	if (shouldForwardButtons()) {
+		return (*current_item_)->selectButtonPress();
+	}
+	else {
+		return *current_item_;
+	}
+}
+
+ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	if (shouldForwardButtons()) {
+		return (*current_item_)->buttonAction(b, on, inCardRoutine);
+	}
+	else {
+		return MenuItem::buttonAction(b, on, inCardRoutine);
+	}
+}
+
+deluge::modulation::params::Kind Submenu::getParamKind() {
+	if (shouldForwardButtons()) {
+		return (*current_item_)->getParamKind();
+	}
+	else {
+		return MenuItem::getParamKind();
+	}
+}
+
+uint32_t Submenu::getParamIndex() {
+	if (shouldForwardButtons()) {
+		return (*current_item_)->getParamIndex();
+	}
+	else {
+		return MenuItem::getParamIndex();
+	}
 }
 
 void Submenu::unlearnAction() {
@@ -226,4 +259,33 @@ bool Submenu::learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteC
 	}
 	return false;
 }
+
+void Submenu::updatePadLights() {
+	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
+		soundEditor.updatePadLightsFor(*current_item_);
+	}
+	else {
+		MenuItem::updatePadLights();
+	}
+}
+
+bool Submenu::usesAffectEntire() {
+	if (current_item_ != items.end()
+	    && (renderingStyle() == RenderingStyle::HORIZONTAL || !(*current_item_)->shouldEnterSubmenu())) {
+		// If the menu is Horizontal or is the focused menu item is a toggle,
+		// then we should use affect-entire from this item
+		return (*current_item_)->usesAffectEntire();
+	}
+	return false;
+}
+
+MenuItem* Submenu::patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) {
+	if (renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()) {
+		return (*current_item_)->patchingSourceShortcutPress(s, previousPressStillActive);
+	}
+	else {
+		return MenuItem::patchingSourceShortcutPress(s, previousPressStillActive);
+	}
+}
+
 } // namespace deluge::gui::menu_item

@@ -16,38 +16,72 @@
  */
 
 #include "model/drum/gate_drum.h"
+#include "definitions_cxx.hpp"
+#include "model/drum/non_audio_drum.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
 #include <string.h>
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 	channel = 2;
+
+	arpSettings.numOctaves = 1;
 }
 
-void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
-	cvEngine.sendNote(true, channel);
-	state = true;
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+	ArpReturnInstruction instruction;
+	// Run everything by the Arp...
+	arpeggiator.noteOn(arpSettings, kNoteForDrum, velocity, &instruction, fromMIDIChannel, mpeValues);
+	if (instruction.arpNoteOn != nullptr) {
+		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
+				break;
+			}
+			noteOnPostArp(instruction.arpNoteOn->noteCodeOnPostArp[n], instruction.arpNoteOn, n);
+		}
+	}
 }
 
 void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
-	cvEngine.sendNote(false, channel);
-	state = false;
+	ArpeggiatorSettings* arpSettings = getArpSettings();
+	ArpReturnInstruction instruction;
+	// Run everything by the Arp...
+	arpeggiator.noteOff(arpSettings, kNoteForDrum, &instruction);
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArp(instruction.glideNoteCodeOffPostArp[n]);
+	}
+	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+		if (instruction.noteCodeOffPostArp[n] == ARP_NOTE_NONE) {
+			break;
+		}
+		noteOffPostArp(instruction.noteCodeOffPostArp[n]);
+	}
+}
+
+void GateDrum::unassignAllVoices() {
+	if (hasAnyVoices()) {
+		noteOff(nullptr);
+	}
+	arpeggiator.reset();
 }
 
 void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
-	writer.writeOpeningTagBeginning("gateOutput");
+	writer.writeOpeningTagBeginning("gateOutput", true);
 
 	writer.writeAttribute("channel", channel, false);
+	writer.writeOpeningTagEnd();
+
+	NonAudioDrum::writeArpeggiatorToFile(writer);
 
 	if (savingSong) {
-		writer.writeOpeningTagEnd();
 		Drum::writeMIDICommandsToFile(writer);
-		writer.writeClosingTag("gateOutput");
 	}
-	else {
-		writer.closeTag();
-	}
+	writer.writeClosingTag("gateOutput", true, true);
 }
 
 Error GateDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {
@@ -70,4 +104,14 @@ void GateDrum::getName(char* buffer) {
 
 int32_t GateDrum::getNumChannels() {
 	return NUM_GATE_CHANNELS;
+}
+
+void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
+	cvEngine.sendNote(true, channel, kNoteForDrum);
+	state = true;
+}
+
+void GateDrum::noteOffPostArp(int32_t noteCodePostArp) {
+	cvEngine.sendNote(false, channel, kNoteForDrum);
+	state = false;
 }

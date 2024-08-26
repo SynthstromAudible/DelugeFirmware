@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2024 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+
 #pragma once
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/sound_editor.h"
@@ -31,10 +32,18 @@ public:
 		soundEditor.exitCompletely();
 		RootUI* rootUI = getRootUI();
 		if (rootUI == &arrangerView) {
-			stemExport.startStemExportProcess(StemExportType::TRACK);
+			if (stemExport.exportMixdown) {
+				stemExport.startStemExportProcess(StemExportType::MIXDOWN);
+			}
+			else {
+				stemExport.startStemExportProcess(StemExportType::TRACK);
+			}
 		}
 		else if (rootUI == &sessionView) {
 			stemExport.startStemExportProcess(StemExportType::CLIP);
+		}
+		else if (rootUI == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
+			stemExport.startStemExportProcess(StemExportType::DRUM);
 		}
 		return NO_NAVIGATION;
 	}

@@ -16,6 +16,7 @@
  */
 
 #include "definitions_cxx.hpp"
+#include "hid/button.h"
 #include "model/sample/sample.h"
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
@@ -23,6 +24,7 @@
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -40,7 +42,6 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -65,7 +66,6 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "storage/wave_table/wave_table.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <cstring>
@@ -84,6 +84,7 @@ SampleBrowser::SampleBrowser() {
 	shouldWrapFolderContents = false;
 	qwertyAlwaysVisible = false;
 	shouldInterpretNoteNamesForThisBrowser = true;
+	qwertyCurrentlyDrawnOnscreen = false;
 }
 
 bool SampleBrowser::opened() {
@@ -93,6 +94,10 @@ bool SampleBrowser::opened() {
 		return false;
 	}
 
+	qwertyAlwaysVisible = false;
+
+	favouritesManager.setCategory("SAMPLES");
+	favouritesChanged();
 	actionLogger.deleteAllLogs();
 
 	allowedFileExtensions = allowedFileExtensionsAudio;
@@ -103,6 +108,8 @@ bool SampleBrowser::opened() {
 
 	currentlyShowingSamplePreview = false;
 
+	autoLoadEnabled = false;
+
 	if (display->haveOLED()) {
 		fileIndexSelected = 0;
 	}
@@ -111,7 +118,7 @@ bool SampleBrowser::opened() {
 		instrumentClipView.cancelAllAuditioning();
 	}
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 sdError:
 		display->displayError(error);
@@ -230,8 +237,9 @@ void SampleBrowser::folderContentsReady(int32_t entryDirection) {
 void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 
 	// Can start scrolling right now, while next preview loads
-	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible)) {
+	if (movementDirection && (currentlyShowingSamplePreview || qwertyVisible) && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
+		favouritesVisible = false;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 
@@ -359,7 +367,6 @@ void SampleBrowser::enterKeyPress() {
 		if (error != Error::NONE) {
 			display->displayError(error);
 			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
-			return;
 		}
 	}
 
@@ -468,6 +475,23 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		}
 	}
 
+	// Load button: toggle auto-load (only for non-audio clips)
+	else if (b == LOAD && getCurrentClip()->type != ClipType::AUDIO) {
+		if (!on) {
+			autoLoadEnabled = !autoLoadEnabled;
+			indicator_leds::setLedState(IndicatorLED::LOAD, autoLoadEnabled);
+		}
+	}
+	else if (b == KEYBOARD && on) {
+		qwertyAlwaysVisible = !qwertyAlwaysVisible;
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
+		qwertyVisible = qwertyAlwaysVisible;
+		if (qwertyVisible) {
+			favouritesVisible = true;
+			qwertyCurrentlyDrawnOnscreen = true;
+			drawKeys();
+		}
+	}
 	else {
 		return Browser::buttonAction(b, on, inCardRoutine);
 	}
@@ -562,6 +586,12 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
 
+		if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
+			// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
+			// as if you had confirmed with the Select encoder, but keeping the browser open.
+			claimCurrentFile(1, 1, 1, true);
+		}
+
 		/*
 		if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 &&
 		numFilesFoundInRightDirection > 1) { D_PRINTLN("returned 2"); return;
@@ -583,7 +613,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				waveformBasicNavigator.opened();
 
 				// If want scrolling animation
-				if (movementDirection) {
+				if (movementDirection && !qwertyAlwaysVisible) {
 					waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 					                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
 					                                  &waveformBasicNavigator.renderData);
@@ -595,10 +625,10 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 				// Or if want instant snap render
 				else {
-					if (qwertyVisible) {
+					if ((qwertyVisible && !qwertyCurrentlyDrawnOnscreen) || qwertyAlwaysVisible) {
 						drawKeys();
 					}
-					else {
+					else if (!qwertyVisible) {
 						waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 						                                  waveformBasicNavigator.xZoom, PadLEDs::image,
 						                                  &waveformBasicNavigator.renderData);
@@ -617,7 +647,8 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 	if (!didDraw) {
 
 		// But if we need to get rid of whatever was onscreen...
-		if (currentlyShowingSamplePreview || (qwertyCurrentlyDrawnOnscreen && !qwertyVisible)) {
+		if ((currentlyShowingSamplePreview || (qwertyCurrentlyDrawnOnscreen && !qwertyVisible))
+		    && !qwertyAlwaysVisible) {
 
 			currentlyShowingSamplePreview = false;
 			qwertyCurrentlyDrawnOnscreen = qwertyVisible;
@@ -680,6 +711,7 @@ possiblyExit:
 				}
 
 				qwertyVisible = true;
+				favouritesVisible = true;
 
 				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 				PadLEDs::reassessGreyout(true);
@@ -690,11 +722,16 @@ possiblyExit:
 
 				enteredTextEditPos = 0;
 				displayText(false);
+
+				// Process first press only if its not a favourite row press to prevent blind keypresses
+				if (y < favouriteRow) {
+					return Browser::padAction(x, y, on);
+				}
 			}
 		}
-
-		if (qwertyVisible) {
-			return QwertyUI::padAction(x, y, on);
+		// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
+		else if (qwertyVisible) {
+			return Browser::padAction(x, y, on);
 		}
 		else {
 			return ActionResult::DEALT_WITH;
@@ -714,8 +751,8 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 		return error;
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.reversed, true, true, CLUSTER_ENQUEUE, 0,
-	                        makeWaveTableWorkAtAllCosts);
+	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
+	                        CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
 }
 
 Error SampleBrowser::claimAudioFileForAudioClip() {
@@ -728,7 +765,7 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 		return error;
 	}
 
-	bool reversed = getCurrentAudioClip()->sampleControls.reversed;
+	bool reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
 	error = holder->loadFile(reversed, true, true);
 
 	// If there's a pre-margin, we want to set an attack-time
@@ -741,7 +778,8 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 
 // This display-> any (rare) specific errors generated, then spits out just a boolean success.
 // For the "may" arguments, 0 means no; 1 means auto; 2 means do definitely as the user has specifically requested it.
-bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable) {
+bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
+                                     bool loadWithoutExiting) {
 
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
@@ -791,6 +829,7 @@ removeLoadingAnimationAndGetOut:
 		clip->sampleHolder.transpose = 0;
 		clip->sampleHolder.cents = 0;
 		clip->sampleControls.reversed = false;
+		clip->sampleControls.invertReversed = false;
 	}
 
 	// Otherwise, we're something to do with an Instrument...
@@ -855,7 +894,7 @@ doLoadAsWaveTable:
 				if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(
 				        params::LOCAL_OSC_B_WAVE_INDEX)) {
 					soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(
-					    params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL);
+					    params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL_1);
 				}
 			}
 			else { // Osc 2
@@ -960,7 +999,7 @@ doLoadAsSample:
 				drum->name.clear();
 
 				String newName;
-				if (!numCharsInPrefix) {
+				if (!numCharsInPrefix || display->haveOLED()) {
 					newName.set(&enteredText);
 				}
 				else {
@@ -1036,8 +1075,25 @@ doLoadAsSample:
 		}
 	}
 
-	exitAndNeverDeleteDrum();
-	uiNeedsRendering(&audioClipView);
+	if (!loadWithoutExiting) {
+		exitAndNeverDeleteDrum();
+
+		if (menuItemHeadingTo != nullptr && parentMenuHeadingTo != nullptr) {
+			if (isUIOpen(&soundEditor)) {
+				closeUI(&soundEditor);
+			}
+
+			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
+			soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo;
+			soundEditor.navigationDepth = 0;
+			openUI(&soundEditor);
+
+			parentMenuHeadingTo = nullptr;
+			menuItemHeadingTo = nullptr;
+		}
+
+		uiNeedsRendering(&audioClipView);
+	}
 	display->removeWorkingAnimation();
 	return true;
 }
@@ -1097,7 +1153,7 @@ void sortSamples(bool (*sortFunction)(Sample*, Sample*), int32_t numSamples, Sam
 	// Go through various iterations of numComparing
 	while (numComparing < numSamples) {
 
-		AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+		AudioEngine::routineWithClusterLoading();
 
 		// And now, for this selected comparison size, do a number of comparisions
 		for (int32_t whichComparison = 0; whichComparison * numComparing * 2 < numSamples; whichComparison++) {
@@ -1208,7 +1264,7 @@ removeReasonsFromSamplesAndGetOut:
 		return false;
 	}
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	int32_t numCharsInPrefixForFolderLoad = 65535;
 
@@ -1602,7 +1658,7 @@ doReturnFalse:
 
 	D_PRINTLN("loaded and sorted samples");
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	// Delete all but first pre-existing range
 	int32_t oldNumRanges = soundEditor.currentSource->ranges.getNumElements();
@@ -1707,7 +1763,7 @@ skipOctaveCorrection:
 	for (int32_t s = 0; s < numSamples; s++) {
 
 		if (!(s & 31)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		Sample* thisSample = sortArea[s];
@@ -1751,7 +1807,8 @@ skipOctaveCorrection:
 		range->topNote = topNote;
 
 		range->sampleHolder.filePath.set(&thisSample->filePath);
-		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.reversed, true);
+		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
+		                                 true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
 		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
 		                                                       topNote);
@@ -1924,7 +1981,7 @@ getOut:
 			AudioFileHolder* holder = range->getAudioFileHolder();
 			holder->setAudioFile(NULL);
 			holder->filePath.set(&thisSample->filePath);
-			holder->setAudioFile(thisSample, source->sampleControls.reversed, true);
+			holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true);
 
 			autoDetectSideChainSending(drum, source, thisSample->filePath.get());
 
@@ -2012,6 +2069,7 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	}
 	else {
 		qwertyVisible = true;
+		favouritesVisible = true;
 
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		PadLEDs::reassessGreyout(true);
@@ -2025,6 +2083,9 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (Buttons::isShiftButtonPressed()) {
+		return Browser::verticalEncoderAction(offset, false);
+	}
 	if (getRootUI() == &instrumentClipView) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;

@@ -24,7 +24,8 @@
 #include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/source.h"
-#include "util/container/static_vector.hpp"
+
+#include <etl/vector.h>
 
 namespace deluge::gui::menu_item {
 
@@ -57,7 +58,7 @@ struct {
 constexpr int numValues = sizeof(items) / sizeof(items[0]);
 
 void DxGlobalParams::drawPixelsForOled() {
-	static_vector<std::string_view, numValues> itemNames = {};
+	etl::vector<std::string_view, numValues> itemNames = {};
 	for (auto& item : items) {
 		itemNames.push_back(item.name);
 	}

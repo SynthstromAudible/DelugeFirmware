@@ -17,20 +17,18 @@
 
 #include "param.h"
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
-#include "hid/buttons.h"
-#include "hid/display/display.h"
 #include "model/action/action.h"
-#include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
-#include "modulation/params/param_set.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item {
 

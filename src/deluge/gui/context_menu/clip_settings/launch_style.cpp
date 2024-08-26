@@ -19,7 +19,7 @@ char const* LaunchStyleMenu::getTitle() {
 	return title;
 }
 
-Sized<char const**> LaunchStyleMenu::getOptions() {
+std::span<char const*> LaunchStyleMenu::getOptions() {
 	using enum l10n::String;
 	static const char* optionsls[] = {
 	    l10n::get(STRING_FOR_DEFAULT_LAUNCH),

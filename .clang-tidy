@@ -35,7 +35,6 @@ WarningsAsErrors: false # should be true once we get there
 #HeaderFileExtensions:         ['h','hh','hpp','hxx'] # enable iff clang-tidy v17+
 #ImplementationFileExtensions: ['c','cc','cpp','cxx'] # enable iff clang-tidy v17+ (stops from touching .S assembly files)
 HeaderFilterRegex: "^((?!lib|RZA1|NE10|fatfs).)*$" # don't touch external files
-AnalyzeTemporaryDtors: false
 ExtraArgs: ['-Wno-unknown-argument', '-Wno-unknown-warning-option', '-W']
 FormatStyle: file
 CheckOptions:

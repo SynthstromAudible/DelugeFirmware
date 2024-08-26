@@ -227,8 +227,6 @@ doSetupWaveTable:
 							D_PRINTLN("play count:  %d", loopData[5]);
 						}
 					}
-
-					D_PRINTLN("");
 				}
 				break;
 			}

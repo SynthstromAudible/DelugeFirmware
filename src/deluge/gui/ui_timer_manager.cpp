@@ -21,7 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -76,11 +76,11 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::DEFAULT_ROOT_NOTE:
-					if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
-						instrumentClipView.flashDefaultRootNote();
-					}
-					else if (getCurrentUI() == &keyboardScreen) {
+					if (getCurrentUI() == &keyboardScreen) {
 						keyboardScreen.flashDefaultRootNote();
+					}
+					else if (getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+						instrumentClipView.flashDefaultRootNote();
 					}
 					break;
 
@@ -89,6 +89,17 @@ void UITimerManager::routine() {
 					break;
 				}
 				case TimerName::DISPLAY:
+					if (display->haveOLED()) {
+						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+						oled->timerRoutine();
+					}
+					else {
+						display->timerRoutine();
+					}
+
+					break;
+
+				case TimerName::LOADING_ANIMATION:
 					if (display->haveOLED()) {
 						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
 						oled->timerRoutine();
@@ -121,7 +132,11 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::NOTE_ROW_BLINK:
-					automationView.blinkSelectedNoteRow();
+					instrumentClipView.blinkSelectedNoteRow();
+					break;
+
+				case TimerName::SELECTED_CLIP_PULSE:
+					sessionView.gridPulseSelectedClip();
 					break;
 
 				case TimerName::MATRIX_DRIVER:

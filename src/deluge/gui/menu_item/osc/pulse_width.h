@@ -22,10 +22,10 @@
 #include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::osc {
-class PulseWidth final : public menu_item::source::PatchedParam, public FormattedTitle {
+class PulseWidth final : public source::PatchedParam, public FormattedTitle {
 public:
-	PulseWidth(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : source::PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+	PulseWidth(l10n::String name, l10n::String title_format_str, int32_t newP, uint8_t source_id)
+	    : PatchedParam(name, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
@@ -37,13 +37,43 @@ public:
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
+		const auto sound = static_cast<Sound*>(modControllable);
 		if (sound->getSynthMode() == SynthMode::FM) {
 			return false;
 		}
-		OscType oscType = sound->sources[whichThing].oscType;
-		return (oscType != OscType::SAMPLE && oscType != OscType::INPUT_L && oscType != OscType::INPUT_R
-		        && oscType != OscType::INPUT_STEREO);
+
+		const OscType oscType = sound->sources[source_id_].oscType;
+		if (oscType == OscType::WAVETABLE) {
+			auto& source = sound->sources[source_id_];
+			return source.hasAtLeastOneAudioFileLoaded();
+		}
+
+		return oscType != OscType::SAMPLE && oscType != OscType::INPUT_L && oscType != OscType::INPUT_R
+		       && oscType != OscType::INPUT_STEREO;
+	}
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		oled_canvas::Canvas& image = OLED::main;
+
+		const float norm = getValue() / 50.0f;
+
+		constexpr int32_t x_padding = 4;
+		const uint8_t width = slot.width - x_padding * 2;
+
+		int32_t start_x = slot.start_x + x_padding;
+		int32_t end_x = start_x + width - 1;
+		int32_t start_y = slot.start_y + kHorizontalMenuSlotYOffset;
+		int32_t end_y = slot.start_y + slot.height - 6;
+
+		int32_t pw_min_x = start_x + 2;
+		int32_t pw_max_x = start_x + width / 2;
+		int32_t pw_width = pw_max_x - pw_min_x;
+		int32_t pw_x = pw_max_x - pw_width * norm;
+
+		image.drawVerticalLine(start_x, start_y, end_y);
+		image.drawHorizontalLine(start_y, start_x, pw_x);
+		image.drawVerticalLine(pw_x, start_y, end_y);
+		image.drawHorizontalLine(end_y, pw_x, end_x);
 	}
 };
 

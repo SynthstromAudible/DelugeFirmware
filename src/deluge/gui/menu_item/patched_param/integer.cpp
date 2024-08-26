@@ -19,12 +19,15 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
-#include "hid/display/oled.h"
 #include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
+#include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::patched_param {
 void Integer::readCurrentValue() {
@@ -37,6 +40,28 @@ void Integer::writeCurrentValue() {
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
 	int32_t value = getFinalValue();
 	modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
+
+	// If affect-entire button held, do whole kit
+	if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+		Kit* kit = getCurrentKit();
+
+		for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+			if (thisDrum->type == DrumType::SOUND) {
+				auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+				char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
+				ModelStackWithAutoParam* modelStackForSoundDrum =
+				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
+				        ->getPatchedAutoParamFromId(getP());
+				modelStackForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(value, modelStackForSoundDrum);
+			}
+		}
+	}
+	// Or, the normal case of just one sound
+	else {
+		modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
+	}
 
 	// send midi follow feedback
 	int32_t knobPos = modelStack->paramCollection->paramValueToKnobPos(value, modelStack);

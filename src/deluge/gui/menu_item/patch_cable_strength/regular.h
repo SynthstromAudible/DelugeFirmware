@@ -31,7 +31,6 @@ public:
 	                                             MultiRange** currentRange) override;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) override;
-	MenuItem* selectButtonPress() final;
 };
 
 extern Regular regularMenu;

@@ -34,7 +34,7 @@ char const* Synth::getTitle() {
 	return l10n::get(STRING_FOR_LOAD_FILES);
 }
 
-Sized<char const**> Synth::getOptions() {
+std::span<char const*> Synth::getOptions() {
 	using enum l10n::String;
 	static char const* options[] = {
 	    l10n::get(STRING_FOR_MULTISAMPLES), //<

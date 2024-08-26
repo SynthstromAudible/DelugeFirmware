@@ -41,6 +41,7 @@ class Voice;
 class ModelStackWithSoundFlags;
 class ParamManager;
 class ParamCollectionSummary;
+class SoundDrum;
 
 /* ====================== ModelStacks =====================
  *
@@ -246,6 +247,7 @@ public:
 
 	inline ModelStackWithSoundFlags* addSoundFlags() const;
 	inline ModelStackWithSoundFlags* addDummySoundFlags() const;
+	ModelStackWithAutoParam* getExpressionAutoParamFromID(int32_t newParamId);
 };
 
 class ModelStackWithParamCollection : public ModelStackWithThreeMainThings {
@@ -299,6 +301,8 @@ public:
 };
 
 #define MODEL_STACK_MAX_SIZE sizeof(ModelStackWithAutoParam)
+
+ModelStackWithThreeMainThings* getModelStackFromSoundDrum(void* memory, SoundDrum* soundDrum);
 
 inline ModelStack* setupModelStackWithSong(void* memory, Song* newSong) {
 	ModelStack* modelStack = (ModelStack*)memory;

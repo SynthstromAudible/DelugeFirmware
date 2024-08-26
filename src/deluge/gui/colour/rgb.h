@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <type_traits>
 
 /**
  * @brief This class represents the colour format most used by the Deluge globally
@@ -32,13 +33,18 @@ public:
 	/// Blue channel
 	channel_type b = 0;
 
+	/// Copies RGB values from a colour
+	constexpr RGB& operator=(const RGB& other) = default;
+
 	/**
 	 * @brief Construct a monochrome (white) shade
 	 *
 	 * @param brightness The brightness level
 	 * @return RGB The constructed colour
 	 */
-	static constexpr RGB monochrome(uint8_t brightness) { return RGB{brightness, brightness, brightness}; }
+	static constexpr RGB monochrome(uint8_t brightness) {
+		return RGB{.r = brightness, .g = brightness, .b = brightness};
+	}
 
 	/**
 	 * @brief Construct a colour from a hue
@@ -78,7 +84,7 @@ public:
 	[[nodiscard]] constexpr RGB forTail() const {
 		uint32_t averageBrightness = ((uint32_t)r + g + b);
 		return transform([averageBrightness](channel_type channel) { //<
-			return (((int32_t)channel * 21 + averageBrightness) * 157) >> 14;
+			return (((int32_t)channel * 21 + averageBrightness) * 120) >> 14;
 		});
 	}
 
@@ -179,6 +185,13 @@ public:
 	}
 
 	/**
+	 * @brief Compare two colours to determine if they're the same
+	 *
+	 * @return bool The true / false result if they're the equal
+	 */
+	bool operator==(RGB const&) const = default;
+
+	/**
 	 * @brief Legacy access to the colour internals for ease of use
 	 *
 	 * @param idx The channel to access (order R G B)
@@ -250,6 +263,16 @@ public:
 	}
 
 	/**
+	 * @brief Adjust a colour by altering its intensity and brightness. Intensity/brightnessDivider must be less than 1
+	 * @return RGB The new colour
+	 */
+	[[nodiscard]] constexpr RGB adjustFractional(uint16_t numerator, uint16_t divisor) const {
+		return transform([numerator, divisor](channel_type channel) { //<
+			return ((channel * numerator) / divisor);
+		});
+	}
+
+	/**
 	 * This rotates the colour in fromRgb by 1 radian and places it in rgb
 	 * This is useful to generate a complementary colour with the same brightness
 	 */
@@ -265,9 +288,9 @@ private:
 	static constexpr float c = 0.5403f;
 	static constexpr float s = 0.8414f;
 	static constexpr uint32_t RMat[4][4] = {
-	    {(uint32_t)(c * ONE_Q15), 0, (uint32_t)(s* ONE_Q15), 0},
-	    {(uint32_t)(s * ONE_Q15), (uint32_t)(c* ONE_Q15), 0, 0},
-	    {0, (uint32_t)(s* ONE_Q15), (uint32_t)(c* ONE_Q15), 0},
+	    {(uint32_t)(c * ONE_Q15), 0, (uint32_t)(s * ONE_Q15), 0},
+	    {(uint32_t)(s * ONE_Q15), (uint32_t)(c * ONE_Q15), 0, 0},
+	    {0, (uint32_t)(s * ONE_Q15), (uint32_t)(c * ONE_Q15), 0},
 	    {0, 0, 0, ONE_Q15},
 	};
 
@@ -297,3 +320,4 @@ private:
 		return std::clamp<uint32_t>(newRGB, 0, channel_max);
 	}
 };
+static_assert(std::is_trivially_copyable_v<RGB>, "RGB must be trivially copyable");

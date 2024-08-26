@@ -17,7 +17,13 @@
 
 #include "canvas.h"
 #include "definitions_cxx.hpp"
+#include "deluge/util/d_string.h"
 #include "gui/fonts/fonts.h"
+#include "storage/flash_storage.h"
+
+#include <hid/display/oled.h>
+#include <math.h>
+#include <vector>
 
 using deluge::hid::display::oled_canvas::Canvas;
 
@@ -67,6 +73,16 @@ void Canvas::drawPixel(int32_t x, int32_t y) {
 	image_[yRow][x] |= 1 << (y & 0x7);
 }
 
+void Canvas::clearPixel(int32_t x, int32_t y) {
+	int32_t yRow = y >> 3;
+	image_[yRow][x] &= ~(1 << (y & 0x7));
+}
+
+void Canvas::invertPixel(int32_t x, int32_t y) {
+	int32_t yRow = y >> 3;
+	image_[yRow][x] ^= 1 << (y & 0x7);
+}
+
 void Canvas::drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX) {
 	uint8_t mask = 1 << (pixelY & 7);
 
@@ -111,6 +127,50 @@ drawSolid:
 	}
 }
 
+void Canvas::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, const DrawLineOptions& options) {
+	const bool steep = abs(y1 - y0) > abs(x1 - x0);
+	if (steep) {
+		std::swap(x0, y0);
+		std::swap(x1, y1);
+	}
+	if (x0 > x1) {
+		std::swap(x0, x1);
+		std::swap(y0, y1);
+	}
+
+	int32_t dx = x1 - x0;
+	int32_t dy = abs(y1 - y0);
+	int32_t error = dx / 2;
+	int32_t y = y0;
+	int32_t y_step = y0 < y1 ? 1 : -1;
+
+	for (int32_t x = x0; x <= x1; x++) {
+		int32_t actual_x = steep ? y : x;
+		int32_t actual_y = steep ? x : y;
+
+		if (options.max_x.has_value() && actual_x > options.max_x.value()) {
+			return;
+		}
+		if (!options.min_x.has_value() || actual_x >= options.min_x.value()) {
+			drawPixel(actual_x, actual_y);
+
+			if (options.thick) {
+				drawPixel(steep ? actual_x + 1 : actual_x, steep ? actual_y : actual_y - 1);
+			}
+
+			if (options.point_callback.has_value()) {
+				options.point_callback.value()({actual_x, actual_y});
+			}
+		}
+
+		error -= dy;
+		if (error < 0) {
+			y += y_step;
+			error += dx;
+		}
+	}
+}
+
 void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
 	drawVerticalLine(minX, minY, maxY);
 	drawVerticalLine(maxX, minY, maxY);
@@ -119,9 +179,72 @@ void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t max
 	drawHorizontalLine(maxY, minX + 1, maxX - 1);
 }
 
+void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius) {
+	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
+
+	drawVerticalLine(minX, minY + radiusPixels, maxY - radiusPixels);
+	drawVerticalLine(maxX, minY + radiusPixels, maxY - radiusPixels);
+	drawHorizontalLine(minY, minX + radiusPixels, maxX - radiusPixels);
+	drawHorizontalLine(maxY, minX + radiusPixels, maxX - radiusPixels);
+
+	if (radiusPixels == 2) {
+		drawPixel(minX + 1, minY + 1); //< Top-left corner
+		drawPixel(maxX - 1, minY + 1); //< Top-right corner
+		drawPixel(minX + 1, maxY - 1); //< Bottom-left corner
+		drawPixel(maxX - 1, maxY - 1); //< Bottom-right corner
+	}
+}
+
+void Canvas::drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool fill) {
+	int32_t x = 0;
+	int32_t y = radius;
+	// Add a small bias for small radii — helps round out edges
+	int32_t d = 1 - radius + (radius <= 6 ? 1 : 0);
+
+	auto plot_circle_points = [&](int32_t cx, int32_t cy, int32_t x, int32_t y) {
+		if (fill) {
+			// Fill horizontally between symmetric points
+			drawHorizontalLine(cy + y, cx - x, cx + x);
+			drawHorizontalLine(cy - y, cx - x, cx + x);
+			drawHorizontalLine(cy + x, cx - y, cx + y);
+			drawHorizontalLine(cy - x, cx - y, cx + y);
+		}
+		else {
+			// Just outline
+			drawPixel(cx + x, cy + y);
+			drawPixel(cx - x, cy + y);
+			drawPixel(cx + x, cy - y);
+			drawPixel(cx - x, cy - y);
+			drawPixel(cx + y, cy + x);
+			drawPixel(cx - y, cy + x);
+			drawPixel(cx + y, cy - x);
+			drawPixel(cx - y, cy - x);
+		}
+	};
+
+	while (x <= y) {
+		plot_circle_points(centerX, centerY, x, y);
+
+		// normal midpoint update
+		if (d < 0) {
+			d += 2 * x + 3;
+		}
+		else {
+			d += 2 * (x - y) + 5;
+			y--;
+		}
+		x++;
+
+		// Small tweak: for very small circles, gradually adjust d to round diagonals
+		if (radius <= 5) {
+			d += x % 2 == 0 ? 1 : 0;
+		}
+	}
+}
+
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                         int32_t scrollPos, int32_t endX, bool useTextWidth) {
-	int32_t stringLength = string.length();
+	int32_t lastIndex = string.length() - 1;
 	int32_t charIdx = 0;
 	int32_t charWidth = textWidth;
 	// if the string is currently scrolling we want to identify the number of characters
@@ -135,7 +258,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		int32_t charStartX = 0;
 		for (char const c : string) {
 			if (!useTextWidth) {
-				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
+				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
 				charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
 			}
 			charStartX += charWidth;
@@ -156,8 +279,8 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		string = string.substr(numCharsToChopOff);
 		// adjust scroll position to indicate how far we've scrolled
 		scrollPos -= widthOfCharsToChopOff;
-		// calculate new string length
-		stringLength = string.length();
+		// calculate new last index
+		lastIndex = string.length() - 1;
 		// reset index
 		charIdx = 0;
 	}
@@ -166,7 +289,7 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 	// here we're going to draw the remaining characters in the string
 	for (char const c : string) {
 		if (!useTextWidth) {
-			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
+			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
 			charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
 		}
 		drawChar(c, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
@@ -193,10 +316,37 @@ void Canvas::drawStringCentred(char const* string, int32_t pixelY, int32_t textW
 	drawString(str, pixelX, pixelY, textWidth, textHeight);
 }
 
+void Canvas::drawStringCentered(char const* string, int32_t pixelX, int32_t pixelY, int32_t textSpacingX,
+                                int32_t textSpacingY, int32_t totalWidth) {
+	DEF_STACK_STRING_BUF(stringBuf, 24);
+	stringBuf.append(string);
+	drawStringCentered(stringBuf, pixelX, pixelY, textSpacingX, textSpacingY, totalWidth);
+}
+
+void Canvas::drawStringCentered(StringBuf& stringBuf, int32_t pixelX, int32_t pixelY, int32_t textSpacingX,
+                                int32_t textSpacingY, int32_t totalWidth) {
+	int32_t stringWidth;
+
+	// Trim characters from the end until it fits.
+	while ((stringWidth = getStringWidthInPixels(stringBuf.c_str(), textSpacingY)) >= totalWidth - 3) {
+		stringBuf.truncate(stringBuf.size() - 1);
+	}
+
+	// Padding to center the string
+	const float padding = (totalWidth - stringWidth) / 2.0f;
+	int32_t paddingAsInt = static_cast<int32_t>(padding);
+
+	if (padding != paddingAsInt) {
+		// If we can't center exactly, 1px right is better than 1px left.
+		paddingAsInt++;
+	}
+
+	drawString(stringBuf.c_str(), pixelX + paddingAsInt, pixelY, stringWidth, textSpacingY);
+}
+
 /// Draw a string, reducing its height so the string fits within the specified width
 ///
 /// @param string A null-terminated C string
-/// @param pixelY The Y coordinate of the top of the string
 /// @param textWidth Requested width for each character in the string
 /// @param textHeight Requested height for each character in the string
 void Canvas::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, int32_t textWidth,
@@ -215,8 +365,11 @@ void Canvas::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixe
 		else if (newHeight >= 10) {
 			newHeight = 10;
 		}
-		else {
+		else if (newHeight >= 7) {
 			newHeight = 7;
+		}
+		else {
+			newHeight = 5;
 		}
 
 		textWidth = maxTextWidth;
@@ -253,6 +406,14 @@ void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t s
 	int32_t fontNativeHeight;
 
 	switch (textHeight) {
+	case 5:
+		[[fallthrough]];
+	case 6:
+		textHeight = 5;
+		descriptor = font_5px_desc;
+		font = font_5px;
+		fontNativeHeight = 5;
+		break;
 	case 9:
 		pixelY++;
 		[[fallthrough]];
@@ -307,7 +468,11 @@ void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t s
 }
 
 int32_t Canvas::getCharIndex(uint8_t theChar) {
-	if (theChar > '~') {
+	// 129 represents flat glyph
+	if (theChar == 129) {
+		theChar = '~' + 1;
+	}
+	else if (theChar > '~') {
 		return 0;
 	}
 
@@ -329,13 +494,16 @@ int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 	if (charIndex <= 0) {
 		return 0;
 	}
-	// the smaller apple ][ is monospaced, so return standard width of each character
-	else if (textHeight <= 9) {
+	else if (textHeight >= 7 && textHeight <= 9) {
+		// the smaller apple ][ is monospaced, so return standard width of each character
 		return kTextSpacingX;
 	}
 
 	lv_font_glyph_dsc_t const* descriptor;
 	switch (textHeight) {
+	case 5:
+		descriptor = font_5px_desc;
+		break;
 	case 10:
 		descriptor = font_metric_bold_9px_desc;
 		break;
@@ -354,7 +522,7 @@ int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 }
 
 int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool isLastChar) {
-	bool monospacedFont = (textHeight <= 9);
+	bool monospacedFont = (textHeight >= 7 and textHeight <= 9);
 	// don't add space to the last character
 	if (isLastChar) {
 		return 0;
@@ -363,6 +531,10 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 		// smaller apple ][ font is monospaced, so spacing is different
 		if (monospacedFont) {
 			return kTextSpacingX;
+		}
+		// small font is spaced 2px
+		else if (textHeight <= 6) {
+			return 2;
 		}
 		// if character is a space, make spacing 6px instead
 		// (just need to add 5 since previous character added 1 after it)
@@ -375,6 +547,10 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 		// as it's handled by the standard char width
 		if (monospacedFont) {
 			return 0;
+		}
+		// small font
+		else if (textHeight <= 6) {
+			return 1;
 		}
 		// default spacing is 2 pixels for bold fonts
 		else {
@@ -398,7 +574,20 @@ int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
 }
 
 void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height,
-                                  int32_t numBytesTall) {
+                                  int32_t numBytesTall, bool reversed) {
+	if (reversed) {
+		std::vector<uint8_t> reversedGraphic(width * numBytesTall);
+		for (int32_t col = 0; col < width; ++col) {
+			int32_t inputIndex = col * numBytesTall;
+			int32_t reversedCol = width - 1 - col;
+			int32_t outputIndex = reversedCol * numBytesTall;
+			for (int32_t byte = 0; byte < numBytesTall; ++byte) {
+				reversedGraphic[outputIndex + byte] = graphic[inputIndex + byte];
+			}
+		}
+		return drawGraphicMultiLine(reversedGraphic.data(), startX, startY, width, height, numBytesTall);
+	}
+
 	int32_t rowOnDisplay = startY >> 3;
 	int32_t yOffset = startY & 7;
 	int32_t rowOnGraphic = 0;
@@ -460,16 +649,26 @@ void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_
 	}
 }
 
+void Canvas::drawIcon(const Icon& icon, int32_t x, int32_t y, bool reversed) {
+	drawGraphicMultiLine(icon.data, x, y, icon.width, icon.height, icon.numBytesTall, reversed);
+}
+void Canvas::drawIconCentered(const Icon& icon, int32_t startX, int32_t totalWidth, int32_t y, bool reversed) {
+	int32_t padding = (totalWidth - icon.width) >> 1;
+	drawIcon(icon, startX + padding, y, reversed);
+}
+
 /// Draw a screen title and underline it.
 ///
 /// @param text Title text
-void Canvas::drawScreenTitle(std::string_view title) {
-	int32_t extraY = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 0 : 1;
-
-	int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
+void Canvas::drawScreenTitle(std::string_view title, bool drawSeparator) {
+	constexpr int32_t extraY = 1;
+	constexpr int32_t startY = extraY + OLED_MAIN_TOPMOST_PIXEL;
 
 	drawString(title, 0, startY, kTextTitleSpacingX, kTextTitleSizeY);
-	drawHorizontalLine(extraY + 11 + OLED_MAIN_TOPMOST_PIXEL, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+
+	if (drawSeparator) {
+		drawHorizontalLine(kScreenTitleSeparatorY, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+	}
 }
 
 void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
@@ -495,5 +694,54 @@ void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t end
 		}
 
 		currentRowMask = 0xFF;
+	}
+}
+
+void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius) {
+	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
+
+	invertArea(xMin, width, startY, endY);
+
+	// restore corners back
+	const int32_t xMax = xMin + width - 1;
+
+	if (radiusPixels == 1) {
+		// For 1px radius, clear just the corner pixels
+		clearPixel(xMin, startY); // Top-left corner
+		clearPixel(xMax, startY); // Top-right corner
+		clearPixel(xMin, endY);   // Bottom-left corner
+		clearPixel(xMax, endY);   // Bottom-right corner
+	}
+	else if (radiusPixels == 2) {
+		// For 2px radius, clear 3 pixels per corner
+		// Top-left corner
+		clearPixel(xMin, startY);
+		clearPixel(xMin + 1, startY);
+		clearPixel(xMin, startY + 1);
+
+		// Top-right corner
+		clearPixel(xMax, startY);
+		clearPixel(xMax - 1, startY);
+		clearPixel(xMax, startY + 1);
+
+		// Bottom-left corner
+		clearPixel(xMin, endY);
+		clearPixel(xMin + 1, endY);
+		clearPixel(xMin, endY - 1);
+
+		// Bottom-right corner
+		clearPixel(xMax, endY);
+		clearPixel(xMax - 1, endY);
+		clearPixel(xMax, endY - 1);
+	}
+}
+
+/// inverts just the left edge
+void Canvas::invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
+	if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION) {
+		drawVerticalLine(xMin, startY, endY);
+	}
+	else {
+		invertAreaRounded(xMin, width, startY, endY);
 	}
 }

@@ -18,11 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "hid/buttons.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include <cstdint>
 #include <span>
 
 enum class MenuPermission {
@@ -31,9 +30,21 @@ enum class MenuPermission {
 	MUST_SELECT_RANGE,
 };
 
+struct SlotPosition {
+	uint8_t start_x{0};
+	uint8_t start_y{0};
+	uint8_t width{0};
+	uint8_t height{0};
+};
+
 class Sound;
 class MultiRange;
 class MIDIDevice;
+
+namespace deluge::gui::menu_item {
+class Submenu;
+class HorizontalMenu;
+} // namespace deluge::gui::menu_item
 
 /// Base class for all menu items.
 class MenuItem {
@@ -70,6 +81,10 @@ public:
 	///
 	/// @param offset must be either -1 or 1, jumping is not supported by many children.
 	virtual void horizontalEncoderAction(int32_t offset) {}
+	/// @brief Handle vertical encoder movement.
+	///
+	/// @param offset must be either -1 or 1, jumping is not supported by many children.
+	virtual void verticalEncoderAction(int32_t offset) {}
 	/// @brief Handle select encoder movement.
 	///
 	/// Child classes which override this should be careful to handle offsets larger than 1, as holding shift and
@@ -105,10 +120,15 @@ public:
 	/// @brief Begin an editing session with this menu item.
 	///
 	/// Should make sure the menu's internal state matches the system and redraw the display.
-	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr){};
+	virtual void beginSession(MenuItem* navigatedBackwardFrom = nullptr) {};
+
+	/// @brief End an editing session with this menu item
+	virtual void endSession();
 
 	/// Re-read the value from the system and redraw the display to match.
 	virtual void readValueAgain() {}
+	/// Like readValueAgain, but does not redraw.
+	virtual void readCurrentValue() {}
 
 	/// @}
 	/// @name Patching support
@@ -257,8 +277,53 @@ public:
 	virtual int32_t getSubmenuItemTypeRenderIconStart() { return (OLED_MAIN_WIDTH_PIXELS - kSubmenuIconSpacingX - 3); }
 	// render the submenu item type (icon or value)
 	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
+	virtual bool isSubmenu() { return false; }
+	virtual void setupNumberEditor() {}
+	virtual void updatePadLights();
+
+	/// @}
+	/// @name Horizontal menus
+	/// @{
+	///
+	/// @brief Get the name for use on Horizontal menus.
+	///
+	/// By default this redirects to getName(), but can be overridden.
+	virtual void getColumnLabel(StringBuf& label) { label.append(getName().data()); }
+
+	/// @brief Show a label for the parameter in Horizontal menu
+	///
+	/// true by default, but can be overridden
+	[[nodiscard]] virtual bool showColumnLabel() const { return true; }
+
+	/// @brief Get the number of occupied slots in Horizontal menu.
+	///
+	/// 1 by default, but can be overridden
+	[[nodiscard]] virtual int32_t getOccupiedSlots() const { return 1; };
+
+	/// @brief Show a popup with the full name and value of the editing parameter at the top of Horizontal menu
+	///
+	/// true by default, but can be overridden
+	[[nodiscard]] virtual bool showNotification() const { return true; }
+
+	/// @brief Allow entering menu session by selecting the menu item twice in Horizontal menu
+	///
+	/// false by default, but can be overridden
+	[[nodiscard]] virtual bool allowToBeginSessionFromHorizontalMenu() { return false; }
+
+	/// @brief Get the parameter value string to show in the popup
+	///
+	/// Needs to be overridden
+	virtual void getNotificationValue(StringBuf& valueBuf) {}
+
+	virtual void renderInHorizontalMenu(const SlotPosition& slot) {};
+
+	deluge::gui::menu_item::HorizontalMenu* parent{nullptr};
 
 	/// @}
 };
 
 #define NO_NAVIGATION ((MenuItem*)0xFFFFFFFF)
+
+/// @brief  Returns true if the item is relevant using current soundEditor
+/// modControllable and sourceIndex.
+bool isItemRelevant(MenuItem* item);

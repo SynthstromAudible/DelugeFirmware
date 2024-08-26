@@ -32,7 +32,7 @@ char const* Kit::getTitle() {
 	return l10n::get(STRING_FOR_SAMPLES);
 }
 
-Sized<char const**> Kit::getOptions() {
+std::span<char const*> Kit::getOptions() {
 	using enum l10n::String;
 	static char const* options[] = {
 	    l10n::get(STRING_FOR_LOAD_ALL), //<

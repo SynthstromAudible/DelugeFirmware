@@ -23,43 +23,63 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 
+#include <gui/context_menu/sample_browser/kit.h>
+
 namespace deluge::gui::menu_item::sample {
 class PitchSpeed final : public Selection {
 public:
-	using Selection::Selection;
+	PitchSpeed(l10n::String newName, uint8_t sourceId) : Selection(newName), source_id_{sourceId} {}
 
 	bool usesAffectEntire() override { return true; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final {
-		return getCurrentAudioClip() || isSampleModeSample(modControllable, whichThing);
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return getCurrentAudioClip() != nullptr || isSampleModeSample(modControllable, source_id_);
 	}
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSampleControls->pitchAndSpeedAreIndependent); }
+	void readCurrentValue() override {
+		const auto& sampleControls = getCurrentSampleControls(source_id_);
+		setValue(sampleControls.pitchAndSpeedAreIndependent);
+	}
 
 	void writeCurrentValue() override {
 		// If affect-entire button held, do whole kit
-		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
-			Kit* kit = getCurrentKit();
+			const Kit* kit = getCurrentKit();
 
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					Source* source = &soundDrum->sources[soundEditor.currentSourceIndex];
-
+					Source* source = &soundDrum->sources[source_id_];
 					source->sampleControls.pitchAndSpeedAreIndependent = this->getValue();
 				}
 			}
 		}
-
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSampleControls->pitchAndSpeedAreIndependent = this->getValue();
+			auto& sampleControls = getCurrentSampleControls(source_id_);
+			sampleControls.pitchAndSpeedAreIndependent = this->getValue();
 		}
 	}
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		return {l10n::getView(l10n::String::STRING_FOR_LINKED), l10n::getView(l10n::String::STRING_FOR_INDEPENDENT)};
 	}
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		const Icon& icon = getValue() ? OLED::crossedOutKeyboardIcon : OLED::keyboardIcon;
+		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
+	}
+
+	void getColumnLabel(StringBuf& label) override {
+		const auto option = getOptions(OptType::SHORT)[getValue()].data();
+		label.append(option);
+	}
+
+	[[nodiscard]] bool isToggle() override { return true; }
+
+private:
+	uint8_t source_id_;
 };
 } // namespace deluge::gui::menu_item::sample

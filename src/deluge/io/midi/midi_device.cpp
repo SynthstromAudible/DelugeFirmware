@@ -33,6 +33,7 @@ extern "C" {
 MIDIDevice::MIDIDevice() {
 	connectionFlags = 0;
 	sendClock = true;
+	receiveClock = true;
 	defaultVelocityToLevel = 0; // Means none set.
 	memset(defaultInputMPEValuesPerMIDIChannel, 0, sizeof(defaultInputMPEValuesPerMIDIChannel));
 
@@ -203,16 +204,21 @@ void MIDIDevice::readFromFile(Deserializer& reader) {
 		else if (!strcmp(tagName, "sendClock")) {
 			sendClock = reader.readTagOrAttributeValueInt();
 		}
+		else if (!strcmp(tagName, "receiveClock")) {
+			receiveClock = reader.readTagOrAttributeValueInt();
+		}
 
 		reader.exitTag();
 	}
 }
 
-void MIDIDevice::writeDefinitionAttributesToFile(Serializer& writer) { // These only go into MIDIDEVICES.XML.
+// These only go into SETTINGS/MIDIDevices.XML
+void MIDIDevice::writeDefinitionAttributesToFile(Serializer& writer) {
 	if (hasDefaultVelocityToLevelSet()) {
 		writer.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
 	}
 	writer.writeAttribute("sendClock", sendClock);
+	writer.writeAttribute("receiveClock", receiveClock);
 }
 
 void MIDIDevice::writeToFile(Serializer& writer, char const* tagName) {

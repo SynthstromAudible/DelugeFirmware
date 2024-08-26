@@ -25,8 +25,8 @@
 
 #define DELUGE_MODEL DELUGE_MODEL_144_PAD // Change this as needed
 
-#define NUM_CV_CHANNELS   2
-#define NUM_GATE_CHANNELS 4
+#define NUM_PHYSICAL_CV_CHANNELS 2
+#define NUM_GATE_CHANNELS        4
 
 #define DMA_LVL_FOR_SSI   (1 << 6)
 #define DMARS_FOR_SSI0_TX 0x00E1

@@ -22,6 +22,8 @@
 #include "menu_item.h"
 #include "util/misc.h"
 
+#include <hid/buttons.h>
+
 namespace deluge::gui::menu_item {
 template <typename T = int32_t>
 class Value : public MenuItem {
@@ -47,7 +49,6 @@ public:
 	}
 
 protected:
-	virtual void readCurrentValue() {}
 	virtual void writeCurrentValue() {}
 
 	// 7SEG ONLY
@@ -69,6 +70,10 @@ void Value<T>::beginSession(MenuItem* navigatedBackwardFrom) {
 
 template <typename T>
 void Value<T>::selectEncoderAction(int32_t offset) {
+	if (Buttons::isButtonPressed(hid::button::SELECT_ENC)) {
+		Buttons::selectButtonPressUsedUp = true;
+	}
+
 	writeCurrentValue();
 
 	// For MenuItems referring to an AutoParam (so UnpatchedParam and PatchedParam), ideally we wouldn't want to render

@@ -8,8 +8,9 @@
 #include "model/song/song.h"
 #include "source_selection/range.h"
 #include "source_selection/regular.h"
-#include "util/container/static_vector.hpp"
 #include "util/functions.h"
+
+#include <etl/vector.h>
 
 namespace deluge::gui::menu_item {
 
@@ -36,7 +37,7 @@ void ActiveScaleMenu::drawPixelsForOled() {
 	uint8_t sel;
 
 	// Build a vector with visible scale items. No wrap-around.
-	static_vector<uint8_t, kOLEDMenuNumOptionsVisible> visible = {};
+	etl::vector<uint8_t, kOLEDMenuNumOptionsVisible> visible = {};
 	if (currentPos == 0) {
 		sel = 0;
 		// beginning of the list
@@ -98,7 +99,7 @@ void ActiveScaleMenu::drawSubmenuItemsForOled(std::span<uint8_t> scales, const u
 		// if you've selected a menu item, invert the area to show that it is selected
 		// and setup scrolling in case that menu item is too long to display fully
 		if (o == selected) {
-			image.invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
+			image.invertLeftEdgeForMenuHighlighting(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
 			deluge::hid::display::OLED::setupSideScroller(0, name, kTextSpacingX, endX, yPixel, yPixel + 8,
 			                                              kTextSpacingX, kTextSpacingY, true);
 		}

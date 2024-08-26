@@ -24,10 +24,10 @@
 #include "model/sample/sample_recorder.h"
 #include "model/voice/voice_sample.h"
 #include "processing/engines/audio_engine.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
-#include "task_scheduler.h"
 #include <optional>
 #include <string.h>
 
@@ -555,11 +555,7 @@ cantReadData:
 			if (nextCluster) {
 				audioFileManager.removeReasonFromCluster(nextCluster, "9700");
 			}
-			if (!AudioEngine::audioRoutineLocked) {
-				// Sean: replace routineWithClusterLoading call, yield until AudioRoutine is called
-				AudioEngine::routineBeenCalled = false;
-				yield([]() { return (AudioEngine::routineBeenCalled == true); });
-			}
+			AudioEngine::routineWithClusterLoading();
 		}
 	}
 
@@ -622,15 +618,12 @@ void WaveformRenderer::drawColBar(int32_t xDisplay, int32_t min24, int32_t max24
 			colourAmount = ((howMuchThisSquare * brightness) >> 8);
 		}
 
-		for (int32_t c = 0; c < RGB::size(); c++) {
-			int32_t valueHere = (colourAmount * colourAmount) >> 8;
+		int32_t valueHere = (colourAmount * colourAmount) >> 8;
+		RGB color = rgb.has_value()
+		                ? rgb.value().transform([valueHere](auto channel) { return (valueHere * channel) >> 8; })
+		                : RGB::monochrome(valueHere);
 
-			if (rgb.has_value()) {
-				valueHere = (valueHere * rgb.value()[c]) >> 8;
-			}
-
-			thisImage[y + (kDisplayHeight >> 1)][xDisplay][c] = valueHere;
-		}
+		thisImage[y + (kDisplayHeight >> 1)][xDisplay] = color;
 	}
 }
 

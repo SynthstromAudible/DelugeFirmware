@@ -17,26 +17,53 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
+#include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::sidechain {
 class Send final : public Integer {
 public:
 	using Integer::Integer;
+
 	void readCurrentValue() override {
 		this->setValue(((uint64_t)soundEditor.currentSound->sideChainSendLevel * kMaxMenuValue + 1073741824) >> 31);
 	}
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		if (this->getValue() == kMaxMenuValue) {
-			soundEditor.currentSound->sideChainSendLevel = 2147483647;
+		int32_t current_value = this->getValue();
+		if (current_value == kMaxMenuValue) {
+			current_value = 2147483647;
 		}
 		else {
-			soundEditor.currentSound->sideChainSendLevel = this->getValue() * 42949673;
+			current_value = current_value * 42949673;
+		}
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+					soundDrum->sideChainSendLevel = current_value;
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentSound->sideChainSendLevel = current_value;
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return (soundEditor.editingKit());
+		return soundEditor.editingKit();
 	}
 };
 } // namespace deluge::gui::menu_item::sidechain

@@ -32,7 +32,7 @@
 #include "util/misc.h"
 #include <new>
 
-SoundDrum::SoundDrum() : Drum(DrumType::SOUND), arpeggiator() {
+SoundDrum::SoundDrum() : Drum(DrumType::SOUND) {
 	nameIsDiscardable = false;
 }
 
@@ -90,11 +90,11 @@ void SoundDrum::resetTimeEnteredState() {
 	}
 }
 
-void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
+void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
                        int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
 	// If part of a Kit, and in choke mode, choke other drums
-	if (polyphonic == PolyphonyMode::CHOKE) {
+	if (polyphonic == PolyphonyMode::CHOKE && (kit != nullptr)) {
 		kit->choke();
 	}
 
@@ -102,7 +102,7 @@ void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t veloci
 	              fromMIDIChannel);
 }
 void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
-	Sound::allNotesOff(modelStack, &arpeggiator);
+	Sound::noteOff(modelStack, &arpeggiator, kNoteForDrum);
 }
 
 extern bool expressionValueChangesMustBeDoneSmoothly;
@@ -128,7 +128,7 @@ void SoundDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimensi
 	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either
 	// case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE
 	// values.
-	arpeggiator.arpNote.mpeValues[whichExpressionDimension] = newValue >> 16;
+	arpeggiator.active_note.mpeValues[whichExpressionDimension] = newValue >> 16;
 }
 
 void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
@@ -137,10 +137,16 @@ void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but
 	// yeah, that's all irrelevant.
 	expressionEvent(newValue, whichExpressionDimension);
+
+	// Let the Sound know about this polyphonic expression event
+	// The Sound class will use it to send MIDI out (if enabled in the sound config)
+	Sound::polyphonicExpressionEventOnChannelOrNote(newValue, whichExpressionDimension, channelOrNoteNumber,
+	                                                whichCharacteristic);
 }
 
 void SoundDrum::unassignAllVoices() {
 	Sound::unassignAllVoices();
+	arpeggiator.reset();
 }
 
 void SoundDrum::setupPatchingForAllParamManagers(Song* song) {
@@ -154,22 +160,20 @@ Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
 void SoundDrum::prepareForHibernation() {
 	Sound::prepareForHibernation();
 }
-void SoundDrum::writeToFileAsInstrument(StorageManager& bdsm, bool savingSong, ParamManager* paramManager) {
-	Serializer& writer = smSerializer;
-	writer.writeOpeningTagBeginning("sound");
+void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramManager) {
+	Serializer& writer = GetSerializer();
+	writer.writeOpeningTagBeginning("sound", true);
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.0-alpha");
 	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, NULL);
 
-	if (savingSong) {
-		Drum::writeMIDICommandsToFile(writer);
-	}
+	if (savingSong) {}
 
-	writer.writeClosingTag("sound");
+	writer.writeClosingTag("sound", true, true);
 }
 
 void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
-	writer.writeOpeningTagBeginning("sound");
+	writer.writeOpeningTagBeginning("sound", true);
 	writer.writeAttribute("name", name.get());
 
 	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.get());
@@ -178,7 +182,7 @@ void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* p
 		Drum::writeMIDICommandsToFile(writer);
 	}
 
-	writer.writeClosingTag("sound");
+	writer.writeClosingTag("sound", true, true);
 }
 
 void SoundDrum::getName(char* buffer) {
@@ -226,8 +230,4 @@ uint8_t* SoundDrum::getModKnobMode() {
 
 void SoundDrum::drumWontBeRenderedForAWhile() {
 	Sound::wontBeRenderedForAWhile();
-}
-
-ArpeggiatorBase* SoundDrum::getArp() {
-	return &arpeggiator;
 }

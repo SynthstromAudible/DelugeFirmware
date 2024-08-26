@@ -19,9 +19,16 @@
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::source {
-class PatchedParam : public menu_item::patched_param::Integer {
+class PatchedParam : public patched_param::Integer {
 public:
-	using Integer::Integer;
-	uint8_t getP() override { return menu_item::PatchedParam::getP() + soundEditor.currentSourceIndex; }
+	PatchedParam(l10n::String newName, int32_t newP, uint8_t source_id)
+	    : Integer(newName, newP), source_id_(source_id) {}
+	PatchedParam(l10n::String newName, l10n::String title, int32_t newP, uint8_t source_id)
+	    : Integer(newName, title, newP), source_id_(source_id) {}
+
+	uint8_t getP() override { return menu_item::PatchedParam::getP() + source_id_; }
+
+protected:
+	uint8_t source_id_;
 };
 } // namespace deluge::gui::menu_item::source

@@ -168,7 +168,6 @@ ArpNoteMode oldModeToArpNoteMode(OldArpMode oldMode);
 ArpOctaveMode oldModeToArpOctaveMode(OldArpMode oldMode);
 
 char const* oldArpModeToString(OldArpMode mode);
-char const* arpPresetToOldArpMode(ArpPreset preset);
 OldArpMode stringToOldArpMode(char const* string);
 
 char const* arpModeToString(ArpMode mode);
@@ -192,7 +191,6 @@ char const* launchStyleToString(LaunchStyle launchStyle);
 LaunchStyle stringToLaunchStyle(char const* string);
 
 char const* getInstrumentFolder(OutputType outputType);
-void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer);
 
 int32_t getExp(int32_t presetValue, int32_t adjustment);
 
@@ -200,6 +198,7 @@ bool isAudioFilename(char const* filename);
 bool isAiffFilename(char const* filename);
 
 char const* getFileNameFromEndOfPath(char const* filePathChars);
+char const* getPathFromFullPath(char const* filePathChars);
 
 int32_t lookupReleaseRate(int32_t input);
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue);
@@ -212,7 +211,7 @@ int32_t cableToLinearParamShortcut(int32_t sourceValue);
 int32_t cableToExpParamShortcut(int32_t sourceValue);
 
 class Sound;
-class StereoSample;
+struct StereoSample;
 int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue);
@@ -353,6 +352,14 @@ int32_t getDecay4(uint32_t input, uint8_t numBitsInInput);
 	return CONG;
 }
 
+/// generates a triangle distribution from -1q31 to 1q31 centered on 0 (Irwin-Hall)
+inline q31_t sampleTriangleDistribution() {
+	auto u1 = getNoise();
+	auto u2 = getNoise();
+	auto s = add_saturation(u1, u2);
+	return s;
+}
+
 void seedRandom();
 
 extern bool shouldInterpretNoteNames;
@@ -413,8 +420,6 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 void concatenateLines(const char* lines[], size_t numLines, char* resultString);
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);
-void dissectIterationDependence(int32_t probability, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor);
-int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDivisor);
 
 [[gnu::always_inline]] inline uint32_t swapEndianness32(uint32_t input) {
 	int32_t out;
@@ -477,3 +482,5 @@ struct StereoFloatSample {
 	float l;
 	float r;
 };
+
+float sigmoidLikeCurve(const float x, const float xMax, const float softening);

@@ -62,7 +62,13 @@ int32_t* getTxBufferEnd() {
 	return (int32_t*)((uint32_t)&ssiTxBuffer[SSI_TX_BUFFER_NUM_SAMPLES * NUM_MONO_OUTPUT_CHANNELS]
 	                  + UNCACHED_MIRROR_OFFSET);
 }
-
+inline void clearTxBuffer() {
+	int output = 0;
+	for (int32_t* address = getTxBufferStart(); address < getTxBufferEnd(); address++) {
+		*address = output;
+		output = !output;
+	}
+}
 int32_t* getRxBufferStart() {
 	return (int32_t*)((uint32_t)&ssiRxBuffer[0] + UNCACHED_MIRROR_OFFSET);
 }

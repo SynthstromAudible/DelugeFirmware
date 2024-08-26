@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+          margin: 0px;
+          padding: 0px;
+          width: 100%;
+          height: 100%;
+        }
+        /* Header Section */
+        .header {
+            position: relative;
+            height: 200px; /* Adjust the height as needed */
+            background-image: url('images/deluge_midi_converter.png'); /* Add your background image URL here */
+            background-size: cover;
+            background-position: center;
+            margin: 0px;
+            top: 0 ;
+        }
+
+        .body {
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            margin: 10px;
+            padding: 10px ;
+        }
+
+        .track-container { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .track-left { flex: 1; }
+        .track-middle { flex: 2; display: flex; justify-content: center; align-items: bottom; height: 225px;}
+        .track-right { flex: 1; text-align: center; }
+        .grid-container {
+            width: 500px; /* Fixed grid width */
+            height: 260px; /* Fixed grid height */
+            overflow: auto;
+            border: 1px solid #000;
+            position: relative;
+        }
+        .grid {
+            display: grid;
+            position: absolute;
+            background-size: 30px 30px;
+            background-image:
+                  linear-gradient(to right, rgba(0,0,0,0.2) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgba(0,0,0,0.2) 1px, transparent 1px);
+        }
+        .grid-cell {
+            width: 30px; height: 30px;
+            border: 1px solid #ddd;
+            display: inline-block;
+        }
+        .note-start {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 1px
+            solid #ddd;
+            display: inline-block;
+            background-color: #bd7ce1;
+        }
+        .note-tail {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 1px
+            solid #ddd;
+            display: inline-block;
+            background-color: #93c2fe;
+        }
+        .scrollable-output {
+            width: 1500px; /* Increased width */
+            height: 260px;
+            overflow-x: auto; /* Horizontal scrollbar for long lines */
+            white-space: pre-wrap; /* Preserve line breaks */
+            word-wrap: normal; /* Wrap shorter lines */
+            border: 1px solid #000;
+            padding: 5px;
+        }
+        .trackName {padding: 5px; margin: 5px;}
+        button { margin: 5px; width: 120px;}
+    </style>
+</head>
+<body>
+    <div class="header">
+    </div>
+    <div class="body">
+      <h2>Upload MIDI File</h2>
+      <br>
+      <input type="file" id="midiFile" accept=".mid">
+
+      <div id="outputContainer"></div>
+
+      <div id="visualizationContainer"></div>
+    </div>
+    <script>
+        let defaultFileName = "converted";
+        let zoomLevels = [1 / 128, 1 / 64, 1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16, 32, 64, 128];
+        let currentZoomIndex = {};
+        let lowestPitch = {};
+        let screenWidth = {};
+        let midiTracks = []; // Store parsed MIDI track data
+        let ppqScaleFactor = 24;
+
+        document.getElementById("midiFile").addEventListener("change", convertMIDItoXML);
+
+        async function convertMIDItoXML() {
+            const fileInput = document.getElementById('midiFile');
+            if (!fileInput.files.length) {
+                alert('Please select a MIDI file first.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            defaultFileName = file.name.replace(/\.[^/.]+$/, "");
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+
+            reader.onload = async function(event) {
+                const midiData = new Uint8Array(event.target.result);
+                const midi = new Midi(midiData);
+                const ppq = midi.header.ppq;
+                ppqScaleFactor = 96/ppq;
+
+                document.getElementById("outputContainer").innerHTML = "";
+                document.getElementById("visualizationContainer").innerHTML = "";
+                midiTracks = midi.tracks; // Store for zooming
+
+                midi.tracks.forEach((track, trackIndex) => {
+                    if (!track.notes.length) return;
+                    let trackName = track.name || `Track_${trackIndex + 1}`;
+                    let lastNoteEnd = 0;
+                    let allPitches = [];
+                    currentZoomIndex[trackName] = 3;
+
+                    track.notes.forEach(note => {
+                        lastNoteEnd = Math.max(lastNoteEnd, Math.ceil(note.ticks*ppqScaleFactor + note.durationTicks*ppqScaleFactor));
+                        allPitches.push(note.midi);
+                    });
+
+                    lowestPitch[trackName] = Math.min(...allPitches);
+                    screenWidth[trackName] = getValidScreenWidth(lastNoteEnd);
+                    let xmlOutput = `<?xml version="1.0" encoding="UTF-8"?>\n<pattern>\n  <attributes\n`;
+                    xmlOutput += `    patternVersion="0.0.1"\n    screenWidth="${screenWidth[trackName]}"\n`;
+                    xmlOutput += `    scaleType="1"\n    yNoteOfBottomRow="${lowestPitch[trackName]}"/>\n  <noteRows>\n`;
+
+                    let noteMap = {};
+                    track.notes.forEach(note => {
+                        let pitch = note.midi;
+                        if (!noteMap[pitch]) noteMap[pitch] = [];
+                        noteMap[pitch].push({
+                            pos: Math.floor(note.ticks*ppqScaleFactor),
+                            length: Math.ceil(note.durationTicks*ppqScaleFactor),
+                            velocity: Math.round(note.velocity * 127),
+                        });
+                    });
+
+                    for (const [pitch, notes] of Object.entries(noteMap)) {
+                        let numNotes = notes.length;
+                        let yDisplay = parseInt(pitch, 10) - lowestPitch[trackName];
+                        xmlOutput += `    <noteRow\n`;
+                        xmlOutput += `      numNotes="${numNotes}"\n`;
+                        xmlOutput += `      yNote="${pitch}"\n`;
+                        xmlOutput += `      yDisplay="${yDisplay}"\n`;
+                        let concatenatedNotes = "";
+                        notes.forEach(n => concatenatedNotes += encodeNote(n.pos, n.length, n.velocity));
+                        xmlOutput += `      noteDataWithSplitProb="0x${concatenatedNotes}" />\n`;
+                    }
+
+                    xmlOutput += `  </noteRows>\n</pattern>`;
+
+                    createTrackOutput(trackName, xmlOutput);
+                    visualizeTrack(trackName, track.notes);
+                });
+            };
+        }
+
+        function createTrackOutput(trackName, xmlOutput) {
+            const container = document.createElement("div");
+            container.classList.add("track-container");
+
+            container.innerHTML = `
+                <div class="track-left">
+                    <div class="trackName">
+                      <h4>Track Name: <span id="trackNameLabel" class="label">${trackName}</span></h4>
+                    </div>
+                    <textarea class="scrollable-output" id="xml_${trackName}" readonly>${xmlOutput}</textarea>
+                </div>
+                <div class="track-middle">
+                    <div class="grid-container" id="grid_${trackName}"></div>
+                </div>
+                <div class="track-right">
+                    <h4>Current Zoom: <span id="zoomLabel_${trackName}" class="zoom-label">1/16-Notes</span></h4>
+                    <button onclick="zoomOut('${trackName}')">Zoom Out</button>
+                    <button onclick="zoomIn('${trackName}')">Zoom In</button>
+                    <br>
+                    <button onclick="copyToClipboard('${trackName}')">Copy XML</button>
+                    <button onclick="saveXML('${trackName}')">Save XML</button>
+                </div>
+            `;
+
+            document.getElementById("outputContainer").appendChild(container);
+        }
+
+        function saveXML(trackName) {
+            const xmlContent = document.getElementById(`xml_${trackName}`).value;
+            const fileName = `${trackName}.xml`;
+
+            if (window.showSaveFilePicker) {
+                // Use the modern file save picker in Chrome/Edge
+                saveWithFilePicker(xmlContent, fileName);
+            } else {
+                // Use Blob-based download in other browsers
+                saveWithBlob(xmlContent, fileName);
+            }
+        }
+
+        async function saveWithFilePicker(xmlContent, fileName) {
+            try {
+                const fileHandle = await window.showSaveFilePicker({
+                    suggestedName: fileName,
+                    types: [{ description: "XML Files", accept: { "text/xml": [".xml"] } }]
+                });
+
+                const writableStream = await fileHandle.createWritable();
+                await writableStream.write(xmlContent);
+                await writableStream.close();
+
+                alert("File saved successfully!");
+            } catch (err) {
+                console.error("File save canceled or failed:", err);
+            }
+        }
+
+        function saveWithBlob(xmlContent, fileName) {
+            const blob = new Blob([xmlContent], { type: "text/xml" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+        }
+
+
+        function copyToClipboard(trackName) {
+            const text = document.getElementById(`xml_${trackName}`).value;
+            navigator.clipboard.writeText(text).then(() => alert(`${trackName} XML copied!`));
+        }
+
+        function getValidScreenWidth(lastNoteEnd) {
+            let screenWidth = 48;
+            while (screenWidth < lastNoteEnd) {
+                screenWidth *= 2;
+            }
+            return screenWidth;
+        }
+
+        function encodeNote(position, length, velocity) {
+            return formatHex(position, 4) + formatHex(length, 4) + formatHex(velocity, 1) +
+                   formatHex(64, 1) + formatHex(20, 1) + formatHex(0, 2) + formatHex(0, 1);
+        }
+
+        function formatHex(value, byteLength) {
+            return Math.abs(value).toString(16).padStart(byteLength * 2, '0').toUpperCase();
+        }
+
+        function zoomOut(trackName) {
+            if (currentZoomIndex[trackName] < zoomLevels.length - 1) {
+                currentZoomIndex[trackName]++;
+                reRenderGrid(trackName);
+            }
+        }
+
+        function zoomIn(trackName) {
+            if (currentZoomIndex[trackName] > 0) {
+                currentZoomIndex[trackName]--;
+                reRenderGrid(trackName);
+            }
+        }
+
+        function updateZoomLabel(trackName) {
+            let zoomLabel = document.getElementById(`zoomLabel_${trackName}`);
+            let zoomValue = zoomLevels[currentZoomIndex[trackName]];
+            zoomLabel.textContent = zoomValue >= 1 ? `${zoomValue} Bar` : `1/${1 / zoomValue}-Notes`;
+        }
+
+        function reRenderGrid(trackName) {
+            let trackIndex = midiTracks.findIndex(t => t.name === trackName || `Track_${midiTracks.indexOf(t) + 1}` === trackName);
+            if (trackIndex !== -1) {
+                let track = midiTracks[trackIndex];
+                visualizeTrack(trackName, track.notes);
+            }
+            updateZoomLabel(trackName);
+        }
+
+        function visualizeTrack(trackName, notes) {
+            const gridContainer = document.getElementById(`grid_${trackName}`);
+            gridContainer.innerHTML = ""; // Clear previous grid
+
+            const grid = document.createElement("div");
+            grid.classList.add("grid");
+
+
+            let zoomFactor = zoomLevels[currentZoomIndex[trackName]];
+            let noteResolution = 96 * zoomFactor; // Convert note ticks to cells
+            let numRows = Math.max(...notes.map(n => n.midi)) - lowestPitch[trackName] + 1;
+            let numCols = Math.ceil(screenWidth[trackName] / noteResolution);
+            grid.style.gridTemplateRows = `repeat(${numRows}, 30px)`;
+            grid.style.gridTemplateColumns = `repeat(${numCols}, 30px)`;
+            grid.style.position = "absolute";
+            grid.style.width = `${numCols * 30}px`;
+            grid.style.height = `${numRows * 30}px`;
+
+            notes.forEach(note => {
+                let startCol = Math.floor(note.ticks / noteResolution / 4 * ppqScaleFactor  );
+                let row = note.midi - lowestPitch[trackName]+1;
+                for (let i = 0; i < Math.ceil(note.durationTicks / noteResolution / 4 * ppqScaleFactor  ); i++) {
+                    let cell = document.createElement("div");
+                    grid.appendChild(cell);
+                    cell.style.top = `${(numRows-row) * 30}px`;
+                    cell.style.left = `${(startCol + i) * 30}px`;
+                    cell.classList.add(i === 0 ? "note-start" : "note-tail");
+                }
+            });
+
+            gridContainer.appendChild(grid);
+        }
+
+
+    </script>
+</body>
+</html>

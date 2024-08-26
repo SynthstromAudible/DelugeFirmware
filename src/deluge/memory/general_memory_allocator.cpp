@@ -16,38 +16,68 @@
  */
 
 #include "memory/general_memory_allocator.h"
+
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/stealable.h"
 #include "processing/engines/audio_engine.h"
 
+// these are never used directly, they're just reserving raw memory for use in the allocator  and clang tidy is unhappy
+// NOLINTBEGIN
 // TODO: Check if these have the right size
-char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
-char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
-char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
+PLACE_INTERNAL_FRUNK char emptySpacesMemory[sizeof(EmptySpaceRecord) * 512];
+PLACE_INTERNAL_FRUNK char emptySpacesMemoryInternal[sizeof(EmptySpaceRecord) * 1024];
+PLACE_INTERNAL_FRUNK char emptySpacesMemoryInternalSmall[sizeof(EmptySpaceRecord) * 256];
+PLACE_INTERNAL_FRUNK char emptySpacesMemoryGeneral[sizeof(EmptySpaceRecord) * 256];
+PLACE_INTERNAL_FRUNK char emptySpacesMemoryGeneralSmall[sizeof(EmptySpaceRecord) * 256];
+extern uint32_t __frunk_bss_end;
+extern uint32_t __frunk_slack_end;
 extern uint32_t __sdram_bss_start;
 extern uint32_t __sdram_bss_end;
 extern uint32_t __heap_start;
 extern uint32_t __heap_end;
 extern uint32_t program_stack_start;
 extern uint32_t program_stack_end;
-GeneralMemoryAllocator::GeneralMemoryAllocator() {
-	lock = false;
+// NOLINTEND
+GeneralMemoryAllocator::GeneralMemoryAllocator() : lock(false) {
+	uint32_t external_small_end = EXTERNAL_MEMORY_END;
+	uint32_t external_small_start = external_small_end - RESERVED_EXTERNAL_SMALL_ALLOCATOR;
+	uint32_t external_end = external_small_start;
+	uint32_t external_start = external_small_start - RESERVED_EXTERNAL_ALLOCATOR;
+	uint32_t stealable_end = external_start;
+	// NOLINTBEGIN
+	// clang tidy hates both reinterpret and c style casts but linker output is only meaningful when taking address
+	auto stealable_start = (uint32_t)&__sdram_bss_end;
 
-	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), (uint32_t)&__sdram_bss_end,
-	                                       EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR);
-	regions[MEMORY_REGION_EXTERNAL].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral),
-	                                      EXTERNAL_MEMORY_END - RESERVED_EXTERNAL_ALLOCATOR, EXTERNAL_MEMORY_END);
-	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal),
-	                                      (uint32_t)&__heap_start, (uint32_t)&program_stack_start);
-
-#if ALPHA_OR_BETA_VERSION
+	auto internal_small_start = (uint32_t)&__frunk_bss_end;
+	auto internal_small_end = (uint32_t)&__frunk_slack_end;
+	auto internal_start = (uint32_t)&__heap_start;
+	auto internal_end = (uint32_t)&program_stack_start;
+	// NOLINTEND
 	regions[MEMORY_REGION_STEALABLE].name = "stealable";
 	regions[MEMORY_REGION_INTERNAL].name = "internal";
 	regions[MEMORY_REGION_EXTERNAL].name = "external";
-#endif
-}
+	regions[MEMORY_REGION_EXTERNAL_SMALL].name = "small external";
+	regions[MEMORY_REGION_INTERNAL_SMALL].name = "small internal";
 
+	regions[MEMORY_REGION_STEALABLE].setup(emptySpacesMemory, sizeof(emptySpacesMemory), stealable_start, stealable_end,
+	                                       &cacheManager);
+	regions[MEMORY_REGION_EXTERNAL].setup(emptySpacesMemoryGeneral, sizeof(emptySpacesMemoryGeneral), external_start,
+	                                      external_end, nullptr);
+	regions[MEMORY_REGION_EXTERNAL_SMALL].setup(emptySpacesMemoryGeneralSmall, sizeof(emptySpacesMemoryGeneralSmall),
+	                                            external_small_start, external_small_end, nullptr);
+	regions[MEMORY_REGION_EXTERNAL_SMALL].minAlign_ = 16;
+	regions[MEMORY_REGION_EXTERNAL_SMALL].pivot_ = 64;
+	regions[MEMORY_REGION_INTERNAL].setup(emptySpacesMemoryInternal, sizeof(emptySpacesMemoryInternal), internal_start,
+	                                      internal_end, nullptr);
+
+	regions[MEMORY_REGION_INTERNAL_SMALL].setup(emptySpacesMemoryInternalSmall, sizeof(emptySpacesMemoryInternalSmall),
+	                                            internal_small_start, internal_small_end, nullptr);
+	regions[MEMORY_REGION_INTERNAL_SMALL].minAlign_ = 16;
+	regions[MEMORY_REGION_INTERNAL_SMALL].pivot_ = 64;
+}
+constexpr size_t kInternalSwitchSize = 128;
+constexpr size_t kExternalSwitchSize = 128;
 int32_t closestDistance = 2147483647;
 
 void GeneralMemoryAllocator::checkStack(char const* caller) {
@@ -58,9 +88,9 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
 	if (distance < closestDistance) {
 		closestDistance = distance;
+
 		D_PRINTLN("%d bytes in stack %d free bytes in stack at %s", (uint32_t)&program_stack_end - (int32_t)&a,
 		          distance, caller);
-
 		if (distance < 200) {
 			FREEZE_WITH_ERROR("E338");
 			D_PRINTLN("COLLISION");
@@ -91,7 +121,14 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 	}
 
 	lock = true;
-	void* address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
+	void* address = nullptr;
+	if (requiredSize < kExternalSwitchSize) {
+		address = regions[MEMORY_REGION_EXTERNAL_SMALL].alloc(requiredSize, false, NULL);
+	}
+	// if it's a large object or the small object allocator was full stick it in the big one
+	if (address == nullptr) {
+		address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, false, NULL);
+	}
 	lock = false;
 	if (!address) {
 		// FREEZE_WITH_ERROR("M998");
@@ -99,8 +136,31 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 	}
 	return address;
 }
+
+void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
+
+	if (lock) {
+		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
+		                // could extend the stack an unspecified amount
+	}
+
+	lock = true;
+	void* address = nullptr;
+	if (requiredSize < kInternalSwitchSize) {
+		address = regions[MEMORY_REGION_INTERNAL_SMALL].alloc(requiredSize, false, NULL);
+	}
+	// if it's a large object or the small object allocator was full stick it in the big one
+	if (address == nullptr) {
+		address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, false, NULL);
+	}
+	lock = false;
+	if (address == nullptr) {
+		// FREEZE_WITH_ERROR("M998");
+	}
+	return address;
+}
 void GeneralMemoryAllocator::deallocExternal(void* address) {
-	return regions[MEMORY_REGION_EXTERNAL].dealloc(address);
+	regions[getRegion(address)].dealloc(address);
 }
 
 // Watch the heck out - in the older V3.1 branch, this had one less argument - makeStealable was missing - so in code
@@ -120,11 +180,9 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 	if (!makeStealable) {
 		// If internal is allowed, try that first
 		if (mayUseOnChipRam) {
-			lock = true;
-			address = regions[MEMORY_REGION_INTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
-			lock = false;
+			address = allocInternal(requiredSize);
 
-			if (address) {
+			if (address != nullptr) {
 				return address;
 			}
 
@@ -132,9 +190,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 		}
 
 		// Second try external region
-		lock = true;
-		address = regions[MEMORY_REGION_EXTERNAL].alloc(requiredSize, makeStealable, thingNotToStealFrom);
-		lock = false;
+		address = allocExternal(requiredSize);
 
 		if (address) {
 			return address;
@@ -173,6 +229,14 @@ int32_t GeneralMemoryAllocator::getRegion(void* address) {
 	}
 	else if (value >= regions[MEMORY_REGION_EXTERNAL].start && value < regions[MEMORY_REGION_EXTERNAL].end) {
 		return MEMORY_REGION_EXTERNAL;
+	}
+	else if (value >= regions[MEMORY_REGION_EXTERNAL_SMALL].start
+	         && value < regions[MEMORY_REGION_EXTERNAL_SMALL].end) {
+		return MEMORY_REGION_EXTERNAL_SMALL;
+	}
+	else if (value >= regions[MEMORY_REGION_INTERNAL_SMALL].start
+	         && value < regions[MEMORY_REGION_INTERNAL_SMALL].end) {
+		return MEMORY_REGION_INTERNAL_SMALL;
 	}
 
 	FREEZE_WITH_ERROR("E339");

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/audio_clip_view.h"
@@ -25,6 +26,9 @@
 #include "playback/playback_handler.h"
 
 namespace deluge::gui::menu_item::audio_clip {
+
+using namespace hid::display;
+
 class Reverse final : public Toggle {
 public:
 	using Toggle::Toggle;
@@ -39,14 +43,14 @@ public:
 		clip->sampleControls.reversed = this->getValue();
 
 		if (clip->sampleHolder.audioFile != nullptr) {
-			if (clip->sampleControls.reversed) {
+			if (clip->sampleControls.isCurrentlyReversed()) {
 				uint64_t lengthInSamples = (static_cast<Sample*>(clip->sampleHolder.audioFile))->lengthInSamples;
 				if (clip->sampleHolder.endPos > lengthInSamples) {
 					clip->sampleHolder.endPos = lengthInSamples;
 				}
 			}
 
-			clip->sampleHolder.claimClusterReasons(clip->sampleControls.reversed);
+			clip->sampleHolder.claimClusterReasons(clip->sampleControls.isCurrentlyReversed());
 
 			if (active) {
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -58,6 +62,26 @@ public:
 
 			uiNeedsRendering(&audioClipView, 0xFFFFFFFF, 0);
 		}
+	}
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		const bool reversed = getValue();
+		OLED::main.drawIconCentered(OLED::directionIcon, slot.start_x, slot.width,
+		                            slot.start_y + kHorizontalMenuSlotYOffset, reversed);
+	}
+
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_PLAY)); }
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		valueBuf.append(l10n::get(getValue() ? l10n::String::STRING_FOR_ON : l10n::String::STRING_FOR_OFF));
+	}
+
+	void selectEncoderAction(int32_t offset) override {
+		if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+			// reverse direction
+			offset *= -1;
+		}
+		Toggle::selectEncoderAction(offset);
 	}
 };
 } // namespace deluge::gui::menu_item::audio_clip

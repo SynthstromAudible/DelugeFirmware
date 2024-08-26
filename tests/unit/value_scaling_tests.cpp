@@ -45,18 +45,18 @@ TEST(ValueScalingTest, consistentArpAndMenuMaxValues) {
 	CHECK_EQUAL(50, kMaxPresetArpRhythm);
 }
 
-TEST(ValueScalingTest, arpMidiCvRatchetOrRhytmValueScaling) {
+TEST(ValueScalingTest, unsignedMenuItemValueScaling) {
 	for (int i = kMinMenuValue; i <= kMaxMenuValue; i++) {
-		int32_t finalValue = computeFinalValueForArpMidiCvRatchetsOrRhythm(i);
-		int32_t currentValue = computeCurrentValueForArpMidiCvRatchetsOrRhythm(finalValue);
+		int32_t finalValue = computeFinalValueForUnsignedMenuItem(i);
+		int32_t currentValue = computeCurrentValueForUnsignedMenuItem(finalValue);
 		CHECK_EQUAL(i, currentValue);
 	}
-	CHECK_EQUAL(0, computeFinalValueForArpMidiCvRatchetsOrRhythm(0));
-	CHECK_EQUAL(UINT32_MAX / 2 - 22, computeFinalValueForArpMidiCvRatchetsOrRhythm(25));
-	CHECK_EQUAL(UINT32_MAX - 45, computeFinalValueForArpMidiCvRatchetsOrRhythm(50));
+	CHECK_EQUAL(0, computeFinalValueForUnsignedMenuItem(0));
+	CHECK_EQUAL(UINT32_MAX / 2 - 22, computeFinalValueForUnsignedMenuItem(25));
+	CHECK_EQUAL(UINT32_MAX - 45, computeFinalValueForUnsignedMenuItem(50));
 	// while 50 doesn't quite get to UINT32_MAX, make sure the current value math
 	// behaves well on the whole range
-	CHECK_EQUAL(50, computeCurrentValueForArpMidiCvRatchetsOrRhythm(UINT32_MAX));
+	CHECK_EQUAL(50, computeCurrentValueForUnsignedMenuItem(UINT32_MAX));
 }
 
 TEST(ValueScalingTest, transpose) {

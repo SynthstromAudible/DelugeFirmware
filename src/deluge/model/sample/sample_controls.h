@@ -27,4 +27,7 @@ public:
 	InterpolationMode interpolationMode;
 	bool pitchAndSpeedAreIndependent;
 	bool reversed;
+	bool invertReversed;
+
+	[[nodiscard]] bool isCurrentlyReversed() const;
 };

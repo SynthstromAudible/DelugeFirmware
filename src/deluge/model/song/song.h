@@ -94,10 +94,10 @@ enum SessionMacroKind : int8_t {
 };
 
 struct SessionMacro {
-	SessionMacroKind kind;
-	Clip* clip;
-	Output* output;
-	uint8_t section;
+	SessionMacroKind kind{NO_MACRO};
+	Clip* clip{nullptr};
+	Output* output{nullptr};
+	uint8_t section{0};
 };
 
 class Song final : public TimelineCounter {
@@ -255,7 +255,7 @@ public:
 
 	String dirPath;
 
-	SessionMacro sessionMacros[8];
+	std::array<SessionMacro, 8> sessionMacros{};
 
 	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();
@@ -270,11 +270,12 @@ public:
 	void setInputTickScaleClip(Clip* clip);
 	inline bool isFillModeActive() { return fillModeActive; }
 	void changeFillMode(bool on);
+	void loadNextSong();
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = NULL);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);
 	Error readFromFile(Deserializer& reader);
-	void writeToFile(StorageManager& bdsm);
+	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	void renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* reverbBuffer,
 	                 int32_t sideChainHitPending);
@@ -397,6 +398,7 @@ public:
 	dsp::Reverb::Model model;
 	float reverbRoomSize;
 	float reverbHPF;
+	float reverbLPF;
 	float reverbDamp;
 	float reverbWidth;
 	int32_t reverbPan;
@@ -416,7 +418,8 @@ public:
 	// END ~ new Automation Arranger View Variables
 
 	// Song level transpose control (encoder actions)
-	int32_t masterTransposeInterval;
+	void commandTranspose(int32_t interval);
+	int32_t masterTransposeInterval = 0;
 	void transpose(int32_t interval);
 	void adjustMasterTransposeInterval(int32_t interval);
 	void displayMasterTransposeInterval();
@@ -452,6 +455,11 @@ public:
 	}
 
 	int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
+
+	// Threshold
+	void changeThresholdRecordingMode(int8_t offset);
+	void displayThresholdRecordingMode();
+	ThresholdRecordingMode thresholdRecordingMode;
 
 private:
 	ScaleMapper scaleMapper;

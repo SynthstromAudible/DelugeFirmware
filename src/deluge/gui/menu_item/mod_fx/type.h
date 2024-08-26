@@ -16,11 +16,14 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::mod_fx {
 
@@ -28,33 +31,52 @@ class Type : public Selection {
 public:
 	using Selection::Selection;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->modFXType); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->modFXType_); }
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		if (!soundEditor.currentModControllable->setModFXType(this->getValue<ModFXType>())) {
-			display->displayError(Error::INSUFFICIENT_RAM);
+		auto current_value = this->getValue<ModFXType>();
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			bool some_error = false;
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					if (!soundDrum->setModFXType(current_value)) {
+						some_error = true;
+					}
+				}
+			}
+			if (some_error) {
+				display->displayError(Error::INSUFFICIENT_RAM);
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			if (!soundEditor.currentModControllable->setModFXType(current_value)) {
+				display->displayError(Error::INSUFFICIENT_RAM);
+			}
 		}
 	}
 
-	deluge::vector<std::string_view> getOptions() override {
-		using enum l10n::String;
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGrainFX) == RuntimeFeatureStateToggle::Off) {
-			return {
-			    l10n::getView(STRING_FOR_DISABLED),      //<
-			    l10n::getView(STRING_FOR_FLANGER),       //<
-			    l10n::getView(STRING_FOR_CHORUS),        //<
-			    l10n::getView(STRING_FOR_PHASER),        //<
-			    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
-			};
-		}
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		return modfx::getModNames();
+	}
 
-		return {
-		    l10n::getView(STRING_FOR_DISABLED),      //<
-		    l10n::getView(STRING_FOR_FLANGER),       //<
-		    l10n::getView(STRING_FOR_CHORUS),        //<
-		    l10n::getView(STRING_FOR_PHASER),        //<
-		    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
-		    l10n ::getView(STRING_FOR_GRAIN),        //<
-		};
+	[[nodiscard]] int32_t getOccupiedSlots() const override {
+		// Occupy the whole page in the horizontal menu
+		return 4;
+	}
+
+	[[nodiscard]] bool showNotification() const override { return false; }
+	[[nodiscard]] bool showColumnLabel() const override { return false; }
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		OLED::main.drawHorizontalLine(kScreenTitleSeparatorY, 0, OLED_MAIN_WIDTH_PIXELS - 1);
+		drawPixelsForOled();
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

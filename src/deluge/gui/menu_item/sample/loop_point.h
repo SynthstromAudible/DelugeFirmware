@@ -25,18 +25,23 @@ namespace deluge::gui::menu_item::sample {
 
 class LoopPoint : public MenuItem {
 public:
-	using MenuItem::MenuItem;
+	LoopPoint(l10n::String newName, uint8_t sourceId) : MenuItem(newName), sourceId_{sourceId} {}
+
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final;
 	bool isRangeDependent() final { return true; }
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) final;
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
+	void getColumnLabel(StringBuf& label) override;
 
-	int32_t xZoom;
-	int32_t xScroll;
-	int32_t editPos;
+	int32_t xZoom{0};
+	int32_t xScroll{0};
+	int32_t editPos{0};
+	MarkerType markerType{MarkerType::NONE};
 
-	MarkerType markerType;
+private:
+	uint8_t sourceId_;
 };
 
 } // namespace deluge::gui::menu_item::sample

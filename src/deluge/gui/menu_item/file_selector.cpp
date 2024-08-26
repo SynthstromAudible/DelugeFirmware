@@ -22,38 +22,52 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
+#include "horizontal_menu.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "submenu.h"
 #include "util/functions.h"
+
+#include <hid/buttons.h>
+#include <model/clip/audio_clip.h>
+#include <storage/audio/audio_file.h>
+#include <storage/multi_range/multi_range.h>
 
 namespace deluge::gui::menu_item {
 
 void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
+	soundEditor.setCurrentSource(sourceId_);
+
 	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
 		keyboardScreen.exitAuditionMode();
 	}
-	bool success = openUI(&sampleBrowser);
-	if (!success) {
-		// if (getCurrentUI() == &soundEditor) soundEditor.goUpOneLevel();
+
+	if (!openUI(&sampleBrowser)) {
 		uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 	}
 }
+
+MenuItem* FileSelector::selectButtonPress() {
+	beginSession(nullptr);
+	return NO_NAVIGATION;
+}
+
 bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return true;
 	}
 
-	Sound* sound = static_cast<Sound*>(modControllable);
+	const auto sound = static_cast<Sound*>(modControllable);
+	const Source& source = sound->sources[sourceId_];
 
-	Source* source = &sound->sources[whichThing];
-
-	if (source->oscType == OscType::WAVETABLE) {
-		return (sound->getSynthMode() != SynthMode::FM);
+	if (source.oscType == OscType::WAVETABLE) {
+		return sound->getSynthMode() != SynthMode::FM;
 	}
 
-	return (sound->getSynthMode() == SynthMode::SUBTRACTIVE && source->oscType == OscType::SAMPLE);
+	return sound->getSynthMode() == SynthMode::SUBTRACTIVE && source.oscType == OscType::SAMPLE;
 }
 MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                            ::MultiRange** currentRange) {
@@ -66,12 +80,55 @@ MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio*
 
 	bool can =
 	    (sound->getSynthMode() == SynthMode::SUBTRACTIVE
-	     || (sound->getSynthMode() == SynthMode::RINGMOD && sound->sources[whichThing].oscType == OscType::WAVETABLE));
+	     || (sound->getSynthMode() == SynthMode::RINGMOD && sound->sources[sourceId_].oscType == OscType::WAVETABLE));
 
 	if (!can) {
 		return MenuPermission::NO;
 	}
 
-	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, whichThing, currentRange);
+	return soundEditor.checkPermissionToBeginSessionForRangeSpecificParam(sound, sourceId_, currentRange);
 }
+
+void FileSelector::renderInHorizontalMenu(const SlotPosition& slot) {
+	using namespace hid::display;
+	OLED::main.drawIconCentered(OLED::folderIconBig, slot.start_x, slot.width, slot.start_y - 1);
+}
+
+void FileSelector::getColumnLabel(StringBuf& label) {
+	if (const auto audioClip = getCurrentAudioClip(); audioClip != nullptr) {
+		if (const auto audioFile = audioClip->sampleHolder.audioFile; audioFile != nullptr) {
+			return label.append(getLastFolderFromPath(audioFile->filePath));
+		}
+		return MenuItem::getColumnLabel(label);
+	}
+
+	auto& source = soundEditor.currentSound->sources[sourceId_];
+	if (!source.hasAtLeastOneAudioFileLoaded()) {
+		return MenuItem::getColumnLabel(label);
+	}
+
+	if (source.ranges.getNumElements() > 1) {
+		return label.append("Mult");
+	}
+
+	auto path = source.ranges.getElement(0)->getAudioFileHolder()->filePath;
+	label.append(getLastFolderFromPath(path));
+}
+
+std::string FileSelector::getLastFolderFromPath(String& path) {
+	const char* str = path.get();
+	const char* lastSlash = strrchr(str, '/');
+	if (!lastSlash || lastSlash == str)
+		return "";
+
+	const char* beforeFile = lastSlash;
+	const char* prevSlash = beforeFile;
+	while (prevSlash > str && *(prevSlash - 1) != '/') {
+		--prevSlash;
+	}
+
+	int32_t folderLength = beforeFile - prevSlash;
+	return std::string(prevSlash, folderLength);
+}
+
 } // namespace deluge::gui::menu_item

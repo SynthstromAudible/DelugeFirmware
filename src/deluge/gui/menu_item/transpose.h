@@ -19,6 +19,8 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/patched_param.h"
 
+#include <hid/buttons.h>
+
 namespace deluge::gui::menu_item {
 
 class Transpose : public Decimal, public PatchedParam {

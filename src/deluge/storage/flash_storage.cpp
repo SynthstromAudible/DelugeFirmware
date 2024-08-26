@@ -31,6 +31,7 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include <cstdint>
+#include <modulation/patch/patch_cable.h>
 
 extern "C" {
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
@@ -183,6 +184,14 @@ enum Entries {
 175: accessibilityMenuHighlighting
 176: default new clip type
 177: use last clip type
+178: use threshold recording
+179: GlobalMIDICommand::NEXT_SONG channel + 1
+180: GlobalMIDICommand::NEXT_SONG noteCode + 1
+181-184: GlobalMIDICommand::NEXT_SONG product / vendor ids
+185: defaultFavouritesLayout
+186: defaultLoopRecordingCommand
+188: defaultUseSharps
+189: default patch cable polarity
 */
 
 uint8_t defaultScale;
@@ -203,6 +212,8 @@ KeyboardLayoutType defaultKeyboardLayout;
 
 bool keyboardFunctionsVelocityGlide;
 bool keyboardFunctionsModwheelGlide;
+
+FavouritesDefaultLayout defaultFavouritesLayout;
 
 bool gridEmptyPadsUnarm;
 bool gridEmptyPadsCreateRec;
@@ -236,8 +247,19 @@ std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 // more of flash.
 static_assert(NUM_PRESET_SCALES <= 16);
 
+bool accessibilityShortcuts = false;
+MenuHighlighting accessibilityMenuHighlighting = MenuHighlighting::FULL_INVERSION;
+
 OutputType defaultNewClipType = OutputType::SYNTH;
 bool defaultUseLastClipType = true;
+
+ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
+
+Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
+
+GlobalMIDICommand defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
+
+bool defaultUseSharps = true;
 
 void resetSettings() {
 
@@ -312,6 +334,8 @@ void resetSettings() {
 	defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 
+	defaultFavouritesLayout = FavouritesDefaultLayoutFavorites;
+
 	gridEmptyPadsUnarm = false;
 	gridEmptyPadsCreateRec = false;
 	gridAllowGreenSelection = true;
@@ -334,8 +358,17 @@ void resetSettings() {
 
 	defaultDisabledPresetScales = {0};
 
+	accessibilityShortcuts = false;
+	accessibilityMenuHighlighting = MenuHighlighting::PARTIAL_INVERSION;
+
 	defaultNewClipType = OutputType::SYNTH;
 	defaultUseLastClipType = true;
+
+	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
+
+	defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
+
+	defaultUseSharps = true;
 }
 
 void resetMidiFollowSettings() {
@@ -375,12 +408,12 @@ void readSettings() {
 	FirmwareVersion savedVersion = (firmwareType != FirmwareVersion::Type::COMMUNITY)
 	                                   ? FirmwareVersion(firmwareType, {0, 0, 0})
 	                                   : FirmwareVersion::community({
-	                                       .major = buffer[VERSION_MAJOR],
-	                                       .minor = buffer[VERSION_MINOR],
-	                                       .patch = buffer[VERSION_PATCH],
-	                                   });
+	                                         .major = buffer[VERSION_MAJOR],
+	                                         .minor = buffer[VERSION_MINOR],
+	                                         .patch = buffer[VERSION_PATCH],
+	                                     });
 
-	for (int chan = 0; chan < NUM_CV_CHANNELS; ++chan) {
+	for (int chan = 0; chan < NUM_PHYSICAL_CV_CHANNELS; ++chan) {
 		cvEngine.setCVVoltsPerOctave(chan, buffer[CV_VOLTS_PER_OCTAVE + chan]);
 		cvEngine.setCVTranspose(chan, buffer[CV_TRANSPOSE + chan], buffer[CV_CENTS + chan]);
 	}
@@ -428,6 +461,8 @@ void readSettings() {
 	    buffer[71] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone = buffer[114] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC = buffer[115] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].channelOrZone = buffer[179] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC = buffer[180] - 1;
 
 	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
 	/* buffer[81]  \
@@ -465,6 +500,10 @@ void readSettings() {
 	/* buffer[117]  \
 	   buffer[118]   device reference above occupies 4 bytes
 	   buffer[119] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::NEXT_SONG, &buffer[181]);
+	/* buffer[182]  \
+	   buffer[183]   device reference above occupies 4 bytes
+	   buffer[184] */
 
 	if (buffer[50] >= kNumInputMonitoringModes) {
 		AudioEngine::inputMonitoringMode = InputMonitoringMode::SMART;
@@ -714,6 +753,20 @@ void readSettings() {
 		defaultDisabledPresetScales = std::bitset<NUM_PRESET_SCALES>((buffer[173] << 8) | buffer[172]);
 	}
 
+	if (buffer[174] != 0 && buffer[174] != 1) {
+		accessibilityShortcuts = false;
+	}
+	else {
+		accessibilityShortcuts = buffer[174];
+	}
+
+	if (buffer[175] < 0 && buffer[175] > util::to_underlying(MenuHighlighting::NO_INVERSION)) {
+		accessibilityMenuHighlighting = MenuHighlighting::PARTIAL_INVERSION;
+	}
+	else {
+		accessibilityMenuHighlighting = static_cast<MenuHighlighting>(buffer[175]);
+	}
+
 	if (buffer[176] < 0 && buffer[176] > util::to_underlying(OutputType::AUDIO)) {
 		defaultNewClipType = OutputType::SYNTH;
 	}
@@ -726,6 +779,43 @@ void readSettings() {
 	}
 	else {
 		defaultUseLastClipType = buffer[177];
+	}
+
+	if (buffer[178] >= kNumThresholdRecordingModes) {
+		defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
+	}
+	else {
+		defaultThresholdRecordingMode = static_cast<ThresholdRecordingMode>(buffer[178]);
+	}
+
+	if (buffer[185] >= util::to_underlying(FavouritesDefaultLayoutMaxElement)) {
+		defaultFavouritesLayout = FavouritesDefaultLayout::FavouritesDefaultLayoutFavorites;
+	}
+	else {
+		defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(buffer[185]);
+	}
+
+	if (buffer[186] != util::to_underlying(GlobalMIDICommand::LOOP)
+	    && buffer[186] != util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)) {
+		defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
+	}
+	else {
+		defaultLoopRecordingCommand = static_cast<GlobalMIDICommand>(buffer[186]);
+	}
+
+	if (buffer[188] != 0 && buffer[188] != 1) {
+		defaultUseSharps = true;
+	}
+	else {
+		defaultUseSharps = buffer[188];
+	}
+
+	if (buffer[189] != util::to_underlying(Polarity::BIPOLAR)
+	    && buffer[189] != util::to_underlying(Polarity::UNIPOLAR)) {
+		defaultPatchCablePolarity = Polarity::BIPOLAR;
+	}
+	else {
+		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
 }
 
@@ -839,6 +929,8 @@ void writeSettings() {
 	buffer[68] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].noteOrCC + 1;
 	buffer[114] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone + 1;
 	buffer[115] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC + 1;
+	buffer[179] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].channelOrZone + 1;
+	buffer[180] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC + 1;
 	buffer[70] =
 	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone
 	    + 1;
@@ -882,6 +974,10 @@ void writeSettings() {
 	/* buffer[117]  \
 	   buffer[118]   device reference above occupies 4 bytes
 	   buffer[119] */
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::NEXT_SONG, &buffer[181]);
+	/* buffer[182]  \
+	   buffer[183]   device reference above occupies 4 bytes
+	   buffer[184] */
 
 	buffer[50] = util::to_underlying(AudioEngine::inputMonitoringMode);
 
@@ -990,8 +1086,21 @@ void writeSettings() {
 	buffer[172] = 0xff & disabledBits;
 	buffer[173] = 0xff & (disabledBits >> 8);
 
+	buffer[174] = accessibilityShortcuts;
+	buffer[175] = util::to_underlying(accessibilityMenuHighlighting);
+
 	buffer[176] = util::to_underlying(defaultNewClipType);
 	buffer[177] = defaultUseLastClipType;
+
+	buffer[178] = util::to_underlying(defaultThresholdRecordingMode);
+
+	buffer[185] = util::to_underlying(defaultFavouritesLayout);
+
+	buffer[186] = util::to_underlying(defaultLoopRecordingCommand);
+
+	buffer[188] = defaultUseSharps;
+
+	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

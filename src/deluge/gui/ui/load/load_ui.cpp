@@ -18,9 +18,6 @@
 #include "gui/ui/load/load_ui.h"
 #include "hid/led/indicator_leds.h"
 
-LoadUI::LoadUI() {
-}
-
 void LoadUI::focusRegained() {
 	indicator_leds::blinkLed(IndicatorLED::LOAD);
 	indicator_leds::setLedState(IndicatorLED::SAVE,

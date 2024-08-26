@@ -15,26 +15,42 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/integer.h"
+#include "definitions_cxx.hpp"
+#include "gui/menu_item/arpeggiator/midi_cv/arp_integer.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class SequenceLength final : public Integer {
+class SequenceLength final : public ArpNonSoundInteger {
 public:
-	using Integer::Integer;
+	using ArpNonSoundInteger::ArpNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(
-		    computeCurrentValueForArpMidiCvRatchetsOrRhythm(getCurrentInstrumentClip()->arpeggiatorSequenceLength));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(soundEditor.currentArpSettings->sequenceLength));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorSequenceLength =
-		    computeFinalValueForArpMidiCvRatchetsOrRhythm(this->getValue());
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		soundEditor.currentArpSettings->sequenceLength = value;
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip();
+
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		if (getValue() == 0) {
+			const auto off_string = l10n::get(l10n::String::STRING_FOR_OFF);
+			return OLED::main.drawStringCentered(off_string, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+			                                     kTextSpacingX, kTextSpacingY, slot.width);
+		}
+		ArpNonSoundInteger::renderInHorizontalMenu(slot);
+	}
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		if (const auto value = getValue(); value == 0) {
+			valueBuf.append(l10n::get(l10n::String::STRING_FOR_OFF));
+		}
+		else {
+			valueBuf.appendInt(value);
+		}
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

@@ -49,24 +49,22 @@
 
 // Hard-coded "for-loop" for the below function.
 #define waveRenderingFunctionPulseForLoop(i)                                                                           \
+	{{phaseTemp += phaseIncrement;                                                                                     \
+	rshiftedA = vset_lane_s16(phaseTemp >> rshiftAmount, rshiftedA, i);                                                \
+                                                                                                                       \
+	uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);                                                      \
+	uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));                                          \
+	readValueA = vld1q_lane_u32(readAddress, readValueA, i);                                                           \
+	}                                                                                                                  \
+                                                                                                                       \
 	{                                                                                                                  \
-		{                                                                                                              \
-			phaseTemp += phaseIncrement;                                                                               \
-			rshiftedA = vset_lane_s16(phaseTemp >> rshiftAmount, rshiftedA, i);                                        \
+		uint32_t phaseLater = phaseTemp + phaseToAdd;                                                                  \
+		rshiftedB = vset_lane_s16(phaseLater >> rshiftAmount, rshiftedB, i);                                           \
                                                                                                                        \
-			uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);                                              \
-			uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));                                  \
-			readValueA = vld1q_lane_u32(readAddress, readValueA, i);                                                   \
-		}                                                                                                              \
-                                                                                                                       \
-		{                                                                                                              \
-			uint32_t phaseLater = phaseTemp + phaseToAdd;                                                              \
-			rshiftedB = vset_lane_s16(phaseLater >> rshiftAmount, rshiftedB, i);                                       \
-                                                                                                                       \
-			uint32_t whichValue = phaseLater >> (32 - tableSizeMagnitude);                                             \
-			uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));                                  \
-			readValueB = vld1q_lane_u32(readAddress, readValueB, i);                                                   \
-		}                                                                                                              \
+		uint32_t whichValue = phaseLater >> (32 - tableSizeMagnitude);                                                 \
+		uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));                                      \
+		readValueB = vld1q_lane_u32(readAddress, readValueB, i);                                                       \
+	}                                                                                                                  \
 	}
 
 // Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.

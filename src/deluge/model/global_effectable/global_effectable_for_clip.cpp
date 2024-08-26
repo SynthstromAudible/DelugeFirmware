@@ -138,7 +138,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// Render FX
 	processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
 	processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
-	                             delayWorkingState, renderedLastTime);
+	                             delayWorkingState, renderedLastTime, reverbSendAmount);
 	processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 	// record before pan/compression/volume to keep volumes consistent
 	if (recorder && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {

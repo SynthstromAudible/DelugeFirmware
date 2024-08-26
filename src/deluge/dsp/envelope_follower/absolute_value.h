@@ -24,6 +24,14 @@ public:
 	AbsValueFollower() = default;
 	void setup(q31_t attack, q31_t release);
 
+	/// Reset the state of the envelope follower
+	void reset() {
+		meanL = 0;
+		lastMeanL = 0;
+		meanR = 0;
+		lastMeanR = 0;
+	}
+
 	// attack/release in range 0 to 2^31
 	inline q31_t getAttack() { return attackKnobPos; }
 	inline int32_t getAttackMS() { return attackMS; }

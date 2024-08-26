@@ -27,7 +27,7 @@ public:
 	char const* getTitle() override;
 
 	/// Options
-	Sized<const char**> getOptions() override;
+	std::span<const char*> getOptions() override;
 };
 
 extern LaunchStyleMenu launchStyle;

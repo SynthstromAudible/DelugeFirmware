@@ -54,12 +54,13 @@ constexpr uint16_t metronomeValueBoundaries[16] = {
 class PlaybackHandler {
 public:
 	PlaybackHandler();
+	void midiRoutine();
 	void routine();
 
 	void playButtonPressed(int32_t buttonPressLatency);
 	void recordButtonPressed();
 	void setupPlaybackUsingInternalClock(int32_t buttonPressLatencyForTempolessRecord = 0, bool allowCountIn = true,
-	                                     bool restartingPlayback = false);
+	                                     bool restartingPlayback = false, bool restartingPlaybackAtBeginning = false);
 	void setupPlaybackUsingExternalClock(bool switchingFromInternalClock = false, bool fromContinueCommand = false);
 	void setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false,
 	                   bool shouldShiftAccordingToClipInstance = true,
@@ -74,7 +75,7 @@ public:
 	bool isCurrentlyRecording();
 	void positionPointerReceived(uint8_t data1, uint8_t data2);
 	void doSongSwap(bool preservePlayPosition = false);
-	void forceResetPlayPos(Song* song);
+	void forceResetPlayPos(Song* song, bool restartingPlaybackAtBeginning = false);
 	void expectEvent();
 	void setMidiInClockEnabled(bool newValue);
 	int32_t getActualArrangementRecordPos();
@@ -171,7 +172,7 @@ public:
 	uint64_t getTimePerInternalTickBig();
 	float getTimePerInternalTickFloat();
 	uint32_t getTimePerInternalTickInverse(bool getStickyValue = false);
-	void tapTempoButtonPress();
+	void tapTempoButtonPress(bool useNormalTapTempoBehaviour);
 	void doTriggerClockOutTick();
 	void doMIDIClockOutTick();
 	void resyncAnalogOutTicksToInternalTicks();
@@ -193,7 +194,6 @@ public:
 	                         bool* doingMidiThru);
 	bool subModeAllowsRecording();
 
-	void songSelectReceived(uint8_t songId);
 	float calculateBPM(float timePerInternalTick);
 	void switchToArrangement();
 	void switchToSession();

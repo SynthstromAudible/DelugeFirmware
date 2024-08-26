@@ -16,13 +16,13 @@
  */
 
 #include "gui/context_menu/context_menu.h"
-
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/ui.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
+#include "storage/flash_storage.h"
 
 namespace deluge::gui {
 
@@ -32,7 +32,7 @@ bool ContextMenu::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 }
 
 bool ContextMenu::setupAndCheckAvailability() {
-	const auto [_options, numOptions] = getOptions();
+	const size_t numOptions = getOptions().size();
 	for (currentOption = 0; currentOption < numOptions; currentOption++) {
 		if (isCurrentOptionAvailable()) {
 			scrollPos = currentOption;
@@ -58,7 +58,7 @@ void ContextMenu::focusRegained() {
 }
 
 void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
-	const auto [options, numOptions] = getOptions();
+	const auto options = getOptions();
 
 	int32_t windowWidth = 100;
 	int32_t windowHeight = 40;
@@ -82,7 +82,7 @@ void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	int32_t i = 0;
 
 	while (true) {
-		if (currentOption >= numOptions) {
+		if (currentOption >= options.size()) {
 			break;
 		}
 		if (i >= 2) {
@@ -90,11 +90,17 @@ void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		}
 
 		if (isCurrentOptionAvailable()) {
-			canvas.drawString(options[currentOption], 23, textPixelY, kTextSpacingX, kTextSpacingY, 0,
+			int32_t invertStartX = 22;
+			int32_t textPixelX = invertStartX + 1;
+			if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION) {
+				textPixelX += kTextSpacingX;
+			}
+			canvas.drawString(options[currentOption], textPixelX, textPixelY, kTextSpacingX, kTextSpacingY, 0,
 			                  OLED_MAIN_WIDTH_PIXELS - 27);
 			if (currentOption == actualCurrentOption) {
-				canvas.invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8);
-				deluge::hid::display::OLED::setupSideScroller(0, options[currentOption], 23,
+				canvas.invertLeftEdgeForMenuHighlighting(invertStartX, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY,
+				                                         textPixelY + 8);
+				deluge::hid::display::OLED::setupSideScroller(0, options[currentOption], textPixelX,
 				                                              OLED_MAIN_WIDTH_PIXELS - 27, textPixelY, textPixelY + 8,
 				                                              kTextSpacingX, kTextSpacingY, true);
 			}
@@ -108,7 +114,7 @@ void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 }
 
 void ContextMenu::selectEncoderAction(int8_t offset) {
-	const auto [_options, numOptions] = getOptions();
+	const size_t numOptions = getOptions().size();
 
 	if (display->haveOLED()) {
 		bool wasOnScrollPos = (currentOption == scrollPos);
@@ -149,7 +155,8 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 	}
 }
 
-const uint32_t buttonAndPadActionUIModes[] = {UI_MODE_STEM_EXPORT, UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, 0};
+const uint32_t buttonAndPadActionUIModes[] = {UI_MODE_STEM_EXPORT, UI_MODE_CLIP_PRESSED_IN_SONG_VIEW,
+                                              UI_MODE_MIDI_LEARN, 0};
 
 ActionResult ContextMenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
@@ -190,7 +197,7 @@ probablyAcceptCurrentOption:
 }
 
 void ContextMenu::drawCurrentOption() {
-	const auto [options, _size] = getOptions();
+	const auto options = getOptions();
 	if (display->have7SEG()) {
 		indicator_leds::ledBlinkTimeout(0, true);
 		display->setText(options[currentOption], false, 255, true);
@@ -212,12 +219,12 @@ ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
 void ContextMenuForSaving::focusRegained() {
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::blinkLed(IndicatorLED::SAVE);
-	return ContextMenu::focusRegained();
+	ContextMenu::focusRegained();
 }
 
 void ContextMenuForLoading::focusRegained() {
 	indicator_leds::setLedState(IndicatorLED::SAVE, false);
 	indicator_leds::blinkLed(IndicatorLED::LOAD);
-	return ContextMenu::focusRegained();
+	ContextMenu::focusRegained();
 }
 } // namespace deluge::gui

@@ -26,6 +26,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "model/action/action_logger.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/stem_export/stem_export.h"
@@ -166,6 +167,11 @@ checkResult:
 			case EncoderName::SELECT:
 				if (Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW)) {
 					PadLEDs::changeRefreshTime(limitedDetentPos);
+				}
+				else if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
+					if (currentSong) {
+						currentSong->changeThresholdRecordingMode(limitedDetentPos);
+					}
 				}
 				else {
 					getCurrentUI()->selectEncoderAction(limitedDetentPos);

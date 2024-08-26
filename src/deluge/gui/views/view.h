@@ -22,6 +22,7 @@
 #include "hid/button.h"
 #include "model/model_stack.h"
 #include "modulation/params/param.h"
+#include "processing/audio_output.h"
 #include <cstdint>
 
 class InstrumentClip;
@@ -56,7 +57,6 @@ public:
 	void setTimeBaseScaleLedState();
 	void setLedStates();
 
-	const char* getName() { return "view"; }
 	void clipStatusMidiLearnPadPressed(bool on, Clip* whichLoopable);
 	void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
 	void endMidiLearnPressSession(MidiLearn newThingPressed = MidiLearn::NONE);
@@ -92,6 +92,7 @@ public:
 	bool changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
 	void drawOutputNameFromDetails(OutputType outputType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool isNameEmpty, bool editedByUser, bool doBlink, Clip* clip = NULL);
+	void startMIDILearn();
 	void endMIDILearn();
 	[[nodiscard]] RGB getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlash = true);
 	ActionResult clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfInSessionView = -1);
@@ -162,7 +163,21 @@ private:
 	void renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth]);
 	bool renderedVUMeter;
 
+	// mod encoder action
+	void modEncoderAction_nonExistentParam(int32_t whichModEncoder, int32_t offset,
+	                                       ModelStackWithAutoParam* modelStackWithParam);
+	void modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offset,
+	                                    ModelStackWithAutoParam* modelStackWithParam, bool noteTailsAllowedBefore);
 	ModelStackWithAutoParam* getModelStackWithParam(int32_t whichModEncoder, bool& noteTailsAllowedBefore);
+
+	// mod encoder button action
+	void modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder);
+	void modEncoderButtonAction_changeModControllable(uint8_t whichModEncoder, bool on);
+
+	// Timing constants for display arbitration in displayModEncoderValuePopup (in AudioEngine sample units)
+	static constexpr uint32_t MIN_DISPLAY_OWNERSHIP_TIME = kSampleRate; // 1 second (minimum juggling time)
+	static constexpr uint32_t DISPLAY_TIMEOUT = kSampleRate / 4;        // 0.25 seconds (ball drop timeout)
+	static constexpr uint32_t MIN_UPDATE_INTERVAL = kSampleRate / 22;   // ~45ms (minimum perceptible update frequency)
 };
 
 extern View view;

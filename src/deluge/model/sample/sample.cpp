@@ -59,8 +59,9 @@ struct SampleCacheElement {
 };
 
 Sample::Sample()
-    : percCacheZones{sizeof(SamplePercCacheZone), sizeof(SamplePercCacheZone)}, caches(sizeof(SampleCacheElement), 4),
-      AudioFile(AudioFileType::SAMPLE) {
+    : percCacheZones{OrderedResizeableArrayWith32bitKey(sizeof(SamplePercCacheZone)),
+                     OrderedResizeableArrayWith32bitKey(sizeof(SamplePercCacheZone))},
+      caches(sizeof(SampleCacheElement), 4), AudioFile(AudioFileType::SAMPLE) {
 	audioDataLengthBytes = 0;
 	audioDataStartPosBytes = 0;
 	lengthInSamples = 0;
@@ -83,6 +84,8 @@ Sample::Sample()
 
 	beginningOffsetForPitchDetection = 0;
 	beginningOffsetForPitchDetectionFound = false;
+
+	audioStartDetected = false;
 
 #if SAMPLE_DO_LOCKS
 	lock = false;
@@ -221,8 +224,8 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 
 	void* memory =
 	    GeneralMemoryAllocator::get().allocLowSpeed(sizeof(SampleCache) + (numClusters - 1) * sizeof(Cluster*));
-	if (!memory) {
-		return NULL;
+	if (memory == nullptr) {
+		return nullptr;
 	}
 
 	i = caches.insertAtKeyMultiWord(keyWords);
@@ -231,8 +234,8 @@ SampleCache* Sample::getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseI
 		return NULL;
 	}
 
-	SampleCache* samplePitchAdjustment = new (memory)
-	    SampleCache(this, numClusters, lengthInBytesCached, phaseIncrement, timeStretchRatio, skipSamplesAtStart);
+	auto* samplePitchAdjustment = new (memory) SampleCache(this, numClusters, lengthInBytesCached, phaseIncrement,
+	                                                       timeStretchRatio, skipSamplesAtStart, reversed);
 
 	SampleCacheElement* element = (SampleCacheElement*)caches.getElementAddress(i);
 	element->phaseIncrement = phaseIncrement;
@@ -273,8 +276,7 @@ Error Sample::fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSample
 	uint16_t startTime = MTU2.TCNT_0;
 #endif
 
-	int32_t reversed = (playDirection == 1) ? 0 : 1;
-
+	auto reversed = static_cast<int32_t>(playDirection != 1);
 	// If the start pos is already beyond the waveform, we can get out right now!
 	if (!reversed) {
 		if (startPosSamples >= lengthInSamples) {
@@ -1381,7 +1383,7 @@ continueWhileLoop:
 		for (int32_t i = 0; i < (1 << lengthDoublingsNow); i++) {
 
 			if (!(count & 255)) {
-				AudioEngine::routineWithClusterLoading(); // --------------------------------------
+				AudioEngine::routineWithClusterLoading();
 			}
 			count++;
 
@@ -1482,7 +1484,7 @@ doneReading:
 		writeIndex++;
 	}
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	AudioEngine::routineWithClusterLoading();
 
 	/*
 	D_PRINTLN("doing fft ---------------- %d", PITCH_DETECT_WINDOW_SIZE_MAGNITUDE);
@@ -1508,7 +1510,7 @@ doneReading:
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
 		if (!(i & 1023)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t thisValue = fastPythag(fftOutput[i].r, fftOutput[i].i);
@@ -1544,7 +1546,7 @@ doneReading:
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
 		if (!(i & 255)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------
+			AudioEngine::routineWithClusterLoading();
 		}
 
 		int32_t thisValue = fftHeights[i];
@@ -1604,8 +1606,7 @@ doneReading:
 		// We're at a peak!
 
 		if (!(peakCount & 7)) {
-			AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 15 works. 7 is extra
-			                                          // safe
+			AudioEngine::routineWithClusterLoading(); // Rohan 15 works. 7 is extra safe
 		}
 		peakCount++;
 

@@ -23,14 +23,22 @@ namespace deluge::gui::menu_item::osc::source {
 
 class Volume final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
-	Volume(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+	Volume(l10n::String title_format_str, int32_t newP, uint8_t source_id)
+	    : PatchedParam(title_format_str, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
+	[[nodiscard]] std::string_view getName() const override { return FormattedTitle::title(); }
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->getSynthMode() != SynthMode::RINGMOD);
+	}
+
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(getName());
+		label.truncate(4);
 	}
 };
 } // namespace deluge::gui::menu_item::osc::source

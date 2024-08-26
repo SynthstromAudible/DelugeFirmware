@@ -18,9 +18,6 @@
 #include "model/voice/voice_vector.h"
 #include "definitions_cxx.hpp"
 
-VoiceVector::VoiceVector() {
-}
-
 void VoiceVector::checkVoiceExists(Voice* voice, Sound* sound, char const* errorCode) {
 
 	if (ALPHA_OR_BETA_VERSION) {

@@ -43,7 +43,7 @@ public:
 	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 		return false;
 	} // Returns whether Instrument was changed
-	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager){};
+	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {};
 	virtual ModelStackWithAutoParam*
 	getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
 	                       bool allowCreation = true); // Check that autoParam isn't NULL, after calling this.
@@ -52,7 +52,12 @@ public:
 	    ModelStackWithThreeMainThings* modelStack); // Check that autoParam isn't NULL, after calling this
 	virtual uint8_t* getModKnobMode();              // Return NULL if different modes not supported
 	virtual bool isKit() { return false; }
+	virtual bool isSong() { return false; }
 	virtual bool isEditingComp() { return false; }
+	virtual bool valueChangedEnoughToMatter(int32_t old_value, int32_t new_value, deluge::modulation::params::Kind kind,
+	                                        uint32_t paramID) {
+		return old_value != new_value;
+	}
 	virtual int32_t getKnobPosForNonExistentParam(
 	    int32_t whichModEncoder,
 	    ModelStackWithAutoParam* modelStack); // modelStack->autoParam will be NULL in this rare case!!

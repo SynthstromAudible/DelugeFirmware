@@ -20,7 +20,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -351,6 +351,10 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 	playbackStartedAtPos = newPos;
 	lastProcessedPos = newPos;
 	arrangerView.xScrollWhenPlaybackStarted = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+	// if you were holding a clip pad and doing a reset,
+	// it can be easy to accidentally delete or enter the clip
+	// setting this to false prevents that
+	arrangerView.actionOnDepress = false;
 
 	if (currentSong->paramManager.mightContainAutomation()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];

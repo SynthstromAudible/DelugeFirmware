@@ -37,11 +37,21 @@ extern "C" {
 }
 
 namespace params = deluge::modulation::params;
-
+EnumStringMap<AudioOutputMode, kNumAudioOutputModes> aoModeStringMap({{
+    {AudioOutputMode::player, "Player"},
+    {AudioOutputMode::sampler, "Sampler"},
+    {AudioOutputMode::looper, "Looper/FX"},
+}});
+AudioOutputMode stringToAOMode(char const* string) {
+	return aoModeStringMap(string);
+}
+char const* aoModeToString(AudioOutputMode mode) {
+	return aoModeStringMap(mode);
+}
 AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 	modKnobMode = 0;
 	inputChannel = AudioInputChannel::LEFT;
-	echoing = false;
+	mode = AudioOutputMode::player;
 }
 
 AudioOutput::~AudioOutput() {
@@ -52,9 +62,32 @@ AudioOutput::~AudioOutput() {
 
 void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	GlobalEffectableForClip::cloneFrom(other);
+	auto ao = ((AudioOutput*)other);
+	inputChannel = ao->inputChannel;
 
-	inputChannel = ((AudioOutput*)other)->inputChannel;
-	outputRecordingFrom = ((AudioOutput*)other)->outputRecordingFrom;
+	auto modeInt = util::to_underlying(ao->mode);
+
+	mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
+	outputRecordingFrom = nullptr;
+	// old style cloning overdubs
+	if (mode == AudioOutputMode::looper || mode == AudioOutputMode::sampler) {
+		// if the original track hasn't been recorded into then we'll just be a player. Avoids doubling monitoring
+		if (ao->isEmpty()) {
+			mode = AudioOutputMode::player;
+		}
+		else {
+			// otherwise we'll become the new sampler/looper and the og will become a player
+			ao->mode = AudioOutputMode::player;
+		}
+	}
+
+	if (inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
+		outputRecordingFrom = ao->outputRecordingFrom;
+		// now steal the monitoring of the original track if necessary (i.e. we're a looper or sampler)
+		if (mode != AudioOutputMode::player) {
+			outputRecordingFrom->setRenderingToAudioOutput(true, this);
+		}
+	}
 }
 
 void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
@@ -79,6 +112,23 @@ void AudioOutput::resetEnvelope() {
 	}
 	amplitudeLastTime = 0;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
+}
+
+bool AudioOutput::modeAllowsMonitoring() const {
+	if (mode == AudioOutputMode::player) {
+		return false;
+	}
+	if (mode == AudioOutputMode::sampler) {
+		auto& activeAudioClip = static_cast<AudioClip&>(*activeClip);
+		if (activeAudioClip.voiceSample) {
+			return false;
+		}
+		return true;
+	}
+	if (mode == AudioOutputMode::looper) {
+		return true;
+	}
+	return false;
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
@@ -213,8 +263,8 @@ renderEnvelope:
 			}
 		}
 	}
-
-	if (echoing && modelStack->song->isOutputActiveInArrangement(this)
+	// add in the monitored audio if in sampler or looper mode
+	if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
 		StereoSample* __restrict__ outputPos = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
@@ -279,7 +329,7 @@ renderEnvelope:
 			}
 		} while (outputPos < outputPosEnd);
 	}
-	else if (echoing && modelStack->song->isOutputActiveInArrangement(this)
+	else if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
 	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom) {
 		rendered = true;
 		StereoSample* __restrict__ outputBuffer = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
@@ -316,9 +366,8 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 
 	writer.writeAttribute("name", name.get());
 
-	if (echoing) {
-		writer.writeAttribute("echoingInput", "1");
-	}
+	writer.writeAttribute("mode", aoModeToString(mode));
+
 	writer.writeAttribute("inputChannel", inputChannelToString(inputChannel));
 	writer.writeAttribute("outputRecordingIndex", currentSong->getOutputIndex(outputRecordingFrom));
 	Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
@@ -348,8 +397,16 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "echoingInput")) {
-			echoing = reader.readTagOrAttributeValueInt();
+			int echoing = reader.readTagOrAttributeValueInt();
+			if (echoing) {
+				// loopers behave like old monitored clips
+				mode = AudioOutputMode::looper;
+			}
 			reader.exitTag("echoingInput");
+		}
+		else if (!strcmp(tagName, "mode")) {
+			mode = stringToAOMode(reader.readTagOrAttributeValue());
+			reader.exitTag("mode");
 		}
 
 		else if (!strcmp(tagName, "inputChannel")) {
@@ -365,7 +422,7 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 
 		else {
 
-			Error result = GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, 0, song);
+			Error result = GlobalEffectableForClip::readTagFromFile(reader, tagName, &paramManager, 0, nullptr, song);
 			if (result == Error::NONE) {}
 			else if (result == Error::RESULT_TAG_UNUSED) {
 				reader.exitTag();
@@ -427,7 +484,7 @@ bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmCh
 }
 
 bool AudioOutput::isSkippingRendering() {
-	return !echoing && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
+	return mode == AudioOutputMode::player && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
 }
 
 void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
@@ -450,4 +507,46 @@ ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimel
 	}
 
 	return modelStackWithParam;
+}
+
+void AudioOutput::setOutputRecordingFrom(Output* toRecordfrom) {
+	if (toRecordfrom == this) {
+		// can happen from bad save files
+		return;
+	}
+	if (outputRecordingFrom) {
+		outputRecordingFrom->setRenderingToAudioOutput(false, nullptr);
+	}
+	outputRecordingFrom = toRecordfrom;
+	if (outputRecordingFrom) {
+		// If we are a SAMPLER or a LOOPER then we're monitoring the audio, so tell the other output that we're in
+		// charge of rendering
+		outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
+	}
+}
+
+void AudioOutput::scrollAudioOutputMode(int offset) {
+	auto modeInt = util::to_underlying(mode);
+	modeInt = (modeInt + offset) % kNumAudioOutputModes;
+
+	mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
+	if (outputRecordingFrom) {
+		// update the output we're recording from on whether we're monitoring
+		outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
+	}
+	renderUIsForOled(); // oled shows the type on the clip screen (including while holding a clip in song view)
+	if (display->have7SEG()) {
+		const char* type;
+		switch (mode) {
+		case AudioOutputMode::player:
+			type = "PLAY";
+			break;
+		case AudioOutputMode::sampler:
+			type = "SAMP";
+			break;
+		case AudioOutputMode::looper:
+			type = "LOOP";
+		}
+		display->displayPopup(type);
+	}
 }

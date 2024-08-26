@@ -38,7 +38,7 @@ public:
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	char const* name() override { return "In-Key"; }
+	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_IN_KEY; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }

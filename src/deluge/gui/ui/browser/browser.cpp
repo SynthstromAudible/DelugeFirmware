@@ -61,7 +61,7 @@ char const* Browser::filenameToStartSearchAt;
 int8_t Browser::numberEditPos;
 NumericLayerScrollingText* Browser::scrollingText;
 
-char const* allowedFileExtensionsXML[] = {"XML", NULL};
+char const* allowedFileExtensionsXML[] = {"XML", "Json", NULL};
 
 Browser::Browser() {
 	fileIcon = deluge::hid::display::OLED::songIcon;
@@ -99,7 +99,7 @@ bool Browser::checkFP() {
 	}
 
 	FilePointer tempfp;
-	bool fileExists = storageManager.fileExists(filePath.get(), &tempfp);
+	bool fileExists = StorageManager::fileExists(filePath.get(), &tempfp);
 	if (!fileExists) {
 		D_PRINTLN("couldn't get filepath");
 		return false;
@@ -117,6 +117,8 @@ bool Browser::checkFP() {
 
 void Browser::close() {
 	emptyFileItems();
+	favouritesManager.close();
+	favouritesVisible = false;
 	QwertyUI::close();
 }
 
@@ -262,7 +264,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	emptyFileItems();
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -480,6 +482,39 @@ deleteThisItem:
 	if (lastFileItemRemaining) {
 		fileItems.deleteAtIndex(fileItems.getNumElements() - 1);
 	}
+}
+
+Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
+	arrivedAtFileByTyping = true;
+	FilePointer tempfp;
+	bool fileExists = StorageManager::fileExists(fullPath, &tempfp);
+	if (!fileExists) {
+		return Error::FILE_NOT_FOUND;
+	}
+
+	const char* fileName = getFileNameFromEndOfPath(fullPath);
+	currentDir.set(getPathFromFullPath(fullPath));
+
+	// Change to the File Folder
+	Error error = arrivedInNewFolder(0, fileName);
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	//  Get the File Index
+	fileIndexSelected = fileItems.search(fileName);
+	if (fileIndexSelected > fileItems.getNumElements()) {
+		return Error::FILE_NOT_FOUND;
+	}
+
+	// Update the Display
+	scrollPosVertical = fileIndexSelected;
+	setEnteredTextFromCurrentFilename();
+	renderUIsForOled();
+
+	// Inform the Load UI that the File has changed
+	currentFileChanged(1);
+	return Error::NONE;
 }
 
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when
@@ -799,7 +834,7 @@ noNumberYet:
 		if (mayDefaultToBrandNewNameOnEntry && !direction) {
 pickBrandNewNameIfNoneNominated:
 			if (enteredText.isEmpty()) {
-				error = getUnusedSlot(OutputType::NONE, &enteredText, "SONG");
+				error = getUnusedSlot(OutputType::NONE, &enteredText, "filePrefix");
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating;
 				}
@@ -1225,8 +1260,7 @@ gotErrorAfterAllocating:
 
 		// Otherwise if we already tried that, then our whole search is fruitless.
 notFound:
-		if (false && !mayDefaultToBrandNewNameOnEntry) { // Disabled - now you're again always allowed to type
-			                                             // characters even if no such file exists.
+		if (display->haveOLED() && !mayDefaultToBrandNewNameOnEntry) {
 			if (fileIndexSelected >= 0) {
 				setEnteredTextFromCurrentFilename(); // Set it back
 			}
@@ -1315,6 +1349,10 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 
 	int32_t textStartX = 14;
 	int32_t iconStartX = 1;
+	if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION) {
+		textStartX += kTextSpacingX;
+		iconStartX = kTextSpacingX;
+	}
 
 	int32_t yPixel = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	yPixel += OLED_MAIN_TOPMOST_PIXEL;
@@ -1542,6 +1580,71 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 	return ActionResult::DEALT_WITH;
 }
 
+ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
+
+	if (favouritesVisible && y == favouriteRow && on) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		if (Buttons::isShiftButtonPressed()) {
+			String filePath;
+			Error error = getCurrentFilePath(&filePath);
+			if (error != Error::NONE) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_ERROR_FILE_NOT_FOUND));
+			}
+			if (favouritesManager.isEmpty(x)) {
+				if (!getCurrentFileItem()->isFolder) {
+					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.get());
+					favouritesChanged();
+				}
+			}
+			else {
+				favouritesManager.unsetFavorite(x);
+				favouritesChanged();
+			}
+		}
+		else {
+			const std::string favoritePath = favouritesManager.getFavoriteFilename(x);
+			favouritesChanged();
+			if (!favoritePath.empty()) {
+				setFileByFullPath(outputTypeToLoad, favoritePath.c_str());
+			}
+			else {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_FAVOURITES_EMPTY));
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
+	else if (favouritesVisible && banksVisible && y == favouriteBankRow && on) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		favouritesManager.selectFavouritesBank(x);
+		favouritesChanged();
+		return ActionResult::DEALT_WITH;
+	}
+	else {
+		return QwertyUI::padAction(x, y, on);
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+void Browser::favouritesChanged() {
+	renderFavourites();
+}
+
+ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (favouritesVisible) {
+		if (Buttons::isShiftButtonPressed()) {
+			if (favouritesManager.currentFavouriteNumber.has_value()) {
+				favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
+				favouritesChanged();
+			}
+		}
+	}
+	return ActionResult::DEALT_WITH;
+}
+
 ActionResult Browser::mainButtonAction(bool on) {
 	// Press down
 	if (on) {
@@ -1707,6 +1810,29 @@ Error Browser::createFolder() {
 	error = goIntoFolder(enteredText.get());
 
 	return error;
+}
+
+Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
+	if (!path || *path == '\0') {
+		return Error::UNSPECIFIED;
+	}
+
+	char tempPath[256];
+	size_t len = 0;
+
+	// Iterate through the path and create directories step by step
+	for (const char* p = path; *p; ++p) {
+		tempPath[len++] = *p;
+		tempPath[len] = '\0';
+
+		if (*p == '/' || *(p + 1) == '\0') {
+			FRESULT result = f_mkdir(tempPath);
+			if (result != FR_OK && result != FR_EXIST) {
+				return fresultToDelugeErrorCode(FR_NO_PATH);
+			}
+		}
+	}
+	return Error::NONE;
 }
 
 void Browser::sortFileItems() {

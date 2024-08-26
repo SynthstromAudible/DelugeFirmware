@@ -17,7 +17,6 @@
 
 #include "gui/ui/rename/rename_output_ui.h"
 #include "definitions_cxx.hpp"
-#include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/arranger_view.h"
 #include "hid/buttons.h"
@@ -26,107 +25,18 @@
 #include "model/output.h"
 #include "model/song/song.h"
 
-RenameOutputUI renameOutputUI{};
+RenameOutputUI renameOutputUI{"Track name"};
 
-RenameOutputUI::RenameOutputUI() {
-	title = "Track Name";
+String RenameOutputUI::getName() const {
+	return output->name;
 }
 
-bool RenameOutputUI::opened() {
-	bool success = QwertyUI::opened();
-	if (!success) {
+bool RenameOutputUI::trySetName(String* name) {
+	// Duplicate names not allowed for audio outputs.
+	if (!output->name.equalsCaseIrrespective(name) && currentSong->getAudioOutputFromName(name)) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-
-	enteredText.set(&output->name);
-
-	displayText();
-
-	drawKeys();
-
+	output->name.set(name);
 	return true;
-}
-
-bool RenameOutputUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
-	*cols = 0b11;
-	return true;
-}
-
-ActionResult RenameOutputUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
-	using namespace deluge::hid::button;
-
-	// Back button
-	if (b == BACK) {
-		if (on && !currentUIMode) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-			exitUI();
-		}
-	}
-
-	// Select encoder button
-	else if (b == SELECT_ENC) {
-		if (on && !currentUIMode) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-			enterKeyPress();
-		}
-	}
-
-	else {
-		return ActionResult::NOT_DEALT_WITH;
-	}
-
-	return ActionResult::DEALT_WITH;
-}
-
-void RenameOutputUI::enterKeyPress() {
-
-	if (enteredText.isEmpty()) {
-		return;
-	}
-
-	// If actually changing it...
-	if (!output->name.equalsCaseIrrespective(&enteredText)) {
-		if (currentSong->getAudioOutputFromName(&enteredText)) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
-			return;
-		}
-	}
-
-	output->name.set(&enteredText);
-	exitUI();
-}
-
-bool RenameOutputUI::exitUI() {
-	display->setNextTransitionDirection(-1);
-	close();
-	return true;
-}
-
-ActionResult RenameOutputUI::padAction(int32_t x, int32_t y, int32_t on) {
-
-	// Main pad
-	if (x < kDisplayWidth) {
-		return QwertyUI::padAction(x, y, on);
-	}
-
-	// Otherwise, exit
-	if (on && !currentUIMode) {
-		if (sdRoutineLock) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-		exitUI();
-	}
-
-	return ActionResult::DEALT_WITH;
-}
-
-ActionResult RenameOutputUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-		return ActionResult::DEALT_WITH;
-	}
-	return arrangerView.verticalEncoderAction(offset, inCardRoutine);
 }

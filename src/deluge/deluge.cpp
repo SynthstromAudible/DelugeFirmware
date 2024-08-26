@@ -60,10 +60,11 @@
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
+#include "storage/smsysex.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
 #include "util/misc.h"
 #include "util/pack.h"
 #include <stdlib.h>
@@ -135,6 +136,7 @@ void inputRoutine() {
 	if (micNow != AudioEngine::micPluggedIn) {
 		D_PRINT("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
+		renderUIsForOled();
 	}
 
 	if (!ALLOW_SPAM_MODE) {
@@ -149,6 +151,7 @@ void inputRoutine() {
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
 		D_PRINTLN("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
+		renderUIsForOled();
 	}
 
 	// Battery voltage
@@ -263,7 +266,7 @@ bool readButtonsAndPads() {
 
 		QwertyUI::enteredText.set("T001");
 
-		saveSongUI.performSave(storageManager, true);
+		saveSongUI.performSave(true);
 	}
 #endif
 
@@ -472,7 +475,7 @@ void setupStartupSong() {
 	String failSafePath;
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
 	failSafePath.concatenate(replace_char(filename, '/', '_'));
-	if (storageManager.fileExists(failSafePath.get())) {
+	if (StorageManager::fileExists(failSafePath.get())) {
 		String msgReason;
 		msgReason.concatenate("STARTUP OFF, reason: ");
 		msgReason.concatenate(filename);
@@ -481,7 +484,7 @@ void setupStartupSong() {
 	}
 	switch (startupSongMode) {
 	case StartupSongMode::TEMPLATE: {
-		if (!storageManager.fileExists(defaultSongFullPath)) {
+		if (!StorageManager::fileExists(defaultSongFullPath)) {
 			currentSong->writeTemplateSong(defaultSongFullPath);
 		}
 	}
@@ -497,9 +500,9 @@ void setupStartupSong() {
 			// something wrong creating canary file, failsafe.
 			return;
 		}
-		if (!storageManager.fileExists(filename)) {
+		if (!StorageManager::fileExists(filename)) {
 			filename = defaultSongFullPath;
-			if (startupSongMode == StartupSongMode::TEMPLATE || !storageManager.fileExists(filename)) {
+			if (startupSongMode == StartupSongMode::TEMPLATE || !StorageManager::fileExists(filename)) {
 				return;
 			}
 		}
@@ -507,7 +510,7 @@ void setupStartupSong() {
 
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
-			loadSongUI.performLoad(storageManager);
+			loadSongUI.performLoad();
 			if (startupSongMode == StartupSongMode::TEMPLATE) {
 				// Wipe the name so the Save action asks you for a new song
 				currentSong->name.clear();
@@ -572,44 +575,54 @@ void registerTasks() {
 
 	// 0-9: High priority (10 for dyn tasks)
 	uint8_t p = 0;
-	addRepeatingTask(&(AudioEngine::routine), p++, 0.00001, 16 / 44100., 24 / 44100., "audio  routine");
+	AudioEngine::routine_task_id = addRepeatingTask(&(AudioEngine::routine_task), p++, 8 / 44100., 64 / 44100.,
+	                                                128 / 44100., "audio  routine", RESOURCE_NONE);
 	// this one runs quickly and frequently to check for encoder changes
-	addRepeatingTask([]() { encoders::readEncoders(); }, p++, 0.0005, 0.001, 0.001, "read encoders");
+	addRepeatingTask([]() { encoders::readEncoders(); }, p++, 0.0002, 0.0004, 0.0005, "read encoders", RESOURCE_NONE);
 	// formerly part of audio routine, updates midi and clock
-	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 2 / 44100., 16 / 44100, 32 / 44100., "playback routine");
-	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.00001, 0.00001, 0.00002,
-	                 "load clusters");
+	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 0.0005, 0.001, 0.002, "playback routine", RESOURCE_NONE);
+	midiEngine.routine_task_id = addRepeatingTask([]() { playbackHandler.midiRoutine(); }, p++, 0.0005, 0.001, 0.002,
+	                                              "midi routine", RESOURCE_SD | RESOURCE_USB);
+	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.0001, 0.0001, 0.0002,
+	                 "load clusters", RESOURCE_NONE);
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
-	addRepeatingTask(&AudioEngine::slowRoutine, p++, 0.001, 0.005, 0.05, "audio slow");
-	addRepeatingTask(&(readButtonsAndPadsOnce), p++, 0.005, 0.005, 0.01, "buttons and pads");
+	addRepeatingTask(&AudioEngine::slowRoutine, p++, 0.001, 0.005, 0.05, "audio slow", RESOURCE_NONE);
+	addRepeatingTask(&(readButtonsAndPadsOnce), p++, 0.005, 0.005, 0.01, "buttons and pads", RESOURCE_NONE);
 
 	// 11-19: Medium priority (20 for dyn tasks)
 	p = 11;
-	addRepeatingTask([]() { encoders::interpretEncoders(true); }, p++, 0.005, 0.005, 0.01, "interpret encoders fast");
+	addRepeatingTask([]() { encoders::interpretEncoders(true); }, p++, 0.002, 0.003, 0.006, "interpret encoders fast",
+	                 RESOURCE_NONE);
 	// 30 Hz update desired?
-	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI");
+	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI", RESOURCE_NONE);
 	// this one actually actions them
-	addRepeatingTask([]() { encoders::interpretEncoders(false); }, p++, 0.005, 0.005, 0.01, "interpret encoders slow");
+	addRepeatingTask([]() { encoders::interpretEncoders(false); }, p++, 0.005, 0.005, 0.01, "interpret encoders slow",
+	                 RESOURCE_SD_ROUTINE);
+
+	// Check for and handle queued SysEx traffic
+	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.",
+	                 RESOURCE_SD);
 
 	// 21-29: Low priority (30 for dyn tasks)
 	p = 21;
 	// these ones are actually "slow" -> file manager just checks if an sd card has been inserted, audio recorder checks
 	// if recordings are finished
-	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, p++, 0.1, 0.1, 0.2, "audio file slow");
-	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.1, 0.1, "audio recorder slow");
+	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, p++, 0.1, 0.1, 0.2, "audio file slow", RESOURCE_SD);
+	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "audio recorder slow", RESOURCE_NONE);
 	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
-	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.1, 0.1, "playback routine");
+	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "playback slow routine",
+	                 RESOURCE_SD);
 	// 31-39: Idle priority (40 for dyn tasks)
 	p = 31;
-	addRepeatingTask(&(PIC::flush), p++, 0.001, 0.001, 0.02, "PIC flush");
+	addRepeatingTask(&(PIC::flush), p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
 	if (hid::display::have_oled_screen) {
-		addRepeatingTask(&(oledRoutine), p++, 0.01, 0.01, 0.02, "oled routine");
+		addRepeatingTask(&(oledRoutine), p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
 	}
 	// needs to be called very frequently,
 	// handles animations and checks on the timers for any infrequent actions
 	// long term this should probably be made into an idle task
-	addRepeatingTask([]() { uiTimerManager.routine(); }, p++, 0.0001, 0.0007, 0.01, "ui routine");
+	addRepeatingTask([]() { uiTimerManager.routine(); }, p++, 0.0001, 0.0007, 0.01, "ui routine", RESOURCE_NONE);
 
 	// addRepeatingTask([]() { AudioEngine::routineWithClusterLoading(true); }, 0, 1 / 44100., 16 / 44100., 32 / 44100.,
 	// true); addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
@@ -625,12 +638,12 @@ void mainLoop() {
 		}
 		PIC::flush();
 
-		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+		AudioEngine::routineWithClusterLoading(true);
 
 		int32_t count = 0;
 		while (readButtonsAndPads() && count < 16) {
 			if (!(count & 3)) {
-				AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+				AudioEngine::routineWithClusterLoading(true);
 			}
 			count++;
 		}
@@ -638,12 +651,12 @@ void mainLoop() {
 		encoders::readEncoders();
 		bool anything = encoders::interpretEncoders();
 		if (anything) {
-			AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+			AudioEngine::routineWithClusterLoading(true);
 		}
 
 		doAnyPendingUIRendering();
 
-		AudioEngine::routineWithClusterLoading(true); // -----------------------------------
+		AudioEngine::routineWithClusterLoading(true);
 
 		// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets
 		// called in card routine
@@ -855,12 +868,12 @@ extern "C" int32_t deluge_main(void) {
 	usbLock = 0;
 
 	// Hopefully we can read these files now
-	runtimeFeatureSettings.readSettingsFromFile(storageManager);
-	MIDIDeviceManager::readDevicesFromFile(storageManager);
-	midiFollow.readDefaultsFromFile(storageManager);
+	runtimeFeatureSettings.readSettingsFromFile();
+	MIDIDeviceManager::readDevicesFromFile();
+	midiFollow.readDefaultsFromFile();
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
-	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
+	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song", RESOURCE_SD | RESOURCE_SD_ROUTINE);
 
 #ifdef TEST_VECTOR
 	NoteVector noteVector;
@@ -986,6 +999,7 @@ extern "C" void yieldingRoutineForSD(RunCondition until) {
 	yield(until);
 	sdRoutineLock = false;
 }
+enum class UIStage { oled, readEnc, readButtons };
 
 /// this function is used as a busy wait loop for long SD reads, and while swapping songs
 extern "C" void routineForSD(void) {
@@ -994,29 +1008,34 @@ extern "C" void routineForSD(void) {
 		return;
 	}
 
-	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine() ->
-	// USB -> routineForSD()
+	// We lock this to prevent multiple entry. Otherwise we could get SD -> routineForSD() -> AudioEngine::routine()
+	// -> USB -> routineForSD()
 	if (sdRoutineLock) {
 		return;
 	}
 
 	sdRoutineLock = true;
-	ignoreForStats();
+	static UIStage step = UIStage::oled;
 	AudioEngine::logAction("from routineForSD()");
-	AudioEngine::routine();
-
-	uiTimerManager.routine();
-
-	if (display->haveOLED()) {
-		oledRoutine();
+	AudioEngine::runRoutine();
+	switch (step) {
+	case UIStage::oled:
+		if (display->haveOLED()) {
+			oledRoutine();
+		}
+		PIC::flush();
+		step = UIStage::readEnc;
+		break;
+	case UIStage::readEnc:
+		encoders::readEncoders();
+		encoders::interpretEncoders(true);
+		step = UIStage::readButtons;
+		break;
+	case UIStage::readButtons:
+		readButtonsAndPads();
+		step = UIStage::oled;
+		break;
 	}
-	PIC::flush();
-
-	encoders::readEncoders();
-	encoders::interpretEncoders(true);
-	readButtonsAndPads();
-	doAnyPendingUIRendering();
-
 	sdRoutineLock = false;
 }
 
@@ -1040,7 +1059,8 @@ extern "C" void setNumericNumber(int32_t number) {
 }
 
 extern "C" void routineWithClusterLoading() {
-	AudioEngine::routineWithClusterLoading(false);
+	// Sean: don't use YieldToAudio here to be safe
+	AudioEngine::routineWithClusterLoading();
 }
 
 void deleteOldSongBeforeLoadingNew() {

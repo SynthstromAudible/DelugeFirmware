@@ -26,4 +26,7 @@ public:
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 
 	uint8_t modKnobMode;
+
+protected:
+	bool isSong() override { return true; }
 };

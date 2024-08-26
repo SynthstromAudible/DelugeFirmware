@@ -24,7 +24,8 @@
 #include "util/misc.h"
 
 SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newWaveformLengthBytes,
-                         int32_t newPhaseIncrement, int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart) {
+                         int32_t newPhaseIncrement, int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart,
+                         bool newReversed) {
 	sample = newSample;
 	phaseIncrement = newPhaseIncrement;
 	timeStretchRatio = newTimeStretchRatio;
@@ -34,6 +35,7 @@ SampleCache::SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newW
 #endif
 	waveformLengthBytes = newWaveformLengthBytes;
 	skipSamplesAtStart = newSkipSamplesAtStart;
+	reversed = newReversed;
 	/*
 	for (int32_t i = 0; i < numClusters; i++) {
 	    clusters[i] = NULL; // We don't actually have to initialize these, since writeBytePos tells us how many are

@@ -38,7 +38,7 @@ char const* DeleteFile::getTitle() {
 	return l10n::get(STRING_FOR_DELETE_QMARK);
 }
 
-Sized<char const**> DeleteFile::getOptions() {
+std::span<char const*> DeleteFile::getOptions() {
 	using enum l10n::String;
 
 	if (display->haveOLED()) {

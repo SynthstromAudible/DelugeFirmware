@@ -9,7 +9,7 @@
       "macFrameworkPath": [
         "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
       ],
-      "compilerPath": "${workspaceFolder}/toolchain/v13/darwin-arm64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
+      "compilerPath": "${workspaceFolder}/toolchain/v22/darwin-arm64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
       "compilerArgs": [
         "-mcpu=cortex-a9",
         "-marm",
@@ -34,7 +34,7 @@
         "src/**",
         "${default}"
       ],
-      "compilerPath": "${workspaceFolder}/toolchain/v13/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
+      "compilerPath": "${workspaceFolder}/toolchain/v22/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
       "compilerArgs": [
         "-mcpu=cortex-a9",
         "-marm",
@@ -59,7 +59,7 @@
           "src/**",
           "${default}"
         ],
-        "compilerPath": "${workspaceFolder}/toolchain/v16/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
+        "compilerPath": "${workspaceFolder}/toolchain/v22/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gcc",
         "compilerArgs": [
           "-mcpu=cortex-a9",
           "-marm",

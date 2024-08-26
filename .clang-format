@@ -6,7 +6,7 @@ BreakBeforeBraces: Custom
 BraceWrapping:
   BeforeElse: True
 ColumnLimit: 120
-ReflowComments: True
+ReflowComments: true
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: Never

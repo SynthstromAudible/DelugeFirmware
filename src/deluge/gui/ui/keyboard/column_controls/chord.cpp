@@ -22,30 +22,6 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-uint8_t chordTypeSemitoneOffsets[][MAX_CHORD_NOTES] = {
-    /* NO_CHORD  */ {0, 0, 0, 0},
-    /* FIFTH     */ {7, 0, 0, 0},
-    /* SUS2      */ {2, 7, 0, 0},
-    /* MINOR     */ {3, 7, 0, 0},
-    /* MAJOR     */ {4, 7, 0, 0},
-    /* SUS4      */ {5, 7, 0, 0},
-    /* MINOR7    */ {3, 7, 10, 0},
-    /* DOMINANT7 */ {4, 7, 10, 0},
-    /* MAJOR7    */ {4, 7, 11, 0},
-};
-
-const char* chordNames[] = {
-    /* NO_CHORD  */ "NONE",
-    /* FIFTH     */ "5TH",
-    /* SUS2      */ "SUS2",
-    /* MINOR     */ "MIN",
-    /* MAJOR     */ "MAJ",
-    /* SUS4      */ "SUS4",
-    /* MINOR7    */ "MIN7",
-    /* DOMINANT7 */ "DOM7",
-    /* MAJOR7    */ "MAJ7",
-};
-
 void ChordColumn::setActiveChord(ChordModeChord chord) {
 	activeChord = chord;
 	chordSemitoneOffsets[0] = chordTypeSemitoneOffsets[activeChord][0];
@@ -78,7 +54,7 @@ void ChordColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelin
                             KeyboardLayout* layout) {
 	if (pad.active) {
 		setActiveChord(static_cast<ChordModeChord>(pad.y + 1));
-		display->displayPopup(chordNames[activeChord]);
+		display->displayPopup(l10n::get(chordNames[activeChord]));
 	}
 	else if (!pad.padPressHeld) {
 		if (defaultChord != static_cast<ChordModeChord>(pad.y + 1)) {
@@ -88,7 +64,7 @@ void ChordColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelin
 			defaultChord = NO_CHORD;
 		}
 		setActiveChord(defaultChord);
-		display->displayPopup(chordNames[activeChord]);
+		display->displayPopup(l10n::get(chordNames[activeChord]));
 	}
 	else {
 		setActiveChord(defaultChord);

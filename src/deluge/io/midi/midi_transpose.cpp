@@ -16,6 +16,7 @@ namespace MIDITranspose {
 MIDITransposeControlMethod controlMethod;
 
 void doTranspose(bool on, int32_t newNoteOrCC) {
+	bool doRender = false;
 
 	if (on) {
 		if (!currentSong->hasBeenTransposed) {
@@ -48,17 +49,32 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 
 				currentSong->transposeAllScaleModeClips(steps, false);
 
-				uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
-				uiNeedsRendering(&instrumentClipView);
-				uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
+				doRender = true;
 			}
 		}
 		else {
 			currentSong->transposeAllScaleModeClips(semitones, true);
 
-			uiNeedsRendering(&keyboardScreen, 0xFFFFFFFF, 0);
-			uiNeedsRendering(&instrumentClipView);
-			uiNeedsRendering(&automationView, 0, 0xFFFFFFFF);
+			doRender = true;
+		}
+		if (doRender) {
+			RootUI* rootUI = getRootUI();
+			if (rootUI->getUIContextType() == UIType::INSTRUMENT_CLIP) {
+				switch (rootUI->getUIType()) {
+				case UIType::KEYBOARD_SCREEN:
+					uiNeedsRendering(rootUI, 0xFFFFFFFF, 0);
+					break;
+				case UIType::INSTRUMENT_CLIP:
+					uiNeedsRendering(rootUI);
+					break;
+				case UIType::AUTOMATION:
+					uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
+					break;
+				default:
+				    // fallthrough for everything else -- to many UIs to list explicitly
+				    ;
+				}
+			}
 		}
 	}
 	else {
@@ -77,13 +93,13 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 }
 
 void exitScaleModeForMIDITransposeClips() {
-	if (currentUIMode == UI_MODE_NONE && getRootUI() == &instrumentClipView) {
+	if (currentUIMode == UI_MODE_NONE && getRootUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 
 		if (clip != nullptr) {
 			if (clip->output->type == OutputType::MIDI_OUT
 			    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
-			    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+			    && ((NonAudioInstrument*)clip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
 				instrumentClipView.exitScaleMode();
 				clip->inScaleMode = false;
 			}

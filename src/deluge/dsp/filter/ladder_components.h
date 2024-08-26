@@ -22,6 +22,7 @@
 namespace deluge::dsp::filter {
 class BasicFilterComponent {
 public:
+	BasicFilterComponent() { reset(); }
 	// moveability is tan(f)/(1+tan(f))
 	[[gnu::always_inline]] inline q31_t doFilter(q31_t input, q31_t moveability) {
 		q31_t a = multiply_32x32_rshift32_rounded(input - memory, moveability) << 1;

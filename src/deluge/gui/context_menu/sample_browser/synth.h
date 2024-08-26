@@ -24,7 +24,7 @@ class Synth final : public ContextMenu {
 public:
 	Synth() = default;
 
-	Sized<char const**> getOptions() override;
+	std::span<char const*> getOptions() override;
 	bool isCurrentOptionAvailable() override;
 	bool canSeeViewUnderneath() override;
 

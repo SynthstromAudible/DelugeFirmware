@@ -34,6 +34,11 @@ class SoundDrum;
 class NumericLayerScrollingText;
 class Source;
 class Sample;
+class MenuItem;
+
+namespace deluge::gui::menu_item {
+class HorizontalMenu;
+}
 
 class SampleBrowser final : public Browser {
 public:
@@ -52,14 +57,20 @@ public:
 	bool importFolderAsKit();
 	bool importFolderAsMultisamples();
 	ActionResult timerCallback();
-	bool claimCurrentFile(int32_t mayDoPitchDetection = 1, int32_t mayDoSingleCycle = 1,
-	                      int32_t mayDoWaveTable = 1); // 0 means no. 1 means auto. 2 means yes definitely
+	bool claimCurrentFile(int32_t mayDoPitchDetection = 1, int32_t mayDoSingleCycle = 1, int32_t mayDoWaveTable = 1,
+	                      bool loadWithoutExiting = false); // 0 means no. 1 means auto. 2 means yes definitely
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void exitAndNeverDeleteDrum();
 
-	const char* getName() { return "sample_browser"; }
 	String lastFilePathLoaded;
+
+	// menus to open when a sample file is selected
+	deluge::gui::menu_item::HorizontalMenu* parentMenuHeadingTo{nullptr};
+	MenuItem* menuItemHeadingTo{nullptr};
+
+	// ui
+	UIType getUIType() override { return UIType::SAMPLE_BROWSER; }
 
 protected:
 	void enterKeyPress();
@@ -79,6 +90,8 @@ private:
 	void drawKeysOverWaveform();
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	void possiblySetUpBlinking();
+
+	bool autoLoadEnabled;
 
 	bool currentlyShowingSamplePreview;
 

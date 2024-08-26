@@ -10,13 +10,13 @@ Master MIDI follow mode whereby after setting a master MIDI follow channel for S
 
 Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow feedback channel for mapped MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 
-Comes with an XML file (MIDIFollow.XML) with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
+Comes with an XML file (`SETTINGS/MIDIFollow.XML`) with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
 
 **Simple summary:** 
 - Set your follow and feedback channel(s)
 - Set your MIDI Controller(s) to the same channel(s)
 - Set a root note for your kits
-- Confirm that your controller cc's are mapped to the parameters you want (via MIDIFollow.XML)
+- Confirm that your controller cc's are mapped to the parameters you want (via `SETTINGS/MIDIFollow.XML`)
 - Play and control the deluge instruments and parameters with ease!
 
 **No more re-learning your MIDI controllers every time you start a new song, add new clips or change instrument presets.**
@@ -86,31 +86,48 @@ The parameters are controlled only in the current context.
 - In other words it checks what context you’re in and controls the parameters of that context.
 
 #### Default MIDI CC Mappings
-A default set of MIDI CC # to Deluge Parameter mappings has been created for MIDI Follow Mode. When you launch the Deluge after installing the firmware with MIDI Follow Mode, an XML file will be created to the root folder of the SD card titled "MIDIFollow.XML"
+A default set of MIDI CC # to Deluge Parameter mappings has been created for MIDI Follow Mode. When you launch the Deluge after installing the firmware with MIDI Follow Mode, an XML file will be created in the `SETTINGS` folder in the root of the SD card titled `MIDIFollow.XML`
 
 The default mappings have taken into account standard MIDI CC to parameter mappings and usages. It has also taken into account reserving of MIDI CC's for future Deluge functionality / feature implementations.
 
 The default MIDI CC to parameter mappings, as mapped the to the parameter shortcuts on the Deluge grid are as follows:
 
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/e5c6ecbf-e21e-4b3b-9cfc-8f433a56ed28)
+![image](https://github.com/user-attachments/assets/d0a82d14-99db-4c02-b618-7906238ec2c8)
+
+Additionally, there are other parameters not in the grid that are mapped to MIDI CC's, which are the following:
+- Compressor Threshold: CC 27
+- Stutter Rate: CC 20
+- New arpeggiator parameters:
+  - Rhythm: CC 42
+  - Sequence Length: CC 43
+  - Chord Polyphony: CC 44
+  - Ratchet Amount: CC 45
+  - Note Probability: CC 46
+  - Bass Probability: CC 47
+  - Swap Probability: CC 112
+  - Glide Probability: CC 113
+  - Chord Probability: CC 48
+  - Ratchet Probability: CC 49
+  - Spread Octave: CC 39
+  - Spread Gate: CC 40
 
 > * See Appendix A for detailed listing and description of default CC # to Parameter mappings.
 
 Here are the MIDI CC #'s that have been reserved for other purposes:
 
-![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f076d9c8-d25f-4d13-a631-be552f84d7c8)
+![image](https://github.com/user-attachments/assets/530b8aa7-610c-411a-91b1-c98c3c4034ce)
 
 #### Adjust MIDI CC Mappings
-MIDI CC mappings for MIDI Follow Mode are saved to the root of your SD card in an XML file called MIDIFollow.XML
+MIDI CC mappings for MIDI Follow Mode are saved to the `SETTINGS` folder in the root of your SD card in an XML file called `MIDIFollow.XML`
 
-Within MIDIFollow.XML, all Parameters that can mapped to a MIDI CC are listed. The MIDI CC value is enclosed between a Parameter XML tag - e.g. `<lpfFrequency>74</lpfFrequency>` indicates that MIDI CC 74 is mapped to the LPF Frequency parameter. Conversely when a value of 255 is entered (e.g. `<hpfFrequency>255</hpfFrequency>`) it indicates that no MIDI CC value has been mapped to that parameter.
+Within `MIDIFollow.XML`, all Parameters that can mapped to a MIDI CC are listed. The MIDI CC value is enclosed between a Parameter XML tag - e.g. `<lpfFrequency>74</lpfFrequency>` indicates that MIDI CC 74 is mapped to the LPF Frequency parameter. Conversely when a value of 255 is entered (e.g. `<hpfFrequency>255</hpfFrequency>`) it indicates that no MIDI CC value has been mapped to that parameter.
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/1ae66f8b-1627-4e2f-a05d-fd7a8c73b62f)
-You can manually edit the MIDIFollow.XML to enter your MIDI CC mappings to each Parameter. 
+You can manually edit the `MIDIFollow.XML` to enter your MIDI CC mappings to each Parameter. 
 
-The defaults from MIDIFollow.XML are loaded automatically when you start the Deluge so you can begin controlling the deluge with your MIDI controller right away. 
+The defaults from `MIDIFollow.XML` are loaded automatically when you start the Deluge so you can begin controlling the deluge with your MIDI controller right away. 
 
-Note: A parameter can only be mapped to one MIDI CC. Conversely, a MIDI CC can be mapped to multiple parameters.
+Note: A parameter can only be mapped to one MIDI CC, and viceversa.
 
 #### Display Parameter Names and Values on Screen
 
@@ -172,30 +189,39 @@ In this case, you will need to ensure that MIDI Feedback Filter Responses is set
 
 ## Appendix A - List of Deluge Parameters with Default Mapped CC's
 
-<img width="470" alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/bef76865-e591-415a-9fa7-04c79c8b310d">
+<img width="470" alt="image" src="https://github.com/user-attachments/assets/c9695d8a-04e5-47e7-84d3-fd3889a08385">
 
 ## Appendix B - Loopy Pro Template for Deluge MIDI Follow Mode
 
 For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MIDI Follow Mode Loopy Pro Template]
-- It is setup to send and receive on channel 15 when the Deluge is connected via USB (and detected as “Deluge Port
+- The control surface is located in page "B". Page "A" is just the default page with donuts to loop. You can delete
+  page "A" if you don't need it.
+- Page "C" contains the controls that are doing the heavy lifting of sending/receiving midi so it should NOT be deleted.
+  That is, page "B" are the "user facing" controls, tied to the stepped dials from page "C".
+- The controls are set up to send and receive on channel 15 when the Deluge is connected via USB (and detected as “Deluge Port
   1”), so you must go to your Deluge, and do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> CHANNEL A,
-  and set it to 15. In case your port is detected with a different name in Loopy (it could happen if the language of your
-  iOS device is not English), like for example "Deluge **Puerto** 1" (in Spanish), you can always transfer the existing
-  midi bindings from one port to the other by going to Loopy's Menu -> Control Settings -> Current Project -> Default ->
-  look for the "Deluge Port 1" section and tap on "TRANSFER" to copy or move all the midi bindings to the real
-  port name of your Deluge.
-- As a bonus, this project also contains a page "B" with controls for the Song's global parameters, which must be learned
-  individually (not part of MIDI Follow). To do that, go to Deluge Song view, click Select button to enter the
-  Song menu, go to each parameter (Volume, Pan, LPF Freq, etc), hold Learn button and then move the knobs and
-  faders within page "B" of Loopy's project.
-- Pages "C" and "D" are the controls that are doing the heavy lifting of sending/receiving midi so they can't be deleted.
-  Pages "A" and "B" are just the "user facing" controls, tied to the stepped dials from the other two pages.
+  and set it to 15.
 - **How to setup Feedback:** In Loopy, go to Menu -> Control Settings -> MIDI Devices section -> Deluge Port 1 -> make sure
   that Feedback switch is enabled.
   In your Deluge, do Shift + Select to enter the main menu, go to MIDI -> MIDI-FOLLOW -> FEEDBACK. Here you can select the
   Channel to send feedback to, the Rate at which feedback is sent for Automation, and you must set Filter Responses to DISABLED.
+- **Troubleshooting:**
+  - In case your port is detected with a different name in Loopy (it could happen if the language of your
+    iOS device is not English), like for example "Deluge **Puerto** 1" (in Spanish), you can always transfer the existing
+    midi bindings from one port to the other by going to Loopy's Menu -> Control Settings -> Current Project -> Default ->
+    look for the "Deluge Port 1" section and tap on "TRANSFER" to copy or move all the midi bindings to the real
+    port name of your Deluge.
+  - In case you already have a Loopy Pro project or template and you want to import the MIDI follow control surface into it, do
+    the following:
+    - Open the "Deluge Midi Follow"project and go to Settings -> Control Settings -> Current Project -> click "Midi Follow" profile.
+    - On the top right click "TRANSFER" and copy it to Global Profiles.
+    - Open your project and go to Settings -> Control Settings -> Global -> click "Midi Follow" profile.
+    - On the top right click "TRANSFER" and copy it to Current Project. Ok, now the MIDI bindings are imported. Now we need to import
+      the widgets.
+    - Open again the "Deluge Midi Follow" project and click the pencil to edit the UI, and drag a rectangle selection all the page.
+      Copy it, open your own project and in an empy page, paste it. Do the same with the other page with Stepped Dials.
 
-<img alt="image" src="https://github.com/SynthstromAudible/DelugeFirmware/blob/316279c5e091cdeb7d50828e407789966fb53abc/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.jpg">
+<img alt="image" src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/community/contrib/midi_follow/loopy_pro/loopy-pro-template-snapshot.png">
 
 ## Appendix C - Touch OSC Template for Deluge MIDI Follow Mode
 

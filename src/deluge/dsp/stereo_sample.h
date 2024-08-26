@@ -23,18 +23,18 @@
 #include "util/functions.h"
 
 struct StereoSample {
-	inline void addMono(q31_t sampleValue) {
+	[[gnu::always_inline]] void addMono(q31_t sampleValue) {
 		l += sampleValue;
 		r += sampleValue;
 	}
 
 	// Amplitude is probably Q2.29?
-	inline void addPannedMono(q31_t sampleValue, int32_t amplitudeL, int32_t amplitudeR) {
+	[[gnu::always_inline]] void addPannedMono(q31_t sampleValue, int32_t amplitudeL, int32_t amplitudeR) {
 		l += (multiply_32x32_rshift32(sampleValue, amplitudeL) << 2);
 		r += (multiply_32x32_rshift32(sampleValue, amplitudeR) << 2);
 	}
 
-	inline void addStereo(q31_t sampleValueL, q31_t sampleValueR) {
+	[[gnu::always_inline]] void addStereo(q31_t sampleValueL, q31_t sampleValueR) {
 		l += sampleValueL;
 		r += sampleValueR;
 	}
@@ -45,6 +45,7 @@ struct StereoSample {
 		    .r = r + rhs.r,
 		};
 	}
+
 	[[gnu::always_inline]] constexpr StereoSample& operator+=(const StereoSample& rhs) {
 		l = l + rhs.l;
 		r = r + rhs.r;
@@ -52,11 +53,13 @@ struct StereoSample {
 	}
 
 	// Amplitude is probably Q2.29?
-	inline void addPannedStereo(q31_t sampleValueL, q31_t sampleValueR, int32_t amplitudeL, int32_t amplitudeR) {
+	[[gnu::always_inline]] void addPannedStereo(q31_t sampleValueL, q31_t sampleValueR, int32_t amplitudeL,
+	                                            int32_t amplitudeR) {
 		l += (multiply_32x32_rshift32(sampleValueL, amplitudeL) << 2);
 		r += (multiply_32x32_rshift32(sampleValueR, amplitudeR) << 2);
 	}
 
-	q31_t l = 0;
-	q31_t r = 0;
+	// Sean: don't initialize l and r to 0 as this introduces performance issues
+	q31_t l;
+	q31_t r;
 };

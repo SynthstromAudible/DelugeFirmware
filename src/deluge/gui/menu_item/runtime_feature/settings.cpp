@@ -30,51 +30,49 @@ namespace deluge::gui::menu_item::runtime_feature {
 SettingToggle menuDrumRandomizer(RuntimeFeatureSettingType::DrumRandomizer);
 SettingToggle menuFineTempo(RuntimeFeatureSettingType::FineTempoKnob);
 SettingToggle menuQuantize(RuntimeFeatureSettingType::Quantize);
-SettingToggle menuPatchCableResolution(RuntimeFeatureSettingType::PatchCableResolution);
 SettingToggle menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 SettingToggle menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 SettingToggle menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
-SettingToggle menuQuantizedStutterRate(RuntimeFeatureSettingType::QuantizedStutterRate);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 SettingToggle menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
 SettingToggle menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 ShiftIsSticky menuShiftIsSticky{};
 SettingToggle menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
-SettingToggle menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
 SettingToggle menuEnableDX7Engine(RuntimeFeatureSettingType::EnableDX7Engine);
 EmulatedDisplay menuEmulatedDisplay{};
 SettingToggle menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
 SettingToggle menuEnableLaunchEventPlayhead(RuntimeFeatureSettingType::EnableLaunchEventPlayhead);
 SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyboard);
 SettingToggle menuAlternativePlaybackStartBehaviour(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour);
-SettingToggle menuAccessibilityShortcuts(RuntimeFeatureSettingType::AccessibilityShortcuts);
 SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridViewLoopPads);
+SettingToggle menuAlternativeTapTempoBehaviour(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour);
+SettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
+SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
     &menuFineTempo,
     &menuQuantize,
-    &menuPatchCableResolution,
     &menuCatchNotes,
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,
-    &menuQuantizedStutterRate,
     &menuDevSysexAllowed,
     &menuSyncScalingAction,
     &menuHighlightIncomingNotes,
     &menuDisplayNornsLayout,
     &menuShiftIsSticky,
     &menuLightShiftLed,
-    &menuEnableGrainFX,
     &menuEnableDX7Engine,
     &menuEmulatedDisplay,
     &menuEnableKeyboardViewSidebarMenuExit,
     &menuEnableLaunchEventPlayhead,
     &menuDisplayChordLayout,
     &menuAlternativePlaybackStartBehaviour,
-    &menuAccessibilityShortcuts,
-    &menuEnableGridViewLoopPads};
+    &menuEnableGridViewLoopPads,
+    &menuAlternativeTapTempoBehaviour,
+    &menuHorizontalMenus,
+    &menuTrimFromStartOfAudioClip};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }

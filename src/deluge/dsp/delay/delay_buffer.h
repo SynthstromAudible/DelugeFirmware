@@ -59,6 +59,19 @@ public:
 		}
 		return (longPos >> 8) & 65535;
 	}
+	template <typename C>
+	[[gnu::always_inline]] constexpr int32_t retreat(C callback) {
+		longPos -= resample_config_.value().actualSpinRate;
+		uint8_t newShortPos = longPos >> 24;
+		uint8_t shortPosDiff = lastShortPos - newShortPos; // backward diff
+		lastShortPos = newShortPos;
+
+		while (shortPosDiff > 0) {
+			callback();
+			shortPosDiff--;
+		}
+		return (longPos >> 8) & 65535; // return pos
+	}
 
 	void setupForRender(int32_t rate);
 
@@ -79,6 +92,17 @@ public:
 			current_ = start_;
 		}
 		return wrapped;
+	}
+
+	inline bool moveBack() {
+		if (current_ == start_) {
+			current_ = end_ - 1; // wrap around to last element
+			return true;
+		}
+		else {
+			--current_;   // move back
+			return false; // no wrap
+		}
 	}
 
 	inline void writeNative(StereoSample toDelay) {

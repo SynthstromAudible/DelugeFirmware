@@ -32,9 +32,6 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 
-ClipView::ClipView() {
-}
-
 uint32_t ClipView::getMaxZoom() {
 	return getCurrentClip()->getMaxZoom();
 }
@@ -97,6 +94,11 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 		ActionType actionType = (newLength < getCurrentClip()->loopLength) ? ActionType::CLIP_LENGTH_DECREASE
 		                                                                   : ActionType::CLIP_LENGTH_INCREASE;
 
+		// If we are in middle of PATTERN_PASTE Action -> Resize need to be part of preview Pattern
+		if (actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+			actionType = ActionType::PATTERN_PASTE;
+		}
+
 		action = actionLogger.getNewAction(actionType, ActionAddition::ALLOWED);
 		if (action && action->currentClip != getCurrentClip()) {
 			action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
@@ -123,9 +125,15 @@ Action* ClipView::shortenClip(int32_t newLength) {
 
 	Action* action = NULL;
 
-	action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::ALLOWED);
-	if (action && action->currentClip != getCurrentClip()) {
-		action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::NOT_ALLOWED);
+	// If we are in middle of pasting Pattern ACtion -> Resize is part of preview Pattern
+	if (actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
+		action = actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
+	}
+	else {
+		action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::ALLOWED);
+		if (action && action->currentClip != getCurrentClip()) {
+			action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::NOT_ALLOWED);
+		}
 	}
 
 	currentSong->setClipLength(
@@ -203,7 +211,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 
 		// If possible, just modify a previous Action to add this new shift amount to it.
 		Action* action = actionLogger.firstAction[BEFORE];

@@ -53,9 +53,3 @@ uint32_t getTimerValue(int timerNo)
 {
     return OSTimers[timerNo]->OSTMnCNT;
 }
-
-double getTimerValueSeconds(int timerNo)
-{
-    double seconds = getTimerValue(timerNo) * ONE_OVER_CLOCK;
-    return seconds;
-}

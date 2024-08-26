@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
+#include "gui/views/session_view.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 
@@ -28,27 +29,15 @@ namespace deluge::gui::context_menu {
 
 enum class AudioInputSelector::Value {
 	OFF,
-
 	LEFT,
-	LEFT_ECHO,
-
 	RIGHT,
-	RIGHT_ECHO,
-
 	STEREO,
-	STEREO_ECHO,
-
 	BALANCED,
-	BALANCED_ECHO,
-
 	MASTER,
-
 	OUTPUT,
-
 	TRACK,
-	TRACK_FX,
 };
-constexpr size_t kNumValues = 13;
+constexpr size_t kNumValues = 8;
 
 AudioInputSelector audioInputSelector{};
 
@@ -57,22 +46,12 @@ char const* AudioInputSelector::getTitle() {
 	return l10n::get(STRING_FOR_AUDIO_SOURCE);
 }
 
-Sized<const char**> AudioInputSelector::getOptions() {
+std::span<const char*> AudioInputSelector::getOptions() {
 	using enum l10n::String;
 	static const char* options[] = {
-	    l10n::get(STRING_FOR_DISABLED),
-	    l10n::get(STRING_FOR_LEFT_INPUT),
-	    l10n::get(STRING_FOR_LEFT_INPUT_MONITORING),
-	    l10n::get(STRING_FOR_RIGHT_INPUT),
-	    l10n::get(STRING_FOR_RIGHT_INPUT_MONITORING),
-	    l10n::get(STRING_FOR_STEREO_INPUT),
-	    l10n::get(STRING_FOR_STEREO_INPUT_MONITORING),
-	    l10n::get(STRING_FOR_BALANCED_INPUT),
-	    l10n::get(STRING_FOR_BALANCED_INPUT_MONITORING),
-	    l10n::get(STRING_FOR_MIX_PRE_FX),
-	    l10n::get(STRING_FOR_MIX_POST_FX),
-	    l10n::get(STRING_FOR_TRACK),
-	    l10n::get(STRING_FOR_TRACK_WITH_FX),
+	    l10n::get(STRING_FOR_DISABLED),     l10n::get(STRING_FOR_LEFT_INPUT),     l10n::get(STRING_FOR_RIGHT_INPUT),
+	    l10n::get(STRING_FOR_STEREO_INPUT), l10n::get(STRING_FOR_BALANCED_INPUT), l10n::get(STRING_FOR_MIX_PRE_FX),
+	    l10n::get(STRING_FOR_MIX_POST_FX),  l10n::get(STRING_FOR_TRACK),
 	};
 	return {options, kNumValues};
 }
@@ -115,9 +94,6 @@ bool AudioInputSelector::setupAndCheckAvailability() {
 
 	currentOption = static_cast<int32_t>(valueOption);
 
-	if (audioOutput->echoing) {
-		currentOption += 1;
-	}
 	scrollPos = currentOption;
 	return true;
 }
@@ -134,31 +110,22 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	ContextMenu::selectEncoderAction(offset);
 
-	audioOutput->echoing = false;
-
 	auto valueOption = static_cast<Value>(currentOption);
 
 	switch (valueOption) {
-	case Value::LEFT_ECHO:
-		audioOutput->echoing = true;
+
 	case Value::LEFT:
 		audioOutput->inputChannel = AudioInputChannel::LEFT;
 		break;
 
-	case Value::RIGHT_ECHO:
-		audioOutput->echoing = true;
 	case Value::RIGHT:
 		audioOutput->inputChannel = AudioInputChannel::RIGHT;
 		break;
 
-	case Value::STEREO_ECHO:
-		audioOutput->echoing = true;
 	case Value::STEREO:
 		audioOutput->inputChannel = AudioInputChannel::STEREO;
 		break;
 
-	case Value::BALANCED_ECHO:
-		audioOutput->echoing = true;
 	case Value::BALANCED:
 		audioOutput->inputChannel = AudioInputChannel::BALANCED;
 		break;
@@ -172,11 +139,7 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 		break;
 	case Value::TRACK:
 		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
-		audioOutput->setOutputRecordingFrom(currentSong->getOutputFromIndex(0), false);
-		break;
-	case Value::TRACK_FX:
-		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
-		audioOutput->setOutputRecordingFrom(currentSong->getOutputFromIndex(0), true);
+		audioOutput->setOutputRecordingFrom(currentSong->getOutputFromIndex(0));
 		break;
 
 	default:
@@ -184,6 +147,27 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	}
 
 	defaultAudioOutputInputChannel = audioOutput->inputChannel;
+}
+// if they're in session view and press a clip's pad, record from that output
+ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
+	if (on && getUIUpOneLevel() == &sessionView) {
+		auto track = (&sessionView)->getOutputFromPad(x, y);
+		if (track && track->type != OutputType::MIDI_OUT && track->type != OutputType::CV) {
+			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+			audioOutput->setOutputRecordingFrom(track);
+			display->popupTextTemporary(track->name.get());
+			// sets scroll to the position of specific output
+			scrollPos = static_cast<int32_t>(Value::TRACK);
+			currentOption = scrollPos;
+			renderUIsForOled();
+		}
+		else if (track) {
+			display->popupTextTemporary("Can't record MIDI or CV!");
+		}
+
+		return ActionResult::DEALT_WITH;
+	}
+	return ContextMenu::padAction(x, y, on);
 }
 
 } // namespace deluge::gui::context_menu

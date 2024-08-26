@@ -68,7 +68,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::SAMPLE_MARKER_EDITOR; }
-	const char* getName() { return "sampler_marker_editor"; }
 	bool exitUI() override;
 
 private:

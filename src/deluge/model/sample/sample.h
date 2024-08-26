@@ -34,8 +34,8 @@
 #define RAW_DATA_ENDIANNESS_WRONG_24 4
 #define RAW_DATA_ENDIANNESS_WRONG_32 5
 
-#define MIDI_NOTE_UNSET -999
-#define MIDI_NOTE_ERROR -1000
+const float MIDI_NOTE_UNSET = (-999);
+const float MIDI_NOTE_ERROR = (-1000);
 
 class LoadedSamplePosReason;
 class SampleCache;
@@ -98,6 +98,7 @@ public:
 	uint32_t audioDataStartPosBytes; // That is, the offset from the start of the WAV file
 	uint64_t audioDataLengthBytes;
 	uint32_t bitMask;
+	bool audioStartDetected;
 
 	uint64_t lengthInSamples;
 

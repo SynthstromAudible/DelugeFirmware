@@ -291,10 +291,12 @@ RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
 	return colourSource;
 }
 
+void set(Cartesian pad, RGB colour) {
+	image[pad.y][pad.x] = colour;
+}
+
 void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t green, uint8_t blue) {
-	image[yDisplay][sideBarX + kDisplayWidth][0] = red;
-	image[yDisplay][sideBarX + kDisplayWidth][1] = green;
-	image[yDisplay][sideBarX + kDisplayWidth][2] = blue;
+	image[yDisplay][sideBarX + kDisplayWidth] = RGB(red, green, blue);
 }
 
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
@@ -429,7 +431,7 @@ void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
 	clipLength = clip->loopLength;
 	audioClipColour = clip->getColour();
 
-	sampleReversed = clip->sampleControls.reversed;
+	sampleReversed = clip->sampleControls.isCurrentlyReversed();
 
 	Sample* sample = (Sample*)clip->sampleHolder.audioFile;
 
@@ -1242,7 +1244,7 @@ void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inIma
 		innerImage += innerImageTotalWidth * 3;
 		outerImage += outerImageTotalWidth * 3;
 	}
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	AudioEngine::routineWithClusterLoading();
 }
 
 void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSquareEndOnSourceImage,

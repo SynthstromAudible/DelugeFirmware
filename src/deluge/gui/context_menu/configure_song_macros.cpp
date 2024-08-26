@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright (c) 2024 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -42,7 +42,7 @@ char const* ConfigureSongMacros::getTitle() {
 	return l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_SHORT);
 }
 
-Sized<char const**> ConfigureSongMacros::getOptions() {
+std::span<char const*> ConfigureSongMacros::getOptions() {
 	using enum l10n::String;
 
 	if (display->haveOLED()) {
@@ -80,17 +80,18 @@ ActionResult ConfigureSongMacros::buttonAction(deluge::hid::Button b, bool on, b
 }
 
 ActionResult ConfigureSongMacros::padAction(int32_t x, int32_t y, int32_t on) {
-	if (on) {
-		if (sdRoutineLock) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-		// don't allow user to switch modes
-		if (x <= kDisplayWidth) {
-			return sessionView.gridHandlePads(x, y, on);
-		}
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-
-	return ActionResult::DEALT_WITH;
+	// don't allow user to switch modes
+	if (x <= kDisplayWidth) {
+		return sessionView.gridHandlePads(x, y, on);
+	}
+	// exit menu with audition pad column
+	else {
+		sessionView.exitMacrosConfigMode();
+		return ContextMenu::padAction(x, y, on);
+	}
 }
 
 // renders the selected macro slots kind in the context menu

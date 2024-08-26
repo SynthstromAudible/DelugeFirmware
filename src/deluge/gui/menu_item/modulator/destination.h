@@ -18,25 +18,54 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/instrument/kit.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::modulator {
 class Destination final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->modulator1ToModulator0); }
-	void writeCurrentValue() override { soundEditor.currentSound->modulator1ToModulator0 = this->getValue(); }
-	deluge::vector<std::string_view> getOptions() override {
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		int32_t current_value = this->getValue();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+					// Note: we need to apply the same filtering as stated in the isRelevant() function
+					if (soundDrum->synthMode == SynthMode::FM) {
+						soundDrum->modulator1ToModulator0 = current_value;
+					}
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentSound->modulator1ToModulator0 = current_value;
+		}
+	}
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
-		static auto mod1 = l10n::getView(STRING_FOR_MODULATOR_1);
 		return {
 		    l10n::getView(STRING_FOR_CARRIERS),
-		    mod1,
+		    optType == OptType::SHORT ? l10n::getView(l10n::built_in::seven_segment, STRING_FOR_MODULATOR_1)
+		                              : l10n::getView(STRING_FOR_MODULATOR_1),
 		};
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (whichThing == 1 && sound->synthMode == SynthMode::FM);
+		return sound->synthMode == SynthMode::FM;
 	}
 };
 

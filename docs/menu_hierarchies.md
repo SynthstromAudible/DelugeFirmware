@@ -104,6 +104,8 @@ The Settings menu contains the following menu hierarchy:
 		- Loop
 		- Layering Loop (LAYE)
 		- Fill
+		- Transpose (TRAN)
+		- Load Next Song (SONG)
 	- Differentiate Inputs (DIFF)
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -156,6 +158,7 @@ The Settings menu contains the following menu hierarchy:
 			- Layout (LAYT)
 				- Isomorphic (ISO)
 				- In-Key (INKY)
+				- Piano (PIAN)
 			- Sidebar Controls (CTRL)
 				- Momentary Velocity (MVEL)
 					- Disabled (OFF)
@@ -163,6 +166,10 @@ The Settings menu contains the following menu hierarchy:
 				- Momentary Modwheel (MMOD)
 					- Disabled (OFF)
 					- Enabled (ON)
+			- Favourites (FAV)
+				- Favourites Only (16)
+				- Favourites and Banks (256)
+				- Off (OFF)
 		- Clip Type (CLIP)
 			- New Clip Type (TYPE)
 				- Synth
@@ -171,6 +178,10 @@ The Settings menu contains the following menu hierarchy:
 				- CV
 				- Audio
 			- Use Last Clip Type (LAST)
+				- Disabled (OFF)
+				- Enabled (ON)
+		- Horizontal Menu (HORZ)
+			- Alternative Select Behaviour (SELE)
 				- Disabled (OFF)
 				- Enabled (ON)
 	- Automation (AUTO)
@@ -338,6 +349,15 @@ NOTE: These options can change depending on how your default resolution is set
 		- Conditional (COND)
 		- Enabled (ON)
 		- Disabled (OFF)
+	- Threshold Recording (THRE)
+		- Mode
+			- Disabled (OFF)
+			- Low
+			- Medium
+			- High
+	- Loop Command (LOOP)
+		- Loop
+		- Layering Loop
 </details>
 
 <details><summary>Community Features (FEAT)</summary>
@@ -364,6 +384,9 @@ NOTE: These options can change depending on how your default resolution is set
 		- OFF
 		- ON
 	- Stutter Rate Quantize (STUT)
+		- OFF
+		- ON
+  	- Reverse Stutter Rate (RSTUT)
 		- OFF
 		- ON
 	- Allow Insecure Develop Sysex Messages (SYSX)
@@ -410,6 +433,9 @@ NOTE: These options can change depending on how your default resolution is set
 		- OFF
 		- ON
 	- Grid View Loop Pads (LOOP)
+		- OFF
+		- ON
+	- Trim from start of audio clips (TRIM)
 		- OFF
 		- ON
 </details>
@@ -535,6 +561,16 @@ The Song menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+	
+	- Stutter (STUT)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
+
+	- Stutter (STUT)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type
@@ -543,18 +579,21 @@ The Song menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Decimation (DECI)
 		- Bitcrush (CRUS)
 </details>
 <details><summary>Swing Interval (SWII)</summary></details>
 <details><summary>Active Scales</summary>
-
 	- Major (MAJO)
 	- Minor (MINO)
 	- Dorian (DORI)
@@ -575,6 +614,7 @@ The Song menu contains the following menu hierarchy:
 	- None
 </details>
 <details><summary>Configure Macros (MACR)</summary></details>
+<details><summary>Midi Learn (MIDI)</summary></details>
 <details><summary>Audio Export (EXPO)</summary>
 
 	- Start Export (EXPO)
@@ -589,6 +629,9 @@ The Song menu contains the following menu hierarchy:
 			- Disabled (OFF)
 			- Enabled (ON)
 		- Offline Rendering (OFFR)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Export Mixdown (MIXD)
 			- Disabled (OFF)
 			- Enabled (ON)
 </details>
@@ -641,11 +684,11 @@ The Sound menu contains the following menu hierarchy:
 </details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
+	- Enabled (ON)
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
 
 			- Off
 			- 2-Bar
@@ -675,30 +718,52 @@ The Sound menu contains the following menu hierarchy:
 			- 32nd-DTTED
 			- 64th-DTTED
 			- 128th-DTTED
-	- Rate
-	- Gate
-	- Octaves (OCTA)
-	- Octave Mode (OMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- Alternate (ALT)
-		- Random (RAND)
-	- Note Mode (NMOD) (NOTE: Available in Synth sounds but not in Kit sounds)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- As Played (PLAY)
-		- Random (RAND)
-	- Rhythm (RHYT)
-	- Sequence Length (LENG)
-	- Ratchet Amount (RATC)
-	- Ratchet Probability (RPRO)
+		- Rate
+	- Pattern
+		- Octaves (OCTA)
+		- Octave Mode (OMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Alternate (ALT)
+			- Random (RAND)
+		- Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
+		- Note Mode (NMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
+	- Randomizer
+		- Lock Randomizer (LOCK)
+		- Octave Spread (OCTA)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+		- Chord Polyphony (CHRD) (NOTE: NOT available for Sound Kit Rows)
+		- Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
+    	- Note Probability (NOTE)
+    	- Swap Probability (SWAP)
+    	- Bass Probability (BASS)
+    	- Glide Probability (GLID)
+    	- Reverse Probability (RVRS)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+	- Include in Kit Arp (KARP) (NOTE: available only for Kit Rows)
+</details>
+
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
+	- Reverse Probability (RVRS)
 </details>
 <details><summary>Compressor (COMP)</summary>
 
@@ -792,6 +857,18 @@ The Sound menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+	
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
+
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type
@@ -800,11 +877,15 @@ The Sound menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Saturation (SATU)
 		- Decimation (DECI)
@@ -952,7 +1033,6 @@ The Sound menu contains the following menu hierarchy:
 		- Saw
 		- S&H (S H)
 		- Random Walk (RWLK)
-	- Rate
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
 
@@ -984,6 +1064,7 @@ The Sound menu contains the following menu hierarchy:
 		- 32nd-DTTED
 		- 64th-DTTED
 		- 128th-DTTED
+	- Rate
 </details>
 <details><summary>LFO2 </summary>
 
@@ -994,6 +1075,37 @@ The Sound menu contains the following menu hierarchy:
 		- Saw
 		- S&H (S H)
 		- Random Walk (RWLK)
+	- Sync
+	NOTE: These options can change depending on how your default resolution is set
+
+		- Off
+		- 2-Bar
+		- 1-Bar
+		- 2nd-Notes
+		- 4th-Notes
+		- 8th-Notes
+		- 16th-Notes
+		- 32nd-Notes
+		- 64th-Notes
+		- 128th-Notes
+		- 2-Bar-TPLTS
+		- 1-Bar-TPLTS
+		- 2nd-TPLTS
+		- 4th-TPLTS
+		- 8th-TPLTS
+		- 16th-TPLTS
+		- 32nd-TPLTS
+		- 64th-TPLTS
+		- 128th-TPLTS
+		- 2-Bar-DTTED
+		- 1-Bar-DTTED
+		- 2nd-DTTED
+		- 4th-DTTED
+		- 8th-DTTED
+		- 16th-DTTED
+		- 32nd-DTTED
+		- 64th-DTTED
+		- 128th-DTTED
 	- Rate
 </details>
 <details><summary>Voice (VOIC) </summary>
@@ -1026,6 +1138,11 @@ The Sound menu contains the following menu hierarchy:
 	- Reversed
 	- Ping-Pong
 </details>
+<details><summary>MIDI</summary>
+
+	- Channel
+	- Note (only available for Kits)
+</details>
 
 </details>
 
@@ -1042,6 +1159,65 @@ The Kit FX menu contains the following menu hierarchy:
 	- Volume (VOLU)
 	- Pitch (PITC)
 	- Pan
+</details>
+<details><summary>Kit Arpeggiator (KARP)</summary>
+
+	- Enabled (ON)
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
+
+			- Off
+			- 2-Bar
+			- 1-Bar
+			- 2nd-Notes
+			- 4th-Notes
+			- 8th-Notes
+			- 16th-Notes
+			- 32nd-Notes
+			- 64th-Notes
+			- 128th-Notes
+			- 2-Bar-TPLTS
+			- 1-Bar-TPLTS
+			- 2nd-TPLTS
+			- 4th-TPLTS
+			- 8th-TPLTS
+			- 16th-TPLTS
+			- 32nd-TPLTS
+			- 64th-TPLTS
+			- 128th-TPLTS
+			- 2-Bar-DTTED
+			- 1-Bar-DTTED
+			- 2nd-DTTED
+			- 4th-DTTED
+			- 8th-DTTED
+			- 16th-DTTED
+			- 32nd-DTTED
+			- 64th-DTTED
+			- 128th-DTTED
+		- Rate
+	- Pattern
+		- Note Mode (NMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
+	- Randomizer
+		- Lock Randomizer (LOCK)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+    	- Note Probability (NOTE)
+    	- Swap Probability (SWAP)
+    	- Bass Probability (BASS)
+    	- Glide Probability (GLID)
+    	- Reverse Probability (RVRS)
 </details>
 <details><summary>Compressor (COMP)</summary>
 
@@ -1135,6 +1311,18 @@ The Kit FX menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+	
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
+
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type
@@ -1143,11 +1331,15 @@ The Kit FX menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Decimation (DECI)
 		- Bitcrush (CRUS)
@@ -1201,16 +1393,25 @@ The MIDI Instrument menu is accessible from MIDI clips by pressing on the `SELEC
 The MIDI menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Device Definition (DEVI)</summary></details>
+
+	This submenu will indicate whether the current MIDI Instrument in the Song is linked to a MIDI Device Definition file.
+
+	- File Linked (LINK)
+		- Unlinked
+		- Linked
+	- File Name of Linked File
+
 <details><summary>PGM</summary></details>
 <details><summary>Bank</summary></details>
 <details><summary>Sub-Bank (SUB)</summary></details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
+	- Enabled (ON)
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
 
 			- Off
 			- 2-Bar
@@ -1240,30 +1441,49 @@ The MIDI menu contains the following menu hierarchy:
 			- 32nd-DTTED
 			- 64th-DTTED
 			- 128th-DTTED
-	- Rate
-	- Gate
-	- Octaves (OCTA)
-	- Octave Mode (OMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- Alternate (ALT)
-		- Random (RAND)
-	- Note Mode (NMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- As Played (PLAY)
-		- Random (RAND)
-	- Rhythm (RHYT)
-	- Sequence Length (LENG)
-	- Ratchet Amount (RATC)
-	- Ratchet Probability (RPRO)
+		- Rate
+	- Pattern
+		- Octaves (OCTA)
+		- Octave Mode (OMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Alternate (ALT)
+			- Random (RAND)
+		- Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
+		- Note Mode (NMOD)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
+	- Randomizer
+		- Lock Randomizer (LOCK)
+		- Octave Spread (OCTA)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+		- Chord Polyphony (CHRD) (NOTE: NOT available for Midi Kit Rows)
+		- Chord Probability (CPRO) (NOTE: NOT available for Midi Kit Rows)
+    	- Note Probability (NOTE)
+    	- Swap Probability (SWAP)
+    	- Bass Probability (BASS)
+    	- Glide Probability (GLID)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+	- Include in Kit Arp (KARP) (NOTE: available only for Kit Rows)
+</details>
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1298,11 +1518,11 @@ The CV menu contains the following menu hierarchy:
 <blockquote>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
+	- Enabled (ON)
+	- Basic
+		- Gate
+		- Sync
+		NOTE: These options can change depending on how your default resolution is set
 
 			- Off
 			- 2-Bar
@@ -1332,35 +1552,223 @@ The CV menu contains the following menu hierarchy:
 			- 32nd-DTTED
 			- 64th-DTTED
 			- 128th-DTTED
-	- Rate
-	- Gate
-	- Octaves (OCTA)
-	- Octave Mode (OMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- Alternate (ALT)
-		- Random (RAND)
-	- Note Mode (NMOD)
-		- Up
-		- Down
-		- Up & Down (UPDN)
-		- As Played (PLAY)
-		- Random (RAND)
-	- Rhythm (RHYT)
-	- Sequence Length (LENG)
-	- Ratchet Amount (RATC)
-	- Ratchet Probability (RPRO)
-	- MPE
+		- Rate
+	- Pattern
+		- Octaves (OCTA) (NOTE: NOT available for Gate Kit Rows)
+		- Octave Mode (OMOD) (NOTE: NOT available for Gate Kit Rows)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Alternate (ALT)
+			- Random (RAND)
+		- Chord Simulator (CSIM) (NOTE: NOT available for Gate Kit Rows)
+		- Note Mode (NMOD) (NOTE: NOT available for Gate Kit Rows)
+			- Up
+			- Down
+			- Up & Down (UPDN)
+			- Played Order (PLAY)
+			- Random (RAND)
+		- Step Repeat (REPE) (NOTE: NOT available for Gate Kit Rows)
+		- Rhythm (RHYT)
+		- Sequence Length (LENG)
+	- Randomizer
+		- Lock Randomizer (LOCK)
+		- Octave Spread (OCTA) (NOTE: NOT available for Gate Kit Rows)
+		- Gate Spread (GATE)
+		- Velocity Spread (VELO) (NOTE: NOT available for Gate Kit Rows)
+		- Ratchet Amount (RATC)
+		- Ratchet Probability (RPRO)
+		- Chord Polyphony (CHRD) (NOTE: NOT available for Gate Kit Rows)
+		- Chord Probability (CPRO) (NOTE: NOT available for Gate Kit Rows)
+		- Note Probability (NOTE)
+    	- Swap Probability (SWAP) (NOTE: NOT available for Gate Kit Rows)
+    	- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
+    	- Glide Probability (GLID) (NOTE: NOT available for Gate Kit Rows)
+	- MPE (NOTE: NOT available for Gate Kit Rows)
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+	- Include in Kit Arp (KARP) (NOTE: available only for Kit Rows)
+</details>
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
+	- Note Probability (NOTE)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
 	- Normal (NORM)
 	- Poly / Finger / MPE (MPE)
+</details>
+<details><summary>CV 2 Source (CV2) </summary>
+	NOTE: This menu only becomes available if you set the CV / Gate channel to `1 AND 2 (BOTH)`
+
+	- OFF
+	- Y
+	- Aftertouch
+	- Velocity
+</details>
+
+<details><summary>Play Direction (DIRE) </summary>
+
+	- Forward
+	- Reversed
+	- Ping-Pong
+</details>
+
+</details>
+
+<details>
+<summary>Instrument Clip Note Editor Menu</summary>
+
+The Note Editor menu is accessible from Instrument Clips (Synth / Kit / MIDI / CV) by holding a `NOTE` pressing on the `SELECT ENCODER`.
+
+This menu enables you to edit note specific parameters for a note in a selected step. If there are multiple notes in a step (e.g. it is a blurred note), it will adjust all notes in that step.
+
+The Note Editor menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Note Velocity (VELO)</summary>
+</details>
+<details><summary>Note Probability (PROB)</summary>
+</details>
+<details><summary>Note Iterance (ITER)</summary>
+
+	- 1 OF 2 (1OF2)
+	- 2 OF 2 (2OF2)
+
+	- 1 OF 3 (1OF3)
+	- 2 OF 3 (2OF3)
+	- 3 OF 3 (3OF3)
+
+	- 1 OF 4 (1OF4)
+	- 2 OF 4 (2OF4)
+	- 3 OF 4 (3OF4)
+	- 4 OF 4 (4OF4)
+
+	- 1 OF 5 (1OF5)
+	- 2 OF 5 (2OF5)
+	- 3 OF 5 (3OF5)
+	- 4 OF 5 (4OF5)
+	- 5 OF 5 (5OF5)
+
+	- 1 OF 6 (1OF6)
+	- 2 OF 6 (2OF6)
+	- 3 OF 6 (3OF6)
+	- 4 OF 6 (4OF6)
+	- 5 OF 6 (5OF6)
+	- 6 OF 6 (6OF6)
+
+	- 1 OF 7 (1OF7)
+	- 2 OF 7 (2OF7)
+	- 3 OF 7 (3OF7)
+	- 4 OF 7 (4OF7)
+	- 5 OF 7 (5OF7)
+	- 6 OF 7 (6OF7)
+	- 7 OF 7 (7OF7)
+
+	- 1 OF 8 (1OF8)
+	- 2 OF 8 (2OF8)
+	- 3 OF 8 (3OF8)
+	- 4 OF 8 (4OF8)
+	- 5 OF 8 (5OF8)
+	- 6 OF 8 (6OF8)
+	- 7 OF 8 (7OF8)
+	- 8 OF 8 (8OF8)
+
+	- CUSTOM
+		- Divisor (DIV)
+		- Iteration 1 (IT 1)
+		- Iteration 2 (IT 2)
+		- Iteration 3 (IT 3)
+		- Iteration 4 (IT 4)
+		- Iteration 5 (IT 5)
+		- Iteration 6 (IT 6)
+		- Iteration 7 (IT 7)
+		- Iteration 8 (IT 1)
+</details>
+<details><summary>Note Fill (FILL)</summary>
+
+	- OFF
+	- NOT FILL
+	- FILL
+</details>
+
+</details>
+
+<details>
+<summary>Instrument Clip Note Row Editor Menu</summary>
+
+The Note Row Editor menu is accessible from Instrument Clips (Synth / Kit / MIDI / CV) by holding an `AUDITION PAD` and pressing on the `SELECT ENCODER`.
+
+This menu enables you to edit note row specific parameters for a selected note row. Adjusting a note row parameter will change that parameter for all notes in the note row.
+
+The Note Row Editor menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Row Probability (PROB)</summary>
+</details>
+<details><summary>Row Iterance (ITER)</summary>
+
+	- 1 OF 2 (1OF2)
+	- 2 OF 2 (2OF2)
+
+	- 1 OF 3 (1OF3)
+	- 2 OF 3 (2OF3)
+	- 3 OF 3 (3OF3)
+
+	- 1 OF 4 (1OF4)
+	- 2 OF 4 (2OF4)
+	- 3 OF 4 (3OF4)
+	- 4 OF 4 (4OF4)
+
+	- 1 OF 5 (1OF5)
+	- 2 OF 5 (2OF5)
+	- 3 OF 5 (3OF5)
+	- 4 OF 5 (4OF5)
+	- 5 OF 5 (5OF5)
+
+	- 1 OF 6 (1OF6)
+	- 2 OF 6 (2OF6)
+	- 3 OF 6 (3OF6)
+	- 4 OF 6 (4OF6)
+	- 5 OF 6 (5OF6)
+	- 6 OF 6 (6OF6)
+
+	- 1 OF 7 (1OF7)
+	- 2 OF 7 (2OF7)
+	- 3 OF 7 (3OF7)
+	- 4 OF 7 (4OF7)
+	- 5 OF 7 (5OF7)
+	- 6 OF 7 (6OF7)
+	- 7 OF 7 (7OF7)
+
+	- 1 OF 8 (1OF8)
+	- 2 OF 8 (2OF8)
+	- 3 OF 8 (3OF8)
+	- 4 OF 8 (4OF8)
+	- 5 OF 8 (5OF8)
+	- 6 OF 8 (6OF8)
+	- 7 OF 8 (7OF8)
+	- 8 OF 8 (8OF8)
+
+	- CUSTOM
+		- Divisor (DIV)
+		- Iteration 1 (IT 1)
+		- Iteration 2 (IT 2)
+		- Iteration 3 (IT 3)
+		- Iteration 4 (IT 4)
+		- Iteration 5 (IT 5)
+		- Iteration 6 (IT 6)
+		- Iteration 7 (IT 7)
+		- Iteration 8 (IT 1)
+</details>
+<details><summary>Row Fill (FILL)</summary>
+
+	- OFF
+	- NOT FILL
+	- FILL
 </details>
 <details><summary>Play Direction (DIRE) </summary>
 
@@ -1495,8 +1903,22 @@ The Audio Clip menu contains the following menu hierarchy:
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
   		- HPF (if Mutable is Selected)
 		- Pan
+		- HPF (if Mutable is selected)
+		- LPF (if Mutable is selected)
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+	
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
+
+	- Stutter (STUT)
+		- Use Song Settings (SONG)
+		- Quantize (QTZ)
+		- Reverse (REVE)
+		- Ping-Pong (PING)
 
 	- Mod-FX (MODU)
 		- Type
@@ -1505,11 +1927,15 @@ The Audio Clip menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Saturation (SATU)
 		- Decimation (DECI)

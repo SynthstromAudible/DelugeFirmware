@@ -110,7 +110,7 @@ public:
 
 	specificFilterType getType() { return type; }
 
-	[[nodiscard]] l10n::String getMorphName() const {
+	[[nodiscard]] l10n::String getMorphName(bool shortName = false) const {
 
 		switch (family) {
 		case FilterFamily::LP_LADDER:
@@ -118,7 +118,7 @@ public:
 		case FilterFamily::HP_LADDER:
 			return l10n::String::STRING_FOR_FM;
 		case FilterFamily::SVF:
-			return l10n::String::STRING_FOR_MORPH;
+			return shortName ? l10n::String::STRING_FOR_MORPH_SHORT : l10n::String::STRING_FOR_MORPH;
 		default:
 			return l10n::String::STRING_FOR_NONE;
 		};

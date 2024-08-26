@@ -26,13 +26,12 @@ class NoteRow;
 
 class TimelineView : public RootUI {
 public:
-	TimelineView() {}
+	TimelineView() = default;
 
 	void scrollFinished();
 
 	TimelineView* toTimelineView() final { return this; }
 
-	const char* getName() { return "timeline_view"; }
 	virtual uint32_t getMaxZoom() = 0;
 	virtual bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom,
 	                                     uint32_t oldZoom); // Returns false if no animation needed
@@ -70,9 +69,6 @@ public:
 	bool isSquareDefined(int32_t square, int32_t xScroll, uint32_t xZoom);
 
 	[[nodiscard]] bool inTripletsView() const;
-
-	// ui
-	UIType getUIType() { return UIType::TIMELINE; }
 
 private:
 	/// Used when scrolling horizontally to briefly catch on clip's max zoom

@@ -23,9 +23,7 @@
 /// refer to
 /// https://www.renesas.com/us/en/document/mah/rza1l-group-rza1lu-group-rza1lc-group-users-manual-hardware?r=1054491#G14.1027450
 // ticks at 33.33 MHz
-#define DELUGE_CLOCKS_PER  33330000
-#define DELUGE_CLOCKS_PERf 33330000.
-#define ONE_OVER_CLOCK     (1 / DELUGE_CLOCKS_PERf)
+
 enum OSTimerOperatingMode { TIMER, FREE_RUNNING };
 /// in timer mode, start or reset the timer
 /// in free mode start the timer iff it's not running
@@ -45,5 +43,4 @@ void setOperatingMode(int timerNo, enum OSTimerOperatingMode mode, bool enable_i
 void setTimerValue(int timerNo, uint32_t timerValue);
 
 uint32_t getTimerValue(int timerNo);
-double getTimerValueSeconds(int timerNo);
 #endif // RZA1_OSTM_OSTM_H_

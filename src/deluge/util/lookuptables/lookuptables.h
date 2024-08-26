@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/l10n/strings.h"
+#include "model/iterance/iterance.h"
 #include <array>
 #include <cstdint>
 
@@ -126,15 +127,19 @@ extern const int32_t releaseRateTable64[65];
 extern const int32_t tanTable[65];
 extern const int16_t oldResonanceCompensation[];
 
-extern const int16_t windowedSincKernel[][17][16];
-extern const int16_t windowedSincKernelBasicForWavetableBetweenCycles[];
-
 #define NUM_PRESET_REVERBS 3
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
 const uint8_t presetReverbDamping[NUM_PRESET_REVERBS] = {29, 36, 45};
 extern deluge::l10n::String presetReverbNames[NUM_PRESET_REVERBS];
 
-extern const uint8_t defaultClipGroupColours[];
-
 extern const uint8_t noteCodeToNoteLetter[];
+extern const uint8_t noteCodeToNoteLetterFlats[];
 extern const bool noteCodeIsSharp[];
+
+extern const std::array<Iterance, 35> iterancePresets;
+
+#define MAX_CHORD_TYPES 9
+#define MAX_CHORD_NOTES 4
+extern uint8_t chordTypeSemitoneOffsets[MAX_CHORD_TYPES][MAX_CHORD_NOTES];
+extern uint8_t chordTypeNoteCount[MAX_CHORD_TYPES];
+extern const std::array<deluge::l10n::String, MAX_CHORD_TYPES> chordNames;

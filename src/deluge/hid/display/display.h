@@ -1,7 +1,10 @@
 #pragma once
 #include "definitions_cxx.hpp"
+#include "util/d_string.h"
 #include <array>
+#include <optional>
 #include <string_view>
+#include <vector>
 
 extern "C" {
 #include "util/cfunctions.h"
@@ -18,12 +21,18 @@ enum class PopupType {
 	LOADING,
 	/// Popup shown when editing note or row probability.
 	PROBABILITY,
+	/// Popup shown when editing note or row iterance.
+	ITERANCE,
 	/// Swing amount and interval
 	SWING,
 	/// Tempo
 	TEMPO,
 	/// Quantize and humanize
 	QUANTIZE,
+	/// Threshold Recording Mode
+	THRESHOLD_RECORDING_MODE,
+	/// Used for popups in the horizontal menu when changing value
+	NOTIFICATION,
 	// Note: Add here more popup types
 };
 
@@ -41,7 +50,7 @@ public:
 
 	virtual void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
 	                     uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
-	                     int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false){};
+	                     int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false) {};
 
 	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false,
 	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) = 0;
@@ -61,7 +70,7 @@ public:
 	virtual void popupText(char const* text, PopupType type = PopupType::GENERAL) = 0;
 	virtual void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) = 0;
 
-	virtual void setNextTransitionDirection(int8_t thisDirection){};
+	virtual void setNextTransitionDirection(int8_t thisDirection) {};
 
 	virtual void cancelPopup() = 0;
 	virtual void freezeWithError(char const* text) = 0;
@@ -71,9 +80,11 @@ public:
 	virtual void removeWorkingAnimation() = 0;
 
 	// Loading animations
-	virtual void displayLoadingAnimation(){};
+	virtual void displayLoadingAnimation() {};
 	virtual void displayLoadingAnimationText(char const* text, bool delayed = false, bool transparent = false) = 0;
 	virtual void removeLoadingAnimation() = 0;
+
+	virtual void displayNotification(std::string_view paramTitle, std::optional<std::string_view> paramValue) {}
 
 	virtual bool hasPopup() = 0;
 	virtual bool hasPopupOfType(PopupType type) = 0;
@@ -86,6 +97,9 @@ public:
 	virtual int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) { return 0; }
 	virtual void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
 	                           int32_t blinkPos = -1, bool blinkImmediately = false) {}
+	virtual void setTextWithMultipleDots(std::string_view newText, std::vector<uint8_t> dotPositions,
+	                                     bool alignRight = false, bool doBlink = false, uint8_t* newBlinkMask = nullptr,
+	                                     bool blinkImmediately = false) {}
 	virtual NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0,
 	                                                    int32_t initialDelay = 600, int count = -1,
 	                                                    uint8_t fixedDot = 255) {

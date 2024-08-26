@@ -17,15 +17,54 @@
 #pragma once
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/instrument/kit.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::delay {
 
-class PingPong final : public Toggle {
+class PingPong final : public Selection {
 public:
-	using Toggle::Toggle;
+	using Selection::Selection;
+	bool isToggle() override { return true; }
 	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->delay.pingPong); }
-	void writeCurrentValue() override { soundEditor.currentModControllable->delay.pingPong = this->getValue(); }
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		int32_t current_value = this->getValue();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					soundDrum->delay.pingPong = current_value;
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentModControllable->delay.pingPong = current_value;
+		}
+	}
+
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_OFF),
+		    l10n::getView(STRING_FOR_ON),
+		};
+	}
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		using namespace deluge::hid::display;
+		const Icon& icon = getValue() ? OLED::switcherIconOn : OLED::switcherIconOff;
+		OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
+	}
 };
 
 } // namespace deluge::gui::menu_item::delay

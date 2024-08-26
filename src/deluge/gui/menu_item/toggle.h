@@ -14,12 +14,13 @@ public:
 	virtual void drawValue();
 	void drawPixelsForOled();
 	void displayToggleValue();
+	void renderInHorizontalMenu(const SlotPosition& slot) override;
 
 	// don't enter menu on select button press
 	bool shouldEnterSubmenu() override { return false; }
 
 	// renders toggle item type in submenus after the item name
-	void renderSubmenuItemTypeForOled(int32_t yPixel) override;
+	virtual void renderSubmenuItemTypeForOled(int32_t yPixel) override;
 
 	// toggles boolean ON / OFF
 	void toggleValue() {

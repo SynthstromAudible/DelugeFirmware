@@ -16,6 +16,7 @@
  */
 
 #include "menu_item.h"
+#include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h" //todo: this probably shouldn't be needed
@@ -58,7 +59,7 @@ void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32
 		image.drawString(options[o + offset], kTextSpacingX, yPixel, kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
-			image.invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
+			image.invertLeftEdgeForMenuHighlighting(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
 			deluge::hid::display::OLED::setupSideScroller(0, options[o + offset], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS,
 			                                              yPixel, yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}
@@ -67,9 +68,26 @@ void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32
 
 // renders the default sub menu item type ("  >")
 void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	hid::display::oled_canvas::Canvas& image = hid::display::OLED::main;
 
-	int32_t startX = getSubmenuItemTypeRenderIconStart();
+	const int32_t startX = getSubmenuItemTypeRenderIconStart();
 
-	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, kSubmenuIconSpacingX);
+	image.drawGraphicMultiLine(hid::display::OLED::submenuArrowIcon, startX, yPixel, kSubmenuIconSpacingX);
+}
+
+void MenuItem::updatePadLights() {
+	soundEditor.updatePadLightsFor(this);
+}
+
+void MenuItem::endSession() {
+	// need to reset current coords for correct work of the second page shortcuts
+	soundEditor.currentParamShortcutX = kNoSelection;
+	soundEditor.currentParamShortcutY = kNoSelection;
+}
+
+bool isItemRelevant(MenuItem* item) {
+	if (item == nullptr) {
+		return false;
+	}
+	return item->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex);
 }

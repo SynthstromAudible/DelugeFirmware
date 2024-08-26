@@ -50,11 +50,11 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
 #include "timers_interrupts/timers_interrupts.h"
 #include "util/functions.h"
 #include "util/misc.h"
@@ -153,8 +153,8 @@ int32_t timeLastPopup{0};
 SoundDrum* sampleForPreview;
 ParamManagerForTimeline* paramManagerForSamplePreview;
 
-char paramManagerForSamplePreviewMemory[sizeof(ParamManagerForTimeline)];
-char sampleForPreviewMemory[sizeof(SoundDrum)];
+PLACE_SDRAM_BSS char paramManagerForSamplePreviewMemory[sizeof(ParamManagerForTimeline)];
+PLACE_SDRAM_BSS char sampleForPreviewMemory[sizeof(SoundDrum)];
 
 SampleRecorder* firstRecorder = NULL;
 
@@ -170,7 +170,7 @@ bool audioRoutineLocked = false;
 uint32_t audioSampleTimer = 0;
 uint32_t i2sTXBufferPos;
 uint32_t i2sRXBufferPos;
-
+int voicesStartedThisRender = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
 bool lineInPluggedIn;
@@ -206,6 +206,8 @@ std::array<TimeStretcher, kNumTimeStretchersStatic> timeStretchers{};
 TimeStretcher* firstUnassignedTimeStretcher = timeStretchers.begin();
 std::array<Voice, kNumVoicesStatic> staticVoices{};
 Voice* firstUnassignedVoice = staticVoices.begin();
+
+TaskID routine_task_id = -1;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
@@ -286,13 +288,87 @@ char audioLogStrings[AUDIO_LOG_SIZE][64];
 int32_t numAudioLogItems = 0;
 #endif
 
-// To be called when CPU is overloaded and we need to free it up. This stops the voice which has been
-// releasing longest, or if none, the voice playing longest.
-Voice* cullVoice(bool saveVoice, CullType type, size_t numSamples, Sound* stopFrom) {
+// To be called when CPU is incredibly overloaded or if there's not enough memory to create a new voice
+Voice* hardCullVoice(bool saveVoice, size_t numSamples, Sound* stopFrom) {
 	// Only include audio if doing a hard cull and not saving the voice
-	bool includeAudio = !saveVoice && type == HARD;
-	// Skip releasing voices if doing a soft cull and definitely culling
-	bool skipReleasing = (type == SOFT_ALWAYS);
+	bool includeAudio = !saveVoice;
+
+	uint32_t bestRating = 0;
+	Voice* bestVoice = NULL;
+	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
+		Voice* thisVoice = activeVoices.getVoice(v);
+
+		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
+
+		if (ratingThisVoice > bestRating) {
+
+			if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
+				bestRating = ratingThisVoice;
+				bestVoice = thisVoice;
+			}
+		}
+	}
+
+	if (bestVoice) {
+		activeVoices.checkVoiceExists(
+		    bestVoice, bestVoice->assignedToSound,
+		    "E196"); // ronronsen got!!
+		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
+
+		unassignVoice(bestVoice, bestVoice->assignedToSound, NULL, true, !saveVoice);
+		D_PRINTLN("hard-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+		          getNumVoices(), getNumAudio());
+	}
+
+	// Or if no Voices to cull, and we're not culling to make a new voice, try culling an AudioClip...
+	else if (includeAudio) {
+		if (currentSong) {
+			currentSong->cullAudioClipVoice();
+		}
+	}
+	return bestVoice;
+}
+/// Force a voice to stop within this render window. Will click slightly, especially if multiple are stopped in the
+/// same render
+Voice* immediateCullVoice(bool saveVoice, CullType type, size_t numSamples, Sound* stopFrom) {
+	// Only include audio if doing a hard cull and not saving the voice
+	uint32_t bestRating = 0;
+	Voice* bestVoice = NULL;
+	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
+		Voice* thisVoice = activeVoices.getVoice(v);
+
+		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
+
+		if (ratingThisVoice > bestRating) {
+			if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
+				bestRating = ratingThisVoice;
+				bestVoice = thisVoice;
+			}
+		}
+	}
+
+	if (bestVoice) {
+		activeVoices.checkVoiceExists(
+		    bestVoice, bestVoice->assignedToSound,
+		    "E196"); // ronronsen got!!
+		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
+
+		bool stillGoing = bestVoice->doImmediateRelease();
+
+		if (!stillGoing) {
+			unassignVoice(bestVoice, bestVoice->assignedToSound);
+		}
+
+		D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+		          getNumVoices(), getNumAudio());
+	}
+
+	return bestVoice;
+}
+
+/// Force a voice to release very quickly - will be almost instant but not click
+Voice* forceCullVoice(size_t numSamples, Sound* stopFrom) {
+
 	uint32_t bestRating = 0;
 	Voice* bestVoice = NULL;
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
@@ -302,9 +378,8 @@ Voice* cullVoice(bool saveVoice, CullType type, size_t numSamples, Sound* stopFr
 
 		if (ratingThisVoice > bestRating) {
 			// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-			if (!skipReleasing
-			    || (thisVoice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
-			        && thisVoice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT)) {
+			if ((thisVoice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
+			     && thisVoice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT)) {
 				if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
 					bestRating = ratingThisVoice;
 					bestVoice = thisVoice;
@@ -319,51 +394,59 @@ Voice* cullVoice(bool saveVoice, CullType type, size_t numSamples, Sound* stopFr
 		    "E196"); // ronronsen got!!
 		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
-		switch (type) {
-		case SOFT_ALWAYS:
-		case SOFT: {
-			if (bestVoice->envelopes[0].state < EnvelopeStage::FAST_RELEASE
-			    || bestVoice->envelopes[0].fastReleaseIncrement < SOFT_CULL_INCREMENT) {
-				bool stillGoing = bestVoice->doFastRelease(SOFT_CULL_INCREMENT);
+		bool stillGoing = bestVoice->doFastRelease(SOFT_CULL_INCREMENT);
 
-				if (!stillGoing) {
-					unassignVoice(bestVoice, bestVoice->assignedToSound);
-				}
-
-#if ALPHA_OR_BETA_VERSION
-				D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
-				          getNumVoices(), getNumAudio());
-#if DO_AUDIO_LOG
-				dumpAudioLog();
-#endif
-#endif
-			}
-			break;
+		if (!stillGoing) {
+			unassignVoice(bestVoice, bestVoice->assignedToSound);
 		}
+		if (stopFrom == nullptr) {
 
-		case FORCE: {
-			bool stillGoing = bestVoice->doImmediateRelease();
-
-			if (!stillGoing) {
-				unassignVoice(bestVoice, bestVoice->assignedToSound);
-			}
-#if ALPHA_OR_BETA_VERSION
 			D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
-			          getNumVoices(), getNumAudio());
-#endif
-			break;
-		}
-		case HARD:
-			unassignVoice(bestVoice, bestVoice->assignedToSound, NULL, true, !saveVoice);
-			D_PRINTLN("hard-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
 			          getNumVoices(), getNumAudio());
 		}
 	}
 
-	// Or if no Voices to cull, and we're not culling to make a new voice, try culling an AudioClip...
-	else if (includeAudio) {
-		if (currentSong) {
-			currentSong->cullAudioClipVoice();
+	return bestVoice;
+}
+
+/// Force a voice to release, or speed up its release if the oldest voice is already releasing
+Voice* softCullVoice(size_t numSamples, Sound* stopFrom) {
+
+	uint32_t bestRating = 0;
+	Voice* bestVoice = NULL;
+	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
+		Voice* thisVoice = activeVoices.getVoice(v);
+
+		uint32_t ratingThisVoice = thisVoice->getPriorityRating();
+
+		if (ratingThisVoice > bestRating) {
+			if ((thisVoice->envelopes[0].state <= EnvelopeStage::FAST_RELEASE
+			     && thisVoice->envelopes[0].fastReleaseIncrement <= 4096)) {
+				if (stopFrom == nullptr || thisVoice->assignedToSound == stopFrom) {
+					bestRating = ratingThisVoice;
+					bestVoice = thisVoice;
+				}
+			}
+		}
+	}
+
+	if (bestVoice) {
+		activeVoices.checkVoiceExists(
+		    bestVoice, bestVoice->assignedToSound,
+		    "E196"); // ronronsen got!!
+		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
+
+		auto stage = bestVoice->envelopes[0].state;
+
+		bool stillGoing = bestVoice->speedUpRelease();
+		if (stopFrom == nullptr && stage < EnvelopeStage::FAST_RELEASE) {
+
+			D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+			          getNumVoices(), getNumAudio());
+		}
+
+		if (!stillGoing) {
+			unassignVoice(bestVoice, bestVoice->assignedToSound);
 		}
 	}
 
@@ -380,11 +463,27 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	logAction("AudioDriver::routineWithClusterLoading");
 
 	routineBeenCalled = false;
+
 	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
+
 	if (!routineBeenCalled) {
-		bypassCulling = true; // yolo?
-		logAction("from routineWithClusterLoading()");
-		routine(); // -----------------------------------
+		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
+
+		logAction("call runRoutine() from routineWithClusterLoading()");
+		runRoutine();
+	}
+}
+
+void runRoutine() {
+	// check if we've setup the audio routine task
+	if (routine_task_id != -1) [[likely]] {
+		// run AudioEngine::routine() task so that scheduler is aware
+		runTask(AudioEngine::routine_task_id);
+	}
+	// otherwise call audio routine directly (necessary otherwise Deluge freezes on boot)
+	else {
+		ignoreForStats();
+		routine();
 	}
 }
 
@@ -392,11 +491,6 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 #define TICK_TYPE_TIMER 2
 
 extern uint16_t g_usb_usbmode;
-
-#if JFTRACE
-Debug::AverageDT aeCtr("audio", Debug::mS);
-Debug::AverageDT rvb("reverb", Debug::uS);
-#endif
 
 uint8_t numRoutines = 0;
 
@@ -416,11 +510,16 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			// leave at least 7 - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
 			numToCull = std::min(numToCull, numAudio + numVoice - MIN_VOICES);
-			for (int32_t i = 0; i < numToCull; i++) {
-				// hard cull (no release)
-				cullVoice(false, FORCE, numSamples, nullptr);
+			for (int32_t i = numToCull / 2; i < numToCull; i++) {
+				// cull with fast release
+				forceCullVoice(numSamples, nullptr);
 			}
-			cullVoice(false, SOFT_ALWAYS, numSamples, nullptr);
+			for (int32_t i = 1; i < numToCull / 2; i++) {
+				// cull with immediate release
+				immediateCullVoice(false, CullType::FORCE, numSamples, nullptr);
+			}
+			softCullVoice(numSamples, nullptr);
+
 #if ALPHA_OR_BETA_VERSION
 
 			definitelyLog = true;
@@ -436,7 +535,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 			// If not in first routine call this is inaccurate, so just release another voice since things are
 			// probably bad
-			cullVoice(false, numRoutines == 0 ? SOFT : SOFT_ALWAYS, numSamples, nullptr);
+			softCullVoice(numSamples, nullptr);
 			logAction("soft cull");
 			if (numRoutines > 0) {
 				culled = true;
@@ -449,12 +548,12 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		// Cull anyway if things are bad
 		if (numSamplesOverLimit >= 40) {
 			D_PRINTLN("under min voices but culling anyway");
-			cullVoice(false, SOFT, numSamples, nullptr);
+			forceCullVoice(numSamples, nullptr);
 			culled = true;
 		}
 	}
 	// blink LED to alert the user
-	if (culled && FlashStorage::highCPUUsageIndicator && false) {
+	if (culled && FlashStorage::highCPUUsageIndicator) {
 		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
@@ -465,7 +564,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	// number of samples it took to do the last render
-	auto dspTime = (int32_t)(getLastRunTimeforCurrentTask() * 44100.);
+	auto dspTime = (int32_t)(getAverageRunTimeForTask(routine_task_id) * 44100.);
 	size_t nonDSP = numSamples - dspTime;
 	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
 	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);
@@ -489,8 +588,8 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 		}
 		else {
 
-			size_t numSamplesOverLimit = numSamples - numSamplesLimit;
-			if (numSamplesOverLimit >= 0) {
+			int32_t num_samples_over_limit = (int32_t)numSamples - numSamplesLimit;
+			if (num_samples_over_limit >= 0) {
 #if DO_AUDIO_LOG
 				definitelyLog = true;
 #endif
@@ -525,12 +624,18 @@ void tickSongFinalizeWindows(size_t& numSamples, int32_t& timeWithinWindowAtWhic
 void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
+void dumpAudioLog();
+bool calledFromScheduler = false;
+
 /// inner loop of audio rendering, deliberately not in header
 [[gnu::hot]] void routine_() {
-#if JFTRACE
-	aeCtr.note();
-#endif
-
+	static double last_call_time = getSystemTime();
+	double current_time = getSystemTime();
+	if (current_time - last_call_time > 0.003) {
+		// If the audio routine is called at less than a 3ms interval, something is wrong
+		D_PRINTLN("Audio routine latency high: %.3fms", (current_time - last_call_time) * 1000.);
+	}
+	last_call_time = current_time;
 #ifndef USE_TASK_MANAGER
 	playbackHandler.routine();
 #endif
@@ -544,7 +649,7 @@ void renderAudioForStemExport(size_t numSamples);
 	                    & (SSI_TX_BUFFER_NUM_SAMPLES - 1);
 
 	if (numSamples <= (10 * numRoutines)) {
-		if (!numRoutines) {
+		if (!numRoutines && calledFromScheduler) {
 			ignoreForStats();
 		}
 		return;
@@ -769,6 +874,10 @@ startAgain:
 		}
 	}
 }
+
+void feedReverbBackdoorForGrain(int index, q31_t value) {
+	reverbBuffer[index] += value;
+}
 void renderReverb(size_t numSamples) {
 	if (currentSong && mustUpdateReverbParamsBeforeNextRender) {
 		updateReverbParams();
@@ -781,14 +890,8 @@ void renderReverb(size_t numSamples) {
 		if (sideChainHitPending != 0) {
 			reverbSidechain.registerHit(sideChainHitPending);
 		}
-#if JFTRACE
-		rvb.begin();
-#endif
 
 		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect);
-#if JFTRACE
-		rvb.note();
-#endif
 	}
 
 	int32_t reverbAmplitudeL;
@@ -972,13 +1075,23 @@ void scheduleMidiGateOutISR(uint32_t saddrPosAtStart, int32_t unadjustedNumSampl
 	}
 }
 
+void routine_task() {
+	if (audioRoutineLocked) {
+		logAction("AudioDriver::routine locked");
+		ignoreForStats();
+		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
+		        // called from within this!
+	}
+	calledFromScheduler = true;
+	routine();
+	calledFromScheduler = false;
+}
 void routine() {
 
 	logAction("AudioDriver::routine");
 
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
-		ignoreForStats();
 		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
 		        // called from within this!
 	}
@@ -986,6 +1099,11 @@ void routine() {
 	audioRoutineLocked = true;
 
 	numRoutines = 0;
+
+	voicesStartedThisRender = std::max<int>(
+	    cpuDireness - 12,
+	    0); // if we're at high direness then we pretend a couple have already been started to limit note ons
+
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		while (doSomeOutputting() && numRoutines < 2) {
 
@@ -1220,7 +1338,7 @@ void dumpAudioLog() {
 	uint16_t currentTime = *TCNT[TIMER_SYSTEM_FAST];
 	uint16_t timePassedA = (uint16_t)currentTime - lastRoutineTime;
 	uint32_t timePassedUSA = fastTimerCountToUS(timePassedA);
-	if (definitelyLog || timePassedUSA > (storageManager.devVarA * 10)) {
+	if (definitelyLog || timePassedUSA > (1000)) {
 
 		D_PRINTLN("");
 		for (int32_t i = 0; i < numAudioLogItems; i++) {
@@ -1243,7 +1361,7 @@ void updateReverbParams() {
 	if (reverbSidechainVolume < 0) {
 
 		// Just leave everything as is if parts deleted cos loading new song
-		if (getCurrentUI() == &loadSongUI && loadSongUI.deletedPartsOfOldSong) {
+		if (loadSongUI.isLoadingSong() && loadSongUI.deletedPartsOfOldSong) {
 			return;
 		}
 
@@ -1346,6 +1464,7 @@ void stopAnyPreviewing() {
 void getReverbParamsFromSong(Song* song) {
 	reverb.setModel(song->model);
 	reverb.setRoomSize(song->reverbRoomSize);
+	reverb.setLPF(song->reverbLPF);
 	reverb.setDamping(song->reverbDamp);
 	reverb.setWidth(song->reverbWidth);
 	reverbPan = song->reverbPan;
@@ -1354,6 +1473,14 @@ void getReverbParamsFromSong(Song* song) {
 	reverbSidechain.attack = song->reverbSidechainAttack;
 	reverbSidechain.release = song->reverbSidechainRelease;
 	reverbSidechain.syncLevel = song->reverbSidechainSync;
+}
+
+bool allowedToStartVoice() {
+	if (voicesStartedThisRender < 4) {
+		voicesStartedThisRender += 1;
+		return true;
+	}
+	return false;
 }
 
 Voice* solicitVoice(Sound* forSound) {
@@ -1371,7 +1498,7 @@ Voice* solicitVoice(Sound* forSound) {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Voice));
 		if (!memory) {
 			if (activeVoices.getNumElements()) {
-				memory = cullVoice(true, HARD, numSamplesLastTime, forSound);
+				memory = hardCullVoice(true, numSamplesLastTime, forSound);
 			}
 			else {
 				return NULL;
@@ -1396,7 +1523,7 @@ Voice* solicitVoice(Sound* forSound) {
 	}
 
 	if (forSound->numVoicesAssigned >= forSound->maxVoiceCount) {
-		cullVoice(false, SOFT_ALWAYS, numSamplesLastTime, forSound);
+		forceCullVoice(numSamplesLastTime, forSound);
 	}
 	return newVoice;
 }

@@ -23,10 +23,16 @@ namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
 public:
 	Integer(l10n::String newName, int32_t newP = 0) : PatchedParam(newP), IntegerContinuous(newName) {}
+	Integer(l10n::String newName, int32_t newP, RenderingStyle style)
+	    : PatchedParam(newP), IntegerContinuous(newName), number_style_{style} {}
 	Integer(l10n::String newName, l10n::String title, int32_t newP = 0)
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
+	Integer(l10n::String newName, l10n::String title, int32_t newP, RenderingStyle style)
+	    : PatchedParam(newP), IntegerContinuous(newName, title), number_style_{style} {}
 	// 7SEG Only
 	void drawValue() override { display->setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
+
+	bool usesAffectEntire() override { return true; }
 
 	ParamDescriptor getLearningThing() final { return PatchedParam::getLearningThing(); }
 	[[nodiscard]] int32_t getMaxValue() const override { return PatchedParam::getMaxValue(); }
@@ -62,9 +68,16 @@ public:
 		return getValue();
 	}
 
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override {
+		return number_style_.value_or(IntegerContinuous::getRenderingStyle());
+	}
+
 protected:
 	void readCurrentValue() override;
 	void writeCurrentValue() final;
 	virtual int32_t getFinalValue();
+
+private:
+	std::optional<RenderingStyle> number_style_{std::nullopt};
 };
 } // namespace deluge::gui::menu_item::patched_param

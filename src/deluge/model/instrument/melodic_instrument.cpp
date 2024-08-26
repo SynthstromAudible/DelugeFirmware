@@ -17,26 +17,19 @@
 
 #include "model/instrument/melodic_instrument.h"
 #include "definitions_cxx.hpp"
-#include "extern.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_follow.h"
-#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
-#include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "model/song/song.h"
-#include "modulation/automation/auto_param.h"
-#include "modulation/params/param.h"
-#include "modulation/params/param_set.h"
+#include "modulation/arpeggiator.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
-#include "storage/storage_manager.h"
 #include <cstring>
 
 bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
@@ -112,7 +105,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 		// no break
 	case MIDIMatchType::CHANNEL:
 		// -1 means no change
-		InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
+		auto* instrumentClip = (InstrumentClip*)activeClip;
 
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    instrumentClip ? instrumentClip->getNoteRowForYNote(note, modelStack) : modelStack->addNoteRow(0, NULL);
@@ -303,7 +296,7 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 	else if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
 	         && instrumentClip->onKeyboardScreen && instrumentClip->output
 	         && instrumentClip->output->type == OutputType::MIDI_OUT
-	         && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
+	         && ((MIDIInstrument*)instrumentClip->output)->getChannel() == midiChannel) {
 		keyboardScreen.nornsNotes[note] = on ? velocity : 0;
 		keyboardScreen.requestRendering();
 	}
@@ -339,7 +332,7 @@ void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelSt
 		// If it's a MIDIInstrtument...
 		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+			if (doingMidiThru && ((MIDIInstrument*)this)->getChannel() == channel) {
 				*doingMidiThru = false;
 			}
 		}
@@ -372,7 +365,7 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 	case MIDIMatchType::MPE_MEMBER:
 		if (ccNumber
 		    == CC_EXTERNAL_MPE_Y) { // All other CCs are not supposed to be used for Member Channels, for anything.
-			int32_t value32 = (value - 64) << 25;
+			value32 = (value - 64) << 25;
 			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, Y_SLIDE_TIMBRE, channel,
 			                                          MIDICharacteristic::CHANNEL);
 
@@ -386,7 +379,7 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 		// If it's a MIDI Clip...
 		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+			if (doingMidiThru && ((MIDIInstrument*)this)->getChannel() == channel) {
 				*doingMidiThru = false;
 			}
 		}
@@ -447,7 +440,7 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 		// If it's a MIDI Clip...
 		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+			if (doingMidiThru && ((MIDIInstrument*)this)->getChannel() == channel) {
 				*doingMidiThru = false;
 			}
 		}
@@ -534,8 +527,25 @@ bool MelodicInstrument::isNoteAuditioning(int32_t noteCode) {
 void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity,
                                                 int16_t const* mpeValues, int32_t fromMIDIChannel,
                                                 uint32_t sampleSyncLength) {
+	if (!activeClip) {
+		return;
+	}
+	if (isNoteAuditioning(note)) {
+		//@todo this could definitely be handled better. Ideally we track both notes.
+		// if we don't do this then duplicate mpe notes get stuck
+		endAuditioningForNote(modelStack, note, 64);
+	}
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(activeClip)->addNoteRow(0, NULL);
+	// don't audition this note row if there is a drone note that is currently sounding
+	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
+	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		return;
+	}
+
 	if (!activeClip || ((InstrumentClip*)activeClip)->allowNoteTails(modelStackWithNoteRow)) {
 		notesAuditioned.insertElementIfNonePresent(note, velocity);
 	}
@@ -548,8 +558,24 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 }
 
 void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity) {
+
 	notesAuditioned.deleteAtKey(note);
 	earlyNotes.noteNoLongerActive(note);
+	if (!activeClip) {
+		return;
+	}
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
+	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+
+	// here we check if this note row has a drone note that is currently sounding
+	// in which case we don't want to stop it from sounding
+	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
+	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		return;
+	}
+
 	if (activeClip) {
 		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
 	}
@@ -723,6 +749,10 @@ ModelStackWithAutoParam* MelodicInstrument::getModelStackWithParam(ModelStackWit
 
 		else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
 			modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID);
+		}
+		else if (paramKind == deluge::modulation::params::Kind::EXPRESSION) {
+
+			modelStackWithParam = modelStackWithThreeMainThings->getExpressionAutoParamFromID(paramID);
 		}
 	}
 

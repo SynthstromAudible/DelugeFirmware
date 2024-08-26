@@ -50,4 +50,21 @@ void SampleMarkerEditor::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 }
 
+void SampleMarkerEditor::renderInHorizontalMenu(const SlotPosition& slot) {
+	using namespace hid::display;
+	oled_canvas::Canvas& image = OLED::main;
+
+	const int32_t line_x = slot.start_x + slot.width - 6;
+	for (int32_t y = slot.start_y + 1; y <= slot.start_y + slot.height - 5; y += 2) {
+		image.drawPixel(line_x, y);
+	}
+
+	image.drawIcon(OLED::loopPointIcon, slot.start_x + 5, slot.start_y + kHorizontalMenuSlotYOffset, true);
+}
+
+void SampleMarkerEditor::getColumnLabel(StringBuf& label) {
+	label.append(l10n::get(l10n::String::STRING_FOR_END_POINT));
+	label.truncate(3);
+}
+
 } // namespace deluge::gui::menu_item::audio_clip

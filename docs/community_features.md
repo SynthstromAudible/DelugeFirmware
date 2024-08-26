@@ -19,11 +19,59 @@ For more detailed version information, see the [changelog](../CHANGELOG.md).
 Reference the 'Community Features Menu' section at the end of this document to understand what each entry is and their
 7SEG abbreviations.
 
-## 2. File Compatibility Warning
+
 
 In general, we try to maintain file compatibility with the official firmware. However, **files (including songs,
 presets, etc.) that use community features may not ever load correctly on the official firmware again**. Make sure to
 back up your SD card!
+
+## 2. UI Changes from Official
+
+#### 2.1 Velocity Rendering
+- Note velocity is now displayed in clips using colour intensities. The note head (the bright part)
+now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official,
+at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
+
+#### 2.2 Horizontal Menus
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1-4.
+  - LPF and HPF.
+  - LFO 1-4.
+  - Arpegiattor
+- Horizontal Menu controls. There are two different behaviours that can be toggled between to edit values and select menu items within the horizontal menu. You can toggle between them by going to the `SETTINGS > DEFAULTS -> UI -> HORIZONTAL MENU (HORZ)` and toggling `Alternative Select Behaviour (SELE)` on or off.
+  - Note: regardless of the behaviour toggle selected, you will always be able to change the selected horizontal menu's item's value by turning the select encoder when you're holding audition pad or sticky shift is enabled.
+    - Whenever you're holding audition pad or sticky shift is enabled, you can change the selected horizontal menu by `Pressing + Turning the select encoder`
+  - If you're not holding an audition pad or sticky shift is disabled, then the following select behaviours apply.
+  - With `Alternative Select Behaviour (SELE)` DISABLED:
+    - `Turn select encoder` to change the selected menu item
+    - `Press + Turn select encoder` to change the value of the selected menu item
+  - With `Alternative Select Behaviour (SELE)` ENABLED:
+    - `Turn select encoder` to change the value of the selected menu item
+    - `Press + Turn select encoder` to change the selected menu item
+  - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
+    - When in a Horizontal menu, the selected instrument LED corresponding to the Horizontal Menu item selected will light up
+
+#### 2.3 Favourites
+A Favourites-Feature has been added to the Load-UIs for most File-Types. The Favourites are displayed above the Keyboard and are only visible when the keyboard is shown. Favourites can be configured to either offer 16 Favourites (default), 16 Banks with 16 Favourites or be completely disabled via `SETTINGS > DEFAULTS -> UI -> KEYBOARD -> FAVOURITES`.
+- In the `Favourites Only (16)`-Mode , 16 Favourite Slots are available at the Toprow above the Keyboard.
+- In the `Favourites and Banks (256)`-Mode, the Toprow contains 16 Banks, each with 16 Favourites displayed on the second row.
+Usage:
+- Save a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Browse to the File you want to save
+  - Hold `SHIFT` and select a empty Favourite Slot (light blue)
+- Delete a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Hold `SHIFT` and select the Favourite Slot you want to delete
+- Recall a Favourite
+  - Select the Bank (Only available in `Favourites and Banks (256)`-Mode)
+  - Select the Favourite
+- Change the Colour of a Favourite
+  - Select the Favourite you want to modify
+  - Hold `SHIFT` and turn `VERTICAL ENCODER`
+
+Tip:
+If you are Browsing Songs or Samples an dont want to have the Preview to hide the Keyboard on Scrolling, just press the `KEYBOARD`-Button to pin the Keyboard and the Favourites.
 
 ## 3. General Improvements
 
@@ -149,6 +197,8 @@ as the micromonsta and the dreadbox nymphes.
   as synths. The note sent for the learn will be treated as the first row for the kit, and increasing notes get mapped
   to the next rows
 
+- ([#2810]) Added new learnable global command `LOAD NEXT SONG` (which can be quickly learned holding `LEARN` and `LOAD` and sending a MIDI note or CC message). When the Deluge receives this command while it is playing, it will queue to load the next song within the folder of the current song (wraps around when reaching the end of the folder).
+
 #### 3.4 - Tempo & Swing
 
 - ([#178]) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
@@ -174,6 +224,12 @@ as the micromonsta and the dreadbox nymphes.
 
 - ([#395]) Load synth presets into kit rows by holding the row's `AUDITION` + `SYNTH`. Saving can be done by holding the
   audition pad and pressing save.
+
+- ([#3079]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
+
+- ([#3425]) Extended the ability to batch change all drum sounds, by holding `Affect-Entire` while editing a parameter
+  (indicated by flashing the `Affect-Entire` button), from the initially available handful of sample-related parameters,
+  to ALL sound parameters (except for `Oscillator Type` and patch cable strengths).
 
 #### 3.7 - Global Interface
 
@@ -265,7 +321,7 @@ which track to record from. To run the instrument through the audio clip's FX ch
     - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 
-#### 3.19 - Sample Slice Default Mode
+#### 3.20 - Sample Slice Default Mode
 
 - ([#1589]) Added a new default setting that controls which playback mode new slices of a kit will get.
 -  To change the setting, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
@@ -274,18 +330,18 @@ which track to record from. To run the instrument through the audio clip's FX ch
   - the setting is persistent after reboot
   - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
 
-#### 3.20 Default Hold Press Time
+#### 3.21 Default Hold Press Time
 
 - ([#1846]) Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
 
-#### 3.21 Eased Timeline Zoom Level Restrictions
+#### 3.22 Eased Timeline Zoom Level Restrictions
 
 - ([#1962]) The maximum zoom level has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - This allows for more flexibility when entering long notes and chord progressions.
 - While changing the zoom level, the horizontal encoder will briefly pause while passing the zoom level which represents the entire sequence. This is to prevent frustration from users who are used to the prior limitations.
 
-#### 3.22 Exit menus by holding back
+#### 3.23 Exit menus by holding back
 
 - ([#2166]) Holding back will now fully exit your current menu
 
@@ -296,20 +352,20 @@ which track to record from. To run the instrument through the audio clip's FX ch
 - ([#2327]) You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 - ([#2330]) You can configure settings for the audio export via the `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT EXPORT\CONFIGURE EXPORT\` to configure various export settings.
 
-#### 3.24 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
+#### 3.25 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
 - ([#2315]) A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 
-#### 3.25 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
+#### 3.26 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
 - ([#2315]) The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
 
-#### 3.26 Updated UI for Interacting with Toggle Menu's and Sub Menu's
+#### 3.27 Updated UI for Interacting with Toggle Menu's and Sub Menu's
 - ([#2345]) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
  - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
  - Submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
-#### 3.27 Updated UI for Creating New Clips in New Tracks in Song Grid View
+#### 3.28 Updated UI for Creating New Clips in New Tracks in Song Grid View
 - ([#2429]) Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`
   - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
     - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
@@ -335,6 +391,53 @@ which track to record from. To run the instrument through the audio clip's FX ch
 - ([#1824]) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing `SELECT` in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under the `VOICE (VOIC)` menu.
   - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
 - Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`.
+
+#### 3.30 UI Accessibility Defaults Menu
+- ([#2537]) Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes included:
+  - `Shortcuts (SHOR)` to make specific shortcut combinations more accessible for users with mobility restrictions.
+    - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
+  - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
+
+#### 3.31 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
+- ([#2615]) Added ability to start / restart arrangement playback from the clip pad you're holding in arranger view.
+  - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
+
+#### 3.31 Added Song New Midi Learn Menu
+- ([#2645]) Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
+  - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
+
+#### 3.33 Updated UI for Creating New Clips in Song Row View
+- ([#2716]) The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
+    - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
+    - NOTE: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default.
+        - This is because Audio Clips cannot currently be converted to other clip types and thus you will be stuck with only being able to create Audio Clips (unless you change the default and/or disable use of last clip type). The same applies to CV clips, which after two CV clips created, would prevent you from creating other clips (unless you change the default and/or disable use of last clip type).
+
+#### 3.34 Threshold Recording
+- ([#2808]) Added `THRESHOLD RECORDING` default setting which can be turned on in the `SETTINGS > RECORDING > THRESHOLD RECORDING (THRE) > MODE` submenu
+  - When this is enabled, recording of external audio input (e.g. Line In / Microphone) will only begin when it detects an audio signal according the Recording Threshold mode that has been set. There are five Threshold Recording modes that can be selected from:
+    - `DISABLED (OFF)`: Standard Deluge behaviour. Recording starts right away.
+    - `LOW`: Sets a lower threshold for lower input signals.
+    - `MEDIUM`: Sets a medium threshold that is good for most signals (including the internal microphone with gain off).
+    - `HIGH`: Sets a high threshold that is good for noisy signals / microphones with gain
+  - You can also view and temporarily change the current threshold recording setting as follows:
+    - Press and hold `RECORD` + turn  `SELECT`
+    - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+
+#### 3.34 Polyphony / Voice Count
+- ([#1824]) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing `SELECT` in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under the `VOICE (VOIC)` menu.
+  - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
+- Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`.
+
+#### 3.35 Clip Names
+- ([#2293], [#2299], [#3183]) All clips can be named. Name must be unique per track. Clip name is displayed underneath the track name on OLED.
+  1. Via clip settings menu, see [#3-28-Add-Clip-Settings-Menu-in-Song-View-to-set-Clip-Mode-and-Clip-Name-and-convert-Instrument-Clips-to-Audio-Clips]
+  2. Via `NAME` shortcut in the clip view for non-audio clips (in audio clips the `NAME` shortcut currently names the track instead). In KIT clips `AFFECT ALL` must be on, or the shortcut names the active drum instead.
+- ([#3195]) Clip name display includes the section number. If the clip has no name, it is displayed using just the section number, as "SECTION N". If the clip has a name, it is prefixed with the section number, as "N: CLIP NAME".
+- ([#3195]) When clips are copied, the clip name is copied as well. If the target track already has a clip with the same name, an integer suffix starting from 2 is added unless the name already has an integer suffix. This integer suffix is incremented until the clip name is unique on the target track. Ie. copying a clip named "BRIDGE" to the same otherwise empty track will first create "BRIDGE2", then "BRIDGE3", etc.
+
+#### 3.36 Configurable Accidental
+
+- (#3794) Added toggle in `SETTINGS > DEFAULTS > UI > USE SHARPS(#) (SHRP)` to allow users to choose which accidentals to display. When enabled in OLED mode, notes will be displayed as A# or D#, as they did prior to this change. When disabled, notes will be displayed as B♭ or E♭. In 7SEG mode, a dot is used to indicade when the note has the configured accidental. If selected, `D.` will mean D#. If not selected, `D.` will mean D♭.
 
 ## 4. New Features Added
 
@@ -420,7 +523,8 @@ Here is a list of features that have been added to the firmware as a list, group
             - `Default active mode:` "Selection" allows changing the mode as described below, all other settings will
               always make mode snap back to the configured one (default Selection)
             - `Select in green mode:` Enabling this will make allow holding clips in green (launch) mode to change their
-              parameters like in blue mode, tradeoff is arming is executed on finger up (default on)
+              parameters like in blue mode, tradeoff is arming is executed on finger up (default on).
+                - In addition, with this mode enabled, if you hold a clip and press the clip button you will enter that clip.
             - `Empty pad unarm:` Enabling will make pressing empty pads in a track unarm all playing tracks in that
               track (default off)
     - There are different interaction modes that change how the grid behaves
@@ -478,12 +582,12 @@ Here is a list of features that have been added to the firmware as a list, group
             - Short press pads (< 100ms by default) in a column to change the value until you press the pad again (resetting it to the value before the pad was pressed)
             - Quickly clear all held values by pressing `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
         - Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
-        - Save defaults as PerformanceView.xml file
+        - Save defaults to `SETTINGS/PerformanceView.XML` file
             - Adjustable default Values assigned to each FX column via `VALUE` editing mode or PerformanceView.xml
             - Adjustable default Param assigned to each FX column via `PARAM` editing mode or PerformanceView.xml
             - Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (
               simply change a held pad in Performance View and save the layout to save the layout with the held pads).
-        - Load defaults from PerformanceView.xml file
+        - Load defaults from `SETTINGS/PerformanceView.XML` file
 
 ### 4.1.7 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips
 
@@ -565,73 +669,55 @@ In `KEYBOARD VIEW`, macros are available as a sidebar control.
 - ([#120]) New Stereo Chorus type added to Mod FX. `MOD FX DEPTH` will adjust the amount of stereo widening the effect
   has.
 
-#### 4.2.3 - MIDI Takeover Mode
+#### 4.2.3 - Dimension
+- ([#2882]) Boss/roland style dimension effect. Controls are the same as for chorus
 
-This mode affects how the Deluge handles MIDI input for learned CC controls.
+#### 4.2.4 - Warbler Effect
 
-- ([#170]) A new `TAKEOVER` submenu was created in the `MIDI` settings menu which consists of three modes that can be
-  selected from:
+- ([#2712]) New Warble fx, which provides randomly warbling pitch shifting and delays to simulate things from a tape reel
+warbling up to getting chewed up by the machine and spat back out. It's essentially a flanger/chorus/whatever based modulation
+abomination that makes super cool lofi warbley noises. It essentially consists of two things, a randomly drifting vibrato
+and a comb filter. Controls are the normal rate/depth/feedback/offset.
 
-  **1. `JUMP`:** This is the default mode for the Deluge. As soon as a MIDI encoder/Fader position is changed, the
-  Deluge's internal encoder position/Parameter value jumps to the position of the MIDI encoder/Fader.
+    - To make a tape warble type thing set rate to 15ish, depth to 5-10, feedback 0-2 and offset at 25
 
-  **2. `PICKUP`:** The Deluge will ignore changes to its internal encoder position/Parameter value until the MIDI
-  encoder/Fader's position is equal to the Deluge encoder position. After which the MIDI encoder/Fader will move in sync
-  with the Deluge.
+    - With depth at 0 and feedback at 0 it's not doing anything. If you turn up feedback you'll start to comb filter the signal, offset controls the length of the comb filter. Turning depth up adds modulation to that delay time (like a chorus or flanger) but since the modulation is unpredictable it sounds more "warm" "analog" "chewy" "lofi"
 
-  **3. `SCALE`:** The Deluge will increase/decrease its internal encoder position/Parameter value relative to the change
-  of the MIDI encoder/Fader position and the amount of "runway" remaining on the MIDI controller. Once the MIDI
-  controller reaches its maximum or minimum position, the MIDI encoder/Fader will move in sync with the Deluge. The
-  Deluge value will always decrease/increase in the same direction as the MIDI controller.
+    - Turning rate up makes it go faster
 
-  **4. `RELATIVE`:** The Deluge will increase/decrease its internal encoder position/Parameter value using the relative value changes (offset) sent by the controller. The controller must be actually sending relative value changes (127 for down and 1 for up) in order for this to work.
+    - Turning feedback up makes it get super weird
 
-#### 4.2.4 - Alternative Delay Types for Param Encoders (Gold encoders)
+    - Turning offset up adds phasing (unless feedback is 0, in which case it does nothing)
 
-- ([#282]) Ability to select in `COMMUNITY FEATURES` menu, which parameters are controlled when you click the `DELAY`
-  -related golden encoders. The default (for upper and lower encoders) is `PINGPONG` (`ON/OFF`)
-  and `TYPE` (`DIGITAL`/`ANALOG`), and you can modify it so the encoder clicks change
-  the `SYNC TYPE` (`EVEN, TRIPLETS, DOTTED`) and `SYNC RATE` (`OFF, WHOLE, 2ND, 4TH, ETC`) respectively.
+#### 4.2.5 - Grain FX
 
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+- ([#363] and [#2815]) New `GRAIN` added to Mod FX.
 
-#### 4.2.5 - Patchable Wavefolding Distortion
+    - Parameters:
+        - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
+        - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
+        - **`MOD FEEDBACK - GRAIN RANDOMNESS (GRTY)`:** Selects the spread of Grain pitch. At minimum it only generates
+          unison and octaves, higher values add 5ths and multi octave jumps.
+        - **`MOD OFFSET - GRAIN Density (DENS)`:** Adjusts Grain Density from sparse to 8 layered grains
+
+#### 4.2.6 - Warble LFO
+- ([#2712]) The randomly varying wave at the center of the warbler, but made into an LFO
+
+#### 4.2.7 - Patchable Wavefolding Distortion
 
 - ([#349]) Adds a pre filter `WAVEFOLDE` distortion, and the depth is patchable/automatable. The depth is accessible in
   both the menu and on the un-labeled pad between `SATURATION` and `LPF FREQ`. The fold has no effect when set to 0 and
   removes itself from the signal path.
     - Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.6 - Quantized Stutter
+#### 4.2.8 - Per-clip Stutter with options: Quantize, Reverse, and Ping-Pong
 
-- ([#357]) Set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` rate before triggering it. Once
-  you have pressed the `STUTTER`-related gold encoder, then the selected value will be the center value of the encoder
-  and you can go up and down with the golden encoder and come back to the original rate by centering the encoder (LEDs
-  will flash indicating it).
+- ([#3226]) Now the stutter buffer can also be set to play in reverse, and ping-pong. A new menu has been added to
+  the `SONG` menu, under `FX` submenu, to set the stutter configuration for the song. An extra menu has been added
+  per sound source (either synths, kit rows, affect-entire kits, or audio clips) to set the stutter configuration
+  independently of the song configuration if you wish. Quantized stutter is enabled by default.
 
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-
-#### 4.2.7 - Grain FX
-
-- ([#363]) New `GRAIN` added to Mod FX. This effect is resource-intensive, so it's suggested to use only one instance
-  per song and/or resample and remove the clip or effect afterwards. As such it is turned `OFF` by default for now.
-
-    - Parameters:
-        - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
-        - **`MOD DEPTH`:** Controls Grain Volume / Dry Wet Mix
-        - **`MOD FEEDBACK`:** Selects Grain Type (See below for values)
-        - **`MOD OFFSET`:** Adjusts Grain Size (10ms - 800ms)
-
-    - Grain Type (Presets):
-        - **`0-10`:** Unison and +1 Octave (Reversed)
-        - **`11-20`** Unison and -1 Octave
-        - **`21-30`:** Unison and +1 Octave (Defalut)
-        - **`31-40`:** 5th and +1 Octave
-        - **`41-50`:** Unison and +1/-1 Octave (Tempo Sync)
-
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-
-#### 4.2.8 - Reverb Improvements
+#### 4.2.9 - Reverb Improvements
 
 - ([#1065]) New reverb models are available for selection inside of the `FX > REVERB > MODEL` menu. These include:
     - Freeverb (the original Deluge reverb)
@@ -642,6 +728,10 @@ This mode affects how the Deluge handles MIDI input for learned CC controls.
 - ([#2080]) Reverb can now be panned fully left or right. Old songs retain their reverb panning behavior, but display
   it as smaller numbers. This change also fixes an issue with reverb values displaying differently than how they were
   set.
+- ([#2788]) Added LPF to Mutable Instruments Model. 50 (default) corresponds to 20khz and 0 corresponds to 0hz.
+
+#### 4.2.10 Launch Exclusively
+- ([#3213]) A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant and continue playing.
 
 ### 4.3 - Instrument Clip View - General Features
 
@@ -763,7 +853,7 @@ to each individual note onset. ([#1978])
                         3) go back to the automation overview;
     - ([#1083]) Updated the Automation Overview and grid shortcuts in automation view for MIDI clips to match the grid
       shortcut cc mappings for MIDI Follow. So if you want to change what CC's map to what grid shortcuts in the
-      Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
+      Automation View for MIDI Clips, you would need to edit the `SETTINGS/MIDIFollow.XML` template for MIDI Follow mode.
     - ([#1156]) Change interpolation shortcut + Provide better integration with Deluge menu system and consistency with
       Select encoder usage.
         - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of
@@ -805,126 +895,37 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198]) Added new features to the arpeggiator, which include:
-    - Splitted the old `Mode` setting into separate settings: `Mode` (Off or Arpeggiator), `Octave Mode` (Up, Down,
-      Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random), so you can setup
-      individually how octaves are walked and how notes are walked in the sequence.
-    - The `Mode` pad shortcut is now an `Arp preset` shortcut, which will update the new 3 settings all at once:
-        - `Off` will disable arpeggiator.
-        - `Up` will setup Mode to `Arpeggiator`, Octave Mode to `Up` and Note Mode to `Up`.
-        - `Down` will setup Mode to `Arpeggiator`, Octave Mode to `Down` and Note Mode to `Down`.
-        - `Both` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`.
-        - `Random` will setup Mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`.
-        - `Custom` will setup Mode to `Arpeggiator`, and enter a submenu to let you edit Octave Mode and Note Mode.
-    - **`Mode (MODE):`**
-        - `Off` disables the arpeggiator.
-        - `Arpeggiator` (ARP) enables the arpeggiator.
-    - **`Octave Mode (OMOD):`**
-        - `Up` (UP) will walk the octaves up.
-        - `Down` (DOWN) will walk the octaves down.
-        - `Up & Down` (UPDN) will walk the octaves up and down, repeating the highest and lowest octaves.
-        - `Alternate` (ALT)  will walk the octaves up, and then down reversing the Notes pattern (without
-          repeating notes). Tip: Octave Mode set to Alternate and Note Mode set to Up is equivalent to
-          the old `Both` mode.
-        - `Random` (RAND) will choose a random octave every time the Notes pattern has played.
-          Tip: Set also Note Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Note Mode (NMOD):`**
-        - `Up` (UP) will walk the notes up.
-        - `Down` (DOWN) will walk the notes down. Tip: this mode also works in conjunction with Octave Mode
-          Alternate, which will walk all the notes and octaves all the way down, and then up reversing it.
-        - `Up & Down` (UPDN) will walk the notes up and down, repeating the highest and lowest notes.
-        - `As played` (PLAY) will walk the notes in the same order that they were played. Tip: this mode
-          also works in conjunction with Octave Mode Alternate, which will walk all the notes and octaves
-          all the way up (with notes as played), and then down reversing the order of played notes.
-        - `Random` (RAND) will choose a random note each time. If the Octave Mode is set to something
-          different than Random, then the pattern will play, in the same octave, the same number of random
-          notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
-          Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Rhythm`** (RHYT) (unpatchet parameter, assignable to golden knobs):
-      This parameter will play silences in some of the steps. This menu option show zeroes
-      and dashes, "0" means "play note", and "-" means "don't play note" (or play a silence).
-      The available options are:
-      <details>
-      <summary>Rhythm Options</summary>
-        <ul>
-          <li> 0: None</li>
-          <li> 1: 0--</li>
-          <li> 2: 00-</li>
-          <li> 3: 0-0</li>
-          <li> 4: 0-00</li>
-          <li> 5: 00--</li>
-          <li> 6: 000-</li>
-          <li> 7: 0--0</li>
-          <li> 8: 00-0</li>
-          <li> 9: 0----</li>
-          <li>10: 0-000</li>
-          <li>11: 00---</li>
-          <li>12: 0000-</li>
-          <li>13: 0---0</li>
-          <li>14: 00-00</li>
-          <li>15: 0-0--</li>
-          <li>16: 000-0</li>
-          <li>17: 0--0-</li>
-          <li>18: 0--00</li>
-          <li>19: 000--</li>
-          <li>20: 00--0</li>
-          <li>21: 0-00-</li>
-          <li>22: 00-0-</li>
-          <li>23: 0-0-0</li>
-          <li>24: 0-----</li>
-          <li>25: 0-0000</li>
-          <li>26: 00----</li>
-          <li>27: 00000-</li>
-          <li>28: 0----0</li>
-          <li>29: 00-000</li>
-          <li>30: 0-0---</li>
-          <li>31: 0000-0</li>
-          <li>32: 0---0-</li>
-          <li>33: 000-00</li>
-          <li>34: 0--000</li>
-          <li>35: 000---</li>
-          <li>36: 0000--</li>
-          <li>37: 0---00</li>
-          <li>38: 00--00</li>
-          <li>39: 0-00--</li>
-          <li>40: 000--0</li>
-          <li>41: 0--00-</li>
-          <li>42: 0-0-00</li>
-          <li>43: 00-0--</li>
-          <li>44: 000-0-</li>
-          <li>45: 0--0-0</li>
-          <li>46: 0-000-</li>
-          <li>47: 00---0</li>
-          <li>48: 00--0-</li>
-          <li>49: 0-0--0</li>
-          <li>50: 00-0-0</li>
-        </ul>
-      </details>
-    - **`Sequence Length`** (LENG) (unpatchet parameter, assignable to golden knobs):
-        - If set to zero, the arpeggiator pattern will play fully.
-        - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
-          reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm parameter
-          to create longer and more complex rhythm patterns.
-    - **`Ratcheting:`** There are two new parameters (unpatched, assignable to golden knobs), to control how notes
-      are ratcheted. A ratchet is when a note repeats itself several times in the same time interval that the
-      original note has to play.
-        - `Ratchet Amount` (RATC): this will set the maximum number of ratchets that an arpeggiator step
-          could have (each step will randomize the number of ratchet notes between 1 and max value).
-            - From values 0 to 4, no ratchet notes
-            - From 5 to 19, up to 2 ratchet notes
-            - From 20 to 34, up to 4 ratchet notes
-            - From 35 to 50, up to 8 ratchet notes
-        - `Ratchet Probability` (RPRO): this sets how likely a step is to be ratcheted
-            - Being 0 (0%), no ratchets at all
-            - And 50 (100%), all notes will evaluate to be ratcheted.
-    - **`MPE`** settings:
-      - `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
-      velocity of each new arpeggiated note by applying different pressure (aftertouch) or slide (Y) on the keys.
+- ([#1198] [#2978] [#2985] [#2990] [#3079] [#3285]) For a detailed description of this feature, please refer to the feature
+  documentation: [Arpeggiator Documentation]
+- ([#3388]) Added `KIT ARPEGGIATOR` for `KIT` clips. This allows the user to engage an arpeggiator layer on top of the kit rows,
+  which will control which rows receive note ON's and note OFF's. That means that the kit rows can have their own arpeggiators also
+  enabled, which allows for unlimited possible pattern combinations. This feature is also explained in [Arpeggiator Documentation]
 
 #### 4.3.9 - Velocity View
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
 - ([#2046]) Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
+
+#### 4.3.10 - Enhanced Note Probability, Iterance and Fill
+
+- ([#2641], [#2751]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
+  - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
+  - To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
+  - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the `SELECT` encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
+  - To edit fill, you need to access the new note and note row editor menu's.
+
+#### 4.3.11 - Added New Note and Note Row Editor Menu's
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Note / Note Row Editor Documentation]
+- ([#2641]) Added new note and note row editor menu's to edit note and note row parameters.
+  - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
+  - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
+
+#### 4.3.12 - Auto Load sample when browsing
+
+- ([#2676]) When browsing for sample to assign to a Synth or to a Kit Row, you can now enable auto-load of previewed samples. To do this, open the sample browser (`SHIFT + BROWSE`), and engage `AUTO-LOAD` by pressing `LOAD`. While the `LOAD` LED is on, all the samples that you preview will automatically be loaded to the instrument as if you had confirmed the selection. This makes previewing single cycle waveforms way more convenient, for example.
+
+#### 4.3.14 - Save/Load Patterns
+- ([#3352]) Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synth, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ] for more info.
 
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
@@ -1037,6 +1038,15 @@ to each individual note onset. ([#1978])
 
 - As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD LIBRARY` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
 
+#### 4.4.1.8 - Display Piano Keyboard Layout
+
+- ([#2983]) Provides a classic piano keyboard layout for Deluge.
+- One screen displays 5 octaves with different colors. But you can scroll this keyboard vertically to increase octaves to the highest or decrease to the lowest. You can also shift the keyboard to start on a different note than C. This is done by using the horizontal scroll.
+- If the Scale mode is enabled, all the notes in this scale will be displayed brighter than the notes outside the scale. Of course, you can change the scale, and the keys will change accordingly. The same thing with the root note (the brightest one).
+- The same notes you play are highlighted in other octaves as well.
+- This keyboard highlights incoming MIDI notes.
+- You can set this keyboard by default in `MENU -> DEFAULTS -> UI -> KEYBOARD -> LAYOUT -> PIAN`
+
 #### 4.4.2 - Scales
 
 - ([#991]) Added new scales for instrument clips.
@@ -1118,6 +1128,17 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
   - As the UI and implementation is still experimental, a community setting has to be activated to create new DX7 patches. See the separate document for details.
 
+#### 4.5.8 - More envelopes
+
+- ([#3279]) Added two more envelopes (Envelope 3 and Envelope 4), which you can access from the sound editor menu.
+
+#### 4.5.9 - Send Midi
+
+- ([#3313]) There is a new submenu `MIDI` added to the `SOUND` menu for synths and sound drums, where you can select the MIDI channel
+  (and also base note for drums) that will be sent at the same time as the sound triggers.
+  In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
+  having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
+
 ### 4.6 - Instrument Clip View - Kit Clip Features
 
 #### 4.6.1 - Keyboard View
@@ -1130,10 +1151,12 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 
 #### 4.6.2 - Drum Randomizer / Load Random Samples
 
-- ([#122]) Pressing `AUDITION` + `RANDOM` on a drum kit row will load a random sample from the same folder as the
-  currently enabled sample and load it as the sound for that row.
-    - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
-- ([#955]) Pressing `SHIFT` + `RANDOM` randomizes all non-muted drum kit rows.
+- ([#122],[#955]): Add drum randomizer feature to load a random sample into one or more drum kit rows.
+  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+  - Commands are:
+    - When no audition pads are pressed, randomize just the selected drum by: Pressing `LOAD` + `RANDOM`
+    - To randomize more than one selected drum at a time: Press `LOAD` + `AUDITION PADS` + `RANDOM`
+    - To randomize all active drums (not muted and have notes playing): Press `LOAD` + `AFFECT ENTIRE` + `RANDOM`
 
 #### 4.6.3 - Manual Slicing / Lazy Chop
 
@@ -1162,20 +1185,42 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 - ([#1390]) Allows saving and loading midi presets. They end up in a new folder named MIDI.
   - Note: The information that is saved is the MIDI channel selection, and the assignments of CC parameters to golden knobs.
 
-### 4.8 Audio Clip View - Features
+#### 4.7.2 - Save/Load MIDI CC Labels + MIDI Device Definition File
 
-#### 4.8.1 - Shift Clip
+- ([#2823]) Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`.
+  - To rename a `MIDI CC`, enter `Automation View` and select the CC you wish to rename using the `Select Encoder` or using the `Grid Shortcut`.
+  - With the `MIDI CC` selected, press `Shift` + the `Name` grid shortcut to open the `MIDI CC Renaming UI`. Enter a new name and press `Select` or `Enter`.
+  - The new `MIDI CC` name will be immediately visible in `Automation View` and you can assign that CC to a `Gold Knob` in the MIDI clip and it will show that name when you press down on the `Gold (Mod) Encoder`.
+  - To save the `MIDI CC` labels to a `MIDI Device Definition File`, hold `Save` + Press down on either `Gold (Mod) Encoder`. It will ask you to enter a file name. Press `Select`, `Enter on the Keyboard` or `Save` to save the file.
+  - To load the `MIDI CC` labels from a `MIDI Device Definition File`, hold `Load` + Press down on either `Gold (Mod) Encoder`. It will ask you to select a file. Press `Select`, `Enter on the Keyboard` or `Load` to load the file.
+  - Saving or Loading a `MIDI Device Definition File` will link that file to the current MIDI Instrument in the current song. If you save the song or save the current midi instrument as a preset, the song file and midi instrument preset file will include a file path to the `MIDI Device Definition File`. If you re-load the song or re-load the midi instrument preset, it will load information from the linked `MIDI Device Definition File`.
+  - You can unlink a Song or Midi Instrument preset from the a `MIDI Device Definition File` via the `MIDI > Device Definition (DEVI)` menu. You will need to re-save the song and/or preset to save the changes.
+  - You can also manually unlink the song file / preset file from the `MIDI Device Definition File` by searching for `definitionFile`. You should see `name="***"` right under it. Do not delete the name line from the preset. Instead replace the name with `name=""`
+  - You can also use the `MIDI > Device Definition` menu as another way to link / load a `MIDI Device Definition File`. When clicking on the `File Linked (LINK)` setting, it will prompt you to select a `MIDI Device Definition File` to load. After successfully loading the file, the file name will be displayed (on OLED only) below the `File Linked` setting.
+
+### 4.8 Instrument Clip View - CV Clip Features
+
+#### 4.8.1 - Expression
+- Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
+  - Turn `SELECT` to choose `1 AND 2 (BOTH)` CV / Gate channel.
+  - Press `SELECT` to enter the `CV Instrument Menu`
+  - Enter the  `CV 2 Source (CV2)` submenu
+  - Select from `OFF, Y, Aftertouch, Velocity`
+
+### 4.9 Audio Clip View - Features
+
+#### 4.9.1 - Shift Clip
 
 - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument
   clips.
 
-### 4.9 Third Party Device Integration
+### 4.10 Third Party Device Integration
 
 This is largely on the development side and created the start of a system of modules and hook points for enabling
 actions on the Deluge to signal third-party equipment over hosted USB. To start things off this includes some support
 for the Lumi Keys Studio Edition, described below.
 
-### 4.9.1 Lumi Keys Studio Edition
+### 4.10.1 Lumi Keys Studio Edition
 
 - ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark
   until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible
@@ -1186,11 +1231,24 @@ for the Lumi Keys Studio Edition, described below.
     - While Lumi has limited options for MPE separation, it will be configured to align with the dominant MPE range
       defined on the Deluge (upper or lower dominant).
 
+### 4.11.0 - Audio Clip View - Trimming Clips
+
+- ([#3291]) Added a new `STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP` feature to allow users to trim from the start of a clip without needing to reverse it.
+  - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. The new start position snaps to column one.
+  - You can revert to an earlier portion by pressing undo (or reverse the clip and altering as before).
+  - This lets you easily alter the start of an audio clip without time stretching.
+  - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
+See this demo for more details:
+[Audio Clip View - Trimming Tips](https://www.youtube.com/watch?v=iWhVUsx40Mg&t=45s&ab_channel=RonCavagnaro).
+
 ## 5. Community Features Menu (aka Runtime Settings)
 
 In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT" encoder) there is
-the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a
-list of all options as listed in OLED and 7SEG displays and what they do:
+the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a list of all options as listed in OLED and 7SEG displays and what they do:
+
+Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD card.
 
 * `Drum Randomizer (DRUM)`
     * When On, the "AUDITION + RANDOM" shortcut is enabled.
@@ -1207,9 +1265,6 @@ list of all options as listed in OLED and 7SEG displays and what they do:
 * `Alternative Golden Knob Delay Params (DELA)`
     * When On, it changes the behaviour of the Mod Encoder button action from the default (PingPong and Type) to the
       alternative params (SyncType and SyncLevel).
-* `Stutter Rate Quantize (STUT)`
-    * When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when
-      selecting it is enabled.
 * `Allow Insecure Develop Sysex Messages (SYSX)`
     * When On, the ability to load firmware over USB is enabled.
 * `Sync Scaling Action (SCAL)`
@@ -1250,11 +1305,14 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * When On, the behaviour of playback start shortcuts changes as follows:
       * With playback off, pressing `PLAY` will start playback from the current grid scroll position
       * With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
-* `Accessibility Shortcuts (ACCE)`
-    * When On, the following shortcut combinations are changed in favour more accessible shortcut combinations for users with mobility restrictions:
-      * `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
 * `Grid View Loop Pads (LOOP)`
     * When On, two pads (Red and Magenta) in the `GRID VIEW` sidebar will be illuminated and enable you to trigger the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
+* `Alternative Tap Tempo Behaviour (TAPT)`
+    * When On, the number of `TAP TEMPO` button presses to engage `TAP TEMPO` is changed to `FOUR (4)` to avoid mistakingly changing tempo.
+* `Horizontal menus (HORI)`
+    * When On, some menu items render in horizontal menus, with multiple items visible and editable at the same time.
+* `Trim from start of audio clips (TRIM)`
+    * When On, the ability to trim from the start of an audio clip without needing to reverse it is enabled.
 
 ## 6. Sysex Handling
 
@@ -1531,7 +1589,75 @@ different firmware
 
 [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
 
+[#2537]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2537
+
+[#2615]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2615
+
+[#2641]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2641
+
+[#2645]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2645
+
+[#2676]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2676
+
+[#2702]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2702
+
+[#2712]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2712
+
+[#2716]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2716
+
+[#2751]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
+
+[#2788]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2788
+
+[#2808]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2808
+
+[#2810]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2810
+
+[#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
+
+[#2823]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2823
+
+[#2882]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2882
+
+[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
+
+[#2978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2978
+
+[#2983]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2983
+
+[#2985]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2985
+
+[#2990]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2990
+
+[#3183]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3183
+
+[#3195]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3195
+
+[#3062]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3062
+
+[#3079]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3079
+
+[#3226]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3226
+
+[#3279]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3279
+
+[#3285]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3285
+
+[#3291]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3291
+
+[#3313]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3313
+
+[#3332]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3332
+
+[#3352]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3352
+
+[#3388]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3388
+
+[#3425]: https://github.com/SynthstromAudible/DelugeFirmware/pull/3425
+
 [Automation View Documentation]: features/automation_view.md
+
+[Arpeggiator Documentation]: features/arpeggiator.md
 
 [Velocity View Documentation]: features/velocity_view.md
 

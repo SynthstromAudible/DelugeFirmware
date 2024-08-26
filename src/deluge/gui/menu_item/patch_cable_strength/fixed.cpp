@@ -24,6 +24,7 @@
 #include "storage/multi_range/multi_range.h"
 
 namespace deluge::gui::menu_item::patch_cable_strength {
+
 MenuPermission Fixed::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                     MultiRange** currentRange) {
 	soundEditor.patchingParamSelected = p;

@@ -27,7 +27,8 @@ class Selection : public Enumeration {
 public:
 	using Enumeration::Enumeration;
 
-	virtual deluge::vector<std::string_view> getOptions() = 0;
+	enum class OptType { FULL, SHORT };
+	virtual deluge::vector<std::string_view> getOptions(OptType optType = OptType::FULL) = 0;
 
 	void drawValue() override;
 
@@ -43,9 +44,11 @@ public:
 
 	// toggles boolean ON / OFF
 	void toggleValue() {
-		readCurrentValue();
-		setValue(!getValue());
-		writeCurrentValue();
+		if (isToggle()) {
+			readCurrentValue();
+			setValue(!getValue());
+			writeCurrentValue();
+		}
 	};
 
 	// handles toggling a "toggle" selection menu from sub-menu level
@@ -57,11 +60,9 @@ public:
 			return nullptr; // go up a level
 		}
 		// you're toggling selection menu from submenu level
-		else {
-			toggleValue();
-			displayToggleValue();
-			return NO_NAVIGATION;
-		}
+		toggleValue();
+		displayToggleValue();
+		return NO_NAVIGATION;
 	}
 
 	// get's toggle status for rendering checkbox on OLED
@@ -80,5 +81,9 @@ public:
 			return 255;
 		}
 	}
+
+protected:
+	void getShortOption(StringBuf&) override;
+	void getNotificationValue(StringBuf&) override;
 };
 } // namespace deluge::gui::menu_item

@@ -185,7 +185,7 @@ int usb_hstd_interrupt_handler(usb_utr_t* ptr)
             /* SACK Clear */
             ptr->ipp->INTSTS1 = (uint16_t)(~USB_SACK & INTSTS1_MASK);
             /* Setup Ignore,Setup Acknowledge disable */
-            ptr->ipp->INTENB1 &= (uint16_t) ~(USB_SIGNE | USB_SACKE);
+            ptr->ipp->INTENB1 &= (uint16_t)~(USB_SIGNE | USB_SACKE);
             ptr->keyword = USB_INT_SACK;
         }
         else if (ists1 & USB_SIGN)

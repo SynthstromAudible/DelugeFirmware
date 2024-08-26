@@ -209,23 +209,26 @@ inline int32_t Patcher::combineCablesLinearForRangeParam(Destination const* dest
 	int32_t runningTotalCombination = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed to
 	                                             // get bigger than 2147483647, which means "4".
 
-	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
+	PatchCableSet* patch_cable_set = paramManager->getPatchCableSet();
 
 	// For each patch cable affecting the range of this cable (got that?)
 	for (int32_t c = destination->firstCable; c < destination->endCable; c++) {
-		PatchCable* patchCable = &patchCableSet->patchCables[c];
-		PatchSource s = patchCable->from;
-		int32_t sourceValue = getSourceValue(s);
+		PatchCable* patch_cable = &patch_cable_set->patchCables[c];
+		PatchSource s = patch_cable->from;
+		int32_t source_value = getSourceValue(s);
 
 		// Special exception: If we're patching aftertouch to range. Normally, unlike other sources, aftertouch goes
 		// from 0 to 2147483647. This is because we want it to have no effect at its negative extreme, which isn't
 		// normally what we want. However, when patched to range, we do want this again, so "transpose" it here.
 		if (s == PatchSource::AFTERTOUCH) {
-			sourceValue = (sourceValue - 1073741824) << 1;
+			source_value = (source_value - 1073741824) << 1;
+		}
+		else {
+			source_value = patch_cable->toPolarity(source_value);
 		}
 
-		int32_t cableStrength = patchCable->param.getCurrentValue();
-		cableToLinearParamWithoutRangeAdjustment(sourceValue, cableStrength, &runningTotalCombination);
+		int32_t cableStrength = patch_cable->param.getCurrentValue();
+		cableToLinearParamWithoutRangeAdjustment(source_value, cableStrength, &runningTotalCombination);
 	}
 
 	return runningTotalCombination - 536870912;
@@ -243,7 +246,7 @@ inline int32_t Patcher::combineCablesLinear(Destination const* destination, uint
 	int32_t runningTotalCombination = 536870912; // 536870912 means "1". runningTotalCombination will not be allowed to
 	                                             // get bigger than 2147483647, which means "4".
 
-	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
+	PatchCableSet* patch_cable_set = paramManager->getPatchCableSet();
 
 	// Do the "preset value" (which we treat like a "cable" here)
 	cableToLinearParamWithoutRangeAdjustment(sound->getSmoothedPatchedParamValue(p, paramManager), paramRanges[p],
@@ -251,13 +254,13 @@ inline int32_t Patcher::combineCablesLinear(Destination const* destination, uint
 
 	if (destination) {
 		// For each patch cable affecting this parameter
-		for (int32_t c = destination->firstCable; c < destination->endCable; c++) {
-			PatchCable* patchCable = &patchCableSet->patchCables[c];
-			PatchSource s = patchCable->from;
-			int32_t sourceValue = getSourceValue(s);
-
-			int32_t cableStrength = patchCable->param.getCurrentValue();
-			cableToLinearParam(sourceValue, cableStrength, &runningTotalCombination, patchCable);
+		for (int32_t cable = destination->firstCable; cable < destination->endCable; cable++) {
+			PatchCable* patch_cable = &patch_cable_set->patchCables[cable];
+			PatchSource s = patch_cable->from;
+			int32_t source_value = getSourceValue(s);
+			source_value = patch_cable->toPolarity(source_value);
+			int32_t cable_strength = patch_cable->param.getCurrentValue();
+			cableToLinearParam(source_value, cable_strength, &runningTotalCombination, patch_cable);
 		}
 	}
 
@@ -275,16 +278,16 @@ inline int32_t Patcher::combineCablesExp(Destination const* destination, uint32_
 
 	int32_t runningTotalCombination = 0;
 
-	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
+	PatchCableSet* patch_cable_set = paramManager->getPatchCableSet();
 
 	if (destination) {
 		// For each patch cable affecting this parameter
-		for (int32_t c = destination->firstCable; c < destination->endCable; c++) {
-			PatchCable* patchCable = &patchCableSet->patchCables[c];
-			int32_t sourceValue = getSourceValue(patchCable->from);
-
-			int32_t cableStrength = patchCableSet->getModifiedPatchCableAmount(c, p);
-			cableToExpParam(sourceValue, cableStrength, &runningTotalCombination, patchCable);
+		for (int32_t cable = destination->firstCable; cable < destination->endCable; cable++) {
+			PatchCable* patch_cable = &patch_cable_set->patchCables[cable];
+			int32_t source_value = getSourceValue(patch_cable->from);
+			source_value = patch_cable->toPolarity(source_value);
+			int32_t cable_strength = patch_cable_set->getModifiedPatchCableAmount(cable, p);
+			cableToExpParam(source_value, cable_strength, &runningTotalCombination, patch_cable);
 		}
 
 		// Hack for wave index params - make the patching (but not the preset value) stretch twice as far, to allow the

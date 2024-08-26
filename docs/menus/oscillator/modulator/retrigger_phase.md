@@ -1,0 +1,1 @@
+Controls the phase at which the modulator starts when triggered by either a note-on or oscillator sync.

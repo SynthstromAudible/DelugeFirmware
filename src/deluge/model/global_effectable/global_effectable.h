@@ -19,31 +19,35 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
+#include "gui/l10n/l10n.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "modulation/arpeggiator.h"
+#include "util/containers.h"
 using namespace deluge;
 class Serializer;
+
 class GlobalEffectable : public ModControllableAudio {
 public:
 	GlobalEffectable();
-	void cloneFrom(ModControllableAudio* other);
+	void cloneFrom(ModControllableAudio* other) override;
 
 	static void initParams(ParamManager* paramManager);
 	static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);
-	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager);
-	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
+	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) override;
+	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) override;
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation = true);
+	                                                bool allowCreation = true) override;
 	void setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager);
 	void processFilters(StereoSample* buffer, int32_t numSamples);
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
 	void processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
 	                                  ParamManager* paramManager, const Delay::State& delayWorkingState,
-	                                  bool grainHadInput = true);
+	                                  bool anySoundComingIn, q31_t verbAmount);
 
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
 	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);
 	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                      int32_t readAutomationUpToPos, Song* song);
+	                      int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song) override;
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -64,7 +68,7 @@ public:
 	bool editingComp;
 	CompParam currentCompParam;
 
-	ModFXType getModFXType();
+	ModFXType getModFXType() override;
 
 protected:
 	int maxCompParam = 0;

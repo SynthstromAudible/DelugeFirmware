@@ -42,7 +42,12 @@ public:
 	virtual ~ParamCollection();
 
 	virtual void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0) = 0;
+
+	/// tick interpolation by a number of ticks
 	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;
+
+	/// tick interpolation by a number of ticks
+	virtual void tickTicks(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;
 	virtual void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed);
 	virtual void playbackHasEnded(ModelStackWithParamCollection* modelStack) = 0;
 	virtual void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) = 0;

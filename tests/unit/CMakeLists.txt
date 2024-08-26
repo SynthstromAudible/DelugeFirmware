@@ -5,26 +5,33 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/cpputest/cpputest.git
         GIT_TAG eccbc2190c672e598c1dd2bf5e4295f5ba27aad1
 )
+FetchContent_Declare(
+        etl
+        GIT_REPOSITORY https://github.com/ETLCPP/etl
+        GIT_TAG 20.39.4
+)
+
+FetchContent_MakeAvailable(etl)
 
 # Set this to ON if you want to have the CppUTest's internal tests in your
 # project as well.
 set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
 if (WIN32)
-        # Memory leak detection is off by default on Windows, setting
-        # it here will cause a massive spam of redefinition warning during
-        # build.
-        #
-        # We use things like strncat, which Windows wants to warn about: silence those.
-        add_compile_definitions(
-                IN_UNIT_TESTS=1
-                _CRT_SECURE_NO_WARNINGS=1
-        )
-else()
-        add_compile_definitions(
-                CPPUTEST_MEM_LEAK_DETECTION_DISABLED
-                IN_UNIT_TESTS=1
-        )
-endif()
+    # Memory leak detection is off by default on Windows, setting
+    # it here will cause a massive spam of redefinition warning during
+    # build.
+    #
+    # We use things like strncat, which Windows wants to warn about: silence those.
+    add_compile_definitions(
+            IN_UNIT_TESTS=1
+            _CRT_SECURE_NO_WARNINGS=1
+    )
+else ()
+    add_compile_definitions(
+            CPPUTEST_MEM_LEAK_DETECTION_DISABLED
+            IN_UNIT_TESTS=1
+    )
+endif ()
 
 FetchContent_MakeAvailable(CppUTest)
 
@@ -32,6 +39,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # Mock implementations
         mocks/*
         # For LFO
+        ../../src/deluge/util/d_stringbuf.cpp
         ../../src/deluge/util/lookuptables.cpp
         ../../src/deluge/util/waves.cpp
         ../../src/deluge/modulation/lfo.cpp
@@ -63,6 +71,7 @@ add_executable(UnitTests
         function_tests.cpp
         sync_tests.cpp
         chord_tests.cpp
+        time_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)
@@ -83,7 +92,7 @@ set_target_properties(UnitTests
         CXX_EXTENSIONS ON
 )
 
-target_link_libraries(UnitTests CppUTestExt)
+target_link_libraries(UnitTests CppUTestExt etl::etl)
 
 # strchr is seemingly different in x86
 target_compile_options(UnitTests PUBLIC

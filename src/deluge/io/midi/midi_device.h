@@ -35,7 +35,6 @@
 #define MPE_ZONE_UPPER_NUMBERED_FROM_0 1
 
 class MIDIDevice;
-class StorageManager;
 class Serializer;
 class Deserializer;
 
@@ -81,7 +80,9 @@ public:
  * See MIDIDeviceManager or midiengine.cpp for details
  */
 
-// These never get destructed. So we're safe having various Instruments etc holding pointers to them.
+enum class clock_setting { NONE, RECEIVE, SEND, BOTH };
+
+/// A MIDI device connection. Stores all state specific to a given device and its contained ports and channels.
 class MIDIDevice {
 public:
 	MIDIDevice();
@@ -130,15 +131,18 @@ public:
 	// 0 if not connected. For USB devices, the bits signal a connection of the corresponding connectedUSBMIDIDevices[].
 	// Of course there'll usually just be one bit set, unless two of the same device are connected.
 	uint8_t connectionFlags;
-	bool sendClock; // whether to send clocks to this device
+	bool sendClock;    // whether to send clocks to this device
+	bool receiveClock; // whether to receive clocks from this device
 	uint8_t incomingSysexBuffer[1024];
 	int32_t incomingSysexPos = 0;
 
 protected:
-	virtual void writeReferenceAttributesToFile(
-	    Serializer& writer) = 0; // These go both into MIDIDEVICES.XML and also any song/preset
-	                             // files where there's a reference to this Device.
-	void writeDefinitionAttributesToFile(Serializer& writer); // These only go into MIDIDEVICES.XML.
+	// These go both into SETTINGS/MIDIDevices.XML and also any song/preset
+	// files where there's a reference to this Device.
+	virtual void writeReferenceAttributesToFile(Serializer& writer) = 0;
+
+	// These only go into SETTINGS/MIDIDevices.XML
+	void writeDefinitionAttributesToFile(Serializer& writer);
 };
 
 class MIDIDeviceUSB : public MIDIDevice {
@@ -166,37 +170,37 @@ public:
 	// Add new hooks to the below list.
 
 	// Gets called once for each freshly connected hosted device.
-	virtual void hookOnConnected(){};
+	virtual void hookOnConnected() {};
 
 	// Gets called when something happens that changes the root note
-	virtual void hookOnChangeRootNote(){};
+	virtual void hookOnChangeRootNote() {};
 
 	// Gets called when something happens that changes the scale/mode
-	virtual void hookOnChangeScale(){};
+	virtual void hookOnChangeScale() {};
 
 	// Gets called when entering Scale Mode in a clip
-	virtual void hookOnEnterScaleMode(){};
+	virtual void hookOnEnterScaleMode() {};
 
 	// Gets called when exiting Scale Mode in a clip
-	virtual void hookOnExitScaleMode(){};
+	virtual void hookOnExitScaleMode() {};
 
 	// Gets called when learning/unlearning a midi device to a clip
-	virtual void hookOnMIDILearn(){};
+	virtual void hookOnMIDILearn() {};
 
 	// Gets called when recalculating colour in clip mode
-	virtual void hookOnRecalculateColour(){};
+	virtual void hookOnRecalculateColour() {};
 
 	// Gets called when transitioning to ArrangerView
-	virtual void hookOnTransitionToArrangerView(){};
+	virtual void hookOnTransitionToArrangerView() {};
 
 	// Gets called when transitioning to ClipView
-	virtual void hookOnTransitionToClipView(){};
+	virtual void hookOnTransitionToClipView() {};
 
 	// Gets called when transitioning to SessionView
-	virtual void hookOnTransitionToSessionView(){};
+	virtual void hookOnTransitionToSessionView() {};
 
 	// Gets called when hosted device info is saved to XML (usually after changing settings)
-	virtual void hookOnWriteHostedDeviceToFile(){};
+	virtual void hookOnWriteHostedDeviceToFile() {};
 
 	// Add an entry to this enum if adding new virtual hook functions above
 	enum class Hook {
@@ -226,7 +230,15 @@ public:
 
 class MIDIDeviceUSBUpstream final : public MIDIDeviceUSB {
 public:
-	MIDIDeviceUSBUpstream(uint8_t portNum = 0) : MIDIDeviceUSB(portNum) {}
+	MIDIDeviceUSBUpstream(uint8_t portNum, bool mpe, bool clock_in) : MIDIDeviceUSB(portNum) {
+		if (mpe) {
+			for (auto& port : ports) {
+				port.mpeLowerZoneLastMemberChannel = 7;
+				port.mpeUpperZoneLastMemberChannel = 8;
+			}
+		}
+		receiveClock = clock_in;
+	}
 	void writeReferenceAttributesToFile(Serializer& writer);
 	void writeToFlash(uint8_t* memory);
 	char const* getDisplayName();

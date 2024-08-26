@@ -84,6 +84,7 @@ bool testAllocationStructure(void* address, uint32_t size, uint32_t spaceType) {
 
 TEST_GROUP(MemoryAllocation) {
 	MemoryRegion memreg;
+	CacheManager cm;
 	// this will hold the address of the stealable test vtable
 	uint32_t empty_spaze_size = sizeof(EmptySpaceRecord) * 512;
 	void* emptySpacesMemory = malloc(empty_spaze_size);
@@ -92,9 +93,10 @@ TEST_GROUP(MemoryAllocation) {
 	// this runs before each test to re intitialize the memory
 	void setup() {
 		nSteals = 0;
+		auto newCM = new (&cm) CacheManager();
 		memset(raw_mem, 0, mem_size);
 		memset(emptySpacesMemory, 0, empty_spaze_size);
-		memreg.setup(emptySpacesMemory, empty_spaze_size, (uint32_t)raw_mem, (uint32_t)raw_mem + mem_size);
+		memreg.setup(emptySpacesMemory, empty_spaze_size, (uint32_t)raw_mem, (uint32_t)raw_mem + mem_size, newCM);
 	}
 };
 
@@ -207,8 +209,9 @@ TEST(MemoryAllocation, allocationSizes) {
 		for (int i = 0; i < expectedAllocations; i++) {
 			if (!testAllocations[i]) {
 				// this is to make a log distribution - probably the worst case for packing efficiency
-				int magnitude = rand() % 16;
-				int size = (rand() % 10) << magnitude;
+				// min allocation size is 8 bytes
+				int magnitude = rand() % 16 + 2;
+				int size = (rand() % 10 + 1) << magnitude;
 				void* testalloc = memreg.alloc(size, false, NULL);
 				if (testalloc) {
 					totalSize += size;
@@ -229,11 +232,13 @@ TEST(MemoryAllocation, allocationSizes) {
 
 		// we should have one empty space left, and it should be the size of the memory minus headers
 		CHECK(memreg.emptySpaces.getNumElements() == 1);
-		CHECK(memreg.emptySpaces.getKeyAtIndex(0) == mem_size - 16);
+		// we might have needed to align the region start to 16 after setting the headers
+		int sizeDiff = (mem_size - 16 - memreg.emptySpaces.getKeyAtIndex(0));
+		CHECK(sizeDiff <= 16);
 	}
 	// un modified GMA gets .999311
 	// current with extra padding gets .9939
-	// std::cout << "Packing factor: " << (average_packing_factor / numRepeats) << std::endl;
+	std::cout << "Packing factor: " << (average_packing_factor / numRepeats) << std::endl;
 	CHECK(average_packing_factor / numRepeats > 0.99);
 };
 
@@ -316,6 +321,7 @@ TEST(MemoryAllocation, stealableAllocations) {
 		void* testalloc = memreg.alloc(size, true, NULL);
 		totalAllocated += size;
 		StealableTest* stealable = new (testalloc) StealableTest();
+
 		memreg.cache_manager().QueueForReclamation(StealableQueue{0}, stealable);
 		vtableAddress = *(uint32_t*)testalloc;
 		actualSize = getAllocatedSize(testalloc);

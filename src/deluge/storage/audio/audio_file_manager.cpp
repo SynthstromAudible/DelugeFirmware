@@ -81,9 +81,9 @@ void AudioFileManager::init() {
 
 	clusterBeingLoaded = NULL;
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error == Error::NONE) {
-		setClusterSize(fileSystemStuff.fileSystem.csize * 512);
+		setClusterSize(fileSystem.csize * 512);
 
 		D_PRINTLN("clusterSize  %d clusterSizeMagnitude  %d", clusterSize, clusterSizeMagnitude);
 		cardEjected = false;
@@ -117,10 +117,10 @@ void AudioFileManager::cardReinserted() {
 	}
 
 	// If cluster size has increased, we're in trouble
-	if (fileSystemStuff.fileSystem.csize * 512 > clusterSize) {
+	if (fileSystem.csize * 512 > clusterSize) {
 
 		// But, if it's still not as big as it was when we booted up, that's still manageable
-		if (fileSystemStuff.fileSystem.csize * 512 <= clusterSizeAtBoot) {
+		if (fileSystem.csize * 512 <= clusterSizeAtBoot) {
 			goto clusterSizeChangedButItsOk;
 		}
 
@@ -131,7 +131,7 @@ void AudioFileManager::cardReinserted() {
 
 	// If cluster size decreased, we have to stop all current samples from ever sounding again. Pretty big trouble
 	// really...
-	else if (fileSystemStuff.fileSystem.csize * 512 < clusterSize) {
+	else if (fileSystem.csize * 512 < clusterSize) {
 
 clusterSizeChangedButItsOk:
 		D_PRINTLN("cluster size changed, and smaller than original so it's ok");
@@ -155,7 +155,7 @@ clusterSizeChangedButItsOk:
 		}
 
 		// That was all a pain, but now we can update the cluster size
-		setClusterSize(fileSystemStuff.fileSystem.csize * 512);
+		setClusterSize(fileSystem.csize * 512);
 	}
 
 	// Or if cluster size stayed the same...
@@ -175,23 +175,22 @@ clusterSizeChangedButItsOk:
 			else {
 				if (thisAudioFile->type == AudioFileType::SAMPLE) {
 					// Check the Sample's file still exists
-
+					FIL sampleFile;
 					char const* filePath = ((Sample*)thisAudioFile)->tempFilePathForRecording.get();
 					if (!*filePath) {
 						filePath = thisAudioFile->filePath.get();
 					}
 
-					FRESULT result = f_open(&fileSystemStuff.currentFile, filePath, FA_READ);
+					FRESULT result = f_open(&sampleFile, filePath, FA_READ);
 					if (result != FR_OK) {
 						D_PRINTLN("couldn't open file");
 						((Sample*)thisAudioFile)->markAsUnloadable();
 						continue;
 					}
 
-					uint32_t firstSector =
-					    clst2sect(&fileSystemStuff.fileSystem, fileSystemStuff.currentFile.obj.sclust);
+					uint32_t firstSector = clst2sect(&fileSystem, sampleFile.obj.sclust);
 
-					f_close(&fileSystemStuff.currentFile);
+					f_close(&sampleFile);
 
 					// If address of first sector remained unchanged, we can be sure enough that the file hasn't been
 					// changed
@@ -211,8 +210,8 @@ clusterSizeChangedButItsOk:
 		}
 	}
 
-	MIDIDeviceManager::readDevicesFromFile(storageManager); // Hopefully we can do this now. It'll only happen if it
-	                                                        // wasn't able to do it before.
+	MIDIDeviceManager::readDevicesFromFile(); // Hopefully we can do this now. It'll only happen if it
+	                                          // wasn't able to do it before.
 }
 
 // Call this after deleting the current (or in other words previous) Song from memory - meaning there won't be any
@@ -262,7 +261,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
                                                         const char* channelName, String* songName) {
 	const auto folderID = util::to_underlying(folder);
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -359,7 +358,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 			changed = false;
 			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath->get(), songName->get(), channelName,
 			         i);
-			while (storageManager.fileExists(namedPath)) {
+			while (StorageManager::fileExists(namedPath)) {
 				snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath->get(), songName->get(),
 				         channelName, i);
 				i++;
@@ -369,7 +368,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 				snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->get(),
 				         songName->get(), channelName, i);
 
-				while (storageManager.fileExists(tempPath)) {
+				while (StorageManager::fileExists(tempPath)) {
 					snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->get(),
 					         songName->get(), channelName, i);
 					i++;
@@ -722,7 +721,7 @@ tryNextAlternate:
 			}
 
 			// Ok, found file - in the alternate location.
-			effectiveFilePointer.sclust = ld_clust(&fileSystemStuff.fileSystem, alternateLoadDir.dir);
+			effectiveFilePointer.sclust = ld_clust(&fileSystem, alternateLoadDir.dir);
 			effectiveFilePointer.objsize = ld_dword(alternateLoadDir.dir + DIR_FileSize);
 
 			usingAlternateLocation.set(&alternateAudioFileLoadPath);
@@ -747,7 +746,7 @@ tryNextAlternate:
 		// Otherwise, try the regular file path
 		else {
 tryRegular:
-			result = f_open(&fileSystemStuff.currentFile, filePath->get(), FA_READ);
+			result = f_open(&smDeserializer.readFIL, filePath->get(), FA_READ);
 
 			// If that didn't work, try the alternate load directory, if we didn't already and it potentially exists
 			if (result != FR_OK) {
@@ -772,8 +771,8 @@ notFound:
 			}
 
 			// Ok, found file.
-			effectiveFilePointer.sclust = fileSystemStuff.currentFile.obj.sclust;
-			effectiveFilePointer.objsize = fileSystemStuff.currentFile.obj.objsize;
+			effectiveFilePointer.sclust = activeDeserializer->readFIL.obj.sclust;
+			effectiveFilePointer.objsize = activeDeserializer->readFIL.obj.objsize;
 		}
 	}
 
@@ -843,14 +842,14 @@ ramError:
 		while (true) {
 
 			((Sample*)audioFile)->clusters.getElement(currentClusterIndex)->sdAddress =
-			    clst2sect(&fileSystemStuff.fileSystem, currentSDCluster);
+			    clst2sect(&fileSystem, currentSDCluster);
 
 			currentClusterIndex++;
 			if (currentClusterIndex >= numClusters) {
 				break;
 			}
 
-			currentSDCluster = get_fat_from_fs(&fileSystemStuff.fileSystem, currentSDCluster);
+			currentSDCluster = get_fat_from_fs(&fileSystem, currentSDCluster);
 
 			if (currentSDCluster == 0xFFFFFFFF || currentSDCluster < 2) {
 				break;
@@ -864,7 +863,7 @@ ramError:
 
 	// Or if WaveTable, we're going to read the file more normally through FatFS, so we want to "open" it.
 	else {
-		storageManager.openFilePointer(&effectiveFilePointer); // It never returns fail.
+		StorageManager::openFilePointer(&effectiveFilePointer, smDeserializer); // It never returns fail.
 	}
 
 	// Read top-level RIFF headers
@@ -1302,7 +1301,7 @@ void AudioFileManager::slowRoutine() {
 
 	// If we know the card's been ejected...
 	if (cardEjected && !sdRoutineLock) {
-		Error error = storageManager.initSD();
+		Error error = StorageManager::initSD();
 		if (error == Error::NONE) {
 			cardEjected = false;
 		}
@@ -1347,7 +1346,7 @@ performActionsAndGetOut:
 		return;
 	}
 
-	if (!storageManager.checkSDInitialized()) {
+	if (!StorageManager::checkSDInitialized()) {
 		goto performActionsAndGetOut; // In case the card somehow died
 	}
 

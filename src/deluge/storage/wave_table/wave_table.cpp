@@ -20,6 +20,7 @@
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
 #include "dsp/fft/fft_config_manager.h"
+#include "dsp/interpolate/interpolate.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"

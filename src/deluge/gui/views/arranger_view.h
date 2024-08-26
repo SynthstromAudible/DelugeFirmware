@@ -20,9 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "gui/views/timeline_view.h"
-#include "hid/button.h"
 
-class ArrangementRow;
 class ClipInstance;
 class InstrumentClip;
 class Instrument;
@@ -87,40 +85,42 @@ public:
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
-	Output* outputsOnScreen[kDisplayHeight];
-	int8_t yPressedEffective;
-	int8_t yPressedActual;
-	int8_t xPressed;
-	bool actionOnDepress;
-	uint32_t pressTime;
-	int32_t desiredLength;
-	int32_t originallyPressedClipActualLength;
-	bool pressedHead;
+	Output* outputsOnScreen[kDisplayHeight]{};
+	int8_t yPressedEffective{};
+	int8_t yPressedActual{};
+	int8_t xPressed{};
+	bool actionOnDepress{};
+	uint32_t pressTime{};
+	int32_t desiredLength{};
+	int32_t originallyPressedClipActualLength{};
+	bool pressedHead{};
 
-	int32_t pressedClipInstanceIndex;
-	Output* pressedClipInstanceOutput;
-	int32_t pressedClipInstanceXScrollWhenLastInValidPosition;
-	bool pressedClipInstanceIsInValidPosition;
+	int32_t pressedClipInstanceIndex{};
+	Output* pressedClipInstanceOutput{};
+	int32_t pressedClipInstanceXScrollWhenLastInValidPosition{};
+	bool pressedClipInstanceIsInValidPosition{};
 
-	bool blinkOn;
+	bool blinkOn{};
 
 	bool doingAutoScrollNow;
-	bool mustRedrawTickSquares;
+	bool mustRedrawTickSquares{};
 
-	int32_t autoScrollNumSquaresBehind;
+	int32_t autoScrollNumSquaresBehind{};
 
 	int32_t lastInteractedOutputIndex;
 	int32_t lastInteractedPos;
 	uint8_t lastInteractedSection;
 	ClipInstance* lastInteractedClipInstance;
 
-	int32_t lastTickSquare;
+	int32_t lastInteractedArrangementPos;
 
-	int32_t xScrollWhenPlaybackStarted;
+	int32_t lastTickSquare{};
+
+	int32_t xScrollWhenPlaybackStarted{};
 
 	// ui
-	UIType getUIType() { return UIType::ARRANGER; }
-	const char* getName() { return "arranger_view"; }
+	UIType getUIType() override { return UIType::ARRANGER; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
 
 	Clip* getClipForSelection();
 
@@ -163,7 +163,7 @@ private:
 	ClipInstance* createClipInstance(Output* output, int32_t y, int32_t squareStart);
 	Clip* getClipForNewClipInstance(Output* output, Output* lastOutputInteractedWith, ClipInstance* lastClipInstance);
 	Clip* getClipFromSection(Output* output);
-	void adjustClipInstanceLength(Output* output, int32_t xPressed, int32_t y, int32_t squareStart, int32_t squareEnd);
+	void adjustClipInstanceLength(Output* output, int32_t x, int32_t y, int32_t squareStart, int32_t squareEnd);
 	void deleteClipInstance(Output* output, ClipInstance* clipInstance);
 	void createNewClipForClipInstance(Output* output, ClipInstance* clipInstance);
 	void recordEditPadPress(Output* output, ClipInstance* clipInstance, int32_t x, int32_t y, int32_t xScroll);

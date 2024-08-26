@@ -56,7 +56,8 @@ public:
 	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];
 
 	Envelope envelopes[kNumEnvelopes];
-	LFO lfo;
+	LFO lfo2;
+	LFO lfo4;
 
 	dsp::filter::FilterSet filterSet;
 	int32_t inputCharacteristics[2]; // Contains what used to be called noteCodeBeforeArpeggiation, and fromMIDIChannel
@@ -84,8 +85,9 @@ public:
 	int32_t overrideAmplitudeEnvelopeReleaseRate;
 
 	Voice* nextUnassigned;
+	bool justCreated{false};
 
-	uint32_t getLocalLFOPhaseIncrement();
+	uint32_t getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param);
 	void setAsUnassigned(ModelStackWithVoice* modelStack, bool deletingSong = false);
 	bool render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples, bool soundRenderingInStereo,
 	            bool applyingPanAtVoiceLevel, uint32_t sourcesChanged, bool doLPF, bool doHPF,
@@ -114,6 +116,10 @@ public:
 	/// Sets envelope to off (will interpolate through this render window).
 	/// Returns whether voice should still be left active
 	bool doImmediateRelease();
+
+	bool forceNormalRelease();
+
+	bool speedUpRelease();
 
 private:
 	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t

@@ -3,9 +3,10 @@ from dmui.dsl import *
 threshold = Menu(
     "audio_compressor::CompParam",
     "threshold",
-    ["{name}", "{title}", "params::UNPATCHED_COMPRESSOR_THRESHOLD"],
+    ["{name}", "{title}", "params::UNPATCHED_COMPRESSOR_THRESHOLD", "BAR"],
     "compressor/threshold.md",
     name="STRING_FOR_THRESHOLD",
+    title="STRING_FOR_COMP_THRESHOLD_MENU_TITLE",
 )
 
 attack = Menu(
@@ -49,10 +50,10 @@ blend = Menu(
 )
 
 menu = Submenu(
-    "Submenu",
+    "HorizontalMenu",
     "audioCompMenu",
     ["{name}", "%%CHILDREN%%"],
     "compressor/index.md",
-    [threshold, ratio, attack, release, hpf, blend],
+    [threshold, ratio, blend, attack, release, hpf],
     name="STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR",
 )

@@ -23,6 +23,7 @@ SampleControls::SampleControls() {
 	interpolationMode = InterpolationMode::SMOOTH;
 	pitchAndSpeedAreIndependent = false;
 	reversed = false;
+	invertReversed = false;
 }
 
 int32_t SampleControls::getInterpolationBufferSize(int32_t phaseIncrement) {
@@ -46,4 +47,8 @@ useLinearInterpolation:
 
 		return kInterpolationMaxNumSamples;
 	}
+}
+
+bool SampleControls::isCurrentlyReversed() const {
+	return invertReversed ? !reversed : reversed;
 }

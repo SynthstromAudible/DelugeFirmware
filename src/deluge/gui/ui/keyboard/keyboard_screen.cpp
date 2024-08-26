@@ -49,24 +49,27 @@
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
+#include "gui/ui/keyboard/layout/piano.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 
-deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
+PLACE_SDRAM_BSS deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
 
 namespace deluge::gui::ui::keyboard {
 
-layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
-layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
-layout::KeyboardLayoutInKey keyboardLayoutInKey{};
-layout::KeyboardLayoutChord KeyboardLayoutChord{};
-layout::KeyboardLayoutChordLibrary keyboardLayoutChordLibrary{};
-layout::KeyboardLayoutNorns keyboardLayoutNorns{};
-KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
+PLACE_SDRAM_DATA layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
+PLACE_SDRAM_DATA layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
+PLACE_SDRAM_DATA layout::KeyboardLayoutInKey keyboardLayoutInKey{};
+PLACE_SDRAM_DATA layout::KeyboardLayoutPiano keyboardLayoutPiano{};
+PLACE_SDRAM_DATA layout::KeyboardLayoutChord KeyboardLayoutChord{};
+PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboardLayoutChordLibrary{};
+PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboardLayoutNorns{};
+PLACE_SDRAM_DATA KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
 
 KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeDrums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeInKey] = (KeyboardLayout*)&keyboardLayoutInKey;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypePiano] = (KeyboardLayout*)&keyboardLayoutPiano;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChord] = (KeyboardLayout*)&KeyboardLayoutChord;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = (KeyboardLayout*)&keyboardLayoutChordLibrary;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeNorns] = (KeyboardLayout*)&keyboardLayoutNorns;
@@ -105,7 +108,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 	int32_t markDead = -1;
 
 	// Pad pressed down, add to list if not full
-	if (velocity) {
+	if (velocity != 0) {
 		// TODO: Logic should be inverted as part of a bigger rewrite
 		if (currentUIMode == UI_MODE_IMPLODE_ANIMATION || currentUIMode == UI_MODE_ANIMATION_FADE
 		    || currentUIMode == UI_MODE_INSTRUMENT_CLIP_COLLAPSING) {
@@ -147,10 +150,8 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// Pad was already active
 			if (pressedPads[idx].active && pressedPads[idx].x == x && pressedPads[idx].y == y) {
 				pressedPads[idx].active = false;
+				pressedPads[idx].padPressHeld = false;
 				markDead = idx;
-				if ((AudioEngine::audioSampleTimer - pressedPads[idx].timeLastPadPress) > FlashStorage::holdTime) {
-					pressedPads[idx].padPressHeld = true;
-				}
 				break;
 			}
 		}
@@ -174,7 +175,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			if (getCurrentInstrumentClip()->inScaleMode) {
 				instrumentClipView.setupChangingOfRootNote(currentNotesState.notes[0].note);
 				requestRendering();
-				displayCurrentScaleName();
+				currentSong->displayCurrentRootNoteAndScaleName();
 			}
 			else {
 				enterScaleMode(currentNotesState.notes[0].note);
@@ -420,11 +421,13 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
 
+		bool inScaleMode = getCurrentInstrumentClip()->inScaleMode;
+
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 
 				// If user holding shift and we're already in scale mode, cycle through available scales
-				if (Buttons::isShiftButtonPressed() && getCurrentInstrumentClip()->inScaleMode) {
+				if (Buttons::isShiftButtonPressed() && inScaleMode) {
 					cycleThroughScales();
 					requestRendering();
 				}
@@ -433,6 +436,11 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 				else {
 					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
 					toggleScaleModeOnButtonRelease = true;
+					scaleButtonPressTime = AudioEngine::audioSampleTimer;
+					// if you're already in scale mode, display the current scale
+					if (inScaleMode) {
+						currentSong->displayCurrentRootNoteAndScaleName();
+					}
 					// if (!getCurrentInstrumentClip()->inScaleMode) {
 					// 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
 					// released the button 	flashDefaultRootNoteOn = false; 	flashDefaultRootNote();
@@ -441,23 +449,29 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 			}
 
 			// If user is auditioning just one note, we can go directly into Scale Mode and set that root note
-			else if (currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count == 1
-			         && !getCurrentInstrumentClip()->inScaleMode) {
+			else if (currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count == 1 && !inScaleMode) {
 				exitAuditionMode();
 				enterScaleMode(currentNotesState.notes[0].note);
 			}
 		}
 		else {
+			// Button release
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 				currentUIMode = UI_MODE_NONE;
-				if (getCurrentInstrumentClip()->inScaleMode) {
-					if (toggleScaleModeOnButtonRelease) {
-						exitScaleMode();
-					}
+			}
+
+			if (toggleScaleModeOnButtonRelease && isShortPress(scaleButtonPressTime)) {
+				toggleScaleModeOnButtonRelease = false;
+				if (inScaleMode) {
+					display->cancelPopup();
+					exitScaleMode();
 				}
 				else {
 					enterScaleMode();
 				}
+			}
+			else if (inScaleMode && display->have7SEG()) {
+				displayCurrentScaleName();
 			}
 		}
 	}
@@ -486,14 +500,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Song view button
 	else if (b == SESSION_VIEW && on && currentUIMode == UI_MODE_NONE) {
-		// Transition back to arranger
-		if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->section == 255) {
-			if (arrangerView.transitionToArrangementEditor()) {
-				return ActionResult::DEALT_WITH;
-			}
-		}
-
-		sessionView.transitionToSessionView();
+		ClipMinder::transitionToArrangerOrSession();
 	}
 
 	// toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular
@@ -514,27 +521,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	// Kit button
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			bool result;
-			if (Buttons::isShiftButtonPressed()) {
-				result = createNewInstrument(OutputType::KIT);
-
-				// enter drum creator to select drum sample when creating new kit
-				if (result) {
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
-					ModelStackWithTimelineCounter* modelStack =
-					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-					NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(0);
-
-					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, noteRow);
-
-					instrumentClipView.enterDrumCreator(modelStackWithNoteRow);
-				}
-			}
-			else {
-				result = changeOutputType(OutputType::KIT);
-			}
-			if (result) {
+			if (instrumentClipView.handleInstrumentChange(OutputType::KIT)) {
 				selectLayout(0);
 			}
 		}
@@ -542,17 +529,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			bool result;
-			if (Buttons::isButtonPressed(MOD7)) { // FM
-				result = createNewInstrument(OutputType::SYNTH, true);
-			}
-			else if (Buttons::isShiftButtonPressed()) {
-				result = createNewInstrument(OutputType::SYNTH);
-			}
-			else {
-				result = changeOutputType(OutputType::SYNTH);
-			}
-			if (result) {
+			if (instrumentClipView.handleInstrumentChange(OutputType::SYNTH)) {
 				selectLayout(0);
 			}
 		}
@@ -620,7 +597,6 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	}
 
 	else {
-		requestRendering();
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
 		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
@@ -713,7 +689,7 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 
 	getCurrentInstrumentClip()->keyboardState.currentLayout = (KeyboardLayoutType)nextLayout;
 	if (getCurrentInstrumentClip()->keyboardState.currentLayout != lastLayout) {
-		display->displayPopup(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name());
+		display->displayPopup(l10n::get(layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->name()));
 	}
 
 	// Ensure scale mode is as expected
@@ -748,15 +724,18 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 	}
 	else if (getCurrentOutputType() != OutputType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
 	         && getCurrentInstrumentClip()->inScaleMode) {
+
+		bool useSharps = FlashStorage::defaultUseSharps;
 		toggleScaleModeOnButtonRelease = false;
 		int32_t newRootNote = ((currentSong->key.rootNote + kOctaveSize) + offset) % kOctaveSize;
 		instrumentClipView.setupChangingOfRootNote(newRootNote);
 
 		char noteName[3] = {0};
-		noteName[0] = noteCodeToNoteLetter[newRootNote];
+		noteName[0] = useSharps ? noteCodeToNoteLetter[newRootNote] : noteCodeToNoteLetterFlats[newRootNote];
 		if (display->haveOLED()) {
 			if (noteCodeIsSharp[newRootNote]) {
-				noteName[1] = '#';
+				char accidential = useSharps ? '#' : FLAT_CHAR;
+				noteName[1] = accidential;
 			}
 		}
 		display->displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
@@ -869,7 +848,12 @@ void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
 
 	getCurrentInstrumentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(selectedRootNote);
 
-	displayCurrentScaleName();
+	if (display->haveOLED()) {
+		currentSong->displayCurrentRootNoteAndScaleName();
+	}
+	else {
+		displayCurrentScaleName();
+	}
 
 	evaluateActiveNotes();
 	updateActiveNotes();

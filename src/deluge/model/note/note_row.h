@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
+#include "model/iterance/iterance.h"
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
 
@@ -34,6 +35,8 @@
 #define CORRESPONDING_NOTES_ADJUST_VELOCITY 0
 #define CORRESPONDING_NOTES_SET_PROBABILITY 1
 #define CORRESPONDING_NOTES_SET_VELOCITY 2
+#define CORRESPONDING_NOTES_SET_ITERANCE 3
+#define CORRESPONDING_NOTES_SET_FILL 4
 
 class InstrumentClip;
 class Song;
@@ -53,12 +56,15 @@ class ModelStackWithNoteRow;
 class ParamManagerForTimeline;
 
 struct SquareInfo {
+	Note* firstNote;
 	int32_t squareStartPos;
 	int32_t squareEndPos;
 	int32_t numNotes;
 	uint8_t squareType;
-	int32_t averageProbability;
 	int32_t averageVelocity;
+	int32_t probability;
+	Iterance iterance;
+	int32_t fill;
 	bool isValid{false};
 };
 
@@ -69,6 +75,8 @@ struct PendingNoteOn {
 	int32_t ticksLate;
 	uint8_t probability;
 	uint8_t velocity;
+	Iterance iterance;
+	uint8_t fill;
 };
 
 struct PendingNoteOnList {
@@ -103,6 +111,7 @@ public:
 	bool generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     int32_t numRepeatsRounded, Action* action);
 	void toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAndPlaybackIsOn);
+	void maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos);
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
@@ -119,6 +128,8 @@ public:
 
 	int16_t y; // This has to be at the top
 	bool muted;
+	bool mutedBeforeStemExport; // Used by stem export to restore previous state
+	bool exportStem;            // Used by stem export to flag if this note row should be exported
 
 	int32_t loopLengthIfIndependent; // 0 means obeying parent
 	int32_t lastProcessedPosIfIndependent;
@@ -135,8 +146,10 @@ public:
 	Drum* drum;
 	DrumName* firstOldDrumName;
 	NoteVector notes;
-	// value for whole row
+	// values for whole row
 	uint8_t probabilityValue;
+	Iterance iteranceValue;
+	uint8_t fillValue;
 	// These are deprecated, and only used during loading for compatibility with old song files
 	LearnedMIDI muteMIDICommand;
 	LearnedMIDI midiInput;
@@ -155,9 +168,11 @@ public:
 	/// compared with the time since this NoteRow started (i.e., time from the end during reversed playback).
 	uint32_t ignoreNoteOnsBefore_;
 
-	int32_t getDefaultProbability(ModelStackWithNoteRow* ModelStack);
-	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
-	                       ModelStackWithNoteRow* modelStack, Action* action);
+	int32_t getDefaultProbability();
+	Iterance getDefaultIterance();
+	int32_t getDefaultFill(ModelStackWithNoteRow* modelStack);
+	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
+	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
 	                               bool allowingNoteTails);
 	Error addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
@@ -226,6 +241,8 @@ public:
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
 
+	bool isDroning(int32_t effectiveLength);
+
 private:
 	void playNote(bool, ModelStackWithNoteRow* modelStack, Note*, int32_t ticksLate = 0, uint32_t samplesLate = 0,
 	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = NULL);
@@ -236,4 +253,7 @@ private:
 	bool noteRowMayMakeSound(bool);
 	void drawTail(int32_t startTail, int32_t endTail, uint8_t squareColour[], bool overwriteExisting,
 	              uint8_t image[][3], uint8_t occupancyMask[]);
+	bool ignoredNoteOn{false};
+	int32_t ignoreUntil{0};
+	int32_t ignoredTicks{0};
 };

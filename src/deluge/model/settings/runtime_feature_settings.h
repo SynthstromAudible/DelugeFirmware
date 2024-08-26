@@ -46,26 +46,25 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DrumRandomizer,
 	Quantize,
 	FineTempoKnob,
-	PatchCableResolution,
 	CatchNotes,
 	DeleteUnusedKitRows,
 	AltGoldenKnobDelayParams,
-	QuantizedStutterRate,
 	DevSysexAllowed,
 	SyncScalingAction,
 	HighlightIncomingNotes,
 	DisplayNornsLayout,
 	ShiftIsSticky,
 	LightShiftLed,
-	EnableGrainFX,
 	EnableDX7Engine,
 	EmulatedDisplay,
 	EnableKeyboardViewSidebarMenuExit,
 	EnableLaunchEventPlayhead,
 	DisplayChordKeyboard,
 	AlternativePlaybackStartBehaviour,
-	AccessibilityShortcuts,
 	EnableGridViewLoopPads,
+	AlternativeTapTempoBehaviour,
+	HorizontalMenus,
+	TrimFromStartOfAudioClip,
 	MaxElement // Keep as boundary
 };
 
@@ -84,7 +83,6 @@ struct RuntimeFeatureSetting {
 	deluge::vector<RuntimeFeatureSettingOption> options;
 };
 
-class StorageManager;
 class Serializer;
 class Deserializer;
 
@@ -106,8 +104,8 @@ public:
 
 	inline const char* getStartupSong() { return startupSong.get(); }
 	void init();
-	void readSettingsFromFile(StorageManager& bdsm);
-	void writeSettingsToFile(StorageManager& bdsm);
+	void readSettingsFromFile();
+	void writeSettingsToFile();
 
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};

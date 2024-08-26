@@ -58,8 +58,7 @@ public:
 	int16_t numClips;
 
 	// ui
-	UIType getUIType() { return UIType::SLICER; }
-	const char* getName() { return "slicer"; }
+	UIType getUIType() override { return UIType::SLICER; }
 
 private:
 	// 7SEG Only

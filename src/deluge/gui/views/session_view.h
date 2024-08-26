@@ -41,10 +41,6 @@ extern float getTransitionProgress();
 
 constexpr uint32_t kGridHeight = kDisplayHeight;
 
-// Clip Group colours
-extern const uint8_t numDefaultClipGroupColours;
-extern const uint8_t defaultClipGroupColours[];
-
 class SessionView final : public ClipNavigationTimelineView {
 public:
 	SessionView();
@@ -52,8 +48,7 @@ public:
 	bool opened();
 	void focusRegained();
 
-	const char* getName() { return "session_view"; }
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult horizontalEncoderAction(int32_t offset);
@@ -66,7 +61,8 @@ public:
 	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
 	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
 	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void graphicsRoutine();
+	void graphicsRoutine() override;
+	void potentiallyUpdateCompressorLEDs();
 	int32_t displayLoopsRemainingPopup(bool ephemeral = false);
 	void potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining);
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
@@ -99,6 +95,7 @@ public:
 	void clipNeedsReRendering(Clip* clip);
 	void sampleNeedsReRendering(Sample* sample);
 	Clip* getClipOnScreen(int32_t yDisplay);
+	Output* getOutputFromPad(int32_t x, int32_t y);
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	ActionResult verticalScrollOneSquare(int32_t direction);
 
@@ -122,13 +119,18 @@ public:
 	int8_t selectedMacro = -1;
 
 	Clip* getClipForLayout();
+	int32_t getClipIndexForLayout();
+
+	void copyClipName(Clip* source, Clip* target, Output* targetOutput);
 
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
+	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 	// ui
-	UIType getUIType() { return UIType::SESSION; }
+	UIType getUIType() override { return UIType::SESSION; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
 
 	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
 	bool createClip{false};
@@ -138,7 +140,10 @@ public:
 	void enterMacrosConfigMode();
 	void exitMacrosConfigMode();
 	char const* getMacroKindString(SessionMacroKind kind);
-	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+
+	// Midi learn mode
+	void enterMidiLearnMode();
+	void exitMidiLearnMode();
 
 	// display tempo
 	void displayPotentialTempoChange(UI* ui);
@@ -152,6 +157,9 @@ public:
 
 	// convert instrument clip to audio clip
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
+
+	// pulse selected clip in grid view
+	void gridPulseSelectedClip();
 
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
@@ -188,6 +196,7 @@ private:
 	void renderLayoutChange(bool displayPopup = true);
 	void selectSpecificLayout(SessionLayoutType layout);
 	SessionLayoutType previousLayout;
+	SessionGridMode previousGridModeActive;
 
 	bool sessionButtonActive = false;
 	bool sessionButtonUsed = false;
@@ -202,12 +211,13 @@ private:
 	bool gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 
-	RGB gridRenderClipColor(Clip* clip);
+	RGB gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse = true);
 
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip);
+	void gridHandlePadsWithMidiLearnPressed(int32_t x, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip);
 	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
 
@@ -246,7 +256,7 @@ private:
 	void gridStartSection(uint32_t section, bool instant);
 	void gridToggleClipPlay(Clip* clip, bool instant);
 
-	const uint32_t gridTrackCount();
+	[[nodiscard]] const size_t gridTrackCount() const;
 	uint32_t gridClipCountForTrack(Output* track);
 	uint32_t gridTrackIndexFromTrack(Output* track, uint32_t maxTrack);
 	Output* gridTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
@@ -256,8 +266,10 @@ private:
 	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
 	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
 	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
+	int32_t gridClipIndexFromCoords(uint32_t x, uint32_t y);
+	Cartesian gridXYFromClip(Clip& clip);
 
-	inline void gridSetDefaultMode() {
+	void gridSetDefaultMode() {
 		switch (FlashStorage::defaultGridActiveMode) {
 		case GridDefaultActiveModeGreen: {
 			gridModeSelected = SessionGridModeLaunch;
@@ -269,8 +281,37 @@ private:
 		}
 		}
 	}
+
 	void setupTrackCreation() const;
 	void exitTrackCreation();
+
+	// selected clip pulsing in grid view
+
+	/// @brief disable selected clip pulsing
+	void gridStopSelectedClipPulsing();
+
+	/// @brief reset blend position for pulse
+	void gridResetSelectedClipPulseProgress();
+
+	/// @brief render pulse for selected clip
+	void gridSelectClipForPulsing(Clip& clip);
+
+	/// @brief check if we should stop pulsing
+	bool gridCheckForPulseStop();
+
+	bool gridSelectedClipPulsing = false;   // are we doing any pulsing
+	Clip* selectedClipForPulsing = nullptr; // selected clip we are pulsing
+	RGB gridSelectedClipRenderedColour;     // last pulse colour we rendered
+	bool blendDirection = false;            // direction we're blending towards
+	int32_t progress = 0;                   // pulse blend slider position
+
+	static constexpr int32_t kMinProgress = 1;                           // min position to reach in blend slider
+	static constexpr int32_t kMaxProgressFull = (65535 / 100) * 60;      // max position to reach for unmuted clip
+	static constexpr int32_t kMaxProgressDim = 1000;                     // max position to reach for muted clip
+	static constexpr int32_t kPulseRate = 50;                            // speed of timer in ms
+	static constexpr int32_t kBlendRate = 60;                            // speed of blending colours
+	static constexpr int32_t kBlendOffsetFull = kPulseRate * kBlendRate; // amount to move slider for unmuted clip
+	static constexpr int32_t kBlendOffsetDim = kPulseRate;               // amount to move slider for muted clip
 };
 
 extern SessionView sessionView;

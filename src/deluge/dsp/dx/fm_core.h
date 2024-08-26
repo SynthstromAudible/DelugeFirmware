@@ -51,7 +51,7 @@ public:
 
 class FmCore {
 public:
-	virtual ~FmCore(){};
+	virtual ~FmCore() {};
 	static void dump();
 	virtual void render(int32_t* output, int n, FmOpParams* params, int algorithm, int32_t* fb_buf,
 	                    int32_t feedback_gain);

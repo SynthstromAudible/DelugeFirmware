@@ -16,10 +16,12 @@
  */
 
 #include "processing/live/live_pitch_shifter_play_head.h"
+#include "dsp/interpolate/interpolate.h"
 #include "processing/live/live_input_buffer.h"
 #include "processing/live/live_pitch_shifter.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
+#include <argon.hpp>
 
 #pragma GCC push_options
 #pragma GCC target("fpu=neon")
@@ -105,10 +107,10 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 
 			int32_t sampleRead[2];
 			if (interpolationBufferSize > 2) {
-				interpolate(sampleRead, numChannels, whichKernel);
+				deluge::dsp::interpolate(sampleRead, numChannels, whichKernel, oscPos, interpolationBuffer);
 			}
 			else {
-				interpolateLinear(sampleRead, numChannels, whichKernel);
+				deluge::dsp::interpolateLinear(sampleRead, numChannels, whichKernel, oscPos, interpolationBuffer);
 			}
 
 			*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead[0], amplitude) << 5;
@@ -197,12 +199,4 @@ void LivePitchShifterPlayHead::fillInterpolationBuffer(LiveInputBuffer* liveInpu
 			                                       : 0;
 		}
 	}
-}
-
-void LivePitchShifterPlayHead::interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel) {
-#include "dsp/interpolation/interpolate.h"
-}
-
-void LivePitchShifterPlayHead::interpolateLinear(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel) {
-#include "dsp/interpolation/interpolate_linear.h"
 }

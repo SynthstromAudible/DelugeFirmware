@@ -26,7 +26,7 @@ class AudioClip;
 
 class AudioClipView final : public ClipView, public ClipMinder {
 public:
-	AudioClipView();
+	AudioClipView() = default;
 
 	bool opened() override;
 	void focusRegained() override;
@@ -61,17 +61,22 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::AUDIO_CLIP; }
-	const char* getName() { return "audio_clip_view"; }
+	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 
 private:
 	uint32_t timeSongButtonPressed;
 	void needsRenderingDependingOnSubMode();
 	int32_t lastTickSquare;
 	bool mustRedrawTickSquares;
-	bool endMarkerVisible;
+
+	bool endMarkerVisible;   // True if user is currently adjusting the clip's end
+	bool startMarkerVisible; // True if user is currently adjusting the clip's start
 	bool blinkOn;
-	void changeUnderlyingSampleLength(AudioClip* clip, const Sample* sample, int32_t newLength, int32_t oldLength,
+
+	void changeUnderlyingSampleLength(AudioClip& clip, const Sample* sample, int32_t newLength, int32_t oldLength,
 	                                  uint64_t oldLengthSamples) const;
+	void changeUnderlyingSampleStart(AudioClip& clip, const Sample* sample, int32_t newStartTicks, int32_t oldLength,
+	                                 uint64_t oldLengthSamples) const;
 };
 
 extern AudioClipView audioClipView;

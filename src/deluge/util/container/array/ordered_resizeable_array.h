@@ -71,8 +71,8 @@ private:
 // child classes inherit from this, which require that the key be 32-bit.
 class OrderedResizeableArrayWith32bitKey : public OrderedResizeableArray {
 public:
-	OrderedResizeableArrayWith32bitKey(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep = 16,
-	                                   int32_t newNumExtraSpacesToAllocate = 15);
+	explicit OrderedResizeableArrayWith32bitKey(int32_t newElementSize, int32_t newMaxNumEmptySpacesToKeep = 16,
+	                                            int32_t newNumExtraSpacesToAllocate = 15);
 	void shiftHorizontal(int32_t amount, int32_t effectiveLength);
 	void searchDual(int32_t const* __restrict__ searchTerms, int32_t* __restrict__ resultingIndexes);
 	void searchMultiple(int32_t* __restrict__ searchTerms, int32_t numSearchTerms, int32_t rangeEnd = -1);

@@ -19,8 +19,8 @@
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
-#include "util/sized.h"
 #include <cstdint>
+#include <span>
 
 namespace deluge::gui {
 
@@ -37,7 +37,7 @@ public:
 	virtual bool isCurrentOptionAvailable() { return true; }
 	virtual bool acceptCurrentOption() { return false; } // If returns false, will cause UI to exit
 
-	virtual Sized<char const**> getOptions() = 0;
+	virtual std::span<char const*> getOptions() = 0;
 
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -51,8 +51,10 @@ public:
 	int32_t scrollPos = 0; // Don't make static. We'll have multiple nested ContextMenus open at the same time
 	virtual char const* getTitle() = 0;
 
-	// ui
-	UIType getUIType() { return UIType::CONTEXT_MENU; }
+	// UI
+
+	// NB! Context menus all share a type!
+	UIType getUIType() override { return UIType::CONTEXT_MENU; }
 };
 
 class ContextMenuForSaving : public ContextMenu {

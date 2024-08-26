@@ -48,25 +48,26 @@ considerEnvelopeStage:
 		//		lastValue = 2147483647;
 		//		break;
 	case EnvelopeStage::DECAY:
-		lastValue = sustain + (uint32_t)multiply_32x32_rshift32(getDecay8(pos, 23), 2147483647 - sustain) * 2;
+		// otherwise modulating sustain with aftertouch causes un smoothed jumps downstream because params don't smooth
+		// the envelope value and envelopes are rendered before other params are  calculated (including the envelopes
+		// own sustain). To fix this properly we'd first patch and smooth expression to the envelope, then render the
+		// envelope, then render everything else, but that seems too complicated right now. This works and doesn't make
+		// a huge difference since we'd usually need to smooth it anyway
+
+		smoothedSustain = add_saturation(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
+		lastValue = smoothedSustain + multiply_32x32_rshift32(getDecay8(pos, 23), 2147483647 - smoothedSustain) * 2;
 
 		pos += decay * numSamples;
 
 		if (pos >= 8388608) {
-
-			// If sustain is 0, we may as well be switched off already
-			if (sustain == 0) {
-				setState(EnvelopeStage::OFF);
-			}
-			else {
-				setState(EnvelopeStage::SUSTAIN);
-			}
+			setState(EnvelopeStage::SUSTAIN);
 		}
 
 		break;
 
 	case EnvelopeStage::SUSTAIN:
-		lastValue = sustain;
+		smoothedSustain = add_saturation(smoothedSustain, numSamples * (((int32_t)sustain - smoothedSustain) >> 9));
+		lastValue = smoothedSustain;
 		if (ignoredNoteOff) {
 			unconditionalRelease();
 		}
@@ -130,7 +131,7 @@ int32_t Envelope::noteOn(bool directlyToDecay) {
 
 int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
 	int32_t attack = voice->paramFinalValues[params::LOCAL_ENV_0_ATTACK + envelopeIndex];
-
+	smoothedSustain = voice->paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + envelopeIndex];
 	bool directlyToDecay = (attack > 245632);
 
 	return noteOn(directlyToDecay);

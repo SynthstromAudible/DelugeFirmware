@@ -12,10 +12,7 @@ void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Toggle::selectEncoderAction(int32_t offset) {
-	const bool flip = offset & 0b1;
-	if (flip) {
-		this->setValue(!this->getValue());
-	}
+	this->setValue(offset > 0);
 	Value::selectEncoderAction(offset);
 }
 
@@ -45,7 +42,7 @@ void Toggle::drawPixelsForOled() {
 		canvas.drawString(name, kTextSpacingX, yPixel, kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
-			canvas.invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
+			canvas.invertLeftEdgeForMenuHighlighting(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
 			deluge::hid::display::OLED::setupSideScroller(0, name, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
 			                                              yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}
@@ -65,16 +62,18 @@ void Toggle::displayToggleValue() {
 }
 
 void Toggle::renderSubmenuItemTypeForOled(int32_t yPixel) {
-	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
+	using namespace deluge::hid::display;
+	oled_canvas::Canvas& image = OLED::main;
 
-	int32_t startX = getSubmenuItemTypeRenderIconStart();
+	const int32_t startX = getSubmenuItemTypeRenderIconStart();
+	image.drawGraphicMultiLine(getToggleValue() ? OLED::checkedBoxIcon : OLED::uncheckedBoxIcon, startX, yPixel,
+	                           kSubmenuIconSpacingX);
+}
 
-	if (getToggleValue()) {
-		image.drawGraphicMultiLine(deluge::hid::display::OLED::checkedBoxIcon, startX, yPixel, kSubmenuIconSpacingX);
-	}
-	else {
-		image.drawGraphicMultiLine(deluge::hid::display::OLED::uncheckedBoxIcon, startX, yPixel, kSubmenuIconSpacingX);
-	}
+void Toggle::renderInHorizontalMenu(const SlotPosition& slot) {
+	using namespace deluge::hid::display;
+	const Icon& icon = getValue() ? OLED::switcherIconOn : OLED::switcherIconOff;
+	OLED::main.drawIconCentered(icon, slot.start_x, slot.width, slot.start_y - 1);
 }
 
 } // namespace deluge::gui::menu_item

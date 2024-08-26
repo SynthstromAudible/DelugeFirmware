@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
+#include "modulation/arpeggiator.h"
 class InstrumentClip;
 class Drum;
 class Sound;
@@ -32,6 +33,10 @@ enum class MIDIMatchType;
 class Kit final : public Instrument, public GlobalEffectableForClip {
 public:
 	Kit();
+
+	ArpeggiatorForKit arpeggiator;
+	ArpeggiatorSettings defaultArpSettings;
+
 	Drum* getNextDrum(Drum* fromSoundSource);
 	Drum* getPrevDrum(Drum* fromSoundSource);
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
@@ -97,8 +102,10 @@ public:
 	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
 	                                      ModelStackWithTimelineCounter* modelStack) override {}
 
+	void beenEdited(bool shouldMoveToEmptySlot = true) override;
 	void choke();
-	void resyncLFOs();
+	void resyncLFOs() override;
+	void removeDrumFromKitArpeggiator(int32_t drumIndex);
 	void removeDrum(Drum* drum);
 	ModControllable* toModControllable();
 	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
@@ -155,15 +162,26 @@ public:
 
 	Drum* getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode);
 
+	void noteOnPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, uint8_t velocity,
+	                     int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE,
+	                     uint32_t sampleSyncLength = 0, int32_t ticksLate = 0, uint32_t samplesLate = 0);
+	void noteOffPreKitArp(ModelStackWithThreeMainThings* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
+
 protected:
 	bool isKit() { return true; }
 
 private:
-	Error readDrumFromFile(StorageManager& bdsm, Song* song, Clip* clip, DrumType drumType,
+	Error readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumType drumType,
 	                       int32_t readAutomationUpToPos);
 	void writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,
 	                     int32_t* selectedDrumIndex, int32_t* drumIndex, Song* song);
 	void removeDrumFromLinkedList(Drum* drum);
 	void drumRemoved(Drum* drum);
 	void possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum);
+
+	// Kit Arp
+	void setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                                ParamManager* paramManager, int32_t numSamples);
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr);
+	void renderNonAudioArpPostOutput(int32_t numSamples);
 };

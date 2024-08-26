@@ -73,6 +73,8 @@ std::string_view getErrorMessage(Error error) {
 
 	case Error::WRITE_PROTECTED:
 		return l10n::getView(STRING_FOR_ERROR_WRITE_PROTECTED);
+	case Error::POS_PAST_STRING:
+		return l10n::getView(STRING_FOR_STRING_ERROR);
 
 	default:
 		return l10n::getView(STRING_FOR_ERROR_GENERIC);

@@ -57,6 +57,7 @@ public:
 	static int16_t defaultRootNote; // Stores the calculated "default" root note between the user pressing the
 	                                // scale-mode button and releasing it
 	static bool toggleScaleModeOnButtonRelease;
+	static uint32_t scaleButtonPressTime;
 	static bool flashDefaultRootNoteOn;
 
 	static uint8_t editingMIDICCForWhichModKnob;

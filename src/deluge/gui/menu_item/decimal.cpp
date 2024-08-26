@@ -21,9 +21,11 @@
 
 #include "decimal.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
+#include "horizontal_menu.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
 
@@ -52,23 +54,30 @@ void Decimal::drawValue() {
 	}
 }
 
-void Decimal::selectEncoderAction(int32_t offset) {
+int32_t Decimal::getNumberEditSize() {
+	if (parent != nullptr && parent->renderingStyle() == Submenu::RenderingStyle::HORIZONTAL) {
+		// In Horizontal menus we use 1.00 step by default, and 0.01 step for fine editing
+		return Buttons::isAnyOfButtonsPressed({hid::button::SELECT_ENC, hid::button::SHIFT}) ? 1 : 100;
+	}
+	return soundEditor.numberEditSize;
+}
 
-	this->setValue(this->getValue() + offset * soundEditor.numberEditSize);
+void Decimal::selectEncoderAction(int32_t offset) {
+	setValue(getValue() + offset * getNumberEditSize());
 
 	// If turned down
 	if (offset < 0) {
 		int32_t minValue = getMinValue();
-		if (this->getValue() < minValue) {
-			this->setValue(minValue);
+		if (getValue() < minValue) {
+			setValue(minValue);
 		}
 	}
 
 	// If turned up
 	else {
 		int32_t maxValue = getMaxValue();
-		if (this->getValue() > maxValue) {
-			this->setValue(maxValue);
+		if (getValue() > maxValue) {
+			setValue(maxValue);
 		}
 	}
 
@@ -181,11 +190,11 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 		outputText[4] = 0;
 	}
 
-	int32_t dotPos;
-	if (getNumDecimalPlaces())
-		dotPos = soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces();
-	else
-		dotPos = 255;
+	std::vector<uint8_t> dotPositions{};
+	if (getNumDecimalPlaces()) {
+		dotPositions.push_back(soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces());
+	}
+	appendAdditionalDots(dotPositions);
 
 	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !justDidHorizontalScroll);
 
@@ -193,12 +202,80 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	memset(&blinkMask, 255, kNumericDisplayLength);
 	blinkMask[3 + soundEditor.numberScrollAmount - soundEditor.numberEditPos] = 0b10000000;
 
-	display->setText(outputText,
-	                 true,   // alignRight
-	                 dotPos, // drawDot
-	                 true,   // doBlink
-	                 blinkMask,
-	                 false); // blinkImmediately
+	display->setTextWithMultipleDots(outputText, dotPositions,
+	                                 true, // alignRight
+	                                 true, // doBlink
+	                                 blinkMask,
+	                                 false); // blinkImmediately
+}
+
+int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
+	const float remaining = std::abs(value / 100 - value / 100.0f);
+	if (remaining == 0) {
+		return 0;
+	}
+	DEF_STACK_STRING_BUF(remainingBuf, 8);
+	remainingBuf.appendFloat(remaining, 0, 2);
+	return remainingBuf.size() - 2;
+}
+
+void Decimal::renderInHorizontalMenu(const SlotPosition& slot) {
+	if (getRenderingStyle() != NUMBER) {
+		return Number::renderInHorizontalMenu(slot);
+	}
+
+	DEF_STACK_STRING_BUF(valueBuf, 10);
+	const int32_t value = getValue();
+	valueBuf.appendFloat(value / 100.f, 2, 2);
+	if (value <= -1000) {
+		valueBuf.truncate(3);
+	}
+
+	return hid::display::OLED::main.drawStringCentered(valueBuf.data(), slot.start_x,
+	                                                   slot.start_y + kHorizontalMenuSlotYOffset, kTextSpacingX,
+	                                                   kTextSpacingY, slot.width);
+}
+
+void DecimalWithoutScrolling::selectEncoderAction(int32_t offset) {
+	this->setValue(this->getValue() + offset);
+	int32_t maxValue = getMaxValue();
+	if (this->getValue() > maxValue) {
+		this->setValue(maxValue);
+	}
+	else {
+		int32_t minValue = getMinValue();
+		if (this->getValue() < minValue) {
+			this->setValue(minValue);
+		}
+	}
+
+	Number::selectEncoderAction(offset);
+}
+
+void DecimalWithoutScrolling::drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
+	const int32_t numDecimalPlaces = getNumDecimalPlaces();
+	char buffer[12];
+	floatToString(getDisplayValue(), buffer, numDecimalPlaces, numDecimalPlaces);
+	strncat(buffer, getUnit(), 4);
+	hid::display::OLED::main.drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
+}
+
+void DecimalWithoutScrolling::drawPixelsForOled() {
+	drawDecimal(kTextHugeSpacingX, kTextHugeSizeY, 18);
+}
+
+void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
+	const float displayValue = getDisplayValue();
+	const int32_t numDecimalPlaces = displayValue > 100 ? 1 : 2;
+	char buffer[12];
+	floatToString(displayValue, buffer, numDecimalPlaces, numDecimalPlaces);
+	display->setText(buffer, true, 3 - numDecimalPlaces);
+}
+
+void DecimalWithoutScrolling::getNotificationValue(StringBuf& value) {
+	const int32_t numDecimalPlaces = this->getNumDecimalPlaces();
+	value.appendFloat(this->getDisplayValue(), numDecimalPlaces, numDecimalPlaces);
+	value.append(getUnit());
 }
 
 } // namespace deluge::gui::menu_item

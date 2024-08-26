@@ -40,7 +40,6 @@ class Action;
 class TimelineView;
 class ParamManagerForTimeline;
 class ModelStackWithTimelineCounter;
-class StorageManager;
 class Serializer;
 class Deserializer;
 
@@ -222,7 +221,7 @@ public:
 	virtual bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) = 0;
 	// Setup the name per clip on session/song/grid view and to be selectable on the arranger
-	String clipName;
+	String name;
 
 protected:
 	virtual void posReachedEnd(ModelStackWithTimelineCounter* modelStack); // May change the TimelineCounter in the

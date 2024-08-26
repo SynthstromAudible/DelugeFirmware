@@ -71,9 +71,8 @@ SampleControls* getCurrentSampleControls() {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return &getCurrentAudioClip()->sampleControls;
 	}
-	else {
-		return &soundEditor.currentSource->sampleControls;
-	}
+
+	return &soundEditor.currentSource->sampleControls;
 }
 
 bool isLoopLocked() {

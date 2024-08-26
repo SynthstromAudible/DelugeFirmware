@@ -24,18 +24,20 @@
 
 class Clip;
 class ModelStackWithParamCollection;
-class StorageManager;
 class Serializer;
 class Deserializer;
 
 class MIDIParamCollection final : public ParamCollection {
 public:
 	MIDIParamCollection(ParamCollectionSummary* summary);
-	virtual ~MIDIParamCollection();
+	~MIDIParamCollection() override;
+	/// to avoid spamming midi we interpolate in ticks instead of in samples like internal synths. This is mostly
+	/// unnoticeable but limits the amount of data sent
+	void tickTicks(int32_t numSamples, ModelStackWithParamCollection* modelStack) override;
 
-	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) {}
-	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed);
-	void playbackHasEnded(ModelStackWithParamCollection* modelStack) {}
+	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) override {};
+	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) override;
+	void playbackHasEnded(ModelStackWithParamCollection* modelStack) override {}
 	void generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     bool shouldPingpong);
 	void appendParamCollection(ModelStackWithParamCollection* modelStack,
@@ -51,8 +53,9 @@ public:
 	Error makeInterpolatedCCsGoodAgain(int32_t clipLength);
 	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack);
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
-	                                     ModelStackWithParamCollection* modelStack);
-	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true);
+	                                     ModelStackWithParamCollection* modelStack) override;
+	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = true) override;
+	static int32_t autoparamValueToCC(int32_t newValue);
 
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength);
@@ -71,5 +74,5 @@ public:
 	MIDIParamVector params;
 
 private:
-	void deleteAllParams(Action* action = NULL, bool deleteStorateToo = true);
+	void deleteAllParams(Action* action = NULL, bool deleteStorageToo = true);
 };

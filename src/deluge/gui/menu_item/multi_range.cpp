@@ -27,9 +27,9 @@
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
-#include "util/container/static_vector.hpp"
 #include "util/functions.h"
 #include <cstring>
+#include <etl/vector.h>
 
 namespace deluge::gui::menu_item {
 
@@ -425,7 +425,7 @@ bool MultiRange::mayEditRangeEdge(RangeEdit whichEdge) {
 }
 
 void MultiRange::drawPixelsForOled() {
-	static_vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames{};
+	etl::vector<std::string_view, kOLEDMenuNumOptionsVisible> itemNames{};
 	char nameBuffers[kOLEDMenuNumOptionsVisible][20];
 	int32_t actualCurrentRange = this->getValue();
 

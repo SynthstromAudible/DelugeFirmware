@@ -18,21 +18,22 @@
 #pragma once
 
 #include "gui/ui/ui.h"
+#include "model/favourite/favourite_manager.h"
 #include "util/d_string.h"
 #include <cstdint>
 
 class QwertyUI : public UI {
 public:
-	QwertyUI();
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult horizontalEncoderAction(int32_t offset);
-	ActionResult timerCallback();
-	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true) {
+	QwertyUI() = default;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
+	ActionResult timerCallback() override;
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                    bool drawUndefinedArea = true) override {
 		return true;
 	}
 
-	const char* getName() { return "qwerty_ui"; }
 	static bool predictionInterrupted;
 	static String enteredText;
 
@@ -53,8 +54,19 @@ protected:
 	// 7SEG only
 	virtual void displayText(bool blinkImmediately = false);
 
+	// Favourites
+	void renderFavourites();
+
+	static uint8_t favouriteRow;
+	static constexpr uint8_t favouriteBankRow = 7;
+
 	static int16_t enteredTextEditPos;
 	static int32_t scrollPosHorizontal;
+	static bool favouritesVisible;
+	static bool banksVisible;
 
 private:
+	static uint8_t currentBank;
+	static std::optional<uint8_t> currentFavourite;
+	static FavouritesDefaultLayout favouritesLayoutSelected;
 };

@@ -142,10 +142,14 @@ const uint8_t g_usb_pipe_host[] = {
 /* READ pipe */ /* WRITE pipe */
 /* IN pipe */   /* OUT pipe */
 #if defined(USB_CFG_HCDC_USE)
-    USB_CFG_HCDC_BULK_IN, USB_CFG_HCDC_BULK_OUT,   /* HCDC: Address 1 */
-    USB_CFG_HCDC_BULK_IN, USB_CFG_HCDC_BULK_OUT,   /* HCDC: Address 2 using Hub */
-    USB_CFG_HCDC_BULK_IN2, USB_CFG_HCDC_BULK_OUT2, /* HCDC: Address 3 using Hub */
-    USB_NULL, USB_NULL,
+    USB_CFG_HCDC_BULK_IN,
+    USB_CFG_HCDC_BULK_OUT, /* HCDC: Address 1 */
+    USB_CFG_HCDC_BULK_IN,
+    USB_CFG_HCDC_BULK_OUT, /* HCDC: Address 2 using Hub */
+    USB_CFG_HCDC_BULK_IN2,
+    USB_CFG_HCDC_BULK_OUT2, /* HCDC: Address 3 using Hub */
+    USB_NULL,
+    USB_NULL,
 #else
     USB_NULL,
     USB_NULL,
@@ -158,10 +162,14 @@ const uint8_t g_usb_pipe_host[] = {
 #endif
 
 #if defined(USB_CFG_HCDC_USE)
-    USB_CFG_HCDC_INT_IN, USB_NULL,  /* HCDCC: Address 1 */
-    USB_CFG_HCDC_INT_IN, USB_NULL,  /* HCDCC: Address 2 using Hub */
-    USB_CFG_HCDC_INT_IN2, USB_NULL, /* HCDCC: Address 3 using Hub */
-    USB_NULL, USB_NULL,
+    USB_CFG_HCDC_INT_IN,
+    USB_NULL, /* HCDCC: Address 1 */
+    USB_CFG_HCDC_INT_IN,
+    USB_NULL, /* HCDCC: Address 2 using Hub */
+    USB_CFG_HCDC_INT_IN2,
+    USB_NULL, /* HCDCC: Address 3 using Hub */
+    USB_NULL,
+    USB_NULL,
 #else
     USB_NULL,
     USB_NULL,
@@ -174,10 +182,14 @@ const uint8_t g_usb_pipe_host[] = {
 #endif
 
 #if defined(USB_CFG_HHID_USE)
-    USB_CFG_HID_INT_IN, USB_CFG_HID_INT_OUT, /* HHID: Address 1 */
-    USB_CFG_HID_INT_IN, USB_NULL,            /* HHID: Address 2 using Hub */
-    USB_CFG_HID_INT_IN2, USB_NULL,           /* HHID: Address 3 using Hub */
-    USB_CFG_HID_INT_IN3, USB_NULL,           /* HHID: Address 4 using Hub */
+    USB_CFG_HID_INT_IN,
+    USB_CFG_HID_INT_OUT, /* HHID: Address 1 */
+    USB_CFG_HID_INT_IN,
+    USB_NULL, /* HHID: Address 2 using Hub */
+    USB_CFG_HID_INT_IN2,
+    USB_NULL, /* HHID: Address 3 using Hub */
+    USB_CFG_HID_INT_IN3,
+    USB_NULL, /* HHID: Address 4 using Hub */
 #else
     USB_NULL,
     USB_NULL,

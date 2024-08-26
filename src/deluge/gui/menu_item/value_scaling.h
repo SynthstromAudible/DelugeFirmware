@@ -108,7 +108,7 @@ int32_t computeFinalValueForPan(int32_t value);
  * computation not utilizing the whole range -- otherwise
  * we could call these ...ForUnsignedMenuItem, maybe?
  */
-int32_t computeCurrentValueForArpMidiCvRatchetsOrRhythm(uint32_t value);
+int32_t computeCurrentValueForUnsignedMenuItem(uint32_t value);
 
 /** Scales 0-50 range to 0-(UINT32-45) for storage and use.
  *
@@ -116,7 +116,7 @@ int32_t computeCurrentValueForArpMidiCvRatchetsOrRhythm(uint32_t value);
  *
  * See comment in the current value computation above for more.
  */
-uint32_t computeFinalValueForArpMidiCvRatchetsOrRhythm(int32_t value);
+uint32_t computeFinalValueForUnsignedMenuItem(int32_t value);
 
 int32_t computeCurrentValueForTranspose(int32_t transpose, int32_t cents);
 void computeFinalValuesForTranspose(int32_t current, int32_t* transpose, int32_t* cents);

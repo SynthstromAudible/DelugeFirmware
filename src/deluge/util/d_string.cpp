@@ -21,18 +21,29 @@
 #include "util/cfunctions.h"
 #include <bit>
 #include <cstring>
+#include <io/debug/log.h>
 
 const char nothing = 0;
+
+String::String(const String& other) {
+	set(&other);
+}
+String& String::operator=(const String& other) {
+	if (this != &other) {
+		set(&other);
+	}
+	return *this;
+}
 
 String::~String() {
 	clear(true);
 }
 
-int32_t String::getNumReasons() {
+int32_t String::getNumReasons() const {
 	return *std::bit_cast<intptr_t*>(stringMemory - 4);
 }
 
-void String::setNumReasons(int32_t newNum) {
+void String::setNumReasons(int32_t newNum) const {
 	*std::bit_cast<intptr_t*>(stringMemory - 4) = newNum;
 }
 
@@ -46,9 +57,7 @@ void String::clear(bool destructing) {
 			delugeDealloc(stringMemory - 4);
 		}
 
-		if (!destructing) {
-			stringMemory = NULL;
-		}
+		stringMemory = nullptr;
 	}
 }
 
@@ -124,6 +133,10 @@ doCopy:
 // This one can't fail!
 void String::set(String const* otherString) {
 	char* sm = otherString->stringMemory;
+	if (sm && sm == stringMemory) {
+		D_PRINTLN("setting string to itself");
+		return;
+	}
 #if ALPHA_OR_BETA_VERSION
 	// if the other string has memory and it's not in the non audio region
 	if (sm != nullptr) {
@@ -138,13 +151,13 @@ void String::set(String const* otherString) {
 		}
 	}
 #endif
+	otherString->beenCloned();
+
 	clear();
 	stringMemory = sm;
-
-	beenCloned();
 }
 
-void String::beenCloned() {
+void String::beenCloned() const {
 	if (stringMemory != nullptr) {
 		setNumReasons(getNumReasons() + 1);
 	}
@@ -190,6 +203,9 @@ Error String::shorten(int32_t newLength) {
 Error String::concatenate(String* otherString) {
 	if (!stringMemory) {
 		set(otherString);
+		if (getNumReasons() < 2 && otherString->stringMemory != nullptr) {
+			FREEZE_WITH_ERROR("S003");
+		}
 		return Error::NONE;
 	}
 
@@ -204,7 +220,11 @@ Error String::concatenateAtPos(char const* newChars, int32_t pos, int32_t newCha
 	if (pos == 0) {
 		return set(newChars, newCharsLength);
 	}
-
+	if (pos > getLength()) {
+		// this hopefully never happens? If it does it's super broken
+		FREEZE_WITH_ERROR("S004");
+		return Error::POS_PAST_STRING;
+	}
 	if (newCharsLength == -1) {
 		newCharsLength = strlen(newChars);
 	}
@@ -318,57 +338,4 @@ bool String::equals(char const* otherChars) {
 
 bool String::equalsCaseIrrespective(char const* otherChars) {
 	return !strcasecmp(get(), otherChars);
-}
-
-/**********************************************************************************************************************\
- * String formatting and parsing functions
-\**********************************************************************************************************************/
-
-char halfByteToHexChar(uint8_t thisHalfByte) {
-	if (thisHalfByte < 10) {
-		return 48 + thisHalfByte;
-	}
-	else {
-		return 55 + thisHalfByte;
-	}
-}
-
-char hexCharToHalfByte(unsigned char hexChar) {
-	if (hexChar >= 65) {
-		return hexChar - 55;
-	}
-	else {
-		return hexChar - 48;
-	}
-}
-
-void intToHex(uint32_t number, char* output, int32_t numChars) {
-	output[numChars] = 0;
-	for (int32_t i = numChars - 1; i >= 0; i--) {
-		output[i] = halfByteToHexChar(number & 15);
-		number >>= 4;
-	}
-}
-
-uint32_t hexToInt(char const* string) {
-	int32_t output = 0;
-	while (*string) {
-		output <<= 4;
-		output |= hexCharToHalfByte(*string);
-		string++;
-	}
-	return output;
-}
-
-// length must be >0
-uint32_t hexToIntFixedLength(char const* __restrict__ hexChars, int32_t length) {
-	uint32_t output = 0;
-	char const* const endChar = hexChars + length;
-	do {
-		output <<= 4;
-		output |= hexCharToHalfByte(*hexChars);
-		hexChars++;
-	} while (hexChars != endChar);
-
-	return output;
 }

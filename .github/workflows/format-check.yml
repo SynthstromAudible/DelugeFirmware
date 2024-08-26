@@ -18,13 +18,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run clang-format style check for C/C++ code
-        uses: DoozyX/clang-format-lint-action@v0.18
+        uses: d-griet/clang-format-lint-action@99a106be2f3f1a92d9783ea7c744fde62d8ce1fa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           source: './src'
           extensions: 'c,cpp,h,hpp'
-          clangFormatVersion: 17
+          clangFormatVersion: 19
       - name: Run Black style check for Python code
         uses: psf/black@stable
         with:

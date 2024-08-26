@@ -26,7 +26,7 @@ class Sample;
 
 class RootUI : public UI {
 public:
-	RootUI();
+	RootUI() = default;
 	virtual bool getAffectEntire();
 	bool canSeeViewUnderneath() final { return true; }
 	[[nodiscard]] virtual bool supportsTriplets() const { return true; }
@@ -37,7 +37,4 @@ public:
 	virtual void clipNeedsReRendering(Clip* clip) {}
 	virtual void sampleNeedsReRendering(Sample* sample) {}
 	virtual void midiLearnFlash() {}
-	// ui
-	virtual UIType getUIType() { return UIType::NONE; }
-	const char* getName() { return "root_ui"; }
 };

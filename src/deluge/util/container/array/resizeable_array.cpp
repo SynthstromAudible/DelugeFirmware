@@ -234,7 +234,6 @@ void ResizeableArray::attemptMemoryShorten() {
 }
 
 void ResizeableArray::deleteAtIndex(int32_t i, int32_t numToDelete, bool mayShortenMemoryAfter) {
-
 	LOCK_ENTRY
 
 	int32_t newNum = numElements - numToDelete;

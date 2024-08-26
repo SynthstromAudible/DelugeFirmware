@@ -94,7 +94,7 @@ void CVEngine::init() {
 void CVEngine::updateGateOutputs() {
 	// clock or run signal
 	if (clockOutputPending || asapGateOutputPending) {
-		for (int32_t g = NUM_CV_CHANNELS; g < NUM_GATE_CHANNELS; g++) {
+		for (int32_t g = NUM_PHYSICAL_CV_CHANNELS; g < NUM_GATE_CHANNELS; g++) {
 			physicallySwitchGate(g);
 		}
 		clockOutputPending = false;
@@ -159,7 +159,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 		// Switch off, unless the note that's playing is a different one (i.e. if a new one had already cut short this
 		// one that we're now saying we wanted to stop)
 		if (gateChannels[channel].on
-		    && (channel >= NUM_CV_CHANNELS || note == ALL_NOTES_OFF
+		    && (channel >= NUM_PHYSICAL_CV_CHANNELS || note == ALL_NOTES_OFF
 		        || cvChannels[channel].noteCurrentlyPlaying == note)) {
 
 			// Physically switch it right now, to get a head-start before it turns back on
@@ -187,7 +187,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 			switchGateOn(channel);
 		}
 
-		if (channel < NUM_CV_CHANNELS) {
+		if (channel < NUM_PHYSICAL_CV_CHANNELS) {
 			cvChannels[channel].noteCurrentlyPlaying = note;
 		}
 	}

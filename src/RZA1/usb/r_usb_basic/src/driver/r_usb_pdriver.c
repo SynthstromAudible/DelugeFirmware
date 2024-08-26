@@ -584,7 +584,7 @@ void usb_pstd_set_eptbl_index(uint16_t con_num, uint16_t int_num, uint16_t alt_n
 
                 if (j < numbers)
                 {
-                    ep = (uint16_t) * (uint8_t*)((uint32_t)ptr + (uint32_t)2u);
+                    ep = (uint16_t)*(uint8_t*)((uint32_t)ptr + (uint32_t)2u);
                     if (USB_EP_IN == (ep & USB_EP_DIRMASK))
                     {
                         dir = 1; /* IN */

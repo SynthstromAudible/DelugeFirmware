@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2024 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -29,14 +29,15 @@
 #include "hid/led/indicator_leds.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
-#include "task_scheduler.h"
 #include <new>
 #include <string.h>
 
@@ -65,9 +66,12 @@ StemExport::StemExport() {
 	loopEndPointInSamplesForAudioFile = 0;
 
 	allowNormalization = false;
+	allowNormalizationForDrums = true;
 	exportToSilence = true;
 	includeSongFX = false;
+	includeKitFX = false;
 	renderOffline = true;
+	exportMixdown = false;
 
 	timePlaybackStopped = 0xFFFFFFFF;
 	timeThereWasLastSomeActivity = 0xFFFFFFFF;
@@ -76,8 +80,11 @@ StemExport::StemExport() {
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
-/// instruments / clips for exporting
+/// instruments / clips / kit rows for exporting
 void StemExport::startStemExportProcess(StemExportType stemExportType) {
+	// in case playback is active when you start stem export, stop it.
+	stopPlayback();
+
 	currentStemExportType = stemExportType;
 	processStarted = true;
 
@@ -103,6 +110,12 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	}
 	else if (stemExportType == StemExportType::TRACK) {
 		elementsProcessed = exportInstrumentStems(stemExportType);
+	}
+	else if (stemExportType == StemExportType::DRUM) {
+		elementsProcessed = exportDrumStems(stemExportType);
+	}
+	else if (stemExportType == StemExportType::MIXDOWN) {
+		elementsProcessed = exportMixdownStem(stemExportType);
 	}
 
 	// if process wasn't cancelled, then we got here because we finished
@@ -138,6 +151,7 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 void StemExport::stopStemExportProcess() {
 	exitUIMode(UI_MODE_STEM_EXPORT);
 	stopPlayback();
+	highestUsedStemFolderNumber++;
 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_STOP_EXPORT_STEMS), 6);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 }
@@ -161,7 +175,9 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 				channel = AudioInputChannel::OUTPUT;
 			}
 		}
-		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(), allowNormalization);
+		bool normalization =
+		    currentStemExportType == StemExportType::DRUM ? allowNormalizationForDrums : allowNormalization;
+		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(), normalization);
 		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
 			stopRecording = true;
 		}
@@ -173,7 +189,6 @@ void StemExport::stopPlayback() {
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	}
-	highestUsedStemFolderNumber++;
 }
 
 /// simulate pressing record
@@ -248,7 +263,7 @@ bool StemExport::checkForSilence() {
 }
 
 /// disarms and prepares all the instruments so that they can be exported
-int32_t StemExport::disarmAllInstrumentsForStemExport() {
+int32_t StemExport::disarmAllInstrumentsForStemExport(StemExportType stemExportType) {
 	// when we begin stem export, we haven't exported any instruments yet, so initialize these variables
 	numStemsExported = 0;
 	totalNumStemsToExport = 0;
@@ -256,11 +271,11 @@ int32_t StemExport::disarmAllInstrumentsForStemExport() {
 	// so get the number and store it so we only need to ping getNumElements once
 	int32_t totalNumOutputs = currentSong->getNumOutputs();
 
-	if (totalNumOutputs) {
+	if (totalNumOutputs != 0) {
 		// iterate through all the instruments to disable all the recording relevant flags
 		for (int32_t idxOutput = 0; idxOutput < totalNumOutputs; ++idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			if (output) {
+			if (output != nullptr) {
 				/* export output stem if all these conditions are met:
 				    1) the output is not muted in arranger
 				    2) the output is not empty (it has clips with notes in them)
@@ -275,24 +290,36 @@ int32_t StemExport::disarmAllInstrumentsForStemExport() {
 				else {
 					output->exportStem = false;
 				}
-				output->mutedInArrangementModeBeforeStemExport = output->mutedInArrangementMode;
-				output->mutedInArrangementMode = true;
+				// if we're not exporting the mixdown,
+				// then we want to mute all the tracks as we'll be exporting them individually
+				// except for the MIDI transpose track, which must remain enabled for proper transposition
+				if (stemExportType != StemExportType::MIXDOWN) {
+					output->mutedInArrangementModeBeforeStemExport = output->mutedInArrangementMode;
+					output->mutedInArrangementMode =
+					    (output->type != OutputType::MIDI_OUT
+					     || ((NonAudioInstrument*)output)->getChannel() != MIDI_CHANNEL_TRANSPOSE);
+				}
 				output->recordingInArrangement = false;
 				output->armedForRecording = false;
 				output->soloingInArrangementMode = false;
 			}
 		}
 	}
+
+	// if exporting mixdown, just exporting one stem
+	if ((stemExportType == StemExportType::MIXDOWN) && totalNumStemsToExport) {
+		totalNumStemsToExport = 1;
+	}
 	return totalNumOutputs;
 }
 
 /// set instrument mutes back to their previous state (before exporting stems)
 void StemExport::restoreAllInstrumentMutes(int32_t totalNumOutputs) {
-	if (totalNumOutputs) {
+	if (totalNumOutputs != 0) {
 		// iterate through all the instruments to restore previous mute states
 		for (int32_t idxOutput = 0; idxOutput < totalNumOutputs; ++idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			if (output) {
+			if (output != nullptr) {
 				output->mutedInArrangementMode = output->mutedInArrangementModeBeforeStemExport;
 			}
 		}
@@ -304,13 +331,13 @@ void StemExport::restoreAllInstrumentMutes(int32_t totalNumOutputs) {
 /// and stop recording at the end of the arrangement
 int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 	// prepare all the instruments for stem export
-	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport();
+	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
 
-	if (totalNumOutputs) {
+	if (totalNumOutputs != 0 && totalNumStemsToExport != 0) {
 		// now we're going to iterate through all instruments to find the ones that should be exported
 		for (int32_t idxOutput = totalNumOutputs - 1; idxOutput >= 0; --idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			if (output) {
+			if (output != nullptr) {
 				bool started = startCurrentStemExport(stemExportType, output, output->mutedInArrangementMode, idxOutput,
 				                                      output->exportStem);
 
@@ -345,6 +372,42 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 	return totalNumOutputs;
 }
 
+/// iterates through all instruments, checking if there's any that should be exported (unmuted)
+/// then exports them all as a single stem
+/// simulates the button combo action of pressing record + play twice to enable resample
+/// and stop recording at the end of the arrangement
+int32_t StemExport::exportMixdownStem(StemExportType stemExportType) {
+	// prepare all the instruments for stem export
+	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
+
+	if (totalNumOutputs != 0 && totalNumStemsToExport != 0) {
+		// set wav file name for stem to be exported
+		setWavFileNameForStemExport(stemExportType, nullptr, 0);
+
+		// start resampling which ends when end of arrangement is reached and audio is silent
+		startOutputRecordingUntilLoopEndAndSilence();
+
+		// we haven't exported the arrangement yet
+		// so display progress
+		displayStemExportProgress(stemExportType);
+
+		// wait until recording is done and playback is turned off
+		yield([]() {
+			if (stemExport.stopRecording) {
+				stemExport.stopOutputRecording();
+			}
+			return !(playbackHandler.recording != RecordingMode::OFF
+			         || audioRecorder.recordingSource > AudioInputChannel::NONE
+			         || playbackHandler.isEitherClockActive());
+		});
+
+		// update number of stems exported
+		numStemsExported++;
+	}
+
+	return totalNumOutputs;
+}
+
 /// disarms and prepares all the clips so that they can be exported
 int32_t StemExport::disarmAllClipsForStemExport() {
 	// when we begin stem export, we haven't exported any clips yet, so initialize these variables
@@ -356,11 +419,11 @@ int32_t StemExport::disarmAllClipsForStemExport() {
 	// so get the number and store it so we only need to ping getNumElements once
 	int32_t totalNumClips = currentSong->sessionClips.getNumElements();
 
-	if (totalNumClips) {
+	if (totalNumClips != 0) {
 		// iterate through all clips to disable all the recording relevant flags
 		for (int32_t idxClip = 0; idxClip < totalNumClips; ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-			if (clip) {
+			if (clip != nullptr) {
 				/* export clip stem if all these conditions are met:
 				    1) the clip is not empty (it has notes in it)
 				    2) the output type is not MIDI or CV
@@ -386,11 +449,11 @@ int32_t StemExport::disarmAllClipsForStemExport() {
 
 /// set clip mutes back to their previous state (before exporting stems)
 void StemExport::restoreAllClipMutes(int32_t totalNumClips) {
-	if (totalNumClips) {
+	if (totalNumClips != 0) {
 		// iterate through all clips to restore previous mute states
 		for (int32_t idxClip = 0; idxClip < totalNumClips; ++idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-			if (clip) {
+			if (clip != nullptr) {
 				clip->activeIfNoSolo = clip->activeIfNoSoloBeforeStemExport;
 			}
 		}
@@ -405,11 +468,11 @@ void StemExport::getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip) {
 	if (clip->type == ClipType::INSTRUMENT) {
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 		int32_t totalNumNoteRows = instrumentClip->noteRows.getNumElements();
-		if (totalNumNoteRows) {
+		if (totalNumNoteRows != 0) {
 			// iterate through all the note rows to find the longest one
 			for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
 				NoteRow* thisNoteRow = instrumentClip->noteRows.getElement(idxNoteRow);
-				if (thisNoteRow && (thisNoteRow->loopLengthIfIndependent > loopLengthToStopStemExport)
+				if ((thisNoteRow != nullptr) && (thisNoteRow->loopLengthIfIndependent > loopLengthToStopStemExport)
 				    && !thisNoteRow->hasNoNotes()) {
 					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent;
 				}
@@ -418,15 +481,16 @@ void StemExport::getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip) {
 	}
 }
 
-/// converts clip loop length into samples so that clip end position can be written to clip stem
+/// converts clip / drum loop length into samples so that clip / drum end position can be written to clip / drum stem
 void StemExport::getLoopEndPointInSamplesForAudioFile(int32_t loopLength) {
 	loopEndPointInSamplesForAudioFile = loopLength * playbackHandler.getTimePerInternalTick();
 }
 
 /// determines whether or not you should write loop end position in samples to the stem file
-/// we're only writing loop end marker to clip stems
+/// we're only writing loop end marker to clip and drum stems
 bool StemExport::writeLoopEndPos() {
-	if (processStarted && currentStemExportType == StemExportType::CLIP) {
+	if (processStarted
+	    && (currentStemExportType == StemExportType::CLIP || currentStemExportType == StemExportType::DRUM)) {
 		return true;
 	}
 	return false;
@@ -439,11 +503,11 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 	// prepare all the clips for stem export
 	int32_t totalNumClips = disarmAllClipsForStemExport();
 
-	if (totalNumClips) {
+	if (totalNumClips != 0 && totalNumStemsToExport != 0) {
 		// now we're going to iterate through all clips to find the ones that should be exported
 		for (int32_t idxClip = totalNumClips - 1; idxClip >= 0; --idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
-			if (clip) {
+			if (clip != nullptr) {
 				getLoopLengthOfLongestNotEmptyNoteRow(clip);
 				getLoopEndPointInSamplesForAudioFile(clip->loopLength);
 
@@ -483,8 +547,128 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 	return totalNumClips;
 }
 
+/// disarms and prepares all the drums so that they can be exported
+int32_t StemExport::disarmAllDrumsForStemExport() {
+	// when we begin stem export, we haven't exported any drums yet, so initialize these variables
+	numStemsExported = 0;
+	totalNumStemsToExport = 0;
+	currentSong->xScroll[NAVIGATION_CLIP] = 0;
+
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	OutputType outputType = clip->output->type;
+
+	// when we trigger stem export, we don't know how many drums there are yet
+	// so get the number and store it so we only need to ping getNumElements once
+	int32_t totalNumNoteRows = clip->noteRows.getNumElements();
+
+	if (totalNumNoteRows != 0) {
+		// iterate through all the drums to disable all the recording relevant flags
+		for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
+			NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
+			if (thisNoteRow != nullptr) {
+				/* export drum stem if all these conditions are met:
+				    1) the note row is not muted
+				    2) the note row is not empty (it has notes)
+				    3) it has a drum assigned to it
+				    4) the drum assigned to it is a sound drum
+				*/
+				if (thisNoteRow->drum != nullptr && thisNoteRow->drum->type == DrumType::SOUND && !thisNoteRow->muted
+				    && !thisNoteRow->hasNoNotes()) {
+					thisNoteRow->exportStem = true;
+					totalNumStemsToExport++;
+				}
+				else {
+					thisNoteRow->exportStem = false;
+				}
+				thisNoteRow->mutedBeforeStemExport = thisNoteRow->muted;
+				thisNoteRow->muted = true;
+			}
+		}
+	}
+
+	return totalNumNoteRows;
+}
+
+/// set drum mutes back to their previous state (before exporting stems)
+void StemExport::restoreAllDrumMutes(int32_t totalNumNoteRows) {
+	// iterate through all the drums to restore previous mute states
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
+		NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
+		if (thisNoteRow != nullptr) {
+			thisNoteRow->muted = thisNoteRow->mutedBeforeStemExport;
+		}
+	}
+}
+
+/// iterates through all drums, arming one drum at a time for recording
+/// simulates the button combo action of pressing record + play twice to enable resample
+/// and stop recording at the end of the arrangement
+int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
+	// need to disarm all the other clips so that we can export just this kit clip
+	int32_t totalNumClips = disarmAllClipsForStemExport();
+	// prepare all the drums for stem export
+	int32_t totalNumNoteRows = disarmAllDrumsForStemExport();
+
+	if (totalNumNoteRows != 0) {
+		// now we're going to iterate through all drums to find the ones that should be exported
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Output* output = clip->output;
+		OutputType outputType = output->type;
+		for (int32_t idxNoteRow = totalNumNoteRows - 1; idxNoteRow >= 0; --idxNoteRow) {
+			NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
+			if (thisNoteRow != nullptr) {
+				clip->activeIfNoSolo = true; // unmute clip
+
+				// set the loop length that the drum stem export should be stopped at
+				if (thisNoteRow->loopLengthIfIndependent != 0) {
+					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent;
+				}
+				else {
+					loopLengthToStopStemExport = clip->loopLength;
+				}
+				getLoopEndPointInSamplesForAudioFile(loopLengthToStopStemExport);
+
+				bool started = startCurrentStemExport(stemExportType, output, thisNoteRow->muted, idxNoteRow,
+				                                      thisNoteRow->exportStem, (SoundDrum*)thisNoteRow->drum);
+
+				if (!started) {
+					// skip this stem and move to the next one
+					continue;
+				}
+
+				// wait until recording is done and playback is turned off
+				yield([]() {
+					// if you haven't found silence yet and playback has stopped
+					// check for silence so you can stop recording
+					if (stemExport.stopRecording) {
+						stemExport.stopOutputRecording();
+					}
+					return !(playbackHandler.recording != RecordingMode::OFF
+					         || audioRecorder.recordingSource > AudioInputChannel::NONE
+					         || playbackHandler.isEitherClockActive());
+				});
+
+				finishCurrentStemExport(stemExportType, thisNoteRow->muted);
+			}
+			// in the event that stem exporting is cancelled while iterating through drums
+			// break out of the loop
+			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+				break;
+			}
+		}
+	}
+
+	// set drum mutes back to their previous state (before exporting stems)
+	restoreAllDrumMutes(totalNumNoteRows);
+	// set clip mutes back to their previous state (before exporting stems)
+	restoreAllClipMutes(totalNumClips);
+
+	return totalNumNoteRows;
+}
+
 bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState,
-                                        int32_t indexNumber, bool exportStem) {
+                                        int32_t indexNumber, bool exportStem, SoundDrum* drum) {
 	updateScrollPosition(stemExportType, indexNumber + 1);
 
 	// exclude empty clips / outputs, muted outputs (arranger), MIDI and CV outputs
@@ -496,22 +680,22 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 		// unmute clip for recording
 		muteState = true; // clip->activeIfNoSolo
 	}
-	else if (stemExportType == StemExportType::TRACK) {
-		// unmute output for recording
-		muteState = false; // output->mutedInArrangementMode
+	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::DRUM) {
+		// unmute output / drum for recording
+		muteState = false; // output->mutedInArrangementMode or noteRow->muted
 	}
 
 	// re-render song view since we scrolled and updated mutes
 	uiNeedsRendering(getCurrentUI());
 
 	// set wav file name for stem to be exported
-	setWavFileNameForStemExport(stemExportType, output, indexNumber);
+	setWavFileNameForStemExport(stemExportType, output, indexNumber, drum);
 
-	// start resampling which ends when end of clip is reached and audio is silent
+	// start resampling which ends when end of track / clip is reached and audio is silent
 	startOutputRecordingUntilLoopEndAndSilence();
 
-	// we haven't exported all the clips yet
-	// so display the number of clips we've exported so far
+	// we haven't exported all the track / clips yet
+	// so display the number of tracks / clips we've exported so far
 	displayStemExportProgress(stemExportType);
 
 	return true;
@@ -525,12 +709,12 @@ void StemExport::finishCurrentStemExport(StemExportType stemExportType, bool& mu
 		// mute clip for recording
 		muteState = false; // clip->activeIfNoSolo
 	}
-	else if (stemExportType == StemExportType::TRACK) {
-		// mute output for recording
-		muteState = true; // output->mutedInArrangementMode
+	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::DRUM) {
+		// mute output / drum for recording
+		muteState = true; // output->mutedInArrangementMode or noteRow->muted
 	}
 
-	// update number of instruments exported
+	// update number of stems exported
 	numStemsExported++;
 }
 
@@ -575,11 +759,16 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 			currentSong->songViewYScroll = indexNumber - kDisplayHeight;
 		}
 	}
-	else if (stemExportType == StemExportType::TRACK) {
+	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::MIXDOWN) {
 		// reset arranger view scrolling so we're back at the top left of the arrangement
 		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
 		currentSong->arrangementYScroll = indexNumber - kDisplayHeight;
 		arrangerView.repopulateOutputsOnScreen(false);
+	}
+	else if (stemExportType == StemExportType::DRUM) {
+		// reset clip view scrolling so we're back at the top left of the kit
+		currentSong->xScroll[NAVIGATION_CLIP] = 0;
+		getCurrentInstrumentClip()->yScroll = indexNumber - kDisplayHeight;
 	}
 }
 
@@ -610,6 +799,9 @@ void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
 	else if (stemExportType == StemExportType::TRACK) {
 		exportStatus.append(" instruments");
 	}
+	else if (stemExportType == StemExportType::DRUM) {
+		exportStatus.append(" drums");
+	}
 	deluge::hid::display::OLED::drawPermanentPopupLookingText(exportStatus.c_str());
 	deluge::hid::display::OLED::markChanged();
 }
@@ -628,7 +820,7 @@ void StemExport::displayStemExportProgress7SEG() {
 Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder) {
 	const auto folderID = util::to_underlying(folder);
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -673,19 +865,19 @@ Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordin
 /// within the STEMS folder, it will try to create a folder with the name of the SONG
 /// if it cannot create a folder with the SONG name because it already exists, it will continue creating folder path
 /// if it cannot create a folder and the folder does not already exist, then function will return an error
-/// after SAMPLES/EXPORTS/*SONG NAME*/ is created, it will try to create a folder for the type of export (ARRANGER or
-/// SONG). if it cannot create a folder of the name ARRANGER or SONG because it already exists, it will append an
-/// incremental number to the end of the ARRANGER or SONG folder name and try to create a folder with that new name thus
-/// we will end up with a folder path of SAMPLES/EXPORTS/*SONG NAME*/TRACKS##/ or SAMPLES/EXPORTS/*SONG NAME*/CLIPS##/
-/// this function gets called every time a stem recording is being written to a file to avoid unecessary file system
-/// calls, it will save the last song and arranger/song sub-folder name saved to a String including the last incremental
-/// folder number and use that to obtain the filePath for the next stem export job (e.g. if you are exporting the same
-/// song more and stem export type than once)
+/// after SAMPLES/EXPORTS/*SONG NAME*/ is created, it will try to create a folder for the type of export.
+/// if it cannot create a folder because it already exists, it will append an incremental number to the end of the
+/// folder name and try to create a folder with that new name. thus we will end up with a folder path of
+/// SAMPLES/EXPORTS/*SONG NAME*/TRACKS##/ or SAMPLES/EXPORTS/*SONG NAME*/CLIPS##/ or SAMPLES/EXPORTS/*SONG
+/// NAME*/DRUMS##/ this function gets called every time a stem recording is being written to a file to avoid unecessary
+/// file system calls, it will save the last song and sub-folder name saved to a String including the last
+/// incremental folder number and use that to obtain the filePath for the next stem export job (e.g. if you are
+/// exporting the same song more and stem export type than once)
 Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder) {
 
 	const auto folderID = util::to_underlying(folder);
 
-	Error error = storageManager.initSD();
+	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -729,18 +921,23 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		return fresultToDelugeErrorCode(result);
 	}
 
-	RootUI* rootUI = getRootUI();
-	// concatenate stem export type to folder path
-	if (rootUI == &arrangerView) {
-		// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS
-		error = tempPath.concatenate("/TRACKS");
-	}
-	else {
+	switch (currentStemExportType) {
+	case StemExportType::CLIP:
 		// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS
 		error = tempPath.concatenate("/CLIPS");
-	}
-	if (error != Error::NONE) {
-		return error;
+		break;
+	case StemExportType::DRUM:
+		// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS
+		error = tempPath.concatenate("/DRUMS");
+		break;
+	case StemExportType::MIXDOWN:
+		[[fallthrough]];
+	case StemExportType::TRACK:
+		// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS
+		error = tempPath.concatenate("/TRACKS");
+		break;
+	default:
+		break;
 	}
 
 	String folderNameToCompare;
@@ -755,8 +952,9 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		// if we're here we didn't just export this song
 		String tempPathForSearch;
 
-		// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS OR CLIPS
+		// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS
 		// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS
+		// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS
 		error = tempPathForSearch.set(tempPath.get());
 		if (error != Error::NONE) {
 			return error;
@@ -776,11 +974,12 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 			}
 			// not successful
 			else {
-				// increment folder number so we can append it to the ARRANGER or SONG folder name
+				// increment folder number so we can append it to the folder name
 				highestUsedStemFolderNumber++;
 
 				// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS
 				// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS
+				// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS
 				error = tempPathForSearch.set(tempPath.get());
 				if (error != Error::NONE) {
 					return error;
@@ -788,6 +987,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 				// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-
 				// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-
+				// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS-
 				error = tempPathForSearch.concatenate("-");
 				if (error != Error::NONE) {
 					return error;
@@ -795,6 +995,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 				// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-##
 				// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-##
+				// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS-##
 				error = tempPathForSearch.concatenateInt(highestUsedStemFolderNumber, 2);
 				if (error != Error::NONE) {
 					return error;
@@ -817,6 +1018,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		if (highestUsedStemFolderNumber != -1) {
 			// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-
 			// or tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-
+			// or tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS-
 			error = tempPath.concatenate("-");
 			if (error != Error::NONE) {
 				return error;
@@ -824,6 +1026,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 			// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-##
 			// or tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-##
+			// or tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS-##
 			error = tempPath.concatenateInt(highestUsedStemFolderNumber, 2);
 			if (error != Error::NONE) {
 				return error;
@@ -848,76 +1051,90 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 /// based on Stem Export Type, will set a WAV file name in the format of:
 /// /OutputType_StemExportType_OutputName_IndexNumber.WAV
-/// example: /SYNTH_CLIP_BASS SYNTH_00000.WAV
-/// example: /SYNTH_TRACK_BASS SYNTH_00000.WAV
+/// example: /SYNTH_CLIP_BASS SYNTH_TEMPO_ROOT NOTE-SCALE_00000.WAV
+/// example: /SYNTH_TRACK_BASS SYNTH_TEMPO_ROOT NOTE-SCALE_00000.WAV
+/// example: /MIXDOWN_TEMPO_ROOT NOTE-SCALE.WAV
+/// example: /KIT_DRUM_808 KIT_SNARE_ROOT NOTE_SCALE_00000.WAV
 /// this wavFileName is then concatenate to the filePath name to export the WAV file
-void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber) {
+void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber,
+                                             SoundDrum* drum) {
 	// wavFileNameForStemExport = "/"
 	Error error = wavFileNameForStemExport.set("/");
 	if (error != Error::NONE) {
 		return;
 	}
 
-	// wavFileNameForStemExport = "/OutputType
 	const char* outputType;
-	switch (output->type) {
-	case OutputType::AUDIO:
-		outputType = "AUDIO";
-		break;
-	case OutputType::SYNTH:
-		outputType = "SYNTH";
-		break;
-	case OutputType::KIT:
-		outputType = "KIT";
-		break;
-	default:
-		break;
-	}
-	error = wavFileNameForStemExport.concatenate(outputType);
-	if (error != Error::NONE) {
-		return;
-	}
+	const char* exportType;
 
-	// wavFileNameForStemExport = "/OutputType_
-	error = wavFileNameForStemExport.concatenate("_");
-	if (error != Error::NONE) {
-		return;
+	if (stemExportType == StemExportType::MIXDOWN) {
+		// wavFileNameForStemExport = "/MIXDOWN
+		exportType = "MIXDOWN";
 	}
-
-	// wavFileNameForStemExport = "/OutputType_StemExportType_
-	if (stemExportType == StemExportType::CLIP) {
-		error = wavFileNameForStemExport.concatenate("CLIP_");
-		if (error != Error::NONE) {
-			return;
-		}
-	}
-	else if (stemExportType == StemExportType::TRACK) {
-		error = wavFileNameForStemExport.concatenate("TRACK_");
-		if (error != Error::NONE) {
-			return;
+	else {
+		// wavFileNameForStemExport = "/OutputType
+		switch (output->type) {
+		case OutputType::AUDIO:
+			outputType = "AUDIO";
+			break;
+		case OutputType::SYNTH:
+			outputType = "SYNTH";
+			break;
+		case OutputType::KIT:
+			outputType = "KIT";
+			break;
+		default:
+			break;
 		}
 	}
 
-	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName
-	error = wavFileNameForStemExport.concatenate(output->name.get());
-	if (error != Error::NONE) {
-		return;
+	const char* outputName;
+
+	if (stemExportType != StemExportType::MIXDOWN) {
+		// wavFileNameForStemExport = "/OutputType_StemExportType_
+		if (stemExportType == StemExportType::CLIP) {
+			exportType = "CLIP";
+		}
+		else if (stemExportType == StemExportType::TRACK) {
+			exportType = "TRACK";
+		}
+		else if (stemExportType == StemExportType::DRUM) {
+			exportType = "DRUM";
+		}
+
+		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName
+		outputName = output->name.get();
 	}
 
-	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_
-	error = wavFileNameForStemExport.concatenate("_");
-	if (error != Error::NONE) {
-		return;
+	// get song tempo
+	int32_t tempo = std::round(playbackHandler.calculateBPMForDisplay());
+
+	// get song root note
+	char noteName[5];
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
+
+	// get song scale
+	const char* scaleName = getScaleName(currentSong->getCurrentScale());
+
+	char fileName[300];
+
+	// wavFileNameForStemExport = /StemExportType_tempo_noteName-scaleName.WAV
+	if (stemExportType == StemExportType::MIXDOWN) {
+		sprintf(fileName, "%s_%dBPM_%s-%s.WAV", exportType, tempo, noteName, scaleName);
+	}
+	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_DrumName_tempo_noteName-scaleName_###.WAV
+	else if (stemExportType == StemExportType::DRUM) {
+		sprintf(fileName, "%s_%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType, outputName, drum->name.get(),
+		        tempo, noteName, scaleName, fileNumber);
+	}
+	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_tempo_noteName-scaleName_###.WAV
+	else {
+		sprintf(fileName, "%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType, outputName, tempo, noteName,
+		        scaleName, fileNumber);
 	}
 
-	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_###
-	error = wavFileNameForStemExport.concatenateInt(fileNumber, 3);
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_###.WAV
-	error = wavFileNameForStemExport.concatenate(".WAV");
+	error = wavFileNameForStemExport.concatenate(fileName);
 	if (error != Error::NONE) {
 		return;
 	}

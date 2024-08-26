@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2024 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -21,6 +21,8 @@
 #include "model/global_effectable/global_effectable.h"
 #include "modulation/params/param.h"
 #include "storage/storage_manager.h"
+#include "util/containers.h"
+#include <cstdint>
 
 class AudioClip;
 class InstrumentClip;
@@ -32,13 +34,15 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithAutoParam;
 enum class MIDIMatchType;
 
+namespace params = deluge::modulation::params;
+
 class MidiFollow final {
 public:
 	MidiFollow();
-	void readDefaultsFromFile(StorageManager& bdsm);
+	void readDefaultsFromFile();
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                                Clip* clip, int32_t xDisplay, int32_t yDisplay, int32_t ccNumber,
+	                                                Clip* clip, int32_t soundParamId, int32_t globalParamId,
 	                                                bool displayError = true);
 	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,
 	                         bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
@@ -56,8 +60,13 @@ public:
 
 	// midi CC mappings
 	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
+	bool isGlobalEffectableContext();
 
-	int32_t paramToCC[kDisplayWidth][kDisplayHeight];
+	std::array<uint8_t, kMaxMIDIValue + 1> ccToSoundParam;
+	std::array<uint8_t, kMaxMIDIValue + 1> ccToGlobalParam;
+	std::array<uint8_t, params::UNPATCHED_START + params::UNPATCHED_SOUND_MAX_NUM> soundParamToCC;
+	std::array<uint8_t, params::UNPATCHED_GLOBAL_MAX_NUM> globalParamToCC;
+
 	int32_t previousKnobPos[kMaxMIDIValue + 1];
 	uint32_t timeLastCCSent[kMaxMIDIValue + 1];
 	uint32_t timeAutomationFeedbackLastSent;
@@ -71,7 +80,9 @@ public:
 private:
 	// initialize
 	void init();
-	void initMapping(int32_t mapping[kDisplayWidth][kDisplayHeight]);
+	void initState();
+	void clearMappings();
+	void initDefaultMappings();
 
 	Clip* getSelectedOrActiveClip();
 	Clip* getSelectedClip();
@@ -79,25 +90,25 @@ private:
 
 	// get model stack with auto param for midi follow cc-param control
 	ModelStackWithAutoParam* getModelStackWithParamForSong(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
-	                                                       int32_t xDisplay, int32_t yDisplay);
+	                                                       int32_t soundParamId, int32_t globalParamId);
 	ModelStackWithAutoParam* getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                                       Clip* clip, int32_t xDisplay, int32_t yDisplay);
+	                                                       Clip* clip, int32_t soundParamId, int32_t globalParamId);
 	ModelStackWithAutoParam*
 	getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                                   int32_t xDisplay, int32_t yDisplay);
+	                                   int32_t soundParamId, int32_t globalParamId);
 	ModelStackWithAutoParam*
 	getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                                 int32_t xDisplay, int32_t yDisplay);
+	                                 int32_t soundParamId, int32_t globalParamId);
 	ModelStackWithAutoParam*
 	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                                   int32_t xDisplay, int32_t yDisplay);
-	void displayParamControlError(int32_t xDisplay, int32_t yDisplay);
+	                                   int32_t soundParamId, int32_t globalParamId);
+	void displayParamControlError(int32_t soundParamId, int32_t globalParamId);
 
 	MIDIMatchType checkMidiFollowMatch(MIDIDevice* fromDevice, uint8_t channel);
 	bool isFeedbackEnabled();
 
 	// saving
-	void writeDefaultsToFile(StorageManager& bdsm);
+	void writeDefaultsToFile();
 	void writeDefaultMappingsToFile();
 
 	// loading

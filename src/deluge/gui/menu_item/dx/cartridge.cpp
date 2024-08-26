@@ -26,7 +26,7 @@
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/DX7Cartridge.h"
-#include "util/container/static_vector.hpp"
+#include <etl/vector.h>
 
 static bool openFile(const char* path, DX7Cartridge* data) {
 	using deluge::l10n::String;
@@ -64,11 +64,14 @@ static bool openFile(const char* path, DX7Cartridge* data) {
 
 	error = data->load(buffer, numBytesRead);
 	if (error != String::EMPTY_STRING) {
-		display->displayPopup(get(error), 3);
+		// Allow loading to continue for checksum errors, but fail for other errors
+		if (error != deluge::l10n::String::STRING_FOR_DX_ERROR_CHECKSUM_FAIL) {
+			display->displayPopup(l10n::get(error), 3);
+			return false;
+		}
 	}
-	else {
-		didLoad = true;
-	}
+
+	didLoad = true;
 
 free:
 	GeneralMemoryAllocator::get().dealloc(buffer);
@@ -115,7 +118,7 @@ void DxCartridge::drawPixelsForOled() {
 	char names[32][11];
 	pd->getProgramNames(names);
 
-	static_vector<std::string_view, 32> itemNames = {};
+	etl::vector<std::string_view, 32> itemNames = {};
 	for (int i = 0; i < pd->numPatches(); i++) {
 		itemNames.push_back(names[i]);
 	}

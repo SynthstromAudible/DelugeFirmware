@@ -1555,16 +1555,16 @@ void hw_usb_clear_status_nrdy(usb_utr_t* ptr, uint16_t pipeno)
     {
 #if ((USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_PERI)
 #if USB_CFG_USE_USBIP == USB_CFG_IP0
-        USB200.NRDYSTS = (uint16_t) ~(1 << pipeno);
+        USB200.NRDYSTS = (uint16_t)~(1 << pipeno);
 #else
-        USB201.NRDYSTS = (uint16_t) ~(1 << pipeno);
+        USB201.NRDYSTS = (uint16_t)~(1 << pipeno);
 #endif
 #endif /* (USB_CFG_MODE & USB_CFG_PERI) == USB_CFG_REPI */
     }
     else
     {
 #if ((USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST)
-        ptr->ipp->NRDYSTS = (uint16_t) ~(1 << pipeno);
+        ptr->ipp->NRDYSTS = (uint16_t)~(1 << pipeno);
 #endif /* (USB_CFG_MODE & USB_CFG_HOST) == USB_CFG_HOST */
     }
 } /* End of function hw_usb_clear_status_nrdy() */

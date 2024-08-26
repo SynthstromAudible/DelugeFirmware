@@ -13,7 +13,7 @@ public:
 	/** Returns semitone offset from root below the noteCode. */
 	uint8_t intervalOf(int32_t noteCode) const;
 	/** Returns degree of noteCode in the scale of they key,
-	 * -1 if the noteCode is note in key.
+	 * -1 if the noteCode is note NOT in key.
 	 */
 	int8_t degreeOf(int32_t nodeCode) const;
 	// TODO: make these private later, and maybe rename modeNotes

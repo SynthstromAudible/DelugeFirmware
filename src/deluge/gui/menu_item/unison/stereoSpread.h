@@ -17,14 +17,39 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/instrument/kit.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::unison {
 class StereoSpread final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override { this->setValue(soundEditor.currentSound->unisonStereoSpread); }
-	void writeCurrentValue() override { soundEditor.currentSound->setUnisonStereoSpread(this->getValue()); }
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		int32_t current_value = this->getValue();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+					soundDrum->setUnisonStereoSpread(current_value);
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			soundEditor.currentSound->setUnisonStereoSpread(current_value);
+		}
+	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxUnisonStereoSpread; }
 };
 

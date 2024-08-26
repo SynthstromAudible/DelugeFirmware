@@ -22,14 +22,15 @@
 namespace deluge::gui::menu_item::osc::source {
 class Feedback final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
-	Feedback(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+	Feedback(l10n::String name, l10n::String title_format_str, int32_t newP, uint8_t source_id)
+	    : PatchedParam(name, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (sound->getSynthMode() == SynthMode::FM || sound->sources[whichThing].oscType == OscType::DX7);
+		return (sound->getSynthMode() == SynthMode::FM || sound->sources[source_id_].oscType == OscType::DX7);
 	}
 };
 

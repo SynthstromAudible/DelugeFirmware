@@ -28,7 +28,7 @@ char const* OverwriteFile::getTitle() {
 	return l10n::get(STRING_FOR_OVERWRITE_QMARK);
 }
 
-Sized<char const**> OverwriteFile::getOptions() {
+std::span<char const*> OverwriteFile::getOptions() {
 	using enum l10n::String;
 	if (display->haveOLED()) {
 		static char const* options[] = {l10n::get(STRING_FOR_OK)};
@@ -41,8 +41,20 @@ Sized<char const**> OverwriteFile::getOptions() {
 }
 
 bool OverwriteFile::acceptCurrentOption() {
-	bool dealtWith = currentSaveUI->performSave(storageManager, true);
+	bool dealtWith = currentSaveUI->performSave(true);
 
 	return dealtWith;
+}
+ActionResult OverwriteFile::padAction(int32_t x, int32_t y, int32_t on) {
+	// enter key press. Overwrite is only relevant in places where a qwerty keyboard is showing so no need to check
+	if (on && y == kQwertyHomeRow && x >= 14 && x < 16) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		currentSaveUI->performSave(true);
+		// even if that fails we've still handled the press
+		return ActionResult::DEALT_WITH;
+	}
+	return ContextMenu::padAction(x, y, on);
 }
 } // namespace deluge::gui::context_menu

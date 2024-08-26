@@ -16,11 +16,12 @@
  */
 #pragma once
 #include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
@@ -30,36 +31,68 @@ class Mode final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mode); }
+
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<ArpMode>();
 
-		// If was off, or is now becoming off...
-		if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
-			if (getCurrentClip()->isActiveOnOutput()) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
-				if (soundEditor.editingCVOrMIDIClip()) {
-					getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
-				}
-				else {
-					ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
-					soundEditor.currentSound->allNotesOff(
-					    modelStackWithSoundFlags,
-					    soundEditor.currentSound->getArp()); // Must switch off all notes when switching arp on / off
-					soundEditor.currentSound->reassessRenderSkippingStatus(modelStackWithSoundFlags);
+			Kit* kit = getCurrentKit();
+
+			// If was off, or is now becoming off...
+			if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
+				if (getCurrentClip()->isActiveOnOutput() && !soundEditor.editingKitAffectEntire()) {
+					kit->cutAllSound();
 				}
 			}
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				thisDrum->arpSettings.mode = current_value;
+				thisDrum->arpSettings.updatePresetFromCurrentSettings();
+			}
 		}
-		soundEditor.currentArpSettings->mode = current_value;
-		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
+		// Or, the normal case of just one sound
+		else {
+			// If was off, or is now becoming off...
+			if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpMode::OFF) {
+				if (getCurrentClip()->isActiveOnOutput() && !soundEditor.editingKitAffectEntire()) {
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+
+					if (soundEditor.editingKit()) {
+						// Drum
+						Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
+						if (currentDrum != nullptr) {
+							currentDrum->unassignAllVoices();
+						}
+					}
+					else if (soundEditor.editingCVOrMIDIClip()) {
+						getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
+					}
+					else {
+						ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
+						soundEditor.currentSound->allNotesOff(
+						    modelStackWithSoundFlags,
+						    soundEditor.currentSound
+						        ->getArp()); // Must switch off all notes when switching arp on / off
+						soundEditor.currentSound->reassessRenderSkippingStatus(modelStackWithSoundFlags);
+					}
+				}
+			}
+
+			soundEditor.currentArpSettings->mode = current_value;
+			soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
+		}
 	}
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_OFF), //<
-		    l10n::getView(STRING_FOR_ARP), //<
+		    l10n::getView(STRING_FOR_ON),  //<
 		};
 	}
 

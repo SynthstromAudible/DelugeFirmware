@@ -21,6 +21,7 @@
 #include "gui/ui/qwerty_ui.h"
 #include "hid/button.h"
 #include "io/debug/log.h"
+#include "model/favourite/favourite_manager.h"
 #include "storage/file_item.h"
 #include "util/container/array/c_string_array.h"
 
@@ -71,15 +72,19 @@ public:
 
 	void close();
 	virtual Error getCurrentFilePath(String* path) = 0;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	void currentFileDeleted();
 	Error goIntoFolder(char const* folderName);
 	Error createFolder();
-	void selectEncoderAction(int8_t offset);
+	Error createFoldersRecursiveIfNotExists(const char* path);
+	void selectEncoderAction(int8_t offset) override;
 	static FileItem* getCurrentFileItem();
 	Error readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
 	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
 	                             int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
+	Error setFileByFullPath(OutputType outputType, char const* fullPath);
 	void sortFileItems();
 	FileItem* getNewFileItem();
 	static void emptyFileItems();
@@ -103,8 +108,6 @@ public:
 	static char const* filenameToStartSearchAt;
 
 	// ui
-	UIType getUIType() { return UIType::BROWSER; }
-	const char* getName() { return "browser"; }
 	bool exitUI() override {
 		Browser::close();
 		return true;
@@ -129,6 +132,7 @@ protected:
 	                                       bool allowFoldersint,
 	                                       Availability availabilityRequirement = Availability::ANY,
 	                                       int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+	void favouritesChanged();
 
 	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or
 	                                  // maybe we're typing a new name.

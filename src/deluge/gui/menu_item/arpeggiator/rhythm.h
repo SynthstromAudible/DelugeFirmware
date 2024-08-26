@@ -19,10 +19,13 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "lib/printf.h"
 #include "modulation/arpeggiator_rhythms.h"
+#include <sys/_intsup.h>
 
 namespace deluge::gui::menu_item::arpeggiator {
+
+using namespace hid::display;
+
 class Rhythm final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
@@ -34,16 +37,38 @@ public:
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		char name[12];
-		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
-
 		// Index: Name
 		snprintf(name, sizeof(name), "%d: %s", this->getValue(), arpRhythmPatternNames[this->getValue()]);
-		canvas.drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
+		OLED::main.drawStringCentred(name, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
+	}
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		oled_canvas::Canvas& image = OLED::main;
+
+		const auto value = this->getValue();
+		const auto pattern = std::string_view(arpRhythmPatternNames[value]);
+		if (value == 0) {
+			return image.drawStringCentered(pattern.data(), slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+			                                kTextSpacingX, kTextSpacingY, slot.width);
+		}
+
+		constexpr int32_t paddingBetween = 2;
+		const int32_t rhythmWidth = pattern.size() * kTextSpacingX + pattern.size() * paddingBetween;
+
+		int32_t x = slot.start_x + (slot.width - rhythmWidth) / 2 + 2;
+		for (const char character : pattern) {
+			image.drawChar(character == '0' ? 'X' : character, x, slot.start_y + kHorizontalMenuSlotYOffset,
+			               kTextSpacingX, kTextSpacingY);
+			x += kTextSpacingX + paddingBetween;
+		}
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingCVOrMIDIClip();
+		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
+
+protected:
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; }
 };
 
 } // namespace deluge::gui::menu_item::arpeggiator

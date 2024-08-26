@@ -25,7 +25,7 @@ class Cluster;
 class SampleCache {
 public:
 	SampleCache(Sample* newSample, int32_t newNumClusters, int32_t newWaveformLengthBytes, int32_t newPhaseIncrement,
-	            int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart);
+	            int32_t newTimeStretchRatio, int32_t newSkipSamplesAtStart, bool newReversed);
 	~SampleCache();
 	void clusterStolen(int32_t clusterIndex);
 	bool setupNewCluster(int32_t cachedClusterIndex);
@@ -41,6 +41,7 @@ public:
 	int32_t phaseIncrement;
 	int32_t timeStretchRatio;
 	int32_t skipSamplesAtStart;
+	bool reversed;
 
 private:
 	void unlinkClusters(int32_t startAtIndex, bool beingDestructed);

@@ -39,7 +39,7 @@ char const* ClearSong::getTitle() {
 	return l10n::get(STRING_FOR_CLEAR_SONG_QMARK);
 }
 
-Sized<char const**> ClearSong::getOptions() {
+std::span<char const*> ClearSong::getOptions() {
 	using enum l10n::String;
 	if (display->haveOLED()) {
 		static char const* options[] = {l10n::get(STRING_FOR_OK)};

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright (c) 2024 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -33,7 +33,7 @@ char const* DoneStemExport::getTitle() {
 	return l10n::get(STRING_FOR_DONE_EXPORT_STEMS);
 }
 
-Sized<char const**> DoneStemExport::getOptions() {
+std::span<char const*> DoneStemExport::getOptions() {
 	using enum l10n::String;
 
 	if (display->haveOLED()) {

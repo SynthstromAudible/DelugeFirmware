@@ -28,6 +28,7 @@ int32_t pack_8bit_to_7bit(uint8_t* dst, int32_t dst_size, uint8_t* src, int32_t 
 	return out_len;
 }
 
+// ** JFF: function behavior change: now returns decoded amount.
 int32_t unpack_7bit_to_8bit(uint8_t* dst, int32_t dst_size, uint8_t* src, int32_t src_len) {
 	int32_t packets = (src_len + 7) / 8;
 	int32_t missing = (8 * packets - src_len);
@@ -38,19 +39,23 @@ int32_t unpack_7bit_to_8bit(uint8_t* dst, int32_t dst_size, uint8_t* src, int32_
 	int32_t out_len = 7 * packets - missing;
 	if (out_len > dst_size)
 		return 0;
+
 	for (int32_t i = 0; i < packets; i++) {
 		int32_t ipos = 8 * i;
 		int32_t opos = 7 * i;
+		uint8_t rotBit = 1; // mod by jff to allow decode-in-place.
+		uint8_t highBits = src[ipos];
 		for (int32_t j = 0; j < 7; j++) {
 			if (!(j + 1 + ipos < src_len))
 				break;
 			dst[opos + j] = src[ipos + 1 + j] & 0x7f;
-			if (src[ipos] & (1 << j)) {
+			if (highBits & rotBit) {
 				dst[opos + j] |= 0x80;
 			}
+			rotBit <<= 1;
 		}
 	}
-	return 8 * packets - missing;
+	return out_len;
 }
 
 const int32_t MAX_DENSE_SIZE = 5;

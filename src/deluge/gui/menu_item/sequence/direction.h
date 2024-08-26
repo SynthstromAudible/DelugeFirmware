@@ -19,6 +19,7 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
+#include "hid/display/oled.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -29,6 +30,14 @@ namespace deluge::gui::menu_item::sequence {
 class Direction final : public Selection {
 public:
 	using Selection::Selection;
+
+	bool shouldEnterSubmenu() {
+		if (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor() && !isUIModeActive(UI_MODE_AUDITIONING)) {
+			display->displayPopup("Select Row");
+			return false;
+		}
+		return true;
+	}
 
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
@@ -80,7 +89,8 @@ public:
 		}
 	}
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		deluge::vector<std::string_view> sequenceDirectionOptions = {
 		    l10n::getView(l10n::String::STRING_FOR_FORWARD),
 		    l10n::getView(l10n::String::STRING_FOR_REVERSED),
@@ -108,6 +118,26 @@ public:
 			soundEditor.selectedNoteRow = isUIModeActive(UI_MODE_AUDITIONING);
 		}
 		return MenuPermission::YES;
+	}
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		using namespace deluge::hid::display;
+		oled_canvas::Canvas& image = OLED::main;
+
+		const auto current_value = this->getValue<SequenceDirection>();
+		if (current_value == SequenceDirection::OBEY_PARENT) {
+			return Selection::renderInHorizontalMenu(slot);
+		}
+
+		const uint8_t icon_y = slot.start_y + kHorizontalMenuSlotYOffset;
+		if (current_value == SequenceDirection::PINGPONG) {
+			image.drawIconCentered(OLED::directionIcon, slot.start_x + 2, slot.width, icon_y);
+			image.drawIconCentered(OLED::directionIcon, slot.start_x - 2, slot.width, icon_y, true);
+		}
+		else {
+			image.drawIconCentered(OLED::directionIcon, slot.start_x, slot.width, icon_y,
+			                       current_value == SequenceDirection::REVERSE);
+		}
 	}
 };
 } // namespace deluge::gui::menu_item::sequence

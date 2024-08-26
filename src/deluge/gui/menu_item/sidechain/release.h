@@ -17,23 +17,61 @@
 #pragma once
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
+#include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::sidechain {
 class Release final : public Integer {
 public:
-	using Integer::Integer;
+	Release(l10n::String newName, l10n::String newTitle, bool isReverbSidechain = false)
+	    : Integer(newName, newTitle), is_reverb_sidechain_{isReverbSidechain} {}
+
 	void readCurrentValue() override {
-		this->setValue(getLookupIndexFromValue(soundEditor.currentSidechain->release >> 3, releaseRateTable, 50));
+		const auto sidechain = getSidechain(is_reverb_sidechain_);
+		this->setValue(getLookupIndexFromValue(sidechain->release >> 3, releaseRateTable, 50));
 	}
+	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		soundEditor.currentSidechain->release = releaseRateTable[this->getValue()] << 3;
+		int32_t current_value = releaseRateTable[this->getValue()] << 3;
+
+		// If affect-entire button held, do whole kit
+		if (!is_reverb_sidechain_ && currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+					soundDrum->sidechain.release = current_value;
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			const auto sidechain = getSidechain(is_reverb_sidechain_);
+			sidechain->release = current_value;
+		}
+
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RELEASE; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return !soundEditor.editingReverbSidechain() || AudioEngine::reverbSidechainVolume >= 0;
+		return !is_reverb_sidechain_ || AudioEngine::reverbSidechainVolume >= 0;
 	}
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT));
+	}
+
+private:
+	bool is_reverb_sidechain_;
 };
 } // namespace deluge::gui::menu_item::sidechain

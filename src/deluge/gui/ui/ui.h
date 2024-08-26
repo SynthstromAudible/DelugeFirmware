@@ -91,6 +91,7 @@ extern bool pendingUIRenderingLock;
 #define LONG_PRESS_DURATION 400
 class UI {
 public:
+	virtual ~UI() = default;
 	UI();
 
 	virtual ActionResult padAction(int32_t x, int32_t y, int32_t velocity) { return ActionResult::DEALT_WITH; }
@@ -126,7 +127,6 @@ public:
 	virtual TimelineView* toTimelineView() { return nullptr; }
 
 	virtual void scrollFinished() {}
-	virtual const char* getName() { return "UI"; }
 	virtual bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) { return false; }
 
 	virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
@@ -157,7 +157,23 @@ public:
 	virtual void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) = 0;
 	bool oledShowsUIUnderneath;
 
+	/// \brief When entering a UI (e.g. automationView), you may wish to open a different UI
+	///        based on the current context (e.g. automationViewArranger, automationViewAudioClip, etc.)
+	virtual UI* getUI() { return this; }
+	/// \brief What type of UI is this? e.g. UIType::ARRANGER
 	virtual UIType getUIType() = 0;
+	/// \brief What context does UI relate to? e.g. UIType could be AUTOMATION but UIContextType could be
+	///		   ARRANGER, AUDIO CLIP, INSTRUMENT CLIP
+	virtual UIType getUIContextType() { return getUIType(); }
+	/// \brief What mod controllable context is this UI using? E.g. Automation View can use the Song
+	///		   ModControllable when in Arranger but the Clip ModControllable when in a Clip.
+	virtual UIModControllableContext getUIModControllableContext() { return UIModControllableContext::NONE; }
+#if ENABLE_MATRIX_DEBUG
+	const char* getUIName();
+#endif
+
+protected:
+	UIType uiType;
 };
 
 // UIs

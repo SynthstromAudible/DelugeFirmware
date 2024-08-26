@@ -254,7 +254,7 @@ void Delay::process(std::span<StereoSample> buffer, const State& delayWorkingSta
 
 			// If spinning below native rate, the quality's going to be suffering, so make a new buffer whose native
 			// rate is half our current rate (double the quality)
-			else if (delayWorkingState.userDelayRate < primaryBuffer.nativeRate()) {
+			else if (delayWorkingState.userDelayRate < primaryBuffer.nativeRate() >> 1) {
 				initializeSecondaryBuffer(delayWorkingState.userDelayRate >> 1, false);
 			}
 		}

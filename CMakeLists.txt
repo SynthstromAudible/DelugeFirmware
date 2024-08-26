@@ -5,7 +5,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/scripts/cmake/CMakeToolchainD
 
 project(Deluge
     LANGUAGES CXX C ASM
-    VERSION 1.2.0
+    VERSION 1.3.0
 )
 include(FetchContent)
 include(ProcessorCount)
@@ -21,43 +21,9 @@ else()
     set(SEMVER_PRERELEASE_ID "-${RELEASE_TYPE}")
 endif()
 
-if(CMAKE_HOST_WIN32)
-  # Find python by ourselves, since on windows the find_package lookup
-  # seems to fail
-  set(Python_EXECUTABLE "$ENV{DBT_TOOLCHAIN_ROOT}/python/python.exe")
-  IF(EXISTS ${Python_EXECUTABLE})
-    execute_process(
-      COMMAND ${Python_EXECUTABLE} -c "import platform; print(platform.python_version())"
-      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-      OUTPUT_VARIABLE Python_VERSION
-      RESULT_VARIABLE Python_RESULT
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if(NOT ${Python_RESULT} AND NOT ${Python_VERSION} STREQUAL "")
-      set(Python_Interpreter_FOUND 1)
-    else()
-      message(FATAL_ERROR "Python found at ${Python_EXECUTABLE} but failed to get version number")
-    endif()
-  else()
-    set(Python_Interpreter_FOUND 0)
-  endif()
-else()
-  find_package(Python COMPONENTS Interpreter)
-endif()
-
-if (Python_Interpreter_FOUND)
-    message(VERBOSE "python found: ${Python_EXECUTABLE} version ${Python_VERSION}")
-else()
-    message(FATAL_ERROR "Python not found")
-endif(Python_Interpreter_FOUND)
-
-find_package(Git)
-
-if(GIT_FOUND)
-    message(VERBOSE "git found: ${GIT_EXECUTABLE} version ${GIT_VERSION_STRING}")
-else()
-    message(FATAL_ERROR "Git not found. Check your path.")
-endif(GIT_FOUND)
+set(Python_ROOT $ENV{DBT_TOOLCHAIN_ROOT}/python CACHE STRING "Path to the Python installation")
+find_package(Python REQUIRED COMPONENTS Interpreter)
+find_package(Git REQUIRED)
 
 # Get the result of "git rev-parse --short HEAD"
 execute_process(
@@ -147,7 +113,6 @@ if(DOXYGEN_FOUND)
 
     # set(DOXYGEN_CLANG_ASSISTED_PARSING YES)
     # SET(DOXYGEN_CLANG_DATABASE_PATH build)
-
     set(DOXYGEN_USE_MDFILE_AS_MAINPAGE README.md)
 
     file(GLOB markdown_SOURCES *.md)
@@ -184,21 +149,19 @@ add_compile_options(
     # Link time optimizations
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
+    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fdevirtualize-at-ltrans>
     -ffunction-sections
     -fdata-sections
     -DUSE_TASK_MANAGER
 
     # C++ stuff
     $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
-    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
     $<$<COMPILE_LANGUAGE:CXX>:-fno-use-cxa-atexit>
     $<$<COMPILE_LANGUAGE:CXX>:-fno-threadsafe-statics>
 
     # ASM stuff
     $<$<COMPILE_LANGUAGE:ASM>:-x>
     $<$<COMPILE_LANGUAGE:ASM>:assembler-with-cpp>
-
-
 )
 
 # Add libraries
@@ -209,7 +172,8 @@ add_executable(deluge)
 
 # Link external libraries
 target_link_libraries(deluge PUBLIC
-    argon
+        argon
+        etl::etl
 )
 
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
@@ -230,6 +194,7 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<CONFIG:DEBUG>:-Wno-unused-parameter>
 
     $<$<CONFIG:DEBUG>:-Werror=write-strings>
+
     # Offsetof for non standard types is supported in GCC,
     # if another compiler does not support it they are obligated to error
 
@@ -262,9 +227,6 @@ set(NMDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.nmdump)
 # add link options to generate memory map
 target_link_options(deluge PUBLIC
 
-    # use newlib nano
-    --specs=nano.specs
-
     -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld
     LINKER:-Map=${MAP_FILE}
     LINKER:--cref
@@ -273,7 +235,6 @@ target_link_options(deluge PUBLIC
 
     # Enabled to generate a full ELF, objcopy will do the stripping
     # $<$<CONFIG:RELEASE>:LINKER:--strip-all> # Strip
-
     -nostartfiles # Don't emit startfiles
 
     # Print details
@@ -296,7 +257,6 @@ add_custom_command(TARGET deluge
         COMMAND ${CMAKE_OBJCOPY} -O binary -S $<TARGET_FILE:deluge> ${BIN_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Objcopying deluge to firmware ${BIN_FILE}"
-        DEPENDS deluge
         BYPRODUCTS ${BIN_FILE})
 
 # generate .hex firmware file
@@ -305,7 +265,6 @@ add_custom_command(TARGET deluge
         COMMAND ${CMAKE_OBJCOPY} -O ihex -S $<TARGET_FILE:deluge> ${HEX_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Objcopying deluge to firmware ${HEX_FILE}"
-        DEPENDS deluge
         BYPRODUCTS ${HEX_FILE})
 
 # # generate .objdump file
@@ -323,7 +282,6 @@ add_custom_command(TARGET deluge
         COMMAND ${CMAKE_NM} -t d -S -C -r --special-syms --size-sort $<TARGET_FILE:deluge> > ${NMDUMP_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "NM dumping deluge firmware ${NMDUMP_FILE}"
-        DEPENDS deluge
         BYPRODUCTS ${NMDUMP_FILE}
 )
 
@@ -332,7 +290,6 @@ add_custom_command(TARGET deluge
     POST_BUILD
         COMMAND ${CMAKE_SIZE} $<TARGET_FILE:deluge>
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS deluge
 )
 
 # Clean up artefacts

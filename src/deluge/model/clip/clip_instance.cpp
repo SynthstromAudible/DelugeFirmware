@@ -20,6 +20,7 @@
 #include "model/action/action.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_instance_change.h"
+#include "playback/mode/session.h"
 #include "util/functions.h"
 #include <new>
 
@@ -32,7 +33,7 @@ RGB ClipInstance::getColour() {
 		return RGB::monochrome(128);
 	}
 
-	return RGB::fromHue(defaultClipGroupColours[clip->section]);
+	return defaultClipSectionColours[clip->section];
 }
 
 void ClipInstance::change(Action* action, Output* output, int32_t newPos, int32_t newLength, Clip* newClip) {

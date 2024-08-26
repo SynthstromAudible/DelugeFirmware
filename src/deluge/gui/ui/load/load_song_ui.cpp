@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -31,6 +32,7 @@
 #include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -38,11 +40,11 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
 #include <string.h>
 
 LoadSongUI loadSongUI{};
@@ -60,10 +62,17 @@ LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
 	title = "Load song";
+	performingLoad = false;
+	qwertyCurrentlyDrawnOnscreen = false;
 }
 
 bool LoadSongUI::opened() {
 
+	qwertyAlwaysVisible = false;
+	qwertyCurrentlyDrawnOnscreen = false;
+
+	favouritesManager.setCategory("SONG");
+	favouritesChanged();
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
 
@@ -112,8 +121,8 @@ gotError:
 	scrollingIntoSlot = true;
 
 	if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
-		currentUIMode =
-		    UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit of the scroll
+		currentUIMode = UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit
+		                                         // of the scroll
 		timerCallback();
 	}
 
@@ -135,7 +144,7 @@ gotError:
 
 void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 
-	drawSongPreview(storageManager, currentUIMode == UI_MODE_VERTICAL_SCROLL);
+	drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
 
 	PadLEDs::sendOutMainPadColours();
 	PadLEDs::sendOutSidebarColours();
@@ -158,17 +167,17 @@ void LoadSongUI::enterKeyPress() {
 	}
 
 	else {
-		LoadUI::enterKeyPress();     // Converts name to numeric-only if it was typed as text
-		performLoad(storageManager); // May fail
+		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
+		performLoad();           // May fail
 		if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-			runtimeFeatureSettings.writeSettingsToFile(storageManager);
+			runtimeFeatureSettings.writeSettingsToFile();
 		}
 	}
 }
 
 void LoadSongUI::displayArmedPopup() {
 	display->removeWorkingAnimation();
-	display->popupText("Song will begin...");
+	display->popupText("Song will begin...", PopupType::LOADING);
 }
 
 char loopsRemainingText[] = "Loops remaining: xxxxxxxxxxx";
@@ -177,7 +186,7 @@ void LoadSongUI::displayLoopsRemainingPopup() {
 	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 		display->removeWorkingAnimation();
 		intToString(session.numRepeatsTilLaunch, &loopsRemainingText[17]);
-		display->popupText(loopsRemainingText);
+		display->popupText(loopsRemainingText, PopupType::LOADING);
 	}
 }
 
@@ -219,7 +228,16 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 			}
 		}
 	}
-
+	else if (b == KEYBOARD && on) {
+		qwertyAlwaysVisible = !qwertyAlwaysVisible;
+		indicator_leds::setLedState(IndicatorLED::KEYBOARD, qwertyAlwaysVisible);
+		qwertyVisible = qwertyAlwaysVisible;
+		if (qwertyVisible) {
+			favouritesVisible = true;
+			drawKeys();
+			qwertyCurrentlyDrawnOnscreen = true;
+		}
+	}
 	else {
 		return LoadUI::buttonAction(b, on, inCardRoutine);
 	}
@@ -227,9 +245,75 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	return ActionResult::DEALT_WITH;
 }
 
-// Before calling this, you must set loadButtonReleased.
-void LoadSongUI::performLoad(StorageManager& bdsm) {
+bool LoadSongUI::isLoadingSong() {
+	// The current open UI is this one, or there is an automatic "load next" command in progress
+	return getCurrentUI() == this || performingLoad;
+}
 
+// This is the public method exposed to allow for queue loading next song while playing
+void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
+	if (!playbackHandler.isEitherClockActive()) {
+		// This method is intended just for queueing while playing
+		return;
+	}
+	if (performingLoad) {
+		// If another load is in progress, ignore this request
+		return;
+	}
+	if (fileIndexSelected == -1) {
+		// If no song is loaded/selected yet, we have nothing to do
+		return;
+	}
+	doQueueLoadNextSongIfAvailable(offset);
+}
+
+// This method actually executes the loading of next song (by offset)
+void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
+	outputTypeToLoad = OutputType::NONE;
+	currentDir.set(&currentSong->dirPath);
+
+	int32_t currentFileIndexSelected = fileIndexSelected;
+
+	bool songFound = false;
+	do {
+		fileIndexSelected = fileIndexSelected + offset;
+		if (fileIndexSelected < 0) {
+			fileIndexSelected = fileItems.getNumElements() - 1;
+		}
+		else if (fileIndexSelected >= fileItems.getNumElements()) {
+			fileIndexSelected = 0;
+		}
+		Browser::setEnteredTextFromCurrentFilename();
+
+		FileItem* currentFileItem = getCurrentFileItem();
+
+		if (currentFileItem != nullptr) {
+			// Check if it's a directory...
+			if (currentFileItem->isFolder) {
+				// it is a folder
+				// scroll to the next item
+				continue;
+			}
+			else {
+				// if is a file, select it
+				songFound = true;
+				AudioEngine::logAction("performLoad");
+				performLoad();
+				if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+					runtimeFeatureSettings.writeSettingsToFile();
+				}
+			}
+		}
+	} while (currentFileIndexSelected != fileIndexSelected && !songFound);
+	// in case we wrapped around the whole list of files and didn't find a song,
+	// we just exit without doing anything else
+
+	currentUIMode = UI_MODE_NONE;
+}
+
+// Before calling this, you must set loadButtonReleased.
+void LoadSongUI::performLoad() {
+	performingLoad = true;
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
@@ -237,6 +321,7 @@ void LoadSongUI::performLoad(StorageManager& bdsm) {
 		                          ? Error::FILE_NOT_FOUND
 		                          : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
 		                                                                     // for consistency with old times.
+		performingLoad = false;
 		return;
 	}
 
@@ -245,12 +330,9 @@ void LoadSongUI::performLoad(StorageManager& bdsm) {
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
+	Error error;
 
-	Error error = storageManager.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song");
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return;
-	}
+	error = StorageManager::openDelugeFile(currentFileItem, "song");
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
@@ -284,7 +366,7 @@ ramError:
 
 someError:
 		display->displayError(error);
-		storageManager.closeFile();
+		activeDeserializer->closeWriter();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
 		if (!currentSong) {
@@ -294,11 +376,69 @@ fail:
 		}
 
 		// Otherwise, stay here in this UI
+
+		preLoadedSong = new (songMemory) Song();
+		error = preLoadedSong->paramManager.setupUnpatched();
+		if (error != Error::NONE) {
+
+			void* toDealloc = dynamic_cast<void*>(preLoadedSong);
+			preLoadedSong->~Song(); // Will also delete paramManager
+			delugeDealloc(toDealloc);
+			preLoadedSong = NULL;
+			goto someError;
+		}
+
+		GlobalEffectable::initParams(&preLoadedSong->paramManager);
+
+		AudioEngine::logAction("c");
+
+		// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but
+		// chances are, after failing on one of those, it'd try to load something else and that would fail.
+
+		error = preLoadedSong->readFromFile(*activeDeserializer);
+
+		if (error != Error::NONE) {
+			goto gotErrorAfterCreatingSong;
+		}
+		AudioEngine::logAction("d");
+
+		FRESULT success = activeDeserializer->closeWriter();
+		if (success != FR_OK) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
+			goto fail;
+		}
+
+		preLoadedSong->dirPath.set(&currentDir);
+
+		String currentFilenameWithoutExtension;
+		error = currentFileItem->getFilenameWithoutExtension(&currentFilenameWithoutExtension);
+		if (error != Error::NONE) {
+			goto gotErrorAfterCreatingSong;
+		}
+
+		error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath,
+		                                                    currentDir.get(), &currentFilenameWithoutExtension);
+		if (error != Error::NONE) {
+			goto gotErrorAfterCreatingSong;
+		}
+		audioFileManager.thingBeginningLoading(ThingType::SONG);
+
+		// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
+		// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that
+		// we might actually want
+		preLoadedSong->loadAllSamples(false);
+
+		// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
+		if (playbackHandler.isEitherClockActive()) {
+			preLoadedSong->loadCrucialSamplesOnly();
+		}
+
 		else {
 			displayText(false);
 		}
 		currentUIMode = UI_MODE_NONE;
 		display->removeWorkingAnimation();
+		performingLoad = false;
 		return;
 	}
 
@@ -319,15 +459,14 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = preLoadedSong->readFromFile(smDeserializer);
+	error = preLoadedSong->readFromFile(*activeDeserializer);
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
 	AudioEngine::logAction("read new song from file");
 
-	bool success = storageManager.closeFile();
-
-	if (!success) {
+	FRESULT success = activeDeserializer->closeWriter();
+	if (success != FR_OK) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
 	}
@@ -400,7 +539,7 @@ gotErrorAfterCreatingSong:
 		else {
 			display->removeWorkingAnimation();
 			if (display->haveOLED()) {
-				display->popupText("Loading complete");
+				display->popupText("Loading complete", PopupType::LOADING);
 			}
 			else {
 				display->setText("DONE", false, 255, true, NULL, false, true);
@@ -464,6 +603,23 @@ swapDone:
 	currentUIMode = UI_MODE_NONE;
 
 	display->removeWorkingAnimation();
+
+	// for the song we just loaded, let's check if there's any midi labels we should load
+	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		if (thisOutput && thisOutput->type == OutputType::MIDI_OUT) {
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)thisOutput;
+			if (midiInstrument->loadDeviceDefinitionFile) {
+				FilePointer tempfp;
+				bool fileExists = StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.get(), &tempfp);
+				if (fileExists) {
+					StorageManager::loadMidiDeviceDefinitionFile(midiInstrument, &tempfp,
+					                                             &midiInstrument->deviceDefinitionFileName, false);
+				}
+			}
+		}
+	}
+
+	performingLoad = false;
 }
 
 ActionResult LoadSongUI::timerCallback() {
@@ -543,7 +699,7 @@ int32_t LoadSongUI::findNextFile(int32_t offset) {
 
 doSearch:
 
-    int32_t result = storageManager.findNextFile(offset,
+    int32_t result = StorageManager::findNextFile(offset,
             &currentSlot, &currentSubSlot, &newName, &currentFileIsFolder,
             slotToSearchFrom, subSlotToSearchFrom, nameToSearchFrom,
             "SONG", currentDir.get(), &currentFilePointer, true, 255, NULL, numberEditPos);
@@ -591,8 +747,10 @@ ignoring the file extension.
 
 void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 
-	if (movementDirection) {
+	if (movementDirection && !qwertyAlwaysVisible) {
 		qwertyVisible = false;
+		favouritesVisible = false;
+		qwertyCurrentlyDrawnOnscreen = false;
 
 		// Start horizontal scrolling
 		PadLEDs::horizontal::setupScroll(movementDirection, kDisplayWidth + kSideBarWidth, true,
@@ -605,7 +763,7 @@ void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 		PadLEDs::horizontal::renderScroll(); // The scrolling animation will begin while file is being found and
 		                                     // loaded
 
-		drawSongPreview(storageManager); // Scrolling continues as the file is read by this function
+		drawSongPreview(); // Scrolling continues as the file is read by this function
 
 		currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 		scrollingIntoSlot = true;
@@ -691,7 +849,9 @@ ActionResult LoadSongUI::verticalEncoderAction(int32_t offset, bool inCardRoutin
 		}
 		exitAction(); // Exit if your scroll down
 	}
-
+	if (Buttons::isShiftButtonPressed()) {
+		return LoadUI::verticalEncoderAction(offset, false);
+	}
 	return ActionResult::DEALT_WITH;
 }
 
@@ -711,7 +871,11 @@ void LoadSongUI::exitAction() {
 	timerCallback();
 }
 
-void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
+void LoadSongUI::drawSongPreview(bool toStore) {
+
+	if (qwertyAlwaysVisible) {
+		return;
+	}
 
 	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
 	if (toStore) {
@@ -729,21 +893,27 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 		return;
 	}
 
-	Error error = bdsm.openXMLFile(&currentFileItem->filePointer, smDeserializer, "song", "", true);
+	Error error;
+	Deserializer* reader;
+	char const* tagName;
+	error = StorageManager::openDelugeFile(currentFileItem, "song");
 	if (error != Error::NONE) {
 		if (error != Error::NONE) {
 			display->displayError(error);
 			return;
 		}
 	}
-	Deserializer& reader = smDeserializer;
-	char const* tagName;
+	reader = activeDeserializer;
+	if (activeDeserializer == &smJsonDeserializer) {
+		activeDeserializer->match('{');
+	}
+
 	int32_t previewNumPads = 40;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
+	while (*(tagName = reader->readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "previewNumPads")) {
-			previewNumPads = reader.readTagOrAttributeValueInt();
-			reader.exitTag("previewNumPads");
+			previewNumPads = reader->readTagOrAttributeValueInt();
+			reader->exitTag("previewNumPads");
 		}
 		else if (!strcmp(tagName, "preview")) {
 			int32_t skipNumCharsAfterRow = 0;
@@ -756,12 +926,12 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 			int32_t width = endX - startX;
 			int32_t numCharsToRead = width * 3 * 2;
 
-			if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+			if (!reader->prepareToReadTagOrAttributeValueOneCharAtATime()) {
 				goto stopLoadingPreview;
 			}
 
 			for (int32_t y = startY; y < endY; y++) {
-				char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(numCharsToRead);
+				char const* hexChars = reader->readNextCharsOfTagOrAttributeValue(numCharsToRead);
 				if (!hexChars) {
 					goto stopLoadingPreview;
 				}
@@ -777,22 +947,22 @@ void LoadSongUI::drawSongPreview(StorageManager& bdsm, bool toStore) {
 			goto stopLoadingPreview;
 		}
 		else {
-			reader.exitTag(tagName);
+			reader->exitTag(tagName);
 		}
 	}
 stopLoadingPreview:
-	bdsm.closeFile();
+	activeDeserializer->closeWriter();
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {
 
 	LoadUI::displayText();
 
-	if (qwertyVisible) {
+	if (qwertyVisible && !qwertyCurrentlyDrawnOnscreen) {
 		FileItem* currentFileItem = getCurrentFileItem();
 
 		drawKeys();
-
+		qwertyCurrentlyDrawnOnscreen = true;
 		PadLEDs::sendOutSidebarColours();
 	}
 }
@@ -805,12 +975,18 @@ ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			qwertyVisible = true;
-			displayText(false); // Necessary still? Not quite sure?
+			favouritesVisible = true;
+			displayText(false); // This will also draw the QWERTY keys
+
+			// Process first press only if its not a favourite row press to prevent blind keypresses
+			if (y < favouriteRow) {
+				return LoadUI::padAction(x, y, on);
+			}
 		}
 	}
 
-	// And process the QWERTY keypress
-	if (qwertyVisible) {
+	// Only process the QWERTY keypress if Keyboard is visible to prevent blind keypresses
+	else if (qwertyVisible) {
 		return LoadUI::padAction(x, y, on);
 	}
 	return ActionResult::DEALT_WITH;

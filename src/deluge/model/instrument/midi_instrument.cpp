@@ -27,6 +27,8 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "modulation/arpeggiator.h"
+#include "modulation/midi/label/midi_label.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
@@ -190,7 +192,8 @@ void MIDIInstrument::ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value,
 }
 
 int32_t MIDIInstrument::getOutputMasterChannel() {
-	switch (channel) {
+	auto c = getChannel();
+	switch (c) {
 	case MIDI_CHANNEL_MPE_LOWER_ZONE:
 		return 0;
 
@@ -198,7 +201,7 @@ int32_t MIDIInstrument::getOutputMasterChannel() {
 		return 15;
 
 	default:
-		return channel;
+		return c;
 	}
 }
 
@@ -216,7 +219,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
 		                                  lastMonoExpression[whichExpressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
-		midiEngine.sendPitchBend(this, masterChannel, valueSmall & 127, valueSmall >> 7, channel);
+		midiEngine.sendPitchBend(this, masterChannel, valueSmall & 127, valueSmall >> 7, getChannel());
 		break;
 	}
 
@@ -230,14 +233,14 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
 
-		midiEngine.sendCC(this, masterChannel, CC_EXTERNAL_MOD_WHEEL, newValue, channel);
+		midiEngine.sendCC(this, masterChannel, CC_EXTERNAL_MOD_WHEEL, newValue, getChannel());
 		break;
 	}
 	case Z_PRESSURE: {
 		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
 		                                  lastMonoExpression[whichExpressionDimension])
 		                   >> 24;
-		midiEngine.sendChannelAftertouch(this, masterChannel, newValue, channel);
+		midiEngine.sendChannelAftertouch(this, masterChannel, newValue, getChannel());
 		break;
 	}
 	default:
@@ -277,7 +280,6 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 		else {
 			allNotesOff();
 			for (int i = 0; i < kNumExpressionDimensions; i++) {
-				lastMonoExpression[i] = 0;
 				lastCombinedPolyExpression[i] = 0;
 				sendMonophonicExpressionEvent(i);
 			}
@@ -327,6 +329,8 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeAttribute("mpe", (int32_t)collapseMPE);
 		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
+
+		writeDeviceDefinitionFile(writer, true);
 	}
 	else {
 		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
@@ -342,14 +346,56 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 	return true;
 }
 
+void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFileNameToPresetOrSong) {
+	writer.writeOpeningTagBeginning("midiDevice");
+	writer.writeOpeningTagEnd();
+
+	if (writeFileNameToPresetOrSong) {
+		writeDeviceDefinitionFileNameToPresetOrSong(writer);
+	}
+
+	writeCCLabelsToFile(writer);
+
+	writer.writeClosingTag("midiDevice");
+}
+
+void MIDIInstrument::writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer) {
+	writer.writeOpeningTagBeginning("definitionFile");
+	if (deviceDefinitionFileName.isEmpty()) {
+		writer.writeAttribute("name", "");
+	}
+	else {
+		writer.writeAttribute("name", deviceDefinitionFileName.get());
+	}
+	writer.closeTag();
+}
+
+void MIDIInstrument::writeCCLabelsToFile(Serializer& writer) {
+	writer.writeOpeningTagBeginning("ccLabels");
+	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
+		if (i != CC_EXTERNAL_MOD_WHEEL) {
+			MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(i);
+			char ccNumber[10];
+			intToString(i, ccNumber, 1);
+			if (midiLabel) {
+				writer.writeAttribute(ccNumber, midiLabel->name.get());
+			}
+			else {
+				writer.writeAttribute(ccNumber, "");
+			}
+		}
+	}
+	writer.closeTag();
+}
+
 bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
 
 	char const* subSlotXMLTag = getSubSlotXMLTag();
 
 	if (!strcmp(tagName, "modKnobs")) {
 		readModKnobAssignmentsFromFile(
-		    storageManager, kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get
-		                                         // it. I think it'd only be relevant for pre-V2.0 song file... maybe?
+		    kMaxSequenceLength); // Not really ideal, but we don't know the number and can't easily get
+		                         // it. I think it'd only be relevant for pre-V2.0 song file... maybe?
 	}
 	else if (!strcmp(tagName, "polyToMonoConversion")) {
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -372,24 +418,27 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 	else if (!strcmp(tagName, "internalDest")) {
 		char const* text = reader.readTagOrAttributeValue();
 		if (!strcmp(text, "transpose")) {
-			channel = MIDI_CHANNEL_TRANSPOSE;
+			setChannel(MIDI_CHANNEL_TRANSPOSE);
 		}
 	}
 	else if (!strcmp(tagName, "midiChannel")) {
 		// fix for incorrect save files created on nightlies between 18/02/24 and 08/04/24
-		channel = reader.readTagOrAttributeValueInt();
+		setChannel(reader.readTagOrAttributeValueInt());
 	}
 	else if (!strcmp(tagName, "zone")) {
 		char const* text = reader.readTagOrAttributeValue();
 		if (!strcmp(text, "lower")) {
-			channel = MIDI_CHANNEL_MPE_LOWER_ZONE;
+			setChannel(MIDI_CHANNEL_MPE_LOWER_ZONE);
 		}
 		else if (!strcmp(text, "upper")) {
-			channel = MIDI_CHANNEL_MPE_UPPER_ZONE;
+			setChannel(MIDI_CHANNEL_MPE_UPPER_ZONE);
 		}
 	}
 	else if (!strcmp(tagName, subSlotXMLTag)) {
 		channelSuffix = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "midiDevice")) {
+		readDeviceDefinitionFile(reader, true);
 	}
 	else if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
 		return true;
@@ -404,11 +453,11 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 
 // paramManager is sometimes NULL (when called from the above function), for reasons I've kinda forgotten, yet
 // everything seems to still work...
-Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& bdsm, int32_t readAutomationUpToPos,
+Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
                                                      ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
 			MIDIParamCollection* midiParamCollection = NULL;
@@ -431,6 +480,71 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(StorageManager& bdsm, int32
 
 	editedByUser = true;
 	return Error::NONE;
+}
+
+Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader, bool readFromPresetOrSong) {
+	Error error = Error::FILE_UNREADABLE;
+	loadDeviceDefinitionFile = false;
+
+	char const* tagName;
+
+	// step into any subtags
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "definitionFile")) {
+			readDeviceDefinitionFileNameFromPresetOrSong(reader);
+			// only flag definition file for loading if we aren't reading from preset or song
+			// and definition file name isn't blank
+			if (!deviceDefinitionFileName.isEmpty() && !readFromPresetOrSong) {
+				loadDeviceDefinitionFile = true;
+			}
+		}
+		// if we aren't reading from device definition file later, then try to read
+		// device info now
+		else if (!loadDeviceDefinitionFile) {
+			if (!strcmp(tagName, "ccLabels")) {
+				error = readCCLabelsFromFile(reader);
+			}
+		}
+		reader.exitTag();
+	}
+
+	editedByUser = true;
+	return error;
+}
+
+void MIDIInstrument::readDeviceDefinitionFileNameFromPresetOrSong(Deserializer& reader) {
+	char const* tagName;
+
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "name")) {
+			reader.readTagOrAttributeValueString(&deviceDefinitionFileName);
+		}
+		reader.exitTag();
+	}
+}
+
+Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader) {
+	Error error = Error::FILE_UNREADABLE;
+
+	int32_t cc = 0;
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		char ccNumber[10];
+		cc = stringToInt(tagName);
+
+		if (cc < 0 || cc >= kNumRealCCNumbers) {
+			reader.exitTag();
+			continue;
+		}
+
+		midiLabelCollection.labels.setOrCreateLabelForCC(cc, reader.readTagOrAttributeValue());
+
+		error = Error::NONE;
+
+		reader.exitTag();
+	}
+
+	return error;
 }
 
 // This has now mostly been replaced by an equivalent-ish function in InstrumentClip.
@@ -690,8 +804,8 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 		// If it's a MIDI Clip, and it's outputting on the same channel as this MIDI message came in, don't do MIDI
 		// thru!
 		if (doingMidiThru && type == OutputType::MIDI_OUT
-		    && receivedChannel
-		           == channel) { // We'll just say don't do anything to midi-thru if any MPE in the picture, for now
+		    && receivedChannel == getChannel()) { // We'll just say don't do anything to midi-thru if any MPE in the
+			                                      // picture, for now
 			*doingMidiThru = false;
 		}
 	}
@@ -700,8 +814,8 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 	                                      velocity, shouldRecordNotes, doingMidiThru);
 }
 
-void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
-
+void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
+	int32_t channel = getChannel();
 	ArpeggiatorSettings* arpSettings = NULL;
 	if (activeClip) {
 		arpSettings = &((InstrumentClip*)activeClip)->arpSettings;
@@ -713,6 +827,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	// If no MPE, nice and simple.
 	if (!sendsToMPE()) {
 		outputMemberChannel = channel;
+		arpNote->outputMemberChannel[noteIndex] = outputMemberChannel;
 	}
 
 	// Or if MPE, we have to decide on a member channel to assign note to...
@@ -732,19 +847,25 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 
 		if (!arpIsOn) {
 			// Count up notes per member channel. This traversal will *not* find the new note that we're switching on,
-			// which will have had its toMIDIChannel set to 16 by Arpeggiator (we'll decide and set it below).
+			// which will have had its toMIDIChannel set to MIDI_CHANNEL_NONE (255) by Arpeggiator (we'll decide and set
+			// it below).
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements(); n++) {
 				ArpNote* thisArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (thisArpNote->outputMemberChannel >= lowestMemberChannel
-				    && thisArpNote->outputMemberChannel <= highestMemberChannel) {
-					numNotesPreviouslyActiveOnMemberChannel[thisArpNote->outputMemberChannel]++;
+				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+					if (thisArpNote->outputMemberChannel[i] == MIDI_CHANNEL_NONE) {
+						break;
+					}
+					if (thisArpNote->outputMemberChannel[i] >= lowestMemberChannel
+					    && thisArpNote->outputMemberChannel[i] <= highestMemberChannel) {
+						numNotesPreviouslyActiveOnMemberChannel[thisArpNote->outputMemberChannel[i]]++;
 
-					// If this note is coming in live from the same member channel as the one we wish to switch on now,
-					// that's a good clue that we should group them together at the output. (Final decision to be made
-					// further below.)
-					if (thisArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]
-					    == arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]) {
-						outputMemberChannelWithNoteSharingInputMemberChannel = thisArpNote->outputMemberChannel;
+						// If this note is coming in live from the same member channel as the one we wish to switch on
+						// now, that's a good clue that we should group them together at the output. (Final decision to
+						// be made further below.)
+						if (thisArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]
+						    == arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)]) {
+							outputMemberChannelWithNoteSharingInputMemberChannel = thisArpNote->outputMemberChannel[i];
+						}
 					}
 				}
 			}
@@ -783,9 +904,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 		// reasonably well.
 
 		// Ok. We have our new member channel.
-
-		arpNote->outputMemberChannel = outputMemberChannel;
-		arpeggiator.outputMIDIChannelForNoteCurrentlyOnPostArp = outputMemberChannel; // Needed if arp on
+		arpNote->outputMemberChannel[noteIndex] = outputMemberChannel;
 
 		int16_t mpeValuesAverage[kNumExpressionDimensions]; // We may fill this up and point to it, or not
 		int16_t const* mpeValuesToUse = arpNote->mpeValues;
@@ -800,10 +919,12 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 			     n++) { // This traversal will include the original note, which will get counted up too
 				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (lookingAtArpNote->outputMemberChannel == outputMemberChannel) {
-					numNotesFound++;
-					for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-						mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+					if (lookingAtArpNote->outputMemberChannel[i] == outputMemberChannel) {
+						numNotesFound++;
+						for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+							mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+						}
 					}
 				}
 			}
@@ -837,6 +958,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 // Will store them too. Only for when we definitely want to send all three.
 // And obviously you can't call this unless you know that this Instrument sendsToMPE().
 void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel) {
+	int32_t channel = getChannel();
 	{ // X
 		int32_t outputValue14 = mpeValuesToUse[0] >> 2;
 		mpeOutputMemberChannels[outputMemberChannel].lastXValueSent = outputValue14;
@@ -858,8 +980,9 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 	}
 }
 
-void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity) {
-
+void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity,
+                                    int32_t noteIndex) {
+	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		sendNoteToInternal(false, noteCodePostArp, velocity, oldOutputMemberChannel);
 	}
@@ -898,10 +1021,12 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 		     n++) { // This traversal will not include the original note, which has already been deleted from the array.
 			ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-			if (lookingAtArpNote->outputMemberChannel == oldOutputMemberChannel) {
-				numNotesFound++;
-				for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
-					mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+			for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+				if (lookingAtArpNote->outputMemberChannel[i] == oldOutputMemberChannel) {
+					numNotesFound++;
+					for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
+						mpeValuesSum[m] += lookingAtArpNote->mpeValues[m];
+					}
 				}
 			}
 		}
@@ -918,6 +1043,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 }
 
 void MIDIInstrument::allNotesOff() {
+	int32_t channel = getChannel();
 	arpeggiator.reset();
 
 	// If no MPE, nice and simple
@@ -948,8 +1074,9 @@ uint8_t const shiftAmountsFrom16Bit[] = {2, 9, 8};
 // well use the 32-bit version here. Although, could it have even got more than 14 bits of meaningful value in the first
 // place?
 void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, int32_t noteCodeAfterArpeggiation,
-                                                              int32_t whichExpressionDimension, ArpNote* arpNote) {
-
+                                                              int32_t whichExpressionDimension, ArpNote* arpNote,
+                                                              int32_t noteIndex) {
+	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		// Do nothing
 	}
@@ -973,7 +1100,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 
 	// Or if we do have MPE output...
 	else {
-		int32_t memberChannel = arpNote->outputMemberChannel;
+		int32_t memberChannel = arpNote->outputMemberChannel[noteIndex];
 
 		// Are multiple notes sharing the same output member channel?
 		ArpeggiatorSettings* settings = getArpSettings();
@@ -984,9 +1111,11 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			for (int32_t n = 0; n < arpeggiator.notes.getNumElements();
 			     n++) { // This traversal will include the original note, which will get counted up too
 				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
-				if (lookingAtArpNote->outputMemberChannel == memberChannel) {
-					numNotesFound++;
-					mpeValuesSum += lookingAtArpNote->mpeValues[whichExpressionDimension];
+				for (int32_t i = 0; i < ARP_MAX_INSTRUCTION_NOTES; i++) {
+					if (lookingAtArpNote->outputMemberChannel[i] == memberChannel) {
+						numNotesFound++;
+						mpeValuesSum += lookingAtArpNote->mpeValues[whichExpressionDimension];
+					}
 				}
 			}
 
@@ -1119,5 +1248,28 @@ void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity,
 	switch (channel) {
 	case MIDI_CHANNEL_TRANSPOSE:
 		MIDITranspose::doTranspose(on, note);
+	}
+}
+
+std::string_view MIDIInstrument::getNameFromCC(int32_t cc) {
+	if (cc < 0 || cc >= kNumRealCCNumbers) {
+		// out of range
+		return std::string_view{};
+	}
+
+	MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(cc);
+
+	if (midiLabel != nullptr) {
+		// found
+		return std::string_view(midiLabel->name.get());
+	}
+
+	// not found
+	return std::string_view{};
+}
+
+void MIDIInstrument::setNameForCC(int32_t cc, std::string_view name) {
+	if (cc >= 0 && cc < kNumRealCCNumbers) {
+		midiLabelCollection.labels.setOrCreateLabelForCC(cc, name.data());
 	}
 }

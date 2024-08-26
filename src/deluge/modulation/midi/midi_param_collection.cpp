@@ -31,13 +31,30 @@
 
 MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
     : ParamCollection(sizeof(MIDIParamCollection), summary) {
-	summary->whichParamsAreAutomated[0] =
-	    1; // Just to indicate there could be some automation, cos we don't actually use this variable properly.
-	       // TODO: at least make this go to 0 when no MIDIParams present.
+
+	// Just to indicate there could be some automation, cos we don't actually use this variable properly.
+	// TODO: at least make this go to 0 when no MIDIParams present.
+	summary->whichParamsAreAutomated[0] = 1;
+	summary->whichParamsAreInterpolating[0] = 0;
 }
 
 MIDIParamCollection::~MIDIParamCollection() {
 	deleteAllParams(NULL, false);
+}
+
+void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelStack) {
+	for (int32_t i = 0; i < params.getNumElements(); i++) {
+		MIDIParam* midiParam = params.getElement(i);
+		AutoParam* param = &midiParam->param;
+		if (param->valueIncrementPerHalfTick != 0) {
+			int32_t oldValue = param->getCurrentValue();
+			bool shouldNotify = param->tickTicks(numTicks);
+			if (shouldNotify) { // Should always actually be true...
+				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
+				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
+			}
+		}
+	}
 }
 
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {
@@ -133,8 +150,9 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
                                             bool reversed, bool didPingpong, bool mayInterpolate) {
 
 	ticksTilNextEvent -= ticksSkipped;
-
 	if (ticksTilNextEvent <= 0) {
+		bool interpolating = false;
+
 		ticksTilNextEvent = 2147483647;
 
 		for (int32_t i = 0; i < params.getNumElements(); i++) {
@@ -143,9 +161,13 @@ void MIDIParamCollection::processCurrentPos(ModelStackWithParamCollection* model
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
 
 			int32_t ticksTilNextEventThisParam = param->processCurrentPos(modelStackWithAutoParam, reversed,
-			                                                              didPingpong, false, true); // No interpolating
+			                                                              didPingpong, true, true); // No interpolating
 			ticksTilNextEvent = std::min(ticksTilNextEvent, ticksTilNextEventThisParam);
+			if (param->valueIncrementPerHalfTick) {
+				interpolating = true;
+			}
 		}
+		modelStack->summary->whichParamsAreInterpolating[0] = static_cast<uint32_t>(interpolating);
 	}
 }
 
@@ -186,8 +208,7 @@ ModelStackWithAutoParam* MIDIParamCollection::getAutoParamFromId(ModelStackWithP
 	return modelStack->addAutoParam(param);
 }
 
-void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
-                                   int32_t midiOutputFilter) {
+int32_t MIDIParamCollection::autoparamValueToCC(int32_t newValue) {
 	int32_t rShift = 25;
 	int32_t roundingAmountToAdd = 1 << (rShift - 1);
 	int32_t maxValue = 2147483647 - roundingAmountToAdd;
@@ -195,9 +216,15 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
 	if (newValue > maxValue) {
 		newValue = maxValue;
 	}
-	int32_t newValueSmall = (newValue + roundingAmountToAdd) >> rShift;
+	return (newValue + roundingAmountToAdd) >> rShift;
+}
 
-	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64, midiOutputFilter); // TODO: get master channel
+void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
+                                   int32_t midiOutputFilter) {
+	int32_t newValueSmall = autoparamValueToCC(newValue);
+
+	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64,
+	                  midiOutputFilter); // TODO: get master channel
 }
 
 // For MIDI CCs, which prior to V2.0 did interpolation
@@ -225,8 +252,8 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 
 		AutoParam* param = &midiParam->param;
 
-		// With MIDI, we only want to send these out if the param is actually automated and the value is actually
-		// different
+		// With MIDI, we only want to send these out if the param is actually automated and the value is
+		// actually different
 		if (param->isAutomated()) {
 
 			int32_t oldValue = param->getCurrentValue();
@@ -260,10 +287,12 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 	                                              automatedNow);
 
 	if (modelStack->song->isOutputActiveInArrangement((MIDIInstrument*)modelStack->modControllable)) {
-		bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
-		if (currentValueChanged) {
+		auto new_v = modelStack->autoParam->getCurrentValue();
+		bool current_value_changed = modelStack->modControllable->valueChangedEnoughToMatter(
+		    oldValue, new_v, getParamKind(), modelStack->paramId);
+		if (current_value_changed) {
 			MIDIInstrument* instrument = (MIDIInstrument*)modelStack->modControllable;
-			int32_t midiOutputFilter = instrument->channel;
+			int32_t midiOutputFilter = instrument->getChannel();
 			int32_t masterChannel = instrument->getOutputMasterChannel();
 			sendMIDI(instrument, masterChannel, modelStack->paramId, modelStack->autoParam->getCurrentValue(),
 			         midiOutputFilter);

@@ -18,10 +18,6 @@
 #include "gui/ui/root_ui.h"
 #include "model/song/song.h"
 
-RootUI::RootUI() {
-	// TODO Auto-generated constructor stub
-}
-
 bool RootUI::getAffectEntire() {
 	return currentSong->affectEntire;
 }

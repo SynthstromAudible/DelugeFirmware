@@ -40,6 +40,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 #include <new>
 #include <string.h>
 
@@ -56,8 +58,11 @@ NoteRow::NoteRow(int16_t newY) {
 	soundingStatus = STATUS_OFF;
 	ignoreNoteOnsBefore_ = 0;
 	probabilityValue = kNumProbabilityValues;
+	iteranceValue = kDefaultIteranceValue;
+	fillValue = FillMode::OFF;
 	loopLengthIfIndependent = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
+	exportStem = false;
 }
 
 NoteRow::~NoteRow() {
@@ -131,6 +136,8 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 						newNote->setProbability(oldNote->getProbability());
 						newNote->setVelocity(oldNote->getVelocity());
 						newNote->setLift(oldNote->getLift());
+						newNote->setIterance(oldNote->getIterance());
+						newNote->setFill(oldNote->getFill());
 					}
 				}
 
@@ -146,6 +153,8 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setProbability(oldNote->getProbability());
 					newNote->setVelocity(oldNote->getVelocity());
 					newNote->setLift(oldNote->getLift());
+					newNote->setIterance(oldNote->getIterance());
+					newNote->setFill(oldNote->getFill());
 				}
 			}
 
@@ -172,6 +181,8 @@ Error NoteRow::beenCloned(ModelStackWithNoteRow* modelStack, bool shouldFlattenR
 					newNote->setProbability(oldNote->getProbability());
 					newNote->setVelocity(oldNote->getVelocity());
 					newNote->setLift(oldNote->getLift());
+					newNote->setIterance(oldNote->getIterance());
+					newNote->setFill(oldNote->getFill());
 				}
 			}
 		}
@@ -202,6 +213,7 @@ void NoteRow::initRowSquareInfo(SquareInfo rowSquareInfo[kDisplayWidth], bool an
 }
 
 void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
+	squareInfo.firstNote = nullptr;
 	// if there's notes, get square boundaries (start and end pos)
 	// so that we can compare where notes are relative to the square
 	// e.g. are they inside the square, extending into the square (tail), etc.
@@ -218,8 +230,10 @@ void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
 	}
 	squareInfo.squareType = SQUARE_NO_NOTE;
 	squareInfo.numNotes = 0;
-	squareInfo.averageProbability = 0;
 	squareInfo.averageVelocity = 0;
+	squareInfo.probability = 0;
+	squareInfo.iterance = kDefaultIteranceValue;
+	squareInfo.fill = 0;
 	squareInfo.isValid = true;
 }
 
@@ -253,9 +267,9 @@ void NoteRow::getRowSquareInfo(int32_t effectiveLength, SquareInfo rowSquareInfo
 			addNotesToSquareInfo(effectiveLength, rowSquareInfo[x], i, &note);
 		}
 
-		// calculate average probability and velocity for each square
-		// for the notes found above, cumulative probability and velocity info was saved
-		// now we'll convert those cumulative probability and velocity totals into averages
+		// calculate average velocity for each square
+		// for the notes found above, cumulative velocity info was saved
+		// now we'll convert those cumulative velocity totals into averages
 		// based on the number of notes in each square
 		// this is only required if there is more than one note in a square
 		for (int32_t x = 0; x <= lastSquare; x++) {
@@ -282,10 +296,10 @@ void NoteRow::getSquareInfo(int32_t x, int32_t effectiveLength, SquareInfo& squa
 			// Update square info with note info found
 			addNotesToSquareInfo(effectiveLength, squareInfo, i, &note);
 
-			// calculate average probability and velocity for this square
-			// for the notes found above, cumulative probability and velocity info was saved
-			// now we'll convert those cumulative probability and velocity totals into an average
-			// based on the number of notes in this square
+			// calculate average velocity for each square
+			// for the notes found above, cumulative velocity info was saved
+			// now we'll convert those cumulative velocity totals into averages
+			// based on the number of notes in each square
 			// this is only required if there is more than one note in a square
 			calculateSquareAverages(squareInfo);
 		}
@@ -299,8 +313,9 @@ void NoteRow::getSquareInfo(int32_t x, int32_t effectiveLength, SquareInfo& squa
 /// 3) has multiple notes or one note which is not aligned to the very first position (SQUARE_BLURRED)
 /// 4) the square is part of a tail of a previous note (SQUARE_NOTE_TAIL)
 /// returns number of notes in a square
-/// returns average probability and average velocity for a square
+/// returns average velocity for a square
 void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareInfo, int32_t& noteIndex, Note** note) {
+	bool gotFirstNoteParams = false;
 	// does the note fall within the square we're looking at
 	if (*note && ((*note)->pos >= squareInfo.squareStartPos) && ((*note)->pos < squareInfo.squareEndPos)) {
 		while ((noteIndex >= 0)
@@ -315,9 +330,15 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 			}
 
 			// we'll convert this to an average once we're done counting the number of notes
-			// and summing all note probabilities and velocities in this square
-			squareInfo.averageProbability += (*note)->getProbability();
+			// and summing all note velocities in this square
 			squareInfo.averageVelocity += (*note)->getVelocity();
+			if (!gotFirstNoteParams) {
+				squareInfo.firstNote = (*note);
+				squareInfo.probability = (*note)->getProbability();
+				squareInfo.iterance = (*note)->getIterance();
+				squareInfo.fill = (*note)->getFill();
+				gotFirstNoteParams = true;
+			}
 
 			// ok we've used this note, so let's move to next one
 			noteIndex--;
@@ -338,20 +359,22 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 
 		// If that note's tail does overlap into this square...
 		if (noteEnd > squareInfo.squareStartPos) {
+			squareInfo.firstNote = *note;
 			squareInfo.numNotes += 1;
 			squareInfo.squareType = SQUARE_NOTE_TAIL;
-			squareInfo.averageProbability += (*note)->getProbability();
 			squareInfo.averageVelocity += (*note)->getVelocity();
+			squareInfo.probability = (*note)->getProbability();
+			squareInfo.iterance = (*note)->getIterance();
+			squareInfo.fill = (*note)->getFill();
 		}
 	}
 }
 
-/// calculate average probability and velocity for this square based on info on notes
+/// calculate average velocity for this square based on info on notes
 /// previously obtained by calling NoteRow::getRowSquareInfo or NoteRow::getSquareInfo
 /// and NoteRow::addNotesToSquareInfo
 void NoteRow::calculateSquareAverages(SquareInfo& squareInfo) {
 	if (squareInfo.numNotes > 1) {
-		squareInfo.averageProbability = squareInfo.averageProbability / squareInfo.numNotes;
 		squareInfo.averageVelocity = squareInfo.averageVelocity / squareInfo.numNotes;
 	}
 }
@@ -379,7 +402,9 @@ addNewNote:
 		newNote->setVelocity(((Instrument*)((Clip*)modelStack->getTimelineCounter())->output)->defaultVelocity);
 		newNote->setLift(kDefaultLiftValue);
 
-		newNote->setProbability(getDefaultProbability(modelStack));
+		newNote->setProbability(getDefaultProbability());
+		newNote->setIterance(getDefaultIterance());
+		newNote->setFill(getDefaultFill(modelStack));
 
 		if (i + 1 < notes.getNumElements()) {
 			newNote->setLength(std::min(desiredNoteLength, notes.getElement(i + 1)->pos - newNote->pos));
@@ -600,7 +625,9 @@ addNewNote:
 			destNote->pos = posThisScreen;
 			destNote->setVelocity(velocity);
 			destNote->setLift(kDefaultLiftValue);
-			destNote->setProbability(getDefaultProbability(modelStack));
+			destNote->setProbability(getDefaultProbability());
+			destNote->setIterance(getDefaultIterance());
+			destNote->setFill(getDefaultFill(modelStack));
 
 			int32_t newLength;
 
@@ -670,21 +697,29 @@ addNewNote:
 
 	return Error::NONE;
 }
-int32_t NoteRow::getDefaultProbability(ModelStackWithNoteRow* ModelStack) {
 
-	if (ModelStack->song->isFillModeActive()) {
-		return 0;
+int32_t NoteRow::getDefaultProbability() {
+	return probabilityValue;
+}
+
+Iterance NoteRow::getDefaultIterance() {
+	return iteranceValue;
+}
+
+int32_t NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
+	if (modelStack->song->isFillModeActive()) {
+		return FillMode::FILL;
 	}
 	else {
-		return probabilityValue;
+		return fillValue;
 	}
 }
 
 // This gets called after we've scrolled and attempted to drag notes. And for recording.
 // If you supply an Action, it'll add an individual ConsequenceNoteExistenceChange. Or, you can supply NULL and do
 // something else yourself. Returns distanceToNextNote, or 0 on fail.
-int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
-                                ModelStackWithNoteRow* modelStack, Action* action) {
+int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
+                                int32_t fill, ModelStackWithNoteRow* modelStack, Action* action) {
 
 	int32_t loopLength = modelStack->getLoopLength();
 
@@ -740,6 +775,8 @@ int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, i
 	newNote->setVelocity(velocity);
 	newNote->setLift(kDefaultLiftValue);
 	newNote->setProbability(probability);
+	newNote->setIterance(iterance);
+	newNote->setFill(fill);
 
 	// Record consequence
 	if (action) {
@@ -797,7 +834,9 @@ int32_t NoteRow::attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32
 	newNote->setLength(1);
 	newNote->setVelocity(velocity);
 	newNote->setLift(kDefaultLiftValue);
-	newNote->setProbability(getDefaultProbability(modelStack));
+	newNote->setProbability(getDefaultProbability());
+	newNote->setIterance(getDefaultIterance());
+	newNote->setFill(getDefaultFill(modelStack));
 
 	modelStack->getTimelineCounter()->expectEvent();
 
@@ -1042,6 +1081,8 @@ modifyNote:
 		// Doing a wrap while reversed is unique because we have to move our note from one end of the array to the other
 		if (wrapping && reversed) {
 			int32_t probability = note->getProbability();
+			Iterance iterance = note->getIterance();
+			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
 			notes.deleteAtIndex(0, 1, false);
 			i = notes.getNumElements();
@@ -1049,6 +1090,8 @@ modifyNote:
 			note = notes.getElement(i);
 			note->setProbability(probability);
 			note->setVelocity(noteOnVelocity);
+			note->setIterance(iterance);
+			note->setFill(fill);
 		}
 
 		note->pos = newNoteLeftPos; // This will stay the same if we're pingponging
@@ -1772,6 +1815,14 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 			case CORRESPONDING_NOTES_SET_PROBABILITY: {
 				thisNote->setProbability(changeValue);
 			} break;
+
+			case CORRESPONDING_NOTES_SET_ITERANCE: {
+				thisNote->setIterance(Iterance::fromInt(changeValue));
+			} break;
+
+			case CORRESPONDING_NOTES_SET_FILL: {
+				thisNote->setFill(changeValue);
+			} break;
 			}
 		}
 	}
@@ -1912,7 +1963,9 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
 				drewNote = true;
-				pixel = rowColour;
+				// this is just colour * (0.25 + 0.75 * velocity) but in fixed point, i.e. it'll go linearly from 0.25
+				// to max brightness with velocity
+				pixel = rowColour.adjustFractional((65 + note->velocity + (note->velocity / 2)) << 8, 255 << 8);
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
@@ -1938,10 +1991,10 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 				}
 			}
 			if (drewNote && currentSong->isFillModeActive()) {
-				if (note->probability == kFillProbabilityValue) {
+				if (note->fill == FillMode::FILL) {
 					pixel = deluge::gui::colours::blue;
 				}
-				else if (note->probability == kNotFillProbabilityValue) {
+				else if (note->fill == FillMode::NOT_FILL) {
 					pixel = deluge::gui::colours::red;
 				}
 			}
@@ -1973,6 +2026,15 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 	int32_t effectiveLength = modelStack->getLoopLength();
 	bool playingReversedNow = modelStack->isCurrentlyPlayingReversed();
 	bool didPingpong = false;
+	if (ignoredNoteOn) {
+		maybeStartLateNote(modelStack, modelStack->getLivePos());
+		// if we ignored a note on and are now actioning it we know that there's nothing left to do
+		if (ticksSinceLast < ignoreUntil) {
+			ignoreUntil -= ticksSinceLast;
+			return ignoredNoteOn ? 1 : ignoreUntil;
+		}
+		// otherwise we'll just continue and process the note row
+	}
 
 	// If we have an independent play-pos, we need to check if we've reached the end (right of left) of this NoteRow.
 	if (hasIndependentPlayPos()) {
@@ -2007,16 +2069,16 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 
 		if (playingReversedNow) {
 
-			// If actually got left of zero, it's time to loop, and normally this wouldn't happen if pingponging because
-			// direction changes right when we hit zero.
+			// If actually got left of zero, it's time to loop, and normally this wouldn't happen if pingponging
+			// because direction changes right when we hit zero.
 			if (lastProcessedPosIfIndependent < 0) {
 				lastProcessedPosIfIndependent += effectiveLength;
 				// repeatCountIfIndependent++;
 			}
 
-			// Normally we do the pingpong when we hit pos 0, so the direction will change and we'll start going right
-			// again now, in time for NoteRows and stuff to know the direction as they're processed and predict what
-			// notes we're going to hit next etc.
+			// Normally we do the pingpong when we hit pos 0, so the direction will change and we'll start going
+			// right again now, in time for NoteRows and stuff to know the direction as they're processed and
+			// predict what notes we're going to hit next etc.
 			if (!lastProcessedPosIfIndependent) { // Possibly only just became the case
 				repeatCountIfIndependent++;
 				if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
@@ -2029,18 +2091,19 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 		else {
 
 			int32_t ticksTilEnd = effectiveLength - lastProcessedPosIfIndependent;
-			if (ticksTilEnd <= 0) { // Yes, note it might not always arrive directly at the end. When (Audio) Clip
-				                    // length is shortened,
-				// the lastProcessedPos is altered, but it could be that many swung ticks have actually passed since we
-				// last processed, so there might be a big jump forward and we end up past the loop point.
+			if (ticksTilEnd <= 0) { // Yes, note it might not always arrive directly at the end. When (Audio)
+				                    // Clip length is shortened,
+				// the lastProcessedPos is altered, but it could be that many swung ticks have actually passed
+				// since we last processed, so there might be a big jump forward and we end up past the loop
+				// point.
 
 				lastProcessedPosIfIndependent -= effectiveLength;
 				repeatCountIfIndependent++;
 
 				if (getEffectiveSequenceDirectionMode(modelStack) == SequenceDirection::PINGPONG) {
-					// Normally we'll have hit the exact loop point, meaning lastProcessedPos will have wrapped to 0,
-					// above. But just in case we went further, and need to wrap back to somewhere nearish the
-					// right-hand edge of the Clip...
+					// Normally we'll have hit the exact loop point, meaning lastProcessedPos will have wrapped
+					// to 0, above. But just in case we went further, and need to wrap back to somewhere nearish
+					// the right-hand edge of the Clip...
 					if (lastProcessedPosIfIndependent > 0) {
 						lastProcessedPosIfIndependent = effectiveLength - lastProcessedPosIfIndependent;
 					}
@@ -2063,8 +2126,8 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 		}
 
 		bool mayInterpolate = drum ? drum->type == DrumType::SOUND : (clip->output->type == OutputType::SYNTH);
-		// We'll not interpolate for CV, just for efficiency. Since our CV output steps are limited anyway, this is
-		// probably reasonably reasonable.
+		// We'll not interpolate for CV, just for efficiency. Since our CV output steps are limited anyway, this
+		// is probably reasonably reasonable.
 
 		paramManager.processCurrentPos(modelStackWithThreeMainThings, ticksSinceLast, playingReversedNow, didPingpong,
 		                               mayInterpolate);
@@ -2085,8 +2148,8 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 
 	if (muted) {
 noFurtherNotes:
-		// If this NoteRow has independent length set, make sure we come back at its end. Otherwise, the Clip handles
-		// this.
+		// If this NoteRow has independent length set, make sure we come back at its end. Otherwise, the Clip
+		// handles this.
 		if (loopLengthIfIndependent) {
 			ticksTilNextNoteEvent = effectiveCurrentPos;
 			if (!playingReversedNow) {
@@ -2107,8 +2170,8 @@ noFurtherNotes:
 		// If user is auditioning note...
 		if (isAuditioning(modelStack)) {
 
-			// If they've also just recorded a note and it was quantized later, we do need to keep an eye out for it,
-			// despite the fact that we're auditioning.
+			// If they've also just recorded a note and it was quantized later, we do need to keep an eye out
+			// for it, despite the fact that we're auditioning.
 			if (effectiveForwardPos < ignoreNoteOnsBefore_) {
 				goto currentlyOff;
 			}
@@ -2122,20 +2185,19 @@ noFurtherNotes:
 
 			if (!notes.getNumElements()) {
 stopNote:
-				stopCurrentlyPlayingNote(
-				    modelStack, true,
-				    thisNote); // Ideally (but optionally) supply the note, so lift-velocity can be used
+				// Ideally (but optionally) supply the note, so lift-velocity can be used
+				stopCurrentlyPlayingNote(modelStack, true, thisNote);
 			}
 			else {
 
 				// First search for the (should-be-existent) note which begins "earlier" than our current pos.
 				int32_t searchLessThan = effectiveCurrentPos;
 
-				// If we're playing backwards, we want to include notes whose pos is *equal* to the current pos, which
-				// would mean ending right now (cos we're playing backwards).
+				// If we're playing backwards, we want to include notes whose pos is *equal* to the current pos,
+				// which would mean ending right now (cos we're playing backwards).
 				searchLessThan += (bool)playingReversedNow;
-				// Buuut, a special condition for pingponging to allow notes touching the right-end of this Clip /
-				// NoteRow to just keep sounding as the direction changes. Nah actually don't do that.
+				// Buuut, a special condition for pingponging to allow notes touching the right-end of this Clip
+				// / NoteRow to just keep sounding as the direction changes. Nah actually don't do that.
 				//&& (effectiveCurrentPos || getEffectiveSequenceDirectionMode(modelStack) !=
 				// SequenceDirection::PINGPONG));
 
@@ -2146,8 +2208,8 @@ stopNote:
 				}
 				thisNote = notes.getElement(i);
 
-				// If playing reversed, we have to check that we've even reached this note yet. Maybe we haven't, and
-				// there's actually no note that should be currently playing (e.g. after an undo).
+				// If playing reversed, we have to check that we've even reached this note yet. Maybe we
+				// haven't, and there's actually no note that should be currently playing (e.g. after an undo).
 				if (playingReversedNow) {
 					int32_t posRelativeToNoteLeftEdge = effectiveCurrentPos - thisNote->pos;
 					if (posRelativeToNoteLeftEdge < 0) {
@@ -2158,9 +2220,8 @@ stopNote:
 					}
 				}
 
-				int32_t noteLateEdgePos =
-				    thisNote
-				        ->pos; // Depending on play direction, this will be either the left or right edge of the Note.
+				int32_t noteLateEdgePos = thisNote->pos; // Depending on play direction, this will be either the
+				                                         // left or right edge of the Note.
 				if (!playingReversedNow) {
 					noteLateEdgePos += thisNote->length;
 				}
@@ -2174,16 +2235,18 @@ stopNote:
 					ticksTilNextNoteEvent = -ticksTilNextNoteEvent;
 				}
 
-				// If note ends right now (or even earlier, which shouldn't normally happen but let's be safe)...
+				// If note ends right now (or even earlier, which shouldn't normally happen but let's be
+				// safe)...
 				if (ticksTilNextNoteEvent <= 0) {
 
 					// If it's a droning, full-length note...
-					if (thisNote->pos == 0 && thisNote->length == effectiveLength) {
+					if (thisNote->isDrone(effectiveLength)) {
 
-						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered again from
-						// the start. Same for time-stretching - although those can loop themselves, caching comes along
-						// and stuffs that up, so let's just stop em.
-						if (clip->output->type == OutputType::SYNTH) { // For Sounds
+						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered
+						// again from the start. Same for time-stretching - although those can loop themselves,
+						// caching comes along and stuffs that up, so let's just stop em.
+						if (clip->output->type == OutputType::SYNTH
+						    && clip->arpSettings.mode == ArpMode::OFF) { // For Sounds
 
 							if (((SoundInstrument*)clip->output)->hasCutModeSamples(&clip->paramManager)) {
 								goto stopNote;
@@ -2193,8 +2256,8 @@ stopNote:
 								goto stopNote;
 							}
 						}
-						else if (clip->output->type == OutputType::KIT && drum
-						         && drum->type == DrumType::SOUND) { // For Kits
+						else if (clip->output->type == OutputType::KIT && drum && drum->type == DrumType::SOUND
+						         && clip->arpSettings.mode == ArpMode::OFF) { // For Kits
 							if (((SoundDrum*)drum)->hasCutModeSamples(&paramManager)) {
 								goto stopNote;
 							}
@@ -2253,11 +2316,12 @@ currentlyOff:
 
 					// Or normal case, for all other currentPos's...
 					else {
-						// Basic case for say synth sounds, when playing reversed, is we want to stop sounding each Note
-						// at its "pos". So it's appropriate to just search further-left than that. But for one-shot
-						// sounds, we do still sound the Note at the "pos", so we need to include that in the search so
-						// we'll see that Note now. But, not if we've actually already sounded it just before (on
-						// previous loop of this code) and are now wanting to search past it.
+						// Basic case for say synth sounds, when playing reversed, is we want to stop sounding
+						// each Note at its "pos". So it's appropriate to just search further-left than that.
+						// But for one-shot sounds, we do still sound the Note at the "pos", so we need to
+						// include that in the search so we'll see that Note now. But, not if we've actually
+						// already sounded it just before (on previous loop of this code) and are now wanting to
+						// search past it.
 						searchPos += (!allowingNoteTailsNow && !alreadySearchedBackwards);
 					}
 				}
@@ -2266,8 +2330,8 @@ currentlyOff:
 
 				// Or if no further Notes until end of this NoteRow...
 				if (nextNoteI < 0 || nextNoteI >= notes.getNumElements()) {
-					// If playing reversed, we might still want to try again, taking notice of a "wrapping" note at the
-					// right-hand end of this NoteRow.
+					// If playing reversed, we might still want to try again, taking notice of a "wrapping" note
+					// at the right-hand end of this NoteRow.
 					if (playingReversedNow && allowingNoteTailsNow) {
 						nextNoteI = notes.getNumElements() - 1;
 					}
@@ -2281,22 +2345,21 @@ currentlyOff:
 				// Or if still here, we've decided on a valid note index
 gotValidNoteIndex:
 				Note* nextNote = (Note*)notes.getElementAddress(nextNoteI);
-				int32_t newTicksTil =
-				    nextNote->pos
-				    - effectiveCurrentPos; // Assumes we're playing forwards - it'll get modified just below otherwise
+				int32_t newTicksTil = nextNote->pos - effectiveCurrentPos; // Assumes we're playing forwards - it'll get
+				                                                           // modified just below otherwise
 
 				// If playing reversed...
 				if (playingReversedNow) {
 					newTicksTil = -newTicksTil;
 
-					// So long as notes have tails (e.g. they're synth sounds, not one-shot), we of course want to start
-					// sounding the note at its right-most edge, which we'll hit a while sooner.
+					// So long as notes have tails (e.g. they're synth sounds, not one-shot), we of course want
+					// to start sounding the note at its right-most edge, which we'll hit a while sooner.
 					if (allowingNoteTailsNow) {
 						newTicksTil -= nextNote->length;
 					}
 
-					// If it's past the wrap-point, we don't care where the Note is anymore. But we might care where the
-					// wrap-point is.
+					// If it's past the wrap-point, we don't care where the Note is anymore. But we might care
+					// where the wrap-point is.
 					if (newTicksTil < 0) {
 						goto noFurtherNotes;
 					}
@@ -2306,10 +2369,11 @@ gotValidNoteIndex:
 				if (newTicksTil <= 0) {
 					if (effectiveForwardPos >= ignoreNoteOnsBefore_) {
 						playNote(true, modelStack, nextNote, 0, 0, justStoppedConstantNote, pendingNoteOnList);
+						ignoredNoteOn = false;
 					}
 
-					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're already at the
-					// left-most edge of the note, so immediately stop it again
+					// If playing reversed and not allowing note tails (i.e. doing one-shot drums), we're
+					// already at the left-most edge of the note, so immediately stop it again
 					// - and we'll then come back near here and look at the *next* Note further to the left, too
 					if (playingReversedNow && !allowingNoteTailsNow) {
 						alreadySearchedBackwards = true;
@@ -2326,7 +2390,8 @@ gotValidNoteIndex:
 		}
 	}
 
-	return std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
+	ignoreUntil = std::min(ticksTilNextNoteEvent, ticksTilNextParamManagerEvent);
+	return ignoredNoteOn ? 1 : ignoreUntil;
 }
 
 bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
@@ -2372,10 +2437,11 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 		// We also have to check and wrap if swungTicksAgo is >= length, which can happen when doing an
 		// instant-(late)-start because the last actioned swung tick might have been a while ago, and so
 		// clip->currentPos is sitting at some fairly high number (leading to a big swungTicksAgo), because the
-		// expectation is it's about to wrap around when it gets a big increment when we do action a tick very shortly.
-		// Seems to happen when instant-launching long Clips with short quantization, e.g. the one-bar when no other
-		// Clips active. This obviously isn't really ideal - could we do something like "actioning" the tick before we
-		// get here, to keep the numbers making more sense? Fix only applied 1 Mar 2021, for V3.1.6
+		// expectation is it's about to wrap around when it gets a big increment when we do action a tick very
+		// shortly. Seems to happen when instant-launching long Clips with short quantization, e.g. the one-bar
+		// when no other Clips active. This obviously isn't really ideal - could we do something like
+		// "actioning" the tick before we get here, to keep the numbers making more sense? Fix only applied 1
+		// Mar 2021, for V3.1.6
 	}
 	else if (swungTicksAgo >= effectiveLoopLength) {
 		swungTicksAgo -= effectiveLoopLength;
@@ -2401,11 +2467,11 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 	/*
 	if (playbackHandler.isInternalClockActive())
 	    timeAgo += (((uint64_t)ticksAgo * currentSong->timePerTimerTickFraction + 4294967296 -
-	playbackHandler.lastTimerTickDoneFraction) >> 32); // This sometimes ends up 1 sample off, I think - not quite sure
-	why
+	playbackHandler.lastTimerTickDoneFraction) >> 32); // This sometimes ends up 1 sample off, I think - not
+	quite sure why
 
-	// TODO: that logic won't deliver a perfect result if the tempo has changed though, or there's an imperfect external
-	clock source, or swing stuff...
+	// TODO: that logic won't deliver a perfect result if the tempo has changed though, or there's an imperfect
+	external clock source, or swing stuff...
 
 	if (playbackHandler.lastInternalTickDone > 0) {
 	    timeAgo += AudioEngine::audioSampleTimer - playbackHandler.timeLastInternalTick;
@@ -2443,7 +2509,6 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 // Note may be NULL if it's a note-off, in which case you don't get lift-velocity
 void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNote, int32_t ticksLate,
                        uint32_t samplesLate, bool noteMightBeConstant, PendingNoteOnList* pendingNoteOnList) {
-
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 	Output* output = clip->output;
 
@@ -2485,14 +2550,15 @@ storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].velocity = thisNote->getVelocity();
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].probability =
 					    thisNote->getProbability();
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].iterance = thisNote->getIterance();
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].fill = thisNote->getFill();
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].sampleSyncLength =
 					    thisNote->getLength();
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].ticksLate = ticksLate;
 					pendingNoteOnList->count++;
 				}
-				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per render
-				// without culling
-				// Otherwise, just send it now.
+				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per
+				// render without culling Otherwise, just send it now.
 				else {
 					int16_t mpeValues[kNumExpressionDimensions];
 					getMPEValues(modelStack, mpeValues);
@@ -2539,17 +2605,16 @@ storePendingNoteOn:
 				if (pendingNoteOnList && pendingNoteOnList->count < kMaxNumNoteOnsPending) {
 					goto storePendingNoteOn;
 				}
-				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per render
-				// without culling
-				// Otherwise, just send it now.
+				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per
+				// render without culling Otherwise, just send it now.
 				else {
 					int16_t mpeValues[kNumExpressionDimensions];
 					getMPEValues(modelStack, mpeValues);
 
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addOtherTwoThings(drum->toModControllable(), &paramManager);
-					drum->noteOn(modelStackWithThreeMainThings, thisNote->velocity, (Kit*)output, mpeValues,
-					             MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
+					drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, drum, thisNote->velocity, mpeValues,
+					                           MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
 				}
 			}
 		}
@@ -2559,7 +2624,7 @@ storePendingNoteOn:
 				lift = thisNote->getLift();
 			}
 
-			drum->noteOff(modelStackWithThreeMainThings, lift);
+			drum->kit->noteOffPreKitArp(modelStackWithThreeMainThings, drum, lift);
 		}
 	}
 
@@ -2719,8 +2784,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
 	if (sequenceDirectionMode == SequenceDirection::PINGPONG) {
-		// Pingponging is being flattened out, and although there are arguments either way, I think removing that
-		// setting now is best.
+		// Pingponging is being flattened out, and although there are arguments either way, I think removing
+		// that setting now is best.
 		sequenceDirectionMode = (clip->sequenceDirectionMode == SequenceDirection::REVERSE)
 		                            ? SequenceDirection::FORWARD
 		                            : SequenceDirection::OBEY_PARENT;
@@ -2767,8 +2832,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 		int32_t numRepeatsRoundedUp = (uint32_t)(newLoopLength - 1) / (uint32_t)oldLoopLength + 1;
 
-		// This is crude and lazy, but the amount of elements I'll create is rounded way up, and we'll delete any
-		// extras, below.
+		// This is crude and lazy, but the amount of elements I'll create is rounded way up, and we'll delete
+		// any extras, below.
 		int32_t maxNewNumNotes = numNotesBefore * numRepeatsRoundedUp;
 		Error error = notes.insertAtIndex(numNotesBefore, maxNewNumNotes - numNotesBefore);
 		if (error != Error::NONE) {
@@ -2789,7 +2854,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 			lengthAfterWrap = lastNote->length - lengthBeforeWrap;
 			bool anyWrapping = (lengthAfterWrap > 0);
 
-			// If there is, we need to edit its length now, to reflect how it would have played in a pingpong scenario.
+			// If there is, we need to edit its length now, to reflect how it would have played in a pingpong
+			// scenario.
 			if (anyWrapping) {
 				lastNote->length = lengthBeforeWrap << 1; // TODO: make sure this doesn't eat past the end-point...
 			}
@@ -2822,7 +2888,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 					newPos += oldLoopLength * r;
 					if (newPos >= newLoopLength) {
-						break; // Crude way of stopping part-way through the final repeat if it was only a partial one.
+						break; // Crude way of stopping part-way through the final repeat if it was only a
+						       // partial one.
 					}
 
 					int32_t iNew = iNewWithinRepeat + numNotesBefore * r;
@@ -2832,6 +2899,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setProbability(oldNote->getProbability());
 					newNote->setVelocity(oldNote->getVelocity());
 					newNote->setLift(oldNote->getLift());
+					newNote->setIterance(oldNote->getIterance());
+					newNote->setFill(oldNote->getFill());
 
 					highestNoteIndex = iNew;
 				}
@@ -2869,7 +2938,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 					newPos += oldLoopLength * r;
 					if (newPos >= newLoopLength) {
-						break; // Crude way of stopping part-way through the final repeat if it was only a partial one.
+						break; // Crude way of stopping part-way through the final repeat if it was only a
+						       // partial one.
 					}
 
 					int32_t iNew = iNewWithinRepeat + numNotesBefore * r;
@@ -2879,6 +2949,8 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					newNote->setProbability(oldNote->getProbability());
 					newNote->setVelocity(oldNote->getVelocity());
 					newNote->setLift(oldNote->getLift());
+					newNote->setIterance(oldNote->getIterance());
+					newNote->setFill(oldNote->getFill());
 
 					highestNoteIndex = iNew;
 				}
@@ -2905,22 +2977,22 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 	}
 
 	// *** Take care of iteration dependence. ***
-	// Largely because this function generates multiple repeats in one go, unlike clone() and appendNoteRow() which only
-	// do one, we aim for efficiency by looking at each of the "source" notes in turn, and for each of those, look at
-	// all its copies. The result may be that iteration dependence gets flattened entirely (and you can force this by
-	// supplying numRepeatsRounded as 0), or if the Clip/NoteRow is still not going to be as long as all of a note's
-	// iterations, then its iteration dependence will be modified to keep it sounding the same, to the extent possible.
+	// Largely because this function generates multiple repeats in one go, unlike clone() and appendNoteRow()
+	// which only do one, we aim for efficiency by looking at each of the "source" notes in turn, and for each
+	// of those, look at all its copies. The result may be that iteration dependence gets flattened entirely
+	// (and you can force this by supplying numRepeatsRounded as 0), or if the Clip/NoteRow is still not going
+	// to be as long as all of a note's iterations, then its iteration dependence will be modified to keep it
+	// sounding the same, to the extent possible.
 
 	// Go through each Note within the original length
 	for (int32_t i = 0; i < numNotesBefore; i++) {
 		Note* note = notes.getElement(i);
-		int32_t probability = note->probability & 127;
+		Iterance iterance = note->iterance;
 		int32_t pos = note->pos;
 
 		// If it's iteration dependent...
-		if (probability > kNumProbabilityValues) {
-			int32_t divisor, iterationWithinDivisor;
-			dissectIterationDependence(probability, &divisor, &iterationWithinDivisor);
+		if (iterance != kDefaultIteranceValue) {
+			int32_t divisor = iterance.divisor;
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
 
@@ -2962,14 +3034,23 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					break; // Shouldn't happen...
 				}
 
-				int32_t iterationWithinDivisorWithinRepeat =
-				    numRepeatsRounded ? ((uint32_t)iterationWithinDivisor % (uint32_t)numRepeatsRounded)
-				                      : iterationWithinDivisor;
+				int32_t iterationWithinDivisor = -1;
+				for (int32_t iteration = 0; iteration < 8; iteration++) {
+					if (iterance.iteranceStep[iteration]) {
+						int32_t iterationWithinDivisorWithinRepeat =
+						    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
+						if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
+							iterationWithinDivisor = iteration;
+							break;
+						}
+					}
+				}
 
-				if (whichRepeatWithinLoop != iterationWithinDivisorWithinRepeat) {
+				if (iterationWithinDivisor == -1) {
+					// All failed
 
-					// If deleting the original one, those are what our for loop is currently iterating through, so
-					// alter that process
+					// If deleting the original one, those are what our for loop is currently iterating through,
+					// so alter that process
 					if (whichRepeatTotal == 0) {
 						numNotesBefore--;
 						i--;
@@ -2979,10 +3060,11 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				}
 				else {
 
-					int32_t newProbability;
+					Iterance newIterance;
 					if (newNumFullLoops == 0) {
-						// I think this bit is for, like, if we had a note doing 1of6, and we're doing two repeats total
-						// on this Clip, well then to keep it sounding the same, we'd now need the note to be a 1of3.
+						// I think this bit is for, like, if we had a note doing 1of6, and we're doing two
+						// repeats total on this Clip, well then to keep it sounding the same, we'd now need the
+						// note to be a 1of3.
 						int32_t newDivisor = (uint32_t)divisor / (uint32_t)numRepeatsRounded;
 						if (newDivisor <= 1) {
 							goto switchOff;
@@ -2990,14 +3072,14 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 						int32_t newIterationWithinDivisor =
 						    (uint32_t)iterationWithinDivisor / (uint32_t)numRepeatsRounded;
 
-						newProbability = encodeIterationDependence(newDivisor, newIterationWithinDivisor);
+						newIterance = Iterance{(uint8_t)newDivisor, 1 << newIterationWithinDivisor};
 					}
 					else {
 switchOff:
-						newProbability = kNumProbabilityValues; // Switch off iteration dependence
+						newIterance = kDefaultIteranceValue; // Switch off iteration dependence
 					}
 
-					thisRepeatedNote->setProbability(newProbability);
+					thisRepeatedNote->setIterance(newIterance);
 				}
 
 				whichRepeatWithinLoop++;
@@ -3030,6 +3112,28 @@ void NoteRow::toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAnd
 	}
 }
 
+void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos) {
+	// See if our play-pos is inside of a note, which we might want to try playing...
+	int32_t i = notes.search(effectiveActualCurrentPos, LESS);
+	bool wrapping = (i == -1);
+	if (wrapping) {
+		i = notes.getNumElements() - 1;
+	}
+	Note* note = notes.getElement(i);
+	int32_t noteEnd = note->pos + note->length;
+	if (wrapping) {
+		noteEnd -= modelStack->getLoopLength();
+	}
+
+	if (noteEnd > effectiveActualCurrentPos) {
+		// if we're not allowed we'll just come back here later (next tick)
+		attemptLateStartOfNextNoteToPlay(modelStack, note);
+		ignoredNoteOn = false;
+	}
+	else {
+		ignoredNoteOn = false;
+	}
+}
 // Attempts (possibly late) start of any note at or overlapping the currentPos
 void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound) {
 	if (noteRowMayMakeSound(clipMayMakeSound) && soundingStatus == STATUS_OFF && !isAuditioning(modelStack)) {
@@ -3041,21 +3145,7 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 		int32_t effectiveActualCurrentPos = getLivePos(modelStack);
 
 		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
-			// See if our play-pos is inside of a note, which we might want to try playing...
-			int32_t i = notes.search(effectiveActualCurrentPos, LESS);
-			bool wrapping = (i == -1);
-			if (wrapping) {
-				i = notes.getNumElements() - 1;
-			}
-			Note* note = notes.getElement(i);
-			int32_t noteEnd = note->pos + note->length;
-			if (wrapping) {
-				noteEnd -= modelStack->getLoopLength();
-			}
-
-			if (noteEnd > effectiveActualCurrentPos) {
-				attemptLateStartOfNextNoteToPlay(modelStack, note);
-			}
+			maybeStartLateNote(modelStack, effectiveActualCurrentPos);
 		}
 	}
 
@@ -3102,9 +3192,10 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 
 	drum = (Drum*)0xFFFFFFFF; // Code for "no drum". We swap this for a real value soon
 
-	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams before we
-	                           // know what kind of Drum (if any) we have.
+	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams
+	                           // before we know what kind of Drum (if any) we have.
 
+	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(50);
 
@@ -3144,8 +3235,8 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 
 		else if (!strcmp(tagName, "length")) {
 			loopLengthIfIndependent = reader.readTagOrAttributeValueInt();
-			readAutomationUpToPos =
-			    loopLengthIfIndependent; // So we can read automation right up to the actual length of this NoteRow.
+			readAutomationUpToPos = loopLengthIfIndependent; // So we can read automation right up to the actual
+			                                                 // length of this NoteRow.
 		}
 
 		else if (!strcmp(tagName, "sequenceDirection")) {
@@ -3158,9 +3249,9 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 
 		else if (!strcmp(tagName, "soundParams")) {
 
-			// Sneaky sorta hack for 2016 files - allow more params to be loaded into a ParamManager that already had
-			// some loading done by the Drum
-			if (smDeserializer.firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
+			// Sneaky sorta hack for 2016 files - allow more params to be loaded into a ParamManager that
+			// already had some loading done by the Drum
+			if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
 
 				SoundDrum* actualDrum = (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)drum);
 
@@ -3184,7 +3275,7 @@ finishedNormalStuff:
 			Sound::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
 		}
 
-		// Notes stored as XML (before V1.4)
+		// Notes stored as XML (before V1.4) - NOT CONVERTED TO ALSO WORK WITH JSON.
 		else if (!strcmp(tagName, "notes")) {
 			// Read each Note
 			uint32_t minPos = 0;
@@ -3235,6 +3326,8 @@ finishedNormalStuff:
 						newNote->setVelocity(velocity);
 						newNote->setLift(kDefaultLiftValue);
 						newNote->setProbability(kNumProbabilityValues);
+						newNote->setIterance(kDefaultIteranceValue);
+						newNote->setFill(FillMode::OFF);
 					}
 
 					reader.exitTag("note");
@@ -3270,11 +3363,11 @@ doReadNoteData:
 				if (numElementsToAllocateFor <= 0) {
 
 					// See how many more chars before the end of the cluster. If there are any...
-					uint32_t charsRemaining = reader.getNumCharsRemainingInValue();
+					uint32_t charsRemaining = reader.getNumCharsRemainingInValueBeforeEndOfCluster();
 					if (charsRemaining) {
 
-						// Allocate space for the right number of notes, and remember how long it'll be before we need
-						// to do this check again
+						// Allocate space for the right number of notes, and remember how long it'll be before
+						// we need to do this check again
 						numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / noteHexLength + 1;
 						notes.ensureEnoughSpaceAllocated(
 						    numElementsToAllocateFor); // If it returns false... oh well. We'll fail later
@@ -3289,10 +3382,50 @@ doReadNoteData:
 				int32_t pos = hexToIntFixedLength(hexChars, 8);
 				int32_t length = hexToIntFixedLength(&hexChars[8], 8);
 				uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
-				uint8_t lift, probability;
+				uint8_t lift, probability, fill;
+				Iterance iterance;
 
-				if (noteHexLength == 22) { // If reading lift...
+				if (noteHexLength == 28) { // if reading custom iterance and fill
+					fill = hexToIntFixedLength(&hexChars[26], 2);
+					iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
+					lift = hexToIntFixedLength(&hexChars[18], 2);
+					if (lift == 0 || lift > 127) {
+						goto useDefaultLift;
+					}
+				}
+				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
+					fill = hexToIntFixedLength(&hexChars[24], 2);
+					iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
+					probability = hexToIntFixedLength(&hexChars[20], 2);
+					lift = hexToIntFixedLength(&hexChars[18], 2);
+					if (lift == 0 || lift > 127) {
+						goto useDefaultLift;
+					}
+				}
+				else if (noteHexLength == 22) { // If reading lift...
+					probability = hexToIntFixedLength(&hexChars[20], 2);
+
+					if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
+						if (probability == kOldFillProbabilityValue) {
+							fill = FillMode::FILL;
+						}
+						else {
+							fill = FillMode::NOT_FILL;
+						}
+						iterance = kDefaultIteranceValue;    // iterance off
+						probability = kNumProbabilityValues; // 100% probability
+					}
+					else if (probability > kNumProbabilityValues
+					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
+						fill = FillMode::OFF;
+						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						probability = kNumProbabilityValues; // 100% probability
+					}
+					else {
+						fill = FillMode::OFF;
+						iterance = kDefaultIteranceValue; // iterance off
+					}
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
 						goto useDefaultLift;
@@ -3300,6 +3433,33 @@ doReadNoteData:
 				}
 				else { // Or if no lift here to read
 					probability = hexToIntFixedLength(&hexChars[18], 2);
+
+					if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
+						if (probability == kOldFillProbabilityValue) {
+							fill = FillMode::FILL;
+						}
+						else {
+							fill = FillMode::NOT_FILL;
+						}
+						iterance = kDefaultIteranceValue;    // iterance off
+						probability = kNumProbabilityValues; // 100% probability
+					}
+					else if (probability > kNumProbabilityValues
+					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
+						fill = FillMode::OFF;
+						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						probability = kNumProbabilityValues; // 100% probability
+					}
+					else {
+						fill = FillMode::OFF;
+						iterance = kDefaultIteranceValue; // iterance off
+					}
+
+					lift = hexToIntFixedLength(&hexChars[18], 2);
+					if (lift == 0 || lift > 127) {
+						goto useDefaultLift;
+					}
+
 useDefaultLift:
 					lift = kDefaultLiftValue;
 				}
@@ -3314,9 +3474,11 @@ useDefaultLift:
 				if (velocity == 0 || velocity > 127) {
 					velocity = 64;
 				}
-				if ((probability & 127) > (kNumProbabilityValues + kNumIterationValues)
-				    || probability >= (kNumProbabilityValues | 128)) {
+				if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
 					probability = kNumProbabilityValues;
+				}
+				if (fill < FillMode::OFF || fill > FillMode::FILL) {
+					fill = FillMode::OFF;
 				}
 
 				minPos = pos + length;
@@ -3331,6 +3493,8 @@ useDefaultLift:
 				newNote->setVelocity(velocity);
 				newNote->setLift(lift);
 				newNote->setProbability(probability);
+				newNote->setIterance(iterance);
+				newNote->setFill(fill);
 
 				numElementsToAllocateFor--;
 			}
@@ -3338,8 +3502,22 @@ getOut: {}
 		}
 
 		// Notes stored as hex data including lift (V3.2 onwards)
-		else if (!strcmp(tagName, "noteDataWithLift")) {
+		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
+		         && !strcmp(tagName, "noteDataWithLift")) {
 			noteHexLength = 22;
+			goto doReadNoteData;
+		}
+#if ALPHA_OR_BETA_VERSION
+		// Notes stored as hex data in nightly firmware 1.3 previous to the addition of custom iterances
+		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
+		         && !strcmp(tagName, "noteDataWithIteranceAndFill")) {
+			noteHexLength = 26;
+			goto doReadNoteData;
+		}
+#endif
+		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
+		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
+			noteHexLength = 28;
 			goto doReadNoteData;
 		}
 
@@ -3364,12 +3542,12 @@ getOut: {}
 			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 		}
 	}
-
+	reader.match('}');
 	return Error::NONE;
 }
 
 void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip) {
-	writer.writeOpeningTagBeginning("noteRow");
+	writer.writeOpeningTagBeginning("noteRow", true);
 
 	bool forKit = (clip->output->type == OutputType::KIT);
 
@@ -3392,10 +3570,11 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	}
 
 	if (notes.getNumElements()) {
+		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
-		writer.write("noteDataWithLift=\"0x");
-
+		writer.writeTagNameAndSeperator("noteDataWithSplitProb");
+		writer.write("\"0x");
 		for (int32_t n = 0; n < notes.getNumElements(); n++) {
 			Note* thisNote = notes.getElement(n);
 
@@ -3415,8 +3594,71 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 
 			intToHex(thisNote->getProbability(), buffer, 2);
 			writer.write(buffer);
+
+			intToHex(thisNote->getIterance().toInt(), buffer, 4);
+			writer.write(buffer);
+
+			intToHex(thisNote->getFill(), buffer, 2);
+			writer.write(buffer);
 		}
 		writer.write("\"");
+
+#if ALPHA_OR_BETA_VERSION
+		// TODO: once we go out of beta, this piece of code can be deleted
+		{
+			writer.insertCommaIfNeeded();
+			writer.write("\n");
+			writer.printIndents();
+			writer.write("noteDataWithLift=\"0x");
+			for (int32_t n = 0; n < notes.getNumElements(); n++) {
+				Note* thisNote = notes.getElement(n);
+
+				char buffer[9];
+
+				intToHex(thisNote->pos, buffer);
+				writer.write(buffer);
+
+				intToHex(thisNote->getLength(), buffer);
+				writer.write(buffer);
+
+				intToHex(thisNote->getVelocity(), buffer, 2);
+				writer.write(buffer);
+
+				intToHex(thisNote->getLift(), buffer, 2);
+				writer.write(buffer);
+
+				// Do here an attempt to keep the most significant information, in order of priority
+				// 1st - Iterance preset
+				// 2nd - Fill/NotFill
+				// 3rd - Probability
+				// 4th - Custom iterance (since this does not exist in 1.2 it will be always discarded)
+				int32_t oldProbability = kNumProbabilityValues; // Defaults to 100% probability
+				int32_t iterancePresetIndex = thisNote->getIterance().toPresetIndex();
+				int32_t fill = thisNote->getFill();
+				int32_t probability = thisNote->getProbability();
+				if (iterancePresetIndex > 0 && iterancePresetIndex != kCustomIterancePreset) {
+					// We found the note has an iterance preset compatible with 1.2 and backwards, use it
+					oldProbability = kNumProbabilityValues + iterancePresetIndex;
+				}
+				else if (fill != FillMode::OFF) {
+					// We found the note has a fill mode, use it
+					if (fill == FillMode::FILL) {
+						oldProbability = 0; // 0 means FILL
+					}
+					else {
+						oldProbability = 128; // 128 means NOT_FILL
+					}
+				}
+				else if (probability != kNumProbabilityValues) {
+					// we found the note has a probability different than 100%, use it
+					oldProbability = probability;
+				}
+				intToHex(oldProbability, buffer, 2);
+				writer.write(buffer);
+			}
+			writer.write("\"");
+		}
+#endif
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
@@ -3435,7 +3677,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 
 			writer.writeOpeningTagBeginning("soundParams");
 			Sound::writeParamsToFile(writer, &paramManager, true);
-			writer.writeClosingTag("soundParams");
+			writer.writeClosingTag("soundParams", true);
 		}
 	}
 
@@ -3445,11 +3687,11 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	}
 
 	if (closedOurTagYet) {
-		writer.writeClosingTag("noteRow");
+		writer.writeClosingTag("noteRow", true, true);
 	}
 
 	else {
-		writer.closeTag();
+		writer.closeTag(true);
 	}
 }
 
@@ -3465,7 +3707,8 @@ int8_t NoteRow::getColourOffset(InstrumentClip* clip) {
 /*
 void NoteRow::setDrumToNull(ModelStackWithTimelineCounter const* modelStack) {
     if (paramManager.containsAnyParamCollections()) {
-        modelStack->song->backUpParamManager((SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager);
+        modelStack->song->backUpParamManager((SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(),
+&paramManager);
 
         paramManager.forgetParamCollections();
     }
@@ -3488,8 +3731,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	}
 	paramManager.forgetParamCollections();
 
-	drum = (SoundDrum*)
-	    newDrum; // Better set this temporarily for this call. See comment above for why we can't set it permanently yet
+	drum = (SoundDrum*)newDrum; // Better set this temporarily for this call. See comment above for why we can't
+	                            // set it permanently yet
 
 	if (newParamManager) {
 		paramManager.stealParamCollectionsFrom(newParamManager, true);
@@ -3499,8 +3742,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	}
 
 	// Set drum to NULL first - it's crucial because we're about to call the following functions:
-	// - currentSong->findParamManagerForDrum() looks for NoteRows with this Drum. We don't want to be one just yet, or
-	// we'll be the one that's found
+	// - currentSong->findParamManagerForDrum() looks for NoteRows with this Drum. We don't want to be one just
+	// yet, or we'll be the one that's found
 	drum = NULL;
 
 	// Grab new ParamManager from that backed up in Drum
@@ -3513,14 +3756,15 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 				NoteRow* noteRow = favourClipForCloningParamManager->getNoteRowForDrum(soundDrum);
 				if (noteRow) {
 					paramManager.cloneParamCollectionsFrom(&noteRow->paramManager, false, true);
-					// That might not work if there was insufficient RAM, but we'll still try the other options below
+					// That might not work if there was insufficient RAM, but we'll still try the other options
+					// below
 				}
 			}
 
 			if (!paramManager.containsAnyMainParamCollections()) {
 
-				drum = soundDrum; // Better set this temporarily for this call. See comment above for why we can't set
-				                  // it permanently yet
+				drum = soundDrum; // Better set this temporarily for this call. See comment above for why we
+				                  // can't set it permanently yet
 				bool success = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
 				    soundDrum, (Clip*)modelStack->getTimelineCounter(), &paramManager);
 				if (success) {
@@ -3643,8 +3887,8 @@ void NoteRow::rememberDrumName() {
 			prevPointer = &((*prevPointer)->next);
 		}
 
-		// If we're here, we're at the end of the list, didn't find an instance of the name, and want to add it to the
-		// end of the list now Paul: Might make sense to put these into Internal?
+		// If we're here, we're at the end of the list, didn't find an instance of the name, and want to add it
+		// to the end of the list now Paul: Might make sense to put these into Internal?
 		void* drumNameMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(DrumName));
 		if (drumNameMemory) {
 			*prevPointer = new (drumNameMemory) DrumName(&soundDrum->name);
@@ -3689,8 +3933,8 @@ goAgain:
 		// But if that length actually touches or passes right through us...
 		if (distance <= 0) {
 
-			// If there only is one note, there's no point looking to the next one - just think about the next time
-			// we'll come around.
+			// If there only is one note, there's no point looking to the next one - just think about the next
+			// time we'll come around.
 			if (notes.getNumElements() == 1) {
 				distance += effectiveLength;
 			}
@@ -3797,7 +4041,8 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clea
 
 		if (action) {
 			Error error = action->recordNoteArrayChangeIfNotAlreadySnapshotted(
-			    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes, true); // Steal data
+			    (InstrumentClip*)modelStack->getTimelineCounter(), modelStack->noteRowId, &notes,
+			    true); // Steal data
 			if (error != Error::NONE) {
 				goto justEmpty;
 			}
@@ -3834,14 +4079,14 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 	int32_t maxPos = std::min(screenEndPos, effectiveLength);
 
 	if (action) {
-		// Snapshot how Notes were before, in bulk. It's quite likely that this has already been done as the area was
-		// cleared - but not if notes was empty
+		// Snapshot how Notes were before, in bulk. It's quite likely that this has already been done as the
+		// area was cleared - but not if notes was empty
 		action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
 		                                                     modelStack->noteRowId, &notes, false);
 	}
 
-	// TODO: this could be done without all these many inserts, and could be improved further by "stealing" the data
-	// into the action, above
+	// TODO: this could be done without all these many inserts, and could be improved further by "stealing" the
+	// data into the action, above
 	for (int32_t n = 0; n < copiedNoteRow->numNotes; n++) {
 
 		Note* noteSource = &copiedNoteRow->notes[n];
@@ -3849,8 +4094,8 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 		int32_t newPos =
 		    modelStack->song->xScroll[NAVIGATION_CLIP] + (int32_t)roundf((float)noteSource->pos * scaleFactor);
 
-		// Make sure that with dividing and rounding, we're not overlapping the previous note - or past the end of the
-		// screen / Clip
+		// Make sure that with dividing and rounding, we're not overlapping the previous note - or past the end
+		// of the screen / Clip
 		if (newPos < minPos || newPos >= maxPos) {
 			continue;
 		}
@@ -3859,16 +4104,9 @@ bool NoteRow::paste(ModelStackWithNoteRow* modelStack, CopiedNoteRow* copiedNote
 		newLength = std::max(newLength, (int32_t)1);
 		newLength = std::min(newLength, maxPos - newPos);
 
-		int32_t noteDestI = notes.insertAtKey(newPos);
-		Note* noteDest = notes.getElement(noteDestI);
-		if (!noteDest) {
-			return false;
-		}
-
-		noteDest->length = newLength;
-		noteDest->velocity = noteSource->velocity;
-		noteDest->probability = noteSource->probability;
-		noteDest->lift = noteSource->lift;
+		// Prevents pasting of overlapping notes, which leads to sequentialTest Error "E319"
+		attemptNoteAdd(newPos, newLength, noteSource->velocity, noteSource->probability, noteSource->iterance,
+		               noteSource->fill, modelStack, nullptr);
 
 		minPos = newPos + newLength;
 	}
@@ -3979,8 +4217,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 			int32_t lengthAfterWrap = lastNote->length - lengthBeforeWrap;
 			bool anyWrapping = (lengthAfterWrap > 0);
 
-			// If there is a wrapped note, we need to edit the length of the copy of it that already exists at the end
-			// of this NoteRow *before* we do the appending.
+			// If there is a wrapped note, we need to edit the length of the copy of it that already exists at
+			// the end of this NoteRow *before* we do the appending.
 			if (anyWrapping && pingpongingGenerally) {
 				if (insertIndex) {
 					Note* lastNoteMe = (Note*)notes.getElementAddress(insertIndex - 1);
@@ -3998,21 +4236,6 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				}
 
 				Note* oldNote = (Note*)otherNoteRow->notes.getElementAddress(iOld);
-
-				// Flatten iteration dependence
-				int32_t oldCondition = oldNote->probability;
-				int32_t conditionValue = oldCondition & 127;
-				if (conditionValue > kNumProbabilityValues) {
-					int32_t divisor, iterationWithinDivisor;
-					dissectIterationDependence(conditionValue, &divisor, &iterationWithinDivisor);
-
-					if (((uint32_t)whichRepeatThisIs % (uint32_t)divisor) != iterationWithinDivisor) {
-						continue;
-					}
-					else {
-						oldCondition = kNumProbabilityValues; // Remove iteration dependence
-					}
-				}
 
 				int32_t newLength = oldNote->length;
 				int32_t newPos = otherNoteRowLength - oldNote->pos - newLength;
@@ -4033,6 +4256,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setProbability(oldNote->getProbability());
 				newNote->setVelocity(oldNote->getVelocity());
 				newNote->setLift(oldNote->getLift());
+				newNote->setIterance(oldNote->getIterance());
+				newNote->setFill(oldNote->getFill());
 			}
 		}
 
@@ -4050,21 +4275,6 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 
 				Note* oldNote = (Note*)otherNoteRow->notes.getElementAddress(iOld);
 
-				// Flatten iteration dependence
-				int32_t oldCondition = oldNote->probability;
-				int32_t conditionValue = oldCondition & 127;
-				if (conditionValue > kNumProbabilityValues) {
-					int32_t divisor, iterationWithinDivisor;
-					dissectIterationDependence(conditionValue, &divisor, &iterationWithinDivisor);
-
-					if (((uint32_t)whichRepeatThisIs % (uint32_t)divisor) != iterationWithinDivisor) {
-						continue;
-					}
-					else {
-						oldCondition = kNumProbabilityValues; // Remove iteration dependence
-					}
-				}
-
 				int32_t newPos = -oldNote->pos;
 				if (newPos < 0) {
 					newPos += otherNoteRowLength;
@@ -4076,6 +4286,8 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 				newNote->setProbability(oldNote->getProbability());
 				newNote->setVelocity(oldNote->getVelocity());
 				newNote->setLift(oldNote->getLift());
+				newNote->setIterance(oldNote->getIterance());
+				newNote->setFill(oldNote->getFill());
 			}
 		}
 	}
@@ -4085,32 +4297,19 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 
 		for (int32_t i = 0; i < numToInsert; i++) {
 			Note* oldNote = otherNoteRow->notes.getElement(i);
-
-			// Flatten iteration dependence
-			int32_t oldCondition = oldNote->probability;
-			int32_t conditionValue = oldCondition & 127;
-			if (conditionValue > kNumProbabilityValues) {
-				int32_t divisor, iterationWithinDivisor;
-				dissectIterationDependence(conditionValue, &divisor, &iterationWithinDivisor);
-
-				if (((uint32_t)whichRepeatThisIs % (uint32_t)divisor) != iterationWithinDivisor) {
-					continue;
-				}
-				else {
-					oldCondition = kNumProbabilityValues; // Remove iteration dependence
-				}
-			}
-
 			Note* newNote = notes.getElement(insertIndex++);
 			newNote->pos = oldNote->pos + offset;
 			newNote->length = oldNote->length;
 			newNote->velocity = oldNote->velocity;
 			newNote->setLift(oldNote->getLift());
-			newNote->probability = oldCondition;
+			newNote->probability = oldNote->probability;
+			newNote->iterance = oldNote->iterance;
+			newNote->fill = oldNote->fill;
 		}
 	}
 
-	// We may not have ended up using all the elements we inserted, due to iteration dependence, so delete any extra.
+	// We may not have ended up using all the elements we inserted, due to iteration dependence, so delete any
+	// extra.
 	int32_t numExtraToDelete = notes.getNumElements() - insertIndex;
 	if (numExtraToDelete) {
 		notes.deleteAtIndex(insertIndex, numExtraToDelete);
@@ -4194,8 +4393,8 @@ void NoteRow::getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues
 }
 
 // This is obviously very inefficient, doing deletions for every "screen", sequentially.
-// Also, pos is provided as the squareStart, but in a perfect world, we'd actually use the pos of the first note within
-// that square - for each "screen"! Or something like that...
+// Also, pos is provided as the squareStart, but in a perfect world, we'd actually use the pos of the first note
+// within that square - for each "screen"! Or something like that...
 void NoteRow::clearMPEUpUntilNextNote(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t wrapEditLevel,
                                       bool shouldJustDeleteNodes) {
 
@@ -4262,18 +4461,18 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParam(mpeParams, mpeParamsSummary,
 	                                                                       whichExpressionDimension, param);
 
-	// Only if this exact TimelineCounter and NoteRow is having automation step-edited, we can set the value for just a
-	// region.
+	// Only if this exact TimelineCounter and NoteRow is having automation step-edited, we can set the value for
+	// just a region.
 	if (view.modLength && modelStackWithAutoParam->noteRowId == view.modNoteRowId
 	    && modelStackWithAutoParam->getTimelineCounter()
 	           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 
-		// As well as just setting values now, InstrumentClipView keeps a record, for in case the user then releases the
-		// note, in which case we'll want the values from when they pressed hardest etc.
+		// As well as just setting values now, InstrumentClipView keeps a record, for in case the user then
+		// releases the note, in which case we'll want the values from when they pressed hardest etc.
 		instrumentClipView.reportMPEValueForNoteEditing(whichExpressionDimension, newValueBig);
 
-		// And also, set the values now, for in case they're instead gonna stop editing the note before releasing this
-		// MIDI note.
+		// And also, set the values now, for in case they're instead gonna stop editing the note before
+		// releasing this MIDI note.
 		param->setValueForRegion(view.modPos, view.modLength, newValueBig, modelStackWithAutoParam);
 	}
 	else {
@@ -4319,6 +4518,19 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, Sequen
 			}
 		}
 	}
+}
+
+/// check to see if this note row has only one note and that note is a drone note
+/// drone note = note at position 0 with length equal to the note row's length
+bool NoteRow::isDroning(int32_t effectiveLength) {
+	int32_t numNotes = notes.getNumElements();
+	if (numNotes == 1) {
+		Note* note = notes.getElement(0);
+		if (note->isDrone(effectiveLength)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /*

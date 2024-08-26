@@ -26,5 +26,7 @@ public:
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->synthMode != SynthMode::FM);
 	}
+
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };
 } // namespace deluge::gui::menu_item::patched_param

@@ -64,7 +64,7 @@ void L2CacheInit(void);
 void L2CacheFlushAll(void);
 void L2CacheEnable(void);
 void L2CacheDisable(void);
-
+void L2CacheInit(void);
 extern void R_CACHE_L1Init(void);
 
 #endif /* CACHE_H */

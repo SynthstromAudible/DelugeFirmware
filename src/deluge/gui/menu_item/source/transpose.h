@@ -21,7 +21,10 @@
 namespace deluge::gui::menu_item::source {
 class Transpose : public menu_item::Transpose {
 public:
-	using menu_item::Transpose::Transpose;
+	Transpose(l10n::String newName, int32_t newP, uint8_t sourceId)
+	    : menu_item::Transpose(newName, newP), source_id_(sourceId) {}
+	Transpose(l10n::String newName, l10n::String title, int32_t newP, uint8_t sourceId)
+	    : menu_item::Transpose(newName, title, newP), source_id_(sourceId) {}
 
 	ParamDescriptor getLearningThing() final {
 		ParamDescriptor paramDescriptor{};
@@ -30,6 +33,7 @@ public:
 	}
 
 protected:
-	uint8_t getP() final { return p + soundEditor.currentSourceIndex; }
+	uint8_t source_id_;
+	uint8_t getP() final { return p + source_id_; }
 };
 } // namespace deluge::gui::menu_item::source

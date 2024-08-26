@@ -22,15 +22,18 @@
 namespace deluge::gui::menu_item::osc::source {
 class WaveIndex final : public menu_item::source::PatchedParam, public FormattedTitle {
 public:
-	WaveIndex(l10n::String name, l10n::String title_format_str, int32_t newP)
-	    : PatchedParam(name, newP), FormattedTitle(title_format_str) {}
+	WaveIndex(l10n::String name, l10n::String title_format_str, int32_t newP, uint8_t source_id)
+	    : PatchedParam(name, newP, source_id), FormattedTitle(title_format_str, source_id + 1) {}
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		Sound* sound = static_cast<Sound*>(modControllable);
-		Source* source = &sound->sources[whichThing];
-		return (sound->getSynthMode() != SynthMode::FM && source->oscType == OscType::WAVETABLE);
+		const auto sound = static_cast<Sound*>(modControllable);
+		auto& source = sound->sources[source_id_];
+		return sound->getSynthMode() != SynthMode::FM && source.oscType == OscType::WAVETABLE
+		       && source.hasAtLeastOneAudioFileLoaded();
 	}
+
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return SLIDER; }
 };
 } // namespace deluge::gui::menu_item::osc::source

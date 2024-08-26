@@ -18,28 +18,20 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge/dsp/granular/GranularProcessor.h"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
+#include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/fx/stutterer.h"
+#include "model/mod_controllable/ModFXProcessor.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"
 #include "modulation/params/param_descriptor.h"
+#include "modulation/params/param_set.h"
 #include "modulation/sidechain/sidechain.h"
-
-struct Grain {
-	int32_t length;     // in samples 0=OFF
-	int32_t startPoint; // starttimepos in samples
-	int32_t counter;    // relative pos in samples
-	uint16_t pitch;     // 1024=1.0
-	int32_t volScale;
-	int32_t volScaleMax;
-	bool rev;        // 0=normal, 1 =reverse
-	int32_t panVolL; // 0 - 1073741823
-	int32_t panVolR; // 0 - 1073741823
-};
 
 class Clip;
 class Knob;
@@ -48,7 +40,6 @@ class ModelStack;
 class ModelStackWithTimelineCounter;
 class ParamManager;
 class Serializer;
-class StorageManager;
 class Serializer;
 class Deserializer;
 
@@ -64,14 +55,14 @@ public:
 	                                int32_t pan = 0, bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
-	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                      int32_t readAutomationUpToPos, Song* song);
+	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
+	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 	void processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
 	                              ParamManager* paramManager);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                       int32_t* valuesForOverride = NULL);
+	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                 int32_t* valuesForOverride = NULL);
+	                                 int32_t* valuesForOverride = nullptr);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
@@ -94,16 +85,11 @@ public:
 	bool isSRREnabled(ParamManager* paramManager);
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
-	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
-	ActionResult buttonAction(deluge::hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
-
-	// Phaser
-	StereoSample phaserMemory;
-	StereoSample allpassMemory[kNumAllpassFiltersPhaser];
+	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) override;
 
 	// EQ
-	int32_t bassFreq; // These two should eventually not be variables like this
-	int32_t trebleFreq;
+	int32_t bassFreq{}; // These two should eventually not be variables like this
+	int32_t trebleFreq{};
 
 	int32_t withoutTrebleL;
 	int32_t bassOnlyL;
@@ -112,6 +98,7 @@ public:
 
 	// Delay
 	Delay delay;
+	StutterConfig stutterConfig;
 
 	bool sampleRateReductionOnLastTime;
 	uint8_t clippingAmount; // Song probably doesn't currently use this?
@@ -120,31 +107,13 @@ public:
 	FilterRoute filterRoute;
 
 	// Mod FX
-	ModFXType modFXType;
-	StereoSample* modFXBuffer;
-	uint16_t modFXBufferWriteIndex;
-	LFO modFXLFO;
-
+	ModFXType modFXType_;
+	ModFXProcessor modfx{};
 	RMSFeedbackCompressor compressor;
+	GranularProcessor* grainFX{nullptr};
 
-	// Grain
-	int32_t wrapsToShutdown;
-	void setWrapsToShutdown();
-	StereoSample* modFXGrainBuffer;
-	uint32_t modFXGrainBufferWriteIndex;
-	int32_t grainSize;
-	int32_t grainRate;
-	int32_t grainShift;
-	Grain grains[8];
-	int32_t grainFeedbackVol;
-	int32_t grainVol;
-	int32_t grainDryVol;
-	int8_t grainPitchType;
-	bool grainLastTickCountIsZero;
-	bool grainInitialized;
-
-	uint32_t lowSampleRatePos;
-	uint32_t highSampleRatePos;
+	uint32_t lowSampleRatePos{};
+	uint32_t highSampleRatePos{};
 	StereoSample lastSample;
 	StereoSample grabbedSample;
 	StereoSample lastGrabbedSample;
@@ -152,11 +121,12 @@ public:
 	SideChain sidechain; // Song doesn't use this, despite extending this class
 
 	MidiKnobArray midiKnobArray;
-	int32_t postReverbVolumeLastTime;
+	int32_t postReverbVolumeLastTime{};
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
-	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager);
+	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
+	               bool anySoundComingIn, q31_t reverbSendAmount);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
 	void switchDelaySyncType();
@@ -186,11 +156,19 @@ protected:
 	void displaySidechainAndReverbSettings(bool on);
 	void displayOtherModKnobSettings(uint8_t whichModButton, bool on);
 
+protected:
+	// returns whether it succeeded
+	bool enableGrain();
+	void disableGrain();
+
 private:
-	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);
 	void switchHPFModeWithOff();
 	void switchLPFModeWithOff();
+
+	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
+	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd, bool anySoundComingIn,
+	                    q31_t verbAmount);
 };

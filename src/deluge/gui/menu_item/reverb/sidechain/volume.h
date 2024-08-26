@@ -42,13 +42,38 @@ public:
 	}
 
 	void drawPixelsForOled() override {
-		deluge::hid::display::oled_canvas::Canvas& canvas = deluge::hid::display::OLED::main;
-		if (this->getValue() < 0) {
+		oled_canvas::Canvas& canvas = OLED::main;
+		if (getValue() < 0) {
 			canvas.drawStringCentred(l10n::get(l10n::String::STRING_FOR_AUTO), 18 + OLED_MAIN_TOPMOST_PIXEL,
 			                         kTextHugeSpacingX, kTextHugeSizeY);
 		}
 		else {
 			Integer::drawPixelsForOled();
+		}
+	}
+
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		oled_canvas::Canvas& canvas = OLED::main;
+		if (getValue() < 0) {
+			const char* string_for_auto = l10n::get(l10n::String::STRING_FOR_AUTO);
+			canvas.drawStringCentered(string_for_auto, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
+			                          kTextSpacingX, kTextSpacingY, slot.width);
+		}
+		else {
+			drawSidechainDucking(slot);
+		}
+	}
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
+	}
+
+	void getNotificationValue(StringBuf& valueBuf) override {
+		if (const int32_t value = getValue(); value < 0) {
+			valueBuf.append(l10n::get(l10n::String::STRING_FOR_AUTO));
+		}
+		else {
+			valueBuf.appendInt(value);
 		}
 	}
 };

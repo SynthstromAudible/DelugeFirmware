@@ -26,8 +26,17 @@ public:
 	using UnpatchedParam::UnpatchedParam;
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
-		return (
-		    util::one_of(modControllable->getModFXType(), {ModFXType::FLANGER, ModFXType::PHASER, ModFXType::GRAIN}));
+		return (util::one_of(modControllable->getModFXType(),
+		                     {ModFXType::FLANGER, ModFXType::PHASER, ModFXType::GRAIN, ModFXType::WARBLE}));
+	}
+	[[nodiscard]] std::string_view getName() const override {
+		return modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK);
+	}
+	[[nodiscard]] virtual std::string_view getTitle() const { return getName(); }
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(
+		    modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::FEEDBACK, true));
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

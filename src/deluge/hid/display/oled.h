@@ -22,6 +22,8 @@
 #include "definitions_cxx.hpp"
 #include "display.h"
 #include "oled_canvas/canvas.h"
+#include <sys/types.h>
+#include <vector>
 
 #define OLED_LOG_TIMING (0 && ENABLE_TEXT_OUTPUT)
 
@@ -30,6 +32,14 @@
 #endif
 
 namespace deluge::hid::display {
+
+struct Icon {
+	const uint8_t* data;
+	uint8_t width;
+	uint8_t height;
+	uint8_t numBytesTall;
+};
+
 class OLED : public Display {
 public:
 	OLED() : Display(DisplayType::OLED) {
@@ -50,7 +60,8 @@ public:
 
 	static void sendMainImage();
 
-	static void setupPopup(int32_t width, int32_t height);
+	static void setupPopup(PopupType type, int32_t width, int32_t height, std::optional<int32_t> startX = std::nullopt,
+	                       std::optional<int32_t> startY = std::nullopt);
 	static void removePopup();
 	static void popupText(char const* text, bool persistent = false, PopupType type = PopupType::GENERAL);
 	static bool isPopupPresent();
@@ -103,7 +114,42 @@ public:
 	static const uint8_t checkedBoxIcon[];
 	static const uint8_t uncheckedBoxIcon[];
 	static const uint8_t submenuArrowIcon[];
+	static const uint8_t submenuArrowIconBold[];
 	static const uint8_t metronomeIcon[];
+	static const Icon sineIcon;
+	static const Icon squareIcon;
+	static const Icon sawIcon;
+	static const Icon triangleIcon;
+	static const Icon sampleHoldIcon;
+	static const Icon randomWalkIcon;
+	static const Icon warblerIcon;
+	static const Icon syncTypeEvenIcon;
+	static const Icon syncTypeDottedIcon;
+	static const Icon syncTypeTripletsIcon;
+	static const Icon switcherIconOff;
+	static const Icon switcherIconOn;
+	static const Icon arpModeIconUp;
+	static const Icon arpModeIconUpDown;
+	static const Icon arpModeIconWalk;
+	static const Icon arpModeIconCustom;
+	static const Icon lockedIconBig;
+	static const Icon unlockedIconBig;
+	static const Icon diceIcon;
+	static const Icon directionIcon;
+	static const Icon knobArcIcon;
+	static const Icon infinityIcon;
+	static const Icon sampleIcon;
+	static const Icon wavetableIcon;
+	static const Icon inputIcon;
+	static const Icon micIcon;
+	static const Icon folderIconBig;
+	static const Icon loopPointIcon;
+	static const Icon sampleModeCutIcon;
+	static const Icon sampleModeOnceIcon;
+	static const Icon sampleModeLoopIcon;
+	static const Icon sampleModeStretchIcon;
+	static const Icon keyboardIcon;
+	static const Icon crossedOutKeyboardIcon;
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;
@@ -136,6 +182,9 @@ public:
 
 	bool hasPopup() override { return isPopupPresent(); }
 	bool hasPopupOfType(PopupType type) override { return isPopupPresentOfType(type); }
+
+	// Horizontal menus
+	void displayNotification(std::string_view param_title, std::optional<std::string_view> param_value) override;
 
 private:
 	static bool needsSending;

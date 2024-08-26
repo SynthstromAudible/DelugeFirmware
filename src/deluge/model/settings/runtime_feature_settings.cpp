@@ -24,7 +24,8 @@
 #include <cstring>
 #include <string_view>
 
-#define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
+#define SETTINGS_FOLDER "SETTINGS"
+#define RUNTIME_FEATURE_SETTINGS_FILE "SETTINGS/CommunityFeatures.XML"
 #define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
 #define TAG_RUNTIME_FEATURE_SETTING "setting"
 #define TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME "name"
@@ -32,7 +33,7 @@
 
 /// Unknown Settings container
 struct UnknownSetting {
-	std::string_view name;
+	std::string name;
 	uint32_t value;
 };
 
@@ -112,10 +113,6 @@ void RuntimeFeatureSettings::init() {
 	// FineTempoKnob
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::FineTempoKnob], STRING_FOR_COMMUNITY_FEATURE_FINE_TEMPO_KNOB,
 	                  "fineTempoKnob", RuntimeFeatureStateToggle::On);
-	// PatchCableResolution
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PatchCableResolution],
-	                  STRING_FOR_COMMUNITY_FEATURE_MOD_DEPTH_DECIMALS, "modDepthDecimals",
-	                  RuntimeFeatureStateToggle::On);
 	// CatchNotes
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::CatchNotes], STRING_FOR_COMMUNITY_FEATURE_CATCH_NOTES,
 	                  "catchNotes", RuntimeFeatureStateToggle::On);
@@ -126,10 +123,6 @@ void RuntimeFeatureSettings::init() {
 	// AltGoldenKnobDelayParams
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
 	                  STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, "altGoldenKnobDelayParams",
-	                  RuntimeFeatureStateToggle::Off);
-	// QuantizedStutterRate
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate],
-	                  STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER, "quantizedStutterRate",
 	                  RuntimeFeatureStateToggle::Off);
 	// devSysexAllowed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX,
@@ -154,9 +147,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT,
 	                  "lightShift", RuntimeFeatureStateToggle::Off);
 
-	// EnableGrainFX
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGrainFX], STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX,
-	                  "enableGrainFX", RuntimeFeatureStateToggle::Off);
 	// EnableDX7Engine
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableDX7Engine], STRING_FOR_COMMUNITY_FEATURE_DX7_ENGINE,
 	                  "EnableDX7Engine", RuntimeFeatureStateToggle::Off);
@@ -186,30 +176,54 @@ void RuntimeFeatureSettings::init() {
 	                  STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
 	                  "alternativePlaybackStartBehaviour", RuntimeFeatureStateToggle::Off);
 
-	// AccessibilityShortcuts
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AccessibilityShortcuts],
-	                  STRING_FOR_COMMUNITY_FEATURE_ACCESSIBILITY_SHORTCUTS, "accessibilityShortcuts",
-	                  RuntimeFeatureStateToggle::Off);
-
 	// EnableGridViewLoopPads
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGridViewLoopPads],
 	                  STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, "enableGridViewLoopPads",
 	                  RuntimeFeatureStateToggle::Off);
+
+	// AlternativeTapTempoBehaviour
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AlternativeTapTempoBehaviour],
+	                  STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_TAP_TEMPO_BEHAVIOUR, "alternativeTapTempoBehaviour",
+	                  RuntimeFeatureStateToggle::Off);
+
+	// Horizontal menus
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::HorizontalMenus],
+	                  STRING_FOR_COMMUNITY_FEATURE_HORIZONTAL_MENUS, "enableHorizontalMenus",
+	                  RuntimeFeatureStateToggle::On);
+
+	// Trim from start of audio clip
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::TrimFromStartOfAudioClip],
+	                  STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP, "trimFromStartOfAudioClip",
+	                  RuntimeFeatureStateToggle::On);
 }
 
-void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
+void RuntimeFeatureSettings::readSettingsFromFile() {
 	FilePointer fp;
-
-	bool success = bdsm.fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
+	// CommunityFeatures.XML
+	bool success = StorageManager::fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
 	if (!success) {
-		return;
+		// since we changed the file path for the CommunityFeatures.XML in c1.3, it's possible
+		// that a CommunityFeatures file may exists in the root of the SD card
+		// if so, let's move it to the new SETTINGS folder (but first make sure folder exists)
+		FRESULT result = f_mkdir(SETTINGS_FOLDER);
+		if (result == FR_OK || result == FR_EXIST) {
+			result = f_rename("CommunityFeatures.XML", RUNTIME_FEATURE_SETTINGS_FILE);
+			if (result == FR_OK) {
+				// this means we moved it
+				// now let's open it
+				success = StorageManager::fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
+			}
+		}
+		if (!success) {
+			return;
+		}
 	}
 
-	Error error = bdsm.openXMLFile(&fp, smDeserializer, TAG_RUNTIME_FEATURE_SETTINGS);
+	Error error = StorageManager::openXMLFile(&fp, smDeserializer, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	String currentName;
 	int32_t currentValue = 0;
 	char const* currentTag = nullptr;
@@ -262,17 +276,17 @@ void RuntimeFeatureSettings::readSettingsFromFile(StorageManager& bdsm) {
 		}
 		reader.exitTag(currentTag);
 	}
-	bdsm.closeFile();
+	smDeserializer.closeWriter();
 }
 
-void RuntimeFeatureSettings::writeSettingsToFile(StorageManager& bdsm) {
+void RuntimeFeatureSettings::writeSettingsToFile() {
 	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
-	Error error = bdsm.createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, smSerializer, true);
+	Error error = StorageManager::createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = smSerializer;
+	Serializer& writer = GetSerializer();
 	writer.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.3");

@@ -50,6 +50,7 @@ public:
 	                           bool onlyIfContainsSomething = false, int32_t* valuesForOverride = NULL);
 	void readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p, int32_t readAutomationUpToPos);
 	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) final;
+	void tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelStack) final;
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) final;
 	void playbackHasEnded(ModelStackWithParamCollection* modelStack) final;
 	void grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) final;

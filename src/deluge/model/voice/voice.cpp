@@ -155,8 +155,10 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 	}
 
 	// Setup and render local LFO
-	lfo.setLocalInitialPhase(sound->lfoConfig[LFO2_ID]);
-	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] = lfo.render(0, sound->lfoConfig[LFO2_ID], 0);
+	lfo2.setLocalInitialPhase(sound->lfoConfig[LFO2_ID]);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(0, sound->lfoConfig[LFO2_ID], 0);
+	lfo4.setLocalInitialPhase(sound->lfoConfig[LFO4_ID]);
+	sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(0, sound->lfoConfig[LFO4_ID], 0);
 
 	// Setup some sources which won't change for the duration of this note
 	sourceValues[util::to_underlying(PatchSource::VELOCITY)] =
@@ -240,7 +242,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 				AudioFileHolder* holder = range->getAudioFileHolder();
 				// Only actually set the Range as ours if it has an AudioFile - so that we'll always know that any
 				// VoiceSource's range definitely has a sample
-				if (!holder->audioFile) {
+				if (!holder || !holder->audioFile) {
 					goto gotInactive;
 				}
 
@@ -298,7 +300,8 @@ activenessDetermined:
 		// in STRETCH mode, cos that works differently
 
 		if (oscType == OscType::SAMPLE && guides[s].audioFileHolder) {
-			guides[s].setupPlaybackBounds(source->sampleControls.reversed);
+			source->sampleControls.invertReversed = sound->invertReversed; // Copy the temporary flag from the sound
+			guides[s].setupPlaybackBounds(source->sampleControls.isCurrentlyReversed());
 
 			// if (source->repeatMode == SampleRepeatMode::STRETCH) samplesLateHere = 0;
 		}
@@ -625,6 +628,13 @@ void Voice::noteOff(ModelStackWithVoice* modelStack, bool allowReleaseStage) {
 			}
 		}
 	}
+
+	for (int32_t s = 0; s < kNumSources; s++) {
+		Source* source = &sound->sources[s];
+		if (source->oscType == OscType::SAMPLE) {
+			source->sampleControls.invertReversed = false; // Reset temporary flag back to normal
+		}
+	}
 }
 
 // Returns false if voice needs unassigning now
@@ -642,7 +652,7 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	Source* source = &sound->sources[s];
 	Sample* sample = (Sample*)holder->audioFile;
 
-	guides[s].setupPlaybackBounds(source->sampleControls.reversed);
+	guides[s].setupPlaybackBounds(source->sampleControls.isCurrentlyReversed());
 
 	LoopType loopingType = guides[s].getLoopingType(&sound->sources[s]);
 
@@ -656,8 +666,9 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 		VoiceUnisonPartSource* voiceUnisonPartSource = &unisonParts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
-			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(&guides[s], sample, markerType,
-			                                                                         loopingType, getPriorityRating());
+			bool stillActive = voiceUnisonPartSource->voiceSample->sampleZoneChanged(
+			    &guides[s], sample, source->sampleControls.isCurrentlyReversed(), markerType, loopingType,
+			    getPriorityRating());
 			if (!stillActive) {
 				D_PRINTLN("returned false ---------");
 				voiceUnisonPartSource->unassign(false);
@@ -690,10 +701,10 @@ bool Voice::sampleZoneChanged(ModelStackWithVoice* modelStack, int32_t s, Marker
 	return true;
 }
 
-uint32_t Voice::getLocalLFOPhaseIncrement() {
-	LFOConfig& config = assignedToSound->lfoConfig[LFO2_ID];
+uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Local param) {
+	LFOConfig& config = assignedToSound->lfoConfig[lfoId];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
-		return paramFinalValues[params::LOCAL_LFO_LOCAL_FREQ];
+		return paramFinalValues[param];
 	}
 	else {
 		return assignedToSound->getSyncedLFOPhaseIncrement(config);
@@ -706,7 +717,12 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 [[gnu::hot]] bool Voice::render(ModelStackWithVoice* modelStack, int32_t* soundBuffer, int32_t numSamples,
                                 bool soundRenderingInStereo, bool applyingPanAtVoiceLevel, uint32_t sourcesChanged,
                                 bool doLPF, bool doHPF, int32_t externalPitchAdjust) {
-
+	// we spread out over a render cycle - allocating and starting the voice takes more time than rendering it so this
+	// avoids the cpu spike at note on
+	if (justCreated == false) {
+		justCreated = true;
+		return true;
+	}
 	GeneralMemoryAllocator::get().checkStack("Voice::render");
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
@@ -740,19 +756,29 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 	}
 
 	bool unassignVoiceAfter =
-	    (envelopes[0].state
-	     == EnvelopeStage::OFF); //(envelopes[0].state >= EnvelopeStage::DECAY &&
-	                             // localSourceValues[PatchSource::ENVELOPE_0 - Local::FIRST_SOURCE] == -2147483648);
+	    (envelopes[0].state == EnvelopeStage::OFF)
+	    || (envelopes[0].state > EnvelopeStage::DECAY
+	        && sourceValues[util::to_underlying(PatchSource::ENVELOPE_0)] == std::numeric_limits<int32_t>::min());
 	// Local LFO
 	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
-	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL))) {
-		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)];
+	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL_1))) {
+		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)];
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
-		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)] =
-		    lfo.render(numSamples, sound->lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement());
-		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL)]);
-		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL);
+		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(
+		    numSamples, sound->lfoConfig[LFO2_ID], getLocalLFOPhaseIncrement(LFO2_ID, params::LOCAL_LFO_LOCAL_FREQ_1));
+		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
+		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_1);
+	}
+	if (paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL]
+	    & (1 << util::to_underlying(PatchSource::LFO_LOCAL_2))) {
+		int32_t old = sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)];
+		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
+		// for every sample.
+		sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(
+		    numSamples, sound->lfoConfig[LFO4_ID], getLocalLFOPhaseIncrement(LFO4_ID, params::LOCAL_LFO_LOCAL_FREQ_2));
+		uint32_t anyChange = (old != sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)]);
+		sourcesChanged |= anyChange << util::to_underlying(PatchSource::LFO_LOCAL_2);
 	}
 
 	// MPE params
@@ -976,7 +1002,7 @@ skipAutoRelease: {}
 	filterGain = filterSet.setConfig(
 	    paramFinalValues[params::LOCAL_LPF_FREQ], paramFinalValues[params::LOCAL_LPF_RESONANCE], lpfMode,
 	    paramFinalValues[params::LOCAL_LPF_MORPH], paramFinalValues[params::LOCAL_HPF_FREQ],
-	    (paramFinalValues[params::LOCAL_HPF_RESONANCE]), // >> storageManager.devVarA) << storageManager.devVarA,
+	    (paramFinalValues[params::LOCAL_HPF_RESONANCE]), // >> StorageManager::devVarA) << StorageManager::devVarA,
 	    hpfMode, paramFinalValues[params::LOCAL_HPF_MORPH], sound->volumeNeutralValueForUnison << 1, sound->filterRoute,
 	    false, nullptr); // Level adjustment for unison now happens *before* the filter!
 
@@ -1885,7 +1911,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
-			uint32_t sum = (uint32_t) * (fmSample++) + (uint32_t)feedback;
+			uint32_t sum = (uint32_t)*(fmSample++) + (uint32_t)feedback;
 
 			feedbackValue = doFMNew(phaseNow += phaseIncrement, sum);
 			*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);
@@ -2181,7 +2207,8 @@ pitchTooHigh:
 
 							// And if it's an envelope or LFO or random...
 							if (cable->from == PatchSource::ENVELOPE_0 || cable->from == PatchSource::ENVELOPE_1
-							    || cable->from == PatchSource::LFO_GLOBAL || cable->from == PatchSource::LFO_LOCAL
+							    || cable->from == PatchSource::LFO_GLOBAL_1 || cable->from == PatchSource::LFO_LOCAL_1
+							    || cable->from == PatchSource::LFO_GLOBAL_2 || cable->from == PatchSource::LFO_LOCAL_2
 							    || cable->from == PatchSource::RANDOM) {
 								goto dontUseCache;
 							}
@@ -2833,7 +2860,7 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 
 				int64_t resetterPhaseToDivide = (uint64_t)resetterPhase << 30;
 
-				if ((uint32_t)(resetterPhase) >= (uint32_t) - (resetterPhaseIncrement >> 1)) {
+				if ((uint32_t)(resetterPhase) >= (uint32_t)-(resetterPhaseIncrement >> 1)) {
 					resetterPhaseToDivide -= (uint64_t)1 << 62;
 				}
 
@@ -2850,7 +2877,7 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 				}
 
 				int32_t resetterPhaseToMultiply = resetterPhase >> 1;
-				if ((uint32_t)(resetterPhase) >= (uint32_t) - (resetterPhaseIncrement >> 1)) {
+				if ((uint32_t)(resetterPhase) >= (uint32_t)-(resetterPhaseIncrement >> 1)) {
 					resetterPhaseToMultiply -= ((uint32_t)1 << 31); // Count the last little bit of the cycle as
 					                                                // actually a negative-number bit of the next one.
 				}
@@ -3240,6 +3267,44 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	// Or if first render not done yet, we actually don't want to hear anything at all, so just unassign it
 	else {
 		return false;
+	}
+}
+
+bool Voice::forceNormalRelease() {
+	if (doneFirstRender) {
+		// If no release-stage, we'll stop as soon as we can
+		if (!hasReleaseStage()) {
+			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+		}
+		// otherwise we'll just let it get there on its own
+		else {
+			envelopes[0].unconditionalRelease();
+		}
+		return true;
+	}
+
+	// Or if first render not done yet, we actually don't want to hear anything at all, so just unassign it
+	else {
+		return false;
+	}
+}
+
+bool Voice::speedUpRelease() {
+	auto stage = envelopes[0].state;
+	if (stage == EnvelopeStage::RELEASE) {
+		auto currentRelease = paramFinalValues[params::LOCAL_ENV_0_RELEASE];
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, currentRelease * 2);
+		return true;
+	}
+	else if (stage == EnvelopeStage::FAST_RELEASE) {
+		auto currentRelease = envelopes[0].fastReleaseIncrement;
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, currentRelease * 2);
+		return true;
+	}
+
+	// Or if we're not releasing just start the release
+	else {
+		return forceNormalRelease();
 	}
 }
 

@@ -24,7 +24,7 @@ class Kit final : public ContextMenu {
 public:
 	Kit() = default;
 
-	Sized<char const**> getOptions() override;
+	std::span<char const*> getOptions() override;
 	bool isCurrentOptionAvailable() override;
 	bool canSeeViewUnderneath() override;
 

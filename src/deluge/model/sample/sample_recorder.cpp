@@ -29,6 +29,7 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
+#include "util/functions.h"
 #include <new>
 
 extern "C" {
@@ -116,18 +117,18 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 	folderID = newFolderID;
 
 	// Didn't seem to make a difference forcing this into local RAM
-	void* sampleMemory = GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Sample));
-	if (!sampleMemory) {
+	void* sample_memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Sample));
+	if (sample_memory == nullptr) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	sample = new (sampleMemory) Sample;
+	sample = new (sample_memory) Sample;
 	sample->addReason(); // Must call this so it's protected from stealing, before we call initialize().
 	Error error = sample->initialize(1);
 	if (error != Error::NONE) {
 gotError:
 		sample->~Sample();
-		delugeDealloc(sampleMemory);
+		delugeDealloc(sample_memory);
 		return error;
 	}
 
@@ -241,6 +242,8 @@ gotError:
 	int32_t lengthSamples = lengthSec * sample->sampleRate;
 	audioDataLengthBytesAsWrittenToFile = lengthSamples * 3 * recordingNumChannels;
 
+	setRecordingThreshold();
+
 	// Riff chunk -------------------------------------------------------
 	writeInt32(&writePos, 0x46464952);                                                               // "RIFF"
 	writeInt32(&writePos, audioDataLengthBytesAsWrittenToFile + sample->audioDataStartPosBytes - 8); // Chunk size
@@ -287,6 +290,44 @@ gotError:
 	writeInt32(&writePos, audioDataLengthBytesAsWrittenToFile); // Chunk size
 
 	return Error::NONE;
+}
+
+void SampleRecorder::setRecordingThreshold() {
+	// don't use threshold recording if we're resampling internal input
+	if (currentSong->thresholdRecordingMode == ThresholdRecordingMode::OFF
+	    || mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
+		startValueThreshold = 0;
+		thresholdRecording = false;
+	}
+	else {
+		// max possible sample value = 1 << kBitDepth = 16777216
+
+		// these thresholds were determined through iterative testing to find
+		// the right sample value to start recording audio input based on different input
+		// levels
+
+		switch (currentSong->thresholdRecordingMode) {
+		// used for input sources with low input volume
+		case ThresholdRecordingMode::LOW:
+			startValueThreshold = 11.5;
+			break;
+
+		// used for input sources with medium-high input volume
+		case ThresholdRecordingMode::MEDIUM:
+			startValueThreshold = 14.5;
+			break;
+
+		// used for input sources with high input volume (good for microphones with gain)
+		case ThresholdRecordingMode::HIGH:
+			startValueThreshold = 17.5;
+			break;
+
+		default:
+			break;
+		}
+
+		thresholdRecording = true;
+	}
 }
 
 // Beware! This could get called during card routine - e.g. if user stopped playback. So we'll just store a changed
@@ -366,13 +407,13 @@ aborted:
 		// If file not created yet, do that
 		if (filePathCreated.isEmpty()) {
 
-			error = storageManager.initSD();
+			error = StorageManager::initSD();
 			if (error != Error::NONE) {
 				goto gotError;
 			}
 
 			// Check there's space on the card
-			error = storageManager.checkSpaceOnCard();
+			error = StorageManager::checkSpaceOnCard();
 			if (error != Error::NONE) {
 				goto gotError;
 			}
@@ -426,7 +467,7 @@ aborted:
 			}
 
 			// Recording could finish or abort during this!
-			auto created = storageManager.createFile(filePathCreated.get(), mayOverwrite);
+			auto created = StorageManager::createFile(filePathCreated.get(), mayOverwrite);
 			if (!created) {
 				filePathCreated.clear();
 				goto gotError;
@@ -709,8 +750,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 				if (firstSampleCluster->sdAddress == 0) {
 					FREEZE_WITH_ERROR("E268");
 				}
-				if ((firstSampleCluster->sdAddress - fileSystemStuff.fileSystem.database)
-				    & (fileSystemStuff.fileSystem.csize - 1)) {
+				if ((firstSampleCluster->sdAddress - fileSystem.database) & (fileSystem.csize - 1)) {
 					FREEZE_WITH_ERROR("E269");
 				}
 
@@ -781,7 +821,7 @@ Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes) {
 	sampleCluster = sample->clusters.getElement(clusterIndex);
 
 	// Grab the SD address, for later
-	sampleCluster->sdAddress = clst2sect(&fileSystemStuff.fileSystem, file->inner().clust);
+	sampleCluster->sdAddress = clst2sect(&fileSystem, file->inner().clust);
 	return Error::NONE;
 }
 
@@ -926,6 +966,7 @@ doFinishCapturing:
 				FREEZE_WITH_ERROR("aaaa");
 			}
 
+			int32_t* beginInputNow = inputAddress;
 			int32_t* endInputNow = inputAddress + (numSamplesThisCycle << NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
 
 			char* __restrict__ writePosNow = writePos;
@@ -987,6 +1028,7 @@ doFinishCapturing:
 						recordingClippedRecently = true;
 					}
 
+					// recording stereo
 					if (recordingNumChannels == 2) {
 						int32_t rxR = *(inputAddress + 1);
 						if (applyGain) {
@@ -1050,9 +1092,22 @@ doFinishCapturing:
 				} while (inputAddress < endInputNow);
 			}
 
-			writePos = writePosNow;
-
-			numSamplesCaptured += numSamplesThisCycle;
+			// if we're not threshold recording or we're threshold recording and detected audio
+			if (!thresholdRecording || sample->audioStartDetected) {
+				writePos = writePosNow;
+				numSamplesCaptured += numSamplesThisCycle;
+			}
+			// if we're threshold recording and didn't detect audio in previous cycles
+			// check if there's any audio in this cycle
+			else {
+				StereoFloatSample approxRMSLevel =
+				    envelopeFollower.calcApproxRMS((StereoSample*)beginInputNow, numSamplesThisCycle);
+				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
+					writePos = writePosNow;
+					numSamplesCaptured += numSamplesThisCycle;
+					sample->audioStartDetected = true;
+				}
+			}
 		}
 
 		numSamplesBeenRunning += numSamplesThisCycle;
@@ -1080,29 +1135,35 @@ void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecordi
 	}
 #endif
 
-	int32_t numMoreSamplesTilEndLoopPoint =
-	    numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
-	int32_t numMoreSamplesToCapture = numMoreSamplesTilEndLoopPoint;
+	if (numSamplesCaptured) {
+		int32_t numMoreSamplesTilEndLoopPoint =
+		    numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
+		int32_t numMoreSamplesToCapture = numMoreSamplesTilEndLoopPoint;
 
-	D_PRINTLN("buttonLatencyForTempolessRecording:  %d", buttonLatencyForTempolessRecording);
+		D_PRINTLN("buttonLatencyForTempolessRecording:  %d", buttonLatencyForTempolessRecording);
 
-	if (recordingExtraMargins) {
-		numMoreSamplesToCapture += kAudioClipMarginSizePostEnd; // Means we also have an audioClip
-	}
-
-	uint32_t loopEndPointSamples = numSamplesCaptured + numMoreSamplesTilEndLoopPoint;
-
-	totalSampleLengthNowKnown(numSamplesCaptured + numMoreSamplesToCapture, loopEndPointSamples);
-
-	if (numMoreSamplesToCapture <= 0) {
-		if (numMoreSamplesToCapture < 0) {
-			capturedTooMuch = true;
-			D_PRINTLN("captured too much.");
+		if (recordingExtraMargins) {
+			numMoreSamplesToCapture += kAudioClipMarginSizePostEnd; // Means we also have an audioClip
 		}
-		finishCapturing();
+
+		uint32_t loopEndPointSamples = numSamplesCaptured + numMoreSamplesTilEndLoopPoint;
+
+		totalSampleLengthNowKnown(numSamplesCaptured + numMoreSamplesToCapture, loopEndPointSamples);
+
+		if (numMoreSamplesToCapture <= 0) {
+			if (numMoreSamplesToCapture < 0) {
+				capturedTooMuch = true;
+				D_PRINTLN("captured too much.");
+			}
+			finishCapturing();
+		}
+		else {
+			status = RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP;
+		}
 	}
 	else {
-		status = RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP;
+		// if we haven't captured any samples (which can happen with threshold recording), abort
+		abort();
 	}
 }
 
@@ -1294,7 +1355,7 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 			if (sdAddress == 0) {
 				FREEZE_WITH_ERROR("E268");
 			}
-			if ((sdAddress - fileSystemStuff.fileSystem.database) & (fileSystemStuff.fileSystem.csize - 1)) {
+			if ((sdAddress - fileSystem.database) & (fileSystem.csize - 1)) {
 				FREEZE_WITH_ERROR("E275");
 			}
 
@@ -1469,7 +1530,7 @@ writeFailed:
 		if (sdAddress == 0) {
 			FREEZE_WITH_ERROR("E268");
 		}
-		if ((sdAddress - fileSystemStuff.fileSystem.database) & (fileSystemStuff.fileSystem.csize - 1)) {
+		if ((sdAddress - fileSystem.database) & (fileSystem.csize - 1)) {
 			FREEZE_WITH_ERROR("E276");
 		}
 

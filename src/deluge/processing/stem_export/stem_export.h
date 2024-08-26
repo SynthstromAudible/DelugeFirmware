@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright (c) 2024 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -18,11 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "processing/sound/sound_drum.h"
 #include "util/d_string.h"
 #include <cstdint>
 
 class Output;
 class Clip;
+class SoundDrum;
 
 class StemExport {
 public:
@@ -44,13 +46,17 @@ public:
 
 	// export config variables
 	bool allowNormalization;
+	bool allowNormalizationForDrums;
 	bool exportToSilence;
 	bool includeSongFX;
+	bool includeKitFX;
 	bool renderOffline;
+	bool exportMixdown;
 
 	// export instruments
-	int32_t disarmAllInstrumentsForStemExport();
+	int32_t disarmAllInstrumentsForStemExport(StemExportType stemExportType);
 	int32_t exportInstrumentStems(StemExportType stemExportType);
+	int32_t exportMixdownStem(StemExportType stemExportType);
 	void restoreAllInstrumentMutes(int32_t totalNumOutputs);
 
 	// export clips
@@ -63,9 +69,14 @@ public:
 	int32_t loopLengthToStopStemExport;
 	int32_t loopEndPointInSamplesForAudioFile;
 
+	// export drums
+	int32_t disarmAllDrumsForStemExport();
+	int32_t exportDrumStems(StemExportType stemExportType);
+	void restoreAllDrumMutes(int32_t totalNumNoteRows);
+
 	// start exporting
 	bool startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState, int32_t fileNumber,
-	                            bool exportStem);
+	                            bool exportStem, SoundDrum* drum = nullptr);
 
 	// finish exporting
 	void finishCurrentStemExport(StemExportType stemExportType, bool& muteState);
@@ -84,7 +95,8 @@ public:
 	Error getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
 	String lastFolderNameForStemExport;
-	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber);
+	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,
+	                                 SoundDrum* drum = nullptr);
 	String wavFileNameForStemExport;
 	bool wavFileNameForStemExportSet;
 

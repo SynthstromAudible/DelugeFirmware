@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019-2023 Synthstrom Audible Limited
+ * Copyright (c) 2024 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -25,7 +25,7 @@ public:
 	ConfigureSongMacros() = default;
 
 	char const* getTitle() override;
-	Sized<char const**> getOptions() override;
+	std::span<char const*> getOptions() override;
 	bool setupAndCheckAvailability();
 	bool acceptCurrentOption() override;
 	bool canSeeViewUnderneath() override { return true; }

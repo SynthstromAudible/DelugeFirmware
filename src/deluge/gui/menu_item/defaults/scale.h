@@ -34,7 +34,8 @@ public:
 
 	void drawName() override { display->setScrollingText(getName().data()); }
 
-	deluge::vector<std::string_view> getOptions() override {
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
 		deluge::vector<std::string_view> scales;
 		for (uint8_t i = 0; i < NUM_SCALELIKE; i++) {
 			if (i != USER_SCALE) {

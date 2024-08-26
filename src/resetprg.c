@@ -54,6 +54,7 @@
 #include "RZA1/system/r_typedefs.h"
 
 #include "RZA1/bsc/bsc_userdef.h" //sdram init
+#include "RZA1/cache/cache.h"
 #include "RZA1/compiler/asm/inc/asm.h"
 #include "RZA1/gpio/gpio.h"
 #include "RZA1/stb/stb.h"
@@ -72,14 +73,14 @@
 #define HAVE_CALL_INDIRECT
 #endif
 
-extern int R_CACHE_L1Init(void);
-
 extern void __libc_init_array(void);
 
 #define PLACEMENT_SDRAM_START (0x0C000000)
 #define PLACEMENT_INTRAM_START (0x20020000)
 #define PLACEMENT_FLASH_START (0x18080000) // Copied from bootloader, start address of firmware image in flash
 
+extern uint32_t __reloc_sections_start__;
+extern uint32_t __reloc_sections_end__;
 extern uint32_t __heap_start;
 extern uint32_t __frunk_bss_start;
 extern uint32_t __frunk_bss_end;
@@ -89,6 +90,8 @@ extern uint32_t __sdram_text_start;
 extern uint32_t __sdram_text_end;
 extern uint32_t __sdram_data_start;
 extern uint32_t __sdram_data_end;
+extern uint32_t __sdram_rodata_start;
+extern uint32_t __sdram_rodata_end;
 
 void* __dso_handle = NULL;
 
@@ -127,6 +130,7 @@ static void relocateSDRAMSection(uint32_t* start, uint32_t* end) {
  *******************************************************************************/
 void resetprg(void) {
 	emptySection(&__frunk_bss_start, &__frunk_bss_end);
+	emptySection(&__sdram_bss_start, &__sdram_bss_end);
 
 	// Enable all modules' clocks --------------------------------------------------------------
 	STB_Init();
@@ -176,20 +180,24 @@ void resetprg(void) {
 
 	R_INTC_Init(); // Set up interrupt controller
 
-	R_CACHE_L1Init(); // Makes everything go about 1000x faster
+	// branch prediction, data cache, instruction cache
+	R_CACHE_L1Init();
 
+	// must be second or l1 will flush into it. Note this is currently instruction caching only, DMA has
+	// bad interactions with data caching in L2 since it's physically after the DMA controllers
+	L2CacheInit();
 	__enable_irq();
 	__enable_fiq();
 	// Setup SDRAM. Have to do this before we init global objects
 	userdef_bsc_cs2_init(0); // 64MB, hardcoded
 
-#if !defined(NDEBUG)
 	const uint32_t SDRAM_SIZE = EXTERNAL_MEMORY_END - EXTERNAL_MEMORY_BEGIN;
 	memset((void*)EXTERNAL_MEMORY_BEGIN, 0, SDRAM_SIZE);
-#endif
 
+	relocateSDRAMSection(&__reloc_sections_start__, &__reloc_sections_end__);
 	relocateSDRAMSection(&__sdram_text_start, &__sdram_text_end);
 	relocateSDRAMSection(&__sdram_data_start, &__sdram_data_end);
+	relocateSDRAMSection(&__sdram_rodata_start, &__sdram_rodata_end);
 
 	__libc_init_array();
 	// located in OSLikeStuff/main.c

@@ -21,46 +21,59 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-constexpr int32_t kMinDrumPadEdgeSize = 1;
-constexpr int32_t kMaxDrumPadEdgeSize = 8;
+constexpr int32_t k_min_zoom_level = 0;
+constexpr int32_t k_max_zoom_level = 12;
 
-class KeyboardLayoutVelocityDrums : KeyboardLayout {
+// The zoom_arr is used to set the edge sizes of the pads {x size, y size} on each zoom level.
+const int32_t zoom_arr[13][2] = {{1, 1}, {2, 1}, {3, 1}, {2, 2}, {3, 2}, {4, 2}, {5, 2},
+                                 {3, 4}, {4, 4}, {5, 4}, {8, 4}, {8, 8}, {16, 8}};
+
+class KeyboardLayoutVelocityDrums : public KeyboardLayout {
 public:
-	KeyboardLayoutVelocityDrums() {}
-	~KeyboardLayoutVelocityDrums() override {}
+	KeyboardLayoutVelocityDrums() = default;
+	~KeyboardLayoutVelocityDrums() override = default;
+	void precalculate() override {}
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
 	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses],
 	                             bool encoderPressed = false) override;
-	void precalculate() override;
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
-	char const* name() override { return "Drums"; }
+	l10n::String name() override { return l10n::String::STRING_FOR_KEYBOARD_LAYOUT_VELOCITY_DRUMS; }
 	bool supportsInstrument() override { return false; }
 	bool supportsKit() override { return true; }
 
 private:
-	inline uint8_t noteFromCoords(int32_t x, int32_t y) {
-		uint8_t edgeSize = (uint32_t)getState().drums.edgeSize;
-		uint8_t padsPerRow = kDisplayWidth / edgeSize;
-		return (x / edgeSize) + ((y / edgeSize) * padsPerRow) + getState().drums.scrollOffset;
+	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint32_t edge_size_x, uint32_t edge_size_y) {
+		uint32_t velocity = 0;
+		if (edge_size_x == 1) {
+			// No need to do a lot of calculations or use max velocity for only one option.
+			velocity = FlashStorage::defaultVelocity * 2;
+		}
+		else {
+			bool odd_pad = (edge_size_x % 2 == 1);              // check if the view has odd width pads
+			uint32_t x_limit = kDisplayWidth - 2 - edge_size_x; // end of second to last pad in a row (the regular pads)
+			bool x_adjust = (odd_pad && x > x_limit);
+			uint32_t localX = x_adjust ? x - x_limit : x % (edge_size_x);
+
+			if (edge_size_y == 1) {
+				velocity = (localX + 1) * 200 / (edge_size_x + x_adjust); // simpler, more useful, easier on the ears.
+			}
+			else {
+				if (edge_size_x % 2 == 1 && x > kDisplayWidth - 2 - edge_size_x)
+					edge_size_x += 1;
+				uint32_t position = localX + 1;
+				position += ((y % edge_size_y) * (edge_size_x + x_adjust));
+				// We use two bytes to keep the precision of the calculations high,
+				// then shift it down to one byte at the end.
+				uint32_t stepSize = 0xFFFF / ((edge_size_x + x_adjust) * edge_size_y);
+				velocity = (position * stepSize) >> 8;
+			}
+		}
+		return velocity; // returns an integer value 0-255, which will then be divided by 2 to get 0-127
 	}
-
-	inline uint8_t intensityFromCoords(int32_t x, int32_t y) {
-		uint8_t edgeSize = getState().drums.edgeSize;
-		uint8_t localX = (x % edgeSize);
-		uint8_t localY = (y % edgeSize);
-		uint8_t position = localX + (localY * edgeSize) + 1;
-
-		// We use two bytes to increase accuracy and shift it down to one byte later
-		uint32_t stepSize = 0xFFFF / (edgeSize * edgeSize);
-
-		return (position * stepSize) >> 8;
-	}
-
-	RGB noteColours[kDisplayHeight * kDisplayWidth];
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

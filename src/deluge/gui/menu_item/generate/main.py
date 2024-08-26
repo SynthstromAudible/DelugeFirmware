@@ -11,8 +11,9 @@ top_level_menus = (
         dmenus.compressor.menu,
         dmenus.unison.menu,
     ]
-    + dmenus.envelopes.menus
     + dmenus.oscillator.menus
+    + dmenus.envelope.menus
+    + dmenus.lfo.menus
 )
 
 

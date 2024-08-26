@@ -30,7 +30,14 @@ set_target_properties(deluge_dsp
 target_link_libraries(deluge_dsp PRIVATE
     NE10
     eyalroz_printf
+    argon
 )
+
+target_compile_definitions(deluge_dsp PUBLIC
+        $<$<CONFIG:DEBUG,RELWITHDEBINFO>:IN_HARDWARE_DEBUG=1>
+        $<$<CONFIG:DEBUG,RELWITHDEBINFO>:ENABLE_TEXT_OUTPUT=1>
+)
+
 target_compile_options(deluge_dsp PRIVATE
     ${DELUGE_COMMON_COMPILE_OPTIONS}
     # use a unity build instead (combine all cpp to one before compiling), which has similar gains without the arm/thumb issues

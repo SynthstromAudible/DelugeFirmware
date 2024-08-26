@@ -1,105 +1,126 @@
 #pragma once
 #include "definitions_cxx.hpp"
+#include "dsp/compressor/rms_feedback.h"
+#include "gui/menu_item/decimal.h"
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/song/song.h"
 #include "modulation/params/param_set.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "util/fixedpoint.h"
 
 namespace deluge::gui::menu_item::audio_compressor {
-class Attack final : public Integer {
-public:
-	using Integer::Integer;
-	void readCurrentValue() override {
-		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getAttack();
+
+class CompressorValue : public DecimalWithoutScrolling {
+	using DecimalWithoutScrolling::DecimalWithoutScrolling;
+	void readCurrentValue() final {
+		uint64_t value = getCompressorValue();
 		this->setValue(value >> 24);
 	}
-	void writeCurrentValue() override {
+	void writeCurrentValue() final {
 		auto value = this->getValue();
-		if (value < kMaxKnobPos) {
-			q31_t knobPos = lshiftAndSaturate<24>(value);
-			soundEditor.currentModControllable->compressor.setAttack(knobPos);
+		if (value >= kMaxKnobPos) {
+			value = kMaxKnobPos - 1;
+		}
+		q31_t knobPos = lshiftAndSaturate<24>(value);
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+
+					setCompressorValue(knobPos, &soundDrum->compressor);
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			setCompressorValue(knobPos, &soundEditor.currentModControllable->compressor);
 		}
 	}
-	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
-	const char* getUnit() override { return " MS"; }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
+	virtual uint64_t getCompressorValue() = 0;
+	virtual void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) = 0;
+	[[nodiscard]] int32_t getMaxValue() const final { return kMaxKnobPos; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
+	const char* getUnit() override { return "MS"; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return KNOB; }
 };
-class Release final : public Integer {
+
+class Attack final : public CompressorValue {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override {
-		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getRelease();
-		this->setValue(value >> 24);
+	using CompressorValue::CompressorValue;
+	uint64_t getCompressorValue() override {
+		return (uint64_t)soundEditor.currentModControllable->compressor.getAttack();
 	}
-	void writeCurrentValue() override {
-		auto value = this->getValue();
-		if (value < kMaxKnobPos) {
-			q31_t knobPos = lshiftAndSaturate<24>(value);
-			soundEditor.currentModControllable->compressor.setRelease(knobPos);
-		}
-	}
-	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
-	const char* getUnit() override { return " MS"; }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
+	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override { compressor->setAttack(value); }
+	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return ATTACK; }
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_ATTACK_SHORT)); }
 };
-class Ratio final : public Integer {
+class Release final : public CompressorValue {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override {
-		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getRatio();
-		this->setValue(value >> 24);
+	using CompressorValue::CompressorValue;
+	uint64_t getCompressorValue() final {
+		return (uint64_t)soundEditor.currentModControllable->compressor.getRelease();
 	}
-	void writeCurrentValue() override {
-		auto value = this->getValue();
-		if (value < kMaxKnobPos) {
-			q31_t knobPos = lshiftAndSaturate<24>(value);
-			soundEditor.currentModControllable->compressor.setRatio(knobPos);
-		}
+	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) final { compressor->setRelease(value); }
+	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 1; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RELEASE; }
+
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_RELEASE_SHORT)); }
+};
+class Ratio final : public CompressorValue {
+public:
+	using CompressorValue::CompressorValue;
+	uint64_t getCompressorValue() override {
+		return (uint64_t)soundEditor.currentModControllable->compressor.getRatio();
 	}
-	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getRatioForDisplay(); }
+	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override { compressor->setRatio(value); }
+	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getRatioForDisplay(); }
 	const char* getUnit() override { return " : 1"; }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
 };
-class SideHPF final : public Integer {
+class SideHPF final : public CompressorValue {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override {
-		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getSidechain();
-		this->setValue(value >> 24);
+	using CompressorValue::CompressorValue;
+	uint64_t getCompressorValue() override {
+		return (uint64_t)soundEditor.currentModControllable->compressor.getSidechain();
 	}
-	void writeCurrentValue() override {
-		auto value = this->getValue();
-		if (value < kMaxKnobPos) {
-			q31_t knobPos = lshiftAndSaturate<24>(value);
-			soundEditor.currentModControllable->compressor.setSidechain(knobPos);
-		}
+	void setCompressorValue(q31_t value, RMSFeedbackCompressor* compressor) override {
+		compressor->setSidechain(value);
 	}
-	int32_t getDisplayValue() override {
-		return soundEditor.currentModControllable->compressor.getSidechainForDisplay();
-	}
-	const char* getUnit() override { return " HZ"; }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
+	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getSidechainForDisplay(); }
+	const char* getUnit() override { return "HZ"; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return HPF; }
 };
-class Blend final : public Integer {
+class Blend final : public CompressorValue {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override {
-		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getBlend();
-		this->setValue(value >> 24);
-	}
-	void writeCurrentValue() override {
+	using CompressorValue::CompressorValue;
+	uint64_t getCompressorValue() final { return (uint64_t)soundEditor.currentModControllable->compressor.getBlend(); }
+	void setCompressorValue(q31_t, RMSFeedbackCompressor* compressor) final {
 		auto value = this->getValue();
+
+		q31_t knobPos;
 		if (value < kMaxKnobPos) {
-			q31_t knobPos = lshiftAndSaturate<24>(value);
-			soundEditor.currentModControllable->compressor.setBlend(knobPos);
+			knobPos = lshiftAndSaturate<24>(value);
 		}
-		else if (value == kMaxKnobPos) {
-			soundEditor.currentModControllable->compressor.setBlend(ONE_Q31);
+		else {
+			knobPos = ONE_Q31;
 		}
+		compressor->setBlend(knobPos);
 	}
-	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
+
+	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
 	const char* getUnit() override { return " %"; }
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 0; }
+	[[nodiscard]] int32_t getOccupiedSlots() const override { return 1; }
 };
 } // namespace deluge::gui::menu_item::audio_compressor

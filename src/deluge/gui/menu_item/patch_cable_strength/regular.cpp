@@ -27,15 +27,6 @@
 namespace deluge::gui::menu_item::patch_cable_strength {
 Regular regularMenu{};
 
-MenuItem* Regular::selectButtonPress() {
-
-	// If shift held down, delete automation
-	if (Buttons::isShiftButtonPressed()) {
-		return PatchCableStrength::selectButtonPress();
-	}
-	return &source_selection::rangeMenu;
-}
-
 ParamDescriptor Regular::getLearningThing() {
 	ParamDescriptor paramDescriptor;
 	paramDescriptor.setToHaveParamAndSource(soundEditor.patchingParamSelected, source_selection::regularMenu.s);

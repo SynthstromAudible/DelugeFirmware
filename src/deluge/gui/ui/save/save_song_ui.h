@@ -27,9 +27,10 @@ public:
 	bool opened();
 	void focusRegained();
 	// void selectEncoderAction(int8_t offset);
-	bool performSave(StorageManager& bdsm, bool mayOverwrite = false);
-	const char* getName() { return "save_song_ui"; }
+	bool performSave(bool mayOverwrite = false) override;
 	bool collectingSamples;
+	// ui
+	UIType getUIType() override { return UIType::SAVE_SONG; }
 
 protected:
 	// int32_t arrivedInNewFolder(int32_t direction);

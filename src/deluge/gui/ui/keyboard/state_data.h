@@ -30,8 +30,8 @@ struct KeyboardStateIsomorphic {
 };
 
 struct KeyboardStateDrums {
-	int32_t scrollOffset = 0;
-	int32_t edgeSize = 4;
+	int32_t scroll_offset = 0;
+	int32_t zoom_level = 8;
 };
 
 constexpr int32_t kDefaultInKeyRowInterval = 3;
@@ -39,6 +39,13 @@ struct KeyboardStateInKey {
 	// Init scales have 7 elements, multipled by three octaves gives us C1 as first pad
 	int32_t scrollOffset = (7 * 3);
 	int32_t rowInterval = kDefaultInKeyRowInterval;
+};
+
+struct KeyboardStatePiano {
+	// default octave = 1 (0 = -2oct), use a vertical scroll to change it
+	int32_t scrollOffset = 3;
+	// default note=0 (C)
+	int32_t noteOffset = 0;
 };
 
 struct KeyboardStateChordLibrary {
@@ -63,6 +70,7 @@ struct KeyboardState {
 	KeyboardStateIsomorphic isomorphic;
 	KeyboardStateDrums drums;
 	KeyboardStateInKey inKey;
+	KeyboardStatePiano piano;
 	KeyboardStateChord chord;
 	KeyboardStateChordLibrary chordLibrary;
 

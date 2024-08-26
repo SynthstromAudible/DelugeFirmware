@@ -39,7 +39,10 @@ extern uint8_t anyUSBSendingStillHappening[];
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
-PLACE_INTERNAL_FRUNK ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
+#define SETTINGS_FOLDER "SETTINGS"
+#define MIDI_DEVICES_XML "SETTINGS/MIDIDevices.XML"
+
+PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 
 namespace MIDIDeviceManager {
 
@@ -56,10 +59,10 @@ std::array<USBDev, USB_NUM_USBIP> usbDeviceCurrentlyBeingSetUp{};
 
 // This class represents a thing you can send midi too,
 // the virtual cable is an implementation detail
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{0};
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1};
-MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2};
-MIDIDeviceDINPorts dinMIDIPorts{};
+PLACE_SDRAM_BSS MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{0, false, true};
+PLACE_SDRAM_BSS MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1, true, false};
+PLACE_SDRAM_BSS MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2, false, false};
+PLACE_SDRAM_BSS MIDIDeviceDINPorts dinMIDIPorts{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
@@ -439,7 +442,7 @@ void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint
 	}
 }
 
-void writeDevicesToFile(StorageManager& bdsm) {
+void writeDevicesToFile() {
 	if (!anyChangesToSave) {
 		return;
 	}
@@ -464,17 +467,17 @@ void writeDevicesToFile(StorageManager& bdsm) {
 	}
 
 	// If still here, nothing worth writing. Delete the file if there was one.
-	f_unlink("MIDIDevices.XML"); // May give error, but no real consequence from that.
+	f_unlink(MIDI_DEVICES_XML); // May give error, but no real consequence from that.
 	return;
 
 worthIt:
-	Error error = bdsm.createXMLFile("MIDIDevices.XML", smSerializer, true);
+	Error error = StorageManager::createXMLFile(MIDI_DEVICES_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
 
 	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
-	Serializer& writer = smSerializer;
+	Serializer& writer = GetSerializer();
 	writer.writeOpeningTagBeginning("midiDevices");
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.0.0");
@@ -511,22 +514,36 @@ worthIt:
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
-void readDevicesFromFile(StorageManager& bdsm) {
+void readDevicesFromFile() {
 	if (successfullyReadDevicesFromFile) {
 		return; // Yup, we only want to do this once
 	}
 
 	FilePointer fp;
-	bool success = bdsm.fileExists("MIDIDevices.XML", &fp);
+	bool success = StorageManager::fileExists(MIDI_DEVICES_XML, &fp);
 	if (!success) {
-		return;
+		// since we changed the file path for the MIDIDevices.XML in c1.3, it's possible
+		// that a MIDIDevice file may exists in the root of the SD card
+		// if so, let's move it to the new SETTINGS folder (but first make sure folder exists)
+		FRESULT result = f_mkdir(SETTINGS_FOLDER);
+		if (result == FR_OK || result == FR_EXIST) {
+			result = f_rename("MIDIDevices.XML", MIDI_DEVICES_XML);
+			if (result == FR_OK) {
+				// this means we moved it
+				// now let's open it
+				success = StorageManager::fileExists(MIDI_DEVICES_XML, &fp);
+			}
+		}
+		if (!success) {
+			return;
+		}
 	}
 
-	Error error = bdsm.openXMLFile(&fp, smDeserializer, "midiDevices");
+	Error error = StorageManager::openXMLFile(&fp, smDeserializer, "midiDevices");
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "dinPorts")) {
@@ -548,7 +565,7 @@ void readDevicesFromFile(StorageManager& bdsm) {
 		reader.exitTag();
 	}
 
-	bdsm.closeFile();
+	activeDeserializer->closeWriter();
 
 	recountSmallestMPEZones();
 

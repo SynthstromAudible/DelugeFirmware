@@ -49,9 +49,10 @@ public:
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
+	bool updatedRecordingStatus = false;
+
 	// ui
-	UIType getUIType() { return UIType::AUDIO_RECORDER; }
-	const char* getName() { return "audio_recorder"; }
+	UIType getUIType() override { return UIType::AUDIO_RECORDER; }
 
 private:
 	void finishRecording();

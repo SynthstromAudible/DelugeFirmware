@@ -26,8 +26,12 @@
 #include "hid/display/display.h"
 #include "hid/encoders.h"
 #include "modulation/arpeggiator.h"
+#include "processing/audio_output.h"
 #include "processing/sound/sound.h"
+#include "storage/flash_storage.h"
+#include "util/lookuptables/lookuptables.h"
 #include <cmath>
+#include <cstdint>
 #include <string.h>
 
 extern "C" {
@@ -53,6 +57,8 @@ int32_t getParamRange(int32_t p) {
 	switch (p) {
 	case params::LOCAL_ENV_0_ATTACK:
 	case params::LOCAL_ENV_1_ATTACK:
+	case params::LOCAL_ENV_2_ATTACK:
+	case params::LOCAL_ENV_3_ATTACK:
 		return 536870912 * 1.5;
 
 	case params::GLOBAL_DELAY_RATE:
@@ -96,8 +102,10 @@ int32_t getParamNeutralValue(int32_t p) {
 	case params::LOCAL_HPF_FREQ:
 		return 2672947;
 
-	case params::GLOBAL_LFO_FREQ:
-	case params::LOCAL_LFO_LOCAL_FREQ:
+	case params::GLOBAL_LFO_FREQ_1:
+	case params::GLOBAL_LFO_FREQ_2:
+	case params::LOCAL_LFO_LOCAL_FREQ_1:
+	case params::LOCAL_LFO_LOCAL_FREQ_2:
 	case params::GLOBAL_MOD_FX_RATE:
 		return 121739; // lfoRateTable[userValue];
 
@@ -115,18 +123,26 @@ int32_t getParamNeutralValue(int32_t p) {
 
 	case params::LOCAL_ENV_0_ATTACK:
 	case params::LOCAL_ENV_1_ATTACK:
+	case params::LOCAL_ENV_2_ATTACK:
+	case params::LOCAL_ENV_3_ATTACK:
 		return 4096; // attackRateTable[userValue];
 
 	case params::LOCAL_ENV_0_RELEASE:
 	case params::LOCAL_ENV_1_RELEASE:
+	case params::LOCAL_ENV_2_RELEASE:
+	case params::LOCAL_ENV_3_RELEASE:
 		return 140 << 9; // releaseRateTable[userValue];
 
 	case params::LOCAL_ENV_0_DECAY:
 	case params::LOCAL_ENV_1_DECAY:
+	case params::LOCAL_ENV_2_DECAY:
+	case params::LOCAL_ENV_3_DECAY:
 		return 70 << 9; // releaseRateTable[userValue] >> 1;
 
 	case params::LOCAL_ENV_0_SUSTAIN:
 	case params::LOCAL_ENV_1_SUSTAIN:
+	case params::LOCAL_ENV_2_SUSTAIN:
+	case params::LOCAL_ENV_3_SUSTAIN:
 	case params::GLOBAL_DELAY_FEEDBACK:
 		return 1073741824; // 536870912;
 
@@ -231,10 +247,10 @@ int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValu
 
 int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p) {
 	// TODO: this is horribly hard-coded, but works for now
-	if (p >= params::LOCAL_ENV_0_DECAY && p <= params::LOCAL_ENV_1_RELEASE) {
+	if (params::LOCAL_ENV_0_DECAY <= p && p <= params::LOCAL_ENV_3_RELEASE) {
 		return multiply_32x32_rshift32(paramNeutralValue, lookupReleaseRate(patchedValue));
 	}
-	if (p == params::LOCAL_ENV_0_ATTACK || p == params::LOCAL_ENV_1_ATTACK) {
+	if (params::LOCAL_ENV_0_ATTACK <= p && p <= params::LOCAL_ENV_3_ATTACK) {
 		patchedValue = -patchedValue;
 	}
 
@@ -265,17 +281,29 @@ int32_t cableToExpParamShortcut(int32_t sourceValue) {
 
 char const* sourceToString(PatchSource source) {
 	switch (source) {
-	case PatchSource::LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL_1:
 		return "lfo1";
 
-	case PatchSource::LFO_LOCAL:
+	case PatchSource::LFO_GLOBAL_2:
+		return "lfo3";
+
+	case PatchSource::LFO_LOCAL_1:
 		return "lfo2";
+
+	case PatchSource::LFO_LOCAL_2:
+		return "lfo4";
 
 	case PatchSource::ENVELOPE_0:
 		return "envelope1";
 
 	case PatchSource::ENVELOPE_1:
 		return "envelope2";
+
+	case PatchSource::ENVELOPE_2:
+		return "envelope3";
+
+	case PatchSource::ENVELOPE_3:
+		return "envelope4";
 
 	case PatchSource::VELOCITY:
 		return "velocity";
@@ -308,17 +336,29 @@ char const* getSourceDisplayNameForOLED(PatchSource s) {
 	auto lang = l10n::chosenLanguage;
 
 	switch (s) {
-	case PatchSource::LFO_GLOBAL:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL);
+	case PatchSource::LFO_GLOBAL_1:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_1);
 
-	case PatchSource::LFO_LOCAL:
-		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL);
+	case PatchSource::LFO_GLOBAL_2:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_2);
+
+	case PatchSource::LFO_LOCAL_1:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL_1);
+
+	case PatchSource::LFO_LOCAL_2:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_LFO_LOCAL_2);
 
 	case PatchSource::ENVELOPE_0:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_0);
 
 	case PatchSource::ENVELOPE_1:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_1);
+
+	case PatchSource::ENVELOPE_2:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_2);
+
+	case PatchSource::ENVELOPE_3:
+		return l10n::get(STRING_FOR_PATCH_SOURCE_ENVELOPE_3);
 
 	case PatchSource::VELOCITY:
 		return l10n::get(STRING_FOR_PATCH_SOURCE_VELOCITY);
@@ -359,17 +399,29 @@ PatchSource stringToSource(char const* string) {
 // all should be four chars, to fit a fixed column layout
 char const* sourceToStringShort(PatchSource source) {
 	switch (source) {
-	case PatchSource::LFO_GLOBAL:
+	case PatchSource::LFO_GLOBAL_1:
 		return "lfo1";
 
-	case PatchSource::LFO_LOCAL:
+	case PatchSource::LFO_GLOBAL_2:
+		return "lfo3";
+
+	case PatchSource::LFO_LOCAL_1:
 		return "lfo2";
+
+	case PatchSource::LFO_LOCAL_2:
+		return "lfo4";
 
 	case PatchSource::ENVELOPE_0:
 		return "env1";
 
 	case PatchSource::ENVELOPE_1:
 		return "env2";
+
+	case PatchSource::ENVELOPE_2:
+		return "env3";
+
+	case PatchSource::ENVELOPE_3:
+		return "env4";
 
 	case PatchSource::VELOCITY:
 		return "velo";
@@ -578,8 +630,19 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel) {
 		}
 	case OutputType::CV:
 		return "CV / gate";
-	case OutputType::AUDIO:
+	case OutputType::AUDIO: {
+		auto mode = static_cast<AudioOutputMode>(channel);
+		switch (mode) {
+
+		case AudioOutputMode::player:
+			return "Audio Player";
+		case AudioOutputMode::sampler:
+			return "Audio Sampler";
+		case AudioOutputMode::looper:
+			return "Audio Looper";
+		}
 		return "Audio";
+	}
 	default:
 		return "None";
 	}
@@ -780,7 +843,8 @@ char const* lfoTypeToString(LFOType oscType) {
 
 	case LFOType::RANDOM_WALK:
 		return "rwalk";
-
+	case LFOType::WARBLER:
+		return "warbler";
 	default:
 		return "triangle";
 	}
@@ -798,6 +862,9 @@ LFOType stringToLFOType(char const* string) {
 	}
 	else if (!strcmp(string, "sah")) {
 		return LFOType::SAMPLE_AND_HOLD;
+	}
+	else if (!strcmp(string, "warbler")) {
+		return LFOType::WARBLER;
 	}
 	else if (!strcmp(string, "rwalk")) {
 		return LFOType::RANDOM_WALK;
@@ -879,6 +946,10 @@ char const* fxTypeToString(ModFXType fxType) {
 	switch (fxType) {
 	case ModFXType::FLANGER:
 		return "flanger";
+	case ModFXType::WARBLE:
+		return "TapeWarble";
+	case ModFXType::DIMENSION:
+		return "dimension";
 
 	case ModFXType::CHORUS:
 		return "chorus";
@@ -899,6 +970,12 @@ char const* fxTypeToString(ModFXType fxType) {
 ModFXType stringToFXType(char const* string) {
 	if (!strcmp(string, "flanger")) {
 		return ModFXType::FLANGER;
+	}
+	else if (!strcmp(string, "TapeWarble")) {
+		return ModFXType::WARBLE;
+	}
+	else if (!strcmp(string, "dimension")) {
+		return ModFXType::DIMENSION;
 	}
 	else if (!strcmp(string, "chorus")) {
 		return ModFXType::CHORUS;
@@ -1019,30 +1096,6 @@ char const* oldArpModeToString(OldArpMode mode) {
 	}
 }
 
-char const* arpPresetToOldArpMode(ArpPreset preset) {
-	switch (preset) {
-	case ArpPreset::OFF:
-		return "off";
-
-	case ArpPreset::UP:
-		return "up";
-
-	case ArpPreset::DOWN:
-		return "down";
-
-	case ArpPreset::BOTH:
-		return "both";
-
-	case ArpPreset::RANDOM:
-		return "random";
-
-	default:
-		// In case the user selected a Custom mode, we don't know how to convert it to
-		// the old mode so we default to "up" cause at least the arp is ON for sure
-		return "up";
-	}
-}
-
 OldArpMode stringToOldArpMode(char const* string) {
 	if (!strcmp(string, "up")) {
 		return OldArpMode::UP;
@@ -1094,6 +1147,18 @@ char const* arpNoteModeToString(ArpNoteMode mode) {
 	case ArpNoteMode::RANDOM:
 		return "random";
 
+	case ArpNoteMode::WALK1:
+		return "walk1";
+
+	case ArpNoteMode::WALK2:
+		return "walk2";
+
+	case ArpNoteMode::WALK3:
+		return "walk3";
+
+	case ArpNoteMode::PATTERN:
+		return "pattern";
+
 	default:
 		return "up";
 	}
@@ -1108,6 +1173,18 @@ ArpNoteMode stringToArpNoteMode(char const* string) {
 	}
 	else if (!strcmp(string, "asPlayed")) {
 		return ArpNoteMode::AS_PLAYED;
+	}
+	else if (!strcmp(string, "walk1")) {
+		return ArpNoteMode::WALK1;
+	}
+	else if (!strcmp(string, "walk2")) {
+		return ArpNoteMode::WALK2;
+	}
+	else if (!strcmp(string, "walk3")) {
+		return ArpNoteMode::WALK3;
+	}
+	else if (!strcmp(string, "pattern")) {
+		return ArpNoteMode::PATTERN;
 	}
 	else if (!strcmp(string, "random")) {
 		return ArpNoteMode::RANDOM;
@@ -1314,17 +1391,6 @@ char const* getInstrumentFolder(OutputType outputType) {
 	}
 }
 
-void getThingFilename(char const* thingName, int16_t currentSlot, int8_t currentSubSlot, char* buffer) {
-	strcpy(buffer, thingName);
-	intToString(currentSlot, &buffer[strlen(thingName)], 3);
-	if (currentSubSlot != -1) {
-		buffer[strlen(thingName) + 3] = currentSubSlot + 65;
-		buffer[strlen(thingName) + 4] = 0;
-	}
-
-	strcat(buffer, ".XML");
-}
-
 bool isAudioFilename(char const* filename) {
 	if (filename[0] == '.') {
 		return false;
@@ -1504,7 +1570,7 @@ int32_t fastPythag(int32_t x, int32_t y) {
 		x = a;
 	}
 
-	int32_t divisor = x >> 8;
+	int32_t divisor = x << 8;
 	if (divisor == 0) {
 		return 0;
 	}
@@ -1870,10 +1936,15 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	int32_t octave = (noteCode) / 12 - 2;
 	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
 
-	*thisChar = noteCodeToNoteLetter[noteCodeWithinOctave];
+	bool useSharps = FlashStorage::defaultUseSharps;
+
+	*thisChar =
+	    useSharps ? noteCodeToNoteLetter[noteCodeWithinOctave] : noteCodeToNoteLetterFlats[noteCodeWithinOctave];
+
 	thisChar++;
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		*thisChar = display->haveOLED() ? '#' : '.';
+		char accidential = useSharps ? '#' : FLAT_CHAR;
+		*thisChar = display->haveOLED() ? accidential : '.';
 		thisChar++;
 	}
 	if (appendOctaveNo) {
@@ -1982,32 +2053,6 @@ int32_t getWhichKernel(int32_t phaseIncrement) {
 	}
 }
 
-void dissectIterationDependence(int32_t probability, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor) {
-	int32_t value = (probability & 127) - kNumProbabilityValues - 1;
-	int32_t whichRepeat;
-
-	int32_t tryingWhichDivisor;
-
-	for (tryingWhichDivisor = 2; tryingWhichDivisor <= 8; tryingWhichDivisor++) {
-		if (value < tryingWhichDivisor) {
-			*getWhichIterationWithinDivisor = value;
-			break;
-		}
-
-		value -= tryingWhichDivisor;
-	}
-
-	*getDivisor = tryingWhichDivisor;
-}
-
-int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDivisor) {
-	int32_t value = iterationWithinDivisor;
-	for (int32_t i = 2; i < divisor; i++) {
-		value += i;
-	}
-	return value + 1 + kNumProbabilityValues;
-}
-
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 	int32_t count = 0;
 	while (true) {
@@ -2065,7 +2110,9 @@ void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude,
 			// for "rd")
 			char const* suffix = ((division % 10) == 2) ? "nd" : "th";
 			noteLengthBuf.append(suffix);
-			noteLengthBuf.append(notesString);
+			if (notesString != nullptr) {
+				noteLengthBuf.append(notesString);
+			}
 		}
 		else {
 			uint32_t numBars = (uint32_t)1 << magnitude;
@@ -2123,6 +2170,11 @@ void getNoteLengthNameFromMagnitude(StringBuf& noteLengthBuf, int32_t magnitude,
 char const* getFileNameFromEndOfPath(char const* filePathChars) {
 	char const* slashPos = strrchr(filePathChars, '/');
 	return slashPos ? (slashPos + 1) : filePathChars;
+}
+
+char const* getPathFromFullPath(const char* fullPath) {
+	const char* slashPos = strrchr(fullPath, '/');
+	return slashPos ? std::string(fullPath, slashPos).c_str() : "";
 }
 
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength) {
@@ -2203,3 +2255,9 @@ Error fatfsErrorToDelugeError(FatFS::Error result) {
 
 char miscStringBuffer[kFilenameBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
 char shortStringBuffer[kShortStringBufferSize] __attribute__((aligned(CACHE_LINE_SIZE)));
+
+float sigmoidLikeCurve(const float x, const float xMax, const float softening) {
+	const float raw = x / (x + softening);
+	const float maxVal = xMax / (xMax + softening);
+	return raw / maxVal;
+};
