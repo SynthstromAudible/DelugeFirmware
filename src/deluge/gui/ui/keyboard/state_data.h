@@ -55,6 +55,14 @@ struct KeyboardStateChord {
 	int32_t scaleOffset = 0;
 	bool autoVoiceLeading = false;
 };
+
+constexpr int32_t kDefaultPianoRowInterval = 7;
+struct KeyboardStatePiano {
+	// Init scales have 7 elements, multipled by three octaves gives us C1 as first pad
+	int32_t scrollOffset = (7 * 3);
+	int32_t rowInterval = kDefaultPianoRowInterval;
+};
+
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
 /// share one struct for storage
 struct KeyboardState {
@@ -65,6 +73,7 @@ struct KeyboardState {
 	KeyboardStateInKey inKey;
 	KeyboardStateChord chord;
 	KeyboardStateChordLibrary chordLibrary;
+	KeyboardStatePiano piano;
 
 	layout::ColumnControlState columnControl;
 };
