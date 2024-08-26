@@ -266,7 +266,9 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 	if (error != Error::NONE) {
 		return error;
 	}
-
+	// this caches the last used numbers in the main folders to avoid repeated reads. This is probably good there since
+	// some people have hundreds of recordings, but it's unnecessary for song specific folders since the number of
+	// recordings will be much smaller
 	if (highestUsedAudioRecordingNumberNeedsReChecking[folderID]) {
 
 		FRESULT result = f_opendir(&staticDIR, audioRecordingFolderNames[folderID]);
@@ -321,7 +323,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		}
 	}
 
-	// default to putting it in the normal spot if the song isn't named
+	// default to putting it in the main folder if the song isn't named
 	if (songName->isEmpty()) {
 		error = filePath->concatenate("/REC");
 		if (error != Error::NONE) {
@@ -336,24 +338,47 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 			return error;
 		}
 		highestUsedAudioRecordingNumber[folderID]++;
+
+		if (doingTempFolder) {
+			error =
+			    tempFilePathForRecording->concatenate(&filePath->get()[strlen(audioRecordingFolderNames[folderID])]);
+			if (error != Error::NONE) {
+				return error;
+			}
+		}
 	}
+	// otherwise file it under the song name
 	else {
 		char namedPath[255]{0};
-		snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_000.wav", filePath->get(), songName->get(), channelName);
-		int i = 1;
-		while (storageManager.fileExists(namedPath)) {
+		char tempPath[255]{0};
+		int i = 0;
+		bool changed = true;
+		// iterate through the main and temp folders until we find a path that's free in both
+		while (changed) {
+			changed = false;
 			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath->get(), songName->get(), channelName,
 			         i);
-			i++;
+			while (storageManager.fileExists(namedPath)) {
+				snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath->get(), songName->get(),
+				         channelName, i);
+				i++;
+				changed = true;
+			}
+			snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->get(), songName->get(),
+			         channelName, i);
+
+			while (storageManager.fileExists(tempPath)) {
+				snprintf(tempPath, sizeof(tempPath), "%s/%s/%s_%03d.wav", tempFilePathForRecording->get(),
+				         songName->get(), channelName, i);
+				i++;
+				changed = true;
+			}
 		}
 		error = filePath->set(namedPath);
 		if (error != Error::NONE) {
 			return error;
 		}
-	}
-
-	if (doingTempFolder) {
-		error = tempFilePathForRecording->concatenate(&filePath->get()[strlen(audioRecordingFolderNames[folderID])]);
+		error = tempFilePathForRecording->set(tempPath);
 		if (error != Error::NONE) {
 			return error;
 		}
