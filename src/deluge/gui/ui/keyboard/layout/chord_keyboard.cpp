@@ -193,7 +193,13 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 				else {
 					idx = x;
 				}
-				image[y][x] = noteColours[mod(idx + state.scaleOffset, scaleNotes.count())];
+				int32_t noteIdx = mod(idx + state.scaleOffset, scaleNotes.count());
+				if (noteIdx == 0) {
+					image[y][x] = noteColours[noteIdx];
+				}
+				else {
+					image[y][x] = noteColours[noteIdx].forTail();
+				}
 			}
 			else {
 				image[y][x] = colours::black;
