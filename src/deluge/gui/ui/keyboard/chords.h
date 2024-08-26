@@ -129,7 +129,7 @@ const std::array<Chord, kDisplayHeight> minorChords = {
     kMinor, kMinor7, kMinor9, kMinor11, kMinor4, kMinor6, kMinorMaj7, kMinor2,
 };
 
-const std::array<Chord, kDisplayHeight> dominateChords = {
+const std::array<Chord, kDisplayHeight> dominantChords = {
     kMajor, k7, k69, k9, k7Sus4, k7Sus2, k11, k13,
 };
 
