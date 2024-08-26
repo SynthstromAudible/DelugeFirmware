@@ -51,6 +51,7 @@ struct KeyboardStateChordLibrary {
 
 struct KeyboardStateChord {
 	int32_t noteOffset = (kOctaveSize * 4);
+	int32_t scaleOffset = 0;
 	bool autoVoiceLeading = false;
 };
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts

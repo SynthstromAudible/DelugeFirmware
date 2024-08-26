@@ -24,7 +24,7 @@
 
 constexpr int32_t kMaxChordKeyboardSize = 7;
 constexpr int32_t kUniqueVoicings = 4;
-constexpr int32_t kUniqueChords = 20;
+constexpr int32_t kUniqueChords = 32;
 constexpr int32_t kOffScreenChords = kUniqueChords - kDisplayHeight;
 
 namespace deluge::gui::ui::keyboard {
@@ -91,14 +91,23 @@ struct Chord {
 extern const Chord kEmptyChord;
 extern const Chord kMajor;
 extern const Chord kMinor;
-extern const Chord kDim;
-extern const Chord kFullDim;
-extern const Chord kAug;
+extern const Chord k6;
+extern const Chord k2;
+extern const Chord k69;
 extern const Chord kSus2;
 extern const Chord kSus4;
 extern const Chord k7;
+extern const Chord k7Sus4;
+extern const Chord k7Sus2;
 extern const Chord kM7;
 extern const Chord kMinor7;
+extern const Chord kMinor2;
+extern const Chord kMinor4;
+extern const Chord kDim;
+extern const Chord kFullDim;
+extern const Chord kAug;
+extern const Chord kMinor6;
+extern const Chord kMinorMaj7;
 extern const Chord kMinor7b5;
 extern const Chord kMinor9b5;
 extern const Chord kMinor7b5b9;
@@ -111,21 +120,17 @@ extern const Chord kMinor11;
 extern const Chord k13;
 extern const Chord kM13;
 extern const Chord kMinor13;
-extern const Chord k6;
-extern const Chord k2;
-extern const Chord k69;
-extern const Chord kMinor6;
 
 const std::array<Chord, kDisplayHeight> majorChords = {
-    kMajor, kM7, k6, k2, k69, kM9, kM11, kM13,
+    kMajor, kM7, k6, k2, k69, kSus4, kM9, kM13,
 };
 
 const std::array<Chord, kDisplayHeight> minorChords = {
-    kMinor, kMinor7, kMinor9, kMinor11, kMinor13, kMinor6, kEmptyChord, kEmptyChord,
+    kMinor, kMinor7, kMinor9, kMinor11, kMinor4, kMinor6, kMinorMaj7, kMinor2,
 };
 
 const std::array<Chord, kDisplayHeight> dominateChords = {
-    kMajor, k7, k69, k9, k11, k13, kEmptyChord, kEmptyChord,
+    kMajor, k7, k69, k9, k7Sus4, k7Sus2, k11, k13,
 };
 
 const std::array<Chord, kDisplayHeight> diminishedChords = {

@@ -50,26 +50,39 @@ ChordQuality getChordQuality(NoteSet& notes) {
 
 ChordList::ChordList()
     : chords{
-        {"", NoteSet({ROOT}), {{0, NONE, NONE, NONE, NONE, NONE}}}, // TODO remove when root fixed on bottom of keyboard
-        kMajor,
-        kMinor,
-        kDim,
-        kM7,
-        k7,
-        kMinor7,
-        kMinor7b5,
-        kSus4,
-        kSus2,
-        kAug,
-        kM9,
-        k9,
-        kMinor9,
-        kM11,
-        k11,
-        kMinor11,
-        kM13,
-        k13,
-        kMinor13} {
+		kEmptyChord,
+		kMajor,
+		kMinor,
+		k6,
+		k2,
+		k69,
+		kSus2,
+		kSus4,
+		k7,
+		k7Sus4,
+		k7Sus2,
+		kM7,
+		kMinor7,
+		kMinor2,
+		kMinor4,
+		kDim,
+		kFullDim,
+		kAug,
+		kMinor6,
+		kMinorMaj7,
+		kMinor7b5,
+		kMinor9b5,
+		kMinor7b5b9,
+		k9,
+		kM9,
+		kMinor9,
+		k11,
+		kM11,
+		kMinor11,
+		k13,
+		kM13,
+		kMinor13,
+		} {
 }
 
 Voicing ChordList::getChordVoicing(int32_t chordNo) {
@@ -139,7 +152,7 @@ int32_t ChordList::validateChordNo(int32_t chordNo) {
 	return chordNo;
 }
 // ChordList
-const Chord kEmptyChord = {"", NoteSet({}), {{NONE, NONE, NONE, NONE, NONE, NONE}}};
+const Chord kEmptyChord = {"", NoteSet({ROOT}), {{0, NONE, NONE, NONE, NONE, NONE}}};
 const Chord kMajor = {"M",
                       NoteSet({ROOT, MAJ3, P5}),
                       {{ROOT, MAJ3, P5, NONE, NONE, NONE, NONE},
@@ -176,6 +189,16 @@ const Chord k7 = {"7",
                   {{ROOT, MAJ3, P5, MIN7, NONE, NONE, NONE},
                    {ROOT, MAJ3 + OCT, P5, MIN7, NONE, NONE, NONE},
                    {ROOT, MAJ3 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
+const Chord k7Sus4 = {"7SUS4",
+                  NoteSet({ROOT, P4, P5, MIN7}),
+                  {{ROOT, P4, P5, MIN7, NONE, NONE, NONE},
+                   {ROOT, P4 + OCT, P5, MIN7, NONE, NONE, NONE},
+                   {ROOT, P4 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
+const Chord k7Sus2 = {"7SUS2",
+                  NoteSet({ROOT, MAJ2, P5, MIN7}),
+                  {{ROOT, MAJ2, P5, MIN7, NONE, NONE, NONE},
+                   {ROOT, MAJ2 + OCT, P5, MIN7, NONE, NONE, NONE},
+                   {ROOT, MAJ2 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
 const Chord kM7 = {"M7",
                    NoteSet({ROOT, MAJ3, P5, MAJ7}),
                    {{ROOT, MAJ3, P5, MAJ7, NONE, NONE, NONE},
@@ -186,6 +209,21 @@ const Chord kMinor7 = {"-7",
                        {{ROOT, MIN3, P5, MIN7, NONE, NONE, NONE},
                         {ROOT, MIN3 + OCT, P5, MIN7, NONE, NONE, NONE},
                         {ROOT, MIN3 + OCT, P5, MIN7 + OCT, NONE, NONE, NONE}}};
+const Chord kMinor2 = {"-2",
+                       NoteSet({ROOT, MIN3, P5, MAJ2}),
+                       {{ROOT, MIN3, P5, MAJ2, NONE, NONE, NONE},
+                        {ROOT, MIN3 + OCT, P5, MAJ2, NONE, NONE, NONE},
+                        {ROOT, MIN3 + OCT, P5 + OCT, MAJ2, NONE, NONE, NONE}}};
+const Chord kMinor4 = {"-4",
+                       NoteSet({ROOT, MIN3, P5, P4}),
+                       {{ROOT, MIN3, P5, P4, NONE, NONE, NONE},
+                        {ROOT, MIN3 + OCT, P5, P4, NONE, NONE, NONE},
+                        {ROOT, MIN3 + OCT, P5 + OCT, P4, NONE, NONE, NONE}}};
+const Chord kMinorMaj7 = {"-M7",
+                       NoteSet({ROOT, MIN3, P5, MAJ7}),
+                       {{ROOT, MIN3, P5, MAJ7, NONE, NONE, NONE},
+                        {ROOT, MIN3 + OCT, P5, MAJ7, NONE, NONE, NONE},
+                        {ROOT, MIN3 + OCT, P5, MAJ7 + OCT, NONE, NONE, NONE}}};
 const Chord kMinor7b5 = {"-7flat5",
                          NoteSet({ROOT, MIN3, DIM5, MIN7}),
                          {{ROOT, MIN3, DIM5, MIN7, NONE, NONE, NONE},
