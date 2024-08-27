@@ -91,8 +91,8 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 
 	NoteSet scaleMode = scaleNotes.modulateByOffset(kOctaveSize - steps);
 	ChordQuality quality = getChordQuality(scaleMode);
-	auto chords = chordColumns[static_cast<int>(quality)];
-	int32_t chordNo;
+	auto chords = *chordColumns[static_cast<int>(quality)];
+	int32_t chordNo{0};
 	int32_t i = pressed.y;
 	while (i >= 0) {
 		if (chords[i].name == kEmptyChord.name) {
