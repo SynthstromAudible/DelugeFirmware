@@ -101,8 +101,8 @@ private:
 	std::vector<const std::vector<Chord>*> chordColumns = {&majorChords,     &minorChords,    &diminishedChords,
 	                                                       &augmentedChords, &dominantChords, &otherChords};
 
-	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,         Scale::DORIAN_SCALE,
-	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE,        Scale::MIXOLYDIAN_SCALE,
+	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,  Scale::DORIAN_SCALE,
+	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE, Scale::MIXOLYDIAN_SCALE,
 	                                  Scale::LOCRIAN_SCALE};
 };
 
