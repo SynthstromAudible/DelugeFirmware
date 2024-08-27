@@ -103,7 +103,7 @@ private:
 
 	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,         Scale::DORIAN_SCALE,
 	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE,        Scale::MIXOLYDIAN_SCALE,
-	                                  Scale::LOCRIAN_SCALE,  Scale::MELODIC_MINOR_SCALE, Scale::HARMONIC_MINOR_SCALE};
+	                                  Scale::LOCRIAN_SCALE};
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout
