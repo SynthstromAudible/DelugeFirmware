@@ -152,17 +152,17 @@ void KeyboardLayoutChord::precalculate() {
 	D_PRINTLN("Current scale: %d", currentScale);
 
 	if (!(acceptedScales.find(currentScale) != acceptedScales.end())) {
-		if ((lastScale == NO_SCALE) || (lastScale == USER_SCALE)) {
+		if (lastScale == NO_SCALE) {
 			keyboardScreen.setScale(MAJOR_SCALE);
 		}
 		else {
 			keyboardScreen.setScale(lastScale);
-			if (display->haveOLED()) {
-				display->popupTextTemporary("Chord mode only supports modes of major and minor scales");
-			}
-			else {
-				display->setScrollingText("SCALE NOT SUPPORTED", 0);
-			}
+		}
+		if (display->haveOLED()) {
+			display->popupTextTemporary("Chord mode only supports modes of major and minor scales");
+		}
+		else {
+			display->setScrollingText("SCALE NOT SUPPORTED", 0);
 		}
 	}
 	else {
