@@ -61,6 +61,7 @@ use the TRACK menu to select the specific track to record from
 - Added community feature toggle `Accessibility Shortcuts (ACCE)` to make specific shortcut combinations more accessible for users with mobility restrictions.
   - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
 - Added community feature toggle `Grid View Loop Pads (LOOP)` to illuminate two pads (Red and Magenta) in the `GRID VIEW` sidebar for triggering the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
+- CLIP NAMES. MIDI, SYNTH & KIT clips can now be named. When entered the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view, you are now able to scroll through the clip names when holding a pad.
 
 ### Keyboard View Improvements
 
