@@ -41,10 +41,10 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 			continue;
 		}
 		if (pressed.x < kChordKeyboardColumns) {
-			if (mode == ROW) {
+			if (mode == ChordKeyboardMode::ROW) {
 				evaluatePadsRow(pressed);
 			}
-			else if (mode == COLUMN) {
+			else if (mode == ChordKeyboardMode::COLUMN) {
 				evaluatePadsColumn(pressed);
 			}
 			else {
@@ -91,7 +91,7 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 
 	NoteSet scaleMode = scaleNotes.modulateByOffset(kOctaveSize - steps);
 	ChordQuality quality = getChordQuality(scaleMode);
-	auto chords = chordColumns[quality];
+	auto chords = chordColumns[static_cast<int>(quality)];
 	int32_t chordNo;
 	int32_t i = pressed.y;
 	while (i >= 0) {
@@ -173,7 +173,7 @@ void KeyboardLayoutChord::precalculate() {
 			//  we get the scale modes.
 			NoteSet scaleMode = scaleNotes.modulateByOffset((kOctaveSize - scaleNotes[i % scaleNotes.count()]));
 			ChordQuality chordQuality = getChordQuality(scaleMode);
-			noteColours[i] = qualityColours[chordQuality];
+			noteColours[i] = qualityColours[static_cast<int>(chordQuality)];
 		}
 	}
 }
@@ -186,7 +186,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
 			if (x < kChordKeyboardColumns) {
 				int32_t idx;
-				if (mode == ROW) {
+				if (mode == ChordKeyboardMode::ROW) {
 					idx = y;
 					// image[y][x] = noteColours[y];
 				}
@@ -204,7 +204,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			else {
 				image[y][x] = colours::black;
 			}
-			if ((x == kChordKeyboardColumns - 1) && (mode == ROW)) {
+			if ((x == kChordKeyboardColumns - 1) && (mode == ChordKeyboardMode::ROW)) {
 				image[y][x] = colours::orange;
 			}
 		}
@@ -215,9 +215,10 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	else {
 		image[0][kDisplayWidth - 1] = colours::red;
 	}
-	image[kDisplayHeight - 1][kDisplayWidth - 1] = mode == ROW ? colours::blue : colours::blue.forTail(); // Row mode
+	image[kDisplayHeight - 1][kDisplayWidth - 1] =
+	    mode == ChordKeyboardMode::ROW ? colours::blue : colours::blue.forTail(); // Row mode
 	image[kDisplayHeight - 2][kDisplayWidth - 1] =
-	    mode == COLUMN ? colours::purple : colours::purple.forTail(); // Column mode
+	    mode == ChordKeyboardMode::COLUMN ? colours::purple : colours::purple.forTail(); // Column mode
 }
 
 void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
@@ -230,12 +231,12 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 		}
 	}
 	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
-		mode = ROW;
+		mode = ChordKeyboardMode::ROW;
 		char const* shortLong[2] = {"ROW", "Chord Row Mode"};
 		display->displayPopup(shortLong);
 	}
 	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 2) {
-		mode = COLUMN;
+		mode = ChordKeyboardMode::COLUMN;
 		char const* shortLong[2] = {"COLM", "Chord Column Mode"};
 		display->displayPopup(shortLong);
 	}

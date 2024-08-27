@@ -39,11 +39,7 @@ const int32_t SCALEOCTAVE = 7;
 
 const int32_t kChordKeyboardColumns = 14;
 
-enum ChordKeyboardMode : int8_t {
-	ROW = 0,
-	COLUMN,
-	CHORD_MODE_MAX,
-};
+enum class ChordKeyboardMode { ROW, COLUMN };
 
 /// @brief Represents a keyboard layout for chord-based input.
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
@@ -82,9 +78,9 @@ private:
 
 	ChordKeyboardMode mode = ChordKeyboardMode::ROW;
 
-	std::array<RGB, CHORD_QUALITY_MAX> qualityColours = {colours::blue,  colours::purple,
-	                                                     colours::green, colours::kelly::very_light_blue,
-	                                                     colours::cyan,  colours::yellow};
+	std::array<RGB, static_cast<int>(ChordQuality::CHORD_QUALITY_MAX)> qualityColours = {
+	    colours::blue, colours::purple, colours::green, colours::kelly::very_light_blue,
+	    colours::cyan, colours::yellow};
 
 	std::array<RGB, kOctaveSize + kDisplayHeight + kDisplayWidth> noteColours;
 	std::array<int32_t, kChordKeyboardColumns> scaleSteps = {

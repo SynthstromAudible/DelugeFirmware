@@ -24,27 +24,27 @@ namespace deluge::gui::ui::keyboard {
 
 ChordQuality getChordQuality(NoteSet& notes) {
 	if (notes.count() < 3) {
-		return OTHER;
+		return ChordQuality::OTHER;
 	}
 	else if (notes.has(MAJ3) && notes.has(P5)) {
 		if (notes.has(MIN7)) {
-			return DOMINANT;
+			return ChordQuality::DOMINANT;
 		}
 		else {
-			return MAJOR;
+			return ChordQuality::MAJOR;
 		}
 	}
 	else if (notes.has(MIN3) && notes.has(P5)) {
-		return MINOR;
+		return ChordQuality::MINOR;
 	}
 	else if (notes.has(MIN3) && notes.has(DIM5)) {
-		return DIMINISHED;
+		return ChordQuality::DIMINISHED;
 	}
 	else if (notes.has(MAJ3) && notes.has(AUG5)) {
-		return AUGMENTED;
+		return ChordQuality::AUGMENTED;
 	}
 	else {
-		return OTHER;
+		return ChordQuality::OTHER;
 	}
 }
 
@@ -260,7 +260,8 @@ const Chord k6 = {"6",
 const Chord k2 = {"2",
                   NoteSet({ROOT, MAJ3, P5, MAJ2}),
                   {
-                      {ROOT, MAJ3, P5, MAJ2, NONE, NONE, NONE},
+                      {{ROOT, MAJ3 - OCT, P5, MAJ2, NONE, NONE, NONE}, "Open Mu"},
+                      {{ROOT, MAJ3, P5, MAJ2, NONE, NONE, NONE}, "Mu"},
                   }};
 const Chord k69 = {"69",
                    NoteSet({ROOT, MAJ3, P5, MAJ6, MAJ2}),
@@ -272,5 +273,29 @@ const Chord kMinor6 = {"-6",
                        {
                            {ROOT, MIN3, P5, MAJ6, NONE, NONE, NONE},
                        }};
+
+const std::array<Chord, kDisplayHeight> majorChords = {
+    kMajor, kM7, k6, k2, k69, kSus2, kM9, kM13,
+};
+
+const std::array<Chord, kDisplayHeight> minorChords = {
+    kMinor, kMinor7, kMinor11, kMinor4, kMinor6, kMinor2, kEmptyChord, kEmptyChord,
+};
+
+const std::array<Chord, kDisplayHeight> dominantChords = {
+    kMajor, k7, k69, k9, k7Sus4, k7Sus2, k11, k13,
+};
+
+const std::array<Chord, kDisplayHeight> diminishedChords = {
+    kDim, kMinor7b5, kMinor7b5b9, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
+};
+
+const std::array<Chord, kDisplayHeight> augmentedChords = {
+    kAug, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
+};
+
+const std::array<Chord, kDisplayHeight> otherChords = {
+    kSus2, kSus4, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
+};
 
 } // namespace deluge::gui::ui::keyboard
