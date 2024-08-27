@@ -1955,7 +1955,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 				outputTypeText = "MIDI";
 			}
 			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-				outputTypeText = "MPE zone";
+				outputTypeText = "MPE";
 			}
 			else {
 				outputTypeText = "Internal";
