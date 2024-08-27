@@ -92,18 +92,19 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 	NoteSet scaleMode = scaleNotes.modulateByOffset(kOctaveSize - steps);
 	ChordQuality quality = getChordQuality(scaleMode);
 	auto chords = *chordColumns[static_cast<int>(quality)];
-	int32_t chordNo{0};
-	int32_t i = pressed.y;
-	while (i >= 0) {
-		if (chords[i].name == kEmptyChord.name) {
-			i--;
+	Chord chord{0};
+	int32_t chordIdx = 0;
+	int32_t chordNo = 0;
+	// This loop is to find the pressed.y in-scale chord (mod chords.size())
+	while (chordNo <= pressed.y) {
+		chord = chords[chordIdx % chords.size()];
+		NoteSet intervalSet = chord.intervalSet;
+		NoteSet modulatedNoteSet = intervalSet.modulateByOffset(root % kOctaveSize);
+		if (modulatedNoteSet.isSubsetOf(scaleNotes)) {
+			chordNo++;
 		}
-		else {
-			chordNo = i;
-			break;
-		}
+		chordIdx++;
 	}
-	Chord chord = chords[chordNo];
 
 	Voicing voicing = chord.voicings[0];
 	drawChordName(root, chord.name, voicing.supplementalName);
@@ -188,7 +189,6 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 				int32_t idx;
 				if (mode == ChordKeyboardMode::ROW) {
 					idx = y;
-					// image[y][x] = noteColours[y];
 				}
 				else {
 					idx = x;

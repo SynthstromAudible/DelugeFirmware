@@ -21,10 +21,11 @@
 #include "definitions_cxx.hpp"
 #include "model/scale/note_set.h"
 #include <array>
+#include <vector>
 
 constexpr int32_t kMaxChordKeyboardSize = 7;
 constexpr int32_t kUniqueVoicings = 4;
-constexpr int32_t kUniqueChords = 32;
+constexpr int32_t kUniqueChords = 33;
 constexpr int32_t kOffScreenChords = kUniqueChords - kDisplayHeight;
 
 namespace deluge::gui::ui::keyboard {
@@ -119,19 +120,20 @@ extern const Chord kM11;
 extern const Chord kMinor11;
 extern const Chord k13;
 extern const Chord kM13;
+extern const Chord kM13Sharp11;
 extern const Chord kMinor13;
 
-extern const std::array<Chord, kDisplayHeight> majorChords;
+extern const std::vector<Chord> majorChords;
 
-extern const std::array<Chord, kDisplayHeight> minorChords;
+extern const std::vector<Chord> minorChords;
 
-extern const std::array<Chord, kDisplayHeight> dominantChords;
+extern const std::vector<Chord> dominantChords;
 
-extern const std::array<Chord, kDisplayHeight> diminishedChords;
+extern const std::vector<Chord> diminishedChords;
 
-extern const std::array<Chord, kDisplayHeight> augmentedChords;
+extern const std::vector<Chord> augmentedChords;
 
-extern const std::array<Chord, kDisplayHeight> otherChords;
+extern const std::vector<Chord> otherChords;
 
 /// @brief A collection of chords
 class ChordList {

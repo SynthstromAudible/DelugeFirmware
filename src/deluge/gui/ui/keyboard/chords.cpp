@@ -19,6 +19,7 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include <stdlib.h>
+#include <vector>
 
 namespace deluge::gui::ui::keyboard {
 
@@ -50,9 +51,9 @@ ChordQuality getChordQuality(NoteSet& notes) {
 
 ChordList::ChordList()
     : chords{
-        kEmptyChord, kMajor,  kMinor,  k6,      k2,   k69,      kSus2,    kSus4,   k7,         k7Sus4,    k7Sus2,
-        kM7,         kMinor7, kMinor2, kMinor4, kDim, kFullDim, kAug,     kMinor6, kMinorMaj7, kMinor7b5, kMinor9b5,
-        kMinor7b5b9, k9,      kM9,     kMinor9, k11,  kM11,     kMinor11, k13,     kM13,       kMinor13,
+        kEmptyChord, kMajor,  kMinor,  k6,      k2,   k69,      kSus2,    kSus4,   k7,         k7Sus4,      k7Sus2,
+        kM7,         kMinor7, kMinor2, kMinor4, kDim, kFullDim, kAug,     kMinor6, kMinorMaj7, kMinor7b5,   kMinor9b5,
+        kMinor7b5b9, k9,      kM9,     kMinor9, k11,  kM11,     kMinor11, k13,     kM13,       kM13Sharp11, kMinor13,
     } {
 }
 
@@ -247,6 +248,11 @@ const Chord kM13 = {"M13",
                     {{ROOT, MAJ3, P5, MAJ7, MAJ9, MAJ13, NONE},
                      {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, MAJ13, NONE},
                      {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, MAJ13, NONE}}};
+const Chord kM13Sharp11 = {"M13#11",
+                           NoteSet({ROOT, MAJ3, P5, MAJ7, MAJ2, MAJ6, AUG4}),
+                           {{ROOT, MAJ3, P5, MAJ7, MAJ9, MAJ13, AUG11},
+                            {ROOT, MAJ3 + OCT, P5, MAJ7, MAJ9, MAJ13, AUG11},
+                            {ROOT, MAJ3 + OCT, P5, MAJ7 + OCT, MAJ9, MAJ13, AUG11}}};
 const Chord kMinor13 = {"-13",
                         NoteSet({ROOT, MIN3, P5, MIN7, MAJ2, P4, MAJ6}),
                         {{ROOT, MIN3, P5, MIN7, MAJ9, P11, MAJ13},
@@ -274,28 +280,29 @@ const Chord kMinor6 = {"-6",
                            {ROOT, MIN3, P5, MAJ6, NONE, NONE, NONE},
                        }};
 
-const std::array<Chord, kDisplayHeight> majorChords = {
-    kMajor, kM7, k6, k2, k69, kSus2, kM9, kM13,
+const std::vector<Chord> majorChords = {kMajor, kM7, k6, k2, k69, kM9, kM13, kSus4, kSus2, kM13Sharp11};
+
+const std::vector<Chord> minorChords = {
+    kMinor, kMinor7, kMinor4, kMinor11, kMinor6, kMinor2,
 };
 
-const std::array<Chord, kDisplayHeight> minorChords = {
-    kMinor, kMinor7, kMinor11, kMinor4, kMinor6, kMinor2, kEmptyChord, kEmptyChord,
-};
-
-const std::array<Chord, kDisplayHeight> dominantChords = {
+const std::vector<Chord> dominantChords = {
     kMajor, k7, k69, k9, k7Sus4, k7Sus2, k11, k13,
 };
 
-const std::array<Chord, kDisplayHeight> diminishedChords = {
-    kDim, kMinor7b5, kMinor7b5b9, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
+const std::vector<Chord> diminishedChords = {
+    kDim,
+    kMinor7b5,
+    kMinor7b5b9,
 };
 
-const std::array<Chord, kDisplayHeight> augmentedChords = {
-    kAug, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
+const std::vector<Chord> augmentedChords = {
+    kAug,
 };
 
-const std::array<Chord, kDisplayHeight> otherChords = {
-    kSus2, kSus4, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
+const std::vector<Chord> otherChords = {
+    kSus2,
+    kSus4,
 };
 
 } // namespace deluge::gui::ui::keyboard

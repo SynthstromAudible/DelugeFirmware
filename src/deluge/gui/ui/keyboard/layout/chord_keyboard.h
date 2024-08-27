@@ -22,9 +22,9 @@
 #include "gui/ui/keyboard/chords.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
 #include "util/const_functions.h"
-#include "util/containers.h"
 #include <array>
 #include <set>
+#include <vector>
 
 namespace deluge::gui::ui::keyboard::layout {
 
@@ -98,8 +98,8 @@ private:
 	    SCALETHIRD + 2 * SCALEOCTAVE,
 	    SCALESECOND + 2 * SCALEOCTAVE,
 	};
-	std::array<const std::array<Chord, majorChords.size()>*, 6> chordColumns = {
-	    &majorChords, &minorChords, &diminishedChords, &augmentedChords, &dominantChords, &otherChords};
+	std::vector<const std::vector<Chord>*> chordColumns = {&majorChords,     &minorChords,    &diminishedChords,
+	                                                       &augmentedChords, &dominantChords, &otherChords};
 
 	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,         Scale::DORIAN_SCALE,
 	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE,        Scale::MIXOLYDIAN_SCALE,
