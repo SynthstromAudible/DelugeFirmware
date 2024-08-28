@@ -150,6 +150,9 @@ public:
 
 	bool selectedNoteRow;
 
+	bool handleOutputName();
+	bool handleClipName();
+
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map
 	void setupShortcutsBlinkFromTable(MenuItem const* currentItem,
@@ -161,7 +164,6 @@ private:
 	bool isEditingAutomationViewParam();
 	void handlePotentialParamMenuChange(deluge::hid::Button b, bool on, bool inCardRoutine, MenuItem* previousItem,
 	                                    MenuItem* currentItem);
-	bool handleClipName();
 };
 
 extern SoundEditor soundEditor;

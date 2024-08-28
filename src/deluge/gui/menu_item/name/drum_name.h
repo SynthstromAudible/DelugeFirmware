@@ -19,7 +19,7 @@
 
 #include "gui/menu_item/menu_item.h"
 
-namespace deluge::gui::menu_item {
+namespace deluge::gui::menu_item::name {
 
 class DrumName final : public MenuItem {
 public:
@@ -27,4 +27,4 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
 };
-} // namespace deluge::gui::menu_item
+} // namespace deluge::gui::menu_item::name

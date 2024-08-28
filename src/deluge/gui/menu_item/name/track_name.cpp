@@ -15,20 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "drum_name.h"
-#include "gui/ui/rename/rename_drum_ui.h"
+#include "track_name.h"
 #include "gui/ui/sound_editor.h"
 #include "util/functions.h"
 
-namespace deluge::gui::menu_item {
+namespace deluge::gui::menu_item::name {
 
-bool DrumName::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
-	return soundEditor.editingKit();
-}
-
-void DrumName::beginSession(MenuItem* navigatedBackwardFrom) {
+void TrackName::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
-	openUI(&renameDrumUI);
+	soundEditor.handleOutputName();
 }
 
-} // namespace deluge::gui::menu_item
+} // namespace deluge::gui::menu_item::name

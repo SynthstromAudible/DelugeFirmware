@@ -3,6 +3,9 @@
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/defaults/swing_interval.h"
 #include "gui/menu_item/firmware/version.h"
+#include "gui/menu_item/name/clip_name.h"
+#include "gui/menu_item/name/drum_name.h"
+#include "gui/menu_item/name/track_name.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
 #include "gui/menu_item/patch_cables.h"
@@ -22,7 +25,9 @@ extern deluge::gui::menu_item::sample::Start sampleStartMenu;
 extern deluge::gui::menu_item::sample::End sampleEndMenu;
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart;
 extern deluge::gui::menu_item::audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd;
-extern DrumName drumNameMenu;
+extern deluge::gui::menu_item::name::ClipName clipNameMenu;
+extern deluge::gui::menu_item::name::DrumName drumNameMenu;
+extern deluge::gui::menu_item::name::TrackName trackNameMenu;
 extern deluge::gui::menu_item::Submenu dxMenu;
 extern deluge::gui::menu_item::Submenu stemExportMenu;
 extern deluge::gui::menu_item::stem_export::Start startStemExportMenu;

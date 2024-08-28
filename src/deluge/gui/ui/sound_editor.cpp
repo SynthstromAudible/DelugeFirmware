@@ -575,7 +575,8 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 	if (!inSettingsMenu() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
-	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&drumNameMenu)) {
+	    && currentItem != &fileSelectorMenu && currentItem != &drumNameMenu && currentItem != &clipNameMenu
+	    && currentItem != &trackNameMenu) {
 
 		memset(sourceShortcutBlinkFrequencies, 255, sizeof(sourceShortcutBlinkFrequencies));
 		memset(sourceShortcutBlinkColours, 0, sizeof(sourceShortcutBlinkColours));
@@ -864,18 +865,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 		// AudioClips - there are just a few shortcuts
 		else if (getCurrentClip()->type == ClipType::AUDIO) {
-
-			// NAME shortcut
-			if (x == 11 && y == 5) {
-				// Renames the output (track), not the clip
-				Output* output = getCurrentOutput();
-				if (output) {
-					renameOutputUI.output = output;
-					openUI(&renameOutputUI);
-					return ActionResult::DEALT_WITH;
-				}
-			}
-			else if (x <= 14) {
+			if (x <= 14) {
 				item = paramShortcutsForAudioClips[x][y];
 			}
 
@@ -883,8 +873,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		}
 
 		else if (x == 11 && y == 5) {
-
-			if (handleClipName()) {
+			bool isKitRowContext = editingKit() && !setupKitGlobalFXMenu;
+			if (!isKitRowContext && handleClipName()) {
 				ActionResult::DEALT_WITH;
 			}
 			else {
@@ -1592,7 +1582,7 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 
 	// Sorry - extremely ugly hack here.
 	MenuItem* currentMenuItem = getCurrentMenuItem();
-	if (currentMenuItem == static_cast<void*>(&drumNameMenu)) {
+	if (currentMenuItem == &drumNameMenu || currentMenuItem == &clipNameMenu || currentMenuItem == &trackNameMenu) {
 		if (!navigationDepth) {
 			return;
 		}
@@ -1602,29 +1592,28 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	currentMenuItem->renderOLED();
 }
 
-bool SoundEditor::handleClipName() {
-
-	Clip* clip = getCurrentClip();
+bool SoundEditor::handleOutputName() {
+	// Renames the output (track), not the clip
 	Output* output = getCurrentOutput();
+	if (output) {
+		renameOutputUI.output = output;
+		openUI(&renameOutputUI);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
 
-	switch (clip->type) {
-
-	case ClipType::INSTRUMENT:
-
-		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
-		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
-			if (clip) {
-				renameClipNameUI.clip = clip;
-				openUI(&renameClipNameUI);
-				return true;
-			}
-		}
-		else {
-
-			return false;
-		}
-
-	default:
+bool SoundEditor::handleClipName() {
+	// Renames the clip
+	Clip* clip = getCurrentClip();
+	if (clip) {
+		renameClipNameUI.clip = clip;
+		openUI(&renameClipNameUI);
+		return true;
+	}
+	else {
 		return false;
 	}
 }

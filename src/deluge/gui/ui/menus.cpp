@@ -47,7 +47,6 @@
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
-#include "gui/menu_item/drum_name.h"
 #include "gui/menu_item/dx/browse.h"
 #include "gui/menu_item/dx/engine_select.h"
 #include "gui/menu_item/dx/global_params.h"
@@ -99,6 +98,9 @@
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
+#include "gui/menu_item/name/clip_name.h"
+#include "gui/menu_item/name/drum_name.h"
+#include "gui/menu_item/name/track_name.h"
 #include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/pulse_width.h"
 #include "gui/menu_item/osc/retrigger_phase.h"
@@ -1092,8 +1094,23 @@ MasterTranspose masterTransposeMenu{STRING_FOR_MASTER_TRANSPOSE, STRING_FOR_MAST
 
 patch_cable_strength::Fixed vibratoMenu{STRING_FOR_VIBRATO, params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL};
 
-// Drum only
-menu_item::DrumName drumNameMenu{STRING_FOR_NAME};
+// all clips except kit clip with affect entire off
+menu_item::name::ClipName clipNameMenu{STRING_FOR_CLIP_NAME};
+
+// kit clip with affect entire off
+menu_item::name::DrumName drumNameMenu{STRING_FOR_DRUM_NAME};
+
+// audio clip
+menu_item::name::TrackName trackNameMenu{STRING_FOR_TRACK_NAME};
+
+Submenu nameMenu{
+    STRING_FOR_NAME,
+    {
+        &trackNameMenu,
+        &clipNameMenu,
+        &drumNameMenu,
+    },
+};
 
 // Synth only
 menu_item::SynthMode synthModeMenu{STRING_FOR_SYNTH_MODE};
@@ -1111,7 +1128,6 @@ Submenu soundMasterMenu{
         &vibratoMenu,
         &panMenu,
         &synthModeMenu,
-        &drumNameMenu,
     },
 };
 
@@ -1130,25 +1146,10 @@ Submenu soundFXMenu{
 menu_item::Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
-        &soundMasterMenu,
-        &arpMenu,
-        &audioCompMenu,
-        &soundFiltersMenu,
-        &soundFXMenu,
-        &sidechainMenu,
-        &source0Menu,
-        &source1Menu,
-        &modulator0Menu,
-        &modulator1Menu,
-        &env0Menu,
-        &env1Menu,
-        &lfo1Menu,
-        &lfo2Menu,
-        &voiceMenu,
-        &bendMenu,
-        &drumBendRangeMenu,
-        &patchCablesMenu,
-        &sequenceDirectionMenu,
+        &nameMenu,       &soundMasterMenu, &arpMenu,           &audioCompMenu,   &soundFiltersMenu,
+        &soundFXMenu,    &sidechainMenu,   &source0Menu,       &source1Menu,     &modulator0Menu,
+        &modulator1Menu, &env0Menu,        &env1Menu,          &lfo1Menu,        &lfo2Menu,
+        &voiceMenu,      &bendMenu,        &drumBendRangeMenu, &patchCablesMenu, &sequenceDirectionMenu,
     },
 };
 
@@ -1156,6 +1157,7 @@ menu_item::Submenu soundEditorRootMenu{
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
+        &nameMenu,
         &midiPGMMenu,
         &midiBankMenu,
         &midiSubMenu,
@@ -1174,6 +1176,7 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
         &audioClipActionsMenu,
         &audioSourceSelectorMenu,
         &specificOutputSelectorMenu,
+        &nameMenu,
         &audioClipMasterMenu,
         &audioCompMenu,
         &globalFiltersMenu,
@@ -1251,6 +1254,7 @@ menu_item::Submenu soundEditorRootMenuSongView{
 menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     STRING_FOR_KIT_GLOBAL_FX,
     {
+        &nameMenu,
         &kitClipMasterMenu,
         &audioCompMenu,
         &globalFiltersMenu,
@@ -1293,7 +1297,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &lpfMorphMenu,        &lpfModeMenu,           &lpfResMenu,              &lpfFreqMenu                       },
     {&envReleaseMenu,         &envSustainMenu,         &envDecayMenu,                  &envAttackMenu,                 &hpfMorphMenu,        &hpfModeMenu,           &hpfResMenu,              &hpfFreqMenu                       },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &sidechainVolumeShortcutMenu,   &sidechainAttackMenu,           &sidechainShapeMenu,  &sidechainSendMenu,     &bassMenu,                &bassFreqMenu                      },
-    {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,   &drumNameMenu,          &trebleMenu,              &trebleFreqMenu                    },
+    {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,   &drumNameMenu,              &trebleMenu,              &trebleFreqMenu                    },
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu                     },
     {&lfo2RateMenu,           &lfo2SyncMenu,           &lfo2TypeMenu,                  &reverbAmountMenu,              &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&delayRateMenu,          &delaySyncMenu,          &delayAnalogMenu,               &delayFeedbackMenu,             &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
@@ -1311,7 +1315,7 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           &globalLPFMorphMenu,  &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu              	  },
     {nullptr,                 nullptr,                 nullptr,                        &audioClipAttackMenu,           &globalHPFMorphMenu,  &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu,     &sidechainAttackMenu,           &sidechainShapeMenu,  nullptr,                &bassMenu,                &bassFreqMenu                      },
-    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                &trebleMenu,              &trebleFreqMenu                    },
+    {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              &nameMenu,                &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,           	   &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu            	  },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&globalDelayRateMenu, 	  &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
@@ -1347,7 +1351,7 @@ MenuItem* paramShortcutsForKitGlobalFX[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalLPFMorphMenu,  &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalHPFMorphMenu,  &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu,     &sidechainAttackMenu,           &sidechainShapeMenu,  nullptr,                &bassMenu,                &bassFreqMenu                      },
-    {nullptr,                 nullptr,            	   nullptr,                        nullptr,                		   nullptr,         	 nullptr,                &trebleMenu,              &trebleFreqMenu                    },
+    {nullptr,                 nullptr,            	   nullptr,                        nullptr,                		   nullptr,         	 &nameMenu,              &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },

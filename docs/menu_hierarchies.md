@@ -560,6 +560,11 @@ The Sound menu is accessible from Synth Clips and Kit clips when affect entire i
 The Sound menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Name</summary>
+
+	- in Synths for naming the clip
+	- in Kit's for naming a Kit row
+</details>
 <details><summary>Master (MASTR)</summary>
 
 	- Volume (VOLU)
@@ -570,7 +575,6 @@ The Sound menu contains the following menu hierarchy:
 		- Subtractive
 		- FM
 		- Ringmod
-	- Name - in Kit's only for naming a Kit row
 </details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
@@ -969,6 +973,9 @@ The Kit FX menu is accessible from Kit clips when affect entire is enabled by pr
 The Kit FX menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Name</summary>
+	- For naming the kit clip
+</details>
 <details><summary>Master (MASTR)</summary>
 
 	- Volume (VOLU)
@@ -1132,6 +1139,9 @@ The MIDI Instrument menu is accessible from MIDI clips by pressing on the `SELEC
 The MIDI menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Name</summary>
+	- For naming the MIDI clip
+</details>
 <details><summary>PGM</summary></details>
 <details><summary>Bank</summary></details>
 <details><summary>Sub-Bank (SUB)</summary></details>
@@ -1227,6 +1237,9 @@ The CV Instrument menu is accessible from CV clips by pressing on the `SELECT EN
 The CV menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Name</summary>
+	- For naming the CV clip
+</details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
 	- Mode
@@ -1326,6 +1339,11 @@ The Audio Clip menu contains the following menu hierarchy:
 	- Bal. Input (Monitoring) (BALA.)
 	- Deluge Mix (Pre FX) (MIX)
 	- Deluge Output (Post FX) (OUTP)
+</details>
+<details><summary>Name</summary>
+
+	- Track (TRAC)
+	- Clip (CLIP)
 </details>
 <details><summary>Master (MASTR)</summary>
 
