@@ -54,7 +54,7 @@ void ChordColumn::setActiveChord(ChordModeChord chord) {
 	chordSemitoneOffsets[3] = chordTypeSemitoneOffsets[activeChord][3];
 }
 
-void ChordColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
+void ChordColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		bool chord_selected = y + 1 == activeChord;

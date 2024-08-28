@@ -18,13 +18,12 @@
 #pragma once
 
 #include "gui/ui/keyboard/column_controls/control_column.h"
-#include "model/song/song.h"
 
 namespace deluge::gui::ui::keyboard::controls {
 
-class SessionColumn : public ControlColumn {
+class KeyboardControlColumn : public ControlColumn {
 public:
-	SessionColumn() = default;
+	KeyboardControlColumn() = default;
 
 	void renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) override;
 	bool handleVerticalEncoder(int8_t pad, int32_t offset) override;
@@ -32,10 +31,6 @@ public:
 	                         KeyboardLayout* layout) override;
 	void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
 	               KeyboardLayout* layout) override;
-
-	void handleOutput(SessionMacro& m, PressedPad pad);
-	Clip* findNextClipForOutput(SessionMacro& m, PressedPad pad);
-
 private:
 };
 

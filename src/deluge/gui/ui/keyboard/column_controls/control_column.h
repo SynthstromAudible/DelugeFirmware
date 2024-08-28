@@ -31,7 +31,7 @@ constexpr uint32_t kVelModShift = 24;
 
 class ControlColumn {
 public:
-	virtual void renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) = 0;
+	virtual void renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) = 0;
 	virtual bool handleVerticalEncoder(int8_t pad, int32_t offset) = 0;
 	virtual void handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                 KeyboardLayout* layout) = 0;

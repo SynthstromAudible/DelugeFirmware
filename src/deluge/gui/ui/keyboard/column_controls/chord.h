@@ -39,7 +39,7 @@ class ChordColumn : public ControlColumn {
 public:
 	ChordColumn() = default;
 
-	void renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) override;
+	void renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) override;
 	bool handleVerticalEncoder(int8_t pad, int32_t offset) override;
 	void handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                         KeyboardLayout* layout) override;

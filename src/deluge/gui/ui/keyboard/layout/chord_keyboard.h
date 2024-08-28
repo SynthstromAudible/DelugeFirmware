@@ -60,6 +60,8 @@ public:
 	bool supportsKit() override { return false; }
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }
 
+	ChordKeyboardMode mode = ChordKeyboardMode::ROW;
+
 protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
@@ -76,7 +78,7 @@ private:
 
 	Scale lastScale = NO_SCALE;
 
-	ChordKeyboardMode mode = ChordKeyboardMode::ROW;
+	// ChordKeyboardMode mode = ChordKeyboardMode::ROW;
 
 	std::array<RGB, static_cast<int>(ChordQuality::CHORD_QUALITY_MAX)> qualityColours = {
 	    colours::blue, colours::purple, colours::green, colours::kelly::very_light_blue,

@@ -139,9 +139,18 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
-	KeyboardStateChord& state = getState().chord;
-	state.scaleOffset += offset;
-
+	if (shiftEnabled) {
+		if (mode == ChordKeyboardMode::ROW) {
+			mode = ChordKeyboardMode::COLUMN;
+		}
+		else {
+			mode = ChordKeyboardMode::ROW;
+		}
+	}
+	else {
+		KeyboardStateChord& state = getState().chord;
+		state.scaleOffset += offset;
+	}
 	precalculate();
 }
 

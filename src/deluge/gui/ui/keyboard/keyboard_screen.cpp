@@ -42,6 +42,7 @@
 #include <cstring>
 
 #include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/column_control_state.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/chord_library.h"
 #include "gui/ui/keyboard/layout/in_key.h"
@@ -683,6 +684,15 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 			exitScaleMode();
 			setLedStates();
 		}
+	}
+	// If entering chord mode, set the column control to the keyboard control column
+	layout::ColumnControlState& state = getCurrentInstrumentClip()->keyboardState.columnControl;
+	if (getCurrentInstrumentClip()->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChord) {
+		state.leftCol = state.getColumnForFunc(layout::ColumnControlFunction::KEYBOARD_CONTROL);
+	}
+	else {
+		// Otherwise, set it back to what it was
+		state.leftCol = state.getColumnForFunc(state.leftColFunc);
 	}
 
 	// Ensure scroll values are calculated in bounds

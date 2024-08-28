@@ -187,7 +187,7 @@ void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* cho
 }
 
 bool KeyboardLayoutChordLibrary::allowSidebarType(ColumnControlFunction sidebarType) {
-	if (sidebarType == ColumnControlFunction::CHORD) {
+	if ((sidebarType == ColumnControlFunction::CHORD) || (sidebarType == ColumnControlFunction::KEYBOARD_CONTROL)) {
 		return false;
 	}
 	return true;
