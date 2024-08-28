@@ -16,15 +16,15 @@
  */
 
 #include "keyboard_control.h"
-#include "gui/ui/keyboard/layout/column_controls.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
-
+#include "gui/ui/keyboard/layout/column_controls.h"
 
 using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void KeyboardControlColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
+void KeyboardControlColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column,
+                                         KeyboardLayout* layout) {
 	if (layout->name() == "Chord") {
 		auto* chordLayout = static_cast<KeyboardLayoutChord*>(layout);
 		KeyboardStateChord& state = getCurrentInstrumentClip()->keyboardState.chord;
@@ -40,11 +40,12 @@ void KeyboardControlColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWid
 			}
 			else if (y == kDisplayHeight - 1) {
 				image[y][column] =
-					chordLayout->mode == ChordKeyboardMode::ROW ? colours::blue : colours::blue.forTail(); // Row mode
+				    chordLayout->mode == ChordKeyboardMode::ROW ? colours::blue : colours::blue.forTail(); // Row mode
 			}
 			else if (y == kDisplayHeight - 2) {
-				image[y][column] =
-					chordLayout->mode == ChordKeyboardMode::COLUMN ? colours::purple : colours::purple.forTail(); // Column mode
+				image[y][column] = chordLayout->mode == ChordKeyboardMode::COLUMN
+				                       ? colours::purple
+				                       : colours::purple.forTail(); // Column mode
 			}
 			else {
 				image[y][column] = colours::black;
@@ -58,11 +59,10 @@ bool KeyboardControlColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 };
 
 void KeyboardControlColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                      KeyboardLayout* layout) {
-};
+                                                KeyboardLayout* layout){};
 
 void KeyboardControlColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
-                            KeyboardLayout* layout) {
+                                      KeyboardLayout* layout) {
 
 	if (layout->name() == "Chord") {
 		if (pad.active) {

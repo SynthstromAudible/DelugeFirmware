@@ -37,8 +37,6 @@ const int32_t SCALESIXTH = 5;
 const int32_t SCALESEVENTH = 6;
 const int32_t SCALEOCTAVE = 7;
 
-const int32_t kChordKeyboardColumns = 14;
-
 enum class ChordKeyboardMode { ROW, COLUMN };
 
 /// @brief Represents a keyboard layout for chord-based input.
@@ -67,7 +65,6 @@ protected:
 
 private:
 	uint8_t noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount);
-	void handleControlButton(int32_t x, int32_t y);
 	void evaluatePadsRow(PressedPad pressed);
 	void evaluatePadsColumn(PressedPad pressed);
 	void drawChordName(int16_t noteCode, const char* chordName = "", const char* voicingName = "");
@@ -85,7 +82,7 @@ private:
 	    colours::cyan, colours::yellow};
 
 	std::array<RGB, kOctaveSize + kDisplayHeight + kDisplayWidth> noteColours;
-	std::array<int32_t, kChordKeyboardColumns> scaleSteps = {
+	std::array<int32_t, kDisplayWidth - 1> scaleSteps = {
 	    SCALEFIRST,
 	    SCALEFIFTH,
 	    SCALETHIRD + SCALEOCTAVE,
@@ -94,11 +91,14 @@ private:
 	    SCALETHIRD + 2 * SCALEOCTAVE,
 	    SCALESECOND + 2 * SCALEOCTAVE,
 	    SCALESIXTH + SCALEOCTAVE,
-	    2 * SCALEOCTAVE,
-	    SCALEFIFTH + SCALEOCTAVE,
-	    SCALESEVENTH + SCALEOCTAVE,
-	    SCALETHIRD + 2 * SCALEOCTAVE,
-	    SCALESECOND + 2 * SCALEOCTAVE,
+	    SCALEOCTAVE,
+	    SCALEFIFTH,
+	    SCALESEVENTH,
+	    SCALETHIRD - SCALEOCTAVE,
+	    SCALESECOND,
+	    SCALEFIFTH,
+	    SCALEFIRST,
+	    // SCALEFIRST - SCALEOCTAVE,
 	};
 	std::vector<const std::vector<Chord>*> chordColumns = {&majorChords,     &minorChords,    &diminishedChords,
 	                                                       &augmentedChords, &dominantChords, &otherChords};

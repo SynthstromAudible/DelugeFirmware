@@ -40,7 +40,7 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 		if (!pressed.active) {
 			continue;
 		}
-		if (pressed.x < kChordKeyboardColumns) {
+		if (pressed.x < kDisplayWidth) {
 			if (mode == ChordKeyboardMode::ROW) {
 				evaluatePadsRow(pressed);
 			}
@@ -50,9 +50,6 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 			else {
 				D_PRINTLN("Invalid mode");
 			}
-		}
-		else if (pressed.x < kDisplayWidth) {
-			handleControlButton(pressed.x, pressed.y);
 		}
 	}
 	ColumnControlsKeyboard::evaluatePads(presses);
@@ -65,12 +62,12 @@ void KeyboardLayoutChord::evaluatePadsRow(deluge::gui::ui::keyboard::PressedPad 
 	uint8_t scaleNoteCount = getScaleNoteCount();
 	int32_t root = getRootNote() + state.noteOffset;
 
-	if (pressed.x < kChordKeyboardColumns - 1) {
+	if (pressed.x < kDisplayWidth - 1) {
 		int32_t note = noteFromCoordsRow(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
 		drawChordName(note); // TODO: print full chord played on all pads?
 		enableNote(note, velocity);
 	}
-	else if (pressed.x == kChordKeyboardColumns - 1) {
+	else if (pressed.x == kDisplayWidth - 1) {
 		for (int32_t i = 0; i < 3; ++i) {
 			int32_t note = noteFromCoordsRow(i, pressed.y, root, scaleNotes, scaleNoteCount);
 			if (i == 0) {
@@ -194,7 +191,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	NoteSet& scaleNotes = getScaleNotes();
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
-			if (x < kChordKeyboardColumns) {
+			if (x < kDisplayWidth) {
 				int32_t idx;
 				if (mode == ChordKeyboardMode::ROW) {
 					idx = y;
@@ -210,44 +207,10 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 					image[y][x] = noteColours[noteIdx].forTail();
 				}
 			}
-			else {
-				image[y][x] = colours::black;
-			}
-			if ((x == kChordKeyboardColumns - 1) && (mode == ChordKeyboardMode::ROW)) {
+			if ((x == kDisplayWidth - 1) && (mode == ChordKeyboardMode::ROW)) {
 				image[y][x] = colours::orange;
 			}
 		}
-	}
-	if (state.autoVoiceLeading) {
-		image[0][kDisplayWidth - 1] = colours::green;
-	}
-	else {
-		image[0][kDisplayWidth - 1] = colours::red;
-	}
-	image[kDisplayHeight - 1][kDisplayWidth - 1] =
-	    mode == ChordKeyboardMode::ROW ? colours::blue : colours::blue.forTail(); // Row mode
-	image[kDisplayHeight - 2][kDisplayWidth - 1] =
-	    mode == ChordKeyboardMode::COLUMN ? colours::purple : colours::purple.forTail(); // Column mode
-}
-
-void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
-	KeyboardStateChord& state = getState().chord;
-	if (x == kDisplayWidth - 1 && y == 0) {
-		state.autoVoiceLeading = !state.autoVoiceLeading;
-		if (state.autoVoiceLeading) {
-			char const* shortLong[2] = {"AUTO", "Auto Voice Leading: Beta"};
-			display->displayPopup(shortLong);
-		}
-	}
-	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
-		mode = ChordKeyboardMode::ROW;
-		char const* shortLong[2] = {"ROW", "Chord Row Mode"};
-		display->displayPopup(shortLong);
-	}
-	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 2) {
-		mode = ChordKeyboardMode::COLUMN;
-		char const* shortLong[2] = {"COLM", "Chord Column Mode"};
-		display->displayPopup(shortLong);
 	}
 }
 

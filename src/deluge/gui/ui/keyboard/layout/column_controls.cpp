@@ -45,7 +45,7 @@ const char* functionNames[][2] = {
     /* SCALE_MODE  */ {"SMOD", "Scales"},
     /* DX          */ {"DX", "DX operators"},
     /* SESSION     */ {"SONG", "song macros"},
-	/* KEYBOARD_CONTROL */ {"CTRL", "Keyboard Control"},
+    /* KEYBOARD_CONTROL */ {"CTRL", "Keyboard Control"},
     /* BEAT_REPEAT */ {"BEAT", "Beat Repeat"},
 };
 
@@ -215,7 +215,6 @@ ControlColumn* ColumnControlState::getColumnForFunc(ColumnControlFunction func) 
 		return &sessionColumn;
 	case KEYBOARD_CONTROL:
 		return &keyboardControlColumn;
-
 	}
 	return nullptr;
 }

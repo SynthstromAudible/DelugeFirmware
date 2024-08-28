@@ -31,6 +31,7 @@ public:
 	                         KeyboardLayout* layout) override;
 	void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
 	               KeyboardLayout* layout) override;
+
 private:
 };
 

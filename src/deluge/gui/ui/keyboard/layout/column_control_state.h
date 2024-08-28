@@ -58,6 +58,7 @@ struct ColumnControlState {
 	KeyboardControlColumn keyboardControlColumn{};
 
 	ColumnControlFunction leftColFunc = VELOCITY;
+	ColumnControlFunction lastLeftFunc = VELOCITY; // Used to restore the left column function after a temporary change
 	ColumnControlFunction rightColFunc = MOD;
 	bool rightColSetAtRuntime = false;
 	ControlColumn* leftCol = &velocityColumn;
