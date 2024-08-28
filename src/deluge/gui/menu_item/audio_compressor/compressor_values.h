@@ -1,5 +1,6 @@
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/decimal.h"
 #include "gui/menu_item/integer.h"
 #include "gui/ui/sound_editor.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -7,9 +8,9 @@
 #include "util/fixedpoint.h"
 
 namespace deluge::gui::menu_item::audio_compressor {
-class Attack final : public Integer {
+class Attack final : public DecimalWithoutScrolling {
 public:
-	using Integer::Integer;
+	using DecimalWithoutScrolling::DecimalWithoutScrolling;
 	void readCurrentValue() override {
 		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getAttack();
 		this->setValue(value >> 24);
@@ -21,13 +22,13 @@ public:
 			soundEditor.currentModControllable->compressor.setAttack(knobPos);
 		}
 	}
-	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
+	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
 	const char* getUnit() override { return " MS"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
 };
-class Release final : public Integer {
+class Release final : public DecimalWithoutScrolling {
 public:
-	using Integer::Integer;
+	using DecimalWithoutScrolling::DecimalWithoutScrolling;
 	void readCurrentValue() override {
 		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getRelease();
 		this->setValue(value >> 24);
@@ -39,13 +40,13 @@ public:
 			soundEditor.currentModControllable->compressor.setRelease(knobPos);
 		}
 	}
-	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
+	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
 	const char* getUnit() override { return " MS"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
 };
-class Ratio final : public Integer {
+class Ratio final : public DecimalWithoutScrolling {
 public:
-	using Integer::Integer;
+	using DecimalWithoutScrolling::DecimalWithoutScrolling;
 	void readCurrentValue() override {
 		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getRatio();
 		this->setValue(value >> 24);
@@ -57,7 +58,7 @@ public:
 			soundEditor.currentModControllable->compressor.setRatio(knobPos);
 		}
 	}
-	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getRatioForDisplay(); }
+	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getRatioForDisplay(); }
 	const char* getUnit() override { return " : 1"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
 };
