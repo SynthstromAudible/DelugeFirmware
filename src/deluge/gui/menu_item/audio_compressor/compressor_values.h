@@ -23,8 +23,9 @@ public:
 		}
 	}
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getAttackMS(); }
-	const char* getUnit() override { return " MS"; }
+	const char* getUnit() override { return "MS"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 2; }
 };
 class Release final : public DecimalWithoutScrolling {
 public:
@@ -41,8 +42,9 @@ public:
 		}
 	}
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getReleaseMS(); }
-	const char* getUnit() override { return " MS"; }
+	const char* getUnit() override { return "MS"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 1; }
 };
 class Ratio final : public DecimalWithoutScrolling {
 public:
@@ -61,10 +63,11 @@ public:
 	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getRatioForDisplay(); }
 	const char* getUnit() override { return " : 1"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 2; }
 };
-class SideHPF final : public Integer {
+class SideHPF final : public DecimalWithoutScrolling {
 public:
-	using Integer::Integer;
+	using DecimalWithoutScrolling::DecimalWithoutScrolling;
 	void readCurrentValue() override {
 		auto value = (uint64_t)soundEditor.currentModControllable->compressor.getSidechain();
 		this->setValue(value >> 24);
@@ -76,11 +79,10 @@ public:
 			soundEditor.currentModControllable->compressor.setSidechain(knobPos);
 		}
 	}
-	int32_t getDisplayValue() override {
-		return soundEditor.currentModControllable->compressor.getSidechainForDisplay();
-	}
-	const char* getUnit() override { return " HZ"; }
+	float getDisplayValue() override { return soundEditor.currentModControllable->compressor.getSidechainForDisplay(); }
+	const char* getUnit() override { return "HZ"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const final { return 2; }
 };
 class Blend final : public Integer {
 public:
@@ -100,7 +102,7 @@ public:
 		}
 	}
 	int32_t getDisplayValue() override { return soundEditor.currentModControllable->compressor.getBlendForDisplay(); }
-	const char* getUnit() override { return " %"; }
+	const char* getUnit() override { return "%"; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxKnobPos; }
 };
 } // namespace deluge::gui::menu_item::audio_compressor

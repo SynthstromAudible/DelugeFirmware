@@ -208,8 +208,9 @@ void DecimalWithoutScrolling::selectEncoderAction(int32_t offset) {
 }
 
 void DecimalWithoutScrolling::drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
+	int32_t numDecimalPlaces = getNumDecimalPlaces();
 	char buffer[12];
-	intToString(getDisplayValue(), buffer, 1);
+	floatToString(getDisplayValue(), buffer, numDecimalPlaces, numDecimalPlaces);
 	strncat(buffer, getUnit(), 4);
 	deluge::hid::display::OLED::main.drawStringCentred(buffer, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
 }
@@ -219,7 +220,17 @@ void DecimalWithoutScrolling::drawPixelsForOled() {
 }
 
 void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
-	display->setTextAsNumber(std::round(getDisplayValue()));
+	int32_t dotPos;
+	float displayValue = getDisplayValue();
+	int32_t numDecimalPlaces = displayValue > 100 ? 1 : 2;
+	char buffer[12];
+	floatToString(displayValue, buffer, numDecimalPlaces, numDecimalPlaces);
+	if (numDecimalPlaces) {
+		dotPos = 3 - numDecimalPlaces;
+	}
+	else {
+		dotPos = 255;
+	}
+	display->setText(buffer, dotPos);
 }
-
 } // namespace deluge::gui::menu_item

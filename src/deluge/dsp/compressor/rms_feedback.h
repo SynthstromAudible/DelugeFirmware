@@ -129,7 +129,7 @@ public:
 	q31_t getSidechain() { return sideChainKnobPos; }
 
 	/// Get the current sidechain cutoff frequency in hertz.
-	[[nodiscard]] inline constexpr int32_t getSidechainForDisplay() const { return fc_hz; }
+	[[nodiscard]] inline constexpr float getSidechainForDisplay() const { return fc_hz; }
 
 	/// Set the sidechain cutoff frequency from a full-scale (0 to 2^31) integer.
 	///
