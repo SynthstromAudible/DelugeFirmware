@@ -992,7 +992,7 @@ to each individual note onset. ([#1978])
 
 #### 4.4.1.6 - Display Chord Keyboard Layout
 
-- ([#2475]) Enables `CHORD` keyboard, in in-scale chord view with two modes, `ROW`, with chords spread out on each row across the pads, and `COLUMN`, where each column is a series a harmonically similar chords that can often sound nice substited for each other. Accessible the same way as other instrument supporting keyboards `SELECT` + `KEYBOARD` to cycle through layouts while on `SYNTH, MIDI, CV`
+- ([#2475]) Enables `CHORD` keyboard, in in-scale chord view with two modes, `ROW`, with chords spread out on each row across the pads, and `COLUMN`, where each column is a series a harmonically similar chords that can often sound nice substited for each other. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press `SELECT` + `KEYBOARD` to cycle through layouts to find the `CHORD` keyboard layout.
 
 - When entering the `CHORD` keyboard, your left sidebar will turn into a keyboard control sidebar to change settings for the `CHORD` keyboard. At the top of the side bar, there is a blue pad that turns on `ROW` mode and a purple pad that turns on `COLUMN` mode. The default is `ROW` mode. In both modes, rows or chords are colored by the quality they represent (major=blue, minor=purple, dominant=cyan, dimished=green, aug=grey, other=yellow)
 
@@ -1010,7 +1010,7 @@ to each individual note onset. ([#1978])
 
 #### 4.4.1.7 - Display Chord Library Keyboard Layout
 
-- ([#2385]) Enables `CHORD LIBRARY` keyboard layout which displays a library of chords on the pads. Accessible the same way as other instrument supporting keyboards `SELECT` + `KEYBOARD` to cycle through layouts while on `SYNTH, MIDI, CV`
+- ([#2385]) Enables `CHORD LIBRARY` keyboard layout which displays a library of chords on the pads. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD LIBRARY` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press `SELECT` + `KEYBOARD` to cycle through layouts to find the `CHORD LIBRARY` keyboard layout.
 
 - Each column is a note (chormatic, all 12 notes), turning `◀︎▶︎` will move down or up the scale, lowering or raising your chords. Each pad is a different chord. So the first row is just roots, second is major triads, 3rd is minor triads, etc. `▼︎▲︎` scrolls up to more chords.
 
@@ -1224,8 +1224,8 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * When On, while in the `SETTINGS` or `SOUND` menu of `KEYBOARD VIEW`, pressing the top left sidebar pad will immediately exit the menu.
 * `Launch Event Playhead (PLAY)`
     * When On, a red and white playhead will be rendered in Song Grid and Performance Views that let's you know that a maximum of one bar (16 notes) is remaining before a clip or section launch event is scheduled to occur.
-* `Chord Library Keyboard (CHRD)`
-    * When On, enables the `CHORD` keyboard, which allows playing in-scale chords in a column or accross pads in a row as well as enables the `CHORD Library` keyboard layout which allows playing a library of chords on the pads. See [Chord Keyboard Layout](#4416---display-chord-keyboard-layout) and [Chord Library Keyboard Layout](#4417---display-chord-library-keyboard-layout) for more information.
+* `Chord Keyboards (CHRD)`
+    * When On, enables the `CHORD` keyboard, which allows playing in-scale chords in a column or accross pads in a row as well as enables the `CHORD LIBRARY` keyboard layout which allows playing a library of chords on the pads. See [Chord Keyboard Layout](#4416---display-chord-keyboard-layout) and [Chord Library Keyboard Layout](#4417---display-chord-library-keyboard-layout) for more information.
 * `Alternative Playback Start Behaviour (STAR)`
     * When On, the behaviour of playback start shortcuts changes as follows:
       * With playback off, pressing `PLAY` will start playback from the current grid scroll position

@@ -65,9 +65,11 @@ use the TRACK menu to select the specific track to record from
 
 ### Keyboard View Improvements
 
-- New `CHORDS` keyboard layout. The `CHORD` keyboard provides easy building and playing of in-scale chords. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD LIBRARY` keyboard. The `CHORD` keyboard provides two modes, a `ROW` mode, inspired by the Launchpad Pro, and a `COLUMN` mode, inspired by some of the features in the OXI one and others.
+- New `CHORDS` keyboard layout. The `CHORD` keyboard provides easy building and playing of in-scale chords. The `CHORD` keyboard provides two modes, a `ROW` mode, inspired by the Launchpad Pro, and a `COLUMN` mode, inspired by some of the features in the OXI one and others. 
 
-- New `CHORD LIBRARY` keyboard layout. `CHORD LIBRARY` keyboard is a library of chords split up into columns, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD LIBRARY` keyboard.
+- New `CHORD LIBRARY` keyboard layout. `CHORD LIBRARY` keyboard is a library of chords split up into columns, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. 
+
+- As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD`  and `CHORD LIBRARY` keyboards.
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
