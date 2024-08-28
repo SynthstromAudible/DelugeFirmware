@@ -994,15 +994,17 @@ to each individual note onset. ([#1978])
 
 - ([#2475]) Enables `CHORD` keyboard, in in-scale chord view with two modes, `ROW`, with chords spread out on each row across the pads, and `COLUMN`, where each column is a series a harmonically similar chords that can often sound nice substited for each other. Accessible the same way as other instrument supporting keyboards `SELECT` + `KEYBOARD` to cycle through layouts while on `SYNTH, MIDI, CV`
 
-- On the top right side of the pads, there are two a blue pad that turns on `ROW` mode, and a purple pad that turns on `COLUMN` mode. The default is `ROW` mode. In both modes, rows or chords are colored by the quality they represent (major=blue, minor=purple, dominant=cyan, dimished=green, aug=grey, other=yellow)
+- When entering the `CHORD` keyboard, your left sidebar will turn into a keyboard control sidebar to change settings for the `CHORD` keyboard. At the top of the side bar, there is a blue pad that turns on `ROW` mode and a purple pad that turns on `COLUMN` mode. The default is `ROW` mode. In both modes, rows or chords are colored by the quality they represent (major=blue, minor=purple, dominant=cyan, dimished=green, aug=grey, other=yellow)
 
-- In `ROW` mode, the pads are spread out on each row across the pads, this mode is inspired by the Launchpad Pro's chord mode. 
+- In `ROW` mode, the chords are spread out on each row across the pads. The intervals of the chords start out pretty simple and get generally more complicated as you move right. This mode is inspired by the Launchpad Pro's chord mode. 
 
 - In `COLUMN` mode, each column is a series a harmonically similar chords that can often sound nice substited for each other.
 
-- In the bottom right of the pads, you can toggle auto voiceleading, which keeps all the notes in the chord within a single octave. This is very beta, and more thoughful voiceleading is planned.
+- In the bottom of the sidebar, you can toggle auto voiceleading, which keeps all the notes in the chord within a single octave. This is very beta, and more thoughful voiceleading is planned.
 
-- turning `◀︎▶︎` will cycle through the scale degrees. `▼︎▲︎` modulates the entire `CHORD` keyboard.
+- Additional controls will be added to the sidebar in the future.
+
+- turning `◀︎▶︎` will cycle through the scale degrees. `▼︎▲︎` modulates the entire `CHORD` keyboard. Pressing `SHIFT` + `◀︎▶︎` will cycle through `ROW` and `COLUMN` modes.
 
 - As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
 
