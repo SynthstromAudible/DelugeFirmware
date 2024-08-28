@@ -60,7 +60,7 @@ void KeyboardLayoutChord::evaluatePadsRow(deluge::gui::ui::keyboard::PressedPad 
 	KeyboardStateChord& state = getState().chord;
 	NoteSet& scaleNotes = getScaleNotes();
 	uint8_t scaleNoteCount = getScaleNoteCount();
-	int32_t root = getRootNote() + state.noteOffset;
+	int32_t root = getRootNote() + state.noteOffset + state.modOffset;
 
 	if (pressed.x < kDisplayWidth - 1) {
 		int32_t note = noteFromCoordsRow(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
@@ -96,7 +96,7 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 	while (chordNo <= pressed.y) {
 		chord = chords[chordIdx % chords.size()];
 		NoteSet intervalSet = chord.intervalSet;
-		NoteSet modulatedNoteSet = intervalSet.modulateByOffset(root % kOctaveSize);
+		NoteSet modulatedNoteSet = intervalSet.modulateByOffset(mod(root, kOctaveSize));
 		if (modulatedNoteSet.isSubsetOf(scaleNotes)) {
 			chordNo++;
 		}
@@ -104,6 +104,7 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 	}
 
 	Voicing voicing = chord.voicings[0];
+	root = root + state.modOffset;
 	drawChordName(root, chord.name, voicing.supplementalName);
 
 	for (int32_t i = 0; i < kMaxChordKeyboardSize; i++) {
@@ -128,7 +129,7 @@ void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 		return;
 	}
 	KeyboardStateChord& state = getState().chord;
-	state.noteOffset += offset;
+	state.modOffset += offset;
 }
 
 void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,

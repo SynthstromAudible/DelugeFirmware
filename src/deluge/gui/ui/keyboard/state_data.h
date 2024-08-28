@@ -51,6 +51,7 @@ struct KeyboardStateChordLibrary {
 
 struct KeyboardStateChord {
 	int32_t noteOffset = (kOctaveSize * 4);
+	int32_t modOffset = 0;
 	int32_t scaleOffset = 0;
 	bool autoVoiceLeading = false;
 };
