@@ -992,29 +992,21 @@ to each individual note onset. ([#1978])
 
 #### 4.4.1.6 - Display Chord Keyboard Layout
 
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
+  documentation: [Chord Keyboard Documentation]
+
 - ([#2475]) Enables `CHORD` keyboard, in in-scale chord view with two modes, `ROW`, with chords spread out on each row across the pads, and `COLUMN`, where each column is a series a harmonically similar chords that can often sound nice substited for each other. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press `SELECT` + `KEYBOARD` to cycle through layouts to find the `CHORD` keyboard layout.
 
-- When entering the `CHORD` keyboard, your left sidebar will turn into a keyboard control sidebar to change settings for the `CHORD` keyboard. At the top of the side bar, there is a blue pad that turns on `ROW` mode and a purple pad that turns on `COLUMN` mode. The default is `ROW` mode. In both modes, rows or chords are colored by the quality they represent (major=blue, minor=purple, dominant=cyan, dimished=green, aug=grey, other=yellow)
-
-- In `ROW` mode, the chords are spread out on each row across the pads. The intervals of the chords start out pretty simple and get generally more complicated as you move right. This mode is inspired by the Launchpad Pro's chord mode. 
-
-- In `COLUMN` mode, each column is a series a harmonically similar chords that can often sound nice substited for each other.
-
-- In the bottom of the sidebar, you can toggle auto voiceleading, which keeps all the notes in the chord within a single octave. This is very beta, and more thoughful voiceleading is planned.
-
-- Additional controls will be added to the sidebar in the future.
-
-- turning `◀︎▶︎` will cycle through the scale degrees. `▼︎▲︎` modulates the entire `CHORD` keyboard. Pressing `SHIFT` + `◀︎▶︎` will cycle through `ROW` and `COLUMN` modes.
+- When entering the `CHORD` keyboard, your left sidebar will turn into a keyboard control sidebar to change settings for the `CHORD` keyboard. At the top of the side bar, there is a blue pad that turns on `ROW` mode and a purple pad that turns on `COLUMN` mode. The default is `ROW` mode.
 
 - As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
 
 #### 4.4.1.7 - Display Chord Library Keyboard Layout
 
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
+  documentation: [Chord Keyboard Documentation]
+
 - ([#2385]) Enables `CHORD LIBRARY` keyboard layout which displays a library of chords on the pads. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD LIBRARY` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press `SELECT` + `KEYBOARD` to cycle through layouts to find the `CHORD LIBRARY` keyboard layout.
-
-- Each column is a note (chormatic, all 12 notes), turning `◀︎▶︎` will move down or up the scale, lowering or raising your chords. Each pad is a different chord. So the first row is just roots, second is major triads, 3rd is minor triads, etc. `▼︎▲︎` scrolls up to more chords.
-
-- Holding a pad on a row and pressing in the `◀︎▶︎` and turning changes the voicing for all the chords on that row.
 
 - As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD LIBRARY` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
 
@@ -1520,3 +1512,5 @@ different firmware
 [DX7 Synth Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/dx_synth.md
 
 [Stem Export Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/stem_export.md
+
+[Chord Keyboard Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/chord_keyboard.md
