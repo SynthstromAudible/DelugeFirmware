@@ -1952,20 +1952,20 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			break;
 		case OutputType::MIDI_OUT:
 			if (channel < 16) {
-				outputTypeText = "MIDI channel";
+				outputTypeText = "MIDI";
 			}
 			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-				outputTypeText = "MPE zone";
+				outputTypeText = "MPE";
 			}
 			else {
 				outputTypeText = "Internal";
 			}
 			break;
 		case OutputType::CV:
-			outputTypeText = "CV / gate channel";
+			outputTypeText = "CV / gate";
 			break;
 		case OutputType::AUDIO:
-			outputTypeText = "Audio track";
+			outputTypeText = "Audio";
 			break;
 		default:
 			__builtin_unreachable();
