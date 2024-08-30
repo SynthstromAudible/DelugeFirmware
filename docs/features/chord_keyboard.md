@@ -61,6 +61,11 @@ The Chord Library Layout provides a comprehensive library of chords, making it e
 
 - **Layout:**
   - Each column represents a note (chromatic, all 12 notes), with chords laid out vertically within each column. The first row contains root notes, the second row contains major triads, the third row contains minor triads, and so on.
+  - Each column is a different color with the colors repeating on the octave. This is to help you quickly identify the root note of the chord you are looking for, no matter how high or low you have scrolled in the layout.
+  - In scale mode, the chords with notes entirely within the scale are highlighted, while the chords with notes outside the scale are dimmed.
+  - When out of scale mode, the final 2 columns change colors each 8 chords you scroll up to help you keep track of where you are in the layout as you scroll up and down. Other than these columns, the column of the root note of the key you are in is highlighted, while the all other columns are dimmed.
+  
+- **Controls:**
   - The horizontal encoder scrolls through the scale, allowing you to raise or lower the chords. The vertical encoder scrolls up to access more chords.
 
 - **Voicing Adjustment:**
