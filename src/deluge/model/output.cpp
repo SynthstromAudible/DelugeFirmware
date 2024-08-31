@@ -45,6 +45,11 @@ Output::Output(OutputType newType) : type(newType) {
 
 Output::~Output() {
 	removeRecorder();
+	// if another output is recording this one, we need to tell the other output to clear the pointer since we don't
+	// exist
+	if (outputRecordingThisOutput) {
+		outputRecordingThisOutput->clearRecordingFrom();
+	}
 }
 
 void Output::setupWithoutActiveClip(ModelStack* modelStack) {
