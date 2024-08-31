@@ -308,7 +308,8 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 	// If at pos 0, that's the only place where anything really important happens: play the Sample
 	// also play it if we're auto extending and we just did that
 	if (!lastProcessedPos || lastProcessedPos == nextSampleRestartPos) {
-		if (getCurrentlyRecordingLinearly()) {
+		// original length is only 0 when recording into arranger, in which case we don't want to loop
+		if (getCurrentlyRecordingLinearly() && originalLength != 0) {
 			nextSampleRestartPos = lastProcessedPos + originalLength;
 			// make sure we come back here later
 			if (originalLength < playbackHandler.swungTicksTilNextEvent) {
