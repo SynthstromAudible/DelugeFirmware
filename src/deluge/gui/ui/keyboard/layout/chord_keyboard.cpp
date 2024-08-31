@@ -95,6 +95,10 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 	// This loop is to find the pressed.y in-scale chord (mod chords.size())
 	while (chordNo <= pressed.y) {
 		chord = chords[chordIdx % chords.size()];
+		if (chord.name == kEmptyChord.name) {
+			chordIdx = 0;
+			chord = chords[chordIdx];
+		}
 		NoteSet intervalSet = chord.intervalSet;
 		NoteSet modulatedNoteSet = intervalSet.modulateByOffset(mod(root, kOctaveSize));
 		if (modulatedNoteSet.isSubsetOf(scaleNotes)) {

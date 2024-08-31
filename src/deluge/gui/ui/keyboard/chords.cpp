@@ -18,8 +18,8 @@
 #include "gui/ui/keyboard/chords.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
+#include <array>
 #include <stdlib.h>
-#include <vector>
 
 namespace deluge::gui::ui::keyboard {
 
@@ -280,29 +280,29 @@ const Chord kMinor6 = {"-6",
                            {ROOT, MIN3, P5, MAJ6, NONE, NONE, NONE},
                        }};
 
-const std::vector<Chord> majorChords = {kMajor, kM7, k6, k2, k69, kM9, kM13, kSus4, kSus2, kM13Sharp11};
+const std::array<Chord, 10> majorChords = {kMajor, kM7, k6, k2, k69, kM9, kM13, kSus4, kSus2, kM13Sharp11};
 
-const std::vector<Chord> minorChords = {
-    kMinor, kMinor7, kMinor4, kMinor11, kMinor6, kMinor2,
+const std::array<Chord, 10> minorChords = {
+    kMinor, kMinor7, kMinor4, kMinor11, kMinor6, kMinor2, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
 };
 
-const std::vector<Chord> dominantChords = {
-    kMajor, k7, k69, k9, k7Sus4, k7Sus2, k11, k13,
+const std::array<Chord, 10> dominantChords = {
+    kMajor, k7, k69, k9, k7Sus4, k7Sus2, k11, k13, kEmptyChord, kEmptyChord,
 };
 
-const std::vector<Chord> diminishedChords = {
-    kDim,
-    kMinor7b5,
-    kMinor7b5b9,
+const std::array<Chord, 10> diminishedChords = {
+    kDim,        kMinor7b5,   kMinor7b5b9, kEmptyChord, kEmptyChord,
+    kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
 };
 
-const std::vector<Chord> augmentedChords = {
-    kAug,
+const std::array<Chord, 10> augmentedChords = {
+    kAug,        kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
+    kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
 };
 
-const std::vector<Chord> otherChords = {
-    kSus2,
-    kSus4,
+const std::array<Chord, 10> otherChords = {
+    kSus2,       kSus4,       kEmptyChord, kEmptyChord, kEmptyChord,
+    kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord, kEmptyChord,
 };
 
 } // namespace deluge::gui::ui::keyboard

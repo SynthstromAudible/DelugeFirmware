@@ -21,7 +21,7 @@
 #include "definitions_cxx.hpp"
 #include "model/scale/note_set.h"
 #include <array>
-#include <vector>
+// #include <vector>
 
 constexpr int32_t kMaxChordKeyboardSize = 7;
 constexpr int32_t kUniqueVoicings = 4;
@@ -123,17 +123,17 @@ extern const Chord kM13;
 extern const Chord kM13Sharp11;
 extern const Chord kMinor13;
 
-extern const std::vector<Chord> majorChords;
+extern const std::array<Chord, 10> majorChords;
 
-extern const std::vector<Chord> minorChords;
+extern const std::array<Chord, 10> minorChords;
 
-extern const std::vector<Chord> dominantChords;
+extern const std::array<Chord, 10> dominantChords;
 
-extern const std::vector<Chord> diminishedChords;
+extern const std::array<Chord, 10> diminishedChords;
 
-extern const std::vector<Chord> augmentedChords;
+extern const std::array<Chord, 10> augmentedChords;
 
-extern const std::vector<Chord> otherChords;
+extern const std::array<Chord, 10> otherChords;
 
 /// @brief A collection of chords
 class ChordList {
