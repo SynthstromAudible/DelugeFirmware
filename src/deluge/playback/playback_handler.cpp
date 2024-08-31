@@ -629,7 +629,11 @@ void PlaybackHandler::actionTimerTick() {
 
 	// Do any swung ticks up to and including now.
 	// Warning - this could do a song swap and reset a bunch of stuff
-	while (lastSwungTickActioned + swungTicksTilNextEvent <= lastTimerTickActioned) {
+	while (lastSwungTickActioned + swungTicksTilNextEvent < lastTimerTickActioned) {
+		actionSwungTick();
+	}
+	// avoid infinite loop when swung ticks til next event is 0 (e.g. something wants to be rechecked next render)
+	if (lastSwungTickActioned + swungTicksTilNextEvent == lastTimerTickActioned) {
 		actionSwungTick();
 	}
 
