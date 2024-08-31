@@ -3296,6 +3296,8 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 		((MelodicInstrument*)oldOutput)->midiInput.clear();
 	}
 
+	Output* outputRecordingOldOutput = oldOutput->getOutputRecordingThis();
+
 	outputClipInstanceListIsCurrentlyInvalid = true;
 
 	// Tell all the Clips to change their Instrument.
@@ -3372,7 +3374,9 @@ traverseClips:
 
 	// Put the newInstrument into the master list
 	*prevPointer = newOutput;
-
+	if (outputRecordingOldOutput) {
+		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput, true);
+	}
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 

@@ -219,6 +219,7 @@ public:
 		}
 		return false;
 	}
+	Output* getOutputRecordingThis() { return outputRecordingThisOutput; }
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
