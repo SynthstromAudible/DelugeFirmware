@@ -2,6 +2,12 @@
 
 > To find a detailed list of how to use each feature, check here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
 
+## c1.3.0
+
+### User Interface
+
+- Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+
 ## c1.2.0 Chopin
 
 ### Sound Engine

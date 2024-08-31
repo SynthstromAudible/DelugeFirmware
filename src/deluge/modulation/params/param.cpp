@@ -23,20 +23,20 @@
 
 namespace deluge::modulation::params {
 
-bool isParamBipolar(params::Kind kind, int32_t paramID) {
-	return (kind == params::Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID);
+bool isParamBipolar(Kind kind, int32_t paramID) {
+	return (kind == Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID);
 }
 
-bool isParamPan(params::Kind kind, int32_t paramID) {
-	return (kind == params::Kind::PATCHED && paramID == LOCAL_PAN)
-	       || (kind == params::Kind::UNPATCHED_GLOBAL && paramID == UNPATCHED_PAN);
+bool isParamPan(Kind kind, int32_t paramID) {
+	return (kind == Kind::PATCHED && paramID == LOCAL_PAN)
+	       || (kind == Kind::UNPATCHED_GLOBAL && paramID == UNPATCHED_PAN);
 }
 
-bool isParamArpRhythm(params::Kind kind, int32_t paramID) {
-	return (kind == params::Kind::UNPATCHED_SOUND && paramID == UNPATCHED_ARP_RHYTHM);
+bool isParamArpRhythm(Kind kind, int32_t paramID) {
+	return (kind == Kind::UNPATCHED_SOUND && paramID == UNPATCHED_ARP_RHYTHM);
 }
 
-bool isParamPitch(params::Kind kind, int32_t paramID) {
+bool isParamPitch(Kind kind, int32_t paramID) {
 	if (kind == Kind::PATCHED) {
 		return (paramID == LOCAL_PITCH_ADJUST) || (paramID == LOCAL_OSC_A_PITCH_ADJUST)
 		       || (paramID == LOCAL_OSC_B_PITCH_ADJUST) || (paramID == LOCAL_MODULATOR_0_PITCH_ADJUST)
@@ -50,16 +50,53 @@ bool isParamPitch(params::Kind kind, int32_t paramID) {
 	}
 }
 
-bool isParamStutter(params::Kind kind, int32_t paramID) {
-	return (kind == params::Kind::UNPATCHED_GLOBAL || kind == params::Kind::UNPATCHED_SOUND)
+bool isParamStutter(Kind kind, int32_t paramID) {
+	return (kind == Kind::UNPATCHED_GLOBAL || kind == Kind::UNPATCHED_SOUND)
 	       && static_cast<UnpatchedShared>(paramID) == UNPATCHED_STUTTER_RATE;
 }
 
-bool isParamQuantizedStutter(params::Kind kind, int32_t paramID) {
+bool isParamQuantizedStutter(Kind kind, int32_t paramID) {
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::QuantizedStutterRate) != RuntimeFeatureStateToggle::On) {
 		return false;
 	}
 	return isParamStutter(kind, paramID);
+}
+
+bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay) {
+	if (xDisplay == 6 && yDisplay == 2) {
+		return true;
+	}
+	return false;
+}
+
+bool isSidechainPatchCableShortcut(int32_t xDisplay, int32_t yDisplay) {
+	if (xDisplay == 10 && yDisplay == 2) {
+		return true;
+	}
+	return false;
+}
+
+bool isPatchCableShortcut(int32_t xDisplay, int32_t yDisplay) {
+	// vibrato shortcut
+	if (isVibratoPatchCableShortcut(xDisplay, yDisplay)) {
+		return true;
+	}
+	// sidechain volume ducking shortcut
+	else if (isSidechainPatchCableShortcut(xDisplay, yDisplay)) {
+		return true;
+	}
+	return false;
+}
+
+void getPatchCableFromShortcut(int32_t xDisplay, int32_t yDisplay, ParamDescriptor* paramDescriptor) {
+	// vibrato shortcut
+	if (isVibratoPatchCableShortcut(xDisplay, yDisplay)) {
+		paramDescriptor->setToHaveParamAndSource(LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL);
+	}
+	// sidechain volume ducking shortcut
+	else if (isSidechainPatchCableShortcut(xDisplay, yDisplay)) {
+		paramDescriptor->setToHaveParamAndSource(GLOBAL_VOLUME_POST_REVERB_SEND, PatchSource::SIDECHAIN);
+	}
 }
 
 char const* getPatchedParamShortName(ParamType type) {
