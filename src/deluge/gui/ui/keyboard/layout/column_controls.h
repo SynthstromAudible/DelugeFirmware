@@ -81,7 +81,13 @@ public:
 
 protected:
 	// Subclasses can override this to allow or disallow certain ControlColumn types
-	virtual bool allowSidebarType(ColumnControlFunction sidebarType) { return true; };
+	// By default, don't allow KEYBOARD_CONTROL
+	virtual bool allowSidebarType(ColumnControlFunction sidebarType) {
+		if (sidebarType == ColumnControlFunction::KEYBOARD_CONTROL) {
+			return false;
+		}
+		return true;
+	};
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

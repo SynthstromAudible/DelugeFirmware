@@ -48,6 +48,13 @@ struct KeyboardStateChordLibrary {
 	int32_t rowColorMultiplier = 5;
 	ChordList chordList{};
 };
+
+struct KeyboardStateChord {
+	int32_t noteOffset = (kOctaveSize * 4);
+	int32_t modOffset = 0;
+	int32_t scaleOffset = 0;
+	bool autoVoiceLeading = false;
+};
 /// Please note that saving and restoring currently needs to be added manually in instrument_clip.cpp and all layouts
 /// share one struct for storage
 struct KeyboardState {
@@ -56,6 +63,7 @@ struct KeyboardState {
 	KeyboardStateIsomorphic isomorphic;
 	KeyboardStateDrums drums;
 	KeyboardStateInKey inKey;
+	KeyboardStateChord chord;
 	KeyboardStateChordLibrary chordLibrary;
 
 	layout::ColumnControlState columnControl;

@@ -26,7 +26,7 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
+void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
 	bool armed = false;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		armed |= view.renderMacros(column, y, -1, image, nullptr);

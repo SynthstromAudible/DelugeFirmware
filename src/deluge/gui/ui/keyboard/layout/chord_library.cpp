@@ -147,17 +147,17 @@ void KeyboardLayoutChordLibrary::renderPads(RGB image[][kDisplayWidth + kSideBar
 				}
 			}
 			else {
+				// show we've the last column, show the page colour for navigation
+				if ((x == kDisplayWidth - 1) || (x == kDisplayWidth - 2)) {
+					image[y][x] = pageColours[pageNo % pageColours.size()].dim(1);
+				}
 				// If not in scale mode, highlight the root note
-				if (noteWithinOctave == 0) {
+				else if (noteWithinOctave == 0) {
 					image[y][x] = noteColours[x % noteColours.size()];
 				}
 				else {
 					image[y][x] = noteColours[x % noteColours.size()].dim(4);
 				}
-			}
-			// show we've reach the top of a page and the end of the chords
-			if ((chordNo % kDisplayHeight == kDisplayHeight - 1) || (chordNo == kUniqueChords - 1)) {
-				image[y][x] = pageColours[pageNo % pageColours.size()];
 			}
 		}
 	}
@@ -187,7 +187,7 @@ void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* cho
 }
 
 bool KeyboardLayoutChordLibrary::allowSidebarType(ColumnControlFunction sidebarType) {
-	if (sidebarType == ColumnControlFunction::CHORD) {
+	if ((sidebarType == ColumnControlFunction::CHORD) || (sidebarType == ColumnControlFunction::KEYBOARD_CONTROL)) {
 		return false;
 	}
 	return true;
