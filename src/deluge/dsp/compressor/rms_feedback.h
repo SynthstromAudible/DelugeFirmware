@@ -69,10 +69,7 @@ public:
 	[[nodiscard]] inline constexpr q31_t getAttack() const { return attackKnobPos; }
 
 	/// Get the current attack time constant in MS for a 3db change
-	///
-	/// @todo This currently rounds (down) to the nearest millisecond, it would probably be nice to expose at least a
-	/// little more of the underlying precsision.
-	[[nodiscard]] inline constexpr int32_t getAttackMS() const { return attackMS; }
+	[[nodiscard]] inline constexpr float getAttackMS() const { return attackMS; }
 
 	/// Set the attack time constant from a full-scale (0 to 2^31) number.
 	///
@@ -87,11 +84,9 @@ public:
 
 	/// Get the current release time constant in terms of the full knob range (0 to 2^31)
 	[[nodiscard]] inline constexpr q31_t getRelease() const { return releaseKnobPos; }
+
 	/// Get the current release time constant in MS for a 3db change
-	///
-	/// @todo This currently rounds (down) to the nearest millisecond, it would probably be nice to expose at least a
-	/// little more of the underlying precsision.
-	[[nodiscard]] inline constexpr int32_t getReleaseMS() const { return releaseMS; }
+	[[nodiscard]] inline constexpr float getReleaseMS() const { return releaseMS; }
 
 	/// Set the release time constant from a full-scale (0 to 2^31) number.
 	///
@@ -117,11 +112,8 @@ public:
 	/// Get the current ratio as a full-scale (0 to 2^31) number
 	[[nodiscard]] inline constexpr q31_t getRatio() const { return ratioKnobPos; }
 
-	/// Get the current ratio as an integer
-	///
-	/// @todo Thsi currently rounds (down) to the nearest integer, it would be nice to expose at least a little more of
-	/// the underlying precision.
-	[[nodiscard]] inline constexpr int32_t getRatioForDisplay() const { return ratio; }
+	/// Get the current ratio as a float
+	[[nodiscard]] inline constexpr float getRatioForDisplay() const { return ratio; }
 
 	/// Set the ratio based on a full-scale (0 to 2^31) number.
 	///
@@ -137,7 +129,7 @@ public:
 	q31_t getSidechain() { return sideChainKnobPos; }
 
 	/// Get the current sidechain cutoff frequency in hertz.
-	[[nodiscard]] inline constexpr int32_t getSidechainForDisplay() const { return fc_hz; }
+	[[nodiscard]] inline constexpr float getSidechainForDisplay() const { return fc_hz; }
 
 	/// Set the sidechain cutoff frequency from a full-scale (0 to 2^31) integer.
 	///

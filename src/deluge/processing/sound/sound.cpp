@@ -2055,7 +2055,8 @@ doCutModFXTail:
 					default:
 						waitSamplesModfx = (90 * 441);
 					}
-					int32_t waitSamples = std::max(waitSamplesModfx, compressor.getReleaseMS() * 44);
+					int32_t waitSamples =
+					    std::max(waitSamplesModfx, static_cast<int32_t>(compressor.getReleaseMS() * 44));
 					startSkippingRenderingAtTime = AudioEngine::audioSampleTimer + waitSamples;
 				}
 
