@@ -598,7 +598,8 @@ void registerTasks() {
 	// if recordings are finished
 	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, p++, 0.1, 0.1, 0.2, "audio file slow");
 	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.1, 0.1, "audio recorder slow");
-
+	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
+	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.1, 0.1, "playback routine");
 	// 31-39: Idle priority (40 for dyn tasks)
 	p = 31;
 	addRepeatingTask(&(PIC::flush), p++, 0.001, 0.001, 0.02, "PIC flush");
