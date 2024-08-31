@@ -120,9 +120,10 @@ void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t max
 }
 
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
-                        int32_t scrollPos, int32_t endX) {
+                        int32_t scrollPos, int32_t endX, bool useTextWidth) {
 	int32_t stringLength = string.length();
 	int32_t charIdx = 0;
+	int32_t charWidth = textWidth;
 	// if the string is currently scrolling we want to identify the number of characters
 	// that should be visible on the screen based on the current scroll position
 	// to do iterate through each character in the string, based on its size in pixels
@@ -133,8 +134,10 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		int32_t widthOfCharsToChopOff = 0;
 		int32_t charStartX = 0;
 		for (char const c : string) {
-			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
-			int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+			if (!useTextWidth) {
+				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
+				charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+			}
 			charStartX += charWidth;
 			// are we past the scroll position?
 			// if so no more characters to chop off
@@ -162,8 +165,10 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 	// if we scrolled above, then the string, ScrollPos, stringLength will have been adjusted
 	// here we're going to draw the remaining characters in the string
 	for (char const c : string) {
-		int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
-		int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+		if (!useTextWidth) {
+			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
+			charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+		}
 		drawChar(c, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
 
 		// calculate the X coordinate to draw the next character
@@ -196,6 +201,7 @@ void Canvas::drawStringCentred(char const* string, int32_t pixelY, int32_t textW
 /// @param textHeight Requested height for each character in the string
 void Canvas::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, int32_t textWidth,
                                                 int32_t textHeight) {
+	bool shrink = false;
 	std::string_view str{string};
 	int32_t maxTextWidth = (uint8_t)OLED_MAIN_WIDTH_PIXELS / (uint32_t)str.length();
 	if (textWidth > maxTextWidth) {
@@ -218,9 +224,11 @@ void Canvas::drawStringCentredShrinkIfNecessary(char const* string, int32_t pixe
 		int32_t heightDiff = textHeight - newHeight;
 		pixelY += heightDiff >> 1;
 		textHeight = newHeight;
+
+		shrink = true;
 	}
 	int32_t pixelX = (kImageWidth - textWidth * str.length()) >> 1;
-	drawString(str, pixelX, pixelY, textWidth, textHeight);
+	drawString(str, pixelX, pixelY, textWidth, textHeight, 0, OLED_MAIN_WIDTH_PIXELS, shrink);
 }
 
 void Canvas::drawStringAlignRight(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
