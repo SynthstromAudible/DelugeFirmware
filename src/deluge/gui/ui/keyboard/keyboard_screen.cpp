@@ -42,7 +42,9 @@
 #include <cstring>
 
 #include "gui/ui/keyboard/layout.h"
+#include "gui/ui/keyboard/layout/chord_keyboard.h"
 #include "gui/ui/keyboard/layout/chord_library.h"
+#include "gui/ui/keyboard/layout/column_control_state.h"
 #include "gui/ui/keyboard/layout/in_key.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
@@ -55,6 +57,7 @@ namespace deluge::gui::ui::keyboard {
 layout::KeyboardLayoutIsomorphic keyboardLayoutIsomorphic{};
 layout::KeyboardLayoutVelocityDrums keyboardLayoutVelocityDrums{};
 layout::KeyboardLayoutInKey keyboardLayoutInKey{};
+layout::KeyboardLayoutChord KeyboardLayoutChord{};
 layout::KeyboardLayoutChordLibrary keyboardLayoutChordLibrary{};
 layout::KeyboardLayoutNorns keyboardLayoutNorns{};
 KeyboardLayout* layoutList[KeyboardLayoutType::KeyboardLayoutTypeMaxElement + 1] = {0};
@@ -63,6 +66,7 @@ KeyboardScreen::KeyboardScreen() {
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = (KeyboardLayout*)&keyboardLayoutIsomorphic;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeDrums] = (KeyboardLayout*)&keyboardLayoutVelocityDrums;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeInKey] = (KeyboardLayout*)&keyboardLayoutInKey;
+	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChord] = (KeyboardLayout*)&KeyboardLayoutChord;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = (KeyboardLayout*)&keyboardLayoutChordLibrary;
 	layoutList[KeyboardLayoutType::KeyboardLayoutTypeNorns] = (KeyboardLayout*)&keyboardLayoutNorns;
 
@@ -637,7 +641,12 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 		     && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns)
 		    || (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayChordKeyboard)
 		            == RuntimeFeatureStateToggle::Off
-		        && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary)) {
+		        && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeChordLibrary)
+		    || (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DisplayChordKeyboard)
+		            == RuntimeFeatureStateToggle::Off
+		        && nextLayout == KeyboardLayoutType::KeyboardLayoutTypeChord)
+
+		) {
 			// Don't check the next conditions, this one is already lost
 		}
 		else if (getCurrentOutputType() == OutputType::KIT && layoutList[nextLayout]->supportsKit()) {
@@ -675,6 +684,16 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 			exitScaleMode();
 			setLedStates();
 		}
+	}
+	// If entering chord mode, set the column control to the keyboard control column
+	layout::ColumnControlState& state = getCurrentInstrumentClip()->keyboardState.columnControl;
+	if (getCurrentInstrumentClip()->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChord) {
+		state.lastLeftFunc = state.leftColFunc;
+		state.leftCol = state.getColumnForFunc(layout::ColumnControlFunction::KEYBOARD_CONTROL);
+	}
+	else {
+		// Otherwise, set it back to what it was
+		state.leftCol = state.getColumnForFunc(state.lastLeftFunc);
 	}
 
 	// Ensure scroll values are calculated in bounds

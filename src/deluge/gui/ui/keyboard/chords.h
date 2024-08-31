@@ -20,15 +20,28 @@
 
 #include "definitions_cxx.hpp"
 #include "model/scale/note_set.h"
+#include <array>
+// #include <vector>
 
 constexpr int32_t kMaxChordKeyboardSize = 7;
 constexpr int32_t kUniqueVoicings = 4;
-constexpr int32_t kUniqueChords = 20;
+constexpr int32_t kUniqueChords = 33;
 constexpr int32_t kOffScreenChords = kUniqueChords - kDisplayHeight;
 
 namespace deluge::gui::ui::keyboard {
 
-/// @brief A voicing is a set of offsets from the root note of a chord
+enum class ChordQuality {
+	MAJOR,
+	MINOR,
+	DIMINISHED,
+	AUGMENTED,
+	DOMINANT,
+	OTHER,
+	CHORD_QUALITY_MAX,
+};
+
+// Check and return the quality of a chord, assuming the notes are defined from the root, even if it is a rootless chord
+ChordQuality getChordQuality(NoteSet& notes);
 
 // Interval offsets for convenience
 const int32_t NONE = INT32_MAX;
@@ -44,6 +57,7 @@ const int32_t P5 = 7;
 const int32_t AUG5 = 8;
 const int32_t MIN6 = 8;
 const int32_t MAJ6 = 9;
+const int32_t DIM7 = 9;
 const int32_t MIN7 = 10;
 const int32_t DOM7 = 10;
 const int32_t MAJ7 = 11;
@@ -61,6 +75,7 @@ const int32_t MAJ13 = MAJ6 + OCT;
 const int32_t MIN14 = MIN7 + OCT;
 const int32_t MAJ14 = MAJ7 + OCT;
 
+/// @brief A voicing is a set of offsets from the root note of a chord
 struct Voicing {
 	int32_t offsets[kMaxChordKeyboardSize];
 	const char* supplementalName = "";
@@ -74,16 +89,29 @@ struct Chord {
 };
 
 // ChordList
+extern const Chord kEmptyChord;
 extern const Chord kMajor;
 extern const Chord kMinor;
-extern const Chord kDim;
-extern const Chord kAug;
+extern const Chord k6;
+extern const Chord k2;
+extern const Chord k69;
 extern const Chord kSus2;
 extern const Chord kSus4;
 extern const Chord k7;
+extern const Chord k7Sus4;
+extern const Chord k7Sus2;
 extern const Chord kM7;
 extern const Chord kMinor7;
+extern const Chord kMinor2;
+extern const Chord kMinor4;
+extern const Chord kDim;
+extern const Chord kFullDim;
+extern const Chord kAug;
+extern const Chord kMinor6;
+extern const Chord kMinorMaj7;
 extern const Chord kMinor7b5;
+extern const Chord kMinor9b5;
+extern const Chord kMinor7b5b9;
 extern const Chord k9;
 extern const Chord kM9;
 extern const Chord kMinor9;
@@ -92,7 +120,20 @@ extern const Chord kM11;
 extern const Chord kMinor11;
 extern const Chord k13;
 extern const Chord kM13;
+extern const Chord kM13Sharp11;
 extern const Chord kMinor13;
+
+extern const std::array<Chord, 10> majorChords;
+
+extern const std::array<Chord, 10> minorChords;
+
+extern const std::array<Chord, 10> dominantChords;
+
+extern const std::array<Chord, 10> diminishedChords;
+
+extern const std::array<Chord, 10> augmentedChords;
+
+extern const std::array<Chord, 10> otherChords;
 
 /// @brief A collection of chords
 class ChordList {

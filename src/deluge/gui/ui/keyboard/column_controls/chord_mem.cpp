@@ -22,7 +22,7 @@
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void ChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
+void ChordMemColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		bool chord_selected = y == activeChordMem;
