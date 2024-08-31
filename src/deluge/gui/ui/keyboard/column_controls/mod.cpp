@@ -23,7 +23,7 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void ModColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
+void ModColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
 	uint8_t brightness = 1;
 	uint8_t otherChannels = 0;
 	uint32_t modVal = modMin;
