@@ -92,7 +92,7 @@ public:
 	/// @param endX Maximum X coordinate after which we bail out. N.B. this means the *actual* maximum X coordinate
 	///             rendered is endX + textWidth, as the individual character rendering work can overshoot.
 	void drawString(std::string_view str, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
-	                int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS);
+	                int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS, bool useTextWidth = false);
 
 	/// Draw a string, centered at the provided location.
 	///
