@@ -982,9 +982,22 @@ Submenu defaultUISession{
     {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
 };
 
+ToggleBool defaultAccessibilityShortcuts{STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
+                                         STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
+                                         FlashStorage::accessibilityShortcuts};
+ToggleBool defaultAccessibilityMenuHighlighting{STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
+                                                STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
+                                                FlashStorage::accessibilityMenuHighlighting};
+
+Submenu defaultAccessibilityMenu{STRING_FOR_DEFAULT_ACCESSIBILITY,
+                                 {
+                                     &defaultAccessibilityShortcuts,
+                                     &defaultAccessibilityMenuHighlighting,
+                                 }};
+
 Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {&defaultUISession, &defaultUIKeyboard},
+    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard},
 };
 
 ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,

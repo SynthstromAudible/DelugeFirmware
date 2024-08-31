@@ -179,6 +179,8 @@ enum Entries {
 171: default swing interval
 172: default disabled scales low byte
 173: default disabled scales high byte
+174: accessibilityShortcuts
+175: accessibilityMenuHighlighting
 */
 
 uint8_t defaultScale;
@@ -231,6 +233,9 @@ std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 // will have it's own disabled-flags. If we ever add more, we need to spend at least one byte
 // more of flash.
 static_assert(NUM_PRESET_SCALES <= 16);
+
+bool accessibilityShortcuts = false;
+bool accessibilityMenuHighlighting = true;
 
 void resetSettings() {
 
@@ -326,6 +331,9 @@ void resetSettings() {
 	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 
 	defaultDisabledPresetScales = {0};
+
+	accessibilityShortcuts = false;
+	accessibilityMenuHighlighting = true;
 }
 
 void resetMidiFollowSettings() {
@@ -703,6 +711,20 @@ void readSettings() {
 	else {
 		defaultDisabledPresetScales = std::bitset<NUM_PRESET_SCALES>((buffer[173] << 8) | buffer[172]);
 	}
+
+	if (buffer[174] != 0 && buffer[174] != 1) {
+		accessibilityShortcuts = false;
+	}
+	else {
+		accessibilityShortcuts = buffer[174];
+	}
+
+	if (buffer[175] != 0 && buffer[175] != 1) {
+		accessibilityMenuHighlighting = false;
+	}
+	else {
+		accessibilityMenuHighlighting = buffer[175];
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -965,6 +987,9 @@ void writeSettings() {
 	unsigned long disabledBits = defaultDisabledPresetScales.to_ulong();
 	buffer[172] = 0xff & disabledBits;
 	buffer[173] = 0xff & (disabledBits >> 8);
+
+	buffer[174] = accessibilityShortcuts;
+	buffer[175] = accessibilityMenuHighlighting;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
