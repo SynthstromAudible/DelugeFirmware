@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "modulation/params/param_descriptor.h"
 #include "util/misc.h"
 #include <algorithm>
 #include <cstdint>
@@ -240,6 +241,11 @@ bool isParamPitch(Kind kind, int32_t paramID);
 bool isParamArpRhythm(Kind kind, int32_t paramID);
 bool isParamStutter(Kind kind, int32_t paramID);
 bool isParamQuantizedStutter(Kind kind, int32_t paramID);
+
+bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
+bool isSidechainPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
+bool isPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
+void getPatchCableFromShortcut(int32_t xDisplay, int32_t yDisplay, ParamDescriptor* paramDescriptor);
 
 char const* getPatchedParamDisplayName(int32_t p);
 /// Get the short version of a param name, for use in the OLED mod matrix display (maximum 10 characters)

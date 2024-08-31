@@ -8,6 +8,12 @@
 
 - Fixed a bug that was causing audio clicks when recording audio and when scrolling / zooming in song row view and the audio waveform renderer.
 
+## c1.3.0
+
+### User Interface
+
+- Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+
 ## c1.2.0 Chopin
 
 ### Sound Engine

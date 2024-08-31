@@ -776,7 +776,8 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			if (!onArrangerView
 			    && ((outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
 			        && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-			            || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)))) {
+			            || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+			            || params::isPatchCableShortcut(xDisplay, yDisplay)))) {
 
 				if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 					modelStackWithParam =
@@ -795,6 +796,14 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 					modelStackWithParam = getModelStackWithParamForClip(
 					    modelStackWithTimelineCounter, clip, unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay],
 					    params::Kind::UNPATCHED_SOUND);
+				}
+
+				else if (params::isPatchCableShortcut(xDisplay, yDisplay)) {
+					ParamDescriptor paramDescriptor;
+					params::getPatchCableFromShortcut(xDisplay, yDisplay, &paramDescriptor);
+
+					modelStackWithParam = getModelStackWithParamForClip(
+					    modelStackWithTimelineCounter, clip, paramDescriptor.data, params::Kind::PATCH_CABLE);
 				}
 			}
 
@@ -1575,12 +1584,8 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 				source2 = paramDescriptor.getTopLevelSource();
 			}
 
-			if (source2 == PatchSource::NONE) {
-				parameterName.append(getSourceDisplayNameForOLED(lastSelectedPatchSource));
-			}
-			else {
-				parameterName.append(sourceToStringShort(lastSelectedPatchSource));
-			}
+			parameterName.append(sourceToStringShort(lastSelectedPatchSource));
+
 			if (display->haveOLED()) {
 				parameterName.append(" -> ");
 			}
@@ -2579,7 +2584,8 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	             || (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
 	                 && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))
 	         && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-	             || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID))) {
+	             || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+	             || params::isPatchCableShortcut(xDisplay, yDisplay))) {
 		// don't allow automation of portamento in kit's
 		if ((outputType == OutputType::KIT)
 		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
@@ -2592,13 +2598,21 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 			clip->lastSelectedParamKind = params::Kind::PATCHED;
 			clip->lastSelectedParamID = patchedParamShortcuts[xDisplay][yDisplay];
 		}
-
 		else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 			clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
 			clip->lastSelectedParamID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
 		}
+		else if (params::isPatchCableShortcut(xDisplay, yDisplay)) {
+			ParamDescriptor paramDescriptor;
+			params::getPatchCableFromShortcut(xDisplay, yDisplay, &paramDescriptor);
+			clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
+			clip->lastSelectedParamID = paramDescriptor.data;
+			clip->lastSelectedPatchSource = paramDescriptor.getBottomLevelSource();
+		}
 
-		getLastSelectedNonGlobalParamArrayPosition(clip);
+		if (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE) {
+			getLastSelectedNonGlobalParamArrayPosition(clip);
+		}
 	}
 
 	// if you are in arranger, an audio clip, or a kit clip with affect entire enabled
