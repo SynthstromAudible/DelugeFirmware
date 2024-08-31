@@ -42,11 +42,4 @@ This is a subset of issues where the current UX does not fully align with the pr
 
 * Horizontal scrolling is column by column in the arranger but screen by screen in the clip or song
 * Clip nudging in the arranger is clip+ turn <>, note nudging in clip is note + press and turn <>
-
-## Unclear
-
-These are spots where there is ambiguity in the UI that could be improved
-
-* Clips in song view are not clearly linked to tracks in arranger view. Perhaps the audition pads in arranger view could show the row colour (#163) from session view
-* Linked/clone clips are not immediately identifiable in clip view - perhaps all linked clips should get the same row colour
 * Sequencer parameters (probability, velocity, etc.) aren't accessible via the menu. Maybe holding a note and clicking select could open a sequencer menu?
