@@ -49,7 +49,7 @@ protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
-	void drawChordName(int16_t noteCode, const char* chordName, const char* voicingName = "");
+	void drawChordName(int16_t noteCode, const char* chordName = "", const char* voicingName = "");
 	inline uint8_t noteFromCoords(int32_t x) { return getState().chordLibrary.noteOffset + x; }
 	inline int32_t getChordNo(int32_t y) { return getState().chordLibrary.chordList.chordRowOffset + y; }
 

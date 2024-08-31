@@ -38,7 +38,7 @@ DxPatch* getCurrentDxPatch() {
 	return nullptr;
 }
 
-void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
+void DXColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
 	using menu_item::dxParam;
 	DxPatch* patch = getCurrentDxPatch();
 	if (!patch) {

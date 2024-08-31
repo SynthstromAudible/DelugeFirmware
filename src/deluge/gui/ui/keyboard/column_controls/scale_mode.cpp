@@ -24,7 +24,7 @@ using namespace deluge::gui::ui::keyboard::layout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column) {
+void ScaleModeColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int32_t column, KeyboardLayout* layout) {
 	Scale currentScale = currentSong->getCurrentScale();
 	uint8_t otherChannels = 0;
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
