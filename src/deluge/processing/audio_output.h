@@ -94,12 +94,15 @@ public:
 	bool echoing;
 
 	Output* getOutputRecordingFrom() { return outputRecordingFrom; }
+	void clearRecordingFrom() override { setOutputRecordingFrom(nullptr, false); }
 	void setOutputRecordingFrom(Output* toRecordfrom, bool monitoring) {
 		if (outputRecordingFrom) {
-			outputRecordingFrom->setRenderingToAudioOutput(false);
+			outputRecordingFrom->setRenderingToAudioOutput(false, nullptr);
 		}
 		outputRecordingFrom = toRecordfrom;
-		outputRecordingFrom->setRenderingToAudioOutput(monitoring);
+		if (outputRecordingFrom) {
+			outputRecordingFrom->setRenderingToAudioOutput(monitoring, this);
+		}
 		echoing = monitoring;
 	}
 

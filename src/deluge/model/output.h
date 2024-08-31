@@ -199,7 +199,10 @@ public:
 	bool shouldRenderInSong() { return !(recorderIsEchoing); }
 
 	/// disable rendering to the song buffer if this clip is the input to an audio output that's monitoring
-	void setRenderingToAudioOutput(bool monitoring) { recorderIsEchoing = monitoring; }
+	void setRenderingToAudioOutput(bool monitoring, Output* output) {
+		recorderIsEchoing = monitoring;
+		outputRecordingThisOutput = output;
+	}
 	bool addRecorder(SampleRecorder* newRecorder) {
 		if (recorder) {
 			return false;
@@ -220,6 +223,10 @@ public:
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;
 	bool recorderIsEchoing{false};
+	// for clearing pointers when this output is deleted
+	Output* outputRecordingThisOutput{nullptr};
+	// only for audio outputs, will be used for instruments when I implement routing notes between clips
+	virtual void clearRecordingFrom() {}
 	Clip* activeClip{nullptr};
 	SampleRecorder* recorder{nullptr};
 };
