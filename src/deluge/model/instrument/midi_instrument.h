@@ -36,16 +36,16 @@ class MIDIInstrument final : public NonAudioInstrument {
 public:
 	MIDIInstrument();
 
-	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack);
+	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) override;
 
 	void allNotesOff();
 
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
-	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
-	bool readTagFromFile(Deserializer& reader, char const* tagName);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
+	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 	Error readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
-	void sendMIDIPGM();
+	void sendMIDIPGM() override;
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
 
@@ -57,18 +57,18 @@ public:
 	                                    ModelStackWithThreeMainThings* modelStack);
 	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
 	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                       bool* doingMidiThru);
+	                       bool* doingMidiThru) override;
 
 	// ModControllable implementation
-	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
-	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager);
+	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) override;
+	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) override;
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation = true);
-	uint8_t* getModKnobMode() { return &modKnobMode; }
+	                                                bool allowCreation = true) override;
+	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
-	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack);
+	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) override;
 	ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
-	                                                               ModelStackWithThreeMainThings* modelStack);
+	                                                               ModelStackWithThreeMainThings* modelStack) override;
 	bool doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThings* modelStack, int32_t cc);
 	int32_t getOutputMasterChannel();
 
@@ -94,20 +94,22 @@ public:
 	int32_t lastCombinedPolyExpression[3]{0};
 	// could be int8 for aftertouch/Y but Midi 2 will allow those to be 14 bit too
 	int16_t lastOutputMonoExpression[3]{0};
-	char const* getXMLTag() { return "midi"; }
-	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel"; }
-	char const* getSubSlotXMLTag() { return "suffix"; }
+	char const* getXMLTag() override { return "midi"; }
+	char const* getSlotXMLTag() override {
+		return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel";
+	}
+	char const* getSubSlotXMLTag() override { return "suffix"; }
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack);
+	                                                bool affectEntire, bool useMenuStack) override;
 
 protected:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                              int32_t whichExpressionDimension, ArpNote* arpNote);
-	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
-	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity);
-	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension);
+	                                              int32_t whichExpressionDimension, ArpNote* arpNote) override;
+	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) override;
+	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) override;
+	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) override;
 
 private:
 	void sendMonophonicExpressionEvent(int32_t whichExpressionDimension);

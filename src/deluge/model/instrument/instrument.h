@@ -43,7 +43,7 @@ class ModelStackWithThreeMainThings;
 
 class Instrument : public Output {
 public:
-	Instrument(OutputType newType);
+	explicit Instrument(OutputType newType);
 	// This needs to be initialized / defaulted to "SYNTHS" or "KITS" (for those Instrument types). The constructor does
 	// not do this, partly because I don't want it doing memory allocation, and also because in many cases, the function
 	// creating the object hard-sets this anyway.
@@ -61,15 +61,15 @@ public:
 
 	// virtual void writeInstrumentDataToFile(bool savingSong, char const* slotName = "presetSlot", char const*
 	// subSlotName = "presetSubSlot");
-	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
-	bool readTagFromFile(Deserializer& reader, char const* tagName);
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
+	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
 	virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}
 	virtual bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) = 0;
 	virtual void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
 	                                              ModelStackWithTimelineCounter* modelStack) = 0;
 
-	char const* getNameXMLTag() { return "presetName"; }
+	char const* getNameXMLTag() override { return "presetName"; }
 	virtual char const* getSlotXMLTag() { return "presetSlot"; }
 	virtual char const* getSubSlotXMLTag() { return "presetSubSlot"; }
 
