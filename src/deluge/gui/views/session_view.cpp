@@ -3181,6 +3181,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 			image[yDisplay][xDisplay] = {0, 0, 0};
+			occupancyMask[yDisplay][xDisplay] = 0;
 		}
 	}
 
@@ -3201,7 +3202,10 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		auto y = gridYFromSection(clip->section);
 
 		// Render colour for every valid clip
-		if (x >= 0 && y >= 0) {
+		// make sure the square hasn't already been written to - otherwise multiple clips in the same section will
+		// overwrite each other. getClipFromPads uses the first in the list (grows from start, so furthest down in rows
+		// mode), using the first clip here keeps it consistent
+		if (x >= 0 && y >= 0 && occupancyMask[y][x] == 0) {
 			occupancyMask[y][x] = 64;
 			image[y][x] = gridRenderClipColor(clip);
 		}
