@@ -90,7 +90,11 @@ void SoundInstrument::cutAllSound() {
 void SoundInstrument::renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos,
                                    int32_t numSamples, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
                                    int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive) {
-
+	// this should only happen in the rare case that this is called while replacing an instrument but after the clips
+	// have been cleared
+	if (!activeClip) [[unlikely]] {
+		return;
+	}
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(this, getParamManager(modelStack->song));
