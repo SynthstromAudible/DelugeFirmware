@@ -12,14 +12,14 @@ namespace deluge::gui::context_menu::clip_settings {
 
 constexpr size_t kNumValues = 3;
 
-LaunchStyle launchStyle{};
+LaunchStyleMenu launchStyle{};
 
-char const* LaunchStyle::getTitle() {
+char const* LaunchStyleMenu::getTitle() {
 	static char const* title = "Clip Mode";
 	return title;
 }
 
-Sized<char const**> LaunchStyle::getOptions() {
+Sized<char const**> LaunchStyleMenu::getOptions() {
 	using enum l10n::String;
 	static const char* optionsls[] = {
 	    l10n::get(STRING_FOR_DEFAULT_LAUNCH),
@@ -29,7 +29,7 @@ Sized<char const**> LaunchStyle::getOptions() {
 	return {optionsls, kNumValues};
 }
 
-bool LaunchStyle::setupAndCheckAvailability() {
+bool LaunchStyleMenu::setupAndCheckAvailability() {
 	currentUIMode = UI_MODE_NONE;
 	this->currentOption = static_cast<int32_t>(clip->launchStyle);
 
@@ -40,7 +40,7 @@ bool LaunchStyle::setupAndCheckAvailability() {
 	return true;
 }
 
-void LaunchStyle::selectEncoderAction(int8_t offset) {
+void LaunchStyleMenu::selectEncoderAction(int8_t offset) {
 	ContextMenu::selectEncoderAction(offset);
 	clip->launchStyle = static_cast<::LaunchStyle>(this->currentOption);
 }
