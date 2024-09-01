@@ -45,6 +45,9 @@ AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 }
 
 AudioOutput::~AudioOutput() {
+	if (outputRecordingFrom) {
+		outputRecordingFrom->setRenderingToAudioOutput(false, nullptr);
+	}
 }
 
 void AudioOutput::cloneFrom(ModControllableAudio* other) {
