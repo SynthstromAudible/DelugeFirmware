@@ -13,10 +13,10 @@ class Clip;
 
 namespace deluge::gui::context_menu::clip_settings {
 
-class LaunchStyle final : public ContextMenu {
+class LaunchStyleMenu final : public ContextMenu {
 
 public:
-	LaunchStyle() = default;
+	LaunchStyleMenu() = default;
 	void selectEncoderAction(int8_t offset) override;
 	bool setupAndCheckAvailability();
 	bool canSeeViewUnderneath() override { return true; }
@@ -30,5 +30,5 @@ public:
 	Sized<const char**> getOptions() override;
 };
 
-extern LaunchStyle launchStyle;
+extern LaunchStyleMenu launchStyle;
 } // namespace deluge::gui::context_menu::clip_settings
