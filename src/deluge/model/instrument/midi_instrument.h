@@ -80,7 +80,8 @@ public:
 	// e.g. record silently if monitorMidi is off and the note came from our learned input device and channel (not midi
 	// follow)
 	bool shouldRecordSilently(int32_t inputChannelOrZone, MIDIDevice* inputDevice) override {
-		return !monitorMidi && midiInput.equalsDevice(inputDevice) && inputChannelOrZone == channel;
+		return !monitorMidi && midiInput.equalsDevice(inputDevice)
+		       && midiInput.equalsChannelOrZone(inputDevice, inputChannelOrZone);
 	}
 	int32_t channelSuffix{-1};
 	int32_t lastNoteCode{32767};
