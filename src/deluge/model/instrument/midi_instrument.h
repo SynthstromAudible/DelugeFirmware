@@ -36,7 +36,8 @@ class MIDIInstrument final : public NonAudioInstrument {
 public:
 	MIDIInstrument();
 
-	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) override;
+	void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack,
+	                                    bool alsoSendIt) override;
 
 	void allNotesOff();
 
@@ -76,11 +77,16 @@ public:
 		return (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE);
 	}
 	inline bool sendsToInternal() { return (channel >= IS_A_DEST); }
-
+	// e.g. record silently if monitorMidi is off and the note came from our learned input device and channel (not midi
+	// follow)
+	bool shouldRecordSilently(int32_t inputChannelOrZone, MIDIDevice* inputDevice) override {
+		return !monitorMidi && midiInput.equalsDevice(inputDevice) && inputChannelOrZone == channel;
+	}
 	int32_t channelSuffix{-1};
 	int32_t lastNoteCode{32767};
 	bool collapseAftertouch{false};
 	bool collapseMPE{true};
+	bool monitorMidi{false};
 	CCNumber outputMPEY{CC_EXTERNAL_MPE_Y};
 	float ratio; // for combining per finger and global bend
 

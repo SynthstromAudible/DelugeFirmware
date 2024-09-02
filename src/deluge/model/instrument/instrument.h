@@ -67,7 +67,7 @@ public:
 	virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}
 	virtual bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) = 0;
 	virtual void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
-	                                              ModelStackWithTimelineCounter* modelStack) = 0;
+	                                              ModelStackWithTimelineCounter* modelStack, bool alsoSendIt) = 0;
 
 	char const* getNameXMLTag() override { return "presetName"; }
 	virtual char const* getSlotXMLTag() { return "presetSlot"; }

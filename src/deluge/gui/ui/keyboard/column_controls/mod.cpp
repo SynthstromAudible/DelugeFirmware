@@ -60,8 +60,8 @@ void ModColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWit
                                     KeyboardLayout* layout) {
 	// Restore previously set Modwheel
 	modDisplay = storedMod;
-	getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, storedMod,
-	                                                         modelStackWithTimelineCounter);
+	getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, storedMod, modelStackWithTimelineCounter,
+	                                                         true);
 };
 
 void ModColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
@@ -70,19 +70,19 @@ void ModColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineC
 	if (pad.active) {
 		modDisplay = modMin + pad.y * modStep;
 		getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, modDisplay,
-		                                                         modelStackWithTimelineCounter);
+		                                                         modelStackWithTimelineCounter, true);
 		display->displayPopup((modDisplay + kHalfStep) >> kVelModShift);
 	}
 	else if (!pad.padPressHeld || FlashStorage::keyboardFunctionsModwheelGlide) {
 		// short press or momentary velocity is off, latch the display mod from the ON press
 		storedMod = modDisplay;
 		getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, storedMod,
-		                                                         modelStackWithTimelineCounter);
+		                                                         modelStackWithTimelineCounter, true);
 	}
 	else {
 		modDisplay = storedMod;
 		getCurrentInstrument()->processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, storedMod,
-		                                                         modelStackWithTimelineCounter);
+		                                                         modelStackWithTimelineCounter, true);
 	}
 };
 } // namespace deluge::gui::ui::keyboard::controls

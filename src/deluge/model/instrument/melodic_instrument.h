@@ -38,7 +38,8 @@ public:
 	                      int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint8_t velocity = 64,
 	                      uint32_t sampleSyncLength = 0, int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
 
-	virtual void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack) {}
+	virtual void ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value, ModelStackWithTimelineCounter* modelStack,
+	                                            bool alsoSendIt) {}
 
 	bool writeMelodicInstrumentAttributesToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
 	void writeMelodicInstrumentTagsToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
@@ -71,12 +72,12 @@ public:
 	void endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity = kDefaultLiftValue);
 	virtual ModelStackWithAutoParam* getParamToControlFromInputMIDIChannel(int32_t cc,
 	                                                                       ModelStackWithThreeMainThings* modelStack);
-	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
-	                                      ModelStackWithTimelineCounter* modelStack) override;
+	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue, ModelStackWithTimelineCounter* modelStack,
+	                                      bool alsoSendIt) override;
 
 	void polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int32_t newValue,
 	                                               int32_t whichExpressionDimension, int32_t channelOrNoteNumber,
-	                                               MIDICharacteristic whichCharacteristic);
+	                                               MIDICharacteristic whichCharacteristic, bool alsoSendIt);
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
 
 	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,

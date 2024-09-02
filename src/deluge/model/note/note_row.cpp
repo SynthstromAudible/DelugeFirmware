@@ -4240,9 +4240,10 @@ needToDoIt:
 	} while (pos < effectiveLength);
 }
 
-// Returns whether success.
+// Returns whether success. If alsoSendIt is false then this records without sending the new value back to the
+// sound/midi/whatever
 bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack, int32_t newValueBig,
-                                              int32_t whichExpressionDimension, bool forDrum) {
+                                              int32_t whichExpressionDimension, bool forDrum, bool alsoSendIt) {
 
 	uint32_t livePos = modelStack->getLivePos();
 	if (livePos < ignoreNoteOnsBefore_) {
@@ -4285,8 +4286,8 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 		bool doMPEMode = (distanceToNextNode >= distanceToNextNote);
 
 		param->setCurrentValueInResponseToUserInput(
-		    newValueBig, modelStackWithAutoParam, true, livePos, false,
-		    doMPEMode); // Don't allow deletion of nodes in linear run. See comments above that function
+		    newValueBig, modelStackWithAutoParam, true, livePos, false, doMPEMode,
+		    alsoSendIt); // Don't allow deletion of nodes in linear run. See comments above that function
 	}
 
 	return true;

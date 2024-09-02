@@ -182,11 +182,11 @@ expressionParam:
 }
 
 void MIDIInstrument::ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value,
-                                                    ModelStackWithTimelineCounter* modelStack) {
+                                                    ModelStackWithTimelineCounter* modelStack, bool alsoSendIt) {
 
 	int32_t valueBig = (value - 64) << 25;
 
-	processParamFromInputMIDIChannel(cc, valueBig, modelStack);
+	processParamFromInputMIDIChannel(cc, valueBig, modelStack, alsoSendIt);
 }
 
 int32_t MIDIInstrument::getOutputMasterChannel() {
