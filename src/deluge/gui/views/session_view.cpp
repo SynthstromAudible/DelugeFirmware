@@ -4023,8 +4023,10 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				gridSecondPressedY = y;
 				display->popupText("COPY CLIPS");
 			}
-			// next disarm the track if that's the user prefernce and a track exists
-			else if (currentUIMode == UI_MODE_NONE && track && FlashStorage::gridEmptyPadsUnarm) {
+			// next disarm the track if that's the user prefernce and a track exists, unless we're recording and
+			// createAndRecord is enabled
+			else if (currentUIMode == UI_MODE_NONE && track && FlashStorage::gridEmptyPadsUnarm
+			         && (playbackHandler.recording == RecordingMode::OFF || !FlashStorage::gridEmptyPadsCreateRec)) {
 				auto maxTrack = gridTrackCount();
 				Output* track = gridTrackFromX(x, maxTrack);
 				if (track != nullptr) {
