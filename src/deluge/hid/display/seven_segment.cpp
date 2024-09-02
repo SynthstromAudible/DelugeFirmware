@@ -692,5 +692,6 @@ void SevenSegment::displayError(Error error) {
 		break;
 	}
 	SevenSegment::displayPopup(message);
+	D_PRINTLN(message);
 }
 } // namespace deluge::hid::display
