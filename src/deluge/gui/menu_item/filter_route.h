@@ -34,7 +34,7 @@ public:
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return ((sound == nullptr) || sound->synthMode != ::SynthMode::FM);
+		return ((sound == nullptr) || (sound->lpfMode != FilterMode::OFF && sound->hpfMode != FilterMode::OFF));
 	}
 };
 } // namespace deluge::gui::menu_item

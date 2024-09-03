@@ -1,6 +1,6 @@
 // clang-format off
 filter::LPFFreq lpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY, params::LOCAL_LPF_FREQ};
-patched_param::IntegerNonFM lpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::LOCAL_LPF_RESONANCE};
+patched_param::Integer lpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::LOCAL_LPF_RESONANCE};
 filter::LPFMode lpfModeMenu{STRING_FOR_MODE, STRING_FOR_LPF_MODE};
 filter::FilterMorph lpfMorphMenu{STRING_FOR_MORPH, params::LOCAL_LPF_MORPH, false};
 std::array<MenuItem*, 4> child0 = {
@@ -9,9 +9,9 @@ std::array<MenuItem*, 4> child0 = {
     &lpfModeMenu,
     &lpfMorphMenu,
 };
-submenu::Filter lpfMenu{STRING_FOR_LPF, child0};
+Submenu lpfMenu{STRING_FOR_LPF, child0};
 filter::HPFFreq hpfFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY, params::LOCAL_HPF_FREQ};
-patched_param::IntegerNonFM hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE};
+patched_param::Integer hpfResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::LOCAL_HPF_RESONANCE};
 filter::HPFMode hpfModeMenu{STRING_FOR_MODE, STRING_FOR_HPF_MODE};
 filter::FilterMorph hpfMorphMenu{STRING_FOR_MORPH, params::LOCAL_HPF_MORPH, true};
 std::array<MenuItem*, 4> child1 = {
@@ -20,14 +20,14 @@ std::array<MenuItem*, 4> child1 = {
     &hpfModeMenu,
     &hpfMorphMenu,
 };
-submenu::Filter hpfMenu{STRING_FOR_HPF, child1};
+Submenu hpfMenu{STRING_FOR_HPF, child1};
 FilterRouting filterRoutingMenu{STRING_FOR_FILTER_ROUTE};
 std::array<MenuItem*, 3> child2 = {
     &lpfMenu,
     &hpfMenu,
     &filterRoutingMenu,
 };
-submenu::Filter soundFiltersMenu{STRING_FOR_FILTERS, child2};
+Submenu soundFiltersMenu{STRING_FOR_FILTERS, child2};
 audio_compressor::CompParam threshold{STRING_FOR_THRESHOLD, STRING_FOR_THRESHOLD, params::UNPATCHED_COMPRESSOR_THRESHOLD};
 audio_compressor::Ratio compRatio{STRING_FOR_RATIO, STRING_FOR_RATIO};
 audio_compressor::Attack compAttack{STRING_FOR_ATTACK, STRING_FOR_ATTACK};
