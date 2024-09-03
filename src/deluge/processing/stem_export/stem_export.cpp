@@ -639,12 +639,16 @@ Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordin
 
 /// gets folder path in SAMPLES/STEMS to write stems to
 /// within the STEMS folder, it will try to create a folder with the name of the SONG
-/// if it cannot create a folder with the SONG name because it already exists, it will append
-/// an incremental number to the end of the SONG name and try to create a folder with that new name
-/// this function gets called every time a stem recording is being written to a file
-/// to avoid unecessary file system calls, it will save the last song name saved to a String
-/// including the last incremental folder number and use that to obtain the filePath for the next
-/// stem export job (e.g. if you are exporting the same song more than once)
+/// if it cannot create a folder with the SONG name because it already exists, it will continue creating folder path
+/// if it cannot create a folder and the folder does not already exist, then function will return an error
+/// after SAMPLES/STEMS/*SONG NAME*/ is created, it will try to create a folder for the type of export (ARRANGER or
+/// SONG). if it cannot create a folder of the name ARRANGER or SONG because it already exists, it will append an
+/// incremental number to the end of the ARRANGER or SONG folder name and try to create a folder with that new name thus
+/// we will end up with a folder path of SAMPLES/STEMS/*SONG NAME*/ARRANGER##/ or SAMPLES/STEMS/*SONG NAME*/SONG##/ this
+/// function gets called every time a stem recording is being written to a file to avoid unecessary file system calls,
+/// it will save the last song and arranger/song sub-folder name saved to a String including the last incremental folder
+/// number and use that to obtain the filePath for the next stem export job (e.g. if you are exporting the same song
+/// more and stem export type than once)
 Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder) {
 
 	const auto folderID = util::to_underlying(folder);
@@ -664,8 +668,9 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 	// try to create the STEMS folder if it doesn't exist
 	FRESULT result = f_mkdir(tempPath.get());
+	// if we couldn't create folder and it doesn't exist, return error
 	if (result != FR_OK && result != FR_EXIST) {
-		return Error::FOLDER_DOESNT_EXIST;
+		return fresultToDelugeErrorCode(result);
 	}
 
 	// tempPath = SAMPLES/STEMS/
@@ -674,64 +679,91 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		return error;
 	}
 
-	String songNameToCompare;
-	const char* unsavedSongName = "UNSAVED";
-
 	// tempPath = SAMPLES/STEMS/*INSERT SONG NAME*
 	if (currentSong->name.isEmpty()) { // if you have saved song yet
-		error = tempPath.concatenate(unsavedSongName);
-		songNameToCompare.set(unsavedSongName);
+		error = tempPath.concatenate("UNSAVED");
 	}
 	else {
 		error = tempPath.concatenate(currentSong->name.get());
-		songNameToCompare.set(currentSong->name.get());
 	}
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	// did we just export this song? if yes, no need to find folder number to append (we have it)
-	if (strcmp(songNameToCompare.get(), lastSongNameForStemExport.get())) {
+	// try to create folder
+	result = f_mkdir(tempPath.get());
+	// if we couldn't create folder and it doesn't exist, return error
+	if (result != FR_OK && result != FR_EXIST) {
+		return fresultToDelugeErrorCode(result);
+	}
+
+	RootUI* rootUI = getRootUI();
+	// concatenate stem export type to folder path
+	if (rootUI == &arrangerView) {
+		// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER
+		error = tempPath.concatenate("/ARRANGER");
+	}
+	else {
+		// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG
+		error = tempPath.concatenate("/SONG");
+	}
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	String folderNameToCompare;
+	error = folderNameToCompare.set(tempPath.get());
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	// did we just export this same folder?
+	// if yes, no need to find folder number to append (we have it)
+	if (strcmp(folderNameToCompare.get(), lastFolderNameForStemExport.get())) {
 		// if we're here we didn't just export this song
 		String tempPathForSearch;
 
-		// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*
+		// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER OR SONG
+		// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG
 		error = tempPathForSearch.set(tempPath.get());
 		if (error != Error::NONE) {
 			return error;
 		}
 
 		// we don't have a folder number yet, set it to -1 so when we increment below first potential
-		// folder number appended is 00000 (-1 + 1)
+		// folder number appended is 00 (-1 + 1)
 		highestUsedStemFolderNumber = -1;
 
 		// here we loop until we are able to successfully create a folder
 		while (true) {
 			// try to create folder
-			FRESULT result = f_mkdir(tempPathForSearch.get());
+			result = f_mkdir(tempPathForSearch.get());
 			// successful, exit out of loop
 			if (result == FR_OK) {
 				break;
 			}
 			// not successful
 			else {
-				// increment folder number so we can append it to the SONG name
+				// increment folder number so we can append it to the ARRANGER or SONG folder name
 				highestUsedStemFolderNumber++;
 
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*
+				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER
+				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG
 				error = tempPathForSearch.set(tempPath.get());
 				if (error != Error::NONE) {
 					return error;
 				}
 
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*-
+				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-
+				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-
 				error = tempPathForSearch.concatenate("-");
 				if (error != Error::NONE) {
 					return error;
 				}
 
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*-#####
-				error = tempPathForSearch.concatenateInt(highestUsedStemFolderNumber, 5);
+				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-##
+				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-##
+				error = tempPathForSearch.concatenateInt(highestUsedStemFolderNumber, 2);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -751,14 +783,16 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		// if folder number is not -1, it means this is the second we're running the stem export process
 		// for this song, so we need to append a folder number to the SONG name
 		if (highestUsedStemFolderNumber != -1) {
-			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*-
+			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-
+			// or tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-
 			error = tempPath.concatenate("-");
 			if (error != Error::NONE) {
 				return error;
 			}
 
-			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*-#####
-			error = tempPath.concatenateInt(highestUsedStemFolderNumber, 5);
+			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-##
+			// or tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-##
+			error = tempPath.concatenateInt(highestUsedStemFolderNumber, 2);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -771,13 +805,8 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		}
 	}
 
-	// save current song name as last song name exported
-	if (currentSong->name.isEmpty()) { // if you have saved song yet
-		error = lastSongNameForStemExport.set(unsavedSongName);
-	}
-	else {
-		error = lastSongNameForStemExport.set(currentSong->name.get());
-	}
+	// save current folder name as last folder name exported
+	error = lastFolderNameForStemExport.set(folderNameToCompare.get());
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -849,13 +878,13 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		return;
 	}
 
-	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_#####
-	error = wavFileNameForStemExport.concatenateInt(fileNumber, 5);
+	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_###
+	error = wavFileNameForStemExport.concatenateInt(fileNumber, 3);
 	if (error != Error::NONE) {
 		return;
 	}
 
-	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_#####.WAV
+	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_###.WAV
 	error = wavFileNameForStemExport.concatenate(".WAV");
 	if (error != Error::NONE) {
 		return;
