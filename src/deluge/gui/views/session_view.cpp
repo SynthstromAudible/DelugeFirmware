@@ -2046,7 +2046,7 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 
 	if (clearArea) {
-		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * 5), OLED_MAIN_TOPMOST_PIXEL,
+		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * 7), OLED_MAIN_TOPMOST_PIXEL,
 		                      OLED_MAIN_WIDTH_PIXELS, yPos + kTextSpacingY);
 	}
 
