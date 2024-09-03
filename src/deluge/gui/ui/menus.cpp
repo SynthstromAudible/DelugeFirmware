@@ -150,7 +150,6 @@
 #include "gui/menu_item/submenu/arpeggiator.h"
 #include "gui/menu_item/submenu/bend.h"
 #include "gui/menu_item/submenu/envelope.h"
-#include "gui/menu_item/submenu/filter.h"
 #include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/submenu/sidechain.h"
 #include "gui/menu_item/submenu_referring_to_one_thing.h"
