@@ -1,6 +1,7 @@
 from dmui.dsl import *
-from . import lpf
+
 from . import hpf
+from . import lpf
 
 routing = Menu(
     "FilterRouting",
@@ -11,7 +12,7 @@ routing = Menu(
 )
 
 sound_filters = Submenu(
-    "submenu::Filter",
+    "Submenu",
     "soundFiltersMenu",
     ["{title}", "%%CHILDREN%%"],
     "filter/sound_filters.md",

@@ -1432,15 +1432,17 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		// param actually has something patched to it
 
 	case params::LOCAL_LPF_FREQ:
+	case params::LOCAL_LPF_MORPH:
 	case params::LOCAL_LPF_RESONANCE:
-		if (synthMode == SynthMode::FM) {
+		if (lpfMode == FilterMode::OFF) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
 
 	case params::LOCAL_HPF_FREQ:
+	case params::LOCAL_HPF_MORPH:
 	case params::LOCAL_HPF_RESONANCE:
-		if (synthMode == SynthMode::FM) {
+		if (hpfMode == FilterMode::OFF) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
