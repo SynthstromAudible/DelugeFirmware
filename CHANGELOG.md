@@ -7,6 +7,7 @@
 ### User Interface
 
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+- Added `DEFAULTS > UI > PERFORMANCE` menu with the option to activate `Gold Knob Value Editing (GOLD)` which will allow you to use the Gold Knob to edit pad values while you're in `VALUE EDITING MODE`.
 
 ## c1.2.0 Chopin
 

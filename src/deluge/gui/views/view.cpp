@@ -833,12 +833,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			// is the same param currently being edited with mod encoder
 			bool editingParamInPerformanceView = false;
 			if (getRootUI() == &performanceSessionView) {
-				if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
-					if ((kind == performanceSessionView.lastPadPress.paramKind)
-					    && (modelStackWithParam->paramId == performanceSessionView.lastPadPress.paramID)) {
-						editingParamInPerformanceView = true;
-					}
-				}
+				editingParamInPerformanceView = performanceSessionView.possiblyRefreshPerformanceViewDisplay(
+				    kind, modelStackWithParam->paramId, newKnobPos);
 			}
 
 			// let's see if we're editing the same param in the menu, if so, don't show pop-up
@@ -1187,13 +1183,19 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 }
 
 void View::setKnobIndicatorLevels() {
-	if (!getRootUI()) {
+	RootUI* rootUI = getRootUI();
+
+	if (!rootUI) {
 		return; // What's this?
 	}
 
-	// don't update knob indicator levels when you're in automation editor
-	if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
-		automationView.displayAutomation();
+	// let automation view update indicator levels when you're in automation editor
+	if ((rootUI == &automationView) && automationView.inAutomationEditor()) {
+		return automationView.displayAutomation();
+	}
+
+	// don't update indicator levels when you're in gold knob value editor
+	if ((rootUI == &performanceSessionView) && performanceSessionView.inGoldKnobValueEditor()) {
 		return;
 	}
 
@@ -1310,6 +1312,13 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 	if ((rootUI == &automationView) && automationView.inAutomationEditor()) {
 		// exception for arranger view and pressing mod button 0 so you can toggle VU meter
 		if (!(automationView.onArrangerView && whichButton == 0)) {
+			return;
+		}
+	}
+	// ignore modButtonAction when in the Performance View Gold Knob Value Editor
+	else if ((rootUI == &performanceSessionView) && performanceSessionView.inGoldKnobValueEditor()) {
+		// exception for pressing mod button 0 so yo ucan toggle VU meter
+		if (whichButton != 0) {
 			return;
 		}
 	}
@@ -1526,7 +1535,11 @@ void View::setModLedStates() {
 			indicator_leds::blinkLed(indicator_leds::modLed[i]);
 		}
 		// if you're in the Automation View Automation Editor, turn off Mod LED's
-		else if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
+		else if ((rootUI == &automationView) && automationView.inAutomationEditor()) {
+			indicator_leds::setLedState(indicator_leds::modLed[i], false);
+		}
+		// if you're in the Performance View Gold Knob Value Editor, turn off Mod LED's
+		else if ((rootUI == &performanceSessionView) && performanceSessionView.inGoldKnobValueEditor()) {
 			indicator_leds::setLedState(indicator_leds::modLed[i], false);
 		}
 		// otherwise update mod led's to reflect current mod led selection

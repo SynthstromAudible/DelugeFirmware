@@ -70,6 +70,8 @@ extern uint8_t defaultSwingInterval;
 
 extern std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 
+extern bool performanceGoldKnobValueEditing;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

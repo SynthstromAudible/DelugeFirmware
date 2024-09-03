@@ -54,6 +54,7 @@ At any time you can Exit out of `VALUE EDITING MODE` using the `BACK` button
 Value Editing Mode:
 - While in the Value Editor, pressing any pad on the grid will display the current value assigned to that pad.
 - You can edit that pad's value by turning the select encoder while selecting a single pad (so it's highlighted white) or holding down on that pad. The updated value will be reflected on the display.
+  - Note: if you have activated `Gold Knob Value Editing (GOLD)` in the `DEFAULTS > UI > PERFORMANCE` menu then you will also be able to use either Gold Knob to edit the pad's value.
 - After you have edited a value, the Save button will start flashing to indicate that you have "Unsaved" changes. Press and hold the save button + press the keyboard button to save your changes. Once saved, the Save button will stop blinking. To avoid being distracting, the save button will only blink when you are in editing mode. If you exit editing mode it will stop blinking and if you re-enter editing mode it will blink again to remind you that you have unsaved changes.
 - You can re-load saved changes by pressing and holding the Load button + press the keyboard button. This will cause you to lose unsaved changes and the Save button will stop blinking.
 - Defaults are saved in an XML file on your SD card called "PerformanceView.XML" - deleting this file will cause the PerformanceView to revert back to its regular default values for each pad.
@@ -84,6 +85,10 @@ Param Editing Mode:
 - Once you are done with editing mode, press `BACK` to exit out to either the `EDITING MODE` sub menu or `PERFORMANCE VIEW` (depending on how you entered the `PARAM EDITING MODE`)
 
 #### 7) You can Undo/Redo your changes in Performance View
+
+## Performance Default UI Menu
+
+- In the `DEFAULTS > UI > PERFORMANCE` menu, you have the option to activate `Gold Knob Value Editing (GOLD)` which will allow you to use the Gold Knob to edit pad values while you're in `VALUE EDITING MODE`.
 
 ## Default FX and Colour Assignments
 * The default Param and Colour Assignments for each FX column in Performance View are as follows

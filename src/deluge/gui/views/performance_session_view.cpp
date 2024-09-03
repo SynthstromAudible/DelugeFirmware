@@ -43,6 +43,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include "util/functions.h"
@@ -393,7 +394,7 @@ void PerformanceSessionView::renderRow(RGB* image, int32_t yDisplay) {
 			}
 
 			// if you're currently pressing an FX column, highlight the pad you're pressing white
-			if ((fxPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
+			if (!editingParam && (fxPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
 			    && (fxPress[xDisplay].yDisplay == yDisplay)) {
 				pixel = {
 				    .r = 130,
@@ -478,7 +479,7 @@ void PerformanceSessionView::renderViewDisplay() {
 #endif
 
 			// render "Performance View" at top of OLED screen
-			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos, kTextSpacingX,
+			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos, kTextSpacingX,
 			                        kTextSpacingY);
 
 			yPos = yPos + 12;
@@ -528,13 +529,13 @@ void PerformanceSessionView::renderViewDisplay() {
 			yPos = yPos + 12;
 
 			// Render "Performance View" in the middle of the OLED screen
-			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW), yPos, kTextSpacingX,
+			image.drawStringCentred(l10n::get(l10n::String::STRING_FOR_PERFORMANCE), yPos, kTextSpacingX,
 			                        kTextSpacingY);
 
 			deluge::hid::display::OLED::markChanged();
 		}
 		else {
-			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW));
+			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORMANCE));
 		}
 	}
 	onFXDisplay = false;
@@ -657,8 +658,9 @@ bool PerformanceSessionView::possiblyRefreshPerformanceViewDisplay(params::Kind 
 			return true;
 		}
 	}
-	// if a specific param is not active, reset display
-	else if (onFXDisplay) {
+	// if you're not in param editor
+	// and if a specific param is not active, reset display
+	else if (!lastPadPress.isActive && !editingParam && onFXDisplay) {
 		renderViewDisplay();
 	}
 	return false;
@@ -878,7 +880,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	else if (b == KEYBOARD) {
 		if (on) {
 			if (Buttons::isShiftButtonPressed()) {
-				if (defaultEditingMode && editingParam) {
+				if (inParamEditor()) {
 					defaultEditingMode = false;
 					editingParam = false;
 					indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
@@ -888,6 +890,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				}
 				else {
 					bool inEditingMode = defaultEditingMode;
+					bool inGoldKnobValueEditingMode = inGoldKnobValueEditor();
 					if (defaultEditingMode) {
 						editingParam = true;
 					}
@@ -905,6 +908,10 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 						updateLayoutChangeStatus();
 						renderViewDisplay();
 						uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh main pads only
+						if (inGoldKnobValueEditingMode) {
+							view.setKnobIndicatorLevels();
+							view.setModLedStates();
+						}
 					}
 				}
 			}
@@ -1136,8 +1143,9 @@ void PerformanceSessionView::normalPadAction(ModelStackWithThreeMainThings* mode
 
 void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                             int32_t paramID, int32_t xDisplay, int32_t yDisplay, bool renderDisplay) {
-	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay],
-	                      renderDisplay)) {
+	ModelStackWithAutoParam* modelStackWithParam =
+	    setParameterValue(modelStack, paramKind, paramID, xDisplay, defaultFXValues[xDisplay][yDisplay], renderDisplay);
+	if (modelStackWithParam) {
 		// if pressing a new pad in a column, reset held status
 		fxPress[xDisplay].padPressHeld = false;
 
@@ -1156,13 +1164,19 @@ void PerformanceSessionView::padPressAction(ModelStackWithThreeMainThings* model
 		lastPadPress.yDisplay = yDisplay;
 		lastPadPress.paramKind = paramKind;
 		lastPadPress.paramID = paramID;
+
+		setKnobIndicatorLevels(modelStackWithParam, fxPress[xDisplay].currentKnobPosition + kKnobPosOffset);
+		if (inGoldKnobValueEditor()) {
+			view.setModLedStates();
+		}
 	}
 }
 
 void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
                                               int32_t paramID, int32_t xDisplay, bool renderDisplay) {
-	if (setParameterValue(modelStack, paramKind, paramID, xDisplay, fxPress[xDisplay].previousKnobPosition,
-	                      renderDisplay)) {
+	ModelStackWithAutoParam* modelStackWithParam = setParameterValue(
+	    modelStack, paramKind, paramID, xDisplay, fxPress[xDisplay].previousKnobPosition, renderDisplay);
+	if (modelStackWithParam) {
 		// if there was a previously held pad in this column and you pressed another pad
 		// but didn't set that pad to held, then when we let go of this pad, we want to
 		// restore the pad press info back to the previous held pad state
@@ -1182,6 +1196,11 @@ void PerformanceSessionView::padReleaseAction(ModelStackWithThreeMainThings* mod
 		else {
 			initFXPress(fxPress[xDisplay]);
 			initPadPress(lastPadPress);
+		}
+
+		setKnobIndicatorLevels(modelStackWithParam, fxPress[xDisplay].currentKnobPosition + kKnobPosOffset);
+		if (!inGoldKnobValueEditor()) {
+			view.setModLedStates();
 		}
 	}
 }
@@ -1382,8 +1401,10 @@ void PerformanceSessionView::releaseStutter(ModelStackWithThreeMainThings* model
 /// if you're in the value editor, pressing a column and changing the value will also open the sound editor
 /// menu for the parameter to show you the current value in the menu
 /// in regular performance view, this function will also update the parameter value shown on the display
-bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* modelStack, params::Kind paramKind,
-                                               int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay) {
+ModelStackWithAutoParam* PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* modelStack,
+                                                                   params::Kind paramKind, int32_t paramID,
+                                                                   int32_t xDisplay, int32_t knobPos,
+                                                                   bool renderDisplay) {
 	ModelStackWithAutoParam* modelStackWithParam = currentSong->getModelStackWithParam(modelStack, paramID);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -1428,11 +1449,11 @@ bool PerformanceSessionView::setParameterValue(ModelStackWithThreeMainThings* mo
 				}
 			}
 
-			return true;
+			return modelStackWithParam;
 		}
 	}
 
-	return false;
+	return nullptr;
 }
 
 /// get the current value for a parameter and update display if value is different than currently shown
@@ -1493,7 +1514,7 @@ int32_t PerformanceSessionView::getKnobPosForSinglePadPress(int32_t xDisplay, in
 
 /// Used to edit a pad's value in editing mode
 void PerformanceSessionView::selectEncoderAction(int8_t offset) {
-	if (lastPadPress.isActive && defaultEditingMode && !editingParam) {
+	if (lastPadPress.isActive && inValueEditor()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -1503,9 +1524,13 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 		defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] =
 		    calculateKnobPosForSelectEncoderTurn(fxPress[lastPadPress.xDisplay].currentKnobPosition, offset);
 
-		if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
-		                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay])) {
+		ModelStackWithAutoParam* modelStackWithParam =
+		    setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
+		                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay]);
+		if (modelStackWithParam) {
 			updateLayoutChangeStatus();
+			setKnobIndicatorLevels(modelStackWithParam,
+			                       defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] + kKnobPosOffset);
 		}
 		return;
 	}
@@ -1571,19 +1596,11 @@ uint32_t PerformanceSessionView::getMaxLength() {
 /// if no param is currently being held, it will reset the display to just show "Performance View"
 void PerformanceSessionView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (getCurrentUI() == this) { // This routine may also be called from the Arranger view
-		ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
-
-		if (!defaultEditingMode) {
-			if (lastPadPress.isActive) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStack =
-				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-				getParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay);
-			}
-			else if (onFXDisplay) {
-				renderViewDisplay();
-			}
+		if (inGoldKnobValueEditor()) {
+			selectEncoderAction(offset);
+		}
+		else {
+			ClipNavigationTimelineView::modEncoderAction(whichModEncoder, offset);
 		}
 	}
 }
@@ -1626,6 +1643,44 @@ void PerformanceSessionView::modEncoderButtonAction(uint8_t whichModEncoder, boo
 
 void PerformanceSessionView::modButtonAction(uint8_t whichButton, bool on) {
 	UI::modButtonAction(whichButton, on);
+}
+
+// sets both knob indicators to the same value when pressing single pad in value editing mode
+// when FlashStorage::performanceGoldKnobValueEditing is enabled,
+// if you're not in the gold knob value editor, then it resets gold knob led indicators
+void PerformanceSessionView::setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack, int32_t knobPos) {
+	if (inGoldKnobValueEditor() && modelStack && knobPos != kNoSelection) {
+		params::Kind kind = modelStack->paramCollection->getParamKind();
+		bool isBipolar = isParamBipolar(kind, modelStack->paramId);
+
+		// if you're dealing with a patch cable which has a -128 to +128 range
+		// we'll need to convert it to a 0 - 128 range for purpose of rendering on knob indicators
+		if (kind == params::Kind::PATCH_CABLE) {
+			knobPos = view.convertPatchCableKnobPosToIndicatorLevel(knobPos);
+		}
+
+		bool isBlinking = indicator_leds::isKnobIndicatorBlinking(0) || indicator_leds::isKnobIndicatorBlinking(1);
+
+		if (!isBlinking) {
+			indicator_leds::setKnobIndicatorLevel(0, knobPos, isBipolar);
+			indicator_leds::setKnobIndicatorLevel(1, knobPos, isBipolar);
+		}
+	}
+	else {
+		view.setKnobIndicatorLevels();
+	}
+}
+
+bool PerformanceSessionView::inValueEditor() {
+	return defaultEditingMode && !editingParam;
+}
+
+bool PerformanceSessionView::inGoldKnobValueEditor() {
+	return (lastPadPress.isActive && inValueEditor() && FlashStorage::performanceGoldKnobValueEditing);
+}
+
+bool PerformanceSessionView::inParamEditor() {
+	return defaultEditingMode && editingParam;
 }
 
 /// this compares the last loaded XML file defaults to the current layout in performance view

@@ -459,6 +459,7 @@ Here is a list of features that have been added to the firmware as a list, group
             - Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (
               simply change a held pad in Performance View and save the layout to save the layout with the held pads).
         - Load defaults from PerformanceView.xml file
+- ([#2575]) Added `DEFAULTS > UI > PERFORMANCE` menu with the option to activate `Gold Knob Value Editing (GOLD)` which will allow you to use the Gold Knob to edit pad values while you're in `VALUE EDITING MODE`.
 
 ### 4.1.7 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips
 
@@ -705,7 +706,7 @@ to each individual note onset. ([#1978])
         - Press `AFFECT ENTIRE` while in Automation Arranger View to go back to Automation Overview
         - Press `CROSS SCREEN` while in Automation Arranger View to activate/de-activate automatic scrolling during
           playback
-        - Also, moved automation community features to defaults menu found at `SETTINGS > DEFAULTS > AUTOMATION`
+        - Also, moved automation community features to defaults menu found at `SETTINGS > DEFAULTS > UI > AUTOMATION`
             * `Automation (AUTO)`
                 * `Interpolation (INTE)`
                     * When On, Interpolation is on by default in the Automation View.
@@ -1496,6 +1497,8 @@ different firmware
 [#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
 
 [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
+
+[#2575]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2575
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

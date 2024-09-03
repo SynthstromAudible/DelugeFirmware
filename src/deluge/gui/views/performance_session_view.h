@@ -95,6 +95,7 @@ public:
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	void modButtonAction(uint8_t whichButton, bool on) override;
+	void setKnobIndicatorLevels(ModelStackWithAutoParam* modelStack = nullptr, int32_t knobPos = kNoSelection);
 
 	// select encoder action
 	void selectEncoderAction(int8_t offset) override;
@@ -108,9 +109,12 @@ public:
 	void loadPerformanceViewLayout();
 	void updateLayoutChangeStatus();
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
+	bool justExitedSoundEditor;
+
+	// default editing modes
+	bool inGoldKnobValueEditor();
 	bool defaultEditingMode;
 	bool editingParam; // if you're not editing a param, you're editing a value
-	bool justExitedSoundEditor;
 
 	// public so Action Logger can access it
 	FXColumnPress fxPress[kDisplayWidth];
@@ -144,8 +148,9 @@ private:
 	void paramEditorPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay,
 	                          int32_t on);
 	bool isPadShortcut(int32_t xDisplay, int32_t yDisplay);
-	bool setParameterValue(ModelStackWithThreeMainThings* modelStack, deluge::modulation::params::Kind paramKind,
-	                       int32_t paramID, int32_t xDisplay, int32_t knobPos, bool renderDisplay = true);
+	ModelStackWithAutoParam* setParameterValue(ModelStackWithThreeMainThings* modelStack,
+	                                           deluge::modulation::params::Kind paramKind, int32_t paramID,
+	                                           int32_t xDisplay, int32_t knobPos, bool renderDisplay = true);
 	void getParameterValue(ModelStackWithThreeMainThings* modelStack, deluge::modulation::params::Kind paramKind,
 	                       int32_t paramID, int32_t xDisplay, bool renderDisplay = true);
 	void padPressAction(ModelStackWithThreeMainThings* modelStack, deluge::modulation::params::Kind paramKind,
@@ -190,6 +195,10 @@ private:
 	int32_t defaultFXValues[kDisplayWidth][kDisplayHeight];
 	int32_t layoutBank;    // A or B (assign a layout to the bank for cross fader action)
 	int32_t layoutVariant; // 1, 2, 3, 4, 5 (1 = Load, 2 = Synth, 3 = Kit, 4 = Midi, 5 = CV)
+
+	// default editing modes
+	bool inValueEditor();
+	bool inParamEditor();
 
 	// backup current layout
 	void backupPerformanceLayout();

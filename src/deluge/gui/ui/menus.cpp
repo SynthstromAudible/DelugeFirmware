@@ -982,39 +982,48 @@ Submenu defaultUISession{
     {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
 };
 
-Submenu defaultUI{
-    STRING_FOR_DEFAULT_UI,
-    {&defaultUISession, &defaultUIKeyboard},
-};
+ToggleBool defaultAutomationInterpolate{STRING_FOR_DEFAULT_UI_AUTOMATION_INTERPOLATION,
+                                        STRING_FOR_DEFAULT_UI_AUTOMATION_INTERPOLATION,
+                                        FlashStorage::automationInterpolate};
 
-ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
-                                            STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
-                                            FlashStorage::automationInterpolate};
+ToggleBool defaultAutomationClear{STRING_FOR_DEFAULT_UI_AUTOMATION_CLEAR, STRING_FOR_DEFAULT_UI_AUTOMATION_CLEAR,
+                                  FlashStorage::automationClear};
 
-ToggleBool defaultAutomationClearMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR,
-                                      STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR, FlashStorage::automationClear};
+ToggleBool defaultAutomationShift{STRING_FOR_DEFAULT_UI_AUTOMATION_SHIFT, STRING_FOR_DEFAULT_UI_AUTOMATION_SHIFT,
+                                  FlashStorage::automationShift};
 
-ToggleBool defaultAutomationShiftMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT,
-                                      STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT, FlashStorage::automationShift};
+ToggleBool defaultAutomationNudgeNote{STRING_FOR_DEFAULT_UI_AUTOMATION_NUDGE_NOTE,
+                                      STRING_FOR_DEFAULT_UI_AUTOMATION_NUDGE_NOTE, FlashStorage::automationNudgeNote};
 
-ToggleBool defaultAutomationNudgeNoteMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE,
-                                          STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE,
-                                          FlashStorage::automationNudgeNote};
+ToggleBool defaultAutomationDisableAuditionPadShortcuts{STRING_FOR_DEFAULT_UI_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+                                                        STRING_FOR_DEFAULT_UI_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+                                                        FlashStorage::automationDisableAuditionPadShortcuts};
 
-ToggleBool defaultAutomationDisableAuditionPadShortcutsMenu{
-    STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
-    STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
-    FlashStorage::automationDisableAuditionPadShortcuts};
-
-Submenu defaultAutomationMenu{
+Submenu defaultUIAutomation{
     STRING_FOR_AUTOMATION,
     {
-        &defaultAutomationInterpolateMenu,
-        &defaultAutomationClearMenu,
-        &defaultAutomationShiftMenu,
-        &defaultAutomationNudgeNoteMenu,
-        &defaultAutomationDisableAuditionPadShortcutsMenu,
+        &defaultAutomationInterpolate,
+        &defaultAutomationClear,
+        &defaultAutomationShift,
+        &defaultAutomationNudgeNote,
+        &defaultAutomationDisableAuditionPadShortcuts,
     },
+};
+
+ToggleBool defaultPerformanceGoldKnobValueEditing{STRING_FOR_DEFAULT_UI_PERFORMANCE_GOLD_KNOB_VALUE_EDITING,
+                                                  STRING_FOR_DEFAULT_UI_PERFORMANCE_GOLD_KNOB_VALUE_EDITING,
+                                                  FlashStorage::performanceGoldKnobValueEditing};
+
+Submenu defaultUIPerformance{
+    STRING_FOR_PERFORMANCE,
+    {
+        &defaultPerformanceGoldKnobValueEditing,
+    },
+};
+
+Submenu defaultUI{
+    STRING_FOR_DEFAULT_UI,
+    {&defaultUISession, &defaultUIKeyboard, &defaultUIAutomation, &defaultUIPerformance},
 };
 
 IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};
@@ -1048,7 +1057,6 @@ Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
         &defaultUI,
-        &defaultAutomationMenu,
         &defaultTempoMenu,
         &defaultSwingAmountMenu,
         &defaultSwingIntervalMenu,
