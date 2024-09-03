@@ -10,7 +10,7 @@ freq = Menu(
 )
 
 res = Menu(
-    "patched_param::IntegerNonFM",
+    "patched_param::Integer",
     "hpfResMenu",
     ["{name}", "{title}", "params::LOCAL_HPF_RESONANCE"],
     "filter/hpf/resonance.md",
@@ -43,7 +43,7 @@ morph = MultiModeMenu(
 )
 
 menu = Submenu(
-    "submenu::Filter",
+    "Submenu",
     "hpfMenu",
     ["{title}", "%%CHILDREN%%"],
     "filter/hpf/index.md",
