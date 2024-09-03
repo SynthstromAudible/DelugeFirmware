@@ -55,6 +55,7 @@ public:
 	static void popupText(char const* text, bool persistent = false, PopupType type = PopupType::GENERAL);
 	static bool isPopupPresent();
 	static bool isPopupPresentOfType(PopupType type = PopupType::GENERAL);
+	static bool isPermanentPopupPresent();
 
 	static void displayWorkingAnimation(char const* word);
 
