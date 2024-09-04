@@ -69,6 +69,8 @@ StemExport::StemExport() {
 	includeSongFX = false;
 
 	timePlaybackStopped = 0xFFFFFFFF;
+
+	lastFolderNameForStemExport.clear();
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
