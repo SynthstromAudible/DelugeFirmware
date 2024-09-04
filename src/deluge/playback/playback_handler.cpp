@@ -2253,7 +2253,8 @@ void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
 		buffer.append("FAST");
 	}
 	else {
-		buffer.appendFloat(tempoBPM, 1, 1);
+		int32_t numDecimalPlaces = tempoBPM >= 1000 ? 0 : 1;
+		buffer.appendFloat(tempoBPM, numDecimalPlaces, numDecimalPlaces);
 	}
 }
 
