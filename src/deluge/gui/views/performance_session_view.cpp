@@ -393,7 +393,7 @@ void PerformanceSessionView::renderRow(RGB* image, int32_t yDisplay) {
 			}
 
 			// if you're currently pressing an FX column, highlight the pad you're pressing white
-			if ((fxPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
+			if (!editingParam && (fxPress[xDisplay].currentKnobPosition == defaultFXValues[xDisplay][yDisplay])
 			    && (fxPress[xDisplay].yDisplay == yDisplay)) {
 				pixel = {
 				    .r = 130,
@@ -657,8 +657,9 @@ bool PerformanceSessionView::possiblyRefreshPerformanceViewDisplay(params::Kind 
 			return true;
 		}
 	}
-	// if a specific param is not active, reset display
-	else if (onFXDisplay) {
+	// if you're not in param editor
+	// and if a specific param is not active, reset display
+	else if (!lastPadPress.isActive && !editingParam && onFXDisplay) {
 		renderViewDisplay();
 	}
 	return false;

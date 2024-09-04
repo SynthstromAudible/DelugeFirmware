@@ -833,12 +833,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			// is the same param currently being edited with mod encoder
 			bool editingParamInPerformanceView = false;
 			if (getRootUI() == &performanceSessionView) {
-				if (!performanceSessionView.defaultEditingMode && performanceSessionView.lastPadPress.isActive) {
-					if ((kind == performanceSessionView.lastPadPress.paramKind)
-					    && (modelStackWithParam->paramId == performanceSessionView.lastPadPress.paramID)) {
-						editingParamInPerformanceView = true;
-					}
-				}
+				editingParamInPerformanceView = performanceSessionView.possiblyRefreshPerformanceViewDisplay(
+				    kind, modelStackWithParam->paramId, newKnobPos);
 			}
 
 			// let's see if we're editing the same param in the menu, if so, don't show pop-up
