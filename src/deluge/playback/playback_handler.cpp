@@ -2249,7 +2249,7 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 }
 
 void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
-	if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
+	if (tempoBPM >= 9999.5) {
 		buffer.append("FAST");
 	}
 	else {
