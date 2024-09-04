@@ -130,6 +130,16 @@ const uint8_t OLED::submenuArrowIcon[] = {
     0b00000000, //<
 };
 
+const uint8_t OLED::metronomeIcon[] = {
+    0b11100000, //<
+    0b11011100, //<
+    0b11000011, //<
+    0b11100001, //<
+    0b11010011, //<
+    0b11011000, //<
+    0b11100100, //<
+};
+
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
 #endif

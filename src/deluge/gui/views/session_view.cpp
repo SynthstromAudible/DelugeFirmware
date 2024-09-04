@@ -1997,7 +1997,7 @@ void SessionView::renderViewDisplay(char const* viewString) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-	canvas.drawStringCentred(viewString, yPos, kTextSpacingX, kTextSpacingY);
+	canvas.drawString(viewString, 0, yPos, kTextSpacingX, kTextSpacingY);
 
 	DEF_STACK_STRING_BUF(tempoBPM, 10);
 	lastDisplayedTempo = currentSong->calculateBPM();
@@ -2045,12 +2045,18 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
                                   bool clearArea) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 
+	int32_t metronomeIconSpacingX = 7 + 3;
+
 	if (clearArea) {
-		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * 6), OLED_MAIN_TOPMOST_PIXEL,
-		                      OLED_MAIN_WIDTH_PIXELS, yPos + kTextSpacingY);
+		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * 6) - metronomeIconSpacingX,
+		                      OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 	}
 
 	canvas.drawStringAlignRight(tempoBPM.c_str(), yPos, kTextSpacingX, kTextSpacingY);
+
+	int32_t stringLength = tempoBPM.size();
+	int32_t metronomeIconStartX = OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * stringLength) - metronomeIconSpacingX;
+	canvas.drawGraphicMultiLine(deluge::hid::display::OLED::metronomeIcon, metronomeIconStartX, yPos, 7);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
@@ -2059,7 +2065,7 @@ void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
 	if (clearArea) {
-		canvas.clearAreaExact(0, yPos, OLED_MAIN_WIDTH_PIXELS, yPos + kTextSpacingY);
+		canvas.clearAreaExact(0, yPos, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 	}
 
 	canvas.drawString(rootNoteAndScaleName.c_str(), 0, yPos, kTextSpacingX, kTextSpacingY);
