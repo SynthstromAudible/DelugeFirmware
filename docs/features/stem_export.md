@@ -12,9 +12,11 @@ Now with one quick action you can start a stem export job, walk away from your D
 
 Stems get exported to a new `SAMPLES/STEMS/` folder. 
 
-Within the `STEMS` folder, a folder with the `SONG NAME` is created for each stem export job which contains all the WAV file recordings. 
+Within the `STEMS` folder, when exporting stems, a folder with the `SONG NAME` is created if it does not already exist. Unsaved songs are saved with the song name `UNSAVED`. Thus, you will have a new folder named `SAMPLES/STEMS/SONG NAME/`.
 
-If the same SONG is exported more than once, a 5 digit number incremental number is appended to that song's folder name.
+Within the `SONG NAME` folder, a folder for the type of export (e.g. `ARRANGER` or `SONG`) is created for each stem export job which contains all the WAV file recordings.
+
+If the same SONG and EXPORT TYPE is exported more than once, a 2 digit number incremental number is appended to that export type's folder name (e.g. ARRANGER## or SONG##).
 
 ## Stem File Names
 
@@ -24,8 +26,8 @@ Stem's are given a meaningful name in the following format:
 
 > For example:
 > 
-> SYNTH_CLIP_PRESETNAME_00000.WAV
-> SYNTH_TRACK_PRESETNAME_00000.WAV
+> SYNTH_CLIP_PRESETNAME_000.WAV
+> SYNTH_TRACK_PRESETNAME_000.WAV
 
 ## Shortcuts to Start/Stop Stem Exporting
 
