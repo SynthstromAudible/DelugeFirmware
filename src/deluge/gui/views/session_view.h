@@ -161,7 +161,7 @@ private:
 	void commandChangeLayout(int8_t offset);
 
 private:
-	void renderViewDisplay(char const* viewString);
+	void renderViewDisplay();
 	void sectionPadAction(uint8_t y, bool on);
 	void clipPressEnded();
 	void drawSectionRepeatNumber();

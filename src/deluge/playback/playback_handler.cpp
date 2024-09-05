@@ -2249,11 +2249,12 @@ float PlaybackHandler::calculateBPM(float timePerInternalTick) {
 }
 
 void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
-	if (currentSong->timePerTimerTickBig <= ((uint64_t)kMinTimePerTimerTick << 32)) {
+	if (tempoBPM >= 9999.5) {
 		buffer.append("FAST");
 	}
 	else {
-		buffer.appendFloat(tempoBPM, 1, 1);
+		int32_t numDecimalPlaces = tempoBPM >= 1000 ? 0 : 2;
+		buffer.appendFloat(tempoBPM, 0, numDecimalPlaces);
 	}
 }
 
@@ -2263,7 +2264,8 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
 		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
-		if (currentUI == &sessionView || currentUI == &arrangerView) {
+		if ((currentUI == &sessionView || currentUI == &arrangerView)
+		    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
 			sessionView.lastDisplayedTempo = tempoBPM;
 			getTempoStringForOLED(tempoBPM, text);
 			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
