@@ -81,7 +81,7 @@ public:
 	Error getUnusedStemRecordingFilePath(String* filePath, AudioRecordingFolder folder);
 	Error getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
-	String lastSongNameForStemExport;
+	String lastFolderNameForStemExport;
 	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber);
 	String wavFileNameForStemExport;
 	bool wavFileNameForStemExportSet;
