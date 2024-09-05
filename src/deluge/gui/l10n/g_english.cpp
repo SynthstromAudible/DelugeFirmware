@@ -737,8 +737,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PERFORM_DEFAULTS_LOADED, "Defaults Loaded"},
         {STRING_FOR_PERFORM_DEFAULTS_SAVED, "Defaults Saved"},
         {STRING_FOR_MIDILOOPBACK, "MIDI Loopback"},
-        {STRING_FOR_SONG_VIEW, "Song"},
-        {STRING_FOR_ARRANGER_VIEW, "Arranger"},
         {STRING_FOR_KIT_GLOBAL_FX, "Kit FX"},
         {STRING_FOR_PITCH, "Pitch"},
         {STRING_FOR_FOLLOW_TITLE, "Midi-Follow"},

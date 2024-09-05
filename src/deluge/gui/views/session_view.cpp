@@ -1865,8 +1865,7 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		view.displayOutputName(getCurrentClip()->output, true, getCurrentClip());
 	}
 	else if (currentUI != &performanceSessionView) {
-		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
-		                                             : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
+		renderViewDisplay();
 	}
 
 	if (playbackHandler.isEitherClockActive()) {
@@ -1987,7 +1986,7 @@ void SessionView::displayRepeatsTilLaunch() {
 }
 
 /// render session view display on opening
-void SessionView::renderViewDisplay(char const* viewString) {
+void SessionView::renderViewDisplay() {
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 	hid::display::OLED::clearMainImage();
 
@@ -1997,17 +1996,15 @@ void SessionView::renderViewDisplay(char const* viewString) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-	canvas.drawString(viewString, 0, yPos, kTextSpacingX, kTextSpacingY);
-
 	DEF_STACK_STRING_BUF(tempoBPM, 10);
 	lastDisplayedTempo = currentSong->calculateBPM();
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
 	displayTempoBPM(canvas, tempoBPM, false);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-	yPos = OLED_MAIN_TOPMOST_PIXEL + 31;
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
 #else
-	yPos = OLED_MAIN_TOPMOST_PIXEL + 18;
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 17;
 #endif
 
 	char const* name;
