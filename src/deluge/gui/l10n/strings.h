@@ -813,18 +813,6 @@ enum class String : size_t {
 	STRING_FOR_PERFORM_DEFAULTS_LOADED,
 	STRING_FOR_PERFORM_DEFAULTS_SAVED,
 
-	/* Strings Specifically for Song View
-	 * session_view.cpp
-	 */
-
-	STRING_FOR_SONG_VIEW,
-
-	/* Strings Specifically for Arranger View
-	 * arranger_view.cpp
-	 */
-
-	STRING_FOR_ARRANGER_VIEW,
-
 	/* Strings for Kit Global FX Menu*/
 
 	STRING_FOR_KIT_GLOBAL_FX,

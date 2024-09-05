@@ -1865,8 +1865,7 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		view.displayOutputName(getCurrentClip()->output, true, getCurrentClip());
 	}
 	else if (currentUI != &performanceSessionView) {
-		renderViewDisplay(currentUI == &arrangerView ? l10n::get(l10n::String::STRING_FOR_ARRANGER_VIEW)
-		                                             : l10n::get(l10n::String::STRING_FOR_SONG_VIEW));
+		renderViewDisplay();
 	}
 
 	if (playbackHandler.isEitherClockActive()) {
@@ -1987,7 +1986,7 @@ void SessionView::displayRepeatsTilLaunch() {
 }
 
 /// render session view display on opening
-void SessionView::renderViewDisplay(char const* viewString) {
+void SessionView::renderViewDisplay() {
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 	hid::display::OLED::clearMainImage();
 
@@ -1997,17 +1996,15 @@ void SessionView::renderViewDisplay(char const* viewString) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 #endif
 
-	canvas.drawStringCentred(viewString, yPos, kTextSpacingX, kTextSpacingY);
-
 	DEF_STACK_STRING_BUF(tempoBPM, 10);
 	lastDisplayedTempo = currentSong->calculateBPM();
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
 	displayTempoBPM(canvas, tempoBPM, false);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-	yPos = OLED_MAIN_TOPMOST_PIXEL + 31;
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
 #else
-	yPos = OLED_MAIN_TOPMOST_PIXEL + 18;
+	yPos = OLED_MAIN_TOPMOST_PIXEL + 17;
 #endif
 
 	char const* name;
@@ -2045,12 +2042,18 @@ void SessionView::displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& can
                                   bool clearArea) {
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 3;
 
+	int32_t metronomeIconSpacingX = 7 + 3;
+
 	if (clearArea) {
-		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * 5), OLED_MAIN_TOPMOST_PIXEL,
-		                      OLED_MAIN_WIDTH_PIXELS, yPos + kTextSpacingY);
+		canvas.clearAreaExact(OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * 6) - metronomeIconSpacingX,
+		                      OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 	}
 
 	canvas.drawStringAlignRight(tempoBPM.c_str(), yPos, kTextSpacingX, kTextSpacingY);
+
+	int32_t stringLength = tempoBPM.size();
+	int32_t metronomeIconStartX = OLED_MAIN_WIDTH_PIXELS - (kTextSpacingX * stringLength) - metronomeIconSpacingX;
+	canvas.drawGraphicMultiLine(deluge::hid::display::OLED::metronomeIcon, metronomeIconStartX, yPos, 7);
 }
 
 void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
@@ -2059,7 +2062,7 @@ void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
 
 	if (clearArea) {
-		canvas.clearAreaExact(0, yPos, OLED_MAIN_WIDTH_PIXELS, yPos + kTextSpacingY);
+		canvas.clearAreaExact(0, yPos, OLED_MAIN_WIDTH_PIXELS - 1, yPos + kTextSpacingY);
 	}
 
 	canvas.drawString(rootNoteAndScaleName.c_str(), 0, yPos, kTextSpacingX, kTextSpacingY);
