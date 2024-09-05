@@ -242,12 +242,9 @@ gotError:
 
 				// Open file to read
 				FRESULT result = FRESULT::FR_OK;
-				if (writeJsonFlag) {
-					result = f_open(&smJsonSerializer.writeFIL, sourceFilePath, FA_READ);
-				}
-				else {
-					result = f_open(&smSerializer.writeFIL, sourceFilePath, FA_READ);
-				}
+				// this is just blind copying to move samples to/from the song folder. The serializer is being used for
+				// the song file write so use the deserializer
+				result = f_open(&activeDeserializer->readFIL, sourceFilePath, FA_READ);
 
 				if (result != FR_OK) {
 					D_PRINTLN("open fail %s", sourceFilePath);
