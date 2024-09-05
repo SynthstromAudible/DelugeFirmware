@@ -223,8 +223,8 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// Cross-screen button
 	else if (b == CROSS_SCREEN_EDIT) {
 		if (!on && currentUIMode == UI_MODE_NONE) {
-			// if cross screen button wasn't held
-			if (isShortPress(Buttons::timeCrossScreenButtonPressed)) {
+			// if another button wasn't pressed while cross screen was held
+			if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
 				currentSong->arrangerAutoScrollModeActive = !currentSong->arrangerAutoScrollModeActive;
 				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, currentSong->arrangerAutoScrollModeActive);
 
