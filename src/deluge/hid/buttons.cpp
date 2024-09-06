@@ -38,7 +38,6 @@ namespace Buttons {
 
 bool recordButtonPressUsedUp;
 uint32_t timeRecordButtonPressed;
-uint32_t timeCrossScreenButtonPressed;
 /**
  * AudioEngine::audioSampleTimer value at which the shift button was pressed. Used to distinguish between short and
  * long shift presses, for sticky keys.
@@ -60,9 +59,14 @@ bool shiftCurrentlyStuck = false;
 bool shiftHasChangedSinceLastCheck;
 /**
  * Flag that represents whether another button was pressed while shift was held, and therefore we should ignore the
- * release of the shift for the purposes of enabling sticky keys.
+ * release of the shift for the purposes of toggling sticky shift.
  */
 bool considerShiftReleaseForSticky;
+/**
+ * Flag that represents whether another button was pressed while cross screen was held, and therefore we should ignore
+ * the release of the cross screen for the purposes of toggling cross screen mode.
+ */
+bool considerCrossScreenReleaseForCrossScreenMode;
 
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
 
@@ -86,10 +90,13 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 #if ENABLE_MATRIX_DEBUG
 	D_PRINT("UI=%s, Button=%s, On=%d", getCurrentUI()->getName(), getButtonName(b), on);
 #endif
-	// If the user presses a different button while holding shift, don't consider the shift press for the purposes of
-	// enabling sticky keys.
 	if (on) {
+		// If the user presses a different button while holding shift, don't consider the shift press for the purposes
+		// of toggling sticky shift.
 		considerShiftReleaseForSticky = false;
+		// If the user presses a different button while holding cross screen, don't consider the cross screen press for
+		// for the purposes of toggling cross screen mode
+		considerCrossScreenReleaseForCrossScreenMode = false;
 	}
 
 	ActionResult result;
@@ -132,7 +139,8 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	}
 	else if (b == CROSS_SCREEN_EDIT) {
 		if (on) {
-			timeCrossScreenButtonPressed = AudioEngine::audioSampleTimer;
+			// The next release has a chance of toggling cross screen mode
+			considerCrossScreenReleaseForCrossScreenMode = true;
 		}
 	}
 
