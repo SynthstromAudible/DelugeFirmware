@@ -484,6 +484,7 @@ void AutomationView::focusRegained() {
 		if (clip->type == ClipType::AUDIO) {
 			indicator_leds::setLedState(IndicatorLED::BACK, false);
 			indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, true);
+			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 			view.focusRegained();
 			view.setActiveModControllableTimelineCounter(clip);
 		}
