@@ -516,6 +516,19 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 			bool result;
 			if (Buttons::isShiftButtonPressed()) {
 				result = createNewInstrument(OutputType::KIT);
+
+				// enter drum creator to select drum sample when creating new kit
+				if (result) {
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					ModelStackWithTimelineCounter* modelStack =
+						currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+					NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(0);
+
+					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, noteRow);
+
+					instrumentClipView.enterDrumCreator(modelStackWithNoteRow);
+				}
 			}
 			else {
 				result = changeOutputType(OutputType::KIT);
