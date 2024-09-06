@@ -57,9 +57,42 @@ public:
 		}
 	}
 	void drawPixelsForOled() override {
-		char const* text = audioOutputBeingEdited->getOutputRecordingFrom()->name.get();
-		deluge::hid::display::OLED::main.drawStringCentred(text, 20 + OLED_MAIN_TOPMOST_PIXEL, kTextBigSpacingX,
-		                                                   kTextBigSizeY);
+		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
+
+		// track
+		Output* output = currentSong->getOutputFromIndex(outputIndex);
+
+		// track type
+		OutputType outputType = output->type;
+
+		// for midi instruments, get the channel
+		int32_t channel;
+		if (outputType == OutputType::MIDI_OUT) {
+			Instrument* instrument = (Instrument*)output;
+			channel = ((NonAudioInstrument*)instrument)->channel;
+		}
+
+		char const* outputTypeText = getOutputTypeName(outputType, channel);
+
+		// draw the track type
+		canvas.drawStringCentred(outputTypeText, OLED_MAIN_TOPMOST_PIXEL + 14, kTextSpacingX, kTextSpacingY);
+
+		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 28;
+
+		// draw the track name
+		char const* name = audioOutputBeingEdited->getOutputRecordingFrom()->name.get();
+
+		int32_t stringLengthPixels = canvas.getStringWidthInPixels(name, kTextTitleSizeY);
+
+		if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
+			canvas.drawStringCentred(name, yPos, kTextTitleSpacingX, kTextTitleSizeY);
+		}
+		else {
+			canvas.drawString(name, 0, yPos, kTextTitleSpacingX, kTextTitleSizeY);
+			deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+			                                              yPos + kTextTitleSizeY, kTextTitleSpacingX, kTextTitleSizeY,
+			                                              false);
+		}
 	}
 
 	void drawFor7seg() {

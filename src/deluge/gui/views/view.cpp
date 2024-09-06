@@ -1861,12 +1861,13 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 		}
 	}
 
-	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), editedByUser, doBlink, clip);
+	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), output->name.isEmpty(),
+	                          editedByUser, doBlink, clip);
 	deluge::hid::display::OLED::markChanged();
 }
 
 void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int32_t channelSuffix, char const* name,
-                                     bool editedByUser, bool doBlink, Clip* clip) {
+                                     bool isNameEmpty, bool editedByUser, bool doBlink, Clip* clip) {
 	if (doBlink) {
 		using namespace indicator_leds;
 		LED led;
@@ -1942,34 +1943,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		hid::display::OLED::clearMainImage();
 
-		char const* outputTypeText;
-		switch (outputType) {
-		case OutputType::SYNTH:
-			outputTypeText = "Synth";
-			break;
-		case OutputType::KIT:
-			outputTypeText = "Kit";
-			break;
-		case OutputType::MIDI_OUT:
-			if (channel < 16) {
-				outputTypeText = "MIDI";
-			}
-			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-				outputTypeText = "MPE";
-			}
-			else {
-				outputTypeText = "Internal";
-			}
-			break;
-		case OutputType::CV:
-			outputTypeText = "CV / gate";
-			break;
-		case OutputType::AUDIO:
-			outputTypeText = "Audio";
-			break;
-		default:
-			__builtin_unreachable();
-		}
+		char const* outputTypeText = getOutputTypeName(outputType, channel);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -1982,7 +1956,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 	char buffer[12];
 	char const* nameToDraw = nullptr;
 
-	if (name && name[0]) {
+	if (!isNameEmpty) {
 		if (display->haveOLED()) {
 			nameToDraw = name;
 oledDrawString:
@@ -1993,18 +1967,16 @@ oledDrawString:
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 18;
 #endif
 
-			int32_t textSpacingX = kTextTitleSpacingX;
-			int32_t textSpacingY = kTextTitleSizeY;
+			int32_t stringLengthPixels = canvas.getStringWidthInPixels(nameToDraw, kTextTitleSizeY);
 
-			int32_t textLength = strlen(name);
-			int32_t stringLengthPixels = textLength * textSpacingX;
 			if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
-				canvas.drawStringCentred(nameToDraw, yPos, textSpacingX, textSpacingY);
+				canvas.drawStringCentred(nameToDraw, yPos, kTextTitleSpacingX, kTextTitleSizeY);
 			}
 			else {
-				canvas.drawString(nameToDraw, 0, yPos, textSpacingX, textSpacingY);
-				deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
-				                                              yPos + textSpacingY, textSpacingX, textSpacingY, false);
+				canvas.drawString(nameToDraw, 0, yPos, kTextTitleSpacingX, kTextTitleSizeY);
+				deluge::hid::display::OLED::setupSideScroller(0, nameToDraw, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+				                                              yPos + kTextTitleSizeY, kTextTitleSpacingX,
+				                                              kTextTitleSizeY, false);
 			}
 
 			if (clip) {
