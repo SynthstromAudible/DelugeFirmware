@@ -52,6 +52,7 @@ class SMSharedData {};
 class FileReader {
 public:
 	FileReader();
+	FileReader(char* memBuffer, uint32_t bufLen);
 	virtual ~FileReader();
 
 	FIL readFIL;
@@ -59,7 +60,7 @@ public:
 	UINT currentReadBufferEndPos;
 	int32_t fileReadBufferCurrentPos;
 
-	FRESULT closeFIL();
+	FRESULT closeWriter();
 
 protected:
 	bool readFileCluster();
@@ -68,6 +69,7 @@ protected:
 	bool readChar(char* thisChar);
 	void readDone();
 
+	bool memoryBased = false;
 	int32_t readCount; // Used for multitask interleaving.
 	bool reachedBufferEnd;
 	void resetReader();
@@ -77,20 +79,30 @@ class FileWriter {
 public:
 	FIL writeFIL;
 	FileWriter();
+	FileWriter(bool inMem);
+
 	virtual ~FileWriter();
 
 	Error closeAfterWriting(char const* path, char const* beginningString, char const* endString);
+
+	void writeByte(int8_t b);
+	void writeBlock(uint8_t* block, uint32_t size);
 	void writeChars(char const* output);
-	FRESULT closeFIL();
+	FRESULT closeWriter();
+
+	char* 	 getBufferPtr() {return writeClusterBuffer;}
+	int32_t	 bytesWritten();
+	void	 setMemoryBased() {memoryBased = true; }
 
 protected:
 	void resetWriter();
 	Error writeBufferToFile();
-
-	char* writeClusterBuffer;
+	bool memoryBased = false;
 	uint8_t indentAmount;
+	char* 	writeClusterBuffer;
+	uint32_t bufferSize;
 	int32_t fileWriteBufferCurrentPos;
-	int32_t fileTotalBytesWritten;
+	int32_t  fileTotalBytesWritten;
 	bool fileAccessFailedDuringWrite;
 };
 
@@ -181,7 +193,11 @@ public:
 	virtual void reset() = 0;
 };
 
-class FileDeserializer : public Deserializer, public FileReader {};
+class FileDeserializer : public Deserializer, public FileReader {
+public:
+	FileDeserializer() : FileReader() {}
+	FileDeserializer(uint8_t* inbuf, size_t buflen) : FileReader((char*) inbuf, buflen) {}
+};
 
 class XMLDeserializer : public FileDeserializer {
 public:
@@ -269,6 +285,7 @@ private:
 class JsonDeserializer : public FileDeserializer {
 public:
 	JsonDeserializer();
+	JsonDeserializer(uint8_t* inbuf, size_t buflen);
 	~JsonDeserializer() = default;
 
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;

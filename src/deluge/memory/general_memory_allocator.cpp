@@ -54,7 +54,7 @@ void GeneralMemoryAllocator::checkStack(char const* caller) {
 #if ALPHA_OR_BETA_VERSION
 
 	char a;
-
+	if (true) return;
 	int32_t distance = (int32_t)&a - (uint32_t)&program_stack_start;
 	if (distance < closestDistance) {
 		closestDistance = distance;

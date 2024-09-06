@@ -29,6 +29,7 @@
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/smsysex.h"
 #include "version.h"
 
 extern "C" {
@@ -831,6 +832,10 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		// debug namespace: for sysex calls useful for debugging purposes
 		// and/or might require a debug build to function.
 		Debug::sysexReceived(device, payloadStart, payloadLength);
+		break;
+
+	case SysEx::SysexCommands::Json:
+		smSysex::sysexReceived(device, payloadStart, payloadLength);
 		break;
 
 	case SysEx::SysexCommands::Pong: // PONG, reserved

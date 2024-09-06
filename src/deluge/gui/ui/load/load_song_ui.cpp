@@ -281,7 +281,7 @@ ramError:
 
 someError:
 		display->displayError(error);
-		activeDeserializer->closeFIL();
+		activeDeserializer->closeWriter();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
 		if (!currentSong) {
@@ -317,7 +317,7 @@ fail:
 		}
 		AudioEngine::logAction("d");
 
-		FRESULT success = activeDeserializer->closeFIL();
+		FRESULT success = activeDeserializer->closeWriter();
 		if (success != FR_OK) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 			goto fail;
@@ -379,7 +379,7 @@ gotErrorAfterCreatingSong:
 	}
 	AudioEngine::logAction("read new song from file");
 
-	FRESULT success = activeDeserializer->closeFIL();
+	FRESULT success = activeDeserializer->closeWriter();
 	if (success != FR_OK) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
@@ -840,7 +840,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		}
 	}
 stopLoadingPreview:
-	activeDeserializer->closeFIL();
+	activeDeserializer->closeWriter();
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {
