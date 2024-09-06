@@ -90,7 +90,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 		if (offset >= 0) {
 			int32_t d = this->getValue();
 			int32_t numSeen = 1;
-			while (d >= -4) {
+			while (d > -4) {
 				d--;
 				if (d == currentScroll) {
 					break;
@@ -112,6 +112,10 @@ void Devices::selectEncoderAction(int32_t offset) {
 }
 
 MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
+	if (deviceIndex < -4 || deviceIndex >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
+		D_PRINTLN("impossible device request");
+		return nullptr;
+	}
 	switch (deviceIndex) {
 	case -4: {
 		return &MIDIDeviceManager::dinMIDIPorts;
