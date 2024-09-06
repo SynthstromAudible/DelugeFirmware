@@ -1984,9 +1984,9 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 oledDrawString:
 			deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 #if OLED_MAIN_HEIGHT_PIXELS == 64
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 31;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 30;
 #else
-			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 18;
+			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 17;
 #endif
 
 			int32_t textSpacingX = kTextTitleSpacingX;

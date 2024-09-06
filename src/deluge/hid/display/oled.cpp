@@ -130,9 +130,21 @@ const uint8_t OLED::submenuArrowIcon[] = {
     0b00000000, //<
 };
 
+const uint8_t OLED::metronomeIcon[] = {
+    0b11100000, //<
+    0b11011100, //<
+    0b11000011, //<
+    0b11100001, //<
+    0b11010011, //<
+    0b11011000, //<
+    0b11100100, //<
+};
+
 #if ENABLE_TEXT_OUTPUT
 uint16_t renderStartTime;
 #endif
+
+bool drawnPermanentPopup = false;
 
 void OLED::clearMainImage() {
 #if ENABLE_TEXT_OUTPUT
@@ -143,6 +155,7 @@ void OLED::clearMainImage() {
 	stopScrollingAnimation();
 	main.clear();
 	markChanged();
+	drawnPermanentPopup = false;
 }
 
 void moveAreaUpCrude(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, int32_t delta, ImageStore image) {
@@ -342,6 +355,10 @@ bool OLED::isPopupPresent() {
 }
 bool OLED::isPopupPresentOfType(PopupType type) {
 	return oledPopupWidth && popupType == type;
+}
+
+bool OLED::isPermanentPopupPresent() {
+	return drawnPermanentPopup;
 }
 
 void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], int32_t minX, int32_t maxX) {
@@ -646,6 +663,8 @@ void OLED::drawPermanentPopupLookingText(char const* text) {
 		                textPixelY, kTextSpacingX, kTextSpacingY);
 		textPixelY += kTextSpacingY;
 	}
+
+	drawnPermanentPopup = true;
 }
 
 void OLED::popupText(char const* text, bool persistent, PopupType type) {
