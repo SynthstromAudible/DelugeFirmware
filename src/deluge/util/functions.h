@@ -46,6 +46,7 @@ extern int32_t paramNeutralValues[];
 void functionsInit();
 
 char const* getThingName(OutputType outputType);
+char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
 // bits must be *less* than 32! I.e. 31 or less
 [[gnu::always_inline]] inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
