@@ -336,11 +336,6 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 			navSys = NAVIGATION_CLIP; // Keyboard view will cause this case
 		}
 
-		// this is so that if you enter a clip from arranger, the arrangement will playback from that clip
-		if (navSys == NAVIGATION_CLIP && currentSong->lastClipInstanceEnteredStartPos != -1) {
-			navSys = NAVIGATION_ARRANGEMENT;
-		}
-
 		newPos = currentSong->xScroll[navSys];
 	}
 
