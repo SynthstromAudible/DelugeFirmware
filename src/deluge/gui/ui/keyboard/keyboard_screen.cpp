@@ -521,7 +521,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 				if (result) {
 					char modelStackMemory[MODEL_STACK_MAX_SIZE];
 					ModelStackWithTimelineCounter* modelStack =
-						currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 					NoteRow* noteRow = getCurrentInstrumentClip()->noteRows.getElement(0);
 
