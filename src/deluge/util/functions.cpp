@@ -560,6 +560,31 @@ char const* getThingName(OutputType outputType) {
 	}
 }
 
+char const* getOutputTypeName(OutputType outputType, int32_t channel) {
+	switch (outputType) {
+	case OutputType::SYNTH:
+		return "Synth";
+	case OutputType::KIT:
+		return "Kit";
+	case OutputType::MIDI_OUT:
+		if (channel < 16) {
+			return "MIDI";
+		}
+		else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+			return "MPE";
+		}
+		else {
+			return "Internal";
+		}
+	case OutputType::CV:
+		return "CV / gate";
+	case OutputType::AUDIO:
+		return "Audio";
+	default:
+		return "None";
+	}
+}
+
 void byteToHex(uint8_t number, char* buffer) {
 	buffer[0] = halfByteToHexChar(number >> 4);
 	buffer[1] = halfByteToHexChar(number & 15);

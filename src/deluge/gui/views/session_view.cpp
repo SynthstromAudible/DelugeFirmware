@@ -2015,18 +2015,15 @@ void SessionView::renderViewDisplay() {
 		name = currentSong->name.get();
 	}
 
-	int32_t textSpacingX = kTextTitleSpacingX;
-	int32_t textSpacingY = kTextTitleSizeY;
+	int32_t stringLengthPixels = canvas.getStringWidthInPixels(name, kTextTitleSizeY);
 
-	int32_t textLength = strlen(name);
-	int32_t stringLengthPixels = textLength * textSpacingX;
 	if (stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS) {
-		canvas.drawStringCentred(name, yPos, textSpacingX, textSpacingY);
+		canvas.drawStringCentred(name, yPos, kTextTitleSpacingX, kTextTitleSizeY);
 	}
 	else {
-		canvas.drawString(name, 0, yPos, textSpacingX, textSpacingY);
-		deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos, yPos + textSpacingY,
-		                                              textSpacingX, textSpacingY, false);
+		canvas.drawString(name, 0, yPos, kTextTitleSpacingX, kTextTitleSizeY);
+		deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos, yPos + kTextTitleSizeY,
+		                                              kTextTitleSpacingX, kTextTitleSizeY, false);
 	}
 
 	yPos = OLED_MAIN_TOPMOST_PIXEL + 32;
