@@ -481,11 +481,17 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 						if (clip->output->type == OutputType::KIT) {
 							Kit* kit = (Kit*)clip->output;
+							Drum* currentSelectedDrum = kit->selectedDrum;
 							if (action->clipStates[i].selectedDrumIndex == -1) {
 								kit->selectedDrum = NULL;
 							}
 							else {
 								kit->selectedDrum = kit->getDrumFromIndex(action->clipStates[i].selectedDrumIndex);
+							}
+							// if affect entire is disabled and we've updated drum selection
+							// need to update the mod controllable context that the gold knobs are editing
+							if (!instrumentClip->affectEntire && currentSelectedDrum != kit->selectedDrum) {
+								view.setActiveModControllableTimelineCounter(instrumentClip);
 							}
 						}
 					}
