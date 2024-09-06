@@ -17,6 +17,7 @@
 
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 #include "hid/display/display.h"
+#include "model/instrument/kit.h"
 #include "util/functions.h"
 #include <stdint.h>
 
@@ -55,6 +56,14 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 					currentNotesState.notes[noteOnIdx].velocity = velocity;
 					noteOnTimes[noteOnIdx] = thisOnTime;
 				}
+			}
+
+			// if this note was recently pressed, set it as the selected drum
+			if (isShortPress(noteOnTimes[noteOnIdx])) {
+				InstrumentClip* clip = getCurrentInstrumentClip();
+				Kit* thisKit = (Kit*)clip->output;
+				Drum* thisDrum = thisKit->getDrumFromNoteCode(clip, note);
+				instrumentClipView.setSelectedDrum(thisDrum);
 			}
 		}
 	}
