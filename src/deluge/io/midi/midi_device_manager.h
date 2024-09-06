@@ -36,7 +36,8 @@ struct MIDIDeviceUSB;
 // NOTE: increasing this even more doesn't work.
 // Looks like a hardware limitation (maybe we more in FS mode)?
 #define MIDI_SEND_BUFFER_LEN_INNER 32
-// Seems to be the max for a hydrasynth on a usb hub?
+// Seems to be the max for a hydrasynth on a usb hub? We should figure out how to find this from the device config but I
+// haven't seen anything below this yet. Widi bud's can do 3, both do fine at 16 without a hub involved
 #define MIDI_SEND_BUFFER_LEN_INNER_HOST 2
 
 // MUST be an exact power of two
