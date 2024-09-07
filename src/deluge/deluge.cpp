@@ -657,11 +657,15 @@ void mainLoop() {
 #endif
 	}
 }
-extern "C" int32_t deluge_main(void) {
+
+bool initOLEDDMA() {
 	// Piggyback off of bootloader DMA setup.
 	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
 	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
+	return have_oled;
+}
 
+void initPIC(bool have_oled) {
 	// Give the PIC some startup instructions
 	if (have_oled) {
 		PIC::enableOLED();
@@ -675,15 +679,9 @@ extern "C" int32_t deluge_main(void) {
 
 	PIC::setUARTSpeed();
 	PIC::flush();
+}
 
-	functionsInit();
-
-#if AUTOMATED_TESTER_ENABLED
-	AutomatedTester::init();
-#endif
-
-	currentPlaybackMode = &session;
-
+void initGPIO(bool have_oled) {
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
 	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
 
@@ -740,47 +738,9 @@ extern "C" int32_t deluge_main(void) {
 
 	// Setup audio output on SSI0
 	ssiInit(0, 1);
+}
 
-#if RECORD_TEST_MODE == 1
-	makeTestRecording();
-#endif
-
-	encoders::init();
-
-#if TEST_GENERAL_MEMORY_ALLOCATION
-	GeneralMemoryAllocator::get().test();
-#endif
-
-	init_crc_table();
-
-	// Setup for gate output
-	cvEngine.init();
-
-	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't
-	// that.) Otherwise didn't seem necessary.
-	PIC::waitForFlush();
-
-	PIC::setupForPads();
-	setOutputState(CODEC.port, CODEC.pin, 1); // Enable codec
-
-	AudioEngine::init();
-
-#if HARDWARE_TEST_MODE
-	ramTestLED();
-#endif
-
-	audioFileManager.init();
-
-	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics
-	// and audio routines into the SPIBSC wait routines, so that has to be running
-	setPinMux(4, 2, 2);
-	setPinMux(4, 3, 2);
-	setPinMux(4, 4, 2);
-	setPinMux(4, 5, 2);
-	setPinMux(4, 6, 2);
-	setPinMux(4, 7, 2);
-	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
-
+void handleButtonsHeldAtBoot() {
 	PIC::requestFirmwareVersion(); // Request PIC firmware version
 	PIC::resendButtonStates();     // Tell PIC to re-send button states
 	PIC::flush();
@@ -829,56 +789,10 @@ extern "C" int32_t deluge_main(void) {
 			return 0;
 		}
 	});
-
-	FlashStorage::readSettings();
-
-	runtimeFeatureSettings.init();
-
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
-	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
-		deluge::hid::display::swapDisplayType();
-	}
-
-	usbLock = 1;
-	openUSBHost();
-
-	// If nothing was plugged in to us as host, we'll go peripheral
-	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
-	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then,
-	// that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
-	if (!anythingInitiallyAttachedAsUSBHost) {
-		D_PRINTLN("switching from host to peripheral");
-		closeUSBHost();
-		openUSBPeripheral();
-	}
-
-	usbLock = 0;
-
-	// Hopefully we can read these files now
-	runtimeFeatureSettings.readSettingsFromFile();
-	MIDIDeviceManager::readDevicesFromFile();
-	midiFollow.readDefaultsFromFile();
-	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
-	setupBlankSong(); // we always need to do this
-	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
-
-#ifdef TEST_VECTOR
-	NoteVector noteVector;
-	noteVector.test();
-#endif
-
-#ifdef TEST_VECTOR_SEARCH_MULTIPLE
-	NoteVector noteVector;
-	noteVector.testSearchMultiple();
-#endif
-
-#ifdef TEST_VECTOR_DUPLICATES
-	NoteVector noteVector;
-	noteVector.testDuplicates();
-#endif
+}
 
 #ifdef TEST_SD_WRITE
-
+void testSdWrite() {
 	FIL fil; // File object
 	FATFS fs;
 	DIR dp;
@@ -895,7 +809,8 @@ extern "C" int32_t deluge_main(void) {
 		int32_t fileSize = (uint32_t)getNoise() % 1000000;
 
 		char fileName[20];
-		strcpy(fineName, "TEST/") intToString(fileNumber, &fileName[5], 4);
+		strcpy(fileName, "TEST/");
+		intToString(fileNumber, &fileName[5], 4);
 		strcat(fileName, ".TXT");
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
@@ -922,6 +837,114 @@ extern "C" int32_t deluge_main(void) {
 
 		count++;
 	}
+}
+#endif // TEST_SD_WRITE
+
+void initUSB() {
+	usbLock = 1;
+	openUSBHost();
+	// If nothing was plugged in to us as host, we'll go peripheral
+	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
+	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then,
+	// that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
+	if (!anythingInitiallyAttachedAsUSBHost) {
+		D_PRINTLN("switching from host to peripheral");
+		closeUSBHost();
+		openUSBPeripheral();
+	}
+
+	usbLock = 0;
+}
+
+extern "C" int32_t deluge_main(void) {
+
+	bool have_oled = initOLEDDMA();
+
+	initPIC(have_oled);
+
+	functionsInit();
+
+#if AUTOMATED_TESTER_ENABLED
+	AutomatedTester::init();
+#endif
+
+	currentPlaybackMode = &session;
+
+	initGPIO(have_oled);
+
+#if RECORD_TEST_MODE == 1
+	makeTestRecording();
+#endif
+
+	encoders::init();
+
+#if TEST_GENERAL_MEMORY_ALLOCATION
+	GeneralMemoryAllocator::get().test();
+#endif
+
+	init_crc_table();
+
+	cvEngine.init(); // Setup for gate output
+
+	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't
+	// that.) Otherwise didn't seem necessary.
+	PIC::waitForFlush();
+
+	PIC::setupForPads();
+
+	setOutputState(CODEC.port, CODEC.pin, 1); // Enable codec
+
+	AudioEngine::init();
+
+#if HARDWARE_TEST_MODE
+	ramTestLED();
+#endif
+
+	audioFileManager.init();
+
+	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics
+	// and audio routines into the SPIBSC wait routines, so that has to be running
+	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
+
+	handleButtonsHeldAtBoot(); // Check if the user is holding down the select knob to do a factory reset
+
+	FlashStorage::readSettings();
+
+	runtimeFeatureSettings.init();
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
+		deluge::hid::display::swapDisplayType();
+	}
+
+	initUSB(); // If nothing was plugged in to us as host, we'll go peripheral
+
+	// Hopefully we can read these files now
+	runtimeFeatureSettings.readSettingsFromFile();
+	MIDIDeviceManager::readDevicesFromFile();
+	midiFollow.readDefaultsFromFile();
+	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
+
+	setupBlankSong(); // we always need to do this
+	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
+
+#ifdef TEST_VECTOR
+	NoteVector noteVector;
+	noteVector.test();
+#endif
+
+#ifdef TEST_VECTOR_SEARCH_MULTIPLE
+	NoteVector noteVector;
+	noteVector.testSearchMultiple();
+#endif
+
+#ifdef TEST_VECTOR_DUPLICATES
+	NoteVector noteVector;
+	noteVector.testDuplicates();
+#endif
+
+#ifdef TEST_SD_WRITE
+	testSdWrite();
 #endif
 
 	inputRoutine();
