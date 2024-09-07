@@ -491,7 +491,10 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	playbackState = newPlaybackState;
 	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
 
-	if (getRootUI() && getCurrentUI() == getRootUI()) {
+	// make exception for note editor because we want to be able to hear note changes
+	// while in the note editor
+	if (getRootUI()
+	    && ((getCurrentUI() == getRootUI()) || (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()))) {
 		getRootUI()->notifyPlaybackBegun();
 	}
 

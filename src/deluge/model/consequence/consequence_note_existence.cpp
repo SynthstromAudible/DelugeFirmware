@@ -32,6 +32,8 @@ ConsequenceNoteExistence::ConsequenceNoteExistence(InstrumentClip* newClip, int3
 	velocity = note->getVelocity();
 	probability = note->getProbability();
 	lift = note->getLift();
+	iterance = note->getIterance();
+	fill = note->getFill();
 
 	type = newType;
 }
@@ -62,6 +64,8 @@ Error ConsequenceNoteExistence::revert(TimeType time, ModelStack* modelStack) {
 		note->setVelocity(velocity);
 		note->setProbability(probability);
 		note->setLift(lift);
+		note->setIterance(iterance);
+		note->setFill(fill);
 	}
 
 	return Error::NONE;

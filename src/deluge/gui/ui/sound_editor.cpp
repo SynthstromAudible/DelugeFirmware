@@ -254,7 +254,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Encoder button
 	if (b == SELECT_ENC) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
+		    || currentUIMode == UI_MODE_NOTES_PRESSED) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -295,7 +296,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Back button
 	else if (b == BACK) {
-		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING) {
+		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
+		    || currentUIMode == UI_MODE_NOTES_PRESSED) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -421,7 +423,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				}
 				automationView.resetInterpolationShortcutBlinking();
 				automationView.resetPadSelectionShortcutBlinking();
-				automationView.resetSelectedNoteRowBlinking();
+				instrumentClipView.resetSelectedNoteRowBlinking();
 				swapOutRootUILowLevel(&keyboardScreen);
 				keyboardScreen.openedInBackground();
 			}
@@ -430,6 +432,10 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, getRootUI() == &keyboardScreen);
 		}
+	}
+
+	else if (inNoteEditor()) {
+		return instrumentClipView.handleNoteEditorButtonAction(b, on, inCardRoutine);
 	}
 
 	else {
@@ -506,6 +512,12 @@ void SoundEditor::exitCompletely() {
 		runtimeFeatureSettings.writeSettingsToFile();
 		display->removeWorkingAnimation();
 	}
+	else if (inNoteEditor()) {
+		instrumentClipView.exitNoteEditor();
+	}
+	else if (inNoteRowEditor()) {
+		instrumentClipView.exitNoteRowEditor();
+	}
 	display->setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
@@ -573,7 +585,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		renderUIsForOled();
 	}
 
-	if (!inSettingsMenu() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
+	if (!inSettingsMenu() && !inNoteEditor() && currentItem != &sampleStartMenu && currentItem != &sampleEndMenu
 	    && currentItem != &audioClipSampleMarkerEditorMenuStart && currentItem != &audioClipSampleMarkerEditorMenuEnd
 	    && currentItem != &fileSelectorMenu && currentItem != static_cast<void*>(&drumNameMenu)) {
 
@@ -729,7 +741,13 @@ bool SoundEditor::editingReverbSidechain() {
 }
 
 ActionResult SoundEditor::horizontalEncoderAction(int32_t offset) {
-	if (currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &keyboardScreen) {
+	if (inNoteEditor()) {
+		return instrumentClipView.handleNoteEditorHorizontalEncoderAction(offset);
+	}
+	else if (inNoteRowEditor()) {
+		return instrumentClipView.handleNoteRowEditorHorizontalEncoderAction(offset);
+	}
+	else if (currentUIMode == UI_MODE_AUDITIONING && getRootUI() == &keyboardScreen) {
 		return getRootUI()->horizontalEncoderAction(offset);
 	}
 	else {
@@ -761,7 +779,8 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 	}
 	else {
 		if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
-		    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
+		    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    && currentUIMode != UI_MODE_NOTES_PRESSED) {
 			return;
 		}
 
@@ -1090,7 +1109,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	RootUI* rootUI = getRootUI();
 
-	if (!inSettingsMenu()) {
+	if (!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()) {
 		ActionResult result = potentialShortcutPadAction(x, y, on);
 		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
@@ -1102,10 +1121,30 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	// Audition pads
+	// Audition pads or Main Grid Pads
 	else if (rootUI == &instrumentClipView) {
-		if (x == kDisplayWidth + 1) {
-			instrumentClipView.padAction(x, y, on);
+		if (x < kDisplayWidth) {
+			// pressing main grid pad while in note editor
+			if (inNoteEditor()) {
+				instrumentClipView.handleNoteEditorEditPadAction(x, y, on);
+				return ActionResult::DEALT_WITH;
+			}
+			// pressing main grid pads exits out of the note row editor
+			else if (inNoteRowEditor()) {
+				exitCompletely();
+				return ActionResult::DEALT_WITH;
+			}
+		}
+
+		else if (x == kDisplayWidth + 1) {
+			// pressing audition pad while in note row editor
+			if (inNoteRowEditor()) {
+				instrumentClipView.handleNoteRowEditorAuditionPadAction(y, on);
+			}
+			// pressing audition pad while in sound editor
+			else {
+				instrumentClipView.padAction(x, y, on);
+			}
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1200,6 +1239,12 @@ bool SoundEditor::isEditingAutomationViewParam() {
 ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
+	}
+	if (inNoteEditor()) {
+		return instrumentClipView.handleNoteEditorVerticalEncoderAction(offset, inCardRoutine);
+	}
+	else if (inNoteRowEditor()) {
+		return instrumentClipView.handleNoteRowEditorVerticalEncoderAction(offset, inCardRoutine);
 	}
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
@@ -1381,7 +1426,13 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 			actionLogger.deleteAllLogs();
 
 			if (clip->type == ClipType::INSTRUMENT) {
-				if (outputType == OutputType::MIDI_OUT) {
+				if (currentUIMode == UI_MODE_NOTES_PRESSED) {
+					newItem = &noteEditorRootMenu;
+				}
+				else if (currentUIMode == UI_MODE_AUDITIONING) {
+					newItem = &noteRowEditorRootMenu;
+				}
+				else if (outputType == OutputType::MIDI_OUT) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
@@ -1490,6 +1541,14 @@ MenuItem* SoundEditor::getCurrentMenuItem() {
 
 bool SoundEditor::inSettingsMenu() {
 	return (menuItemNavigationRecord[0] == &settingsRootMenu);
+}
+
+bool SoundEditor::inNoteEditor() {
+	return (menuItemNavigationRecord[0] == &noteEditorRootMenu);
+}
+
+bool SoundEditor::inNoteRowEditor() {
+	return (menuItemNavigationRecord[0] == &noteRowEditorRootMenu);
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
