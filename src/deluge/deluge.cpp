@@ -657,7 +657,7 @@ void mainLoop() {
 	}
 }
 
-bool initOLEDDMA() {
+bool checkOLED() {
 	// Piggyback off of bootloader DMA setup.
 	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
 	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
@@ -665,12 +665,12 @@ bool initOLEDDMA() {
 }
 
 void initPIC(bool have_oled) {
-	// Give the PIC some startup instructions
+
 	if (have_oled) {
 		PIC::enableOLED();
 	}
 
-	PIC::setDebounce(20); // Set debounce time (mS) to...
+	PIC::setDebounce(20); // Set debounce time (mS)
 
 	PadLEDs::setRefreshTime(23);
 	PIC::setMinInterruptInterval(8);
@@ -680,43 +680,43 @@ void initPIC(bool have_oled) {
 	PIC::flush();
 }
 
-void initGPIO(bool have_oled) {
+void initGPIO() {
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
-	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
+	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);
 
 	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0); // Switch it off
-	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);    // Synced LED
+	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);
 
-	// Codec control
 	setPinAsOutput(CODEC.port, CODEC.pin);
 	setOutputState(CODEC.port, CODEC.pin, 0); // Switch it off
 
-	// Speaker / amp control
 	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
 	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 0); // Switch it off
 
-	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
-	setPinAsInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);     // Line in detect
-	setPinAsInput(MIC_DETECT.port, MIC_DETECT.pin);             // Mic detect
+	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
+	setPinAsInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);
+	setPinAsInput(MIC_DETECT.port, MIC_DETECT.pin);
 
-	setPinMux(VOLT_SENSE.port, VOLT_SENSE.pin, 1); // Analog input for voltage sense
+	setPinMux(VOLT_SENSE.port, VOLT_SENSE.pin, 1);
 
-	// Trigger clock input
 	setPinMux(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin, 2);
 
-	// Line out detect pins
 	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
-	// SPI for CV
+	// Setup audio output on SSI0
+	ssiInit(0, 1);
+}
+
+void initSPI(bool have_oled) {
 	R_RSPI_Create(SPI_CHANNEL_CV,
 	              have_oled ? 10000000 // Higher than this would probably work... but let's stick to the OLED
 	                                   // datasheet's spec of 100ns (10MHz).
 	                        : 30000000,
 	              0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
-	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);   // CLK
-	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
+	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);
+	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3);
 
 	if (have_oled) {
 		// If OLED sharing SPI channel, have to manually control SSL pin.
@@ -725,23 +725,20 @@ void initGPIO(bool have_oled) {
 
 		setupSPIInterrupts();
 		oledDMAInit();
-		setupOLED(); // Set up OLED now
+		setupOLED();
 		display = new deluge::hid::display::OLED;
 	}
 	else {
-		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
+		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3);
 		display = new deluge::hid::display::SevenSegment;
 	}
 	// remember the physical display type
 	deluge::hid::display::have_oled_screen = have_oled;
-
-	// Setup audio output on SSI0
-	ssiInit(0, 1);
 }
 
 void handleButtonsHeldAtBoot() {
-	PIC::requestFirmwareVersion(); // Request PIC firmware version
-	PIC::resendButtonStates();     // Tell PIC to re-send button states
+	PIC::requestFirmwareVersion();
+	PIC::resendButtonStates();
 	PIC::flush();
 
 	// Check if the user is holding down the select knob to do a factory reset
@@ -857,7 +854,7 @@ void initUSB() {
 
 extern "C" int32_t deluge_main(void) {
 
-	bool have_oled = initOLEDDMA();
+	bool have_oled = checkOLED();
 
 	initPIC(have_oled);
 
@@ -869,7 +866,9 @@ extern "C" int32_t deluge_main(void) {
 
 	currentPlaybackMode = &session;
 
-	initGPIO(have_oled);
+	initGPIO();
+
+	initSPI(have_oled);
 
 #if RECORD_TEST_MODE == 1
 	makeTestRecording();
