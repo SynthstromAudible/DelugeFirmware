@@ -858,7 +858,7 @@ extern "C" int32_t deluge_main(void) {
 
 	initPIC(have_oled);
 
-	functionsInit();
+	makeParameterRangeConstants();
 
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::init();
