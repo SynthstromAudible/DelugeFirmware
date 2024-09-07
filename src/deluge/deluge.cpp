@@ -870,10 +870,6 @@ extern "C" int32_t deluge_main(void) {
 
 	initSPI(have_oled);
 
-#if RECORD_TEST_MODE == 1
-	makeTestRecording();
-#endif
-
 	encoders::init();
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
