@@ -664,7 +664,7 @@ void PlaybackHandler::actionTimerTickPart2() {
 	if (!ticksLeftInCountIn) {
 
 		currentSong->resyncLFOs();
-		if (!stemExport.processStarted) {
+		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 			// Trigger clock output ticks
 			if (cvEngine.isTriggerClockOutputEnabled()) {
 				// Do any trigger clock output ticks up to and including now
