@@ -852,25 +852,44 @@ void initUSB() {
 	usbLock = 0;
 }
 
+void loadSettings() {
+	handleButtonsHeldAtBoot(); // Check if the user is holding down the select knob to do a factory reset
+
+	FlashStorage::readSettings();
+
+	runtimeFeatureSettings.init();
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
+		deluge::hid::display::swapDisplayType();
+	}
+
+	// Hopefully we can read these files now
+	runtimeFeatureSettings.readSettingsFromFile();
+	MIDIDeviceManager::readDevicesFromFile();
+	midiFollow.readDefaultsFromFile();
+	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
+}
+
 extern "C" int32_t deluge_main(void) {
 
 	bool have_oled = checkOLED();
 
 	initPIC(have_oled);
 
-	makeParameterRangeConstants();
-
-#if AUTOMATED_TESTER_ENABLED
-	AutomatedTester::init();
-#endif
-
-	currentPlaybackMode = &session;
-
 	initGPIO();
 
 	initSPI(have_oled);
 
 	encoders::init();
+
+	makeParameterRangeConstants();
+
+	currentPlaybackMode = &session;
+
+#if AUTOMATED_TESTER_ENABLED
+	AutomatedTester::init();
+#endif
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
@@ -898,24 +917,9 @@ extern "C" int32_t deluge_main(void) {
 	// and audio routines into the SPIBSC wait routines, so that has to be running
 	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
 
-	handleButtonsHeldAtBoot(); // Check if the user is holding down the select knob to do a factory reset
-
-	FlashStorage::readSettings();
-
-	runtimeFeatureSettings.init();
-
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
-	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
-		deluge::hid::display::swapDisplayType();
-	}
-
 	initUSB(); // If nothing was plugged in to us as host, we'll go peripheral
 
-	// Hopefully we can read these files now
-	runtimeFeatureSettings.readSettingsFromFile();
-	MIDIDeviceManager::readDevicesFromFile();
-	midiFollow.readDefaultsFromFile();
-	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
+	loadSettings();
 
 	setupBlankSong(); // we always need to do this
 	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
