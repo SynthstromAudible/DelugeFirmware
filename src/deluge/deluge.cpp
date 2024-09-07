@@ -65,7 +65,6 @@
 #include "storage/storage_manager.h"
 #include "task_scheduler.h"
 #include "util/misc.h"
-#include "util/pack.h"
 #include <stdlib.h>
 
 #if AUTOMATED_TESTER_ENABLED
@@ -881,8 +880,6 @@ extern "C" int32_t deluge_main(void) {
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
 #endif
-
-	init_crc_table();
 
 	cvEngine.init(); // Setup for gate output
 
