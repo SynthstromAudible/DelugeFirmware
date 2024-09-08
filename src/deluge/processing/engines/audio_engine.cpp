@@ -735,7 +735,7 @@ startAgain:
 
 		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or
 		// MIDI clock out ticks during it
-		if (!stemExport.processStarted) {
+		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 			if (playbackHandler.triggerClockOutTickScheduled) {
 				int32_t timeTilTriggerClockOutTick = playbackHandler.timeNextTriggerClockOutTick - audioSampleTimer;
 				if (timeTilTriggerClockOutTick < numSamples) {
@@ -980,7 +980,7 @@ void routine() {
 	audioRoutineLocked = true;
 
 	numRoutines = 0;
-	if (!stemExport.processStarted) {
+	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		while (doSomeOutputting() && numRoutines < 2) {
 
 #ifndef USE_TASK_MANAGER
@@ -1102,7 +1102,7 @@ bool doSomeOutputting() {
 #else
 		outputBufferForResampling[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
 		outputBufferForResampling[numSamplesOutputted].r = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
-		if (!stemExport.processStarted) {
+		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 			i2sTXBufferPosNow[0] = outputBufferForResampling[numSamplesOutputted].l;
 			i2sTXBufferPosNow[1] = outputBufferForResampling[numSamplesOutputted].r;
 		}

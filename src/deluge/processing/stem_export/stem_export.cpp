@@ -67,6 +67,7 @@ StemExport::StemExport() {
 	allowNormalization = false;
 	exportToSilence = true;
 	includeSongFX = false;
+	renderOffline = true;
 
 	timePlaybackStopped = 0xFFFFFFFF;
 

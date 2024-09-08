@@ -45,6 +45,7 @@ public:
 	bool allowNormalization;
 	bool exportToSilence;
 	bool includeSongFX;
+	bool renderOffline;
 
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport();
