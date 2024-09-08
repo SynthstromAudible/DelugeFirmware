@@ -1535,7 +1535,7 @@ doneMoving:
 		if (toReturn.error != Error::NONE) {
 			goto emptyFileItemsAndReturn;
 		}
-		view.drawOutputNameFromDetails(outputType, 0, 0, newName.get(), false, doBlink);
+		view.drawOutputNameFromDetails(outputType, 0, 0, newName.get(), newName.isEmpty(), false, doBlink);
 	}
 
 	if (display->haveOLED()) {

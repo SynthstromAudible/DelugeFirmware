@@ -484,6 +484,7 @@ void AutomationView::focusRegained() {
 		if (clip->type == ClipType::AUDIO) {
 			indicator_leds::setLedState(IndicatorLED::BACK, false);
 			indicator_leds::setLedState(IndicatorLED::AFFECT_ENTIRE, true);
+			indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 			view.focusRegained();
 			view.setActiveModControllableTimelineCounter(clip);
 		}
@@ -1773,7 +1774,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	}
 
 	// Horizontal encoder button
-	// Not relevant for audio clip or arranger view
+	// Not relevant for arranger view
 	else if (b == X_ENC) {
 		if (handleHorizontalEncoderButtonAction(on, isAudioClip)) {
 			goto passToOthers;
@@ -2057,12 +2058,24 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 
 // called by button action if b == X_ENC
 bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
-	if (isAudioClip || onArrangerView) {
+	if (onArrangerView) {
+		return true;
+	}
+	else if (isAudioClip) {
+		// removing time stretching by re-calculating clip length based on length of audio sample
+		if (on && Buttons::isButtonPressed(deluge::hid::button::Y_ENC) && currentUIMode == UI_MODE_NONE) {
+			audioClipView.setClipLengthEqualToSampleLength();
+			return false;
+		}
+		// if shift is pressed then we're resizing the clip without time stretching
+		else if (Buttons::isShiftButtonPressed()) {
+			return false;
+		}
 		return true;
 	}
 	// If user wants to "multiply" Clip contents
-	if (on && Buttons::isShiftButtonPressed() && !isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
-	    && !onAutomationOverview()) {
+	else if (on && Buttons::isShiftButtonPressed() && !isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
+	         && !onAutomationOverview()) {
 		if (isNoUIModeActive()) {
 			// Zoom to max if we weren't already there...
 			if (!zoomToMax()) {
@@ -3621,10 +3634,12 @@ getOut:
 	}
 }
 
-// horizontal encoder action
-// using this to shift automations left / right
-// using this to zoom in / out
-// using this to adjust velocity in note editor
+// horizontal encoder actions:
+// scroll left / right
+// zoom in / out
+// adjust clip length
+// shift automations left / right
+// adjust velocity in note editor
 ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
@@ -3731,10 +3746,16 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		return ActionResult::DEALT_WITH;
 	}
 
+	// Shift and x pressed - edit length of audio clip without timestretching
+	else if (getCurrentClip()->type == ClipType::AUDIO && isNoUIModeActive()
+	         && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
+		ActionResult result = audioClipView.editClipLengthWithoutTimestretching(offset);
+		return result;
+	}
+
 	// Or, let parent deal with it
 	else {
 		ActionResult result = ClipView::horizontalEncoderAction(offset);
-		uiNeedsRendering(this);
 		return result;
 	}
 }
