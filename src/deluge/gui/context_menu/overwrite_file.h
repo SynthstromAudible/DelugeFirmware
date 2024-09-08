@@ -29,6 +29,7 @@ public:
 	char const* getTitle() override;
 	Sized<char const**> getOptions() override;
 	bool acceptCurrentOption() override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
 
 	SaveUI* currentSaveUI = nullptr;
 };
