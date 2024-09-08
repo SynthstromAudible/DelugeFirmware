@@ -917,7 +917,7 @@ extern "C" int32_t deluge_main(void) {
 
 	bool have_oled = checkOLED(); // Detects OLED Screen by DMA settings
 
-	initPads(have_oled); // Programmable Interrupt Controller (PIC) setup
+	initPads(have_oled); // Handled by PIC Microcontroller
 
 	initAnalogIO(); // General Purpose (GPIO) pins: analog (line, mic, headphone) ports, battery monitoring, some leds
 
@@ -929,7 +929,7 @@ extern "C" int32_t deluge_main(void) {
 
 	initSPIBSC(); // Set up "serial flash memory". Old comment indicating this also runs audio seems wrong/outdated
 
-	tests_1();
+	tests_1(); // Legacy testing routines. Possibly broken. Check if these can be removed!
 
 	// INIT AUDIO AND MIDI
 
@@ -943,7 +943,7 @@ extern "C" int32_t deluge_main(void) {
 
 	audioFileManager.init();
 
-	tests_2();
+	tests_2(); // Legacy testing routines. Possibly broken. Check if these can be removed!
 
 	initUSB(); // USB MIDI: If nothing was plugged in to us as host, we'll go peripheral
 
@@ -955,7 +955,7 @@ extern "C" int32_t deluge_main(void) {
 
 	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
 
-	tests_3();
+	tests_3(); // Legacy testing routines. Possibly broken. Check if these can be removed!
 
 	// PREPARE FOR MAIN LOOP
 
