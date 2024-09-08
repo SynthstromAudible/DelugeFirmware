@@ -664,7 +664,7 @@ bool checkOLED() {
 	return have_oled;
 }
 
-void initPIC(bool have_oled) {
+void initPads(bool have_oled) {
 
 	if (have_oled) {
 		PIC::enableOLED();
@@ -678,9 +678,11 @@ void initPIC(bool have_oled) {
 
 	PIC::setUARTSpeed();
 	PIC::flush();
+
+	PIC::setupForPads();
 }
 
-void initGPIO() {
+void initAnalogIO() {
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
 	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);
 
@@ -708,7 +710,7 @@ void initGPIO() {
 	ssiInit(0, 1);
 }
 
-void initSPI(bool have_oled) {
+void init_OLED_and_CV(bool have_oled) {
 	R_RSPI_Create(SPI_CHANNEL_CV,
 	              have_oled ? 10000000 // Higher than this would probably work... but let's stick to the OLED
 	                                   // datasheet's spec of 100ns (10MHz).
@@ -732,11 +734,12 @@ void initSPI(bool have_oled) {
 		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3);
 		display = new deluge::hid::display::SevenSegment;
 	}
+
 	// remember the physical display type
 	deluge::hid::display::have_oled_screen = have_oled;
 }
 
-void handleButtonsHeldAtBoot() {
+void maybeFactoryReset() {
 	PIC::requestFirmwareVersion();
 	PIC::resendButtonStates();
 	PIC::flush();
@@ -853,7 +856,7 @@ void initUSB() {
 }
 
 void loadSettings() {
-	handleButtonsHeldAtBoot(); // Check if the user is holding down the select knob to do a factory reset
+	maybeFactoryReset(); // Check if the user is holding down the select knob to do a factory reset
 
 	FlashStorage::readSettings();
 
@@ -873,17 +876,21 @@ void loadSettings() {
 
 extern "C" int32_t deluge_main(void) {
 
-	bool have_oled = checkOLED();
+	bool have_oled = checkOLED();	// Detects OLED Screen by DMA settings
 
-	initPIC(have_oled);
+	initPads(have_oled);			// Programmable Interrupt Controller (PIC) setup
 
-	initGPIO();
+	initAnalogIO();					// General Purpose (GPIO) pins: analog (line, mic, headphone) ports, battery monitoring, some leds
 
-	initSPI(have_oled);
+	encoders::init();				// Rotary encoders also handled by GPIO pins
 
-	encoders::init();
+	init_OLED_and_CV(have_oled);	// OLED and CV (analog control voltage ports) share an SPI (serial peripheral interface) channel
 
-	makeParameterRangeConstants();
+	cvEngine.init(have_oled);		// more CV setup
+
+	initSPIBSC(); 					// Set up "serial flash memory". Old comment indicating this also runs audio seems wrong/outdated
+
+	makeParameterRangeConstants();	// Could this be done at compile-time? Constexpr? (not for performance but for tidyness...)
 
 	currentPlaybackMode = &session;
 
@@ -895,15 +902,7 @@ extern "C" int32_t deluge_main(void) {
 	GeneralMemoryAllocator::get().test();
 #endif
 
-	cvEngine.init(); // Setup for gate output
-
-	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't
-	// that.) Otherwise didn't seem necessary.
-	PIC::waitForFlush();
-
-	PIC::setupForPads();
-
-	setOutputState(CODEC.port, CODEC.pin, 1); // Enable codec
+	setOutputState(CODEC.port, CODEC.pin, 1); // Enable Audio Output
 
 	AudioEngine::init();
 
@@ -912,10 +911,6 @@ extern "C" int32_t deluge_main(void) {
 #endif
 
 	audioFileManager.init();
-
-	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics
-	// and audio routines into the SPIBSC wait routines, so that has to be running
-	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
 
 	initUSB(); // If nothing was plugged in to us as host, we'll go peripheral
 
@@ -944,11 +939,10 @@ extern "C" int32_t deluge_main(void) {
 #endif
 
 	inputRoutine();
-
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
+	sdRoutineLock = false; // Allow SD routine to start happening
 
 	D_PRINTLN("going into main loop");
-	sdRoutineLock = false; // Allow SD routine to start happening
 
 #ifdef USE_TASK_MANAGER
 	registerTasks();
