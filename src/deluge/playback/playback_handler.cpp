@@ -202,12 +202,24 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 		    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
 		    || (!accessibility && Buttons::isButtonPressed(deluge::hid::button::X_ENC));
 
-		// If holding <> encoder down...
-		if (isRestartShortcutPressed) {
+		bool isArrangementPadPressed = isArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
+		// placeholders:
+		// isSongPadPressed = restart playhead in song view
+		// isClipPadPressed = restart playhead in clip view
 
+		bool isSequencerPadPressed = isArrangementPadPressed; // add isSongPadPressed and isClipPadPressed here
+
+		// If holding restart shortcut down...
+		// or holding pad in arranger view (and eventually song and clip views)
+		if (isRestartShortcutPressed || isSequencerPadPressed) {
 			// If wanting to switch into arranger...
 			if (currentPlaybackMode == &session && isArrangerView) {
-				arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+				if (isArrangementPadPressed) {
+					arrangementPosToStartAtOnSwitch = arrangerView.lastInteractedArrangementPos;
+				}
+				else {
+					arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+				}
 				session.armForSwitchToArrangement();
 				if (display->haveOLED()) {
 					renderUIsForOled();
@@ -220,7 +232,6 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 
 			// Otherwise, if internal clock, restart playback
 			else {
-
 				if (isInternalClockActive() && recording != RecordingMode::ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
@@ -326,15 +337,29 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	bool isRestartShortcutPressed = (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
 	                                || (!accessibility && Buttons::isButtonPressed(deluge::hid::button::X_ENC));
 
-	/*
-	Allow playback to start from current scroll if:
-	    1) horizontal encoder (<>) or cross screen is held and alternative playback start behaviour is disabled or
-	restarting playback 2) or horizontal encoder (<>) or cross screen is not held and alternative playback start
-	behaviour is enabled 3) or if you're in arranger view and in cross screen auto scrolling mode
-	*/
-	if ((isRestartShortcutPressed && (!alternativePlaybackStartBehaviour || restartingPlayback))
-	    || (!isRestartShortcutPressed && alternativePlaybackStartBehaviour)
-	    || (isArrangerView && (recording == RecordingMode::NORMAL || currentSong->arrangerAutoScrollModeActive))) {
+	bool useArrangementScrollPosition =
+	    isArrangerView && (recording == RecordingMode::NORMAL || currentSong->arrangerAutoScrollModeActive);
+
+	bool isArrangementPadPressed = isArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
+	// placeholders:
+	// isSongPadPressed = restart playhead in song view
+	// isClipPadPressed = restart playhead in clip view
+
+	bool useScrollPosition = isRestartShortcutPressed || useArrangementScrollPosition;
+
+	bool useSpecificPosition = isArrangementPadPressed; // add isSongPadPressed and isClipPadPressed here
+
+	// 	  Allow playback to start from current scroll if:
+	//    1) horizontal encoder (<>) or cross screen is held and alternative playback start behaviour
+	//		 is disabled or restarting playback;
+	//	  2) or horizontal encoder (<>) or cross screen is not held and alternative playback start behaviour is enabled;
+	//	  3) or if you're in arranger view and in normal recording mode
+	//	  4) or if you're in arranger view and in cross screen auto scrolling mode;
+
+	// 	  Allow playback to start from specific position if:
+	//	  1) you're in arranger view and holding a pad in the arrangement
+
+	if (useScrollPosition || useSpecificPosition) {
 
 		int32_t navSys;
 		if (rootUI) {
@@ -346,7 +371,12 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 			navSys = NAVIGATION_CLIP; // Keyboard view will cause this case
 		}
 
-		newPos = currentSong->xScroll[navSys];
+		if (isArrangementPadPressed) {
+			newPos = arrangerView.lastInteractedArrangementPos;
+		}
+		else {
+			newPos = currentSong->xScroll[navSys];
+		}
 	}
 
 	// See if we're gonna do a tempoless record

@@ -309,6 +309,10 @@ which track to record from. To run the instrument through the audio clip's FX ch
 - ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
 - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
+### 3.29 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
+- ([#2615]) Added ability to start / restart arrangement playback from the clip pad you're holding in arranger view.
+  - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1496,6 +1500,8 @@ different firmware
 [#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
 
 [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
+
+[#2615]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
