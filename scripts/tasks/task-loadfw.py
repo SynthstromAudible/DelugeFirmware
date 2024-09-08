@@ -171,7 +171,7 @@ def find_binary(build):
     id = build.upper()
     if id == "RELEASE":
         return "build/Release/deluge.bin"
-    if id == "DBEUG":
+    if id == "DEBUG":
         return "build/Debug/deluge.bin"
     if id == "RELWITHDEBINFO":
         return "build/RelWithDebInfo/deluge.bin"
