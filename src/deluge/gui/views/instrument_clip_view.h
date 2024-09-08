@@ -229,6 +229,9 @@ public:
 	void setRowProbability(int32_t offset);
 	void editNoteRepeat(int32_t offset);
 
+	// public so you can enter drum creator from keyboard view when creating a new kit
+	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
+
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress;
 	bool offsettingNudgeNumberDisplay;
@@ -251,7 +254,6 @@ private:
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
 	                                int32_t* getIndex = NULL);
-	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 	void displayProbability(uint8_t probability, bool prevBase);
 	void copyNotes();
 	void pasteNotes(bool overwriteExisting);
