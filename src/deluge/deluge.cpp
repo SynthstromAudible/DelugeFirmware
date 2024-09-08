@@ -911,35 +911,33 @@ void tests_3() {
 #endif
 }
 
-
 extern "C" int32_t deluge_main(void) {
 
 	// HARDWARE SETUP
 
-	bool have_oled = checkOLED();	// Detects OLED Screen by DMA settings
+	bool have_oled = checkOLED(); // Detects OLED Screen by DMA settings
 
-	initPads(have_oled);			// Programmable Interrupt Controller (PIC) setup
+	initPads(have_oled); // Programmable Interrupt Controller (PIC) setup
 
-	initAnalogIO();					// General Purpose (GPIO) pins: analog (line, mic, headphone) ports, battery monitoring, some leds
+	initAnalogIO(); // General Purpose (GPIO) pins: analog (line, mic, headphone) ports, battery monitoring, some leds
 
-	encoders::init();				// Rotary encoders also handled by GPIO pins
+	encoders::init(); // Rotary encoders also handled by GPIO pins
 
-	init_OLED_and_CV(have_oled);	// OLED and CV (analog control voltage ports) share an SPI (serial peripheral interface) channel
+	init_OLED_and_CV(have_oled); // OLED and CV share an SPI (serial peripheral interface) channel
 
-	cvEngine.init(have_oled);		// CV setup
+	cvEngine.init(have_oled); // CV setup
 
-	initSPIBSC(); 					// Set up "serial flash memory". Old comment indicating this also runs audio seems wrong/outdated
+	initSPIBSC(); // Set up "serial flash memory". Old comment indicating this also runs audio seems wrong/outdated
 
 	tests_1();
 
-
 	// INIT AUDIO AND MIDI
 
-	makeParameterRangeConstants();				// Do at compile-time? Constexpr? (not for performance but for tidyness...)
+	makeParameterRangeConstants(); // Do at compile-time? Constexpr? (not for performance but for tidyness...)
 
-	currentPlaybackMode = &session;				// ?
+	currentPlaybackMode = &session; // ?
 
-	setOutputState(CODEC.port, CODEC.pin, 1); 	// Enable Audio Output
+	setOutputState(CODEC.port, CODEC.pin, 1); // Enable Audio Output
 
 	AudioEngine::init();
 
@@ -947,19 +945,17 @@ extern "C" int32_t deluge_main(void) {
 
 	tests_2();
 
-	initUSB(); 									// USB MIDI: If nothing was plugged in to us as host, we'll go peripheral
-
+	initUSB(); // USB MIDI: If nothing was plugged in to us as host, we'll go peripheral
 
 	// LOAD STUFF
 
-	loadSettings();						// Load User Settings from Flash and SD Card, reset to defaults if requested
+	loadSettings(); // Load User Settings from Flash and SD Card, reset to defaults if requested
 
-	setupBlankSong(); 					// we always need to do this
+	setupBlankSong(); // we always need to do this
 
 	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
 
 	tests_3();
-
 
 	// PREPARE FOR MAIN LOOP
 
@@ -968,7 +964,6 @@ extern "C" int32_t deluge_main(void) {
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
 	sdRoutineLock = false; // Allow SD routine to start happening
-
 
 	// START MAIN LOOP
 

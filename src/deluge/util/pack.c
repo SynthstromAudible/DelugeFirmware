@@ -239,7 +239,7 @@ void init_crc_table(void) {
 static uint32_t update_crc(uint32_t crc, uint8_t* buf, int len) {
 	uint32_t c = crc;
 	int n;
-	if( crc_table[0] == 0 ) {
+	if (crc_table[0] == 0) {
 		init_crc_table();
 	}
 	for (n = 0; n < len; n++) {
