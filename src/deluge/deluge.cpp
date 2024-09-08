@@ -874,26 +874,7 @@ void loadSettings() {
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 }
 
-extern "C" int32_t deluge_main(void) {
-
-	bool have_oled = checkOLED();	// Detects OLED Screen by DMA settings
-
-	initPads(have_oled);			// Programmable Interrupt Controller (PIC) setup
-
-	initAnalogIO();					// General Purpose (GPIO) pins: analog (line, mic, headphone) ports, battery monitoring, some leds
-
-	encoders::init();				// Rotary encoders also handled by GPIO pins
-
-	init_OLED_and_CV(have_oled);	// OLED and CV (analog control voltage ports) share an SPI (serial peripheral interface) channel
-
-	cvEngine.init(have_oled);		// more CV setup
-
-	initSPIBSC(); 					// Set up "serial flash memory". Old comment indicating this also runs audio seems wrong/outdated
-
-	makeParameterRangeConstants();	// Could this be done at compile-time? Constexpr? (not for performance but for tidyness...)
-
-	currentPlaybackMode = &session;
-
+void tests_1() {
 #if AUTOMATED_TESTER_ENABLED
 	AutomatedTester::init();
 #endif
@@ -901,24 +882,15 @@ extern "C" int32_t deluge_main(void) {
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
 #endif
+}
 
-	setOutputState(CODEC.port, CODEC.pin, 1); // Enable Audio Output
-
-	AudioEngine::init();
-
+void tests_2() {
 #if HARDWARE_TEST_MODE
 	ramTestLED();
 #endif
+}
 
-	audioFileManager.init();
-
-	initUSB(); // If nothing was plugged in to us as host, we'll go peripheral
-
-	loadSettings();
-
-	setupBlankSong(); // we always need to do this
-	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
-
+void tests_3() {
 #ifdef TEST_VECTOR
 	NoteVector noteVector;
 	noteVector.test();
@@ -937,10 +909,68 @@ extern "C" int32_t deluge_main(void) {
 #ifdef TEST_SD_WRITE
 	testSdWrite();
 #endif
+}
+
+
+extern "C" int32_t deluge_main(void) {
+
+	// HARDWARE SETUP
+
+	bool have_oled = checkOLED();	// Detects OLED Screen by DMA settings
+
+	initPads(have_oled);			// Programmable Interrupt Controller (PIC) setup
+
+	initAnalogIO();					// General Purpose (GPIO) pins: analog (line, mic, headphone) ports, battery monitoring, some leds
+
+	encoders::init();				// Rotary encoders also handled by GPIO pins
+
+	init_OLED_and_CV(have_oled);	// OLED and CV (analog control voltage ports) share an SPI (serial peripheral interface) channel
+
+	cvEngine.init(have_oled);		// CV setup
+
+	initSPIBSC(); 					// Set up "serial flash memory". Old comment indicating this also runs audio seems wrong/outdated
+
+	tests_1();
+
+
+	// INIT AUDIO AND MIDI
+
+	makeParameterRangeConstants();				// Do at compile-time? Constexpr? (not for performance but for tidyness...)
+
+	currentPlaybackMode = &session;				// ?
+
+	setOutputState(CODEC.port, CODEC.pin, 1); 	// Enable Audio Output
+
+	AudioEngine::init();
+
+	audioFileManager.init();
+
+	tests_2();
+
+	initUSB(); 									// USB MIDI: If nothing was plugged in to us as host, we'll go peripheral
+
+
+	// LOAD STUFF
+
+	loadSettings();						// Load User Settings from Flash and SD Card, reset to defaults if requested
+
+	setupBlankSong(); 					// we always need to do this
+
+	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
+
+	tests_3();
+
+
+	// PREPARE FOR MAIN LOOP
 
 	inputRoutine();
+
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
+
 	sdRoutineLock = false; // Allow SD routine to start happening
+
+
+	// START MAIN LOOP
 
 	D_PRINTLN("going into main loop");
 
