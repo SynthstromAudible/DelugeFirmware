@@ -19,6 +19,7 @@
 #include "device.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "util/container/static_vector.hpp"
@@ -85,16 +86,17 @@ void Devices::selectEncoderAction(int32_t offset) {
 		if (this->getValue() < currentScroll) {
 			currentScroll = this->getValue();
 		}
-
+		//
 		if (offset >= 0) {
 			int32_t d = this->getValue();
 			int32_t numSeen = 1;
-			while (true) {
+			while (d > -4) {
 				d--;
 				if (d == currentScroll) {
 					break;
 				}
-				if (!getDevice(d)->connectionFlags) {
+				auto device = getDevice(d);
+				if (!(device && device->connectionFlags)) {
 					continue;
 				}
 				numSeen++;
@@ -110,6 +112,10 @@ void Devices::selectEncoderAction(int32_t offset) {
 }
 
 MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
+	if (deviceIndex < -4 || deviceIndex >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
+		D_PRINTLN("impossible device request");
+		return nullptr;
+	}
 	switch (deviceIndex) {
 	case -4: {
 		return &MIDIDeviceManager::dinMIDIPorts;
@@ -152,7 +158,7 @@ void Devices::drawPixelsForOled() {
 	size_t row = 0;
 	while (row < kOLEDMenuNumOptionsVisible && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		MIDIDevice* device = getDevice(device_idx);
-		if (device->connectionFlags != 0u) {
+		if (device && device->connectionFlags != 0u) {
 			itemNames.push_back(device->getDisplayName());
 			if (device_idx == this->getValue()) {
 				selectedRow = static_cast<int32_t>(row);

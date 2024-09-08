@@ -104,7 +104,7 @@ void usbSendCompleteAsHost(int32_t ip) {
 			midiDeviceNum -= MAX_NUM_USB_MIDI_DEVICES;
 		}
 		connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
-		if (connectedDevice->device && connectedDevice->numBytesSendingNow) {
+		if (connectedDevice->device[0] && connectedDevice->numBytesSendingNow) {
 			// If here, we got a connected device, so flush
 			flushUSBMIDIToHostedDevice(ip, midiDeviceNum);
 			return;
@@ -260,29 +260,28 @@ MidiEngine::MidiEngine() {
 void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume) {
 
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
-
+	// there was an assumption that the pipe wouldn't have changed if we were resuming a transfer but that has turned
+	// out not to be true if hubs are involved. A hub transaction seems to be able to run before the
+	// usbSendCompleteAsHost interrupt is called and changes the pipe, and then the next write doesn't go anywhere
+	// useful
 	int32_t pipeNumber = g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][0];
-
+	g_usb_midi_send_utr[USB_CFG_USE_USBIP].keyword = pipeNumber;
 	g_usb_midi_send_utr[USB_CFG_USE_USBIP].tranlen = connectedDevice->numBytesSendingNow;
 	g_usb_midi_send_utr[USB_CFG_USE_USBIP].p_tranadr = connectedDevice->dataSendingNow;
 
-	// if resuming an ongoing send to the same device, the pipe will already be set up
-	if (!resume) {
-		g_usb_midi_send_utr[USB_CFG_USE_USBIP].keyword = pipeNumber;
-		usbDeviceNumBeingSentToNow[USB_CFG_USE_USBIP] = d;
+	usbDeviceNumBeingSentToNow[USB_CFG_USE_USBIP] = d;
 
-		int32_t isInterrupt = (pipeNumber == USB_CFG_HMIDI_INT_SEND);
+	int32_t isInterrupt = (pipeNumber == USB_CFG_HMIDI_INT_SEND);
 
-		if (d != currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt]) {
-			currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt] = d;
-			change_destination_of_send_pipe(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber,
-			                                g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d], connectedDevice->sq);
-		}
-
-		connectedDevice->sq = !connectedDevice->sq;
-
-		g_p_usb_pipe[pipeNumber] = &g_usb_midi_send_utr[USB_CFG_USE_USBIP];
+	if (d != currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt]) {
+		currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt] = d;
+		change_destination_of_send_pipe(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber,
+		                                g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d], connectedDevice->sq);
 	}
+
+	connectedDevice->sq = !connectedDevice->sq;
+
+	g_p_usb_pipe[pipeNumber] = &g_usb_midi_send_utr[USB_CFG_USE_USBIP];
 
 	usb_send_start_rohan(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber, connectedDevice->dataSendingNow,
 	                     connectedDevice->numBytesSendingNow);
@@ -356,7 +355,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 			// Make sure that's on a connected device - it probably would be...
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNumToSendTo];
-				if (connectedDevice->device && connectedDevice->hasBufferedSendData()) {
+				if (connectedDevice->device[0] && connectedDevice->hasBufferedSendData()) {
 					break; // We found a connected one
 				}
 				if (midiDeviceNumToSendTo == newStopSendingAfter) {
@@ -372,7 +371,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][newStopSendingAfter];
 
-				if (connectedDevice->device && connectedDevice->hasBufferedSendData()) {
+				if (connectedDevice->device[0] && connectedDevice->hasBufferedSendData()) {
 					break; // We found a connected one
 				}
 
@@ -387,7 +386,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 			while (true) {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 
-				if (connectedDevice->device) {
+				if (connectedDevice->device[0]) {
 					connectedDevice->consumeSendData();
 				}
 				if (d == newStopSendingAfter) {
