@@ -141,6 +141,8 @@ protected:
 	static char const** allowedFileExtensions;
 
 	const uint8_t* fileIcon;
+	const uint8_t* fileIconPt2;
+	int32_t fileIconPt2Width;
 
 	// 7Seg Only
 	static int8_t numberEditPos; // -1 is default
