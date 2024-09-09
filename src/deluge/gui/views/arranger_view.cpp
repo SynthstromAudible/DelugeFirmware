@@ -2345,7 +2345,9 @@ squareStartPosSet:
 					// Or the real Clip - for all squares in the Instance
 					for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
 						if (!clipInstance->clip) {
-							*it = colours::black;
+							// this shouldn't be possible, but it happens when you create a brand new white clip
+							// which doesn't have a timeline counter yet (until you enter the clip)
+							image[xDisplay] = colour.dim(7);
 						}
 						else {
 							int32_t relativeSquarePos; // square's position relative to start of clip instance
