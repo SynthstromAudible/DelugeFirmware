@@ -629,6 +629,19 @@ checkDevice:
 				device->defaultVelocityToLevel = reader.readTagOrAttributeValueInt();
 			}
 		}
+		else if (!strcmp(tagName, "sendClock")) {
+			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
+			if (!device) {
+				if (!name.isEmpty() || vendorId) {
+					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
+					                                                productId); // Will return NULL if error.
+				}
+			}
+
+			if (device) {
+				device->sendClock = reader.readTagOrAttributeValueInt();
+			}
+		}
 
 		reader.exitTag();
 	}
