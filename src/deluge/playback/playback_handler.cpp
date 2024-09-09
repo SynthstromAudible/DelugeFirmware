@@ -25,6 +25,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
@@ -190,6 +191,13 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 		bool accessibility = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AccessibilityShortcuts)
 		                     == RuntimeFeatureStateToggle::On;
 
+		RootUI* rootUI = getRootUI();
+
+		bool isArrangerView =
+		    rootUI == &arrangerView
+		    || (rootUI == &performanceSessionView && currentSong->lastClipInstanceEnteredStartPos != -1)
+		    || (rootUI == &automationView && automationView.onArrangerView);
+
 		bool isRestartShortcutPressed =
 		    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
 		    || (!accessibility && Buttons::isButtonPressed(deluge::hid::button::X_ENC));
@@ -198,7 +206,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 		if (isRestartShortcutPressed) {
 
 			// If wanting to switch into arranger...
-			if (currentPlaybackMode == &session && getCurrentUI() == &arrangerView) {
+			if (currentPlaybackMode == &session && isArrangerView) {
 				arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 				session.armForSwitchToArrangement();
 				if (display->haveOLED()) {
@@ -304,7 +312,9 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	RootUI* rootUI = getRootUI();
 
-	bool isArrangerView = rootUI == &arrangerView;
+	bool isArrangerView = rootUI == &arrangerView
+	                      || (rootUI == &performanceSessionView && currentSong->lastClipInstanceEnteredStartPos != -1)
+	                      || (rootUI == &automationView && automationView.onArrangerView);
 
 	bool alternativePlaybackStartBehaviour =
 	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour)
