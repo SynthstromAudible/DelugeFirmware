@@ -70,6 +70,10 @@ use the TRACK menu to select the specific track to record from
 - CLIP NAMES. MIDI, SYNTH & KIT clips can now be named. When entered the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view, you are now able to scroll through the clip names when holding a pad.
 - Fixed bug where you wouldn't enter drum creator to select a drum sample when creating a new kit in the `KIT VELOCITY KEYBOARD VIEW`.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.
+- Updated Arranger View clip rendering. Clip's are now rendered more simply which should also increase Arranger View performance, especially when using cross screen mode. Clip's are now rendered as follows:
+  - The clip head (the first pad where the clip is placed in the arrangement) is rendered the clip colour brightly.
+  - The clip loop points (the pad's where the clip, if extended past it's length will loop) are rendered the clip colour but dimly.
+  - The clip tails (pad's between clip head and loop points) are rendered the clip's colour but dimly and blurred.
 
 ### Keyboard View Improvements
 
