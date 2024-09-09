@@ -11,6 +11,7 @@ NOTE: Firmware might behave slightly differently when using loadfw than when fla
 Please remember to test flashing your firmware version via SD card before opening a pull request.
 """
 
+
 def argparser():
     parser = argparse.ArgumentParser(
         prog="loadfw",
@@ -142,7 +143,7 @@ def load_fw(output, handshake, file, delay_ms=2, output_to_file=False):
     sysex_data = make_sysex_messages(binary, handshake)
 
     print(advisory)
-    
+
     if output_to_file:
         with open(output, "wb") as f:
             text = f"Writing SysEx File '{f.name}': "
