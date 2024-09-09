@@ -144,26 +144,35 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 		indicator_leds::blinkLed(IndicatorLED::KIT);
 	}
 
+	// reset
+	fileIconPt2 = nullptr;
+	fileIconPt2Width = 0;
+
 	if (display->haveOLED()) {
-		fileIcon = (outputTypeToLoad == OutputType::SYNTH) ? deluge::hid::display::OLED::synthIcon
-		                                                   : deluge::hid::display::OLED::kitIcon;
 		if (loadingSynthToKitRow) {
-			title = "Synth To Row";
+			title = "Synth to row";
+			fileIcon = deluge::hid::display::OLED::synthIcon;
 		}
 		else {
 			switch (outputTypeToLoad) {
 			case OutputType::SYNTH:
 				title = "Load synth";
+				fileIcon = deluge::hid::display::OLED::synthIcon;
 				break;
 			case OutputType::KIT:
 				title = "Load kit";
+				fileIcon = deluge::hid::display::OLED::kitIcon;
 				break;
 			case OutputType::MIDI_OUT:
-				title = "Load midi";
+				title = "Load midi preset";
+				fileIcon = deluge::hid::display::OLED::midiIcon;
+				fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
+				fileIconPt2Width = 1;
 			}
 		}
 	}
 
+	// not used for midi
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
 
 	enteredText.clear();
@@ -439,8 +448,8 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		return;
 	}
 
-	// If MIDI or CV, we have a different method for this, and the UI will be exited
-	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
+	// If CV, we have a different method for this, and the UI will be exited
+	if (newOutputType == OutputType::CV) {
 
 		Instrument* newInstrument;
 		// In arranger...
@@ -466,8 +475,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 			if (!getRootUI()->toClipMinder()) {
 				char const* message;
 				if (display->haveOLED()) {
-					message = ((newOutputType == OutputType::MIDI_OUT) ? "Instrument switched to MIDI channel"
-					                                                   : "Instrument switched to CV channel");
+					message = "Instrument switched to CV channel";
 				}
 				else {
 					message = "DONE";
@@ -479,7 +487,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		}
 	}
 
-	// Or, for normal synths and kits
+	// Or, for normal synths, kits and midi
 	else {
 		OutputType oldOutputType = outputTypeToLoad;
 		outputTypeToLoad = newOutputType;

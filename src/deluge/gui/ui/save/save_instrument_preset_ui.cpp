@@ -70,22 +70,28 @@ tryDefaultDir:
 		currentDir.set(defaultDir);
 	}
 
-	if (display->haveOLED()) {
-		fileIcon = (outputTypeToLoad == OutputType::SYNTH) ? deluge::hid::display::OLED::synthIcon
-		                                                   : deluge::hid::display::OLED::kitIcon;
-		title = (outputTypeToLoad == OutputType::SYNTH) ? "Save synth" : "Save kit";
+	// reset
+	fileIconPt2 = nullptr;
+	fileIconPt2Width = 0;
 
+	if (display->haveOLED()) {
 		switch (outputTypeToLoad) {
 		case OutputType::SYNTH:
 			title = "Save synth";
+			fileIcon = deluge::hid::display::OLED::synthIcon;
 			break;
 		case OutputType::KIT:
 			title = "Save kit";
+			fileIcon = deluge::hid::display::OLED::kitIcon;
 			break;
 		case OutputType::MIDI_OUT:
-			title = "Save midi";
+			title = "Save midi preset";
+			fileIcon = deluge::hid::display::OLED::midiIcon;
+			fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
+			fileIconPt2Width = 1;
 		}
 	}
+
 	// not used for midi
 	filePrefix = (outputTypeToLoad == OutputType::SYNTH) ? "SYNT" : "KIT";
 
