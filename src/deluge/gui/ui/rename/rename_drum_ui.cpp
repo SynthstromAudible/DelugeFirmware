@@ -31,7 +31,7 @@
 RenameDrumUI renameDrumUI{};
 
 RenameDrumUI::RenameDrumUI() {
-	title = "Rename item";
+	title = "Drum Name";
 }
 
 bool RenameDrumUI::opened() {

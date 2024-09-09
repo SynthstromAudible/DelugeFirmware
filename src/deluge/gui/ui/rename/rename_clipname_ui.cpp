@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
-#include "gui/views/arranger_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
@@ -29,13 +29,10 @@
 RenameClipNameUI renameClipNameUI{};
 
 RenameClipNameUI::RenameClipNameUI() {
+	title = "Clip Name";
 }
 
 bool RenameClipNameUI::opened() {
-	if (display->haveOLED()) {
-
-		title = "Clip Name";
-	}
 	bool success = QwertyUI::opened();
 	if (!success) {
 		return false;
@@ -106,17 +103,24 @@ bool RenameClipNameUI::exitUI() {
 
 ActionResult RenameClipNameUI::padAction(int32_t x, int32_t y, int32_t on) {
 
+	// Audition pad
+	if (x == kDisplayWidth + 1) {
+		return instrumentClipView.padAction(x, y, on);
+	}
+
 	// Main pad
-	if (x < kDisplayWidth) {
+	else if (x < kDisplayWidth) {
 		return QwertyUI::padAction(x, y, on);
 	}
 
 	// Otherwise, exit
-	if (on && !currentUIMode) {
-		if (sdRoutineLock) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	else {
+		if (on && !currentUIMode) {
+			if (sdRoutineLock) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			exitUI();
 		}
-		exitUI();
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -126,5 +130,5 @@ ActionResult RenameClipNameUI::verticalEncoderAction(int32_t offset, bool inCard
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}
-	return arrangerView.verticalEncoderAction(offset, inCardRoutine);
+	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
 }
