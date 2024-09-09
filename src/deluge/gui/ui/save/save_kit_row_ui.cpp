@@ -72,7 +72,7 @@ tryDefaultDir:
 
 	if (display->haveOLED()) {
 		fileIcon = deluge::hid::display::OLED::synthIcon;
-		title = "Save synth";
+		title = "Save synth preset";
 	}
 
 	filePrefix = "SYNT";

@@ -629,6 +629,19 @@ checkDevice:
 				device->defaultVelocityToLevel = reader.readTagOrAttributeValueInt();
 			}
 		}
+		else if (!strcmp(tagName, "sendClock")) {
+			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
+			if (!device) {
+				if (!name.isEmpty() || vendorId) {
+					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
+					                                                productId); // Will return NULL if error.
+				}
+			}
+
+			if (device) {
+				device->sendClock = reader.readTagOrAttributeValueInt();
+			}
+		}
 
 		reader.exitTag();
 	}
@@ -685,6 +698,10 @@ bool ConnectedUSBMIDIDevice::consumeSendData() {
 	if (g_usb_usbmode == USB_HOST) {
 		// many devices do not accept more than 64 bytes of data at a time
 		// likely this can be inferred from the device metadata somehow?
+
+		// some seem to take even less, especially with hubs involved. The hydrasynth seems to only respond to a max of
+		// 2 messages per transfer, the third gets blocked. For MPE this leads to ignoring note ons as the x and y
+		// resets are sent before the note on
 		max_size = MIDI_SEND_BUFFER_LEN_INNER_HOST;
 	}
 
@@ -704,6 +721,20 @@ void ConnectedUSBMIDIDevice::setup() {
 	numBytesReceived = 0;
 
 	// default to only a single port
+	maxPortConnected = 0;
+}
+ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
+	currentlyWaitingToReceive = 0;
+	sq = 0;
+	canHaveMIDISent = 0;
+	numBytesReceived = 0;
+	memset(receiveData, 0, 64);
+	memset(dataSendingNow, 0, MIDI_SEND_BUFFER_LEN_INNER * 4);
+	numBytesSendingNow = 0;
+	memset(sendDataRingBuf, 0, MIDI_SEND_BUFFER_LEN_RING);
+	ringBufWriteIdx = 0;
+	ringBufReadIdx = 0;
+
 	maxPortConnected = 0;
 }
 

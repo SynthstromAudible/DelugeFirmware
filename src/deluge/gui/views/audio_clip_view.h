@@ -51,6 +51,7 @@ public:
 	void setClipLengthEqualToSampleLength();
 	void adjustLoopLength(int32_t newLength);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
+	ActionResult editClipLengthWithoutTimestretching(int32_t offset);
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	ActionResult timerCallback() override;
 	uint32_t getMaxLength() override;

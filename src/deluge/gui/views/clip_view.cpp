@@ -270,7 +270,7 @@ uint32_t ClipView::changeClipLength(int32_t offset, uint32_t oldLength, Action*&
 
 			if (!scrollRightToEndOfLengthIfNecessary(newLength)) {
 doReRender:
-				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+				uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 			}
 		}
 	}

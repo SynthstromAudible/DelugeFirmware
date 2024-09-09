@@ -691,7 +691,8 @@ void AudioClipView::adjustLoopLength(int32_t newLength) {
 
 				action = lengthenClip(newLength);
 doReRender:
-				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+				// use getRootUI() in case this is called from audio clip automation view
+				uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 			}
 		}
 		else if (newLength < oldLength) {
@@ -724,54 +725,57 @@ ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
 
 	// Shift and x pressed - edit length of clip without timestretching
 	if (isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
-
-		// If tempoless recording, don't allow
-		if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
-			return ActionResult::DEALT_WITH;
-		}
-
-		// Ok, move the marker!
-		int32_t oldLength = getCurrentClip()->loopLength;
-		uint64_t oldLengthSamples = getCurrentAudioClip()->sampleHolder.getDurationInSamples(true);
-
-		// If we're not scrolled all the way to the right, go there now
-		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
-			return ActionResult::DEALT_WITH;
-		}
-
-		// Or if still here, we've already scrolled far-right
-
-		if (sdRoutineLock) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
-		Action* action = NULL;
-
-		uint32_t newLength = changeClipLength(offset, oldLength, action);
-
-		AudioClip* audioClip = getCurrentAudioClip();
-		SamplePlaybackGuide guide = audioClip->guide;
-		SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
-		if (sampleHolder) {
-			Sample* sample = static_cast<Sample*>(sampleHolder->audioFile);
-			if (sample) {
-				changeUnderlyingSampleLength(audioClip, sample, newLength, oldLength, oldLengthSamples);
-			}
-		}
-
-		displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
-
-		if (action) {
-			action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
-		}
-		return ActionResult::DEALT_WITH;
+		return editClipLengthWithoutTimestretching(offset);
 	}
 
 	else {
 		// Otherwise, let parent do scrolling and zooming
 		return ClipView::horizontalEncoderAction(offset);
 	}
+}
+
+ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) {
+	// If tempoless recording, don't allow
+	if (!getCurrentClip()->currentlyScrollableAndZoomable()) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH));
+		return ActionResult::DEALT_WITH;
+	}
+
+	// Ok, move the marker!
+	int32_t oldLength = getCurrentClip()->loopLength;
+	uint64_t oldLengthSamples = getCurrentAudioClip()->sampleHolder.getDurationInSamples(true);
+
+	// If we're not scrolled all the way to the right, go there now
+	if (scrollRightToEndOfLengthIfNecessary(oldLength)) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	// Or if still here, we've already scrolled far-right
+
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	Action* action = NULL;
+
+	uint32_t newLength = changeClipLength(offset, oldLength, action);
+
+	AudioClip* audioClip = getCurrentAudioClip();
+	SamplePlaybackGuide guide = audioClip->guide;
+	SampleHolder* sampleHolder = (SampleHolder*)guide.audioFileHolder;
+	if (sampleHolder) {
+		Sample* sample = static_cast<Sample*>(sampleHolder->audioFile);
+		if (sample) {
+			changeUnderlyingSampleLength(audioClip, sample, newLength, oldLength, oldLengthSamples);
+		}
+	}
+
+	displayNumberOfBarsAndBeats(newLength, currentSong->xZoom[NAVIGATION_CLIP], false, "LONG");
+
+	if (action) {
+		action->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
+	}
+	return ActionResult::DEALT_WITH;
 }
 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {

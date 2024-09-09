@@ -29,17 +29,10 @@
 RenameOutputUI renameOutputUI{};
 
 RenameOutputUI::RenameOutputUI() {
+	title = "Track Name";
 }
 
 bool RenameOutputUI::opened() {
-	if (display->haveOLED()) {
-		if (output->type == OutputType::AUDIO) {
-			title = "Rename track";
-		}
-		else {
-			title = "Rename instrument";
-		}
-	}
 	bool success = QwertyUI::opened();
 	if (!success) {
 		return false;
