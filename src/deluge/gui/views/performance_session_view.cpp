@@ -210,6 +210,15 @@ PerformanceSessionView::PerformanceSessionView() {
 	}
 }
 
+int32_t PerformanceSessionView::getNavSysId() const {
+	if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+		return NAVIGATION_ARRANGEMENT;
+	}
+	else {
+		return NAVIGATION_CLIP;
+	}
+}
+
 void PerformanceSessionView::initPadPress(PadPress& padPress) {
 	padPress.isActive = false;
 	padPress.xDisplay = kNoSelection;
