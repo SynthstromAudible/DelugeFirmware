@@ -209,15 +209,15 @@ The first time you run it, the command will ask you for the key code you from th
 More instructions available via:
 `./dbt loadfw -h`
 
-**NOTE:** The uploaded firmware is *not* flashed to the permanent memory of the Deluge. 
+**NOTE:** loadfw *does not* flash the new firmware to the permanent memory of the Deluge. 
 It is only loaded to RAM and then executed *as if* booting from flash memory.
 This is great for development, because if your update crashes the Deluge, 
 you just need to switch off and on again and are back to the (hopefully stable) version that you flashed from your SD card earlier. But...
 
 **NOTE:** The fact that this effectively "hijacks" an already running device, instead of truly rebooting it from powered-off state means that:
 The firmware *might* behave differently than when actually flashed from SD card. 
-This mainly applies when changing low-level stuff happening at boot time.
-**Please** *always* verify that your firmware also works when actually flashed from SD card before making a pull request. 
+Although this mainly applies when changing low-level stuff happening at boot time,
+**please** always verify that your firmware also works when actually flashed from SD card before making a pull request (ask me how I know...). 
 
 ### Printing debug log messages on the console
 
