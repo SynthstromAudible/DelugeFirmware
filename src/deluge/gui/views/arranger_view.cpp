@@ -2342,36 +2342,43 @@ squareStartPosSet:
 					         && searchTerms[squareEnd] - 1 == i);
 
 					// Draw either the blank, non-existent Clip if this Instance doesn't have one...
-					if (!clipInstance->clip) {
-						for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
+					// Or the real Clip - for all squares in the Instance
+					for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
+						if (!clipInstance->clip) {
 							*it = colours::black;
 						}
-					}
+						else {
+							int32_t relativeSquarePos; // square's position relative to start of clip instance
+							if (xDisplay == 0) {
+								relativeSquarePos = (farLeftPos - clipInstance->pos);
+							}
+							else {
+								relativeSquarePos = (squareEndPos[xDisplay - 1] - clipInstance->pos);
+							}
 
-					// Or the real Clip - for all squares in the Instance
-					else {
-						ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-						    modelStack->addTimelineCounter(clipInstance->clip);
-						bool success = clipInstance->clip->renderAsSingleRow(
-						    modelStackWithTimelineCounter, this, farLeftPos - clipInstance->pos, xZoom, image,
-						    occupancyMask, false, 0, 2147483647, xDisplay, squareEnd, false, true);
+							double multipleOfLoopLength = static_cast<double>(relativeSquarePos)
+							                              / static_cast<double>(clipInstance->clip->loopLength);
 
-						if (!success) {
-							return false;
-						}
-					}
+							bool isLoopStart = std::floor(multipleOfLoopLength) == multipleOfLoopLength;
 
-					uint32_t averageBrightnessSection = (uint32_t)colour.r + colour.g + colour.b;
-					uint32_t sectionColour[3];
-					for (int i = 0; i < 3; ++i) {
-						sectionColour[i] = uint32_t{colour[i]} * 140 + averageBrightnessSection * 280;
-					}
+							if (isLoopStart) {
+								if (clipInstance->clip->isArrangementOnlyClip()) {
+									*it = image[xDisplay] = colour.dim(3);
+								}
+								else {
+									*it = image[xDisplay] = colour.dim(4);
+								}
+							}
+							else {
+								if (clipInstance->clip->isArrangementOnlyClip()) {
+									*it = image[xDisplay] = colour.dim(7);
+								}
+								else {
+									*it = image[xDisplay] = colour.forBlur().dim(3);
+								}
+							}
 
-					// Mix the colours for all the squares
-					for (int32_t reworkSquare = xDisplay; reworkSquare < squareEnd; reworkSquare++) {
-						RGB& imageColor = image[reworkSquare];
-						for (int i = 0; i < 3; ++i) {
-							imageColor[i] = (uint32_t{imageColor[i]} * 525 + sectionColour[i]) >> 13;
+							xDisplay++;
 						}
 					}
 
