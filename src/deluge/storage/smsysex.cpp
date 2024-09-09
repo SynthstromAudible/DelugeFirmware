@@ -15,13 +15,12 @@
 #include "util/pack.h"
 #include <cstring>
 
-
-#define MAX_DIR_LINES 20
+#define MAX_DIR_LINES 128
 bool fileOpen = false;
 FILINFO sxFIL;
 JsonSerializer writer;
 
-// Returns a block of directory entries as a tab-separated string
+// Returns a block of directory entries as a Json array.
 void smSysex::getDirEntries(MIDIDevice* device, Deserializer &reader) {
 	String path;
 	uint32_t lineOffset = 0;
@@ -41,8 +40,6 @@ void smSysex::getDirEntries(MIDIDevice* device, Deserializer &reader) {
 	}
 	reader.match('}');
 	if (linesWanted > MAX_DIR_LINES) linesWanted = MAX_DIR_LINES;
-
-	D_PRINTLN("PATH: %s", path.get());
 
 	DIR dir;
 	FILINFO fno;
@@ -69,21 +66,18 @@ void smSysex::getDirEntries(MIDIDevice* device, Deserializer &reader) {
 		if (err != FRESULT::FR_OK) break;
 		if (fno.altname[0] == 0) break;
 
-		//if (fno.fattrib & AM_DIR) {
-		//	D_PRINTLN("DIR:  %s", fno.fname);
-		//} else {
-		//	D_PRINTLN("FILE: %s", fno.fname);
-		//}
-		writer.writeOpeningTag("dir", true, true);
+		writer.writeOpeningTag(NULL, true);
+		writer.writeAttribute("type", fno.fattrib & AM_DIR ? "dn" : "fn");
 		writer.writeAttribute("name", fno.fname);
 		writer.writeAttribute("size", fno.fsize);
-		writer.writeClosingTag("dir", true, true);
+
+		writer.closeTag();
 	}
 	writer.writeArrayEnding("dirlist", true, true);
 	writer.writeByte(0xF7);
 	char* bitz = writer.getBufferPtr();
 	int32_t bw = writer.bytesWritten();
-	device->sendSysex((const uint8_t*) bitz, bw); //
+	device->sendSysex((const uint8_t*) bitz, bw);
 }
 
 

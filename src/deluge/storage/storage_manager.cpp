@@ -67,7 +67,7 @@ JsonSerializer smJsonSerializer;
 JsonDeserializer smJsonDeserializer;
 FileDeserializer* activeDeserializer = &smDeserializer;
 
-const bool writeJsonFlag = false;
+const bool writeJsonFlag = true;
 
 Serializer& GetSerializer() {
 	if (writeJsonFlag) {
