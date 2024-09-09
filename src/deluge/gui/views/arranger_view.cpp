@@ -2356,8 +2356,8 @@ squareStartPosSet:
 								relativeSquarePos = (squareEndPos[xDisplay - 1] - clipInstance->pos);
 							}
 
-							double multipleOfLoopLength = static_cast<double>(relativeSquarePos)
-							                              / static_cast<double>(clipInstance->clip->loopLength);
+							float multipleOfLoopLength = static_cast<float>(relativeSquarePos)
+							                             / static_cast<float>(clipInstance->clip->loopLength);
 
 							bool isLoopStart = std::floor(multipleOfLoopLength) == multipleOfLoopLength;
 
