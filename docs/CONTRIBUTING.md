@@ -185,7 +185,7 @@ a variety of possible debug hardware.
 If you'd like to use our suggested config, just copy the folder from IDE_configs/vscode to .vscode in the repo root.
 .vscode itself is gitignored so you can modify it as needed to fit your desired workflow later.
 
-### Flashing the firmware via USB (loadfw)
+### Loading new firmware via USB (loadfw)
 
 To use this feature, you will need to first flash a build via the SD card that has been built with `ENABLE_SYSEX_LOAD=YES`.
 
@@ -208,6 +208,16 @@ The first time you run it, the command will ask you for the key code you from th
 
 More instructions available via:
 `./dbt loadfw -h`
+
+**NOTE:** The uploaded firmware is *not* flashed to the permanent memory of the Deluge. 
+It is only loaded to RAM and then executed *as if* booting from flash memory.
+This is great for development, because if your update crashes the Deluge, 
+you just need to switch off and on again and are back to the (hopefully stable) version that you flashed from your SD card earlier. But...
+
+**NOTE:** The fact that this effectively "hijacks" an already running device, instead of truly rebooting it from powered-off state means that:
+The firmware *might* behave differently than when actually flashed from SD card. 
+This mainly applies when changing low-level stuff happening at boot time.
+**Please** *always* verify that your firmware also works when actually flashed from SD card before making a pull request. 
 
 ### Printing debug log messages on the console
 
