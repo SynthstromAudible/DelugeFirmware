@@ -46,7 +46,7 @@ CVEngine::CVEngine() {
 	mostRecentSwitchOffTimeOfPendingNoteOn = 0;
 }
 
-void CVEngine::init() {
+void CVEngine::init(bool have_oled) {
 	// As instructed by the AD DAC's datasheet, do the weird "linearity" routine
 	/*
 	IO::setOutputState(6, 13, 0);
@@ -55,7 +55,7 @@ void CVEngine::init() {
 	SPI::send(1, 0);
 	IO::setOutputState(6, 13, 1);
 */
-	if (display->haveOLED()) {
+	if (have_oled) {
 		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000100000000000000000); // LIN = 1
 	}
 	else {
@@ -70,7 +70,7 @@ void CVEngine::init() {
 	SPI::send(1, 0);
 	IO::setOutputState(6, 13, 1);
 	*/
-	if (display->haveOLED()) {
+	if (have_oled) {
 		enqueueCVMessage(SPI_CHANNEL_CV, 0b00000101000000000000000000000000); // LIN = 0
 	}
 	else {

@@ -43,7 +43,7 @@ extern uint8_t subModeToReturnTo;
 extern int32_t paramRanges[];
 extern int32_t paramNeutralValues[];
 
-void functionsInit();
+void makeParameterRangeConstants();
 
 char const* getThingName(OutputType outputType);
 char const* getOutputTypeName(OutputType outputType, int32_t channel);

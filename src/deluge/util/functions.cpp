@@ -154,7 +154,7 @@ int32_t getParamNeutralValue(int32_t p) {
 	}
 }
 
-void functionsInit() {
+void makeParameterRangeConstants() {
 
 	for (int32_t p = 0; p < kNumParams; p++) {
 		paramRanges[p] = getParamRange(p);
