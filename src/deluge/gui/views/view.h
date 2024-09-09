@@ -75,7 +75,8 @@ public:
 	void setKnobIndicatorLevels();
 	void setKnobIndicatorLevel(uint8_t whichModEncoder);
 	int32_t convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos);
-	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter);
+	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter,
+	                                             bool shouldSendMidiFeedback = true);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
 	void cycleThroughReverbPresets();
 	char const* getReverbPresetDisplayName(int32_t preset);
