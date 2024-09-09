@@ -2342,36 +2342,45 @@ squareStartPosSet:
 					         && searchTerms[squareEnd] - 1 == i);
 
 					// Draw either the blank, non-existent Clip if this Instance doesn't have one...
-					if (!clipInstance->clip) {
-						for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
-							*it = colours::black;
-						}
-					}
-
 					// Or the real Clip - for all squares in the Instance
-					else {
-						ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-						    modelStack->addTimelineCounter(clipInstance->clip);
-						bool success = clipInstance->clip->renderAsSingleRow(
-						    modelStackWithTimelineCounter, this, farLeftPos - clipInstance->pos, xZoom, image,
-						    occupancyMask, false, 0, 2147483647, xDisplay, squareEnd, false, true);
-
-						if (!success) {
-							return false;
+					for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
+						if (!clipInstance->clip) {
+							// this shouldn't be possible, but it happens when you create a brand new white clip
+							// which doesn't have a timeline counter yet (until you enter the clip)
+							image[xDisplay] = colour.dim(7);
 						}
-					}
+						else {
+							int32_t relativeSquarePos; // square's position relative to start of clip instance
+							if (xDisplay == 0) {
+								relativeSquarePos = (farLeftPos - clipInstance->pos);
+							}
+							else {
+								relativeSquarePos = (squareEndPos[xDisplay - 1] - clipInstance->pos);
+							}
 
-					uint32_t averageBrightnessSection = (uint32_t)colour.r + colour.g + colour.b;
-					uint32_t sectionColour[3];
-					for (int i = 0; i < 3; ++i) {
-						sectionColour[i] = uint32_t{colour[i]} * 140 + averageBrightnessSection * 280;
-					}
+							float multipleOfLoopLength = static_cast<float>(relativeSquarePos)
+							                             / static_cast<float>(clipInstance->clip->loopLength);
 
-					// Mix the colours for all the squares
-					for (int32_t reworkSquare = xDisplay; reworkSquare < squareEnd; reworkSquare++) {
-						RGB& imageColor = image[reworkSquare];
-						for (int i = 0; i < 3; ++i) {
-							imageColor[i] = (uint32_t{imageColor[i]} * 525 + sectionColour[i]) >> 13;
+							bool isLoopStart = std::floor(multipleOfLoopLength) == multipleOfLoopLength;
+
+							if (isLoopStart) {
+								if (clipInstance->clip->isArrangementOnlyClip()) {
+									*it = image[xDisplay] = colour.dim(3);
+								}
+								else {
+									*it = image[xDisplay] = colour.dim(4);
+								}
+							}
+							else {
+								if (clipInstance->clip->isArrangementOnlyClip()) {
+									*it = image[xDisplay] = colour.dim(7);
+								}
+								else {
+									*it = image[xDisplay] = colour.forBlur().dim(3);
+								}
+							}
+
+							xDisplay++;
 						}
 					}
 
