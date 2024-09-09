@@ -153,6 +153,8 @@ public:
 	                                                         deluge::modulation::params::Kind paramKind,
 	                                                         bool useMenuStack);
 
+	Drum* getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode);
+
 protected:
 	bool isKit() { return true; }
 
@@ -164,5 +166,4 @@ private:
 	void removeDrumFromLinkedList(Drum* drum);
 	void drumRemoved(Drum* drum);
 	void possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum);
-	Drum* getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode);
 };
