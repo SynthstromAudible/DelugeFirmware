@@ -39,6 +39,7 @@
  */
 
 #include "RZA1/cpu_specific.h"
+#include "RZA1/gpio/gpio.h"
 #include "RZA1/spibsc/r_spibsc_flash_api.h"
 #include "RZA1/spibsc/r_spibsc_ioset_api.h"
 #include "RZA1/spibsc/spibsc.h"
@@ -49,7 +50,12 @@
 
 void initSPIBSC()
 {
-
+    setPinMux(4, 2, 2);
+    setPinMux(4, 3, 2);
+    setPinMux(4, 4, 2);
+    setPinMux(4, 5, 2);
+    setPinMux(4, 6, 2);
+    setPinMux(4, 7, 2);
     // We've switched back to doing just 1-bit.
     // setPinMux(4, 2, 2);
     // setPinMux(4, 3, 2);
