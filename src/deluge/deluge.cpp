@@ -874,43 +874,6 @@ void loadSettings() {
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 }
 
-void tests_1() {
-#if AUTOMATED_TESTER_ENABLED
-	AutomatedTester::init();
-#endif
-
-#if TEST_GENERAL_MEMORY_ALLOCATION
-	GeneralMemoryAllocator::get().test();
-#endif
-}
-
-void tests_2() {
-#if HARDWARE_TEST_MODE
-	ramTestLED();
-#endif
-}
-
-void tests_3() {
-#ifdef TEST_VECTOR
-	NoteVector noteVector;
-	noteVector.test();
-#endif
-
-#ifdef TEST_VECTOR_SEARCH_MULTIPLE
-	NoteVector noteVector;
-	noteVector.testSearchMultiple();
-#endif
-
-#ifdef TEST_VECTOR_DUPLICATES
-	NoteVector noteVector;
-	noteVector.testDuplicates();
-#endif
-
-#ifdef TEST_SD_WRITE
-	testSdWrite();
-#endif
-}
-
 extern "C" int32_t deluge_main(void) {
 
 	// HARDWARE SETUP
@@ -929,8 +892,6 @@ extern "C" int32_t deluge_main(void) {
 
 	initSPIBSC(); // Set up "serial flash memory". Old comment indicating this also runs audio seems wrong/outdated
 
-	tests_1(); // Legacy testing routines. Possibly broken. Check if these can be removed!
-
 	// INIT AUDIO AND MIDI
 
 	makeParameterRangeConstants(); // Do at compile-time? Constexpr? (not for performance but for tidyness...)
@@ -943,8 +904,6 @@ extern "C" int32_t deluge_main(void) {
 
 	audioFileManager.init();
 
-	tests_2(); // Legacy testing routines. Possibly broken. Check if these can be removed!
-
 	initUSB(); // USB MIDI: If nothing was plugged in to us as host, we'll go peripheral
 
 	// LOAD STUFF
@@ -954,8 +913,6 @@ extern "C" int32_t deluge_main(void) {
 	setupBlankSong(); // we always need to do this
 
 	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
-
-	tests_3(); // Legacy testing routines. Possibly broken. Check if these can be removed!
 
 	// PREPARE FOR MAIN LOOP
 
