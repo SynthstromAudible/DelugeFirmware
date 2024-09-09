@@ -65,6 +65,8 @@ char const* allowedFileExtensionsXML[] = {"XML", "Json", NULL};
 
 Browser::Browser() {
 	fileIcon = deluge::hid::display::OLED::songIcon;
+	fileIconPt2 = nullptr;
+	fileIconPt2Width = 0;
 	scrollingText = NULL;
 	shouldWrapFolderContents = true;
 
@@ -1348,6 +1350,9 @@ drawAFile:
 			// Draw graphic
 			uint8_t const* graphic = isFolder ? deluge::hid::display::OLED::folderIcon : fileIcon;
 			canvas.drawGraphicMultiLine(graphic, 1, yPixel + 0, 8);
+			if (fileIconPt2 && fileIconPt2Width) {
+				canvas.drawGraphicMultiLine(fileIconPt2, 9, yPixel + 0, fileIconPt2Width);
+			}
 
 			// Draw filename
 			char finalChar = isFolder ? 0 : '.';

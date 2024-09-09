@@ -95,6 +95,8 @@ public:
 	static const uint8_t songIcon[];
 	static const uint8_t synthIcon[];
 	static const uint8_t kitIcon[];
+	static const uint8_t midiIcon[];
+	static const uint8_t midiIconPt2[];
 	static const uint8_t downArrowIcon[];
 	static const uint8_t rightArrowIcon[];
 	static const uint8_t lockIcon[];
