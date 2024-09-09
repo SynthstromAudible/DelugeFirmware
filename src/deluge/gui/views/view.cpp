@@ -1724,7 +1724,7 @@ void View::renderVUMeter(int32_t maxYDisplay, int32_t xDisplay, RGB thisImage[][
 	}
 }
 
-void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCounter) {
+void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCounter, bool shouldSendMidiFeedback) {
 	if (timelineCounter) {
 		timelineCounter = timelineCounter->getTimelineCounterToRecordTo();
 	}
@@ -1752,7 +1752,9 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 
 	// midi follow and midi feedback enabled
 	// re-send midi cc's because learned parameter values may have changed
-	sendMidiFollowFeedback();
+	if (shouldSendMidiFeedback) {
+		sendMidiFollowFeedback();
+	}
 }
 
 void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable,

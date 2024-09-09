@@ -3497,7 +3497,8 @@ int32_t InstrumentClipView::getYVisualWithinOctaveFromYDisplay(int32_t yDisplay)
 
 // Beware - supplying shouldRedrawStuff as false will cause the activeModControllable to *not* update! Probably
 // never should do this anymore...
-void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit* selectedKit) {
+void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit* selectedKit,
+                                         bool shouldSendMidiFeedback) {
 	Clip* clip = getCurrentClip();
 	// check if you've already selected this drum
 	Kit* kit;
@@ -3545,7 +3546,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 					if (!affectEntire && drumSelectionChanged) {
 						// reset mod controllable stack / send midi feedback
 						// redraw mod (gold) encoder led indicators
-						view.setActiveModControllableTimelineCounter(clip);
+						view.setActiveModControllableTimelineCounter(clip, shouldSendMidiFeedback);
 					}
 
 					// if in automation clip view with affect entire disabled

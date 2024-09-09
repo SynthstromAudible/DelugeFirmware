@@ -63,7 +63,8 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 				InstrumentClip* clip = getCurrentInstrumentClip();
 				Kit* thisKit = (Kit*)clip->output;
 				Drum* thisDrum = thisKit->getDrumFromNoteCode(clip, note);
-				instrumentClipView.setSelectedDrum(thisDrum);
+				bool shouldSendMidiFeedback = false;
+				instrumentClipView.setSelectedDrum(thisDrum, true, nullptr, shouldSendMidiFeedback);
 			}
 		}
 	}

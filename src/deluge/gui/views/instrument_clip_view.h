@@ -128,7 +128,8 @@ public:
 	void selectEncoderAction(int8_t offset) override;
 	void doubleClipLengthAction();
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
-	void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true, Kit* selectedKit = nullptr);
+	void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true, Kit* selectedKit = nullptr,
+	                     bool shouldSendMidiFeedback = true);
 	bool isDrumAuditioned(Drum* drum);
 	int32_t setupForEnteringScaleMode(int32_t newRootNote = 2147483647, int32_t yDisplay = (kDisplayHeight / 2));
 	int32_t setupForExitingScaleMode();
