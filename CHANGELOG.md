@@ -62,6 +62,8 @@ use the TRACK menu to select the specific track to record from
   - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
 - Added community feature toggle `Grid View Loop Pads (LOOP)` to illuminate two pads (Red and Magenta) in the `GRID VIEW` sidebar for triggering the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
 - CLIP NAMES. MIDI, SYNTH & KIT clips can now be named. When entered the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view, you are now able to scroll through the clip names when holding a pad.
+- Pressing drum pads in the `KIT VELOCITY KEYBOARD VIEW` will now update the drum selection so that you can edit the parameters of each drum with gold knobs directly from the kit velocity keyboard view when affect entire is disabled.
+  - Note: if you use the `MIDI FOLLOW FEEDBACK` feature, no MIDI Feedback data will be sent when you change drum selections in this view because it will send too much MIDI data and affect the Deluge's performance.
 - Fixed bug where you wouldn't enter drum creator to select a drum sample when creating a new kit in the `KIT VELOCITY KEYBOARD VIEW`.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.
 
