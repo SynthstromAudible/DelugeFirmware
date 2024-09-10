@@ -215,7 +215,7 @@ It is only loaded to RAM and then executed. Consequences:
 This is great for development, because if your changes crash the Deluge, just switch it off and on again and you are instantly back to the last
 (hopefully stable) version that was flashed from SD card.
 * **Meh**: If you want to keep your updated firmware on the Deluge persistently, i.e. surviving a power cycle, you *have to* physically copy it to your SD card
-and update it as desrcibed in https://github.com/SynthstromAudible/DelugeFirmware/wiki#updating-firmware
+and update it as described in https://github.com/SynthstromAudible/DelugeFirmware/wiki#updating-firmware
 * **Possibly bad:** *In rare cases* the firmware can behave differently when uploaded via loadfw than when actually flashed from SD card. 
 While this should only be relevant when changing low-level code executed at boot time,
 **please** always verify that your firmware also works when actually flashed from SD card,
