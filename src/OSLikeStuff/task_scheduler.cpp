@@ -472,7 +472,7 @@ void TaskManager::resetStats() {
 }
 
 void TaskManager::printStats() {
-	//D_PRINTLN("Dumping task manager stats: (min/ average/ max)");
+	// D_PRINTLN("Dumping task manager stats: (min/ average/ max)");
 	for (auto task : list) {
 		if (task.handle) {
 			constexpr const double latencyScale = 1000.0;
@@ -502,8 +502,8 @@ void TaskManager::printStats() {
 		}
 	}
 	auto totalTime = cpuTime + overhead;
-	//D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds", 100 * cpuTime / totalTime,
-	 //         100 * overhead / totalTime, runningTime);
+	// D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds", 100 * cpuTime / totalTime,
+	//          100 * overhead / totalTime, runningTime);
 	resetStats();
 }
 /// return a monotonic timer value in seconds from when the task manager started

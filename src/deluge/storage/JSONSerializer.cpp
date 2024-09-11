@@ -219,7 +219,8 @@ void JsonSerializer::writeClosingTag(char const* tag, bool shouldPrintIndents, b
 }
 
 void JsonSerializer::printIndents() {
-	if(memoryBased) return;
+	if (memoryBased)
+		return;
 	for (int32_t i = 0; i < indentAmount; i++) {
 		write("\t");
 	}

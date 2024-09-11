@@ -90,19 +90,19 @@ public:
 	void writeChars(char const* output);
 	FRESULT closeWriter();
 
-	char* 	 getBufferPtr() {return writeClusterBuffer;}
-	int32_t	 bytesWritten();
-	void	 setMemoryBased() {memoryBased = true; }
+	char* getBufferPtr() { return writeClusterBuffer; }
+	int32_t bytesWritten();
+	void setMemoryBased() { memoryBased = true; }
 
 protected:
 	void resetWriter();
 	Error writeBufferToFile();
 	bool memoryBased = false;
 	uint8_t indentAmount;
-	char* 	writeClusterBuffer;
+	char* writeClusterBuffer;
 	uint32_t bufferSize;
 	int32_t fileWriteBufferCurrentPos;
-	int32_t  fileTotalBytesWritten;
+	int32_t fileTotalBytesWritten;
 	bool fileAccessFailedDuringWrite;
 };
 
@@ -196,7 +196,7 @@ public:
 class FileDeserializer : public Deserializer, public FileReader {
 public:
 	FileDeserializer() : FileReader() {}
-	FileDeserializer(uint8_t* inbuf, size_t buflen) : FileReader((char*) inbuf, buflen) {}
+	FileDeserializer(uint8_t* inbuf, size_t buflen) : FileReader((char*)inbuf, buflen) {}
 };
 
 class XMLDeserializer : public FileDeserializer {
@@ -276,6 +276,7 @@ public:
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr) override;
 	void reset() override;
+	// Begin Json-only API
 
 private:
 	uint8_t indentAmount;

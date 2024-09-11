@@ -60,17 +60,14 @@ JsonDeserializer::JsonDeserializer() {
 	reset();
 }
 
-
-JsonDeserializer::JsonDeserializer(uint8_t* inbuf, size_t buflen) : FileDeserializer(inbuf, buflen)
-{
+JsonDeserializer::JsonDeserializer(uint8_t* inbuf, size_t buflen) : FileDeserializer(inbuf, buflen) {
 	reset();
 }
-
 
 void JsonDeserializer::reset() {
 	resetReader();
 	if (!memoryBased) {
-	// Prep to read first Cluster shortly
+		// Prep to read first Cluster shortly
 		fileReadBufferCurrentPos = audioFileManager.clusterSize;
 		currentReadBufferEndPos = audioFileManager.clusterSize;
 	}

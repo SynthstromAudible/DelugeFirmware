@@ -794,14 +794,14 @@ FileWriter::FileWriter() {
 }
 
 FileWriter::FileWriter(bool inMem) : FileWriter() {
-	memoryBased =  true;
+	memoryBased = true;
 }
 
 FileWriter::~FileWriter() {
 	GeneralMemoryAllocator::get().dealloc(writeClusterBuffer);
 }
 
-int32_t	 FileWriter::bytesWritten() {
+int32_t FileWriter::bytesWritten() {
 	return fileTotalBytesWritten + fileWriteBufferCurrentPos;
 }
 
@@ -816,15 +816,15 @@ FRESULT FileWriter::closeWriter() {
 		if (fileWriteBufferCurrentPos < bufferSize) {
 			writeClusterBuffer[fileWriteBufferCurrentPos] = 0;
 			return FRESULT::FR_OK;
-		} else {
+		}
+		else {
 			return FRESULT::FR_INT_ERR;
 		}
 	}
 	return f_close(&writeFIL);
 }
 
-void FileWriter::writeBlock(uint8_t* block, uint32_t size)
-{
+void FileWriter::writeBlock(uint8_t* block, uint32_t size) {
 	for (uint32_t ix = 0; ix < size; ++ix) {
 		writeByte(block[ix]);
 	}
@@ -886,7 +886,8 @@ Error FileWriter::closeAfterWriting(char const* path, char const* beginningStrin
 		return Error::WRITE_FAIL; // Calling f_close if this is false might be dangerous - if access has failed, we
 		                          // don't want it to flush any data to the card or anything
 	}
-	if (memoryBased) return Error::NONE;
+	if (memoryBased)
+		return Error::NONE;
 	Error error = writeBufferToFile();
 	if (error != Error::NONE) {
 		return Error::WRITE_FAIL;
