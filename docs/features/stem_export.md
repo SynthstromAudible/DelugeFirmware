@@ -96,6 +96,20 @@ This menu allows you to start a stem export and configure various settings relat
 
 ### I have a track that won't export
 
+#### Scenario: Track(s) get exported with only 5 seconds of audio
+
+Several users reported that their arranger stems were not getting exported properly as they included only 5 seconds of audio.
+
+All of these users were using offline rendering.
+
+All of these users had complex arrangements.
+
+Solution:
+
+For heavy arrangements, if you encounter the above issue, we recommend turning off `Offline Rendering` in the `SONG\EXPORT STEMS\CONFIGURE EXPORT\` menu.
+
+The problem is due to memory filling up faster when using `Offline Rendering` compared to `Online (Live) Rendering`. We hope to find a solution for this problem as soon as possible.
+
 #### Scenario: Special characters in the track name 
 
 One user reported that they were unable to export a track even though the stem export indicated that the track had been exported.
