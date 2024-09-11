@@ -249,7 +249,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 				else {
 					if (inCardRoutine) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}					
+					}
 					stemExport.startStemExportProcess(StemExportType::TRACK);
 					return ActionResult::DEALT_WITH;
 				}
