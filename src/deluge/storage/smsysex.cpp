@@ -23,9 +23,11 @@ uint32_t offsetCounter;
 
 JsonSerializer writer;
 String activeDirName;
+const size_t blockBufferMax = 512;
+uint8_t* blockBuffer = NULL;
 
 // Returns a block of directory entries as a Json array.
-void smSysex::getDirEntries(MIDIDevice* device, Deserializer& reader) {
+void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 	String path;
 	uint32_t lineOffset = 0;
 	uint32_t linesWanted = 20;
@@ -111,11 +113,15 @@ void smSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 		else if (!strcmp(tagName, "dump")) {
 			sendMemoryBlock(device, parser);
 		}
+		else if (!strcmp(tagName, "put")) {
+			putMemoryBlock(device, parser);
+			return; // Already skipped end.
+		}
 		parser.exitTag();
 	}
 }
 
-void smSysex::sendMemoryBlock(MIDIDevice* device, Deserializer& reader) {
+void smSysex::sendMemoryBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t addr = 0;
 	uint32_t size = 512;
@@ -167,4 +173,47 @@ void smSysex::sendMemoryBlock(MIDIDevice* device, Deserializer& reader) {
 	char* bitz = writer.getBufferPtr();
 	int32_t bw = writer.bytesWritten();
 	device->sendSysex((const uint8_t*)bitz, bw);
+}
+
+void smSysex::putMemoryBlock(MIDIDevice* device, JsonDeserializer& reader) {
+	char const* tagName;
+	uint32_t fileId = 0;
+	uint32_t addr = 0;
+	uint32_t size = 512;
+	reader.match('{');
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "addr")) {
+			addr = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "size")) {
+			size = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "fid")) {
+			fileId = reader.readTagOrAttributeValueInt();
+		}
+	}
+	if (!blockBuffer) {
+		blockBuffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(blockBufferMax);
+	}
+
+	if (size > blockBufferMax)
+		size = blockBufferMax;
+	reader.match('}');
+	reader.match('}'); // skip box too.
+	// We should be on the separator character, check to make
+	char aChar;
+	if (reader.peekChar(&aChar) && aChar != 0) {
+		D_PRINTLN("Missing Separater error in putBlock");
+	}
+	uint32_t decoded = decodeDataFromReader(reader, blockBuffer, size);
+	D_PRINTLN("Decoded block len: %d", decoded);
+}
+
+uint32_t smSysex::decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax) {
+	char zip = 0;
+	if (!reader.readChar(&zip) || zip)
+		return 0;                                               // skip separator.
+	uint32_t encodedSize = reader.bytesRemainingInBuffer() - 1; // don't count 0xF7.
+	uint32_t amount = unpack_7bit_to_8bit(dest, destMax, (uint8_t*)reader.GetCurrentAddressInBuffer(), encodedSize);
+	return amount;
 }

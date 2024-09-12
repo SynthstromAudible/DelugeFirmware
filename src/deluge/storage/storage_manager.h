@@ -62,11 +62,15 @@ public:
 
 	FRESULT closeWriter();
 
+	bool peekChar(char* thisChar);
+	bool readChar(char* thisChar);
+	uint32_t bytesRemainingInBuffer() { return currentReadBufferEndPos - fileReadBufferCurrentPos; }
+	char* GetCurrentAddressInBuffer() { return fileClusterBuffer + fileReadBufferCurrentPos; }
+
 protected:
 	bool readFileCluster();
 	bool readFileClusterIfNecessary();
-	bool peekChar(char* thisChar);
-	bool readChar(char* thisChar);
+
 	void readDone();
 
 	bool memoryBased = false;
