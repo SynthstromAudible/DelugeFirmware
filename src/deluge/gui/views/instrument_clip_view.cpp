@@ -2917,43 +2917,52 @@ void InstrumentClipView::exitNoteRowEditor() {
 	resetSelectedNoteRowBlinking();
 }
 
-void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y, int32_t on) {
+void InstrumentClipView::handleNoteRowEditorSidebarPadAction(int32_t x, int32_t y, int32_t on) {
 	if (on) {
-		// did you press a different pad?
-		// if no, ignore press
-		if (currentUIMode != UI_MODE_AUDITIONING || y != lastAuditionedYDisplay) {
-			InstrumentClip* clip = getCurrentInstrumentClip();
+		if (x == kDisplayWidth) {
+			mutePadPress(y);
+		}
+		else {
+			handleNoteRowEditorAuditionPadAction(y);
+		}
+	}
+}
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
-			    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    clip->getNoteRowOnScreen(y,
-			                             modelStackWithTimelineCounter); // don't create
+void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
+	// did you press a different pad?
+	// if no, ignore press
+	if (currentUIMode != UI_MODE_AUDITIONING || y != lastAuditionedYDisplay) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
 
-			// if note row does not exist and we're not in a kit, create it
-			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-				if (clip->output->type != OutputType::KIT) {
-					modelStackWithNoteRow = createNoteRowForYDisplay(modelStackWithTimelineCounter, y);
-				}
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+		    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    clip->getNoteRowOnScreen(y,
+		                             modelStackWithTimelineCounter); // don't create
+
+		// if note row does not exist and we're not in a kit, create it
+		if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+			if (clip->output->type != OutputType::KIT) {
+				modelStackWithNoteRow = createNoteRowForYDisplay(modelStackWithTimelineCounter, y);
+			}
+		}
+
+		// does note row exist?
+		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+			// update note row selection and refresh menu
+			// but first, release previous press and make new press
+			if (currentUIMode == UI_MODE_AUDITIONING) {
+				auditionPadAction(0, lastAuditionedYDisplay, false);
 			}
 
-			// does note row exist?
-			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-				// update note row selection and refresh menu
-				// but first, release previous press and make new press
-				if (currentUIMode == UI_MODE_AUDITIONING) {
-					auditionPadAction(0, lastAuditionedYDisplay, false);
-				}
+			// now make new press for new note row selection
+			auditionPadAction(1, y, true);
 
-				// now make new press for new note row selection
-				auditionPadAction(1, y, true);
-
-				// update menu selection
-				soundEditor.getCurrentMenuItem()->readValueAgain();
-				resetSelectedNoteRowBlinking();
-				blinkSelectedNoteRow();
-			}
+			// update menu selection
+			soundEditor.getCurrentMenuItem()->readValueAgain();
+			resetSelectedNoteRowBlinking();
+			blinkSelectedNoteRow();
 		}
 	}
 }
@@ -3109,7 +3118,9 @@ void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 	// We do not want to change the selected drum if we're in the automation view note editor
 	// because the selected drum for note editing is the last auditioned note row and we don't want
 	// these two to get out of sync.
-	bool inNoteEditor = getRootUI() == &automationView && automationView.inNoteEditor();
+	// Same if you're in the note row editor menu
+	bool inNoteEditor = (getRootUI() == &automationView && automationView.inNoteEditor())
+	                    || (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor());
 
 	// Try getting existing NoteRow.
 	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);

@@ -247,7 +247,8 @@ public:
 	// note row editor
 	bool enterNoteRowEditor();
 	void exitNoteRowEditor();
-	void handleNoteRowEditorAuditionPadAction(int32_t y, int32_t on);
+	void handleNoteRowEditorSidebarPadAction(int32_t x, int32_t y, int32_t on);
+	void handleNoteRowEditorAuditionPadAction(int32_t y);
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
 

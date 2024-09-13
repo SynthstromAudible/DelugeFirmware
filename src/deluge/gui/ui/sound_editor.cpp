@@ -167,7 +167,7 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 			*rows = 0x0;
 		}
 		else if (inNoteRowEditor()) {
-			*cols = 0xFFFFFFFE; // greyout all except audition column
+			*cols = 0xFFFFFFFC; // don't greyout sidebar
 		}
 		else {
 			*cols = 0xFFFFFFFE;
@@ -1144,11 +1144,11 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			return ActionResult::DEALT_WITH;
 		}
 		else if (inNoteRowEditor()) {
-			// allow user to interact with audition pads
-			if (x == kDisplayWidth + 1) {
-				instrumentClipView.handleNoteRowEditorAuditionPadAction(y, on);
+			// allow user to interact with audition and mute pads
+			if (x >= kDisplayWidth) {
+				instrumentClipView.handleNoteRowEditorSidebarPadAction(x, y, on);
 			}
-			// exit menu if you press main pads or mute pads
+			// exit menu if you press main pads
 			else {
 				exitCompletely();
 			}
