@@ -3440,7 +3440,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 			if (draggingNoteRow && lastAuditionedYDisplay == yDisplay) {}
 
 			// Otherwise, switch its audition back on
-			// don't switch audition back on if we're in note row editor
+			// don't switch audition back on if we're in note row editor (we want to scroll silently)
 			else if (!inNoteRowEditor) {
 				// Check NoteRow exists, incase we've got a Kit
 				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
