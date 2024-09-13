@@ -43,6 +43,16 @@ public:
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
 		                             modelStack); // don't create
+
+		bool isKit = clip->output->type == OutputType::KIT;
+
+		if (!isKit) {
+			if (!modelStackWithNoteRow->getNoteRowAllowNull()) { // if note row doesn't exist yet, create it
+				modelStackWithNoteRow =
+				    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
+			}
+		}
+
 		return modelStackWithNoteRow;
 	}
 

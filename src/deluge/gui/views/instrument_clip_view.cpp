@@ -2958,34 +2958,23 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y, int32_t
 	}
 }
 
-void InstrumentClipView::deselectNoteRowAndGoUpOneLevel() {
-	if (currentUIMode == UI_MODE_AUDITIONING) {
-		// before vertical scrolling, we need to reset the note row selection
-		auditionPadAction(0, lastAuditionedYDisplay, false);
-
-		if (soundEditor.getCurrentMenuItem() != &noteRowEditorRootMenu) {
-			soundEditor.goUpOneLevel();
-		}
-
-		resetSelectedNoteRowBlinking();
-	}
-}
-
 ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	// if you're holding down vertical encoder, don't de-select because that lets you edit
-	// euclidean
-	if (!Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-		deselectNoteRowAndGoUpOneLevel();
-	}
-	// if you are holding down vertical encoder and you haven't select a row
+	bool isHoldingVerticalEncoder = Buttons::isButtonPressed(deluge::hid::button::Y_ENC);
+
+	// if you haven't selected a row and you are holding down vertical encoder
 	// ignore this action because it makes it too easy to transpose by mistake
-	else {
-		if (currentUIMode != UI_MODE_AUDITIONING) {
-			return ActionResult::DEALT_WITH;
-		}
+	if (currentUIMode != UI_MODE_AUDITIONING && isHoldingVerticalEncoder) {
+		return ActionResult::DEALT_WITH;
 	}
 
-	return verticalEncoderAction(offset, inCardRoutine);
+	ActionResult result = verticalEncoderAction(offset, inCardRoutine);
+	if (!isHoldingVerticalEncoder) {
+		MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
+		if (currentMenuItem != &noteRowEditorRootMenu) {
+			currentMenuItem->readValueAgain();
+		}
+	}
+	return result;
 }
 
 ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int32_t offset) {
@@ -3255,35 +3244,59 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 }
 
 ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+
 	int32_t noteRowToShiftI;
 	int32_t noteRowToSwapWithI;
 
 	bool isKit = getCurrentOutputType() == OutputType::KIT;
 
+	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
 	// If a Kit...
 	if (isKit) {
 		// Limit scrolling
 		if (scrollAmount >= 0) {
-			if ((int16_t)(getCurrentInstrumentClip()->yScroll + scrollAmount)
-			    > (int16_t)(getCurrentInstrumentClip()->getNumNoteRows() - 1)) {
+			if ((int16_t)(clip->yScroll + scrollAmount) > (int16_t)(clip->getNumNoteRows() - 1)) {
 				return ActionResult::DEALT_WITH;
 			}
 		}
 		else {
-			if (getCurrentInstrumentClip()->yScroll + scrollAmount < 1 - kDisplayHeight) {
+			if (clip->yScroll + scrollAmount < 1 - kDisplayHeight) {
 				return ActionResult::DEALT_WITH;
+			}
+		}
+
+		// if we're in the note row editor we don't want to over-scroll so that selected row is not a valid note row
+		if (inNoteRowEditor) {
+			int32_t lastAuditionedYDisplayScrolled = lastAuditionedYDisplay + scrollAmount;
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, modelStack);
+			// over-scrolled, no valid note row, so return and don't do the actual scrolling
+			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
+				return ActionResult::DEALT_WITH;
+			}
+			// we have a valid note row, so let's set selected drum equal to previous auditioned y display
+			else {
+				NoteRow* noteRow = clip->getNoteRowOnScreen(lastAuditionedYDisplayScrolled, currentSong);
+				if (noteRow) {
+					setSelectedDrum(noteRow->drum, true);
+				}
 			}
 		}
 
 		// Limit how far we can shift a NoteRow
 		if (draggingNoteRow) {
-			noteRowToShiftI = lastAuditionedYDisplay + getCurrentInstrumentClip()->yScroll;
-			if (noteRowToShiftI < 0 || noteRowToShiftI >= getCurrentInstrumentClip()->noteRows.getNumElements()) {
+			noteRowToShiftI = lastAuditionedYDisplay + clip->yScroll;
+			if (noteRowToShiftI < 0 || noteRowToShiftI >= clip->noteRows.getNumElements()) {
 				return ActionResult::DEALT_WITH;
 			}
 
 			if (scrollAmount >= 0) {
-				if (noteRowToShiftI >= getCurrentInstrumentClip()->noteRows.getNumElements() - 1) {
+				if (noteRowToShiftI >= clip->noteRows.getNumElements() - 1) {
 					return ActionResult::DEALT_WITH;
 				}
 				noteRowToSwapWithI = noteRowToShiftI + 1;
@@ -3301,13 +3314,13 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 	else {
 		int32_t newYNote;
 		if (scrollAmount > 0) {
-			newYNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(kDisplayHeight - 1 + scrollAmount, currentSong);
+			newYNote = clip->getYNoteFromYDisplay(kDisplayHeight - 1 + scrollAmount, currentSong);
 		}
 		else {
-			newYNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(scrollAmount, currentSong);
+			newYNote = clip->getYNoteFromYDisplay(scrollAmount, currentSong);
 		}
 
-		if (!getCurrentInstrumentClip()->isScrollWithinRange(scrollAmount, newYNote)) {
+		if (!clip->isScrollWithinRange(scrollAmount, newYNote)) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -3316,10 +3329,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	bool currentClipIsActive = currentSong->isClipActive(getCurrentClip());
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	bool currentClipIsActive = currentSong->isClipActive(clip);
 
 	// Switch off any auditioned notes. But leave on the one whose NoteRow we're moving, if we are
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -3327,14 +3337,13 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		    && (!draggingNoteRow || lastAuditionedYDisplay != yDisplay)) {
 			sendAuditionNote(false, yDisplay, 127, 0);
 
-			ModelStackWithNoteRow* modelStackWithNoteRow =
-			    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
+			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 
 			if (noteRow) {
 				// If recording, record a note-off for this NoteRow, if one exists
 				if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
-					getCurrentInstrumentClip()->recordNoteOff(modelStackWithNoteRow);
+					clip->recordNoteOff(modelStackWithNoteRow);
 				}
 			}
 		}
@@ -3356,7 +3365,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 					if (editPadPresses[i].deleteOnScroll) {
 						int32_t pos = editPadPresses[i].intendedPos;
 						ModelStackWithNoteRow* modelStackWithNoteRow =
-						    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
+						    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
 						NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
 						thisNoteRow->deleteNoteByPos(modelStackWithNoteRow, pos, action);
 
@@ -3396,14 +3405,13 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
 
-		getCurrentInstrumentClip()->noteRows.getElement(noteRowToShiftI)->y =
-		    -32768; // Need to remember not to try and use the yNote value of this NoteRow if we switch back out of
-		            // Kit mode
-		getCurrentInstrumentClip()->noteRows.swapElements(noteRowToShiftI, noteRowToSwapWithI);
+		clip->noteRows.getElement(noteRowToShiftI)->y = -32768; // Need to remember not to try and use the yNote value
+		                                                        // of this NoteRow if we switch back out of Kit mode
+		clip->noteRows.swapElements(noteRowToShiftI, noteRowToSwapWithI);
 	}
 
 	// Do actual scroll
-	getCurrentInstrumentClip()->yScroll += scrollAmount;
+	clip->yScroll += scrollAmount;
 
 	recalculateColours(); // Don't render - we'll do that after we've dealt with presses (potentially creating
 	                      // Notes)
@@ -3420,8 +3428,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 			// Otherwise, switch its audition back on
 			else {
 				// Check NoteRow exists, incase we've got a Kit
-				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, modelStack);
+				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 
 				if (!isKit || modelStackWithNoteRow->getNoteRowAllowNull()) {
 
@@ -3438,8 +3445,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 							}
 
 							if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-								getCurrentInstrumentClip()->recordNoteOn(modelStackWithNoteRow,
-								                                         getCurrentInstrument()->defaultVelocity);
+								clip->recordNoteOn(modelStackWithNoteRow, getCurrentInstrument()->defaultVelocity);
 							}
 						}
 
@@ -3460,7 +3466,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 				drawNoteCode(yDisplay);
 				if (isKit) {
 					Drum* newSelectedDrum = NULL;
-					NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
+					NoteRow* noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong);
 					if (noteRow) {
 						newSelectedDrum = noteRow->drum;
 					}
@@ -3472,7 +3478,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 					if (getCurrentUI() == &soundEditor
 					    && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 						menu_item::multiRangeMenu.noteOnToChangeRange(
-						    getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong)
+						    clip->getYNoteFromYDisplay(yDisplay, currentSong)
 						    + ((SoundInstrument*)getCurrentOutput())->transpose);
 					}
 				}
@@ -3491,14 +3497,14 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 		// if (!action) return; // Couldn't happen?
 
-		action->updateYScrollClipViewAfter(getCurrentInstrumentClip());
+		action->updateYScrollClipViewAfter(clip);
 
 		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
 			if (editPadPresses[i].isActive) {
 
 				// Try getting existing NoteRow. If none...
 				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getCurrentInstrumentClip()->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
+				    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
 				if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 					if (isKit) {
@@ -3872,12 +3878,15 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 
 	bool drumSelectionChanged = false;
 
+	bool inNoteOrNoteRowEditor =
+	    getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
+
 	// is the drum the same as the currently selected drum in the kit?
 	// if so, no need to reselect it or redraw the clip or resend midi feedback
 	// if no, update selected drum
 	if (kit->selectedDrum != drum) {
-		if (currentUI != &soundEditor && currentUI != &sampleBrowser && currentUI != &sampleMarkerEditor
-		    && currentUI != &renameDrumUI) {
+		if ((currentUI != &soundEditor || inNoteOrNoteRowEditor) && currentUI != &sampleBrowser
+		    && currentUI != &sampleMarkerEditor && currentUI != &renameDrumUI) {
 
 			kit->selectedDrum = drum;
 			drumSelectionChanged = true;
@@ -3894,7 +3903,8 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 			if (clip->output->type == OutputType::KIT) {
 				// are we currently in the instrument clip UI?
 				// if yes, we may need to refresh it (main pads and / or sidebar)
-				if (currentUI == &instrumentClipView || currentUI == &automationView || currentUI == &keyboardScreen) {
+				if (currentUI == &instrumentClipView || currentUI == &automationView || currentUI == &keyboardScreen
+				    || inNoteOrNoteRowEditor) {
 					bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
 
 					// don't reset mod controllable when affect entire is enabled because mod controllable is

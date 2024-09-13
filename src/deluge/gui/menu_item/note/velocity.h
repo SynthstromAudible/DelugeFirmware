@@ -37,16 +37,13 @@ public:
 	/// @brief Begin an editing session with this menu item.
 	///
 	/// Should make sure the menu's internal state matches the system and redraw the display.
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readCurrentValue(); }
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readValueAgain(); }
 
-	void readCurrentValue() override {
-		this->setValue(instrumentClipView.lastSelectedNoteSquareInfo.averageVelocity);
-		updateDisplay();
-	}
+	void readCurrentValue() override { this->setValue(instrumentClipView.lastSelectedNoteSquareInfo.averageVelocity); }
 
 	void selectEncoderAction(int32_t offset) final override {
 		instrumentClipView.adjustVelocity(offset);
-		readCurrentValue();
+		readValueAgain();
 	}
 
 	void writeCurrentValue() override { ; }

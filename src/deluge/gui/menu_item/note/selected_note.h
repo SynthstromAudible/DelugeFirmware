@@ -38,14 +38,5 @@ public:
 		}
 		return true;
 	}
-
-	void updateDisplay() {
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawValue();
-		}
-	}
 };
 } // namespace deluge::gui::menu_item::note

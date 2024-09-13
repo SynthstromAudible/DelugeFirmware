@@ -248,7 +248,6 @@ public:
 	bool enterNoteRowEditor();
 	void exitNoteRowEditor();
 	void handleNoteRowEditorAuditionPadAction(int32_t y, int32_t on);
-	void deselectNoteRowAndGoUpOneLevel();
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
 

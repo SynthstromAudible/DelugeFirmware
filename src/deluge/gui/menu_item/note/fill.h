@@ -37,16 +37,13 @@ public:
 	/// @brief Begin an editing session with this menu item.
 	///
 	/// Should make sure the menu's internal state matches the system and redraw the display.
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readCurrentValue(); }
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readValueAgain(); }
 
-	void readCurrentValue() final override {
-		this->setValue(instrumentClipView.editPadPresses[0].intendedFill);
-		updateDisplay();
-	}
+	void readCurrentValue() final override { this->setValue(instrumentClipView.editPadPresses[0].intendedFill); }
 
 	void selectEncoderAction(int32_t offset) final override {
 		instrumentClipView.adjustNoteFill(offset);
-		readCurrentValue();
+		readValueAgain();
 	}
 
 	void drawPixelsForOled() final override {
