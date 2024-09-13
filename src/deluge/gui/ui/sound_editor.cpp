@@ -162,7 +162,16 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 		}
 		break;
 	case UIType::INSTRUMENT_CLIP:
-		*cols = 0xFFFFFFFE;
+		if (inNoteEditor()) {
+			*cols = 0x03; // greyout sidebar
+			*rows = 0x0;
+		}
+		else if (inNoteRowEditor()) {
+			*cols = 0xFFFFFFFE; // greyout all except audition column
+		}
+		else {
+			*cols = 0xFFFFFFFE;
+		}
 		break;
 	default:
 		*cols = 0xFFFFFFFF;
@@ -1123,30 +1132,34 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Audition pads or Main Grid Pads
 	else if (rootUI == &instrumentClipView) {
-		if (x < kDisplayWidth) {
-			// pressing main grid pad while in note editor
-			if (inNoteEditor()) {
+		if (inNoteEditor()) {
+			// allow user to interact with main pads
+			if (x < kDisplayWidth) {
 				instrumentClipView.handleNoteEditorEditPadAction(x, y, on);
-				return ActionResult::DEALT_WITH;
 			}
-			// pressing main grid pads exits out of the note row editor
-			else if (inNoteRowEditor()) {
-				exitCompletely();
-				return ActionResult::DEALT_WITH;
-			}
-		}
-
-		else if (x == kDisplayWidth + 1) {
-			// pressing audition pad while in note row editor
-			if (inNoteRowEditor()) {
-				instrumentClipView.handleNoteRowEditorAuditionPadAction(y, on);
-			}
-			// pressing audition pad while in sound editor
+			// exit menu if you press sidebar pads
 			else {
-				instrumentClipView.padAction(x, y, on);
+				exitCompletely();
 			}
 			return ActionResult::DEALT_WITH;
 		}
+		else if (inNoteRowEditor()) {
+			// allow user to interact with audition pads
+			if (x == kDisplayWidth + 1) {
+				instrumentClipView.handleNoteRowEditorAuditionPadAction(y, on);
+			}
+			// exit menu if you press main pads or mute pads
+			else {
+				exitCompletely();
+			}
+			return ActionResult::DEALT_WITH;
+		}
+		// allow user to interact with audition pads while in regular sound editor
+		else if (x == kDisplayWidth + 1) {
+			instrumentClipView.padAction(x, y, on);
+			return ActionResult::DEALT_WITH;
+		}
+		// fall through below
 	}
 
 	else if (rootUI == &automationView) {
