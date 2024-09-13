@@ -678,6 +678,8 @@ void initPads(bool have_oled) {
 
 	PIC::setUARTSpeed();
 	PIC::flush();
+
+	PIC::setupForPads();
 }
 
 void initAnalogIO() {
@@ -854,22 +856,31 @@ void initUSB() {
 }
 
 void loadSettings() {
+	maybeFactoryReset(); // Check if the user is holding down the select knob to do a factory reset
 
 	FlashStorage::readSettings();
-	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 
 	runtimeFeatureSettings.init();
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
+		deluge::hid::display::swapDisplayType();
+	}
+
+	// Hopefully we can read these files now
+	runtimeFeatureSettings.readSettingsFromFile();
+	MIDIDeviceManager::readDevicesFromFile();
+	midiFollow.readDefaultsFromFile();
+	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 }
 
-void startupFromSDFiles();
 extern "C" int32_t deluge_main(void) {
 
 	// HARDWARE SETUP
 
 	bool have_oled = checkOLED(); // Detects OLED Screen by DMA settings
 
-	initPads(have_oled);           // Handled by PIC Microcontroller
-	makeParameterRangeConstants(); // Do at compile-time? Constexpr? (not for performance but for tidyness...)
+	initPads(have_oled); // Handled by PIC Microcontroller
 
 	initAnalogIO(); // General Purpose (GPIO) pins: analog (line, mic, headphone) ports, battery monitoring, some leds
 
@@ -879,33 +890,29 @@ extern "C" int32_t deluge_main(void) {
 
 	cvEngine.init(have_oled); // CV setup
 
+	initSPIBSC(); // Set up "serial flash memory". Old comment indicating this also runs audio seems wrong/outdated
+
 	// INIT AUDIO AND MIDI
 
+	makeParameterRangeConstants(); // Do at compile-time? Constexpr? (not for performance but for tidyness...)
+
 	currentPlaybackMode = &session; // ?
-	// we told it to flush earlier, wait for that to finish
-	PIC::waitForFlush();
-	PIC::setupForPads();
+
 	setOutputState(CODEC.port, CODEC.pin, 1); // Enable Audio Output
 
 	AudioEngine::init();
 
 	audioFileManager.init();
-	// Set up "serial flash memory". May run routineForSD? There's no tasks in it yet though so it'll just busy wait
-	initSPIBSC();
 
-	PIC::requestFirmwareVersion(); // Request PIC firmware version
-	PIC::resendButtonStates();     // Tell PIC to re-send button states
-	PIC::flush();
+	initUSB(); // USB MIDI: If nothing was plugged in to us as host, we'll go peripheral
+
 	// LOAD STUFF
-	maybeFactoryReset(); // Check if the user is holding down the select knob to do a factory reset
 
 	loadSettings(); // Load User Settings from Flash and SD Card, reset to defaults if requested
-	initUSB();      // USB MIDI: If nothing was plugged in to us as host, we'll go peripheral
 
 	setupBlankSong(); // we always need to do this
 
-	// when the card is ready, read the xml settings files and potentially the startup song
-	addConditionalTask(startupFromSDFiles, 100, isCardReady, "boot time sd reading");
+	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
 
 	// PREPARE FOR MAIN LOOP
 
@@ -926,15 +933,6 @@ extern "C" int32_t deluge_main(void) {
 	mainLoop();
 #endif
 	return 0;
-}
-void startupFromSDFiles() {
-	runtimeFeatureSettings.readSettingsFromFile();
-	MIDIDeviceManager::readDevicesFromFile();
-	midiFollow.readDefaultsFromFile();
-	if (runtimeFeatureSettings.get(EmulatedDisplay) == OnBoot) {
-		hid::display::swapDisplayType();
-	}
-	setupStartupSong();
 }
 
 bool inSpamMode = false;
