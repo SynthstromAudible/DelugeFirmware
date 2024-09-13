@@ -247,6 +247,9 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
 				}
 				else {
+					if (inCardRoutine) {
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					}
 					stemExport.startStemExportProcess(StemExportType::TRACK);
 					return ActionResult::DEALT_WITH;
 				}
