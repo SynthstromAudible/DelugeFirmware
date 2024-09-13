@@ -165,7 +165,7 @@ public:
 
 	int32_t getDefaultProbability();
 	int32_t getDefaultIterance();
-	bool getDefaultFill(ModelStackWithNoteRow* modelStack);
+	int32_t getDefaultFill(ModelStackWithNoteRow* modelStack);
 	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, int32_t iterance,
 	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,

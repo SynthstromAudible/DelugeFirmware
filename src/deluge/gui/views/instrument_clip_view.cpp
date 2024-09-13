@@ -2423,6 +2423,8 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
+	bool inNoteEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteEditor();
+
 	// If just one press...
 	if (numEditPadPresses == 1) {
 		// Find it
@@ -2450,7 +2452,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 				parameterValue = parameter & 127;
 
 				// If editing, continue edit
-				if (display->hasPopup() || getCurrentUI() == &soundEditor) {
+				if (display->hasPopup() || inNoteEditor) {
 					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 					if (!action) {
 						return;
@@ -2600,7 +2602,7 @@ multiplePresses:
 		parameterValue = parameter & 127;
 
 		// If editing, continue edit
-		if (display->hasPopupOfType(PopupType::PROBABILITY) || getCurrentUI() == &soundEditor) {
+		if (display->hasPopupOfType(PopupType::PROBABILITY) || inNoteEditor) {
 			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 			if (!action) {
 				return;
@@ -2700,8 +2702,8 @@ multiplePresses:
 		}
 	}
 
-	if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
-		if ((parameterValue != -1) && (getCurrentUI() != &soundEditor)) {
+	if (!inNoteEditor && parameterValue != -1) {
+		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 			displayProbability(parameterValue, prevBase);
 		}
 	}
@@ -3041,10 +3043,13 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t cha
 
 	uint8_t parameterValue = parameter & 127;
 
+	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
 	// If editing, continue edit
-	if (display->hasPopupOfType(PopupType::PROBABILITY) || getCurrentUI() == &soundEditor) {
-		Action* action =
-		    actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED);
+	if (display->hasPopupOfType(PopupType::PROBABILITY) || inNoteRowEditor) {
+		ActionAddition actionAddition =
+		    inNoteRowEditor ? ActionAddition::ALLOWED : ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED;
+		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, actionAddition);
 		if (!action) {
 			return -1;
 		}
@@ -3092,7 +3097,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t cha
 		}
 	}
 
-	if (getCurrentUI() != &soundEditor) {
+	if (!inNoteRowEditor) {
 		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 			displayProbability(parameterValue, false);
 		}

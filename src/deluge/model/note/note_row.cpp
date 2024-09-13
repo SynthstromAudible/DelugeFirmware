@@ -700,9 +700,9 @@ int32_t NoteRow::getDefaultIterance() {
 	return iteranceValue;
 }
 
-bool NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
+int32_t NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
 	if (modelStack->song->isFillModeActive()) {
-		return true;
+		return FillMode::FILL;
 	}
 	else {
 		return fillValue;
