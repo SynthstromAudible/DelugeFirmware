@@ -2975,6 +2975,9 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 	if (currentUIMode != UI_MODE_AUDITIONING && isHoldingVerticalEncoder) {
 		return ActionResult::DEALT_WITH;
 	}
+	else if (!isHoldingVerticalEncoder) {
+		shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+	}
 
 	ActionResult result = verticalEncoderAction(offset, inCardRoutine);
 	if (!isHoldingVerticalEncoder) {
@@ -3437,7 +3440,8 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 			if (draggingNoteRow && lastAuditionedYDisplay == yDisplay) {}
 
 			// Otherwise, switch its audition back on
-			else {
+			// don't switch audition back on if we're in note row editor
+			else if (!inNoteRowEditor) {
 				// Check NoteRow exists, incase we've got a Kit
 				ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 
