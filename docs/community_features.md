@@ -321,6 +321,10 @@ which track to record from. To run the instrument through the audio clip's FX ch
 ### 3.30 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
 - ([#2615]) Added ability to start / restart arrangement playback from the clip pad you're holding in arranger view.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
+  
+#### 3.31 Added Song New Midi Learn Menu
+- ([#2645]) Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
+  - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
 
 ## 4. New Features Added
 
@@ -407,7 +411,8 @@ Here is a list of features that have been added to the firmware as a list, group
             - `Default active mode:` "Selection" allows changing the mode as described below, all other settings will
               always make mode snap back to the configured one (default Selection)
             - `Select in green mode:` Enabling this will make allow holding clips in green (launch) mode to change their
-              parameters like in blue mode, tradeoff is arming is executed on finger up (default on)
+              parameters like in blue mode, tradeoff is arming is executed on finger up (default on). 
+                - In addition, with this mode enabled, if you hold a clip and press the clip button you will enter that clip.
             - `Empty pad unarm:` Enabling will make pressing empty pads in a track unarm all playing tracks in that
               track (default off)
     - There are different interaction modes that change how the grid behaves
@@ -1508,6 +1513,8 @@ different firmware
 [#2537]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2537
 
 [#2615]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2615
+
+[#2645]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2645
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
