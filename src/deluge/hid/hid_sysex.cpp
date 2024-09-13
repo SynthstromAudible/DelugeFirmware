@@ -32,7 +32,7 @@ void HIDSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 		break;
 
 	case 2:
-		sendMemoryBlock(device);
+		readBlock(device);
 		break;
 
 	default:
@@ -210,7 +210,7 @@ void HIDSysex::sendOLEDDataDelta(MIDIDevice* device, bool force) {
 	device->sendSysex(reply, packed + 11);
 }
 
-void HIDSysex::sendMemoryBlock(MIDIDevice* device) {
+void HIDSysex::readBlock(MIDIDevice* device) {
 	const int32_t data_size = 768;
 	const int32_t max_packed_size = 922;
 	uint8_t reply_hdr[8] = {0xF0, 0x00, 0x21, 0x7B, 0x01, 0x02, 0x40, 0x00};
