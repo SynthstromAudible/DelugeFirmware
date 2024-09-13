@@ -39,12 +39,14 @@ public:
 	/// Should make sure the menu's internal state matches the system and redraw the display.
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readCurrentValue(); }
 
-	void readCurrentValue() override { this->setValue(instrumentClipView.editPadPresses[0].intendedIterance); }
+	void readCurrentValue() override {
+		this->setValue(instrumentClipView.editPadPresses[0].intendedIterance);
+		updateDisplay();
+	}
 
 	void selectEncoderAction(int32_t offset) final override {
 		instrumentClipView.adjustNoteIterance(offset);
-		this->setValue(instrumentClipView.editPadPresses[0].intendedIterance);
-		updateDisplay();
+		readCurrentValue();
 	}
 
 	void drawPixelsForOled() {

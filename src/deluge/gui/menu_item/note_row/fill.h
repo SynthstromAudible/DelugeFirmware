@@ -47,6 +47,7 @@ public:
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 			this->setValue(noteRow->fillValue);
+			updateDisplay();
 		}
 	}
 
