@@ -15,3 +15,6 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(etl)
+
+add_library(tinyusb_config INTERFACE)
+target_include_directories(tinyusb_config INTERFACE tinyusb)

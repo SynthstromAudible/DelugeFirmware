@@ -1,0 +1,1 @@
+#define CFG_TUSB_MCU OPT_MCU_RAXXX
