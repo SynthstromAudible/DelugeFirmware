@@ -55,7 +55,7 @@ public:
 class CVEngine {
 public:
 	CVEngine();
-	void init(bool have_oled);
+	void init();
 	void sendNote(bool on, uint8_t channel, int16_t note = -32768);
 	void setGateType(uint8_t whichGate, GateType value);
 	void setCVVoltsPerOctave(uint8_t channel, uint8_t value);
