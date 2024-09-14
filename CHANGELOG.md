@@ -7,6 +7,8 @@
 ### User Interface
 
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+- Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
+  - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
 ## c1.2.0 Chopin
 
@@ -70,8 +72,6 @@ use the TRACK menu to select the specific track to record from
 - CLIP NAMES. MIDI, SYNTH & KIT clips can now be named. When entered the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view, you are now able to scroll through the clip names when holding a pad.
 - Fixed bug where you wouldn't enter drum creator to select a drum sample when creating a new kit in the `KIT VELOCITY KEYBOARD VIEW`.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.
-- Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
-  - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
 ### Keyboard View Improvements
 
