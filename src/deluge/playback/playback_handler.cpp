@@ -2401,7 +2401,7 @@ void PlaybackHandler::resyncInternalTicksToInputTicks(Song* song) {
 }
 
 // This is that special MIDI command for Todd T
-void PlaybackHandler::forceResetPlayPos(Song* song) {
+void PlaybackHandler::forceResetPlayPos(Song* song, bool restartingPlayback) {
 	if (playbackState) {
 
 		endPlayback();
@@ -2411,7 +2411,7 @@ void PlaybackHandler::forceResetPlayPos(Song* song) {
 		}
 
 		else {
-			setupPlaybackUsingInternalClock(0, false, true);
+			setupPlaybackUsingInternalClock(0, false, restartingPlayback);
 		}
 	}
 }
@@ -2661,7 +2661,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 			switch (command) {
 			case GlobalMIDICommand::PLAYBACK_RESTART:
 				if (recording != RecordingMode::ARRANGEMENT) {
-					forceResetPlayPos(currentSong);
+					forceResetPlayPos(currentSong, true);
 				}
 				break;
 
