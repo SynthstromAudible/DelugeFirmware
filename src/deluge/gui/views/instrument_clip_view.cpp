@@ -2977,6 +2977,8 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 	}
 	else if (!isHoldingVerticalEncoder) {
 		shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress = false;
+		actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
+		actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
 	}
 
 	ActionResult result = verticalEncoderAction(offset, inCardRoutine);
@@ -6275,12 +6277,6 @@ justDisplayOldNumNotes:
 noteRowChanged:
 				// Play it
 				clip->expectEvent();
-
-				// Render it
-				if (yDisplay >= 0 && yDisplay < kDisplayHeight) {
-					// this could be called from automation view velocity editor
-					uiNeedsRendering(getCurrentUI(), 1 << yDisplay, 0);
-				}
 			}
 		}
 	}
@@ -6301,6 +6297,13 @@ displayNewNumNotes:
 		char buffer[12];
 		intToString(newNumNotes, buffer);
 		display->displayPopup(buffer, 0, true);
+	}
+
+	// Render it
+	if (yDisplay >= 0 && yDisplay < kDisplayHeight) {
+		// this could be called from automation view velocity editor
+		// or the note row editor
+		uiNeedsRendering(getRootUI(), 1 << yDisplay, 0);
 	}
 }
 
