@@ -158,7 +158,7 @@ doEndMidiLearnPressSession:
 				endMidiLearnPressSession();
 			}
 		}
-		else if (currentUIMode == UI_MODE_NONE) {
+		else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_RECORD_COUNT_IN) {
 			if (on) {
 				// If shift button, toggle metronome
 				if (Buttons::isShiftButtonPressed()) {
