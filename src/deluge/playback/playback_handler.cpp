@@ -2595,7 +2595,7 @@ void PlaybackHandler::tapTempoButtonPress() {
 	if (tapTempoNumPresses == 0) {
 		tapTempoFirstPressTime = AudioEngine::audioSampleTimer;
 	}
-	else {
+	else if (tapTempoNumPresses > 2) {
 		uint64_t totalTimeBetweenBig = (uint64_t)(uint32_t)(AudioEngine::audioSampleTimer - tapTempoFirstPressTime)
 		                               << 32;
 		uint64_t timePerQuarterNoteBig = totalTimeBetweenBig / tapTempoNumPresses;
