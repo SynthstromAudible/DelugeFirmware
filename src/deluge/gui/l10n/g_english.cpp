@@ -245,7 +245,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT, "Error creating multisampled instrument"},
         {STRING_FOR_CLIP_IS_RECORDING, "Clip is recording"},
         {STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG, "Audio file is used in current song"},
-        {STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT, "Can only user slicer for brand-new kit"},
+        {STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT, "Can only use slicer for brand-new kit"},
         {STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED, "TEMP folder can't be browsed"},
         {STRING_FOR_UNLOADED_PARTS, "Can't return to current song, as parts have been unloaded"},
         {STRING_FOR_SD_CARD_ERROR, "SD card error"},
