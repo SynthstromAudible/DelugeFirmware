@@ -973,7 +973,7 @@ ActionResult ArrangerView::handleEditPadAction(int32_t x, int32_t y, int32_t vel
 			// NAME shortcut
 			if (x == 11 && y == 5) {
 				Output* output = outputsOnScreen[yPressedEffective];
-				if (output && output->type != OutputType::MIDI_OUT && output->type != OutputType::CV) {
+				if (output && output->type != OutputType::CV) {
 					endAudition(output);
 					currentUIMode = UI_MODE_NONE;
 					renameOutputUI.output = output;
