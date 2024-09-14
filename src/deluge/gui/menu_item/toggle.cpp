@@ -70,10 +70,10 @@ void Toggle::renderSubmenuItemTypeForOled(int32_t yPixel) {
 	int32_t startX = getSubmenuItemTypeRenderIconStart();
 
 	if (getToggleValue()) {
-		image.drawGraphicMultiLine(deluge::hid::display::OLED::checkedBoxIcon, startX, yPixel, 7);
+		image.drawGraphicMultiLine(deluge::hid::display::OLED::checkedBoxIcon, startX, yPixel, kSubmenuIconSpacingX);
 	}
 	else {
-		image.drawGraphicMultiLine(deluge::hid::display::OLED::uncheckedBoxIcon, startX, yPixel, 7);
+		image.drawGraphicMultiLine(deluge::hid::display::OLED::uncheckedBoxIcon, startX, yPixel, kSubmenuIconSpacingX);
 	}
 }
 
