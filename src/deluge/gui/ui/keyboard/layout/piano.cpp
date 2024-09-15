@@ -53,7 +53,28 @@ void KeyboardLayoutPiano::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
-	offsetPads(offset, shiftEnabled);
+	if (encoderPressed) {
+		if (offset > 0) {
+			if (zoom == 1) {
+				zoom = 2;
+			}
+			else if (zoom == 2) {
+				zoom = 4;
+			}
+		}
+		else if (offset < 0) {
+			if (zoom == 4) {
+				zoom = 2;
+			}
+			else if (zoom == 2) {
+				zoom = 1;
+			}
+		}
+		//precalculate();
+	}
+	else {
+		offsetPads(offset, shiftEnabled);
+	}
 }
 
 void KeyboardLayoutPiano::offsetPads(int32_t offset, bool shiftEnabled) {
@@ -109,36 +130,19 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	// Iterate over grid image
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-				//auto padIndex = padIndexFromCoords(x, y);
-				auto note = noteFromCoords(x, y); //noteFromPadIndex(padIndex);
-			//	int32_t noteWithinScale = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
-			//	RGB colourSource = noteColours[padIndex - getState().piano.scrollOffset];
+			auto note = noteFromCoords(x, y);
 
-			// black keys
-			if (note == 255) {
-				image[y][x] = colours::black;
-			}
-			else if (y == 1 || y == 3 || y == 5 || y == 7) {
-				if (x == 2 || x == 3 || x == 5 || x == 6 || x == 7 || x == 9 || x == 10 || x == 12 || x == 13 || x == 14) {
-					if (currentNotesState.noteEnabled(note)) {
-						image[y][x] = RGB::monochrome(10);
-					}
-					else {
-						image[y][x] = colours::grey;
-					}
+			int32_t yZoom = y / zoom;
+
+			if (keyLayout[yZoom][x] == KeyType::BLACK) {
+				if (currentNotesState.noteEnabled(note)) {
+					image[y][x] = RGB::monochrome(10);
+				}
+				else {
+					image[y][x] = colours::grey;
 				}
 			}
-			// Full brightness and colour for active root note
-			//	else if (noteWithinScale == 0 && scaleActiveNotes[noteWithinScale]) {
-			//		image[y][x] = RGB::monochrome(96); //colourSource.adjust(255, 1);
-			//	}
-			// If highlighting notes is active, do it
-			//	else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
-			//	             == RuntimeFeatureStateToggle::On
-			//	         && getHighlightedNotes()[note] != 0) {
-			//		image[y][x] = colourSource.adjust(getHighlightedNotes()[note], 1);
-			//	}
-			else {
+			else if (keyLayout[yZoom][x] == KeyType::WHITE) {
 				if (currentNotesState.noteEnabled(note)) {
 					image[y][x] = colours::white_full;
 				}
@@ -146,18 +150,9 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 					image[y][x] = colours::white;
 				}
 			}
-			// Full colour but less brightness for inactive root note
-			//	else if (noteWithinScale == 0) {
-			//		image[y][x] = colourSource.adjust(255, 2);
-			//	}
-			// Toned down colour but high brightness for active scale note
-			//	else if (scaleActiveNotes[noteWithinScale]) {
-			//		image[y][x] = RGB::monochrome(96);
-			//	}
-			// Dimly white for inactive scale notes
-			//	else {
-			// image[y][x] = RGB::monochrome(64);
-			//	}
+			else {
+				image[y][x] = colours::black;
+			}
 		}
 	}
 }

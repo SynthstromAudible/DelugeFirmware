@@ -25,6 +25,26 @@ namespace deluge::gui::ui::keyboard::layout {
 constexpr int32_t kMinPianoRowInterval = 7;
 constexpr int32_t kMaxPianoRowInterval = 7;
 
+enum class KeyType : uint8_t {
+	BLACK,
+	WHITE,
+	NONE,
+};
+
+// piano keyboard layout at max zoom out
+// clang-format off
+const KeyType keyLayout[kDisplayHeight][kDisplayWidth] = {
+	{deluge::gui::ui::keyboard::layout::KeyType::NONE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::NONE},	
+	{deluge::gui::ui::keyboard::layout::KeyType::NONE, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE},
+	{deluge::gui::ui::keyboard::layout::KeyType::NONE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::NONE},	
+	{deluge::gui::ui::keyboard::layout::KeyType::NONE, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE},
+	{deluge::gui::ui::keyboard::layout::KeyType::NONE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::NONE},	
+	{deluge::gui::ui::keyboard::layout::KeyType::NONE, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE},
+	{deluge::gui::ui::keyboard::layout::KeyType::NONE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::WHITE, deluge::gui::ui::keyboard::layout::KeyType::NONE},	
+	{deluge::gui::ui::keyboard::layout::KeyType::NONE, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE,  deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::BLACK, deluge::gui::ui::keyboard::layout::KeyType::NONE},
+};
+// clang-format on
+
 class KeyboardLayoutPiano : public ColumnControlsKeyboard {
 public:
 	KeyboardLayoutPiano() {}
@@ -43,32 +63,31 @@ public:
 	bool supportsKit() override { return false; }
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }
 
+	int32_t zoom = 1;
+
 private:
 	void offsetPads(int32_t offset, bool shiftEnabled);
 	inline uint16_t noteFromCoords(int32_t x, int32_t y) {
-		if (x == 0 || x == 15) {
-			return 255;
+		int32_t yZoom = y / zoom;
+		if (keyLayout[yZoom][x] == KeyType::BLACK) {
+			return (noteFromPadIndex(padIndexFromCoords(x - 1, y - 1)) + 1);
+		}
+		else if (keyLayout[yZoom][x] == KeyType::WHITE) {
+			return noteFromPadIndex(padIndexFromCoords(x, y));
 		}
 		else {
-			if (y == 1 || y == 3 || y == 5 || y == 7) {
-				if (x == 2 || x == 3 || x == 5 || x == 6 || x == 7 || x == 9 || x == 10 || x == 12 || x == 13 || x == 14) {
-					return (noteFromPadIndex(padIndexFromCoords(x - 1, y - 1)) + 1);
-				}
-				else {
-					return 255;
-				}
-			}
-			else {
-				return noteFromPadIndex(padIndexFromCoords(x, y));
-			}
+			return 255;
 		}
 	}
 
 	inline uint16_t padIndexFromCoords(int32_t x, int32_t y) {
+		y = y / zoom;
+
 		x--;
 		if (y > 0) {
 			y--;
 		}
+
 		return getState().piano.scrollOffset + x + y * getState().piano.rowInterval;
 	}
 
@@ -97,21 +116,6 @@ private:
 		// Make sure we don't go into negative because our root note is lower than C-2
 		return std::max<int32_t>(octave * scaleNoteCount + padScaleOffset, std::numeric_limits<uint16_t>::min());
 	}
-
-	// inline uint16_t padIndexFromNote(uint16_t note) {
-	// 	uint8_t scaleNoteCount = getScaleNoteCount();
-
-	// 	padIndex = octave * scaleNoteCount
-	// 	C1 = 7
-
-	// 	return note;
-	// 	//note % kOctaveSize
-
-	// 	// uint8_t scaleNoteCount = getScaleNoteCount();
-	// 	// uint8_t octave = padIndex / scaleNoteCount;
-	// 	// uint8_t octaveNoteIndex = padIndex % scaleNoteCount;
-	// 	// return octave * kOctaveSize + getRootNote() + getScaleNotes()[octaveNoteIndex];
-	// }
 
 	RGB noteColours[kDisplayHeight * kMaxPianoRowInterval + kDisplayWidth];
 };
