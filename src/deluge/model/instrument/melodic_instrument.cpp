@@ -535,7 +535,17 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
                                                 int16_t const* mpeValues, int32_t fromMIDIChannel,
                                                 uint32_t sampleSyncLength) {
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addTimelineCounter(activeClip)->addNoteRow(0, NULL);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
+
+	// don't audition this note row if there is a drone note that is currently sounding
+	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
+	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		return;
+	}
+
 	if (!activeClip || ((InstrumentClip*)activeClip)->allowNoteTails(modelStackWithNoteRow)) {
 		notesAuditioned.insertElementIfNonePresent(note, velocity);
 	}
@@ -548,8 +558,21 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 }
 
 void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity) {
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
+	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+
 	notesAuditioned.deleteAtKey(note);
 	earlyNotes.noteNoLongerActive(note);
+
+	// here we check if this note row has a drone note that is currently sounding
+	// in which case we don't want to stop it from sounding
+	if (noteRow && noteRow->isDroning(modelStackWithNoteRow->getLoopLength())
+	    && noteRow->soundingStatus == STATUS_SEQUENCED_NOTE) {
+		return;
+	}
+
 	if (activeClip) {
 		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
 	}

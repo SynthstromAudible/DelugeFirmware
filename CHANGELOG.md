@@ -31,6 +31,10 @@
 - Added new note and note row editor menu's to edit note and note row parameters.
   - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
   - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
+  
+##### Recording
+- Enabled seamless linear recording of drone notes using audition pads or external midi.
+  - When linear recording to a clip, you can seamlessly record a drone note using the audition pads or from external midi by continuing to audition / send a note until the linear recording stops. After linear recording stops, you can stop auditioning / send a note off and the drone note will persist without any breaks or re-triggering.
 
 ### MIDI
 
