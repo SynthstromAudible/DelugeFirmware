@@ -128,7 +128,7 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	int32_t highlightStartX = xPixel + kTextSpacingX * (enteredTextEditPos - scrollPosHorizontal);
 	// int32_t highlightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
 	// if (highlightEndX > OLED_MAIN_WIDTH_PIXELS || !enteredTextEditPos) highlightEndX = OLED_MAIN_WIDTH_PIXELS;
-	int32_t highlightWidth = xPixelMax - highlightStartX;
+	int32_t highlightWidth = xPixelMax - highlightStartX + 1;
 
 	if (atVeryEnd) {
 		if (getCurrentUI() == this) {
