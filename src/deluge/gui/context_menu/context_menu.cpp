@@ -89,12 +89,12 @@ void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		}
 
 		if (isCurrentOptionAvailable()) {
-			canvas.drawString(options[currentOption], 22, textPixelY, kTextSpacingX, kTextSpacingY, 0,
-			                  OLED_MAIN_WIDTH_PIXELS - 26);
+			canvas.drawString(options[currentOption], 23, textPixelY, kTextSpacingX, kTextSpacingY, 0,
+			                  OLED_MAIN_WIDTH_PIXELS - 27);
 			if (currentOption == actualCurrentOption) {
 				canvas.invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8);
-				deluge::hid::display::OLED::setupSideScroller(0, options[currentOption], 22,
-				                                              OLED_MAIN_WIDTH_PIXELS - 26, textPixelY, textPixelY + 8,
+				deluge::hid::display::OLED::setupSideScroller(0, options[currentOption], 23,
+				                                              OLED_MAIN_WIDTH_PIXELS - 27, textPixelY, textPixelY + 8,
 				                                              kTextSpacingX, kTextSpacingY, true);
 			}
 			textPixelY += kTextSpacingY;
