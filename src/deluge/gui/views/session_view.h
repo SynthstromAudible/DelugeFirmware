@@ -150,6 +150,9 @@ public:
 	                                        StringBuf& rootNoteAndScaleName, bool clearArea);
 	int16_t lastDisplayedRootNote = 0;
 
+	// convert instrument clip to audio clip
+	void replaceInstrumentClipWithAudioClip(Clip* clip);
+
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
 	// no dispatch logic.
@@ -172,7 +175,6 @@ private:
 
 	Clip* createNewAudioClip(int32_t yDisplay);
 	Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay);
-	void replaceInstrumentClipWithAudioClip(Clip* clip);
 
 	bool createNewTrackForAudioClip(AudioClip* newClip);
 	bool createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip);
