@@ -17,7 +17,6 @@
 #include <cstring>
 
 #define MAX_DIR_LINES 25
-bool fileOpen = false;
 
 DIR sxDIR;
 uint32_t offsetCounter;
@@ -47,14 +46,21 @@ int32_t smSysex::findEmptyFIL() {
 	return -1;
 }
 
-void smSysex::startReply(JsonSerializer& writer) {
+void smSysex::startDirect(JsonSerializer& writer) {
 	writer.reset();
 	writer.setMemoryBased();
-	uint8_t reply_hdr[6] = {0xf0, 0x00, 0x21, 0x7B, 0x01, SysEx::SysexCommands::JsonReply};
-	writer.writeBlock(reply_hdr, 6);
+	uint8_t reply_hdr[7] = {0xf0, 0x00, 0x21, 0x7B, 0x01, SysEx::SysexCommands::Json, 0};
+	writer.writeBlock(reply_hdr, sizeof(reply_hdr));
 }
 
-void smSysex::sendReply(MIDIDevice* device, JsonSerializer& writer) {
+void smSysex::startReply(JsonSerializer& writer, JsonDeserializer& reader) {
+	writer.reset();
+	writer.setMemoryBased();
+	uint8_t reply_hdr[7] = {0xf0, 0x00, 0x21, 0x7B, 0x01, SysEx::SysexCommands::JsonReply, reader.getReplySeqNum()};
+	writer.writeBlock(reply_hdr, sizeof(reply_hdr));
+}
+
+void smSysex::sendMsg(MIDIDevice* device, JsonSerializer& writer) {
 	writer.writeByte(0xF7);
 
 	char* bitz = writer.getBufferPtr();
@@ -102,9 +108,6 @@ void smSysex::openFile(MIDIDevice* device, JsonDeserializer& reader) {
 		if (!strcmp(tagName, "write")) {
 			forWrite = reader.readTagOrAttributeValueInt();
 		}
-		else if (!strcmp(tagName, "r#")) {
-			rn = reader.readTagOrAttributeValueInt();
-		}
 		else if (!strcmp(tagName, "path")) {
 			reader.readTagOrAttributeValueString(&path);
 		}
@@ -115,26 +118,22 @@ void smSysex::openFile(MIDIDevice* device, JsonDeserializer& reader) {
 	reader.match('}');
 	FRESULT errCode;
 	int fd = openFIL(path.get(), forWrite, &errCode);
-	startReply(jWriter);
+	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^open", false, true);
 	jWriter.writeAttribute("fid", fd);
-	jWriter.writeAttribute("r#", rn);
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
 
-	sendReply(device, jWriter);
+	sendMsg(device, jWriter);
 }
 
 void smSysex::closeFile(MIDIDevice* device, JsonDeserializer& reader) {
-	int32_t rn = 0, fd = 0;
+	int32_t fd = 0;
 	char const* tagName;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "fid")) {
 			fd = reader.readTagOrAttributeValueInt();
-		}
-		else if (!strcmp(tagName, "r#")) {
-			rn = reader.readTagOrAttributeValueInt();
 		}
 		else {
 			reader.exitTag();
@@ -144,14 +143,13 @@ void smSysex::closeFile(MIDIDevice* device, JsonDeserializer& reader) {
 
 	FRESULT errCode = closeFIL(fd);
 
-	startReply(jWriter);
+	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^close", false, true);
 	jWriter.writeAttribute("fid", fd);
-	jWriter.writeAttribute("r#", rn);
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
 
-	sendReply(device, jWriter);
+	sendMsg(device, jWriter);
 }
 
 // Returns a block of directory entries as a Json array.
@@ -203,7 +201,7 @@ void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 
 	jWriter.reset();
 	jWriter.setMemoryBased();
-	startReply(jWriter);
+	startReply(jWriter, reader);
 	jWriter.writeArrayStart("^dir", true, true);
 
 	for (uint32_t ix = 0; ix < linesWanted; ++ix) {
@@ -215,14 +213,22 @@ void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 			break;
 
 		jWriter.writeOpeningTag(NULL, true);
-		jWriter.writeAttribute("type", fno.fattrib & AM_DIR ? "dn" : "fn");
 		jWriter.writeAttribute("name", fno.fname);
 		jWriter.writeAttribute("size", fno.fsize);
+		// Maybe add fdate and ftime?
+
+		// AM_RDO  0x01 Read only
+		// AM_HID  0x02 Hidden
+		// AM_SYS  0x04 System
+		// AM_DIR  0x10 Directory
+		// AM_ARC  0x20 Archive
+		jWriter.writeAttribute("attr", fno.fattrib);
+
 		jWriter.closeTag();
 		offsetCounter++;
 	}
 	jWriter.writeArrayEnding("^dir", true, true);
-	sendReply(device, jWriter);
+	sendMsg(device, jWriter);
 }
 
 void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
@@ -230,17 +236,13 @@ void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	uint32_t addr = 0;
 	uint32_t size = 512;
 	int32_t fid = 0;
-	int rn = 0;
 
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "fid")) {
 			fid = reader.readTagOrAttributeValueInt();
 		}
-		else if (!strcmp(tagName, "r#")) {
-			rn = reader.readTagOrAttributeValueInt();
-		}
-		if (!strcmp(tagName, "addr")) {
+		else if (!strcmp(tagName, "addr")) {
 			addr = reader.readTagOrAttributeValueInt();
 		}
 		else if (!strcmp(tagName, "size")) {
@@ -273,10 +275,9 @@ void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
 		srcAddr = readBlockBuffer;
 	}
 
-	startReply(jWriter);
+	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^read", false, true);
 	jWriter.writeAttribute("fid", fid);
-	jWriter.writeAttribute("r#", rn);
 	jWriter.writeAttribute("addr", addr);
 	jWriter.writeAttribute("size", size);
 	jWriter.writeAttribute("err", errCode);
@@ -303,7 +304,7 @@ void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
 		working[0] = hiBits;
 		jWriter.writeBlock(working, pktSize + 1);
 	}
-	sendReply(device, jWriter);
+	sendMsg(device, jWriter);
 }
 
 void smSysex::writeBlock(MIDIDevice* device, JsonDeserializer& reader) {
@@ -357,7 +358,10 @@ void smSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 		return;
 	}
 	char const* tagName;
-	JsonDeserializer parser(data + 1, len - 1);
+	uint8_t msgSeqNum = data[1];
+	JsonDeserializer parser(data + 2, len - 2);
+	parser.setReplySeqNum(msgSeqNum);
+
 	parser.match('{');
 	while (*(tagName = parser.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "open")) {

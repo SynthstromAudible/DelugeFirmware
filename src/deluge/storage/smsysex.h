@@ -10,8 +10,9 @@ int openFIL(const char* fPath, bool forWrite, FRESULT* eCode);
 FRESULT closeFIL(int fx);
 int32_t findEmptyFIL();
 
-void startReply(JsonSerializer& writer);
-void sendReply(MIDIDevice* device, JsonSerializer& writer);
+void startDirect(JsonSerializer& writer);
+void startReply(JsonSerializer& writer, JsonDeserializer& reader);
+void sendMsg(MIDIDevice* device, JsonSerializer& writer);
 
 void sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
 void openFile(MIDIDevice* device, JsonDeserializer& reader);

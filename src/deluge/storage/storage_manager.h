@@ -313,8 +313,11 @@ public:
 	                   bool ignoreIncorrectFirmware = false);
 	void reset() override;
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) override;
+	void setReplySeqNum(uint8_t msgNum) { replySeqNum = msgNum; }
+	uint8_t getReplySeqNum() { return replySeqNum; }
 
 private:
+	uint8_t replySeqNum = 0;
 	int32_t objectDepth;
 	int32_t arrayDepth;
 
