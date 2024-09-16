@@ -995,18 +995,24 @@ void routine() {
 		}
 	}
 	else {
-		auto timeNow = getSystemTime();
-		while (getSystemTime() < timeNow + 32 / 44100.) {
-			size_t numSamples = 32;
-			int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
-			tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
+		if (!sdRoutineLock) {
+			auto timeNow = getSystemTime();
+			while (getSystemTime() < timeNow + 32 / 44100.) {
+				size_t numSamples = 32;
+				int32_t timeWithinWindowAtWhichMIDIOrGateOccurs;
+				tickSongFinalizeWindows(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs);
 
-			numSamplesLastTime = numSamples;
-			renderAudioForStemExport(numSamples);
-			audioSampleTimer += numSamples;
-			doSomeOutputting();
-			if (!sdRoutineLock) {
-				doRecorderCardRoutines();
+				numSamplesLastTime = numSamples;
+				renderAudioForStemExport(numSamples);
+				audioSampleTimer += numSamples;
+				doSomeOutputting();
+				// gross and hacky way to make sure the audio recorder writes all of its data so it can't be stolen
+				while (audioRecorder.recorder->firstUnwrittenClusterIndex
+				       < audioRecorder.recorder->currentRecordClusterIndex) {
+					doRecorderCardRoutines();
+				}
+
+				audioFileManager.loadAnyEnqueuedClusters(128, false);
 			}
 		}
 	}
