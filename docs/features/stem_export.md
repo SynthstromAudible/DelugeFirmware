@@ -74,8 +74,9 @@ Stem's are given a meaningful name in the following format:
 - For clip stems, a loop point marker is saved with the stem file to mark the clip's loop length. This makes it easy to reload your stems and they will play back and loop as if you were playing those clip's on the deluge.
 
 ### Offline Rendering
-- Offline Rendering is enabled by default. Offline rendering enables you to render and export stems faster than if you recorded playback using live audio (e.g. resampling). There are still improvements to be made to make offline rendering even faster, but it is significantly fast as is!
+- Offline Rendering is disabled by default. Offline rendering enables you to render and export stems faster than if you recorded playback using live audio (e.g. resampling). There are still improvements to be made to make offline rendering even faster, but it is significantly fast as is!
   - Offline rendering can be turned off in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\OFFLINE RENDERING`
+  - If you experience bugs using Offline Rendering, we recommend turning off Offline Rendering. For more info, please see troubleshooting tips below.
 
 ## Stem Export Menu
 
