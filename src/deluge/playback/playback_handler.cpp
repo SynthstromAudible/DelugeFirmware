@@ -2591,11 +2591,11 @@ void PlaybackHandler::stopAnyRecording() {
 	}
 }
 
-void PlaybackHandler::tapTempoButtonPress() {
+void PlaybackHandler::tapTempoButtonPress(bool isMidiCommand) {
 	if (tapTempoNumPresses == 0) {
 		tapTempoFirstPressTime = AudioEngine::audioSampleTimer;
 	}
-	else if (tapTempoNumPresses > 2) {
+	else {
 		uint64_t totalTimeBetweenBig = (uint64_t)(uint32_t)(AudioEngine::audioSampleTimer - tapTempoFirstPressTime)
 		                               << 32;
 		uint64_t timePerQuarterNoteBig = totalTimeBetweenBig / tapTempoNumPresses;
@@ -2610,13 +2610,15 @@ void PlaybackHandler::tapTempoButtonPress() {
 		}
 		// timePerQuarterNote no longer represents quarter notes, but 3-ticks's
 
-		actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't add to previous action
-		currentSong->setTimePerTimerTick(
-		    timePerQuarterNoteBig / 3,
-		    true); // Put the fraction in the middle; it's more likely to be accurate since we've been rounding down
-		actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't allow next action to add to this one
+		if (isMidiCommand || (tapTempoNumPresses > 2)) {
+			actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't add to previous action
+			currentSong->setTimePerTimerTick(
+			    timePerQuarterNoteBig / 3,
+			    true); // Put the fraction in the middle; it's more likely to be accurate since we've been rounding down
+			actionLogger.closeAction(ActionType::TEMPO_CHANGE); // Don't allow next action to add to this one
 
-		commandDisplayTempo();
+			commandDisplayTempo();
+		}
 	}
 	tapTempoNumPresses++;
 
@@ -2680,7 +2682,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 			default:
 				if (getCurrentUI() == getRootUI()) {
 					if (currentUIMode == UI_MODE_NONE) {
-						tapTempoButtonPress();
+						tapTempoButtonPress(true);
 					}
 				}
 				break;

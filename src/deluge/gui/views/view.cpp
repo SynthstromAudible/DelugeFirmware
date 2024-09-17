@@ -166,7 +166,7 @@ doEndMidiLearnPressSession:
 				}
 				// Otherwise, normal - tap tempo
 				else {
-					playbackHandler.tapTempoButtonPress();
+					playbackHandler.tapTempoButtonPress(false);
 				}
 			}
 		}
