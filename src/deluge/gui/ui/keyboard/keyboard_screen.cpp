@@ -32,6 +32,7 @@
 #include "hid/led/pad_leds.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -584,6 +585,38 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	// store if the user is holding the x encoder
 	else if (b == X_ENC) {
 		xEncoderActive = on;
+	}
+
+	// Load / kit button if auditioning
+	else if (currentUIMode == UI_MODE_AUDITIONING && ((b == LOAD) || (b == KIT))
+	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
+
+		if (on) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
+			Output* output = instrumentClip->output;
+
+			// Auditioning drum
+			if (output->type == OutputType::KIT) {
+				Kit* kit = (Kit*)output;
+				if (kit->selectedDrum) {
+					exitAuditionMode();
+
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+					ModelStackWithTimelineCounter* modelStack =
+					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+					ModelStackWithNoteRow* modelStackWithNoteRow =
+					    instrumentClip->getNoteRowForDrum(modelStack, kit->selectedDrum);
+
+					instrumentClipView.enterDrumCreator(modelStackWithNoteRow, false);
+				}
+			}
+		}
 	}
 
 	else {

@@ -42,20 +42,23 @@ use the TRACK menu to select the specific track to record from
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
 - Submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 - Added ability to `AUTOMATE TEMPO` in arranger view
-- Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and updated the button used to Create Audio Clips in `SONG GRID VIEW` from the `SELECT ENCODER` to the `CROSS SCREEN BUTTON`.
+- Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`.
   - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
     - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last created clip type.
     - If you press and hold a pad, you can choose a different type to create in a number of ways:
       - by turning the select encoder to switch between the various clip types. You can create that clip type by pressing on the select encoder or letting go of the pad.
-      - by pressing one of the clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV` or `CROSS SCREEN` (for Audio Clips)). 
+      - by pressing one of the clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV`). 
       - If you let go of the pad without selecting a different type, it will create the clip using the last create type (or the last selected type if you changed selection using select encoder).
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.  
     - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
-- Updated the `SONG GRID VIEW` shortcut of `HOLDING PAD FOR THE CLIP` + `CROSS SCREEN BUTTON` to convert an Empty `INSTRUMENT CLIP` to an `AUDIO CLIP`.
-  - This replaces the previous shortcut of `HOLDING PAD FOR THE CLIP` + `SELECT ENCODER`.
+Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode and Clip Name in Song Grid View
+- `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now open the `CLIP SETTINGS` menu.
+  - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
+    1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
+    2) `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+    3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
+  - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
   - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW` 
-- `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now always open the `CLIP MODE` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
-  - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`  
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 - Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
 - Updated `PERFORMANCE VIEW` UI for exiting out of `EDITING MODE`. While in `EDITING MODE`, you can now press `BACK` to exit out to the previous screen.
@@ -73,6 +76,7 @@ use the TRACK menu to select the specific track to record from
 - Fixed bug where you wouldn't enter drum creator to select a drum sample when creating a new kit in the `KIT VELOCITY KEYBOARD VIEW`.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.
 - Enabled toggling of `METRONOME` during `RECORD COUNT-IN`.
+- Added ability to load a sample to a drum in the `KIT VELOCITY KEYBOARD VIEW` by holding a drum pad and pressing `LOAD` or `KIT`.
 
 ### Keyboard View Improvements
 

@@ -193,6 +193,9 @@ void SampleBrowser::possiblySetUpBlinking() {
 void SampleBrowser::focusRegained() {
 	// displayCurrentFilename();
 	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case returning from delete-file context menu
+	if (display->have7SEG()) {
+		displayText(); // In case returning from delete-file context menu
+	}
 }
 
 void SampleBrowser::folderContentsReady(int32_t entryDirection) {

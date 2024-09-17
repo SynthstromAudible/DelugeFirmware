@@ -82,8 +82,9 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 	KeyboardStateChord& state = getState().chord;
 
 	NoteSet& scaleNotes = getScaleNotes();
-	int32_t octaveDisplacement = (pressed.x) / scaleNotes.count();
-	int32_t steps = getScaleSteps(pressed.x, scaleNotes);
+	// We use the floor function to round down to the nearest octave instead of truncating
+	int32_t octaveDisplacement = (int32_t)floor(float(pressed.x + state.scaleOffset) / scaleNotes.count());
+	int32_t steps = scaleNotes[mod(pressed.x + state.scaleOffset, scaleNotes.count())];
 	int32_t root = getRootNote() + state.noteOffset + steps;
 
 	NoteSet scaleMode = scaleNotes.modulateByOffset(kOctaveSize - steps);
@@ -245,9 +246,10 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 uint8_t KeyboardLayoutChord::noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
                                                uint8_t scaleNoteCount) {
 	KeyboardStateChord& state = getState().chord;
-	int32_t octaveDisplacement = state.autoVoiceLeading ? 0 : (y + scaleSteps[x]) / scaleNoteCount;
-	// int32_t steps = scaleNotes[(y + scaleSteps[x]) % scaleNoteCount];
-	int32_t steps = getScaleSteps(y + scaleSteps[x], scaleNotes);
+	// We use the floor function to round down to the nearest octave instead of truncating
+	int32_t octaveDisplacement =
+	    state.autoVoiceLeading ? 0 : (int32_t)floor(float(y + scaleSteps[x] + state.scaleOffset) / scaleNoteCount);
+	int32_t steps = scaleNotes[mod(y + scaleSteps[x] + state.scaleOffset, scaleNoteCount)];
 	return root + steps + octaveDisplacement * kOctaveSize;
 }
 
