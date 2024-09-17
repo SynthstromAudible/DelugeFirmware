@@ -80,6 +80,8 @@ private:
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	void possiblySetUpBlinking();
 
+	bool autoLoadEnabled;
+
 	bool currentlyShowingSamplePreview;
 
 	bool qwertyCurrentlyDrawnOnscreen; // This will linger as true even when qwertyVisible has been set to false

@@ -16,6 +16,7 @@
  */
 
 #include "definitions_cxx.hpp"
+#include "hid/button.h"
 #include "model/sample/sample.h"
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
@@ -102,6 +103,8 @@ bool SampleBrowser::opened() {
 	qwertyCurrentlyDrawnOnscreen = false;
 
 	currentlyShowingSamplePreview = false;
+
+	autoLoadEnabled = false;
 
 	if (display->haveOLED()) {
 		fileIndexSelected = 0;
@@ -468,6 +471,14 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		}
 	}
 
+	// Learn button: toggle autoload
+	else if (b == LEARN) {
+		if (on) {
+			autoLoadEnabled = !autoLoadEnabled;
+			indicator_leds::setLedState(IndicatorLED::LEARN, autoLoadEnabled);
+		}
+	}
+
 	else {
 		return Browser::buttonAction(b, on, inCardRoutine);
 	}
@@ -562,7 +573,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
 
-		if (Buttons::isShiftButtonPressed() && getCurrentClip()->type != ClipType::AUDIO) {
+		if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
 			// Feature: if holding Shift while browsing, then the file will be auto-loaded into the current instrument
 			// as if you had confirmed with Select encoder, but keeping the browser open.
 			claimCurrentFile(1, 1, 1, true);
