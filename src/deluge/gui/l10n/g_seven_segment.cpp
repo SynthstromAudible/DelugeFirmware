@@ -450,6 +450,9 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_ACTIONS, "ACT"},
         {STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH, "LEN"},
         {STRING_FOR_CLIP_LENGTH_ADJUSTED, "DONE"},
+        {STRING_FOR_CONVERT_TO_AUDIO, "CONV"},
+        {STRING_FOR_CLIP_MODE, "MODE"},
+        {STRING_FOR_CLIP_NAME, "NAME"},
     },
     &built_in::english,
 };
