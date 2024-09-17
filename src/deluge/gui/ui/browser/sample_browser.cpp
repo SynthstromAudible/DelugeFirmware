@@ -473,7 +473,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 
 	// Learn button: toggle autoload
 	else if (b == LEARN) {
-		if (on) {
+		if (!on) {
 			autoLoadEnabled = !autoLoadEnabled;
 			indicator_leds::setLedState(IndicatorLED::LEARN, autoLoadEnabled);
 		}
