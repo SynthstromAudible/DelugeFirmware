@@ -562,6 +562,12 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
 
+		if (Buttons::isShiftButtonPressed() && getCurrentClip()->type != ClipType::AUDIO) {
+			// Feature: if holding Shift while browsing, then the file will be auto-loaded into the current instrument
+			// as if you had confirmed with Select encoder, but keeping the browser open.
+			claimCurrentFile(1, 1, 1, true);
+		}
+
 		/*
 		if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 &&
 		numFilesFoundInRightDirection > 1) { D_PRINTLN("returned 2"); return;
@@ -741,7 +747,8 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 
 // This display-> any (rare) specific errors generated, then spits out just a boolean success.
 // For the "may" arguments, 0 means no; 1 means auto; 2 means do definitely as the user has specifically requested it.
-bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable) {
+bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
+                                     bool keepShowingSampleBrowser) {
 
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
@@ -1036,8 +1043,10 @@ doLoadAsSample:
 		}
 	}
 
-	exitAndNeverDeleteDrum();
-	uiNeedsRendering(&audioClipView);
+	if (!keepShowingSampleBrowser) {
+		exitAndNeverDeleteDrum();
+		uiNeedsRendering(&audioClipView);
+	}
 	display->removeWorkingAnimation();
 	return true;
 }
