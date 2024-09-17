@@ -12,13 +12,19 @@
 
 ### Sound Engine
 
+#### <ins>DX7 Synth</ins>
 - Added DX7 compatible synth type with support for importing patches from DX7 patch banks in syx format, as well as editing of patch parameters.
-- Added blend control to compressors
-- Added ability to record from a specific track's output. Set an audio clips input to TRACK, then in the audio clip menu
-use the TRACK menu to select the specific track to record from
+
+#### <ins>Audio Clips</ins>
+- Added ability to record from a specific track's output. Set an audio clips input to TRACK, then in the audio clip menu use the TRACK menu to select the specific track to record from
   - To hear the instrument through the audio clip's FX set the input to TRACK (FX)
+- Audio clips with monitoring (or TRACK FX) active in grid mode now support in place overdub using the global midi loop/layer commands
+
+#### <ins>Compressors</ins>
+- Added blend control to compressors
+
+#### <ins>FM Synth Filters</ins>
 - Added filters in FM synth mode. They're set to OFF by default, enable by changing them to any other mode using the menu or db/oct shortcut.
-- Audio clips with monitoring (or FX) active in grid mode now support in place overdub using the global midi loop/layer commands
 
 ### MIDI
 - Added Universal SysEx Identity response, including firmware version.
