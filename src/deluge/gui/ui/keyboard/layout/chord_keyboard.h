@@ -67,10 +67,6 @@ private:
 	void evaluatePadsRow(PressedPad pressed);
 	void evaluatePadsColumn(PressedPad pressed);
 	void drawChordName(int16_t noteCode, const char* chordName = "", const char* voicingName = "");
-	inline int32_t getScaleSteps(int32_t i, NoteSet& scaleNotes) {
-		KeyboardStateChord& state = getState().chord;
-		return scaleNotes[mod(i + state.scaleOffset, scaleNotes.count())];
-	}
 
 	Scale lastScale = NO_SCALE;
 
