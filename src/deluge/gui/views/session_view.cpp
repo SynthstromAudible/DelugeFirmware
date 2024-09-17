@@ -22,6 +22,7 @@
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
 #include "gui/context_menu/audio_input_selector.h"
+#include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/context_menu/clip_settings/launch_style.h"
 #include "gui/context_menu/clip_settings/new_clip_type.h"
 #include "gui/context_menu/context_menu.h"
@@ -156,7 +157,13 @@ void SessionView::focusRegained() {
 
 	ClipNavigationTimelineView::focusRegained();
 	view.focusRegained();
-	view.setActiveModControllableTimelineCounter(currentSong);
+	// this could happen if you've just converted an instrument clip to an audio clip
+	// using the clip settings menu in grid view and it sent you back to song view
+	// and the mod controllable was set to the newly converted audio clip
+	// if you're still holding that clip, don't change the active mod controllable
+	if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+		view.setActiveModControllableTimelineCounter(currentSong);
+	}
 
 	if (display->haveOLED()) {
 		setCentralLEDStates();
@@ -493,9 +500,9 @@ moveAfterClipInstance:
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 					if (clip != nullptr) {
-						context_menu::clip_settings::launchStyle.clip = clip;
-						context_menu::clip_settings::launchStyle.setupAndCheckAvailability();
-						openUI(&context_menu::clip_settings::launchStyle);
+						context_menu::clip_settings::clipSettings.clip = clip;
+						context_menu::clip_settings::clipSettings.setupAndCheckAvailability();
+						openUI(&context_menu::clip_settings::clipSettings);
 					}
 				}
 				else if (clip != nullptr) {
@@ -623,29 +630,6 @@ doActualSimpleChange:
 		newOutputType = OutputType::CV;
 		goto changeOutputType;
 	}
-	// used for changing clip type to audio clip
-	else if (b == CROSS_SCREEN_EDIT) {
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			if (on && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && !Buttons::isShiftButtonPressed()) {
-				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-					return ActionResult::DEALT_WITH;
-				}
-
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
-
-				actionLogger.deleteAllLogs();
-				performActionOnPadRelease = false;
-				Clip* clip = getClipForLayout();
-				if (clip != nullptr) {
-					replaceInstrumentClipWithAudioClip(clip);
-				}
-			}
-		}
-	}
-
 	else if (b == KEYBOARD) {
 		if (on && (currentUIMode == UI_MODE_NONE)
 		    && (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid)) {
@@ -3975,7 +3959,6 @@ void SessionView::exitTrackCreation() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false, false);
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false, false);
 	exitUIMode(UI_MODE_CREATING_CLIP);
 	requestRendering(&sessionView);

@@ -103,7 +103,7 @@ bool NewClipType::acceptCurrentOption() {
 	using namespace deluge::hid::button;
 
 	if (currentOption == 0) {
-		b = CROSS_SCREEN_EDIT;
+		b = SELECT_ENC;
 	}
 	else if (currentOption == 1) {
 		b = SYNTH;
@@ -149,7 +149,7 @@ ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 LED NewClipType::getLedFromOption(int32_t option) {
 	if (option == 0) {
-		return IndicatorLED::CROSS_SCREEN_EDIT;
+		return IndicatorLED::CROSS_SCREEN_EDIT; // not actually using this, but return something
 	}
 	else if (option == 1) {
 		return IndicatorLED::SYNTH;
@@ -166,10 +166,16 @@ LED NewClipType::getLedFromOption(int32_t option) {
 }
 
 void NewClipType::disableLedForOption(int32_t option) {
+	if (option == 0) {
+		return; // nothing to do for audio
+	}
 	indicator_leds::setLedState(getLedFromOption(option), false, false);
 }
 
 void NewClipType::blinkLedForOption(int32_t option) {
+	if (option == 0) {
+		return; // nothing to do for audio
+	}
 	indicator_leds::blinkLed(getLedFromOption(option));
 }
 
