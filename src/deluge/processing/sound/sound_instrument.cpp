@@ -64,6 +64,9 @@ bool SoundInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOut
 		}
 	}
 
+	// sound saved elsewhere, no longer associated with syx file "slot"
+	syxPath.clear(false);
+	syxSlot = -1;
 	Sound::writeToFile(writer, clipForSavingOutputOnly == nullptr, paramManager,
 	                   clipForSavingOutputOnly ? &((InstrumentClip*)clipForSavingOutputOnly)->arpSettings : nullptr,
 	                   NULL);

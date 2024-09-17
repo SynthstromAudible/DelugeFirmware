@@ -56,7 +56,6 @@
 #include "gui/menu_item/delay/ping_pong.h"
 #include "gui/menu_item/delay/sync.h"
 #include "gui/menu_item/drum_name.h"
-#include "gui/menu_item/dx/browse.h"
 #include "gui/menu_item/dx/engine_select.h"
 #include "gui/menu_item/dx/global_params.h"
 #include "gui/menu_item/dx/param.h"
@@ -1176,8 +1175,7 @@ submenu::Modulator modulator0Menu{STRING_FOR_FM_MODULATOR_1, modulatorMenuItems,
 submenu::Modulator modulator1Menu{STRING_FOR_FM_MODULATOR_2, modulatorMenuItems, 1};
 
 // Submenu::SubmenuReferringToOneThing if we need to address osc1 and osc2 directly
-std::array<MenuItem*, 3> dxMenuItems = {
-    &dxBrowseMenu,
+std::array<MenuItem*, 2> dxMenuItems = {
     &dxGlobalParams,
     &dxEngineSelect,
 };

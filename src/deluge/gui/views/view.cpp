@@ -26,6 +26,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/load_dx_cartridge.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
@@ -2384,6 +2385,16 @@ gotAnInstrument:
 
 	// Or if we're on a Kit or Synth...
 	else {
+
+		if (oldInstrument->type == OutputType::SYNTH) {
+			auto soundInstrument = (SoundInstrument *)oldInstrument;
+			// TODO: if the there is a syxPath, but loadDxCartridgeUI does _not_ match, we should load the right syx file
+			if (!soundInstrument->syxPath.isEmpty() && soundInstrument->syxSlot > -1 && loadDxCartridgeUI.currentSound == soundInstrument) {
+				loadDxCartridgeUI.currentValue = soundInstrument->syxSlot;
+				loadDxCartridgeUI.navigate(offset);
+				return;
+			}
+		}
 
 		PresetNavigationResult results =
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
