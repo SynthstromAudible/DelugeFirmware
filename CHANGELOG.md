@@ -75,6 +75,7 @@ Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode
   - Note: if you use the `MIDI FOLLOW FEEDBACK` feature, no MIDI Feedback data will be sent when you change drum selections in this view because it will send too much MIDI data and affect the Deluge's performance.
 - Fixed bug where you wouldn't enter drum creator to select a drum sample when creating a new kit in the `KIT VELOCITY KEYBOARD VIEW`.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.
+- Added ability to load a sample to a drum in the `KIT VELOCITY KEYBOARD VIEW` by holding a drum pad and pressing `LOAD` or `KIT`.
 
 ### Keyboard View Improvements
 
