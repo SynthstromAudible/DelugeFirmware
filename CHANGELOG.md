@@ -67,9 +67,10 @@ Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode
 - CLIP NAMES. MIDI, SYNTH & KIT clips can now be named. When entered the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view, you are now able to scroll through the clip names when holding a pad.
 - Pressing drum pads in the `KIT VELOCITY KEYBOARD VIEW` will now update the drum selection so that you can edit the parameters of each drum with gold knobs directly from the kit velocity keyboard view when affect entire is disabled.
   - Note: if you use the `MIDI FOLLOW FEEDBACK` feature, no MIDI Feedback data will be sent when you change drum selections in this view because it will send too much MIDI data and affect the Deluge's performance.
-- Fixed bug where you wouldn't enter drum creator to select a drum sample when creating a new kit in the `KIT VELOCITY KEYBOARD VIEW`.
+- Fixed a bug where you wouldn't enter drum creator to select a drum sample when creating a new kit in the `KIT VELOCITY KEYBOARD VIEW`.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.
 - Fixed a bug where you could not turn `RECORDING OFF` while auditioning a note in an `INSTRUMENT CLIP`.
+- Enabled toggling of `METRONOME` during `RECORD COUNT-IN`.
 - Enabled renaming of `MIDI TRACKS` in `ARRANGER VIEW`.
 - Added ability to load a sample to a drum in the `KIT VELOCITY KEYBOARD VIEW` by holding a drum pad and pressing `LOAD` or `KIT`.
 
