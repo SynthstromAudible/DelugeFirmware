@@ -394,6 +394,7 @@ doOther:
 	// Record button if holding audition pad
 	else if (b == RECORD && (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW || currentUIMode == UI_MODE_AUDITIONING)) {
 		if (on && getCurrentOutputType() == OutputType::KIT && audioRecorder.recordingSource == AudioInputChannel::NONE
+		    && playbackHandler.recording == RecordingMode::OFF
 		    && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
 			if (inCardRoutine) {
@@ -434,6 +435,10 @@ doOther:
 
 				enterDrumCreator(modelStackWithNoteRow, true);
 			}
+		}
+		// let parent handle record button press so that you can end recording while auditioning
+		else {
+			return ActionResult::NOT_DEALT_WITH;
 		}
 	}
 
