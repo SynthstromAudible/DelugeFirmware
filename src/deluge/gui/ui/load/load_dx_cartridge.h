@@ -1,6 +1,6 @@
 
 /*
- * Copyright © 2015-2023 Synthstrom Audible Limited
+ * Copyright © 2018-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -18,30 +18,35 @@
 
 #pragma once
 
-#include "gui/menu_item/menu_item.h"
+#include "definitions_cxx.hpp"
+#include "gui/ui/ui.h"
+#include "storage/DX7Cartridge.h"
 
-class DX7Cartridge;
+class SoundInstrument;
 
-namespace deluge::gui::menu_item {
-
-class DxCartridge final : public MenuItem {
-public:
-	using MenuItem::MenuItem;
-	DxCartridge(l10n::String newName) : MenuItem(newName), pd(nullptr) {}
-	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	bool tryLoad(const char* path);
-	void drawPixelsForOled() override;
-	void readValueAgain() final;
-	void selectEncoderAction(int32_t offset) final;
-	MenuItem* selectButtonPress() final;
+class LoadDxCartridgeUI : public UI {
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	void drawValue();
 
+	void selectEncoderAction(int8_t offset) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
+	UIType getUIType() override { return UIType::BROWSER; }
+	void readValue();
+
+public:
+
+	LoadDxCartridgeUI() {};
+
+	bool tryLoad(const char* path);
+	void navigate(int8_t offset, bool wrapAround = true);
 	// this thing is big. allocate external mem on demand
-	DX7Cartridge* pd;
+	DX7Cartridge* pd = nullptr;
 
 	int32_t currentValue = 0;
 	int scrollPos = 0; // Each instance needs to store this separately
+
+	SoundInstrument *currentSound = nullptr;
 };
 
-extern DxCartridge dxCartridge;
-} // namespace deluge::gui::menu_item
+extern LoadDxCartridgeUI loadDxCartridgeUI;
