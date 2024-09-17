@@ -158,14 +158,14 @@ doEndMidiLearnPressSession:
 				endMidiLearnPressSession();
 			}
 		}
-		else if (currentUIMode == UI_MODE_NONE) {
+		else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_RECORD_COUNT_IN) {
 			if (on) {
 				// If shift button, toggle metronome
 				if (Buttons::isShiftButtonPressed()) {
 					playbackHandler.toggleMetronomeStatus();
 				}
-				// Otherwise, normal - tap tempo
-				else {
+				// Otherwise, normal - tap tempo, but not during record count in
+				else if (currentUIMode == UI_MODE_NONE) {
 					playbackHandler.tapTempoButtonPress();
 				}
 			}
