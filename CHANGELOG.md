@@ -20,28 +20,71 @@ use the TRACK menu to select the specific track to record from
 - Added filters in FM synth mode. They're set to OFF by default, enable by changing them to any other mode using the menu or db/oct shortcut.
 - Audio clips with monitoring (or FX) active in grid mode now support in place overdub using the global midi loop/layer commands
 
+### MIDI
+- Added Universal SysEx Identity response, including firmware version.
+- Allow changing MPE y output to CC1 to support more synths
+- Removed MPE zone auto learn as a huge source of midi bugs, MPE must now be configured in the menu
+
 ### User Interface
 
+#### General
+- The maximum zoom level for timelines has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
+- Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
+  - With playback off, pressing `PLAY` will start playback from the current grid scroll position
+  - With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
+- Added community feature toggle `Accessibility Shortcuts (ACCE)` to make specific shortcut combinations more accessible for users with mobility restrictions. Currently only one accessibility change has been made:
+  - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
+
+#### Menu UI Improvements
+- For toggle (ON/OFF) menus, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
+  - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
+  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
+- Submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
+- Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
+
+#### OLED Display Improvements
+- Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
+
+#### Stem Export
+- Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
+  - You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+
+#### Recording
+- Enabled toggling of `METRONOME` during `RECORD COUNT-IN`.
+- Fixed a bug where instruments and kits wouldn't respect record arming state. They no longer record when not armed
+
+#### Clip/Section Launching
+- A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
+  - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
+- The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
+
+#### Audio Clips
+
+##### General
 - Added ability to select audio source from within an Audio Clip by opening the `Audio Clip Sound Menu` (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
+- Added new `ACTIONS` menu in the `Audio Clip Sound Menu` (Press `SELECT`).
+
+##### Timestretching
 - Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample.
     - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
-- The maximum zoom level for timelines has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
+
+#### Instrument Clips
+
+##### General
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
+- Added ability to set `CLIP NAMES`. MIDI, SYNTH and KIT clips can now be named. When in a the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view, you are now able to scroll through the clip names when holding a pad.
+- Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.  
+- Fixed a bug where you could not turn `RECORDING OFF` while auditioning a note in an `INSTRUMENT CLIP`. With this fix you can now record drone notes when using `LINEAR RECORDING`.
+
+##### Velocity View
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
-- Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
-  - You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
-- Fixed a bug where instruments and kits wouldn't respect record arming state. They no longer record when not armed
-- A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
-  - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
-- The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
-- For toggle (ON/OFF) menus, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
- - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
- - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
-- Submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
-- Added ability to `AUTOMATE TEMPO` in arranger view
+
+#### Song Grid View
+
+##### Creating New Clips
 - Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`.
   - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
     - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last created clip type.
@@ -51,47 +94,51 @@ use the TRACK menu to select the specific track to record from
       - If you let go of the pad without selecting a different type, it will create the clip using the last create type (or the last selected type if you changed selection using select encoder).
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.  
     - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
-Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode and Clip Name in Song Grid View
-- `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now open the `CLIP SETTINGS` menu.
-  - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
-    1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
-    2) `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
-    3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
-  - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
-  - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW` 
-- Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
-- Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
-- Updated `PERFORMANCE VIEW` UI for exiting out of `EDITING MODE`. While in `EDITING MODE`, you can now press `BACK` to exit out to the previous screen.
-- Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
-- Changed the behaviour of the `PLAY` button while in `ARRANGER VIEW` with `CROSS SCREEN AUTO SCROLL MODE` active. Pressing `PLAY` while playback is off will now start playback from the current scroll position.
-- Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
-  - With playback off, pressing `PLAY` will start playback from the current grid scroll position
-  - With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
-- Added community feature toggle `Accessibility Shortcuts (ACCE)` to make specific shortcut combinations more accessible for users with mobility restrictions.
-  - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
+
+##### Clip Settings Menu    
+- Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode and Clip Name in Song Grid View
+  - `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now open the `CLIP SETTINGS` menu.
+    - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
+      1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
+      2) `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+      3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
+    - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
+    - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW` 
 - Added community feature toggle `Grid View Loop Pads (LOOP)` to illuminate two pads (Red and Magenta) in the `GRID VIEW` sidebar for triggering the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
-- CLIP NAMES. MIDI, SYNTH & KIT clips can now be named. When entered the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view, you are now able to scroll through the clip names when holding a pad.
+
+#### Performance View
+- Updated `PERFORMANCE VIEW` UI for exiting out of `EDITING MODE`. While in `EDITING MODE`, you can now press `BACK` to exit out to the previous screen.
+
+#### Arranger View
+
+##### General
+- Added ability to `AUTOMATE TEMPO` in `ARRANGER VIEW` by turning the `TEMPO` encoder while recording. To delete the automated tempo, press `SHIFT` + `TEMPO`.
+- Added ability to rename `MIDI TRACKS` in `ARRANGER VIEW`.
+
+##### Playback Start
+- Changed the behaviour of the `PLAY` button while in `ARRANGER VIEW` with `CROSS SCREEN AUTO SCROLL MODE` active. Pressing `PLAY` while playback is off will now start playback from the current scroll position.
+
+##### Clip Pad Rendering
+- Updated `ARRANGER VIEW` Clip pad rendering. Clip's are now rendered more simply which should also increase Arranger View performance, especially when using cross screen mode. Clip's are now rendered as follows:
+   - The `clip head` (the first pad where the clip is placed in the arrangement) is rendered the clip colour brightly.
+   - The `clip loop points` (the pad's where the clip, if extended past it's length will loop) are rendered the clip colour but dimly.
+   - The `clip tails` (the pad's between the clip head and clip loop points) are rendered the clip's colour but dimly and blurred.
+
+#### Keyboard View
+
+##### General
+- Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
+
+##### Chord Layouts
+- New `CHORDS` keyboard layout. The `CHORD` keyboard provides easy building and playing of in-scale chords. The `CHORD` keyboard provides two modes, a `ROW` mode, inspired by the Launchpad Pro, and a `COLUMN` mode, inspired by some of the features in the OXI one and others. 
+- New `CHORD LIBRARY` keyboard layout. `CHORD LIBRARY` keyboard is a library of chords split up into columns, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. 
+- As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD`  and `CHORD LIBRARY` keyboards.
+
+##### Kits
+- Added ability to load a sample to a drum in the `KIT VELOCITY KEYBOARD VIEW` by holding a drum pad and pressing `LOAD` or `KIT`.
 - Pressing drum pads in the `KIT VELOCITY KEYBOARD VIEW` will now update the drum selection so that you can edit the parameters of each drum with gold knobs directly from the kit velocity keyboard view when affect entire is disabled.
   - Note: if you use the `MIDI FOLLOW FEEDBACK` feature, no MIDI Feedback data will be sent when you change drum selections in this view because it will send too much MIDI data and affect the Deluge's performance.
 - Fixed a bug where you wouldn't enter drum creator to select a drum sample when creating a new kit in the `KIT VELOCITY KEYBOARD VIEW`.
-- Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.
-- Fixed a bug where you could not turn `RECORDING OFF` while auditioning a note in an `INSTRUMENT CLIP`.
-- Enabled toggling of `METRONOME` during `RECORD COUNT-IN`.
-- Enabled renaming of `MIDI TRACKS` in `ARRANGER VIEW`.
-- Added ability to load a sample to a drum in the `KIT VELOCITY KEYBOARD VIEW` by holding a drum pad and pressing `LOAD` or `KIT`.
-
-### Keyboard View Improvements
-
-- New `CHORDS` keyboard layout. The `CHORD` keyboard provides easy building and playing of in-scale chords. The `CHORD` keyboard provides two modes, a `ROW` mode, inspired by the Launchpad Pro, and a `COLUMN` mode, inspired by some of the features in the OXI one and others. 
-
-- New `CHORD LIBRARY` keyboard layout. `CHORD LIBRARY` keyboard is a library of chords split up into columns, where each column belongs to a specific root note. Going up and down the columns will play different chords of the same root note. Voicings can also be changed with pressing a pad and pressing the `◀︎▶︎` encoder and turning it. 
-
-- As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD`  and `CHORD LIBRARY` keyboards.
-
-### MIDI
-- Added Universal SysEx Identity response, including firmware version.
-- Allow changing MPE y output to CC1 to support more synths
-- Removed MPE zone auto learn as a huge source of midi bugs, MPE must now be configured in the menu
 
 ## c1.1.1 Beethoven
 
