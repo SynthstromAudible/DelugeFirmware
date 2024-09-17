@@ -7,6 +7,7 @@
 ### User Interface
 
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+- Added Auto-Load feature to sample browser, so you can load to the instrument the sounds as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Learn` button.
 
 ## c1.2.0 Chopin
 

@@ -900,6 +900,10 @@ to each individual note onset. ([#1978])
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
 - ([#2046]) Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 
+#### 4.3.10 - Auto Load sample when browsing
+
+- ([#2676]) When browsing for sample to assign to a Synths or Kit row, you can now enable auto-load of previewed samples. To do this, open the sample browser (`SHIFT + BROWSE`), and engage `AUTO-LOAD` by pressing `LEARN`. While `LEARN` LED is on, all the samples that you preview will automatically be loaded to the instrument as if you had confirmed the selection. This makes previewing single cycle waveforms way more convenient, for example. 
+
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
 #### 4.4.1 - Keyboard View
@@ -1499,6 +1503,8 @@ different firmware
 [#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
 
 [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
+
+[#2676]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2676
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
