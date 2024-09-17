@@ -42,7 +42,6 @@ bool LaunchStyleMenu::setupAndCheckAvailability() {
 
 void LaunchStyleMenu::selectEncoderAction(int8_t offset) {
 	ContextMenu::selectEncoderAction(offset);
-	clip->launchStyle = static_cast<::LaunchStyle>(this->currentOption);
 }
 
 } // namespace deluge::gui::context_menu::clip_settings
