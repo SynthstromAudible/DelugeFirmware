@@ -27,7 +27,7 @@ use the TRACK menu to select the specific track to record from
 
 ### User Interface
 
-#### General
+#### <ins>General</ins>
 - The maximum zoom level for timelines has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
   - With playback off, pressing `PLAY` will start playback from the current grid scroll position
@@ -35,30 +35,30 @@ use the TRACK menu to select the specific track to record from
 - Added community feature toggle `Accessibility Shortcuts (ACCE)` to make specific shortcut combinations more accessible for users with mobility restrictions. Currently only one accessibility change has been made:
   - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
 
-#### Menu UI Improvements
+#### <ins>Menu UI Improvements</ins>
 - For toggle (ON/OFF) menus, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
   - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
   - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
 - Submenus on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 
-#### OLED Display Improvements
+#### <ins>OLED Display Improvements</ins>
 - Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
 
-#### Stem Export
+#### <ins>Stem Export</ins>
 - Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
   - You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
-#### Recording
+#### <ins>Recording</ins>
 - Enabled toggling of `METRONOME` during `RECORD COUNT-IN`.
 - Fixed a bug where instruments and kits wouldn't respect record arming state. They no longer record when not armed
 
-#### Clip/Section Launching
+#### <ins>Clip/Section Launching</ins>
 - A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 - The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
 
-#### Audio Clips
+#### <ins>Audio Clips</ins>
 
 ##### General
 - Added ability to select audio source from within an Audio Clip by opening the `Audio Clip Sound Menu` (Press `SELECT`) and Selecting the `AUDIO SOURCE` menu
@@ -70,7 +70,7 @@ use the TRACK menu to select the specific track to record from
     - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 
-#### Instrument Clips
+#### <ins>Instrument Clips</ins>
 
 ##### General
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
@@ -82,7 +82,7 @@ use the TRACK menu to select the specific track to record from
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 
-#### Song Grid View
+#### <ins>Song Grid View</ins>
 
 ##### Creating New Clips
 - Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`.
@@ -106,10 +106,10 @@ use the TRACK menu to select the specific track to record from
     - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW` 
 - Added community feature toggle `Grid View Loop Pads (LOOP)` to illuminate two pads (Red and Magenta) in the `GRID VIEW` sidebar for triggering the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
 
-#### Performance View
+#### <ins>Performance View</ins>
 - Updated `PERFORMANCE VIEW` UI for exiting out of `EDITING MODE`. While in `EDITING MODE`, you can now press `BACK` to exit out to the previous screen.
 
-#### Arranger View
+#### <ins>Arranger View</ins>
 
 ##### General
 - Added ability to `AUTOMATE TEMPO` in `ARRANGER VIEW` by turning the `TEMPO` encoder while recording. To delete the automated tempo, press `SHIFT` + `TEMPO`.
@@ -124,7 +124,7 @@ use the TRACK menu to select the specific track to record from
    - The `clip loop points` (the pad's where the clip, if extended past it's length will loop) are rendered the clip colour but dimly.
    - The `clip tails` (the pad's between the clip head and clip loop points) are rendered the clip's colour but dimly and blurred.
 
-#### Keyboard View
+#### <ins>Keyboard View</ins>
 
 ##### General
 - Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
