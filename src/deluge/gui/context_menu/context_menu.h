@@ -30,7 +30,7 @@ public:
 
 	virtual ~ContextMenu() = default;
 
-	void focusRegained() override;
+	virtual void focusRegained() override;
 	void selectEncoderAction(int8_t offset) override;
 	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	void drawCurrentOption();

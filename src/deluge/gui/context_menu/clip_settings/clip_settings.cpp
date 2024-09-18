@@ -4,6 +4,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/rename/rename_clipname_ui.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
 #include "hid/display/display.h"
 #include "model/clip/clip.h"
@@ -42,6 +43,13 @@ bool ClipSettingsMenu::setupAndCheckAvailability() {
 	return true;
 }
 
+void ClipSettingsMenu::focusRegained() {
+	// blink the pad of the clip we've selected for this menu
+	soundEditor.setupShortcutBlink(clipX, clipY, 10);
+	soundEditor.blinkShortcut();
+	ContextMenu::focusRegained();
+}
+
 void ClipSettingsMenu::selectEncoderAction(int8_t offset) {
 	ContextMenu::selectEncoderAction(offset);
 }
@@ -62,6 +70,9 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 			openUI(&launchStyle);
 		}
 		else {
+			// disable shortcut blinking in the rename UI because you don't see
+			// the clip pad on the grid
+			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 			currentUIMode = UI_MODE_NONE;
 			renameClipNameUI.clip = clip;
 			openUI(&renameClipNameUI);
