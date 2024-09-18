@@ -178,6 +178,14 @@ void SessionView::focusRegained() {
 	setLedStates();
 
 	currentSong->lastClipInstanceEnteredStartPos = -1;
+
+	// initiate pulsing of selected clip if you're in grid view
+	// but only if it's not already running (which is the case when coming back from clip settings menus)
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (!gridSelectedClipPulsing) {
+			gridPulseSelectedClip();
+		}
+	}
 }
 
 ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -2417,8 +2425,9 @@ void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whic
 			// Just redrawing should be faster than evaluating every cell in every row
 			uiNeedsRendering(ui, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
-
-		uiNeedsRendering(ui, whichMainRows, whichSideRows);
+		else {
+			uiNeedsRendering(ui, whichMainRows, whichSideRows);
+		}
 	}
 }
 
@@ -3081,6 +3090,11 @@ void SessionView::renderLayoutChange(bool displayPopup) {
 
 	requestRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
 	view.flashPlayEnable();
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (!gridSelectedClipPulsing) {
+			gridPulseSelectedClip();
+		}
+	}
 }
 
 void SessionView::selectSpecificLayout(SessionLayoutType layout) {
@@ -3241,7 +3255,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		// mode), using the first clip here keeps it consistent
 		if (x >= 0 && y >= 0 && occupancyMask[y][x] == 0) {
 			occupancyMask[y][x] = 64;
-			image[y][x] = gridRenderClipColor(clip);
+			image[y][x] = gridRenderClipColor(clip, x, y);
 		}
 	}
 
@@ -3250,7 +3264,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 	return true;
 }
 
-RGB SessionView::gridRenderClipColor(Clip* clip) {
+RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse) {
 	// Greyout all clips during record button pressed or soloing, overwrite for clips that shouldn't be greyed out
 	bool greyout = (viewingRecordArmingActive || currentSong->getAnyClipsSoloing());
 
@@ -3303,18 +3317,29 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 		}
 	}
 
-	// Black phase of arm flashing
-	if (view.clipArmFlashOn && clip->armState != ArmState::OFF) {
-		return colours::black;
-	}
-
-	// Set a random color if unset and convert to result colour
+	// Set a random colour if unset and convert to result colour
 	if (clip->output->colour == 0) {
 		lastColour = std::fmod(lastColour + colourStep + 192, 192);
 		clip->output->colour = lastColour;
 	}
 
 	RGB resultColour = RGB::fromHue(clip->output->colour);
+	// when selecting a clip, dim all other clip pads a bit
+	// so that the selected clip pad can be lit a bit brighter
+	if (renderPulse && (x != gridFirstPressedX || y != gridFirstPressedY)) {
+		resultColour = resultColour.adjust(255, 2);
+	}
+
+	// Black phase of arm flashing
+	if (view.clipArmFlashOn && clip->armState != ArmState::OFF) {
+		return colours::black;
+	}
+	// If we're currently pulsing this clip and we have the current pulse colour, use that instead
+	else if (!viewingRecordArmingActive && renderPulse && gridSelectedClipPulsing && (clip == selectedClipForPulsing)
+	         && (gridSelectedClipRenderedColour != RGB::monochrome(0))) {
+		return gridSelectedClipRenderedColour;
+	}
+
 	bool macroActive = false;
 	if (gridModeActive == SessionGridModeMacros && selectedMacro >= 0) {
 		auto& macro = currentSong->sessionMacros[selectedMacro];
@@ -3336,7 +3361,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 		}
 	}
 
-	// If we are not in record arming mode make this clip full color for being soloed
+	// If we are not in record arming mode make this clip full colour for being soloed
 	if ((clip->soloingInSessionMode || clip->armState == ArmState::ON_TO_SOLO) && !viewingRecordArmingActive) {
 		greyout = false;
 	}
@@ -3690,6 +3715,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		newClip->output->setActiveClip(modelStack);
 	}
 	// set it active in the song
+	gridSelectClipForPulsing(newClip);
 	currentSong->setCurrentClip(newClip);
 	return newClip;
 }
@@ -3892,6 +3918,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 					// if the pad has already been released while we yielded just get out of here
 					// don't update clip selection if we didn't create a clip
 					if (clip != nullptr && (x != gridFirstPressedX || y != gridFirstPressedY)) {
+						gridSelectClipForPulsing(clip);
 						currentSong->setCurrentClip(clip);
 						return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 					}
@@ -3909,6 +3936,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			view.displayOutputName(clip->output, true, clip);
 
 			// we've either created or selected a clip, so set it to be current
+			gridSelectClipForPulsing(clip);
 			currentSong->setCurrentClip(clip);
 
 			// Allow clip control (selection)
@@ -3989,7 +4017,6 @@ void SessionView::exitTrackCreation() {
 	indicator_leds::setLedState(IndicatorLED::CV, false, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false, false);
 	exitUIMode(UI_MODE_CREATING_CLIP);
-	requestRendering(&sessionView);
 }
 
 ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip) {
@@ -4074,6 +4101,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 
 				// if you didn't create a clip, don't change clip selection, don't update display and mod controllable
 				if (clip != nullptr) {
+					gridSelectClipForPulsing(clip);
 					currentSong->setCurrentClip(clip);
 
 					// Allow clip control (selection) if still holding it
@@ -4156,6 +4184,7 @@ ActionResult SessionView::gridHandlePadsLaunchWithSelection(int32_t x, int32_t y
 			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 			performActionOnPadRelease = true;
 			selectedClipTimePressed = AudioEngine::audioSampleTimer;
+			gridSelectClipForPulsing(clip);
 			currentSong->setCurrentClip(clip);
 			view.displayOutputName(clip->output, true, clip);
 			// this needs to be called after the current clip is set in order to ensure that
@@ -4608,4 +4637,158 @@ Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
 		return getClipOnScreen(y)->output;
 	}
 	return nullptr;
+}
+
+void SessionView::gridCoordsFromClip(Clip* clip, uint32_t& x, uint32_t& y) {
+	Output* track = clip->output;
+	auto maxTrack = gridTrackCount();
+	int32_t trackIndex = gridTrackIndexFromTrack(track, maxTrack);
+	x = gridXFromTrack(trackIndex);
+	y = gridYFromSection(clip->section);
+}
+
+// stop pulsing selected clip
+// called when exiting session view
+void SessionView::gridStopSelectedClipPulsing() {
+	uiTimerManager.unsetTimer(TimerName::SELECTED_CLIP_PULSE);
+	gridSelectedClipPulsing = false;
+	selectedClipForPulsing = nullptr;
+	gridResetSelectedClipPulseProgress();
+}
+
+// reset blend position for pulse
+void SessionView::gridResetSelectedClipPulseProgress() {
+	progress = kMinProgress;
+	blendDirection = 1;
+	gridSelectedClipRenderedColour = RGB::monochrome(0);
+}
+
+// render pulse for selected clip
+void SessionView::gridSelectClipForPulsing(Clip* clip) {
+	// save the selected clip so that we don't override the pulsed colour when re-rendering grid
+	gridResetSelectedClipPulseProgress();
+	selectedClipForPulsing = clip;
+}
+
+// check if we should stop pulsing
+bool SessionView::gridCheckForPulseStop() {
+	// don't render pulse if we're in another view
+	if (getCurrentUI() != this) {
+		return true;
+	}
+	// don't render pulse if we're in row view
+	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+		return true;
+	}
+	// don't render pulse if we're transiting from session view to another view
+	else if (currentUIMode == UI_MODE_EXPLODE_ANIMATION) {
+		return true;
+	}
+	return false;
+}
+
+static const uint32_t pulseUIModes[] = {UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MODE_CREATING_CLIP, 0};
+
+void SessionView::gridPulseSelectedClip() {
+	if (gridSelectedClipPulsing) {
+		// check if we should stop pulsing
+		if (gridCheckForPulseStop()) {
+			return gridStopSelectedClipPulsing();
+		}
+
+		// is UI mode valid for pulsing?
+		if (isUIModeWithinRange(pulseUIModes)) {
+			Clip* currentClip = getCurrentClip();
+			Output* currentOutput = nullptr;
+			if (currentClip) {
+				currentOutput = currentClip->output;
+			}
+
+			// don't render pulse if you're holding record or the clip is armed and flashing
+			// don't render pulse if the track color has not been set yet
+			if (currentClip && currentOutput->colour && !viewingRecordArmingActive
+			    && !(view.clipArmFlashOn && currentClip->armState != ArmState::OFF)) {
+				// get the X, Y coordinates of the current clip
+				uint32_t selectedClipX;
+				uint32_t selectedClipY;
+				gridCoordsFromClip(currentClip, selectedClipX, selectedClipY);
+				// don't render pulse if clip is scrolled out of view (coords = - 1)
+				if (selectedClipX != -1 && selectedClipY != -1) {
+					// pulse if:
+					// A) you're not holding a pad
+					// or
+					// B) you're holding a pad that's different from the selected clip
+					if (currentUIMode == UI_MODE_NONE
+					    || (gridFirstPressedX != selectedClipX || gridFirstPressedY != selectedClipY)) {
+
+						// save the selected clip so that we don't override the pulsed colour when re-rendering grid
+						selectedClipForPulsing = currentClip;
+
+						// get the clip's colour, which can be different from the track colour
+						RGB clipColour =
+						    gridRenderClipColor(selectedClipForPulsing, selectedClipX, selectedClipY, false);
+
+						// get the track colour so we can compare the clip colour to it
+						// to see if clip colour is dimmer or not
+						RGB trackColour = RGB::fromHue(currentOutput->colour);
+
+						// get the blur color that we will be pulsing towards (from the clip colour)
+						RGB blurColour = trackColour.forBlur();
+
+						int32_t maxProgressForBlur;
+						int32_t blendOffsetForBlur;
+
+						// if colours are equal, then clip pad is not dim
+						if (clipColour == trackColour) {
+							maxProgressForBlur = kMaxProgressFull;
+							blendOffsetForBlur = blendOffsetFull;
+						}
+						// clip pad is dim
+						else {
+							maxProgressForBlur = kMaxProgressDim;
+							blendOffsetForBlur = blendOffsetDim;
+						}
+
+						// adjust blend offset for direction (are we pulsing towards blur or clip colour)
+						blendOffsetForBlur *= blendDirection;
+
+						// dim the clip colour we're pulsing from to increase the pulse range
+						// red needs a greater brightness range than other colours
+						int32_t brightnessAdjustment = trackColour == colours::red ? 4 : 3;
+						clipColour = clipColour.adjust(255, brightnessAdjustment);
+
+						// calculate progress (position in pulse slider)
+						// ensuring that we do not go outside min/max of the blend range
+						progress = std::clamp(progress + blendOffsetForBlur, kMinProgress, maxProgressForBlur);
+
+						// save the colour to be rendered as this will be used if grid view needs to refresh
+						gridSelectedClipRenderedColour = RGB::blend(clipColour, blurColour, 65536 - progress);
+
+						// we pulse back and forth between min and max of pulse range
+						// so if we reach either end of the range, we need to reverse the direction
+						// we do that by multiplying the blendOffset by a negative blend direction
+						if (progress == maxProgressForBlur || progress == kMinProgress) {
+							blendDirection *= -1;
+						}
+
+						// update grid image with new colour for the pulsed clip pad
+						PadLEDs::writeToGrid(selectedClipX, selectedClipY, gridSelectedClipRenderedColour.r,
+						                     gridSelectedClipRenderedColour.g, gridSelectedClipRenderedColour.b);
+
+						// action the colour change / render the pulse on the grid
+						PadLEDs::sendOutMainPadColours();
+					}
+				}
+			}
+		}
+	}
+	// initialize pulse variables if we're just setting up the timer
+	else {
+		selectedClipForPulsing = nullptr;
+		gridResetSelectedClipPulseProgress();
+		gridSelectedClipPulsing = true;
+	}
+
+	// set pulse timer so that uiTimerManager comes back here to continue the pulsing
+	uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
 }

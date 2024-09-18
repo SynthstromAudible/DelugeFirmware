@@ -158,6 +158,9 @@ public:
 	// convert instrument clip to audio clip
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
 
+	// pulse selected clip in grid view
+	void gridPulseSelectedClip();
+
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
 	// no dispatch logic.
@@ -208,7 +211,7 @@ private:
 	bool gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 
-	RGB gridRenderClipColor(Clip* clip);
+	RGB gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool renderPulse = true);
 
 	ActionResult gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
@@ -263,6 +266,7 @@ private:
 	int32_t gridTrackIndexFromX(uint32_t x, uint32_t maxTrack);
 	Output* gridTrackFromX(uint32_t x, uint32_t maxTrack);
 	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
+	void gridCoordsFromClip(Clip* clip, uint32_t& x, uint32_t& y);
 
 	inline void gridSetDefaultMode() {
 		switch (FlashStorage::defaultGridActiveMode) {
@@ -278,6 +282,24 @@ private:
 	}
 	void setupTrackCreation() const;
 	void exitTrackCreation();
+
+	// selected clip pulsing in grid view
+	void gridStopSelectedClipPulsing();                // disable selected clip pulsing
+	void gridResetSelectedClipPulseProgress();         // reset blend position for pulse
+	void gridSelectClipForPulsing(Clip* clip);         // render pulse for selected clip
+	bool gridCheckForPulseStop();                      // check if we should stop pulsing
+	bool gridSelectedClipPulsing = false;              // are we doing any pulsing
+	Clip* selectedClipForPulsing = nullptr;            // selected clip we are pulsing
+	RGB gridSelectedClipRenderedColour;                // last pulse colour we rendered
+	int32_t kMinProgress = 1;                          // min position to reach in blend slider
+	int32_t kMaxProgressFull = (65535 / 100) * 60;     // max position to reach for unmuted clip
+	int32_t kMaxProgressDim = 1000;                    // max position to reach for muted clip
+	int32_t kPulseRate = 50;                           // speed of timer in ms
+	int32_t kBlendRate = 60;                           // speed of blending colours
+	int32_t blendOffsetFull = kPulseRate * kBlendRate; // amount to move slider for unmuted clip
+	int32_t blendOffsetDim = kPulseRate;               // amount to move slider for muted clip
+	int32_t blendDirection = 1;                        // direction we're blending towards
+	int32_t progress = 0;                              // pulse blend slider position
 };
 
 extern SessionView sessionView;
