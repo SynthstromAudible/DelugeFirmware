@@ -18,6 +18,11 @@
 
 #### <ins>Song Grid View</ins>
 - Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
+- Added ability to move tracks in grid view by `selecting and holding any clip in a grid track` and `turning the horizontal encoder (<>)`.
+- Added ability to move clips within tracks in grid view by `selecting and holding a clip in a grid track` and `turning the vertical encoder`.
+- Moved the shortcut to change track colour in grid view to `Shift` + `Hold Clip` + `Turn horizontal encoder (<>)`.
+- Moved the shortcut to change track colour gradient in grid view to `Shift` + `Hold Clip` + `Turn vertical encoder`.
+- The selected clip in `Song Grid View` (which is the last clip you interacted with), now shows a `pulsing / breathing` animation whereby the clip clip will faded in and out between it's clip colour and a blurred version of the clip's colour.
 
 #### <ins>Instrument Clip View</ins>
 
