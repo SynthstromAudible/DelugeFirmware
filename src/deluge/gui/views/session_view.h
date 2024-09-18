@@ -217,6 +217,13 @@ private:
 	ActionResult gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip);
 	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
 
+	// Grid Horizontal / Vertical Scroll Encoder Actions
+	ActionResult gridChangeTrackColour(int32_t offsetX, int32_t offsetY);
+	ActionResult gridHandleClipMove(int32_t offsetY);
+	ActionResult gridHandleTrackMove(int32_t offsetX);
+	bool gridHandleVerticalScroll(int32_t offsetY);
+	bool gridHandleHorizontalScroll(int32_t offsetX, bool movingTrack = false);
+
 	void gridTransitionToSessionView();
 	void gridTransitionToViewForClip(Clip* clip);
 
@@ -229,6 +236,11 @@ private:
 	int32_t gridSecondPressedX = -1;
 	int32_t gridSecondPressedY = -1;
 	inline bool gridSecondPadInactive() { return (gridSecondPressedX == -1 && gridSecondPressedY == -1); }
+
+	int32_t gridMovePressX = -1;
+	int32_t gridMovePressY = -1;
+	bool gridMovedClip = false;
+	bool gridMovedTrack = false;
 
 	inline void gridResetPresses(bool first = true, bool second = true) {
 		if (first) {

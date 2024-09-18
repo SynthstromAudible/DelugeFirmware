@@ -678,6 +678,11 @@ ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t 
 	}
 
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		// if we just moved a clip or a track, we want to ignore other presses, other than the release
+		// of the clip or track we selected
+		if ((gridMovedClip && yDisplay != gridMovePressY) || (gridMovedTrack && xDisplay != gridMovePressX)) {
+			return ActionResult::DEALT_WITH;
+		}
 		return gridHandlePads(xDisplay, yDisplay, on);
 	}
 
@@ -1374,6 +1379,15 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 		}
 
+		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+			// For safety, is used in verticalScrollOneSquare on clip copy
+			if (sdRoutineLock) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			return gridHandleScroll(0, offset);
+		}
+
 		// Change row colour by pressing row & shift - same shortcut as in clip view.
 		if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 		    && (Buttons::isShiftButtonPressed() || clipWasSelectedWithShift)) {
@@ -1387,15 +1401,6 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 			requestRendering(this, 1 << selectedClipYDisplay, 0);
 
 			return ActionResult::DEALT_WITH;
-		}
-
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			// For safety, is used in verticalScrollOneSquare on clip copy
-			if (sdRoutineLock) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
-			return gridHandleScroll(0, offset);
 		}
 
 		return verticalScrollOneSquare(offset);
@@ -3781,6 +3786,19 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	else {
 		gridActiveModeUsed = true;
 
+		// if we just moved a clip, then the clip we were pressing may have moved locations
+		if (gridMovedClip) {
+			y = gridFirstPressedY;
+			gridMovedClip = false;
+			gridMovePressY = -1;
+		}
+		// if we just moved a track, then the clip we were pressing may have moved locations
+		if (gridMovedTrack) {
+			x = gridFirstPressedX;
+			gridMovedTrack = false;
+			gridMovePressX = -1;
+		}
+
 		Clip* clip = gridClipFromCoords(x, y);
 		ActionResult modeHandleResult = ActionResult::NOT_DEALT_WITH;
 		switch (gridModeActive) {
@@ -4278,41 +4296,263 @@ char const* SessionView::getMacroKindString(SessionMacroKind kind) {
 }
 
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
-	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetY != 0) {
-		auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
-		if (track != nullptr) {
-			if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
-				track->colour += offsetY;
-				if (track->colour == 0) {
-					track->colour += offsetY;
-				}
-			}
-			else {
-				track->colour = static_cast<int16_t>(track->colour + (colourStep * offsetY) + 192) % 192;
-			}
-			requestRendering(this);
-		}
-
-		return ActionResult::DEALT_WITH;
+	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
+	    && (Buttons::isShiftButtonPressed() || clipWasSelectedWithShift)) {
+		return gridChangeTrackColour(offsetX, offsetY);
 	}
-
-	if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
-		gridResetPresses();
-		clipPressEnded();
-	}
-
-	// Fix the range
-	currentSong->songGridScrollY =
-	    std::clamp<int32_t>(currentSong->songGridScrollY - offsetY, 0, kMaxNumSections - kGridHeight);
-	currentSong->songGridScrollX = std::clamp<int32_t>(currentSong->songGridScrollX + offsetX, 0,
-	                                                   std::max<int32_t>(0, (gridTrackCount() - kDisplayWidth) + 1));
 
 	// This is the right place to add new features like moving clips or tracks :)
+	bool movingClip = (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetY != 0);
+	bool movingTrack = (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetX != 0);
+
+	ActionResult result;
+
+	if (movingClip) {
+		result = gridHandleClipMove(offsetY);
+	}
+	else if (movingTrack) {
+		result = gridHandleTrackMove(offsetX);
+	}
+	else {
+		gridHandleVerticalScroll(offsetY);
+		gridHandleHorizontalScroll(offsetX);
+		result = ActionResult::DEALT_WITH;
+	}
 
 	// use root UI in case this is called from performance view
 	requestRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
 	view.flashPlayEnable();
+
+	return result;
+}
+
+ActionResult SessionView::gridChangeTrackColour(int32_t offsetX, int32_t offsetY) {
+	auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
+	if (track != nullptr) {
+		// this changes the track colour gradient (colours between each full colour)
+		if (offsetY != 0) {
+			track->colour += offsetY;
+			if (track->colour == 0) {
+				track->colour += offsetY;
+			}
+		}
+		// this changes the track colour from one colour to the next
+		else if (offsetX != 0) {
+			track->colour = static_cast<int16_t>(track->colour + (colourStep * offsetX) + 192) % 192;
+		}
+		requestRendering(this);
+	}
+
 	return ActionResult::DEALT_WITH;
+}
+
+ActionResult SessionView::gridHandleClipMove(int32_t offsetY) {
+	Clip* clipToMove = gridClipFromCoords(gridFirstPressedX, gridFirstPressedY);
+	bool doVerticalScroll = true;
+	// if you're holding a clip and you want to move it up
+	// and it's not in the top row yet, don't scroll up
+	if (offsetY >= 0 && gridFirstPressedY < (kDisplayHeight - 1)) {
+		doVerticalScroll = false;
+	}
+	// if you're holding a clip and you want to move it down
+	// and it's not in the bottom row yet, don't scroll down
+	else if (offsetY < 0 && gridFirstPressedY > 0) {
+		doVerticalScroll = false;
+	}
+
+	// used below to decide whether to adjust the Y coordinate of the pad we're pressing
+	// so that when we later move the pad or release the pad, it's done from the right pad location
+	bool didAnyScrolling = doVerticalScroll ? gridHandleVerticalScroll(offsetY) : false;
+
+	ActionResult result = ActionResult::NOT_DEALT_WITH;
+
+	// see if we should change clip position
+	// if you're trying to move a clip up but it's already in the top section
+	// then no need to do anything
+	if (offsetY >= 0 && clipToMove->section == 0) {
+		result = ActionResult::DEALT_WITH;
+	}
+	// if you're trying to move a clip down but it's already in the bottom section
+	// then no need to do anything
+	else if (offsetY < 0 && clipToMove->section == (kMaxNumSections - 1)) {
+		result = ActionResult::DEALT_WITH;
+	}
+
+	if (sdRoutineLock) {
+		result = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	if (result == ActionResult::NOT_DEALT_WITH) {
+		// save the original coordinates of the press
+		if (gridMovePressY == -1) {
+			gridMovePressY = gridFirstPressedY;
+		}
+
+		actionLogger.deleteAllLogs();
+
+		Clip* clipToSwapWith = nullptr;
+		int32_t y = gridFirstPressedY;
+		// did we do any scrolling?
+		if (didAnyScrolling) {
+			clipToSwapWith = gridClipFromCoords(gridFirstPressedX, y);
+		}
+		// didn't do any scrolling
+		else {
+			if (offsetY >= 0) { // Up
+				y++;
+				clipToSwapWith = gridClipFromCoords(gridFirstPressedX, y);
+			}
+			else { // down
+				y--;
+				clipToSwapWith = gridClipFromCoords(gridFirstPressedX, y);
+			}
+		}
+		// save the current section as we'll be potentially swapping it with another clip's section
+		auto currentSection = clipToMove->section;
+		uint8_t newSection = 255;
+		// are we moving the clip into a pad that already has a clip in it?
+		// if yes, then we'll be swapping sections with that clip
+		if (clipToSwapWith) {
+			newSection = clipToSwapWith->section;
+			clipToSwapWith->section = currentSection;
+		}
+		// if we're moving the clip into an empty pad, then we're just going to change its section
+		else {
+			newSection = gridSectionFromY(y);
+		}
+		// set the new section for the clip we moved
+		clipToMove->section = newSection;
+		// save the y coordinate for the pad the clip is now in
+		gridFirstPressedY = y;
+		// set this flag to true so that we know later to use gridFirstPressedY
+		// also this will be used to ignore any other presses that happen while we're moving this clip
+		gridMovedClip = true;
+		result = ActionResult::DEALT_WITH;
+	}
+
+	return result;
+}
+
+ActionResult SessionView::gridHandleTrackMove(int32_t offsetX) {
+	Output* trackToMove = gridTrackFromX(gridFirstPressedX, gridTrackCount());
+	bool doHorizontalScroll = true;
+	// if you're holding a track and you want to move it right
+	// and it's not in the last column yet, don't scroll right
+	if (offsetX >= 0 && gridFirstPressedX < (kDisplayWidth - 1)) {
+		doHorizontalScroll = false;
+	}
+	// if you're holding a track and you want to move it left
+	// and it's not in the first column yet, don't scroll left
+	else if (offsetX < 0 && gridFirstPressedX > 0) {
+		doHorizontalScroll = false;
+	}
+
+	// used below to decide whether to adjust the X coordinate of the pad we're pressing
+	// so that when we later move the pad or release the pad, it's done from the right pad location
+	bool didAnyScrolling = doHorizontalScroll ? gridHandleHorizontalScroll(offsetX, true) : false;
+
+	ActionResult result = ActionResult::NOT_DEALT_WITH;
+
+	// attempt to change track position
+	if (offsetX >= 0) { // Right
+		// in grid view, the furthest right track corresponds to the first output
+		// if we are the furthest right track, then we can't move it right any further
+		if (currentSong->firstOutput == trackToMove) {
+			result = ActionResult::DEALT_WITH;
+		}
+	}
+	else { // Left
+		// in grid view, the furhest left track corresponds to the last output
+		// if there's no track to the left, then we can't move it left any furhter
+		if (trackToMove->next == NULL) {
+			result = ActionResult::DEALT_WITH;
+		}
+	}
+
+	if (sdRoutineLock) {
+		result = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	if (result == ActionResult::NOT_DEALT_WITH) {
+		// save the original coordinates of the press
+		if (gridMovePressX == -1) {
+			gridMovePressX = gridFirstPressedX;
+		}
+
+		actionLogger.deleteAllLogs();
+
+		// Shift Output Right
+		if (offsetX >= 0) {
+			Output** prevPointer = &currentSong->firstOutput;
+			while ((*prevPointer)->next != trackToMove) {
+				prevPointer = &((*prevPointer)->next);
+			}
+			Output* lower = (*prevPointer);
+			*prevPointer = trackToMove;
+			lower->next = trackToMove->next;
+			trackToMove->next = lower;
+			// did we do any scrolling?
+			// if we didn't scroll and we moved the track right, then the track has changed positions
+			// save the X coordinate that the track is currently in
+			if (!didAnyScrolling) {
+				gridFirstPressedX++;
+			}
+		}
+
+		// Shift Output Left
+		else {
+			Output** prevPointer = &currentSong->firstOutput;
+			while (*prevPointer != trackToMove) {
+				prevPointer = &((*prevPointer)->next);
+			}
+			Output* higher = trackToMove->next;
+			*prevPointer = higher;
+			trackToMove->next = higher->next;
+			higher->next = trackToMove;
+			// did we do any scrolling?
+			// if we didn't scroll and we moved the track left, then the track has changed positions
+			// save the X coordinate that the track is currently in
+			if (!didAnyScrolling) {
+				gridFirstPressedX--;
+			}
+		}
+		// set this flag to true so that we know later to use gridFirstPressedX
+		// also this will be used to ignore any other presses that happen while we're moving this clip
+		gridMovedTrack = true;
+		result = ActionResult::DEALT_WITH;
+	}
+
+	return result;
+}
+
+bool SessionView::gridHandleVerticalScroll(int32_t offsetY) {
+	// save current scroll so we can check if we've done any scrolling
+	int32_t currentGridScrollY = currentSong->songGridScrollY;
+
+	currentSong->songGridScrollY =
+	    std::clamp<int32_t>(currentSong->songGridScrollY - offsetY, 0, kMaxNumSections - kGridHeight);
+
+	if (currentSong->songGridScrollY != currentGridScrollY) {
+		return true;
+	}
+
+	return false;
+}
+
+bool SessionView::gridHandleHorizontalScroll(int32_t offsetX, bool movingTrack) {
+	// save current scroll so we can check if we've done any scrolling
+	int32_t currentGridScrollX = currentSong->songGridScrollX;
+
+	int32_t numOfEmptyTracksToShow = movingTrack ? 0 : 1;
+	currentSong->songGridScrollX =
+	    std::clamp<int32_t>(currentSong->songGridScrollX + offsetX, 0,
+	                        std::max<int32_t>(0, (gridTrackCount() - kDisplayWidth) + numOfEmptyTracksToShow));
+
+	if (currentSong->songGridScrollX != currentGridScrollX) {
+		return true;
+	}
+
+	return false;
 }
 
 void SessionView::gridTransitionToSessionView() {
