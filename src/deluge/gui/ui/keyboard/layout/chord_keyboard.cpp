@@ -222,12 +222,13 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 			}
 		}
 	}
-	if (state.autoVoiceLeading) {
-		image[0][kDisplayWidth - 1] = colours::green;
-	}
-	else {
-		image[0][kDisplayWidth - 1] = colours::red;
-	}
+	// TODO: Enable auto voice leading when it is implemented more fully
+	// if (state.autoVoiceLeading) {
+	// 	image[0][kDisplayWidth - 1] = colours::green;
+	// }
+	// else {
+	// 	image[0][kDisplayWidth - 1] = colours::red;
+	// }
 	image[kDisplayHeight - 1][kDisplayWidth - 1] =
 	    mode == ChordKeyboardMode::ROW ? colours::blue : colours::blue.forTail(); // Row mode
 	image[kDisplayHeight - 2][kDisplayWidth - 1] =
@@ -236,14 +237,15 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 
 void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	KeyboardStateChord& state = getState().chord;
-	if (x == kDisplayWidth - 1 && y == 0) {
-		state.autoVoiceLeading = !state.autoVoiceLeading;
-		if (state.autoVoiceLeading) {
-			char const* shortLong[2] = {"AUTO", "Auto Voice Leading: Beta"};
-			display->displayPopup(shortLong);
-		}
-	}
-	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
+	// TODO: Enable auto voice leading when it is implemented more fully
+	// if (x == kDisplayWidth - 1 && y == 0) {
+	// 	state.autoVoiceLeading = !state.autoVoiceLeading;
+	// 	if (state.autoVoiceLeading) {
+	// 		char const* shortLong[2] = {"AUTO", "Auto Voice Leading: Beta"};
+	// 		display->displayPopup(shortLong);
+	// 	}
+	// }
+	if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
 		mode = ChordKeyboardMode::ROW;
 		char const* shortLong[2] = {"ROW", "Chord Row Mode"};
 		display->displayPopup(shortLong);
