@@ -120,8 +120,7 @@ void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
-	KeyboardStateChord& state = getState().chord;
-	state.modOffset += offset;
+	offsetPads(offset, false);
 }
 
 void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
@@ -129,6 +128,10 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
+	offsetPads(offset, shiftEnabled);
+}
+
+void KeyboardLayoutChord::offsetPads(int32_t offset, bool shiftEnabled) {
 	if (shiftEnabled) {
 		if (mode == ChordKeyboardMode::ROW) {
 			mode = ChordKeyboardMode::COLUMN;
@@ -136,11 +139,10 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 		else {
 			mode = ChordKeyboardMode::ROW;
 		}
+		offset = 0;
 	}
-	else {
-		KeyboardStateChord& state = getState().chord;
-		state.scaleOffset += offset;
-	}
+	KeyboardStateChord& state = getState().chord;
+	state.scaleOffset += offset;
 	precalculate();
 }
 

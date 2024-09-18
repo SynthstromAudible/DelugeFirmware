@@ -63,6 +63,7 @@ protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
+	void offsetPads(int32_t offset, bool shiftEnabled);
 	uint8_t noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount);
 	void evaluatePadsRow(PressedPad pressed);
 	void evaluatePadsColumn(PressedPad pressed);
