@@ -76,7 +76,8 @@ private:
 	    colours::blue, colours::purple, colours::green, colours::kelly::very_light_blue,
 	    colours::cyan, colours::yellow};
 
-	std::array<RGB, kOctaveSize + kDisplayHeight + kDisplayWidth> noteColours;
+	std::array<int32_t, kOctaveSize + kDisplayHeight + kDisplayWidth> qualities;
+
 	std::array<int32_t, kDisplayWidth - 1> scaleSteps = {
 	    SCALEFIRST,
 	    SCALEFIFTH,

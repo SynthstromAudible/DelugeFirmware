@@ -34,7 +34,8 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	currentNotesState = NotesState{}; // Erase active notes
 	KeyboardStateChord& state = getState().chord;
 
-	for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
+	// We run through the presses in reverse order to display the most recent pressed chord on top
+	for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; idxPress--) {
 
 		PressedPad pressed = presses[idxPress];
 		if (!pressed.active) {
@@ -86,26 +87,12 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 	int32_t octaveDisplacement = (int32_t)floor(float(pressed.x + state.scaleOffset) / scaleNotes.count());
 	int32_t steps = scaleNotes[mod(pressed.x + state.scaleOffset, scaleNotes.count())];
 	int32_t root = getRootNote() + state.noteOffset + steps;
-
 	NoteSet scaleMode = scaleNotes.modulateByOffset(kOctaveSize - steps);
 	ChordQuality quality = getChordQuality(scaleMode);
 	auto chords = *chordColumns[static_cast<int>(quality)];
-	Chord chord{0};
-	int32_t chordIdx = 0;
-	int32_t chordNo = 0;
-	// This loop is to find the pressed.y in-scale chord (mod chords.size())
-	while (chordNo <= pressed.y) {
-		chord = chords[chordIdx % chords.size()];
-		if (chord.name == kEmptyChord.name) {
-			chordIdx = 0;
-			chord = chords[chordIdx];
-		}
-		NoteSet intervalSet = chord.intervalSet;
-		NoteSet modulatedNoteSet = intervalSet.modulateByOffset(mod(root, kOctaveSize));
-		if (modulatedNoteSet.isSubsetOf(scaleNotes)) {
-			chordNo++;
-		}
-		chordIdx++;
+	Chord chord = chords[pressed.y % chords.size()];
+	if (chord.name == kEmptyChord.name) {
+		return;
 	}
 
 	Voicing voicing = chord.voicings[0];
@@ -181,12 +168,13 @@ void KeyboardLayoutChord::precalculate() {
 		lastScale = currentScale;
 		NoteSet& scaleNotes = getScaleNotes();
 
-		for (int32_t i = 0; i < noteColours.size(); ++i) {
+		for (int32_t i = 0; i < qualities.size(); ++i) {
 			// Since each row is an degree of our scale, if we modulate by the inverse of the scale note,
 			//  we get the scale modes.
 			NoteSet scaleMode = scaleNotes.modulateByOffset((kOctaveSize - scaleNotes[i % scaleNotes.count()]));
 			ChordQuality chordQuality = getChordQuality(scaleMode);
-			noteColours[i] = qualityColours[static_cast<int>(chordQuality)];
+			int32_t quality = static_cast<int32_t>(chordQuality);
+			qualities[i] = quality;
 		}
 	}
 }
@@ -207,10 +195,18 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 				}
 				int32_t noteIdx = mod(idx + state.scaleOffset, scaleNotes.count());
 				if (noteIdx == 0) {
-					image[y][x] = noteColours[noteIdx];
+					image[y][x] = qualityColours[qualities[noteIdx]];
 				}
 				else {
-					image[y][x] = noteColours[noteIdx].forTail();
+					image[y][x] = qualityColours[qualities[noteIdx]].forTail();
+				}
+				if (mode == ChordKeyboardMode::COLUMN) {
+					int32_t quality = qualities[noteIdx];
+					auto chords = *chordColumns[quality];
+					Chord chord = chords[y % chords.size()];
+					if (chord.name == kEmptyChord.name) {
+						image[y][x] = colours::black;
+					}
 				}
 			}
 			if ((x == kDisplayWidth - 1) && (mode == ChordKeyboardMode::ROW)) {
