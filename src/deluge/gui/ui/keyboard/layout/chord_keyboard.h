@@ -37,6 +37,7 @@ const int32_t SCALESEVENTH = 6;
 const int32_t SCALEOCTAVE = 7;
 
 enum class ChordKeyboardMode { ROW, COLUMN };
+const int32_t kChordKeyboardColumns = 14;
 
 /// @brief Represents a keyboard layout for chord-based input.
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
@@ -64,6 +65,7 @@ protected:
 
 private:
 	void offsetPads(int32_t offset, bool shiftEnabled);
+	void handleControlButton(int32_t x, int32_t y);
 	uint8_t noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount);
 	void evaluatePadsRow(PressedPad pressed);
 	void evaluatePadsColumn(PressedPad pressed);
