@@ -55,7 +55,7 @@ public:
 	char const* name() override { return "Chord"; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
-	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }
+	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }
 
 	ChordKeyboardMode mode = ChordKeyboardMode::ROW;
 
