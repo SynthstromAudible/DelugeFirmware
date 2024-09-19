@@ -202,12 +202,24 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 		    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
 		    || (!accessibility && Buttons::isButtonPressed(deluge::hid::button::X_ENC));
 
-		// If holding <> encoder down...
-		if (isRestartShortcutPressed) {
+		bool isArrangementPadPressed = isArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
+		// placeholders:
+		// isSongPadPressed = restart playhead in song view
+		// isClipPadPressed = restart playhead in clip view
 
+		bool isSequencerPadPressed = isArrangementPadPressed; // add isSongPadPressed and isClipPadPressed here
+
+		// If holding restart shortcut down...
+		// or holding pad in arranger view (and eventually song and clip views)
+		if (isRestartShortcutPressed || isSequencerPadPressed) {
 			// If wanting to switch into arranger...
 			if (currentPlaybackMode == &session && isArrangerView) {
-				arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+				if (isArrangementPadPressed) {
+					arrangementPosToStartAtOnSwitch = arrangerView.lastInteractedArrangementPos;
+				}
+				else {
+					arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+				}
 				session.armForSwitchToArrangement();
 				if (display->haveOLED()) {
 					renderUIsForOled();
@@ -220,7 +232,6 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 
 			// Otherwise, if internal clock, restart playback
 			else {
-
 				if (isInternalClockActive() && recording != RecordingMode::ARRANGEMENT) {
 					forceResetPlayPos(currentSong);
 				}
@@ -323,28 +334,34 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	bool accessibility =
 	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AccessibilityShortcuts) == RuntimeFeatureStateToggle::On;
 
-	bool isRestartShortcutPressed = (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
-	                                || (!accessibility && Buttons::isButtonPressed(deluge::hid::button::X_ENC));
+	bool startFromCurrentScreenPressed =
+	    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
+	    || (!accessibility && Buttons::isButtonPressed(deluge::hid::button::X_ENC));
 
-	/*
-	Allow playback to start from current scroll if:
-	    1) horizontal encoder (<>) or cross screen is held and alternative playback start behaviour is disabled or
-	restarting playback 2) or horizontal encoder (<>) or cross screen is not held and alternative playback start
-	behaviour is enabled 3) or if you're in arranger view and in cross screen auto scrolling mode
-	*/
-	if ((isRestartShortcutPressed && (!alternativePlaybackStartBehaviour || restartingPlayback))
-	    || (!isRestartShortcutPressed && alternativePlaybackStartBehaviour)
-	    || (isArrangerView && (recording == RecordingMode::NORMAL || currentSong->arrangerAutoScrollModeActive))) {
+	bool recordingToArranger = isArrangerView && (recording == RecordingMode::NORMAL);
+	bool inArrangerCrossScreen = isArrangerView && currentSong->arrangerAutoScrollModeActive;
+	bool isArrangementPadPressed = isArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
 
-		int32_t navSys;
-		// we might not need this but just always grab it for simplicity
-		if (rootUI && rootUI->toTimelineView()) {
-			navSys = ((TimelineView*)rootUI)->getNavSysId();
-		}
-		else {
-			navSys = NAVIGATION_CLIP; // Keyboard view will cause this case
-		}
-
+	int32_t navSys;
+	// we might not need this but just always grab it for simplicity
+	if (rootUI && rootUI->toTimelineView()) {
+		navSys = ((TimelineView*)rootUI)->getNavSysId();
+	}
+	else {
+		navSys = NAVIGATION_CLIP; // Keyboard view will cause this case
+	}
+	// playback command - restart should always restart, regardless of what else you're doing. play command follows play
+	// button logic
+	if (restartingPlayback) {
+		newPos = 0;
+	}
+	// second priority - if you're holding an arranger pad then restart from there
+	else if (isArrangementPadPressed) {
+		newPos = arrangerView.lastInteractedArrangementPos;
+	}
+	// next is <> + play, or recording into arranger - start from the current left edge scroll position
+	// this is good even for cross screen playback since the last cursor position isn't visible
+	else if (startFromCurrentScreenPressed || recordingToArranger || inArrangerCrossScreen) {
 		newPos = currentSong->xScroll[navSys];
 	}
 
@@ -2386,7 +2403,7 @@ void PlaybackHandler::resyncInternalTicksToInputTicks(Song* song) {
 }
 
 // This is that special MIDI command for Todd T
-void PlaybackHandler::forceResetPlayPos(Song* song) {
+void PlaybackHandler::forceResetPlayPos(Song* song, bool restartingPlayback) {
 	if (playbackState) {
 
 		endPlayback();
@@ -2396,7 +2413,7 @@ void PlaybackHandler::forceResetPlayPos(Song* song) {
 		}
 
 		else {
-			setupPlaybackUsingInternalClock(0, false, true);
+			setupPlaybackUsingInternalClock(0, false, restartingPlayback);
 		}
 	}
 }
@@ -2646,7 +2663,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 			switch (command) {
 			case GlobalMIDICommand::PLAYBACK_RESTART:
 				if (recording != RecordingMode::ARRANGEMENT) {
-					forceResetPlayPos(currentSong);
+					forceResetPlayPos(currentSong, true);
 				}
 				break;
 

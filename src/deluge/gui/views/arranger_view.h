@@ -114,6 +114,8 @@ public:
 	uint8_t lastInteractedSection;
 	ClipInstance* lastInteractedClipInstance;
 
+	int32_t lastInteractedArrangementPos;
+
 	int32_t lastTickSquare;
 
 	int32_t xScrollWhenPlaybackStarted;

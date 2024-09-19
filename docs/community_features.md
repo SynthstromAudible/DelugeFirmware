@@ -336,6 +336,10 @@ which track to record from. To run the instrument through the audio clip's FX ch
   - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
 - Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`.
 
+### 3.29 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
+- ([#2615]) Added ability to start / restart arrangement playback from the clip pad you're holding in arranger view.
+  - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:

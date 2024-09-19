@@ -97,6 +97,8 @@ ArrangerView::ArrangerView() {
 	lastInteractedPos = -1;
 	lastInteractedSection = 0;
 	lastInteractedClipInstance = nullptr;
+
+	lastInteractedArrangementPos = -1;
 }
 
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
@@ -1254,6 +1256,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 			// No previous press
 			if (currentUIMode == UI_MODE_NONE) {
 				createNewClipInstance(output, x, y, squareStart, squareEnd, xScroll);
+				lastInteractedArrangementPos = squareStart;
 			}
 
 			// Already pressing - length edit

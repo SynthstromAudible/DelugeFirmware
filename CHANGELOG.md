@@ -13,6 +13,8 @@
 ### User Interface
 
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+- Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
+  - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
 ## c1.2.0 Chopin
 
