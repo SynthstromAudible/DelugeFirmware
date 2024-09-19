@@ -516,11 +516,14 @@ void MidiEngine::sendMidi(MIDISource source, uint8_t statusType, uint8_t channel
 		sendSerialMidi(statusType, channel, data1, data2);
 	}
 
+	// the midi loopback feature is disabled until serious bugs can be resolved
+	/*
 	// Send loopback (other than clock/sysex) to delly
 	if (currentSong->midiLoopback && statusType != 0x0F
 	    && MIDIDeviceManager::loopbackMidi.wantsToOutputMIDIOnChannel(channel, filter)) {
-		midiMessageReceived(&MIDIDeviceManager::loopbackMidi, statusType, channel, data1, data2, 0);
+	    midiMessageReceived(&MIDIDeviceManager::loopbackMidi, statusType, channel, data1, data2, 0);
 	}
+	*/
 
 	--eventStackTop_;
 }
@@ -1095,7 +1098,8 @@ void MidiEngine::midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType,
 
 	// Do MIDI-thru if that's on and we didn't decide not to, above. This will let clock messages through along with all
 	// other messages, rather than using our special clock-specific system
-	if (shouldDoMidiThruNow && fromDevice != &MIDIDeviceManager::loopbackMidi) {
+	if (shouldDoMidiThruNow) { // && fromDevice != &MIDIDeviceManager::loopbackMidi) { // this feature is disabled until
+		                       // serious bugs can be resolved
 		// Only send out on USB if it didn't originate from USB
 		bool shouldSendUSB = (fromDevice == &MIDIDeviceManager::dinMIDIPorts);
 		// TODO: reconsider interaction with MPE?

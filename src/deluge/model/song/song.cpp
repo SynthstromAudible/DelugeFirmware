@@ -169,8 +169,9 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	paramsInAutomationMode = false;
 
+	// the midi loopback feature is disabled until serious bugs can be resolved
 	// default to off
-	midiLoopback = false;
+	// midiLoopback = false;
 
 	// Setup reverb temp variables
 	reverbRoomSize = (float)30 / 50;
@@ -1122,7 +1123,8 @@ weAreInArrangementEditorOrInClipInstance:
 	globalEffectable.writeAttributesToFile(writer, false);
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("midiLoopback", midiLoopback);
+	// the midi loopback feature is disabled until serious bugs can be resolved
+	// writer.writeAttribute("midiLoopback", midiLoopback);
 	writer.writeAttribute("songGridScrollX", songGridScrollX);
 	writer.writeAttribute("songGridScrollY", songGridScrollY);
 	writer.writeAttribute("sessionLayout", sessionLayout);
@@ -1602,10 +1604,13 @@ unknownTag:
 				reader.exitTag("affectEntire");
 			}
 
+			// the midi loopback feature is disabled until serious bugs can be resolved
+			/*
 			else if (!strcmp(tagName, "midiLoopback")) {
-				midiLoopback = reader.readTagOrAttributeValueInt();
-				reader.exitTag("midiLoopback");
+			    midiLoopback = reader.readTagOrAttributeValueInt();
+			    reader.exitTag("midiLoopback");
 			}
+			*/
 
 			else if (!strcmp(tagName, "lastSelectedParamID")) {
 				lastSelectedParamID = reader.readTagOrAttributeValueInt();
