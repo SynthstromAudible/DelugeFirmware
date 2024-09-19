@@ -45,7 +45,6 @@ const char* functionNames[][2] = {
     /* SCALE_MODE  */ {"SMOD", "Scales"},
     /* DX          */ {"DX", "DX operators"},
     /* SESSION     */ {"SONG", "song macros"},
-    /* KEYBOARD_CONTROL */ {"CTRL", "Keyboard Control"},
     /* BEAT_REPEAT */ {"BEAT", "Beat Repeat"},
 };
 
@@ -213,8 +212,6 @@ ControlColumn* ColumnControlState::getColumnForFunc(ColumnControlFunction func) 
 		return &dxColumn;
 	case SESSION:
 		return &sessionColumn;
-	case KEYBOARD_CONTROL:
-		return &keyboardControlColumn;
 	}
 	return nullptr;
 }
@@ -237,8 +234,6 @@ const char* columnFunctionToString(ColumnControlFunction func) {
 		return "dx";
 	case SESSION:
 		return "session";
-	case KEYBOARD_CONTROL:
-		return "keyboard_control";
 	}
 	return "";
 }
@@ -267,9 +262,6 @@ ColumnControlFunction stringToColumnFunction(char const* string) {
 	}
 	else if (!strcmp(string, "session")) {
 		return SESSION;
-	}
-	else if (!strcmp(string, "keyboard_control")) {
-		return KEYBOARD_CONTROL;
 	}
 	else {
 		return VELOCITY; // unknown column, just pick the default
