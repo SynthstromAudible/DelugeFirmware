@@ -57,14 +57,16 @@ void Selection::renderSubmenuItemTypeForOled(int32_t yPixel) {
 
 	if (isToggle()) {
 		if (getToggleValue()) {
-			image.drawGraphicMultiLine(deluge::hid::display::OLED::checkedBoxIcon, startX, yPixel, 7);
+			image.drawGraphicMultiLine(deluge::hid::display::OLED::checkedBoxIcon, startX, yPixel,
+			                           kSubmenuIconSpacingX);
 		}
 		else {
-			image.drawGraphicMultiLine(deluge::hid::display::OLED::uncheckedBoxIcon, startX, yPixel, 7);
+			image.drawGraphicMultiLine(deluge::hid::display::OLED::uncheckedBoxIcon, startX, yPixel,
+			                           kSubmenuIconSpacingX);
 		}
 	}
 	else {
-		image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, 7);
+		image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, kSubmenuIconSpacingX);
 	}
 }
 

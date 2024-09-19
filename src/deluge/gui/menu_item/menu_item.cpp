@@ -71,5 +71,5 @@ void MenuItem::renderSubmenuItemTypeForOled(int32_t yPixel) {
 
 	int32_t startX = getSubmenuItemTypeRenderIconStart();
 
-	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, 7);
+	image.drawGraphicMultiLine(deluge::hid::display::OLED::submenuArrowIcon, startX, yPixel, kSubmenuIconSpacingX);
 }
