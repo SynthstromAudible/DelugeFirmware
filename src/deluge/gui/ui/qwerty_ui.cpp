@@ -142,7 +142,7 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 		}
 	}
 	else {
-		canvas.invertArea(highlightStartX, highlightWidth, yPixel, yPixel + kTextSpacingY - 1);
+		canvas.invertArea(highlightStartX - 1, highlightWidth, yPixel, yPixel + kTextSpacingY - 1);
 	}
 }
 
