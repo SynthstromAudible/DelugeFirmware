@@ -6,9 +6,18 @@
 
 ### User Interface
 
-- Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+#### <ins>Accessibility</ins>
+- Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes include:
+  - `Shortcuts (SHOR)` to make specific shortcut combinations more accessible for users with mobility restrictions.
+    - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
+  - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
+
+#### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
+
+#### <ins>Automation View</ins>
+- Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
 
 ## c1.2.0 Chopin
 
@@ -37,11 +46,6 @@
 
 #### <ins>General</ins>
 - The maximum zoom level for timelines has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
-- Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
-  - With playback off, pressing `PLAY` will start playback from the current grid scroll position
-  - With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
-- Added community feature toggle `Accessibility Shortcuts (ACCE)` to make specific shortcut combinations more accessible for users with mobility restrictions. Currently only one accessibility change has been made:
-  - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
 
 #### <ins>Menu UI Improvements</ins>
 - For toggle (ON/OFF) menus, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
