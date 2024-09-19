@@ -347,9 +347,6 @@
     - Clips not in scale mode are unaffected (similar to the existing transpose behaviour from the encoders).
     - Configureable in `SETTINGS > MIDI > TRANSPOSE` between chromatic and in-scale transposition.
 
-#### <ins>Loopback</ins>
-- Added a `MIDI LOOPBACK` mode, accessible in the SONG menu, which directs MIDI data from internal MIDI clips back to the Deluge input.
-
 #### <ins>Select Kit Row</ins>
 - Added a new global setting, `MIDI > SELECT KIT ROW`, which causes MIDI notes sent to kits to select the corresponding learned row.
 
