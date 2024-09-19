@@ -15,18 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/context_menu/configure_song_macros.h"
+#include "gui/context_menu/midi_learn_mode.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/views/session_view.h"
 
-namespace deluge::gui::menu_item::song_macros {
-class Configure final : public MenuItem {
+namespace deluge::gui::menu_item::song {
+class MidiLearn final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 
 	MenuItem* selectButtonPress() override {
-		gui::context_menu::configureSongMacros.setupAndCheckAvailability();
-		openUI(&gui::context_menu::configureSongMacros);
+		gui::context_menu::midiLearnMode.setupAndCheckAvailability();
+		openUI(&gui::context_menu::midiLearnMode);
 		return NO_NAVIGATION;
 	}
 
@@ -36,4 +36,4 @@ public:
 		return (getRootUI() == &sessionView);
 	}
 };
-} // namespace deluge::gui::menu_item::song_macros
+} // namespace deluge::gui::menu_item::song
