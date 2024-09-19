@@ -179,13 +179,7 @@ doEndMidiLearnPressSession:
 		}
 
 		if (on) {
-			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN) {
-				thingPressedForMidiLearn = MidiLearn::NONE;
-				shouldSaveSettingsAfterMidiLearn = false;
-				currentUIMode = UI_MODE_MIDI_LEARN;
-				midiLearnFlash();
-				indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1);
-			}
+			startMIDILearn();
 		}
 		else {
 			endMIDILearn();
@@ -445,6 +439,16 @@ possiblyRevert:
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+void View::startMIDILearn() {
+	if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN) {
+		thingPressedForMidiLearn = MidiLearn::NONE;
+		shouldSaveSettingsAfterMidiLearn = false;
+		currentUIMode = UI_MODE_MIDI_LEARN;
+		midiLearnFlash();
+		indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1);
+	}
 }
 
 void View::endMIDILearn() {

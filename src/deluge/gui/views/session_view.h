@@ -126,6 +126,7 @@ public:
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
+	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 	// ui
 	UIType getUIType() { return UIType::SESSION; }
@@ -138,7 +139,10 @@ public:
 	void enterMacrosConfigMode();
 	void exitMacrosConfigMode();
 	char const* getMacroKindString(SessionMacroKind kind);
-	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+
+	// Midi learn mode
+	void enterMidiLearnMode();
+	void exitMidiLearnMode();
 
 	// display tempo
 	void displayPotentialTempoChange(UI* ui);
@@ -188,6 +192,7 @@ private:
 	void renderLayoutChange(bool displayPopup = true);
 	void selectSpecificLayout(SessionLayoutType layout);
 	SessionLayoutType previousLayout;
+	SessionGridMode previousGridModeActive;
 
 	bool sessionButtonActive = false;
 	bool sessionButtonUsed = false;
@@ -208,6 +213,7 @@ private:
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip);
+	void gridHandlePadsWithMidiLearnPressed(int32_t x, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip);
 	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
 

@@ -575,6 +575,7 @@ The Song menu contains the following menu hierarchy:
 	- None
 </details>
 <details><summary>Configure Macros (MACR)</summary></details>
+<details><summary>Midi Learn (MIDI)</summary></details>
 <details><summary>Audio Export (EXPO)</summary>
 
 	- Start Export (EXPO)
