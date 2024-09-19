@@ -926,6 +926,9 @@ constexpr int32_t kTextBigSizeY = 13;
 constexpr int32_t kTextHugeSpacingX = 18;
 constexpr int32_t kTextHugeSizeY = 20;
 
+// submenu icons
+constexpr int32_t kSubmenuIconSpacingX = 7;
+
 constexpr int32_t kNoteForDrum = 60;
 
 enum BendRange {

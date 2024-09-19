@@ -125,9 +125,14 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 	canvas.drawString(&displayName[scrollPosHorizontal], xPixel, yPixel, kTextSpacingX, kTextSpacingY, 0,
 	                  xPixel + maxNumChars * kTextSpacingX);
 
-	int32_t highlightStartX = xPixel + kTextSpacingX * (enteredTextEditPos - scrollPosHorizontal);
-	// int32_t highlightEndX = xPixel + TEXT_SIZE_X * (displayStringLength - scrollPosHorizontal);
-	// if (highlightEndX > OLED_MAIN_WIDTH_PIXELS || !enteredTextEditPos) highlightEndX = OLED_MAIN_WIDTH_PIXELS;
+	int32_t highlightStartX;
+	int32_t scrollAmount = enteredTextEditPos - scrollPosHorizontal;
+	if (FlashStorage::accessibilityMenuHighlighting && !scrollAmount) {
+		highlightStartX = 0;
+	}
+	else {
+		highlightStartX = xPixel + kTextSpacingX * scrollAmount - 1;
+	}
 	int32_t highlightWidth = xPixelMax - highlightStartX;
 
 	if (atVeryEnd) {
@@ -138,7 +143,7 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 		}
 	}
 	else {
-		canvas.invertArea(highlightStartX, highlightWidth, yPixel, yPixel + kTextSpacingY - 1);
+		canvas.invertLeftEdgeForMenuHighlighting(highlightStartX, highlightWidth, yPixel, yPixel + kTextSpacingY - 1);
 	}
 }
 

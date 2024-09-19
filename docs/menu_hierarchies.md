@@ -385,6 +385,21 @@ NOTE: These options can change depending on how your default resolution is set
 	- KB View Sidebar Menu Exit (EXIT)
 		- OFF
 		- ON
+	- Launch Event Playhead (PLAY)
+		- OFF
+		- ON
+	- Chord Keyboards (CHRD)
+		- OFF
+		- ON
+	- Alternative Playback Start Behaviour (STAR)
+		- OFF
+		- ON
+	- Accessibility Shortcuts (ACCE)
+		- OFF
+		- ON
+	- Grid View Loop Pads (LOOP)
+		- OFF
+		- ON
 </details>
 
 Firmware Version (FIRM)
@@ -522,6 +537,9 @@ The Song menu contains the following menu hierarchy:
 			- Disabled (OFF)
 			- Enabled (ON)
 		- Song FX (SONG)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Offline Rendering (OFFR)
 			- Disabled (OFF)
 			- Enabled (ON)
 </details>
