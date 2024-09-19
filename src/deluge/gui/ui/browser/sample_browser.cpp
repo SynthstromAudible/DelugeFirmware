@@ -574,7 +574,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
 
 		if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
-			// Feature: if Learn has been engaged, then the file will be auto-loaded into the current instrument
+			// Feature: if Learn has been toggled on, then the file will be auto-loaded into the current instrument
 			// as if you had confirmed with Select encoder, but keeping the browser open.
 			claimCurrentFile(1, 1, 1, true);
 		}
