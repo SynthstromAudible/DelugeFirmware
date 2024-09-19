@@ -998,9 +998,7 @@ to each individual note onset. ([#1978])
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
   documentation: [Chord Keyboard Documentation]
 
-- ([#2475]) Enables `CHORD` keyboard, in in-scale chord view with two modes, `ROW`, with chords spread out on each row across the pads, and `COLUMN`, where each column is a series a harmonically similar chords that can often sound nice substited for each other. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press `SELECT` + `KEYBOARD` to cycle through layouts to find the `CHORD` keyboard layout.
-
-- When entering the `CHORD` keyboard, your left sidebar will turn into a keyboard control sidebar to change settings for the `CHORD` keyboard. At the top of the side bar, there is a blue pad that turns on `ROW` mode and a purple pad that turns on `COLUMN` mode. The default is `ROW` mode.
+- ([#2475]) Enables `CHORD` keyboard, out of scale view with two modes, `ROW`, with chords spread out on each row across the pads, and `COLUMN`, where each column is a series a harmonically similar chords that can often sound nice substited for each other. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press `SELECT` + `KEYBOARD` to cycle through layouts to find the `CHORD` keyboard layout.
 
 - As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
 

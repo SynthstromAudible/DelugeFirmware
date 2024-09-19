@@ -40,16 +40,16 @@ The Chord Keyboard Layout is designed to facilitate the creation and exploration
     - Augmented: Greyish Blue
     - Other: Yellow
 
-- **Auto Voice Leading:** 
-  - A toggleable feature that keeps all the notes within a chord in the same octave, simplifying transitions between chords. (Note: This feature is currently in beta, with future improvements planned.)
-
 - **Controls:**
-  - **Left Sidebar:**
-    - Because the Chord Keyboard has more features than other keyboard layouts, the left sidebar is used to house additional controls. Currently it includes controls for switching between Row Mode and Column Mode, as well as toggling Auto Voice Leading, with more features planned for the future. When you enter the Chord Keyboard, the left sidebar will switch to a Chord Keyboard-specific control sidebar, and when exiting the Chord Keyboard, it will return to the sidebar you were using before entering the Chord Keyboard.
-    - At the top of the sidebar, you can select the current mode (`ROW` and `COLUMN`) by pressing the corresponding pad. It defaults to Row Mode.
-        - `SHIFT` + `◀︎▶︎` will also cycle through the `ROW` and `COLUMN` mode.
-    - Below the mode selection, you can toggle Auto Voice Leading on and off. It defaults to off.
-  - turning `◀︎▶︎` will cycle through the scale degrees (modes of your scale). `▼︎▲︎` modulates the entire `CHORD` keyboard up or down. 
+  - **Embedded Controls:**
+    - Because the Chord Keyboard has more features than other keyboard layouts, embedded into the right couple columns of the main grid is are controls. Currently it includes controls for switching between Row Mode and Column Mode, with more features planned for the future.
+    - At the top of the right most main grid column, you can select the current mode (`ROW` and `COLUMN`) by pressing the corresponding pad. It defaults to Row Mode.
+      - In addition, you can use `SHIFT` + `◀︎▶︎` to also cycle through the `ROW` and `COLUMN` mode.
+  - turning either `◀︎▶︎` or  `▼︎▲︎` will move up or down by scale degrees.
+
+##### Scale Considerations
+
+The Chord Keyboard is currently limited to scales that are modes of the major scale. (Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, and Locrian scales).
 
 ---
 
@@ -70,3 +70,7 @@ The Chord Library Layout provides a comprehensive library of chords, making it e
 
 - **Voicing Adjustment:**
   - Holding a pad on a row and pressing the horizontal encoder allows you to change the voicing for all the chords in that row simultaneously.
+
+##### Scale Considerations
+
+The Chord Library will show chords utilizing both notes entirely in your current scale and not. With the current implementation of accidentals in the Deluge, if you record chords while in scale mode with out of scale notes, these will be added to your scale. A future update will hopefully make this work better.
