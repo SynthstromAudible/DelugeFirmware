@@ -176,7 +176,7 @@ void JsonSerializer::writeTagNameAndSeperator(char const* tag) {
 }
 
 void JsonSerializer::writeOpeningTag(char const* tag, bool startNewLineAfter, bool box) {
-	writeOpeningTagBeginning(tag, box);
+	writeOpeningTagBeginning(tag, box, false);
 	writeOpeningTagEnd(startNewLineAfter);
 }
 

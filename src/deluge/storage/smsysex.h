@@ -6,7 +6,7 @@ namespace smSysex {
 
 const uint32_t MAX_PATH_NAME_LEN = 255;
 
-int openFIL(const char* fPath, bool forWrite, FRESULT* eCode);
+int openFIL(const char* fPath, bool forWrite, uint32_t* fsize, FRESULT* eCode);
 FRESULT closeFIL(int fx);
 int32_t findEmptyFIL();
 

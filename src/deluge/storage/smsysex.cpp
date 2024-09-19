@@ -31,6 +31,7 @@ const uint32_t MAX_OPEN_FILES = 4;
 struct FILdata {
 	String fName;
 	int32_t filID;
+	uint32_t fSize = 0;
 	bool fileOpen = false;
 	bool forWrite = false;
 	FIL file;
@@ -68,7 +69,7 @@ void smSysex::sendMsg(MIDIDevice* device, JsonSerializer& writer) {
 	device->sendSysex((const uint8_t*)bitz, bw);
 }
 
-int smSysex::openFIL(const char* fPath, bool forWrite, FRESULT* eCode) {
+int smSysex::openFIL(const char* fPath, bool forWrite, uint32_t* fsize, FRESULT* eCode) {
 	int32_t fx = findEmptyFIL();
 	if (fx == -1)
 		return -1;
@@ -83,6 +84,7 @@ int smSysex::openFIL(const char* fPath, bool forWrite, FRESULT* eCode) {
 	if (err == FRESULT::FR_OK) {
 		fp->fileOpen = true;
 		fp->forWrite = forWrite;
+		fp->fSize = f_size(&fp->file);
 		return fx;
 	}
 	return -1;
@@ -95,6 +97,7 @@ FRESULT smSysex::closeFIL(int fx) {
 	FRESULT err = f_close(&fp->file);
 	fp->fileOpen = false;
 	fp->forWrite = false;
+	fp->fSize = 0;
 	return err;
 }
 
@@ -117,10 +120,18 @@ void smSysex::openFile(MIDIDevice* device, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 	FRESULT errCode;
-	int fd = openFIL(path.get(), forWrite, &errCode);
+	uint32_t fSize = 0;
+	int fd = openFIL(path.get(), forWrite, &fSize, &errCode);
+	FILdata* fp = NULL;
+	if (fd > 0)
+		fp = openFiles + (fd - 1);
+	if (fp != NULL) {
+		fSize = fp->fSize;
+	}
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^open", false, true);
 	jWriter.writeAttribute("fid", fd);
+	jWriter.writeAttribute("size", fSize);
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
 
@@ -261,20 +272,28 @@ void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	if (fid > 0 && fid <= MAX_OPEN_FILES) {
 		fp = openFiles + (fid - 1);
 	}
-
+	if (fp == NULL) {
+		errCode = FRESULT::FR_NOT_ENABLED;
+	}
 	UINT actuallyRead = 0;
 	uint8_t* srcAddr = (uint8_t*)addr;
+	if (errCode == FRESULT::FR_OK) {
+		if (!readBlockBuffer && fp) {
+			readBlockBuffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(blockBufferMax);
+		}
 
-	if (!readBlockBuffer && fp) {
-		readBlockBuffer = (uint8_t*)GeneralMemoryAllocator::get().allocLowSpeed(blockBufferMax);
+		if (readBlockBuffer && fp) {
+			errCode = f_lseek(&fp->file, addr);
+			if (errCode == FRESULT::FR_OK) {
+				errCode = f_read(&fp->file, readBlockBuffer, size, &actuallyRead);
+				size = actuallyRead;
+				srcAddr = readBlockBuffer;
+			}
+		}
 	}
-
-	if (readBlockBuffer && fp) {
-		errCode = f_read(&fp->file, readBlockBuffer, size, &actuallyRead);
-		size = actuallyRead;
-		srcAddr = readBlockBuffer;
+	else {
+		size = 0;
 	}
-
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^read", false, true);
 	jWriter.writeAttribute("fid", fid);
@@ -286,6 +305,9 @@ void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	jWriter.writeByte(0); // spacer between Json and encoded block.
 
 	uint8_t working[8];
+	if (size == 0) {
+		D_PRINTLN("Read size 0");
+	}
 	for (uint32_t ix = 0; ix < size; ix += 7) {
 		int pktSize = 7;
 		if (ix + pktSize > size) {
