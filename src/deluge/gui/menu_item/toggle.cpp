@@ -45,7 +45,7 @@ void Toggle::drawPixelsForOled() {
 		canvas.drawString(name, kTextSpacingX, yPixel, kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
-			canvas.invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
+			canvas.invertLeftEdgeForMenuHighlighting(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
 			deluge::hid::display::OLED::setupSideScroller(0, name, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
 			                                              yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}

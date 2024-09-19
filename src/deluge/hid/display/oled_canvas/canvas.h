@@ -173,10 +173,18 @@ public:
 	/// Invert an area of the canvas.
 	///
 	/// @param xMin Minimum X coordinate, inclusive
-	/// @param width Width of the region to invert. End coordinate is excluded, I think.
+	/// @param width Width of the region to invert. End coordinate is excluded.
 	/// @param startY Minimum Y coordinate, inclusive
 	/// @param endY Maximum Y coordinate, inclusive
 	void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
+
+	/// Invert just the left edge of the canvas.
+	///
+	/// @param xMin Minimum X coordinate, inclusive
+	/// @param width Width of the region to invert. End coordinate is excluded.
+	/// @param startY Minimum Y coordinate, inclusive
+	/// @param endY Maximum Y coordinate, inclusive
+	void invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
 
 	/// @}
 

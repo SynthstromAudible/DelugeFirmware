@@ -135,7 +135,7 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 		// if you've selected a menu item, invert the area to show that it is selected
 		// and setup scrolling in case that menu item is too long to display fully
 		if (o == selectedOption) {
-			image.invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
+			image.invertLeftEdgeForMenuHighlighting(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
 			deluge::hid::display::OLED::setupSideScroller(0, menuItem->getName(), kTextSpacingX, endX, yPixel,
 			                                              yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}

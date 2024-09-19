@@ -12,9 +12,18 @@
 
 ### User Interface
 
-- Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+#### <ins>Accessibility</ins>
+- Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes include:
+  - `Shortcuts (SHOR)` to make specific shortcut combinations more accessible for users with mobility restrictions.
+    - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
+  - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
+
+#### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
+
+#### <ins>Automation View</ins>
+- Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
 
 ## c1.2.0 Chopin
 

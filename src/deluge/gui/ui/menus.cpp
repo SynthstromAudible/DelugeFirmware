@@ -983,6 +983,19 @@ Submenu defaultUISession{
     {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
 };
 
+ToggleBool defaultAccessibilityShortcuts{STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
+                                         STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
+                                         FlashStorage::accessibilityShortcuts};
+ToggleBool defaultAccessibilityMenuHighlighting{STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
+                                                STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
+                                                FlashStorage::accessibilityMenuHighlighting};
+
+Submenu defaultAccessibilityMenu{STRING_FOR_DEFAULT_ACCESSIBILITY,
+                                 {
+                                     &defaultAccessibilityShortcuts,
+                                     &defaultAccessibilityMenuHighlighting,
+                                 }};
+
 defaults::ui::clip_type::DefaultNewClipType defaultNewClipTypeMenu{STRING_FOR_DEFAULT_NEW_CLIP_TYPE,
                                                                    STRING_FOR_DEFAULT_NEW_CLIP_TYPE};
 ToggleBool defaultUseLastClipTypeMenu{STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE,
@@ -996,7 +1009,7 @@ Submenu defaultClipTypeMenu{STRING_FOR_DEFAULT_CLIP_TYPE,
 
 Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {&defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu},
+    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu},
 };
 
 ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,

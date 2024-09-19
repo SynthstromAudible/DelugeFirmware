@@ -188,8 +188,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 	else {
 		D_PRINTLN("~Play");
 
-		bool accessibility = runtimeFeatureSettings.get(RuntimeFeatureSettingType::AccessibilityShortcuts)
-		                     == RuntimeFeatureStateToggle::On;
+		bool accessibility = FlashStorage::accessibilityShortcuts;
 
 		RootUI* rootUI = getRootUI();
 
@@ -331,8 +330,7 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour)
 	    == RuntimeFeatureStateToggle::On;
 
-	bool accessibility =
-	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::AccessibilityShortcuts) == RuntimeFeatureStateToggle::On;
+	bool accessibility = FlashStorage::accessibilityShortcuts;
 
 	bool startFromCurrentScreenPressed =
 	    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))

@@ -186,11 +186,6 @@ void RuntimeFeatureSettings::init() {
 	                  STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
 	                  "alternativePlaybackStartBehaviour", RuntimeFeatureStateToggle::Off);
 
-	// AccessibilityShortcuts
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AccessibilityShortcuts],
-	                  STRING_FOR_COMMUNITY_FEATURE_ACCESSIBILITY_SHORTCUTS, "accessibilityShortcuts",
-	                  RuntimeFeatureStateToggle::Off);
-
 	// EnableGridViewLoopPads
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGridViewLoopPads],
 	                  STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS, "enableGridViewLoopPads",

@@ -58,7 +58,7 @@ void MenuItem::drawItemsForOled(std::span<std::string_view> options, const int32
 		image.drawString(options[o + offset], kTextSpacingX, yPixel, kTextSpacingX, kTextSpacingY);
 
 		if (o == selectedOption) {
-			image.invertArea(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
+			image.invertLeftEdgeForMenuHighlighting(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8);
 			deluge::hid::display::OLED::setupSideScroller(0, options[o + offset], kTextSpacingX, OLED_MAIN_WIDTH_PIXELS,
 			                                              yPixel, yPixel + 8, kTextSpacingX, kTextSpacingY, true);
 		}

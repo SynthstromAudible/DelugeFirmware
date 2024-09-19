@@ -236,6 +236,9 @@ std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 // more of flash.
 static_assert(NUM_PRESET_SCALES <= 16);
 
+bool accessibilityShortcuts = false;
+bool accessibilityMenuHighlighting = true;
+
 OutputType defaultNewClipType = OutputType::SYNTH;
 bool defaultUseLastClipType = true;
 
@@ -333,6 +336,9 @@ void resetSettings() {
 	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 
 	defaultDisabledPresetScales = {0};
+
+	accessibilityShortcuts = false;
+	accessibilityMenuHighlighting = true;
 
 	defaultNewClipType = OutputType::SYNTH;
 	defaultUseLastClipType = true;
@@ -714,6 +720,20 @@ void readSettings() {
 		defaultDisabledPresetScales = std::bitset<NUM_PRESET_SCALES>((buffer[173] << 8) | buffer[172]);
 	}
 
+	if (buffer[174] != 0 && buffer[174] != 1) {
+		accessibilityShortcuts = false;
+	}
+	else {
+		accessibilityShortcuts = buffer[174];
+	}
+
+	if (buffer[175] != 0 && buffer[175] != 1) {
+		accessibilityMenuHighlighting = false;
+	}
+	else {
+		accessibilityMenuHighlighting = buffer[175];
+	}
+
 	if (buffer[176] < 0 && buffer[176] > util::to_underlying(OutputType::AUDIO)) {
 		defaultNewClipType = OutputType::SYNTH;
 	}
@@ -727,6 +747,7 @@ void readSettings() {
 	else {
 		defaultUseLastClipType = buffer[177];
 	}
+
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -990,6 +1011,8 @@ void writeSettings() {
 	buffer[172] = 0xff & disabledBits;
 	buffer[173] = 0xff & (disabledBits >> 8);
 
+	buffer[174] = accessibilityShortcuts;
+	buffer[175] = accessibilityMenuHighlighting;
 	buffer[176] = util::to_underlying(defaultNewClipType);
 	buffer[177] = defaultUseLastClipType;
 
