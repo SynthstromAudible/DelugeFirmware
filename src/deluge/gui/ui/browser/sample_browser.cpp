@@ -471,8 +471,8 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		}
 	}
 
-	// Learn button: toggle autoload
-	else if (b == LEARN) {
+	// Learn button: toggle autoload (only for non-audioclips)
+	else if (b == LEARN && getCurrentClip()->type != ClipType::AUDIO) {
 		if (!on) {
 			autoLoadEnabled = !autoLoadEnabled;
 			indicator_leds::setLedState(IndicatorLED::LEARN, autoLoadEnabled);
