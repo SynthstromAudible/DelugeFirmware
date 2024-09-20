@@ -472,10 +472,10 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 	}
 
 	// Learn button: toggle autoload (only for non-audioclips)
-	else if (b == LEARN && getCurrentClip()->type != ClipType::AUDIO) {
+	else if (b == LOAD && getCurrentClip()->type != ClipType::AUDIO) {
 		if (!on) {
 			autoLoadEnabled = !autoLoadEnabled;
-			indicator_leds::setLedState(IndicatorLED::LEARN, autoLoadEnabled);
+			indicator_leds::setLedState(IndicatorLED::LOAD, autoLoadEnabled);
 		}
 	}
 
@@ -759,7 +759,7 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 // This display-> any (rare) specific errors generated, then spits out just a boolean success.
 // For the "may" arguments, 0 means no; 1 means auto; 2 means do definitely as the user has specifically requested it.
 bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
-                                     bool keepShowingSampleBrowser) {
+                                     bool loadWithoutExiting) {
 
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
@@ -1054,7 +1054,7 @@ doLoadAsSample:
 		}
 	}
 
-	if (!keepShowingSampleBrowser) {
+	if (!loadWithoutExiting) {
 		exitAndNeverDeleteDrum();
 		uiNeedsRendering(&audioClipView);
 	}
