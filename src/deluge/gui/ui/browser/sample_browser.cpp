@@ -887,8 +887,8 @@ doLoadAsWaveTable:
 
 		// Or if we want to first try doing it as a Sample (not a WaveTable)...
 		else {
-doLoadAsSample:
 			numTypesTried++;
+doLoadAsSample:
 
 			/*
 			// If multiple Ranges, then forbid the changing from WaveTable to Sample.
