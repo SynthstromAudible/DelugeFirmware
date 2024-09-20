@@ -20,8 +20,10 @@
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
 - Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
 
-#### <ins>Instrument View</ins>
-- Added Auto-Load feature to sample browser, so you can load to the instrument the sounds as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Learn` button.
+#### <ins>Instrument Clips</ins>
+
+##### Synth/Kit Clips
+- Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
 
 ### MIDI
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
