@@ -45,7 +45,7 @@
 
 ### MIDI
 
-#### <ins>General</ins>
+#### <ins>Sysex</ins>
 - Added Universal SysEx Identity response, including firmware version.
 
 #### <ins>MPE</ins>
