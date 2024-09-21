@@ -44,9 +44,16 @@
 - Added filters in FM synth mode. They're set to OFF by default, enable by changing them to any other mode using the menu or db/oct shortcut.
 
 ### MIDI
+
+#### <ins>General</ins>
 - Added Universal SysEx Identity response, including firmware version.
+
+#### <ins>MPE</ins>
 - Allow changing MPE y output to CC1 to support more synths
 - Removed MPE zone auto learn as a huge source of midi bugs, MPE must now be configured in the menu
+
+#### <ins>Loopback</ins>
+- Removed `MIDI LOOPBACK` feature as it included a number of bugs that could not be easily fixed in the feature's current state. This feature may be re-designed and re-introduced in the future when an implementation can be found that does not introduce bugs.
 
 ### User Interface
 
