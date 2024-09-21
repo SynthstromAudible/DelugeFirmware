@@ -199,6 +199,8 @@ add_executable(deluge)
 target_link_libraries(deluge PUBLIC
         argon
         etl::etl
+    tinyusb
+    tinyusb-rusb2
 )
 
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
@@ -327,13 +329,6 @@ set_target_properties(deluge
         ADDITIONAL_CLEAN_FILES ${BIN_FILE} ${MAP_FILE} ${HEX_FILE}
 )
 
-
-# tinyusb
-FetchContent_Declare(tinyusb
-  URL https://github.com/hathach/tinyusb/archive/refs/tags/0.17.0.tar.gz
-)
-FetchContent_MakeAvailable(tinyusb)
-add_subdirectory(${tinyusb_SOURCE_DIR}/src)
 
 # Deluge sources
 add_subdirectory(src)
