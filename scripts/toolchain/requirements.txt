@@ -1,5 +1,5 @@
 certifi==2024.8.30
-setuptools==74.1.2
+setuptools==75.1.0
 pyserial==3.5
 ansi==0.3.7
 python-rtmidi==1.5.8
