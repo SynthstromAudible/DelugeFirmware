@@ -505,6 +505,8 @@ moveAfterClipInstance:
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 					if (clip != nullptr) {
 						context_menu::clip_settings::clipSettings.clip = clip;
+						context_menu::clip_settings::clipSettings.clipX = gridFirstPressedX;
+						context_menu::clip_settings::clipSettings.clipY = gridFirstPressedY;
 						context_menu::clip_settings::clipSettings.setupAndCheckAvailability();
 						openUI(&context_menu::clip_settings::clipSettings);
 					}

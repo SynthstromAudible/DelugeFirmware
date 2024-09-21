@@ -14,8 +14,11 @@ public:
 	bool setupAndCheckAvailability();
 	bool canSeeViewUnderneath() override { return true; }
 	bool acceptCurrentOption() override; // If returns false, will cause UI to exit
+	void focusRegained() override;
 
 	Clip* clip = nullptr;
+	int32_t clipX = -1;
+	int32_t clipY = -1;
 
 	/// Title
 	char const* getTitle() override;
