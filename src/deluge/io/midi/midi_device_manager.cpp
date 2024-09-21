@@ -59,7 +59,6 @@ MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1{0};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2{1};
 MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3{2};
 MIDIDeviceDINPorts dinMIDIPorts{};
-// MIDIDeviceLoopback loopbackMidi{}; // this feature is disabled until serious bugs can be resolved
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
@@ -340,13 +339,6 @@ MIDIDevice* readDeviceReferenceFromFile(Deserializer& reader) {
 		}
 		else if (!strcmp(tagName, "port")) {
 			char const* port = reader.readTagOrAttributeValue();
-			// the midi loopback feature is disabled until serious bugs can be resolved
-			/*
-			if (!strcmp(port, "loopbackMidi")) {
-			    device = &loopbackMidi;
-			}
-			else
-			*/
 			if (!strcmp(port, "upstreamUSB")) {
 				device = &upstreamUSBMIDIDevice_port1;
 			}
@@ -394,12 +386,6 @@ void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const*
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
 		device = &upstreamUSBMIDIDevice_port3;
 	}
-	// the midi loopback feature is disabled until serious bugs can be resolved
-	/*
-	else if (vendorId == VENDOR_ID_LOOPBACK) {
-	    device = &loopbackMidi;
-	}
-	*/
 	else if (vendorId == VENDOR_ID_DIN) {
 		device = &dinMIDIPorts;
 	}
@@ -435,12 +421,6 @@ void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uin
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
 		device = &upstreamUSBMIDIDevice_port3;
 	}
-	// the midi loopback feature is disabled until serious bugs can be resolved
-	/*
-	else if (vendorId == VENDOR_ID_LOOPBACK) {
-	    device = &loopbackMidi;
-	}
-	*/
 	else if (vendorId == VENDOR_ID_DIN) {
 		device = &dinMIDIPorts;
 	}
@@ -474,12 +454,6 @@ void writeDevicesToFile() {
 	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
 		goto worthIt;
 	}
-	// the midi loopback feature is disabled until serious bugs can be resolved
-	/*
-	if (loopbackMidi.worthWritingToFile()) {
-	    goto worthIt;
-	}
-	*/
 
 	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -514,12 +488,6 @@ worthIt:
 	if (upstreamUSBMIDIDevice_port2.worthWritingToFile()) {
 		upstreamUSBMIDIDevice_port2.writeToFile(writer, "upstreamUSBDevice2");
 	}
-	// the midi loopback feature is disabled until serious bugs can be resolved
-	/*
-	if (loopbackMidi.worthWritingToFile()) {
-	    loopbackMidi.writeToFile(writer, "loopbackMidi");
-	}
-	*/
 
 	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -572,12 +540,6 @@ void readDevicesFromFile() {
 		else if (!strcmp(tagName, "upstreamUSBDevice3")) {
 			upstreamUSBMIDIDevice_port3.readFromFile(reader);
 		}
-		// the midi loopback feature is disabled until serious bugs can be resolved
-		/*
-		else if (!strcmp(tagName, "loopbackMidi")) {
-		    loopbackMidi.readFromFile(reader);
-		}
-		*/
 		else if (!strcmp(tagName, "hostedUSBDevice")) {
 			readAHostedDeviceFromFile(reader);
 		}

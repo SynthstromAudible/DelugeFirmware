@@ -126,12 +126,6 @@ MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
 	case -1: {
 		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port2;
 	}
-	// the midi loopback feature is disabled until serious bugs can be resolved
-	/*
-	case -1: {
-		return &MIDIDeviceManager::loopbackMidi;
-	}
-	*/
 	default: {
 		return static_cast<MIDIDevice*>(MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex));
 	}

@@ -27,7 +27,6 @@
 #define VENDOR_ID_DIN 2
 #define VENDOR_ID_UPSTREAM_USB2 3
 #define VENDOR_ID_UPSTREAM_USB3 4
-// #define VENDOR_ID_LOOPBACK 5 // this feature is disabled until serious bugs can be resolved
 
 #define MIDI_DIRECTION_INPUT_TO_DELUGE 0
 #define MIDI_DIRECTION_OUTPUT_FROM_DELUGE 1
@@ -244,17 +243,3 @@ public:
 	void sendSysex(const uint8_t* data, int32_t len) override;
 	int32_t sendBufferSpace() override;
 };
-
-// this feature is disabled until serious bugs can be resolved
-/*
-class MIDIDeviceLoopback final : public MIDIDevice {
-public:
-    MIDIDeviceLoopback() { connectionFlags = 1; }
-    void writeReferenceAttributesToFile(Serializer& writer);
-    void writeToFlash(uint8_t* memory);
-    char const* getDisplayName();
-    void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
-    void sendSysex(const uint8_t* data, int32_t len) override;
-    int32_t sendBufferSpace() override;
-};
-*/

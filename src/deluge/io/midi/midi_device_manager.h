@@ -23,7 +23,6 @@ class MIDIDevice;
 class MIDIDeviceUSBUpstream;
 class MIDIDeviceDINPorts;
 class MIDIDeviceUSB;
-// class MIDIDeviceLoopback; // this feature is disabled until serious bugs can be resolved
 class Serializer;
 class Deserializer;
 
@@ -117,7 +116,6 @@ extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3;
 extern MIDIDeviceDINPorts dinMIDIPorts;
-// extern MIDIDeviceLoopback loopbackMidi; // this feature is disabled until serious bugs can be resolved
 
 extern bool differentiatingInputsByDevice;
 

@@ -358,13 +358,6 @@ void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStac
 	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value, doingMidiThru);
-		// the midi loopback feature is disabled until serious bugs can be resolved
-		/*
-		namespace params = deluge::modulation::params;
-		if (fromDevice == &MIDIDeviceManager::loopbackMidi) {
-		    midiFollow.handleReceivedCC(*modelStackWithTimelineCounter, activeClip, ccNumber, value);
-		}
-		*/
 	}
 }
 // match external mod wheel to mono expression y, mpe cc74 to poly expression y
