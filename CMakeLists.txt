@@ -179,6 +179,10 @@ add_compile_options(
     -fdata-sections
     -DUSE_TASK_MANAGER
 
+    # TinyUSB config
+    -DCFG_TUSB_MCU=OPT_MCU_RZAXX
+    -DCFG_TUSB_OS=OPT_OS_NONE
+
     # C++ stuff
     $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
     $<$<COMPILE_LANGUAGE:CXX>:-fno-use-cxa-atexit>

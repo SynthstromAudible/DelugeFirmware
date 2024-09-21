@@ -72,6 +72,8 @@
 #include "util/pack.h"
 #include <stdlib.h>
 
+#include "tusb.h"
+
 #if AUTOMATED_TESTER_ENABLED
 #include "testing/automated_tester.h"
 #endif
@@ -112,6 +114,11 @@ int32_t voltageReadingLastTime = 65535 * 3300;
 uint8_t batteryCurrentRegion = 2;
 uint16_t batteryMV;
 bool batteryLEDState = false;
+
+// TODO: Move this to somewhere better
+void usb_int(uint32_t sense) {
+	tud_int_handler(0);
+}
 
 void batteryLEDBlink() {
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
@@ -853,6 +860,9 @@ extern "C" int32_t deluge_main(void) {
 	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
 		deluge::hid::display::swapDisplayType();
 	}
+
+	R_INTC_RegistIntFunc(INTC_ID_USBI0, usb_int);
+	tusb_init();
 
 	{
 		deluge::io::usb::USBAutoLock lock;
