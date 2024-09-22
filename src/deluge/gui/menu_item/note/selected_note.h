@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright (c) 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,29 +14,29 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
-
 #include "definitions_cxx.hpp"
-#include "model/consequence/consequence.h"
-#include <cstdint>
+#include "gui/menu_item/selection.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/views/instrument_clip_view.h"
+#include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
+#include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "model/song/song.h"
 
-class Note;
-
-class ConsequenceNoteExistence final : public Consequence {
+namespace deluge::gui::menu_item::note {
+class SelectedNote : public Integer {
 public:
-	ConsequenceNoteExistence(InstrumentClip* newClip, int32_t newNoteRowId, Note* note, ExistenceChangeType newType);
-	Error revert(TimeType time, ModelStack* modelStack) override;
+	using Integer::Integer;
 
-	InstrumentClip* clip;
-	int32_t noteRowId;
-	int32_t pos;
-	int32_t length;
-	int8_t velocity;
-	int8_t probability;
-	uint8_t lift;
-	int8_t iterance;
-	int8_t fill;
-
-	ExistenceChangeType type;
+	bool shouldEnterSubmenu() {
+		if (instrumentClipView.lastSelectedNoteXDisplay == 255 || instrumentClipView.lastSelectedNoteYDisplay == 255
+		    || instrumentClipView.lastSelectedNoteSquareInfo.isValid == false) {
+			display->displayPopup("Select Note");
+			return false;
+		}
+		return true;
+	}
 };
+} // namespace deluge::gui::menu_item::note

@@ -30,6 +30,14 @@ class Direction final : public Selection {
 public:
 	using Selection::Selection;
 
+	bool shouldEnterSubmenu() {
+		if (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor() && currentUIMode != UI_MODE_AUDITIONING) {
+			display->displayPopup("Select Row");
+			return false;
+		}
+		return true;
+	}
+
 	ModelStackWithNoteRow* getIndividualNoteRow(ModelStackWithTimelineCounter* modelStack) {
 		auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
 		if (!clip->affectEntire && clip->output->type == OutputType::KIT) {

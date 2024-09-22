@@ -796,6 +796,12 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CONVERT_TO_AUDIO, "Convert to Audio"},
         {STRING_FOR_CLIP_MODE, "Clip Mode"},
         {STRING_FOR_CLIP_NAME, "Clip Name"},
+        {STRING_FOR_NOTE_EDITOR, "Note Editor"},
+        {STRING_FOR_NOTE_EDITOR_VELOCITY, "Velocity"},
+        {STRING_FOR_NOTE_EDITOR_PROBABILITY, "Probability"},
+        {STRING_FOR_NOTE_EDITOR_ITERANCE, "Iterance"},
+        {STRING_FOR_NOTE_EDITOR_FILL, "Fill"},
+        {STRING_FOR_NOTE_ROW_EDITOR, "Row Editor"},
     },
 };
 } // namespace deluge::l10n::built_in

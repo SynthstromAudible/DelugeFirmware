@@ -34,6 +34,8 @@
 #define CORRESPONDING_NOTES_ADJUST_VELOCITY 0
 #define CORRESPONDING_NOTES_SET_PROBABILITY 1
 #define CORRESPONDING_NOTES_SET_VELOCITY 2
+#define CORRESPONDING_NOTES_SET_ITERANCE 3
+#define CORRESPONDING_NOTES_SET_FILL 4
 
 class InstrumentClip;
 class Song;
@@ -57,8 +59,10 @@ struct SquareInfo {
 	int32_t squareEndPos;
 	int32_t numNotes;
 	uint8_t squareType;
-	int32_t averageProbability;
 	int32_t averageVelocity;
+	int32_t probability;
+	int32_t iterance;
+	int32_t fill;
 	bool isValid{false};
 };
 
@@ -69,6 +73,8 @@ struct PendingNoteOn {
 	int32_t ticksLate;
 	uint8_t probability;
 	uint8_t velocity;
+	uint8_t iterance;
+	uint8_t fill;
 };
 
 struct PendingNoteOnList {
@@ -135,8 +141,10 @@ public:
 	Drum* drum;
 	DrumName* firstOldDrumName;
 	NoteVector notes;
-	// value for whole row
+	// values for whole row
 	uint8_t probabilityValue;
+	uint8_t iteranceValue;
+	uint8_t fillValue;
 	// These are deprecated, and only used during loading for compatibility with old song files
 	LearnedMIDI muteMIDICommand;
 	LearnedMIDI midiInput;
@@ -155,9 +163,11 @@ public:
 	/// compared with the time since this NoteRow started (i.e., time from the end during reversed playback).
 	uint32_t ignoreNoteOnsBefore_;
 
-	int32_t getDefaultProbability(ModelStackWithNoteRow* ModelStack);
-	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability,
-	                       ModelStackWithNoteRow* modelStack, Action* action);
+	int32_t getDefaultProbability();
+	int32_t getDefaultIterance();
+	int32_t getDefaultFill(ModelStackWithNoteRow* modelStack);
+	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, int32_t iterance,
+	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
 	                               bool allowingNoteTails);
 	Error addCorrespondingNotes(int32_t pos, int32_t length, uint8_t velocity, ModelStackWithNoteRow* modelStack,
