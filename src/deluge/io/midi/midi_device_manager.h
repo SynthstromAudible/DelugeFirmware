@@ -23,6 +23,7 @@ class MIDIDevice;
 class MIDIDeviceUSBUpstream;
 class MIDIDeviceDINPorts;
 class MIDIDeviceUSB;
+class StorageManager;
 class Serializer;
 class Deserializer;
 
