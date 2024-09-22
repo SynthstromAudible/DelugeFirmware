@@ -393,9 +393,6 @@ public:
 	void expectEvent() override;
 	TimelineCounter* getTimelineCounterToRecordTo() override;
 
-	// Whether this song wants notes/cc/etc from delly midi clips looped back
-	bool midiLoopback = false;
-
 	// Reverb params to be stored here between loading and song being made the active one
 	dsp::Reverb::Model model;
 	float reverbRoomSize;
