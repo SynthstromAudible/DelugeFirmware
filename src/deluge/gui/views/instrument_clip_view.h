@@ -21,6 +21,7 @@
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
 #include "util/d_string.h"
@@ -50,6 +51,8 @@ struct EditPadPress {
 	bool deleteOnDepress; // Can also mean to delete tail
 	uint8_t intendedVelocity;
 	uint8_t intendedProbability;
+	uint8_t intendedIterance;
+	uint8_t intendedFill;
 	bool deleteOnScroll;
 	bool isBlurredSquare;
 	bool mpeCachedYet;
@@ -93,10 +96,6 @@ public:
 
 	uint8_t getEditPadPressXDisplayOnScreen(uint8_t yDisplay);
 	void editPadAction(bool state, uint8_t yDisplay, uint8_t xDisplay, uint32_t xZoom);
-	void adjustVelocity(int32_t velocityChange);
-	void updateVelocityValue(int32_t& velocityValue, int32_t newVelocity);
-	void displayVelocity(int32_t velocityValue, int32_t velocityChange);
-	void popupVelocity(char const* displayString);
 	void mutePadPress(uint8_t yDisplay);
 	bool ensureNoteRowExistsForYDisplay(uint8_t yDisplay);
 	void recalculateColours();
@@ -118,8 +117,6 @@ public:
 	void cutAuditionedNotesToOne();
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	void editNoteRowLength(int32_t offset);
-	void rotateNoteRowHorizontally(int32_t offset);
 	void fillOffScreenImageStores();
 	void graphicsRoutine() override;
 
@@ -127,7 +124,6 @@ public:
 	void flashDefaultRootNote();
 	void selectEncoderAction(int8_t offset) override;
 	void doubleClipLengthAction();
-	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
 	void setSelectedDrum(Drum* drum, bool shouldRedrawStuff = true, Kit* selectedKit = nullptr,
 	                     bool shouldSendMidiFeedback = true);
 	bool isDrumAuditioned(Drum* drum);
@@ -171,9 +167,6 @@ public:
 	void createNewInstrument(OutputType instrumentType, bool is_fm = false);
 	void changeOutputType(OutputType newOutputType);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
-	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
-	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
-	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
 	bool getAffectEntire() override;
 	void checkIfAllEditPadPressesEnded(bool mayRenderSidebar = true);
@@ -186,11 +179,6 @@ public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override {
 		InstrumentClipMinder::renderOLED(canvas);
 	}
-
-	CopiedNoteRow* firstCopiedNoteRow;
-	int32_t copiedScreenWidth;
-	ScaleType copiedScaleType;
-	int16_t copiedYNoteOfBottomRow;
 
 	CopiedParamAutomation copiedParamAutomation;
 	// Sometimes the user will want to hold an audition pad without actually sounding the note, by holding an encoder
@@ -224,13 +212,71 @@ public:
 	// ui
 	UIType getUIType() override { return UIType::INSTRUMENT_CLIP; }
 
-	// public so they can be accessed by the velocity note editor in automation view
-	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
-	void adjustProbability(int32_t offset);
-	void setRowProbability(int32_t offset);
+	// note editor
+	bool enterNoteEditor();
+	void exitNoteEditor();
+	void handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on);
+	void deselectNoteAndGoUpOneLevel();
+	ActionResult handleNoteEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult handleNoteEditorHorizontalEncoderAction(int32_t offset);
+	ActionResult handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+
+	SquareInfo lastSelectedNoteSquareInfo;
+	int32_t lastSelectedNoteXDisplay;
+	int32_t lastSelectedNoteYDisplay;
+
+	// adjust note parameters
+	void adjustVelocity(int32_t velocityChange);
+	void updateVelocityValue(int32_t& velocityValue, int32_t newVelocity);
+	void displayVelocity(int32_t velocityValue, int32_t velocityChange);
+	void popupVelocity(char const* displayString);
+
+	void adjustNoteProbability(int32_t offset);
+	void adjustNoteIterance(int32_t offset);
+	void adjustNoteFill(int32_t offset);
+	void adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
+	                              int32_t parameterMaxValue);
+
+	// other note functions
 	void editNoteRepeat(int32_t offset);
 
-	// public so you can enter drum creator from keyboard view when creating a new kit
+	// blink selected note
+	void blinkSelectedNote(int32_t whichMainRows = 0);
+	void resetSelectedNoteBlinking();
+
+	// note row editor
+	bool enterNoteRowEditor();
+	void exitNoteRowEditor();
+	void handleNoteRowEditorSidebarPadAction(int32_t x, int32_t y, int32_t on);
+	void handleNoteRowEditorAuditionPadAction(int32_t y);
+	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
+
+	// adjust note row parameters
+	int32_t setNoteRowProbability(int32_t offset);
+	int32_t setNoteRowIterance(int32_t offset);
+	int32_t setNoteRowFill(int32_t offset);
+	int32_t setNoteRowParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
+	                                 int32_t parameterMaxValue);
+
+	// other note row functions
+	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
+	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
+	void editNumEuclideanEvents(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
+	void editNoteRowLength(int32_t offset);
+	void rotateNoteRowHorizontally(int32_t offset);
+	void editNoteRowLength(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay);
+	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
+
+	// blink selected note row
+	void blinkSelectedNoteRow(int32_t whichMainRows = 0);
+	void resetSelectedNoteRowBlinking();
+	bool noteRowFlashOn;
+	bool noteRowBlinking;
+
+	const char* getFillString(uint8_t fill);
+
+	// public for velocity keyboard view to access
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 
 private:
@@ -251,22 +297,28 @@ private:
 	std::array<RGB, kDisplayHeight> rowTailColour;
 	std::array<RGB, kDisplayHeight> rowBlurColour;
 
+	// note functions
+	void nudgeNotes(int32_t offset);
+	void displayProbability(uint8_t probability, bool prevBase);
+
+	// note row functions
+	void copyNotes();
+	void pasteNotes(bool overwriteExisting);
+	void deleteCopiedNoteRows();
+	CopiedNoteRow* firstCopiedNoteRow;
+	int32_t copiedScreenWidth;
+	ScaleType copiedScaleType;
+	int16_t copiedYNoteOfBottomRow;
+
+	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay,
+	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
+
 	Drum* getNextDrum(Drum* oldDrum, bool mayBeNone = false);
 	Drum* flipThroughAvailableDrums(int32_t newOffset, Drum* drum, bool mayBeNone = false);
 	NoteRow* createNewNoteRowForKit(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay,
 	                                int32_t* getIndex = NULL);
-	void displayProbability(uint8_t probability, bool prevBase);
-	void copyNotes();
-	void pasteNotes(bool overwriteExisting);
-	void deleteCopiedNoteRows();
-
 	void createDrumForAuditionedNoteRow(DrumType drumType);
-	void nudgeNotes(int32_t offset);
-
 	bool isRowAuditionedByInstrument(int32_t yDisplay);
-
-	void rotateNoteRowHorizontally(ModelStackWithNoteRow* modelStack, int32_t offset, int32_t yDisplay,
-	                               bool shouldDisplayDirectionEvenIfNoNoteRow = false);
 
 	// TEMPO encoder commands
 	void commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode);

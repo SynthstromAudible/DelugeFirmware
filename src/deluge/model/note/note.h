@@ -41,10 +41,20 @@ public:
 
 	inline int32_t getProbability() { return probability; }
 
+	inline void setIterance(int32_t newIterance) { iterance = newIterance; }
+
+	inline int32_t getIterance() { return iterance; }
+
+	inline void setFill(int32_t newFill) { fill = newFill; }
+
+	inline int32_t getFill() { return fill; }
+
 	//	void writeToFile();
 	int32_t length;
 	uint8_t velocity;
 	uint8_t probability;
+	uint8_t iterance;
+	uint8_t fill;
 	/// Lift is noteOff velocity.
 	uint8_t lift;
 

@@ -22,9 +22,21 @@
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
-#### <ins>Automation View</ins>
-- Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+#### <ins>Song Grid View</ins>
 - Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
+
+#### <ins>Instrument Clip View</ins>
+
+##### Automation View
+- Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+
+##### Note / Note Row Probability, Iterance, Fill
+- Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
+  - Holding a note / note row and turning the select encoder now only changes probability.
+  - To edit note / note row iteration and fill settings you need to access the new note and note row editor menu's.
+- Added new note and note row editor menu's to edit note and note row parameters.
+  - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
+  - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
 
 ### MIDI
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.

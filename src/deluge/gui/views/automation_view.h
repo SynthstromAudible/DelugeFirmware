@@ -134,12 +134,10 @@ public:
 	// public so instrument clip view can access it
 	void initParameterSelection(bool updateDisplay = true);
 	bool onArrangerView;
-	bool noteRowFlashOn;
 
 	// public so uiTimerManager can access it
 	void blinkInterpolationShortcut();
 	void blinkPadSelectionShortcut();
-	void blinkSelectedNoteRow(int32_t whichMainRows = 0);
 
 	// public so menu can access it
 	bool onMenuView;
@@ -149,7 +147,6 @@ public:
 	                                      int32_t knobPosRight);
 	void resetInterpolationShortcutBlinking();
 	void resetPadSelectionShortcutBlinking();
-	void resetSelectedNoteRowBlinking();
 	AutomationParamType automationParamType;
 	bool getAffectEntire() override;
 
@@ -349,8 +346,6 @@ private:
 
 	bool interpolationShortcutBlinking;
 	bool padSelectionShortcutBlinking;
-
-	bool noteRowBlinking;
 
 	bool padSelectionOn;
 	bool multiPadPressActive;

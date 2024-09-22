@@ -70,6 +70,10 @@ public:
 	///
 	/// @param offset must be either -1 or 1, jumping is not supported by many children.
 	virtual void horizontalEncoderAction(int32_t offset) {}
+	/// @brief Handle vertical encoder movement.
+	///
+	/// @param offset must be either -1 or 1, jumping is not supported by many children.
+	virtual void verticalEncoderAction(int32_t offset) {}
 	/// @brief Handle select encoder movement.
 	///
 	/// Child classes which override this should be careful to handle offsets larger than 1, as holding shift and

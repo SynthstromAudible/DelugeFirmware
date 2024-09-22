@@ -465,8 +465,10 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 					}
 
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
-					int32_t probability = noteRow->getDefaultProbability(modelStackWithNoteRow);
-					noteRow->attemptNoteAdd(0, 1, velocity, probability, modelStackWithNoteRow, action);
+					int32_t probability = noteRow->getDefaultProbability();
+					int32_t iterance = noteRow->getDefaultIterance();
+					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
+					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action);
 					if (!thisDrum->earlyNoteStillActive) {
 						D_PRINTLN("skipping next note");
 
@@ -493,8 +495,11 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 				    getOrCreateNoteRowForYNote(basicNote->note, modelStack, action, &scaleAltered);
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
-					int32_t probability = noteRow->getDefaultProbability(modelStackWithNoteRow);
-					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, probability, modelStackWithNoteRow, action);
+					int32_t probability = noteRow->getDefaultProbability();
+					int32_t iterance = noteRow->getDefaultIterance();
+					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
+					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, probability, iterance, fill,
+					                        modelStackWithNoteRow, action);
 					if (!basicNote->stillActive) {
 						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
 						// note-ons until at least tick 1 to avoid double-playing that note
@@ -750,15 +755,12 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		for (int32_t i = 0; i < pendingNoteOnList.count; i++) {
 
 			// If we found a 100%, we know we're not doing sum-to-100
-			if (pendingNoteOnList.pendingNoteOns[i].probability >= kNumProbabilityValues
-			    && pendingNoteOnList.pendingNoteOns[i].probability <= kNumProbabilityValues + kNumIterationValues) {
+			if (pendingNoteOnList.pendingNoteOns[i].probability == kNumProbabilityValues) {
 				goto skipDoingSumTo100;
 			}
 
 			// If any follow-previous-probability, skip this statistics-grabbing
-			// Or if any Fill note, skip this statistics-grabbing
-			if (pendingNoteOnList.pendingNoteOns[i].probability & 128
-			    || pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
+			if (pendingNoteOnList.pendingNoteOns[i].probability & 128) {
 				continue;
 			}
 
@@ -782,9 +784,7 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 			for (int32_t i = 0; i < pendingNoteOnList.count; i++) {
 
 				// If any follow-previous-probability, skip this statistics-grabbing
-				// Or if any Fill note, skip this statistics-grabbing
-				if (pendingNoteOnList.pendingNoteOns[i].probability & 128
-				    || pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
+				if (pendingNoteOnList.pendingNoteOns[i].probability & 128) {
 					continue;
 				}
 
@@ -820,25 +820,67 @@ skipDoingSumTo100:
 				conditionPassed = true;
 			}
 
-			// else check if it's a FILL note and only play if SYNC_SCALING is pressed
-			else if (pendingNoteOnList.pendingNoteOns[i].probability == kFillProbabilityValue) {
-				conditionPassed = currentSong->isFillModeActive();
-			}
-
-			// else check if it's a NO-FILL note and only play if SYNC_SCALING is *not* pressed
-			else if (pendingNoteOnList.pendingNoteOns[i].probability == kNotFillProbabilityValue) {
-				conditionPassed = !currentSong->isFillModeActive();
-			}
-
 			// Otherwise...
 			else [[unlikely]] {
 				int32_t probability = pendingNoteOnList.pendingNoteOns[i].probability & 127;
 
+				// If based on a previous probability...
+				if (pendingNoteOnList.pendingNoteOns[i].probability & 128) {
+
+					// Check that that previous probability value is still valid. It normally should be, unless the
+					// user has changed the probability of that "previous" note
+					if (lastProbabiltyPos[probability] == -1 || lastProbabiltyPos[probability] == lastProcessedPos) {
+						goto doNewProbability;
+					}
+
+					conditionPassed = lastProbabilities[probability];
+				}
+
+				// Or if not based on a previous probability...
+				else {
+
+					// If we're summing to 100...
+					if (doingSumTo100) {
+						conditionPassed = (i == winningI);
+					}
+
+					// Or if not summing to 100...
+					else {
+doNewProbability:
+						// If the outcome of this probability has already been decided (by another note with same
+						// probability)
+						if (probabilityCount[probability - 1] >= 254) {
+							conditionPassed = probabilityCount[probability - 1] == 255;
+						}
+
+						// Otherwise, decide it now
+						else {
+							int32_t probabilityValue = ((uint32_t)getRandom255() * kNumProbabilityValues) >> 8;
+							conditionPassed = (probabilityValue < probability);
+
+							lastProbabilities[kNumProbabilityValues - probability] = !conditionPassed;
+							lastProbabiltyPos[kNumProbabilityValues - probability] = lastProcessedPos;
+
+							lastProbabilities[probability] = conditionPassed;
+							lastProbabiltyPos[probability] = lastProcessedPos;
+
+							// Store the outcome, for any neighbouring notes
+							probabilityCount[probability - 1] = conditionPassed ? 255 : 254;
+						}
+					}
+				}
+			}
+
+			// if probably setting has resulted in a note on
+			if (conditionPassed) [[likely]] {
+				// now we check if we should skip note based on iteration condition
+				int32_t iterance = pendingNoteOnList.pendingNoteOns[i].iterance & 127;
+
 				// If it's an iteration dependence...
-				if (probability > kNumProbabilityValues) {
+				if (iterance > kDefaultIteranceValue) [[unlikely]] {
 
 					int32_t divisor, iterationWithinDivisor;
-					dissectIterationDependence(probability, &divisor, &iterationWithinDivisor);
+					dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
 
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(
 					    pendingNoteOnList.pendingNoteOns[i].noteRowId, pendingNoteOnList.pendingNoteOns[i].noteRow);
@@ -847,60 +889,28 @@ skipDoingSumTo100:
 					                   == ((uint32_t)modelStackWithNoteRow->getRepeatCount() % (uint32_t)divisor));
 				}
 
-				// Or if it's an actual probability kind...
-				else {
-
-					// If based on a previous probability...
-					if (pendingNoteOnList.pendingNoteOns[i].probability & 128) {
-
-						// Check that that previous probability value is still valid. It normally should be, unless the
-						// user has changed the probability of that "previous" note
-						if (lastProbabiltyPos[probability] == -1
-						    || lastProbabiltyPos[probability] == lastProcessedPos) {
-							goto doNewProbability;
-						}
-
-						conditionPassed = lastProbabilities[probability];
+				// lastly, if after checking iteration we still have a note on
+				// we'll check if that note should be sounded based on fill state
+				if (conditionPassed) {
+					// check if it's a FILL note and SYNC_SCALING is *not* pressed
+					if (pendingNoteOnList.pendingNoteOns[i].fill == FillMode::FILL
+					    && !currentSong->isFillModeActive()) {
+						conditionPassed = false;
 					}
-
-					// Or if not based on a previous probability...
-					else {
-
-						// If we're summing to 100...
-						if (doingSumTo100) {
-							conditionPassed = (i == winningI);
-						}
-
-						// Or if not summing to 100...
-						else {
-doNewProbability:
-							// If the outcome of this probability has already been decided (by another note with same
-							// probability)
-							if (probabilityCount[probability - 1] >= 254) {
-								conditionPassed = probabilityCount[probability - 1] == 255;
-							}
-
-							// Otherwise, decide it now
-							else {
-								int32_t probabilityValue = ((uint32_t)getRandom255() * kNumProbabilityValues) >> 8;
-								conditionPassed = (probabilityValue < probability);
-
-								lastProbabilities[kNumProbabilityValues - probability] = !conditionPassed;
-								lastProbabiltyPos[kNumProbabilityValues - probability] = lastProcessedPos;
-
-								lastProbabilities[probability] = conditionPassed;
-								lastProbabiltyPos[probability] = lastProcessedPos;
-
-								// Store the outcome, for any neighbouring notes
-								probabilityCount[probability - 1] = conditionPassed ? 255 : 254;
-							}
-						}
+					// check if it's a NOT FILL note and SYNC_SCALING is pressed
+					else if (pendingNoteOnList.pendingNoteOns[i].fill == FillMode::NOT_FILL
+					         && currentSong->isFillModeActive()) {
+						conditionPassed = false;
 					}
 				}
-			}
 
-			if (conditionPassed) [[likely]] {
-				sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
+				// probability, iterance and fill conditions have passed
+				if (conditionPassed) {
+					sendPendingNoteOn(modelStack, &pendingNoteOnList.pendingNoteOns[i]);
+				}
+				else {
+					pendingNoteOnList.pendingNoteOns[i].noteRow->soundingStatus = STATUS_OFF;
+				}
 			}
 			else {
 				pendingNoteOnList.pendingNoteOns[i].noteRow->soundingStatus = STATUS_OFF;
@@ -4258,7 +4268,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 						// I'm guessing I deliberately didn't send the Action in here, cos didn't want to
 						// make this Note on the new InstrumentClip undoable?
 						newNoteRow->attemptNoteAdd(0, lastNote->length, lastNote->velocity, lastNote->probability,
-						                           modelStackWithNoteRow, nullptr);
+						                           lastNote->iterance, lastNote->fill, modelStackWithNoteRow, nullptr);
 						// Make sure we don't double-play the note
 						newNoteRow->ignoreNoteOnsBefore_ = 1;
 					}
@@ -4615,9 +4625,12 @@ doNormal: // Wrap it back to the start.
 	}
 
 	else {
-		int32_t probability = noteRow->getDefaultProbability(modelStack);
+		int32_t probability = noteRow->getDefaultProbability();
+		int32_t iterance = noteRow->getDefaultIterance();
+		int32_t fill = noteRow->getDefaultFill(modelStack);
 		// Don't supply Action, cos we've done our own thing, above
-		distanceToNextNote = noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, modelStack, nullptr);
+		distanceToNextNote =
+		    noteRow->attemptNoteAdd(quantizedPos, 1, velocity, probability, iterance, fill, modelStack, nullptr);
 	}
 
 	// If that didn't work, get out - but not in the special case for linear recording, discussed below.

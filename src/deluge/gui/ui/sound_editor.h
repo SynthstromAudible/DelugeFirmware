@@ -117,6 +117,8 @@ public:
 	bool editingReverbSidechain();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
+	bool inNoteEditor();
+	bool inNoteRowEditor();
 	bool setupKitGlobalFXMenu;
 	bool exitUI() override {
 		exitCompletely();

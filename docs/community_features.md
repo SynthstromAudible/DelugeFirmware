@@ -941,6 +941,18 @@ to each individual note onset. ([#1978])
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
 - ([#2046]) Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 
+#### 4.4.10 - Enhanced Note Probability, Iterance and Fill
+
+- ([#2641]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
+  - Holding a note / note row and turning the select encoder now only changes probability.
+  - To edit note / note row iteration and fill settings you need to access the new note and note row editor menu's.
+
+#### 4.4.11 - Added New Note and Note Row Editor Menu's
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Note / Note Row Editor Documentation]
+- ([#2641]) Added new note and note row editor menu's to edit note and note row parameters.
+  - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
+  - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
+
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
 #### 4.4.1 - Keyboard View
