@@ -1197,12 +1197,6 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
     },
 };
 
-bool* getSongMidiLoopback() {
-	return &(currentSong->midiLoopback);
-}
-
-ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};
-
 // Sub menu for Stem Export
 menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT_STEMS};
 
@@ -1243,7 +1237,6 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalFXMenu,
         &swingIntervalMenu,
         &activeScaleMenu,
-        &midiLoopbackMenu,
         &configureSongMacrosMenu,
         &stemExportMenu,
     },
