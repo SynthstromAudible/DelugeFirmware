@@ -1271,10 +1271,9 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 		}
 	}
 	else {
-		// This moves clips around uncomfortably and we have a track for every Audio anyway
-		if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
-			view.navigateThroughAudioOutputsForAudioClip(offset, (AudioClip*)clip, true);
-		}
+		auto ao = (AudioOutput*)clip->output;
+		ao->scrollAudioOutputMode(offset);
+		renderUIsForOled();
 	}
 }
 

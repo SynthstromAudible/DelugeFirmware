@@ -2140,7 +2140,7 @@ skipInstance:
 		if (thisOutput->type == OutputType::AUDIO) {
 			auto ao = (AudioOutput*)thisOutput;
 			if (ao->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
-				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex), ao->echoing);
+				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex));
 			}
 		}
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
@@ -3375,7 +3375,7 @@ traverseClips:
 	// Put the newInstrument into the master list
 	*prevPointer = newOutput;
 	if (outputRecordingOldOutput) {
-		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput, true);
+		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput);
 	}
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }

@@ -22,6 +22,7 @@
 #include "hid/button.h"
 #include "model/model_stack.h"
 #include "modulation/params/param.h"
+#include "processing/audio_output.h"
 #include <cstdint>
 
 class InstrumentClip;

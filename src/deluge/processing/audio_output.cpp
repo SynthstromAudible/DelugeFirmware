@@ -37,11 +37,21 @@ extern "C" {
 }
 
 namespace params = deluge::modulation::params;
-
+EnumStringMap<AudioOutputMode, kNumAudioOutputModes> aoModeStringMap({{
+    {AudioOutputMode::player, "Player"},
+    {AudioOutputMode::sampler, "Sampler"},
+    {AudioOutputMode::looper, "Looper/FX"},
+}});
+AudioOutputMode stringToAOMode(char const* string) {
+	return aoModeStringMap(string);
+}
+char const* aoModeToString(AudioOutputMode mode) {
+	return aoModeStringMap(mode);
+}
 AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 	modKnobMode = 0;
 	inputChannel = AudioInputChannel::LEFT;
-	echoing = false;
+	mode = AudioOutputMode::player;
 }
 
 AudioOutput::~AudioOutput() {
@@ -52,9 +62,29 @@ AudioOutput::~AudioOutput() {
 
 void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	GlobalEffectableForClip::cloneFrom(other);
+	auto ao = ((AudioOutput*)other);
+	inputChannel = ao->inputChannel;
+	mode = ao->mode;
+	outputRecordingFrom = nullptr;
+	// old style cloning overdubs
+	if (mode == AudioOutputMode::looper || mode == AudioOutputMode::sampler) {
+		// if the original track hasn't been recorded into then we'll just be a player
+		if (ao->isEmpty()) {
+			mode = AudioOutputMode::player;
+		}
+		else {
+			// otherwise we'll become the new sampler/looper and the og will become a player
+			ao->mode = AudioOutputMode::player;
+		}
+	}
 
-	inputChannel = ((AudioOutput*)other)->inputChannel;
-	outputRecordingFrom = ((AudioOutput*)other)->outputRecordingFrom;
+	if (inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
+		outputRecordingFrom = ao->outputRecordingFrom;
+		// now steal the monitoring of the original track if necessary (i.e. we're a looper or sampler)
+		if (mode != AudioOutputMode::player) {
+			outputRecordingFrom->setRenderingToAudioOutput(true, this);
+		}
+	}
 }
 
 void AudioOutput::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, StereoSample* outputBufferEnd,
@@ -213,8 +243,8 @@ renderEnvelope:
 			}
 		}
 	}
-
-	if (echoing && modelStack->song->isOutputActiveInArrangement(this)
+	// add in the monitored audio if in sampler or looper mode
+	if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
 		StereoSample* __restrict__ outputPos = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
@@ -279,7 +309,7 @@ renderEnvelope:
 			}
 		} while (outputPos < outputPosEnd);
 	}
-	else if (echoing && modelStack->song->isOutputActiveInArrangement(this)
+	else if (mode != AudioOutputMode::player && modelStack->song->isOutputActiveInArrangement(this)
 	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && outputRecordingFrom) {
 		rendered = true;
 		StereoSample* __restrict__ outputBuffer = bufferToTransferTo ? (StereoSample*)bufferToTransferTo : renderBuffer;
@@ -316,9 +346,8 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 
 	writer.writeAttribute("name", name.get());
 
-	if (echoing) {
-		writer.writeAttribute("echoingInput", 1);
-	}
+	writer.writeAttribute("mode", aoModeToString(mode));
+
 	writer.writeAttribute("inputChannel", inputChannelToString(inputChannel));
 	writer.writeAttribute("outputRecordingIndex", currentSong->getOutputIndex(outputRecordingFrom));
 	Output::writeDataToFile(writer, clipForSavingOutputOnly, song);
@@ -348,8 +377,16 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "echoingInput")) {
-			echoing = reader.readTagOrAttributeValueInt();
+			int echoing = reader.readTagOrAttributeValueInt();
+			if (echoing) {
+				// loopers behave like old monitored clips
+				mode = AudioOutputMode::looper;
+			}
 			reader.exitTag("echoingInput");
+		}
+		else if (!strcmp(tagName, "mode")) {
+			mode = stringToAOMode(reader.readTagOrAttributeValue());
+			reader.exitTag("mode");
 		}
 
 		else if (!strcmp(tagName, "inputChannel")) {
@@ -427,7 +464,7 @@ bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmCh
 }
 
 bool AudioOutput::isSkippingRendering() {
-	return !echoing && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
+	return mode == AudioOutputMode::player && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
 }
 
 void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,

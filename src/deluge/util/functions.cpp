@@ -26,6 +26,7 @@
 #include "hid/display/display.h"
 #include "hid/encoders.h"
 #include "modulation/arpeggiator.h"
+#include "processing/audio_output.h"
 #include "processing/sound/sound.h"
 #include <cmath>
 #include <string.h>
@@ -578,8 +579,19 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel) {
 		}
 	case OutputType::CV:
 		return "CV / gate";
-	case OutputType::AUDIO:
+	case OutputType::AUDIO: {
+		auto mode = static_cast<AudioOutputMode>(channel);
+		switch (mode) {
+
+		case AudioOutputMode::player:
+			return "Audio Player";
+		case AudioOutputMode::sampler:
+			return "Audio Sampler";
+		case AudioOutputMode::looper:
+			return "Audio Looper";
+		}
 		return "Audio";
+	}
 	default:
 		return "None";
 	}
