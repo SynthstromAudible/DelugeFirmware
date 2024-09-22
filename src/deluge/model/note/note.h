@@ -48,7 +48,7 @@ public:
 	inline void setFill(int32_t newFill) { fill = newFill; }
 
 	inline int32_t getFill() { return fill; }
-	
+
 	inline bool isDrone(int32_t effectiveLength) { return (pos == 0 && length == effectiveLength); }
 
 	//	void writeToFile();
