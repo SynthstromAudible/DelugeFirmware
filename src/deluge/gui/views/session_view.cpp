@@ -4544,3 +4544,12 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 
 	return nullptr;
 }
+Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		return gridTrackFromX(x, gridTrackCount());
+	}
+	else {
+		return getClipOnScreen(y)->output;
+	}
+	return nullptr;
+}

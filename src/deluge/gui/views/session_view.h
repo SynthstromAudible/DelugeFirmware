@@ -99,6 +99,7 @@ public:
 	void clipNeedsReRendering(Clip* clip);
 	void sampleNeedsReRendering(Sample* sample);
 	Clip* getClipOnScreen(int32_t yDisplay);
+	Output* getOutputFromPad(int32_t x, int32_t y);
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	ActionResult verticalScrollOneSquare(int32_t direction);
 
