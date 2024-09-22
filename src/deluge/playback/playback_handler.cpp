@@ -2817,10 +2817,8 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if note message received should be processed by midi follow mode
-	if (fromDevice != &MIDIDeviceManager::loopbackMidi) {
-		midiFollow.noteMessageReceived(fromDevice, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
-		                               modelStack);
-	}
+	midiFollow.noteMessageReceived(fromDevice, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
+	                               modelStack);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2936,10 +2934,8 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 
 	dealingWithReceivedMIDIPitchBendRightNow = true;
 
-	// See if pitch bend received should be processed by midi follow mode
-	if (fromDevice != &MIDIDeviceManager::loopbackMidi) {
-		midiFollow.pitchBendReceived(fromDevice, channel, data1, data2, doingMidiThru, modelStack);
-	}
+	// See if pitch bend received should be processed by midi follow mod
+	midiFollow.pitchBendReceived(fromDevice, channel, data1, data2, doingMidiThru, modelStack);
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2998,9 +2994,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if midi cc received should be processed by midi follow mode
-	if (fromDevice != &MIDIDeviceManager::loopbackMidi) {
-		midiFollow.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, modelStack);
-	}
+	midiFollow.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, modelStack);
 
 	// See if midi cc received has been learned to a song param
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -3053,9 +3047,7 @@ void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if aftertouch received should be processed by midi follow mode
-	if (fromDevice != &MIDIDeviceManager::loopbackMidi) {
-		midiFollow.aftertouchReceived(fromDevice, channel, value, noteCode, doingMidiThru, modelStack);
-	}
+	midiFollow.aftertouchReceived(fromDevice, channel, value, noteCode, doingMidiThru, modelStack);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {

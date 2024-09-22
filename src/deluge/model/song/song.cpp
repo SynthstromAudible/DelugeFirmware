@@ -169,9 +169,6 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	paramsInAutomationMode = false;
 
-	// default to off
-	midiLoopback = false;
-
 	// Setup reverb temp variables
 	reverbRoomSize = (float)30 / 50;
 	reverbDamp = (float)36 / 50;
@@ -1116,7 +1113,6 @@ weAreInArrangementEditorOrInClipInstance:
 	globalEffectable.writeAttributesToFile(writer, false);
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("midiLoopback", midiLoopback);
 	writer.writeAttribute("songGridScrollX", songGridScrollX);
 	writer.writeAttribute("songGridScrollY", songGridScrollY);
 	writer.writeAttribute("sessionLayout", sessionLayout);
@@ -1591,11 +1587,6 @@ unknownTag:
 			else if (!strcmp(tagName, "affectEntire")) {
 				affectEntire = reader.readTagOrAttributeValueInt();
 				reader.exitTag("affectEntire");
-			}
-
-			else if (!strcmp(tagName, "midiLoopback")) {
-				midiLoopback = reader.readTagOrAttributeValueInt();
-				reader.exitTag("midiLoopback");
 			}
 
 			else if (!strcmp(tagName, "lastSelectedParamID")) {

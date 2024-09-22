@@ -23,7 +23,6 @@ class MIDIDevice;
 class MIDIDeviceUSBUpstream;
 class MIDIDeviceDINPorts;
 class MIDIDeviceUSB;
-class MIDIDeviceLoopback;
 class StorageManager;
 class Serializer;
 class Deserializer;
@@ -118,7 +117,6 @@ extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port1;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port2;
 extern MIDIDeviceUSBUpstream upstreamUSBMIDIDevice_port3;
 extern MIDIDeviceDINPorts dinMIDIPorts;
-extern MIDIDeviceLoopback loopbackMidi;
 
 extern bool differentiatingInputsByDevice;
 

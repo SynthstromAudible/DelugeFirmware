@@ -520,11 +520,6 @@ The Song menu contains the following menu hierarchy:
 		- Bitcrush (CRUS)
 </details>
 <details><summary>Swing Interval (SWII)</summary></details>
-<details><summary>MIDI Loopback (M LP)</summary>
-
-	- Disabled (OFF)
-	- Enabled (ON)
-</details>	
 <details><summary>Configure Macros (MACR)</summary></details>
 <details><summary>Stem Export (STEM)</summary>
 
