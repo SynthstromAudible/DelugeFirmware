@@ -3833,7 +3833,8 @@ goAgain:
 			// Otherwise, then yes, we want to look at the next note along (left).
 			else {
 				i--;
-				goto goAgain;
+				if (i > -effectiveLength)
+					goto goAgain;
 			}
 		}
 	}
