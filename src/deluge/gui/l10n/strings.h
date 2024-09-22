@@ -906,7 +906,7 @@ enum class String : size_t {
 	STRING_FOR_CONVERT_TO_AUDIO,
 	STRING_FOR_CLIP_MODE,
 	STRING_FOR_CLIP_NAME,
-	
+
 	// string for note editor menu
 	STRING_FOR_NOTE_EDITOR,
 	STRING_FOR_NOTE_EDITOR_VELOCITY,
