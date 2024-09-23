@@ -202,12 +202,9 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 			           * 23; // 22 // Make bigger to have more of a volume cut happen at high resonance
 			//*postFXVolume = (multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2) >> 1) * 3;
 			*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2);
-			if (modFXType == ModFXType::FLANGER) {
-				*postFXVolume <<= 1;
-			}
-			// Though, this would be more ideally placed affecting volume before the flanger
 
 			if (modFXType == ModFXType::FLANGER) {
+				*postFXVolume <<= 1;
 				modFXDelayOffset = kFlangerOffset;
 				thisModFXDelayDepth = kFlangerAmplitude;
 				modFXLFOWaveType = LFOType::TRIANGLE;

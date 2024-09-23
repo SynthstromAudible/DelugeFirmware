@@ -57,7 +57,6 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DisplayNornsLayout,
 	ShiftIsSticky,
 	LightShiftLed,
-	EnableGrainFX,
 	EnableDxShortcuts,
 	EmulatedDisplay,
 	EnableKeyboardViewSidebarMenuExit,
