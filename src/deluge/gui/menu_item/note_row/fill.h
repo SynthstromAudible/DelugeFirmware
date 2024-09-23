@@ -56,6 +56,9 @@ public:
 		if (newValue != -1) {
 			this->setValue(newValue);
 			updateDisplay();
+			if (currentSong->isFillModeActive()) {
+				uiNeedsRendering(&instrumentClipView);
+			}
 		}
 	}
 
