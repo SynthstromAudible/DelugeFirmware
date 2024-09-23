@@ -4853,20 +4853,11 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 }
 
 void SessionView::gridCoordsFromClip(Clip* clip, uint32_t& x, uint32_t& y) {
-	x = -1;
-	y = -1;
-
-	for (int32_t idxClip = 0; idxClip < currentSong->sessionClips.getNumElements(); ++idxClip) {
-		Clip* clipFound = currentSong->sessionClips.getClipAtIndex(idxClip);
-		if (clipFound == clip) {
-			Output* track = clip->output;
-			auto maxTrack = gridTrackCount();
-			int32_t trackIndex = gridTrackIndexFromTrack(track, maxTrack);
-			x = gridXFromTrack(trackIndex);
-			y = gridYFromSection(clip->section);
-			break;
-		}
-	}
+	Output* track = clip->output;
+	auto maxTrack = gridTrackCount();
+	int32_t trackIndex = gridTrackIndexFromTrack(track, maxTrack);
+	x = gridXFromTrack(trackIndex);
+	y = gridYFromSection(clip->section);
 }
 
 // stop pulsing selected clip
