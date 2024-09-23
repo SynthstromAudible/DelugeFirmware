@@ -53,7 +53,7 @@ private:
 	float attackMS{1};
 	float releaseMS{10};
 	// parameters in use
-	float a_ = a_ = (-1000.0f / kSampleRate) / attackMS;
+	float a_ = (-1000.0f / kSampleRate) / attackMS;
 
 	float r_ = (-1000.0f / kSampleRate) / releaseMS;
 
