@@ -36,7 +36,7 @@ public:
 	                  bool shouldLimitDelayFeedback, bool isClipActive);
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,
 	              int32_t fromMIDIChannel = 16, uint8_t velocity = 64, uint32_t sampleSyncLength = 0,
-	              int32_t ticksLate = 0, uint32_t samplesLate = 0);
+	              int32_t ticksLate = 0, uint32_t samplesLate = 0) override;
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) final;
 	ParamManager* getParamManager(Song* song) final;
 

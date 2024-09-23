@@ -94,8 +94,8 @@ public:
 	                        int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
 	                        InstrumentClip* clip);
 
-	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
-	                                      ModelStackWithTimelineCounter* modelStack) override {}
+	void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue, ModelStackWithTimelineCounter* modelStack,
+	                                      bool alsoSendIt) override {}
 
 	void choke();
 	void resyncLFOs();

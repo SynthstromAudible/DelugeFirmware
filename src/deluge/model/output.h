@@ -80,7 +80,7 @@ inline OutputType buttonToOutputType(deluge::hid::Button b) {
 }
 class Output {
 public:
-	Output(OutputType newType);
+	explicit Output(OutputType newType);
 	virtual ~Output();
 
 	ClipInstanceVector clipInstances;
@@ -181,7 +181,8 @@ public:
 	virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                     MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
 	                                     bool* doingMidiThru) {}
-
+	// overridden in midi instruments to allow recording midi without echoing it back out
+	virtual bool shouldRecordSilently(int32_t inputChannelOrZone, MIDIDevice* inputDevice) { return false; }
 	virtual void stopAnyAuditioning(ModelStack* modelStack) {}
 	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
 	                                  int32_t whichBendRange, int32_t bendSemitones) {}

@@ -98,7 +98,7 @@ void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoPara
 // possible in case they later switch it from Synth to MIDI output.
 void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
                                                      bool shouldLogAction, int32_t livePos,
-                                                     bool mayDeleteNodesInLinearRun, bool doMPEMode) {
+                                                     bool mayDeleteNodesInLinearRun, bool doMPEMode, bool alsoSendIt) {
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated();
 	bool automationChanged = false;
@@ -297,8 +297,10 @@ skipThat: {}
 getOut:
 	currentValue = value;
 	bool automatedNow = isAutomated();
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                                          automatedNow);
+	if (alsoSendIt) {
+		modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged,
+		                                                          automatedBefore, automatedNow);
+	}
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
@@ -849,12 +851,12 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 }
 
 void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
-                                          int32_t length, bool mayDeleteNodesInLinearRun) {
+                                          int32_t length, bool mayDeleteNodesInLinearRun, bool alsoSendIt) {
 	if (length && modelStack->timelineCounterIsSet()) {
 		setValueForRegion(pos, length, value, modelStack);
 	}
 	else {
-		setCurrentValueInResponseToUserInput(value, modelStack, true, -1, mayDeleteNodesInLinearRun);
+		setCurrentValueInResponseToUserInput(value, modelStack, true, -1, mayDeleteNodesInLinearRun, false, alsoSendIt);
 	}
 }
 

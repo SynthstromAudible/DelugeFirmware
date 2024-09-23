@@ -48,13 +48,14 @@ public:
 
 	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
 	                                          bool shouldLogAction = true, int32_t livePos = -1,
-	                                          bool mayDeleteNodesInLinearRun = true, bool isMPE = false);
+	                                          bool mayDeleteNodesInLinearRun = true, bool isMPE = false,
+	                                          bool alsoSendIt = true);
 	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
 	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
 	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack,
 	                       ActionType actionType = ActionType::NOTE_EDIT);
 	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
-	                               int32_t length, bool mayDeleteNodesInLinearRun = true);
+	                               int32_t length, bool mayDeleteNodesInLinearRun = true, bool alsoSendIt = true);
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);
 	bool tickSamples(int32_t numSamples);
 	void setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed);

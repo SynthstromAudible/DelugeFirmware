@@ -228,8 +228,10 @@ justAuditionNote:
 				    }
 				}
 				*/
-				beginAuditioningForNote(modelStack->toWithSong(), // Safe, cos we won't reference this again
-				                        note, velocity, mpeValues, midiChannel);
+				if (!shouldRecordSilently(midiChannel, fromDevice)) {
+					beginAuditioningForNote(modelStack->toWithSong(), // Safe, cos we won't reference this again
+					                        note, velocity, mpeValues, midiChannel);
+				}
 			}
 		}
 
@@ -332,7 +334,7 @@ void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelSt
 		// Unlike for whole-Instrument pitch bend, this per-note kind is a modulation *source*, not the "preset" value
 		// for the parameter!
 		polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, newValue, X_PITCH_BEND, channel,
-		                                          MIDICharacteristic::CHANNEL);
+		                                          MIDICharacteristic::CHANNEL, true);
 		break;
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::CHANNEL:
@@ -348,7 +350,7 @@ void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelSt
 		// themselves
 
 		newValue = (int32_t)(((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 18;
-		processParamFromInputMIDIChannel(CC_NUMBER_PITCH_BEND, newValue, modelStackWithTimelineCounter);
+		processParamFromInputMIDIChannel(CC_NUMBER_PITCH_BEND, newValue, modelStackWithTimelineCounter, true);
 		break;
 	}
 }
@@ -374,7 +376,8 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 		    == CC_EXTERNAL_MPE_Y) { // All other CCs are not supposed to be used for Member Channels, for anything.
 			int32_t value32 = (value - 64) << 25;
 			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, Y_SLIDE_TIMBRE, channel,
-			                                          MIDICharacteristic::CHANNEL);
+			                                          MIDICharacteristic::CHANNEL,
+			                                          !shouldRecordSilently(channel, fromDevice));
 
 			possiblyRefreshAutomationEditorGrid(ccNumber);
 
@@ -393,7 +396,8 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 		if (ccNumber == CC_EXTERNAL_MOD_WHEEL) {
 			// this is the same range as mpe Y axis but unipolar
 			value32 = (value) << 24;
-			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter);
+			processParamFromInputMIDIChannel(CC_NUMBER_Y_AXIS, value32, modelStackWithTimelineCounter,
+			                                 !shouldRecordSilently(channel, fromDevice));
 			// Don't also pass to ccReveived since it will now be handled by output mono expression in midi
 			// clips instead
 			return;
@@ -401,7 +405,8 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 
 		// Still send the cc even if the Output is muted. MidiInstruments will check for and block this
 		// themselves
-		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter);
+		ccReceivedFromInputMIDIChannel(ccNumber, value, modelStackWithTimelineCounter,
+		                               !shouldRecordSilently(channel, fromDevice));
 
 		possiblyRefreshAutomationEditorGrid(ccNumber);
 	}
@@ -440,7 +445,7 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 		return;
 	case MIDIMatchType::MPE_MEMBER:
 		polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, Z_PRESSURE, channel,
-		                                          MIDICharacteristic::CHANNEL);
+		                                          MIDICharacteristic::CHANNEL, true);
 		break;
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::CHANNEL:
@@ -457,14 +462,14 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 		// aftertouch gets processed along with MPE
 		if (noteCode != -1) {
 			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, valueBig, Z_PRESSURE, noteCode,
-			                                          MIDICharacteristic::NOTE);
+			                                          MIDICharacteristic::NOTE, true);
 			// We wouldn't be here if this was MPE input, so we know this incoming polyphonic aftertouch message
 			// is allowed
 		}
 
 		// Or, channel pressure
 		else {
-			processParamFromInputMIDIChannel(CC_NUMBER_AFTERTOUCH, valueBig, modelStackWithTimelineCounter);
+			processParamFromInputMIDIChannel(CC_NUMBER_AFTERTOUCH, valueBig, modelStackWithTimelineCounter, true);
 		}
 	}
 }
@@ -601,7 +606,7 @@ MelodicInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackW
 
 // Big part of this function is that it can decide to call possiblyCloneForArrangementRecording().
 void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
-                                                         ModelStackWithTimelineCounter* modelStack) {
+                                                         ModelStackWithTimelineCounter* modelStack, bool alsoSendIt) {
 
 	int32_t modPos = 0;
 	int32_t modLength = 0;
@@ -628,8 +633,9 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 
 	if (modelStackWithParam->autoParam) {
 		modelStackWithParam->autoParam->setValuePossiblyForRegion(
-		    newValue, modelStackWithParam, modPos, modLength,
-		    false); // Don't delete nodes in linear run, cos this might need to be outputted as MIDI again
+		    newValue, modelStackWithParam, modPos, modLength, false,
+		    alsoSendIt); // Don't delete nodes in linear run, cos this might need to be outputted
+		                 // as MIDI again
 	}
 }
 
@@ -655,7 +661,8 @@ bool expressionValueChangesMustBeDoneSmoothly = false; // Wee bit of a workaroun
 void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack,
                                                                   int32_t newValue, int32_t whichExpressionDimension,
                                                                   int32_t channelOrNoteNumber,
-                                                                  MIDICharacteristic whichCharacteristic) {
+                                                                  MIDICharacteristic whichCharacteristic,
+                                                                  bool alsoSendIt) {
 	expressionValueChangesMustBeDoneSmoothly = true;
 
 	// If recording, we send the new value to the AutoParam, which will also sound that change right now.
@@ -678,8 +685,8 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 				                         // note here.
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
-					bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, newValue,
-					                                                        whichExpressionDimension, false);
+					bool success = noteRow->recordPolyphonicExpressionEvent(
+					    modelStackWithNoteRow, newValue, whichExpressionDimension, false, alsoSendIt);
 					if (success) {
 						continue;
 					}
