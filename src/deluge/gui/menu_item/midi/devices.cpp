@@ -112,22 +112,19 @@ void Devices::selectEncoderAction(int32_t offset) {
 }
 
 MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
-	if (deviceIndex < -4 || deviceIndex >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
+	if (deviceIndex < -3 || deviceIndex >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		D_PRINTLN("impossible device request");
 		return nullptr;
 	}
 	switch (deviceIndex) {
-	case -4: {
+	case -3: {
 		return &MIDIDeviceManager::dinMIDIPorts;
 	}
-	case -3: {
+	case -2: {
 		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port1;
 	}
-	case -2: {
-		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port2;
-	}
 	case -1: {
-		return &MIDIDeviceManager::loopbackMidi;
+		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port2;
 	}
 	default: {
 		return static_cast<MIDIDevice*>(MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex));

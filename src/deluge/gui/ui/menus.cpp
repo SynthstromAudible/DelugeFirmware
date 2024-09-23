@@ -99,6 +99,13 @@
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
+#include "gui/menu_item/note/fill.h"
+#include "gui/menu_item/note/iterance.h"
+#include "gui/menu_item/note/probability.h"
+#include "gui/menu_item/note/velocity.h"
+#include "gui/menu_item/note_row/fill.h"
+#include "gui/menu_item/note_row/iterance.h"
+#include "gui/menu_item/note_row/probability.h"
 #include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/pulse_width.h"
 #include "gui/menu_item/osc/retrigger_phase.h"
@@ -1165,6 +1172,37 @@ menu_item::Submenu soundEditorRootMenu{
     },
 };
 
+menu_item::note::Velocity noteVelocityMenu{STRING_FOR_NOTE_EDITOR_VELOCITY};
+menu_item::note::Probability noteProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
+menu_item::note::Iterance noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
+menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
+
+// Root menu for Note Editor
+menu_item::Submenu noteEditorRootMenu{
+    STRING_FOR_NOTE_EDITOR,
+    {
+        &noteVelocityMenu,
+        &noteProbabilityMenu,
+        &noteIteranceMenu,
+        &noteFillMenu,
+    },
+};
+
+menu_item::note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
+menu_item::note_row::Iterance noteRowIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
+menu_item::note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
+
+// Root menu for Note Row Editor
+menu_item::Submenu noteRowEditorRootMenu{
+    STRING_FOR_NOTE_ROW_EDITOR,
+    {
+        &noteRowProbabilityMenu,
+        &noteRowIteranceMenu,
+        &noteRowFillMenu,
+        &sequenceDirectionMenu,
+    },
+};
+
 // Root menu for MIDI / CV
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
@@ -1211,12 +1249,6 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
     },
 };
 
-bool* getSongMidiLoopback() {
-	return &(currentSong->midiLoopback);
-}
-
-ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};
-
 // Sub menu for Stem Export
 menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT_STEMS};
 
@@ -1258,7 +1290,6 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalFXMenu,
         &swingIntervalMenu,
         &activeScaleMenu,
-        &midiLoopbackMenu,
         &configureSongMacrosMenu,
         &midiLearnMenu,
         &stemExportMenu,

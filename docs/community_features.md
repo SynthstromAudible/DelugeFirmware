@@ -122,13 +122,6 @@ as the micromonsta and the dreadbox nymphes.
     - ([#1053]) For users of Touch OSC, you will find a MIDI Follow template in this
       folder: [MIDI Follow Mode Touch OSC Template]
 
-- ([#865]) `MIDI Loopback` - All notes and CCs from MIDI clips are sent back to Deluge, available to be learned to other
-  clips. The behavior is as if there were a physical loopback cable, connecting Deluge's MIDI out to MIDI in. Turn
-  on/off in Song View Sound Menu. This may be used for things like additive synthesis (one MIDI clip controls several
-  synth instrument clips), generative melodies / polymeter rhythms (two or more MIDI clips of different lengths control
-  the same instrument or kit clip), or macro control of sounds (have CC modulation in a separate MIDI clip that is
-  turned on or off)..
-
 - ([#963]) `MIDI Select Kit Row` - Added new Select Kit Row setting to the MIDI Defaults menu, which can be found
   in `SETTINGS > MIDI > SELECT KIT ROW`. When this setting is enabled, midi notes received for learned kit row's will
   update the kit row selection in the learned kit clip. This also works with midi follow. This is useful because by
@@ -915,7 +908,19 @@ to each individual note onset. ([#1978])
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Velocity View Documentation]
 - ([#2046]) Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 
-#### 4.3.10 - Auto Load sample when browsing
+#### 4.3.10 - Enhanced Note Probability, Iterance and Fill
+
+- ([#2641]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
+  - Holding a note / note row and turning the select encoder now only changes probability.
+  - To edit note / note row iteration and fill settings you need to access the new note and note row editor menu's.
+
+#### 4.3.11 - Added New Note and Note Row Editor Menu's
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Note / Note Row Editor Documentation]
+- ([#2641]) Added new note and note row editor menu's to edit note and note row parameters.
+  - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
+  - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
+
+#### 4.3.12 - Auto Load sample when browsing
 
 - ([#2676]) When browsing for sample to assign to a Synths or Kit row, you can now enable auto-load of previewed samples. To do this, open the sample browser (`SHIFT + BROWSE`), and engage `AUTO-LOAD` by pressing `LEARN`. While `LEARN` LED is on, all the samples that you preview will automatically be loaded to the instrument as if you had confirmed the selection. This makes previewing single cycle waveforms way more convenient, for example. 
 
@@ -1392,8 +1397,6 @@ different firmware
 
 [#837]: https://github.com/SynthstromAudible/DelugeFirmware/pull/837
 
-[#865]: https://github.com/SynthstromAudible/DelugeFirmware/pull/865
-
 [#886]: https://github.com/SynthstromAudible/DelugeFirmware/pull/886
 
 [#887]: https://github.com/SynthstromAudible/DelugeFirmware/pull/887
@@ -1518,6 +1521,8 @@ different firmware
 
 [#2615]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2615
 
+[#2641]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2641
+
 [#2645]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2645
 
 [#2676]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2676
@@ -1539,3 +1544,5 @@ different firmware
 [Stem Export Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/stem_export.md
 
 [Chord Keyboard Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/chord_keyboard.md
+
+[Note / Note Row Editor Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/note_noterow_editor.md

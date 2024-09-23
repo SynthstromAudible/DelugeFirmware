@@ -738,7 +738,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_PERFORM_EDIT_VALUE, "Value"},
         {STRING_FOR_PERFORM_DEFAULTS_LOADED, "Defaults Loaded"},
         {STRING_FOR_PERFORM_DEFAULTS_SAVED, "Defaults Saved"},
-        {STRING_FOR_MIDILOOPBACK, "MIDI Loopback"},
         {STRING_FOR_KIT_GLOBAL_FX, "Kit FX"},
         {STRING_FOR_PITCH, "Pitch"},
         {STRING_FOR_FOLLOW_TITLE, "Midi-Follow"},
@@ -797,6 +796,12 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CONVERT_TO_AUDIO, "Convert to Audio"},
         {STRING_FOR_CLIP_MODE, "Clip Mode"},
         {STRING_FOR_CLIP_NAME, "Clip Name"},
+        {STRING_FOR_NOTE_EDITOR, "Note Editor"},
+        {STRING_FOR_NOTE_EDITOR_VELOCITY, "Velocity"},
+        {STRING_FOR_NOTE_EDITOR_PROBABILITY, "Probability"},
+        {STRING_FOR_NOTE_EDITOR_ITERANCE, "Iterance"},
+        {STRING_FOR_NOTE_EDITOR_FILL, "Fill"},
+        {STRING_FOR_NOTE_ROW_EDITOR, "Row Editor"},
     },
 };
 } // namespace deluge::l10n::built_in
