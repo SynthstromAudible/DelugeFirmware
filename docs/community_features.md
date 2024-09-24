@@ -922,7 +922,7 @@ to each individual note onset. ([#1978])
 
 #### 4.3.12 - Auto Load sample when browsing
 
-- ([#2676]) When browsing for sample to assign to a Synths or Kit row, you can now enable auto-load of previewed samples. To do this, open the sample browser (`SHIFT + BROWSE`), and engage `AUTO-LOAD` by pressing `LEARN`. While `LEARN` LED is on, all the samples that you preview will automatically be loaded to the instrument as if you had confirmed the selection. This makes previewing single cycle waveforms way more convenient, for example. 
+- ([#2676]) When browsing for sample to assign to a Synth or to a Kit Row, you can now enable auto-load of previewed samples. To do this, open the sample browser (`SHIFT + BROWSE`), and engage `AUTO-LOAD` by pressing `LOAD`. While `LOAD` LED is on, all the samples that you preview will automatically be loaded to the instrument as if you had confirmed the selection. This makes previewing single cycle waveforms way more convenient, for example.
 
 ### 4.4 - Instrument Clip View - Synth/MIDI/CV Clip Features
 
