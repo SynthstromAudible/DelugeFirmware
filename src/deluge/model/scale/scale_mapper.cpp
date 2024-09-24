@@ -1,3 +1,4 @@
+#include "io/debug/log.h"
 #include "model/scale/scale_mapper.h"
 #include "definitions.h"
 
@@ -11,6 +12,18 @@ bool oops(const char* msg) {
 }
 
 bool ScaleMapper::computeChangeFrom(NoteSet notes, NoteSet sourceScale, NoteSet targetScale, ScaleChange& changes) {
+	D_PRINTLN("notes");
+	for (int32_t i = 0; i < notes.count(); ++i) {
+		D_PRINTLN(" %d", notes[i]);
+	}
+	D_PRINTLN("sourceScale");
+	for (int32_t i = 0; i < sourceScale.count(); ++i) {
+		D_PRINTLN(" %d", sourceScale[i]);
+	}
+	D_PRINTLN("targetScale");
+	for (int32_t i = 0; i < targetScale.count(); ++i) {
+		D_PRINTLN(" %d", targetScale[i]);
+	}
 	if (notes.scaleSize() > targetScale.scaleSize() || !notes.isSubsetOf(sourceScale)) {
 		return oops("SM01");
 	}

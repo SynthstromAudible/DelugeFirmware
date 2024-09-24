@@ -124,6 +124,7 @@ public:
 	ParamManagerForTimeline backedUpParamManagerMIDI;
 
 	bool inScaleMode; // Probably don't quiz this directly - call isScaleModeClip() instead
+	NoteSet accidentals;
 
 	int32_t yScroll;
 

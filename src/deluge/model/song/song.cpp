@@ -2898,6 +2898,7 @@ Scale Song::cycleThroughScales() {
 
 /// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES we can't use the newScale
 Scale Song::setScale(Scale newScale) {
+	D_PRINT("Setting song scale to %d", newScale);
 	// Make sure newScale is a legal one
 	if (0 <= newScale && newScale < NUM_PRESET_SCALES && setScaleNotes(presetScaleNotes[newScale])) {
 		return newScale;

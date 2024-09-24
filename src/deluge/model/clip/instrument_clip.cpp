@@ -1307,7 +1307,11 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOcta
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!thisNoteRow->hasNoNotes()) {
-			notesWithinOctavePresent.add(key.intervalOf(thisNoteRow->getNoteCode()));
+			auto note = key.intervalOf(thisNoteRow->getNoteCode());
+			if (!accidentals.has(note)) {
+				notesWithinOctavePresent.add(key.intervalOf(thisNoteRow->getNoteCode()));
+
+			}
 			i++;
 		}
 

@@ -4647,7 +4647,16 @@ doneLookingForRootNoteOnScreen:
 	// Need to figure out the scale first...
 	getCurrentInstrumentClip()->inScaleMode = true;
 	// Computation to find out what notes in scale
-	currentSong->setRootNote(newRootNote, getCurrentInstrumentClip());
+	// currentSong->setRootNote(newRootNote, getCurrentInstrumentClip());
+	getCurrentInstrumentClip()->accidentals.clear();
+	NoteSet notes;
+	getCurrentInstrumentClip()->seeWhatNotesWithinOctaveArePresent(notes, currentSong->key);
+	for (int32_t i = 0; i < notes.count(); i++) {
+		if (!currentSong->key.modeNotes.has(notes[i])) {
+			getCurrentInstrumentClip()->accidentals.add(notes[i]);
+		}
+	}
+
 
 	int32_t yVisual = getCurrentInstrumentClip()->getYVisualFromYNote(pinAnimationToYNote, currentSong);
 
