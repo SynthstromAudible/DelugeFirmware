@@ -214,7 +214,10 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 void ModControllableAudio::processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate,
                                         int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
                                         const StereoSample* bufferEnd) {
-	if (modFXType != ModFXType::NONE) {
+	if (modFXType == ModFXType::GRAIN) {
+		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd);
+	}
+	else if (modFXType != ModFXType::NONE) {
 
 		LFOType modFXLFOWaveType{};
 		int32_t modFXDelayOffset;
@@ -230,13 +233,21 @@ void ModControllableAudio::processModFX(StereoSample* buffer, const ModFXType& m
 			setupChorus(modFXDepth, postFXVolume, unpatchedParams, modFXLFOWaveType, modFXDelayOffset,
 			            thisModFXDelayDepth);
 		}
-		else if (modFXType == ModFXType::GRAIN) {
-			setupGrainFX(modFXRate, modFXDepth, postFXVolume, unpatchedParams);
-		}
 
 		processModFXBuffer(buffer, modFXType, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType, modFXDelayOffset,
 		                   thisModFXDelayDepth, feedback);
 	}
+}
+void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth,
+                                          int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
+                                          const StereoSample* bufferEnd) {
+	setupGrainFX(modFXRate, modFXDepth, postFXVolume, unpatchedParams);
+	StereoSample* currentSample = buffer;
+
+	do {
+		processOneGrainSample(currentSample);
+
+	} while (++currentSample != bufferEnd);
 }
 void ModControllableAudio::setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
                                        LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
@@ -343,20 +354,20 @@ void ModControllableAudio::processModFXBuffer(StereoSample* buffer, const ModFXT
                                               LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
                                               int32_t thisModFXDelayDepth, int32_t feedback) {
 	StereoSample* currentSample = buffer;
-	do {
-
-		int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
-
-		if (modFXType == ModFXType::PHASER) {
+	if (modFXType == ModFXType::PHASER) {
+		do {
+			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
 			processOnePhaserSample(modFXDepth, feedback, currentSample, lfoOutput);
-		}
-		else if (modFXType == ModFXType::GRAIN && modFXGrainBuffer) {
-			processOneGrainSample(currentSample);
-		}
-		else {
+
+		} while (++currentSample != bufferEnd);
+	}
+	else {
+		do {
+			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
 			processOneModFXSample(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput);
-		}
-	} while (++currentSample != bufferEnd);
+
+		} while (++currentSample != bufferEnd);
+	}
 }
 void ModControllableAudio::processOneModFXSample(const ModFXType& modFXType, int32_t modFXDelayOffset,
                                                  int32_t thisModFXDelayDepth, int32_t feedback,
@@ -373,6 +384,8 @@ void ModControllableAudio::processOneModFXSample(const ModFXType& modFXType, int
 	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
 	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
 
+	// todo - this should probably just be a seperate flag, we could do flanger and warble in stereo too (stereo warble
+	// sounds great)
 	if (modFXType == ModFXType::CHORUS_STEREO) {
 		delayTime = multiply_32x32_rshift32(lfoOutput, -thisModFXDelayDepth) + modFXDelayOffset;
 		strength2 = (delayTime & 65535) << 15;

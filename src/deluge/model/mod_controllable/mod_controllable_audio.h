@@ -195,6 +195,7 @@ private:
 	void switchLPFModeWithOff();
 	void processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
 	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd);
+	// not grain!
 	void processModFXBuffer(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
 	                        const StereoSample* bufferEnd, LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
 	                        int32_t thisModFXDelayDepth, int32_t feedback);
@@ -209,4 +210,6 @@ private:
 	                         int32_t& thisModFXDelayDepth, int32_t& feedback) const;
 	void setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
 	                 LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const;
+	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
+	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd);
 };
