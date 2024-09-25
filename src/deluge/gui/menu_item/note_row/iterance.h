@@ -51,6 +51,8 @@ public:
 		}
 	}
 
+	 // TODO RAUL: Same considerations as menu_item/note/iterance.h
+
 	void selectEncoderAction(int32_t offset) final override {
 		int32_t newValue = instrumentClipView.setNoteRowIterance(offset);
 		if (newValue != -1) {

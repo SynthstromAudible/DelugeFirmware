@@ -31,7 +31,7 @@ class Iterance final : public SelectedNote {
 public:
 	using SelectedNote::SelectedNote;
 
-	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterationValues; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterationValues; } // TODO RAUL: what happens if custom? lastIndex+1
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 
 	/// @brief Begin an editing session with this menu item.
@@ -54,12 +54,15 @@ public:
 		int32_t divisor, iterationWithinDivisor;
 		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
 
+		// TODO RAUL: logic  to paint "CUSTOM" if not within presets
+		// TODO RAUL: and simplify this logic to do a for loop to check for equality with preset values
 		if (iterance == 0) {
 			strcpy(buffer, "OFF");
 		}
 		else {
 			sprintf(buffer, "%d of %d", iterationWithinDivisor + 1, divisor);
 		}
+		// TODO RAUL: Extra case when index out of maxValue, show CUSTOM
 
 		deluge::hid::display::OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
 		                                                   kTextHugeSizeY);

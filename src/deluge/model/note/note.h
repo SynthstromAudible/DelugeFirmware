@@ -53,7 +53,7 @@ public:
 	int32_t length;
 	uint8_t velocity;
 	uint8_t probability;
-	uint8_t iterance;
+	uint16_t iterance;
 	uint8_t fill;
 	/// Lift is noteOff velocity.
 	uint8_t lift;

@@ -873,6 +873,7 @@ doNewProbability:
 			// if probably setting has resulted in a note on
 			if (conditionPassed) [[likely]] {
 				// now we check if we should skip note based on iteration condition
+				// TODO RAUL: don't do iterance & 127, either do iterance & 32767 (16 bits)
 				int32_t iterance = pendingNoteOnList.pendingNoteOns[i].iterance & 127;
 
 				// If it's an iteration dependence...

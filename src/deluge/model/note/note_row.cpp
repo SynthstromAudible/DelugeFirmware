@@ -2969,12 +2969,14 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 	// Go through each Note within the original length
 	for (int32_t i = 0; i < numNotesBefore; i++) {
 		Note* note = notes.getElement(i);
+		// TODO RAUL: don't do iterance & 127, either do iterance & 32767 (16 bits)
 		int32_t iterance = note->iterance & 127;
 		int32_t pos = note->pos;
 
 		// If it's iteration dependent...
 		if (iterance > kDefaultIteranceValue) {
 			int32_t divisor, iterationWithinDivisor;
+			// TODO RAUL: dissectIterationDependence needs to return an array of iterationWithinDivisor values instead of just one
 			dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
@@ -3017,6 +3019,10 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					break; // Shouldn't happen...
 				}
 
+				// TODO RAUL: see what the fuck to do if iterationWithinDivisor needs to be multiple values instead of one:
+				// This: We have an array of iterationWithinDivisor (up to 8 values). We loop through all to check if
+				// whichRepeatWithinLoop != iterationWithinDivisorWithinRepeat. If all disctinct, we go to the FAIL path
+				// If at least one is equal we save that "iterationWithinDivisor" and pass it to the WIN path
 				int32_t iterationWithinDivisorWithinRepeat =
 				    numRepeatsRounded ? ((uint32_t)iterationWithinDivisor % (uint32_t)numRepeatsRounded)
 				                      : iterationWithinDivisor;
@@ -3430,6 +3436,8 @@ useDefaultLift:
 				if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
 					probability = kNumProbabilityValues;
 				}
+				// TODO RAUL: don't do iterance & 127, either do iterance & 32767 (16 bits)
+				// don't compare with presets
 				if ((iterance & 127) > kNumIterationValues || iterance >= (kNumIterationValues | 128)) {
 					iterance = kDefaultIteranceValue;
 				}
@@ -3543,7 +3551,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			intToHex(thisNote->getProbability(), buffer, 2);
 			writer.write(buffer);
 
-			intToHex(thisNote->getIterance(), buffer, 2);
+			intToHex(thisNote->getIterance(), buffer, 2); // TODO RAUL: maybe need here 4 chars for uint16
 			writer.write(buffer);
 
 			intToHex(thisNote->getFill(), buffer, 2);

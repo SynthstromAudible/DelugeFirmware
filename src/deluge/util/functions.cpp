@@ -1972,6 +1972,10 @@ int32_t getWhichKernel(int32_t phaseIncrement) {
 }
 
 void dissectIterationDependence(int32_t iterance, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor) {
+	// TODO RAUL: we have to do something here, take into account that before calling this, iterance is done "& 127" and we don't want that
+    // TODO RAUL: don't do iterance & 127, either do iterance & 32767 (16 bits)
+	// TODO RAUL: this functions needs to return an array of iterationWithinDivisor values (up to 8 values)
+	       // TODO RAUL: add another function that takes the iterance param and the getRepeatCount and returns true or false if condition passed
 	int32_t value = (iterance & 127) - 1;
 	int32_t whichRepeat;
 

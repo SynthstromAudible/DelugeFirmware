@@ -2405,7 +2405,7 @@ void InstrumentClipView::adjustNoteProbability(int32_t offset) {
 }
 
 void InstrumentClipView::adjustNoteIterance(int32_t offset) {
-	adjustNoteParameterValue(offset, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterationValues);
+	adjustNoteParameterValue(offset, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterationValues); // TODO RAUL: what happens if custom? lastIndex+1
 }
 
 void InstrumentClipView::adjustNoteFill(int32_t offset) {
@@ -2443,6 +2443,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 					prevBase = (parameter & 128);
 				}
 				else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+					// TODO RAUL: logic here to handle custom iterance
 					parameter = editPadPresses[i].intendedIterance;
 				}
 				else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
@@ -2460,6 +2461,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 
 					// Incrementing
 					if (offset == 1) {
+						// TODO RAUL: when iterance is among preset values, allow to increase till 8of8, if iterance is custom (not preset), don't allow to increment
 						if (parameterValue < parameterMaxValue) {
 							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 								if (prevBase) {
@@ -2488,6 +2490,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 
 					// Decrementing
 					else {
+						// TODO: RAUL when iterance is set to CUSTOM, allow decrementing to 8of8
 						if (parameterValue > parameterMinValue || prevBase) {
 							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 								if (prevBase) {
@@ -2509,6 +2512,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 						}
 					}
 
+					// TODO RAUL: changeValue must already be in the custom format for iterance
 					int32_t changeValue = parameterValue;
 
 					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
@@ -2593,6 +2597,7 @@ multiplePresses:
 			prevBase = (parameter & 128);
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			// TODO RAUL: see single note TODOs
 			parameter = editPadPresses[leftMostIndex].intendedIterance;
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
