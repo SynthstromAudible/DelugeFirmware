@@ -30,6 +30,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
+#include "util/comparison.h"
 #include "util/firmware_version.h"
 
 using namespace deluge;
@@ -1146,8 +1147,8 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem
 	// strange, but it's because unlike for Sounds, the effect can be switched on and off by changing a parameter
 	// like "depth".
-	if (modFXTypeNow == ModFXType::FLANGER || modFXTypeNow == ModFXType::CHORUS
-	    || modFXTypeNow == ModFXType::CHORUS_STEREO) {
+	if (util::one_of(modFXTypeNow,
+	                 {ModFXType::CHORUS_STEREO, ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::WARBLE})) {
 		if (!modFXBuffer) {
 			modFXBuffer =
 			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
