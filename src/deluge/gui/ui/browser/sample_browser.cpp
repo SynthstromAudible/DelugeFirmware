@@ -575,7 +575,7 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 		if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
 			// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
-			// as if you had confirmed with Select encoder, but keeping the browser open.
+			// as if you had confirmed with the Select encoder, but keeping the browser open.
 			claimCurrentFile(1, 1, 1, true);
 		}
 
