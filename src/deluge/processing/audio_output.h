@@ -124,6 +124,10 @@ public:
 		auto modeInt = util::to_underlying(mode);
 		modeInt = (modeInt + offset) % kNumAudioOutputModes;
 		mode = static_cast<AudioOutputMode>(modeInt);
+		if (outputRecordingFrom) {
+			// update the output we're recording from on whether we're monitoring
+			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
+		}
 	}
 
 protected:
