@@ -1314,15 +1314,6 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOcta
 
 		if (!thisNoteRow->hasNoNotes()) {
 			notesWithinOctavePresent.add(key.intervalOf(thisNoteRow->getNoteCode()));
-			// auto note = key.intervalOf(thisNoteRow->getNoteCode());
-			// // Don't transform out of scale notes
-			// if (key.degreeOf(note) >= 0) {
-			// 	notesWithinOctavePresent.add(note);
-			// }
-			// auto note = key.intervalOf(thisNoteRow->getNoteCode());
-			// if (!accidentals.has(note)) {
-			// 	notesWithinOctavePresent.add(key.intervalOf(thisNoteRow->getNoteCode()));
-			// }
 			i++;
 		}
 
@@ -1353,7 +1344,7 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 	colourOffset -= semitones;
 }
 
-void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType type,
+bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType type,
                                           ModelStackWithTimelineCounter* modelStack) {
 	// This method is limited to no more than an octave of "change", currently used
 	// by the "hold and turn vertical encoder" and "shift + hold and turn vertical
@@ -1362,7 +1353,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 	if (!direction) {
 		// It's not clear if we ever get "zero" as direction of change, but let's
 		// make sure we behave sensibly in that case as well.
-		return;
+		return true;
 	}
 
 	int32_t change = direction > 0 ? 1 : -1;
@@ -1388,6 +1379,13 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 	}
 	else {
 		// Scale clip, transpose by scale note jumps
+		NoteSet notes;
+		MusicalKey key = modelStack->song->key;
+		seeWhatNotesWithinOctaveArePresent(notes, key);
+		if (!notes.isSubsetOf(key.modeNotes)) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE_CHROMATIC));
+			return false;
+		}
 
 		// wanting to change a full octave
 		if (std::abs(change) == modelStack->song->key.modeNotes.count()) {
@@ -1402,7 +1400,6 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		// wanting to change less than an octave
 		else {
 			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-				MusicalKey key = modelStack->song->key;
 				NoteRow* thisNoteRow = noteRows.getElement(i);
 				int32_t changeInSemitones = 0;
 				int32_t yNoteWithinOctave = key.intervalOf(thisNoteRow->getNoteCode());
@@ -1443,6 +1440,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		}
 	}
 	yScroll += change;
+	return true;
 }
 
 // Lock rendering before calling this!

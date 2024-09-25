@@ -764,6 +764,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MASTER, "Master"},
         {STRING_FOR_FILTERS, "Filters"},
         {STRING_FOR_CANT_TRANSPOSE, "Can't Transpose: No Scale Mode Clips"},
+        {STRING_FOR_CANT_TRANSPOSE_CHROMATIC, "Can't Transpose in Scale Mode with chromatic notes"},
         {STRING_FOR_TRANSPOSE_INKEY, "In Key"},
         {STRING_FOR_TRANSPOSE_CHROMATIC, "Chromatic"},
         {STRING_FOR_TRANSPOSE_CHORD, "Chord"},
