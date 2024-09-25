@@ -289,7 +289,7 @@ void ModControllableAudio::setupModFXWFeedback(const ModFXType& modFXType, int32
 		modFXDelayOffset = kFlangerOffset;
 		modFXDelayOffset +=
 		    multiply_32x32_rshift32(kFlangerOffset, (unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET)));
-		thisModFXDelayDepth = multiply_32x32_rshift32(kFlangerOffset, modFXDepth);
+		thisModFXDelayDepth = multiply_32x32_rshift32(kFlangerOffset, modFXDepth) << 1;
 		modFXLFOWaveType = LFOType::WARBLER;
 	}
 	else { // Phaser
@@ -361,6 +361,13 @@ void ModControllableAudio::processModFXBuffer(StereoSample* buffer, const ModFXT
 
 		} while (++currentSample != bufferEnd);
 	}
+	else if (modFXType == ModFXType::WARBLE) {
+		do {
+			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+			processWarble(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput);
+
+		} while (++currentSample != bufferEnd);
+	}
 	else {
 		do {
 			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
@@ -399,13 +406,13 @@ void ModControllableAudio::processOneModFXSample(const ModFXType& modFXType, int
 	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].r, strength2);
 	int32_t modFXOutputR = scaledValue1R + scaledValue2R;
 
-	if (modFXType == ModFXType::FLANGER || modFXType == ModFXType::WARBLE) {
+	// feedback also controls the mix? Weird but ok, I guess it makes it work on one knob
+	if (modFXType == ModFXType::FLANGER) {
 		modFXOutputL = multiply_32x32_rshift32_rounded(modFXOutputL, feedback) << 2;
 		modFXBuffer[modFXBufferWriteIndex].l = modFXOutputL + currentSample->l; // Feedback
 		modFXOutputR = multiply_32x32_rshift32_rounded(modFXOutputR, feedback) << 2;
 		modFXBuffer[modFXBufferWriteIndex].r = modFXOutputR + currentSample->r; // Feedback
 	}
-
 	else { // Chorus
 		modFXOutputL <<= 1;
 		modFXBuffer[modFXBufferWriteIndex].l = currentSample->l; // Feedback
@@ -415,6 +422,40 @@ void ModControllableAudio::processOneModFXSample(const ModFXType& modFXType, int
 
 	currentSample->l += modFXOutputL;
 	currentSample->r += modFXOutputR;
+	modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
+}
+
+void ModControllableAudio::processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset,
+                                         int32_t thisModFXDelayDepth, int32_t feedback, StereoSample* currentSample,
+                                         int32_t lfoOutput) {
+	int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
+
+	int32_t strength2 = (delayTime & 65535) << 15;
+	int32_t strength1 = (65535 << 15) - strength2;
+	int32_t sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
+
+	int32_t scaledValue1L =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].l, strength1);
+	int32_t scaledValue2L =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
+	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
+
+	int32_t scaledValue1R =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].r, strength1);
+	int32_t scaledValue2R =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].r, strength2);
+	int32_t modFXOutputR = scaledValue1R + scaledValue2R;
+
+	auto fback = multiply_32x32_rshift32_rounded(modFXOutputL, feedback);
+	modFXBuffer[modFXBufferWriteIndex].l = fback + currentSample->l; // Feedback
+	fback = multiply_32x32_rshift32_rounded(modFXOutputR, feedback);
+	modFXBuffer[modFXBufferWriteIndex].r = fback + currentSample->r; // Feedback
+
+	modFXOutputL <<= 2;
+	modFXOutputR <<= 2;
+
+	currentSample->l = modFXOutputL;
+	currentSample->r = modFXOutputR;
 	modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
 }
 void ModControllableAudio::processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample,

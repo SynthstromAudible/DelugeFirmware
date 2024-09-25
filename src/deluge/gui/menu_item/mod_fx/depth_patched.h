@@ -27,8 +27,8 @@ public:
 	using patched_param::Integer::Integer;
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
-		return util::one_of(modControllable->getModFXType(),
-		                    {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::GRAIN, ModFXType::PHASER});
+		return util::one_of(modControllable->getModFXType(), {ModFXType::CHORUS, ModFXType::CHORUS_STEREO,
+		                                                      ModFXType::GRAIN, ModFXType::PHASER, ModFXType::WARBLE});
 	}
 	[[nodiscard]] std::string_view getName() const override {
 		return modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::DEPTH);

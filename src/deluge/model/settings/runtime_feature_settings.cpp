@@ -153,7 +153,7 @@ void RuntimeFeatureSettings::init() {
 	// LightShiftLed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT,
 	                  "lightShift", RuntimeFeatureStateToggle::Off);
-	
+
 	// EnableDxShortcuts
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableDxShortcuts], STRING_FOR_COMMUNITY_FEATURE_DX_SHORTCUTS,
 	                  "enableDxShortcuts", RuntimeFeatureStateToggle::Off);
