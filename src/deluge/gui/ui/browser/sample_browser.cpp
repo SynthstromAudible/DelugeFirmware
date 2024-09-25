@@ -471,7 +471,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		}
 	}
 
-	// Learn button: toggle autoload (only for non-audioclips)
+	// Load button: toggle auto-load (only for non-audio clips)
 	else if (b == LOAD && getCurrentClip()->type != ClipType::AUDIO) {
 		if (!on) {
 			autoLoadEnabled = !autoLoadEnabled;
