@@ -15,9 +15,9 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "io/debug/log.h"
 #include "scale_mode.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
+#include "io/debug/log.h"
 #include "model/scale/preset_scales.h"
 
 using namespace deluge::gui::ui::keyboard::layout;
@@ -90,12 +90,7 @@ void ScaleModeColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTim
                                 KeyboardLayout* layout) {
 	if (pad.active) {
 		NoteSet scaleNotes = currentSong->key.modeNotes;
-		D_PRINTLN("Scale Notes");
-		for (int32_t i = 0; i < scaleNotes.count(); ++i) {
-			D_PRINTLN(" %d", scaleNotes[i]);
-		}
 		previousScale = currentSong->getCurrentScale();
-		D_PRINTLN("Scale Mode: %d", scaleModes[pad.y]);
 		if (keyboardScreen.setScale(scaleModes[pad.y])) {
 			currentScalePad = pad.y;
 		}

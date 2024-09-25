@@ -2898,7 +2898,6 @@ Scale Song::cycleThroughScales() {
 
 /// Returns CUSTOM_SCALE_WITH_MORE_THAN_7_NOTES we can't use the newScale
 Scale Song::setScale(Scale newScale) {
-	D_PRINT("Setting song scale to %d", newScale);
 	// Make sure newScale is a legal one
 	if (0 <= newScale && newScale < NUM_PRESET_SCALES && setScaleNotes(presetScaleNotes[newScale])) {
 		return newScale;
@@ -2923,7 +2922,9 @@ bool Song::setScaleNotes(NoteSet newScaleNotes) {
 	notesWithinOctavePresent.add(0);
 
 	// If the new scale cannot fit the notes from the old one, we can't change scale
-	if (notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize()) {
+	// Or if the new scale is not a subset of the key mode notes (We have accidentals in the scale), we can't change
+	if ((notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize())
+	    || !notesWithinOctavePresent.isSubsetOf(key.modeNotes)) {
 		return false;
 	}
 

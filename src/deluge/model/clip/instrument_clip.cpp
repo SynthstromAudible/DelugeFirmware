@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
@@ -1271,7 +1270,14 @@ void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWi
 			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 
 			thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
+			D_PRINTLN("Changing note from %d with degree %d", thisNoteRow->y, degree);
 			thisNoteRow->y += changes[degree];
+		}
+		else {
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+
+			thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
 		}
 	}
 
@@ -1307,11 +1313,16 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOcta
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!thisNoteRow->hasNoNotes()) {
-			auto note = key.intervalOf(thisNoteRow->getNoteCode());
-			if (!accidentals.has(note)) {
-				notesWithinOctavePresent.add(key.intervalOf(thisNoteRow->getNoteCode()));
-
-			}
+			notesWithinOctavePresent.add(key.intervalOf(thisNoteRow->getNoteCode()));
+			// auto note = key.intervalOf(thisNoteRow->getNoteCode());
+			// // Don't transform out of scale notes
+			// if (key.degreeOf(note) >= 0) {
+			// 	notesWithinOctavePresent.add(note);
+			// }
+			// auto note = key.intervalOf(thisNoteRow->getNoteCode());
+			// if (!accidentals.has(note)) {
+			// 	notesWithinOctavePresent.add(key.intervalOf(thisNoteRow->getNoteCode()));
+			// }
 			i++;
 		}
 
