@@ -16,6 +16,7 @@
  */
 
 #include "definitions_cxx.hpp"
+#include "hid/button.h"
 #include "model/sample/sample.h"
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
@@ -102,6 +103,8 @@ bool SampleBrowser::opened() {
 	qwertyCurrentlyDrawnOnscreen = false;
 
 	currentlyShowingSamplePreview = false;
+
+	autoLoadEnabled = false;
 
 	if (display->haveOLED()) {
 		fileIndexSelected = 0;
@@ -468,6 +471,14 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		}
 	}
 
+	// Load button: toggle auto-load (only for non-audio clips)
+	else if (b == LOAD && getCurrentClip()->type != ClipType::AUDIO) {
+		if (!on) {
+			autoLoadEnabled = !autoLoadEnabled;
+			indicator_leds::setLedState(IndicatorLED::LOAD, autoLoadEnabled);
+		}
+	}
+
 	else {
 		return Browser::buttonAction(b, on, inCardRoutine);
 	}
@@ -561,6 +572,12 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 		}
 
 		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
+
+		if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
+			// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
+			// as if you had confirmed with the Select encoder, but keeping the browser open.
+			claimCurrentFile(1, 1, 1, true);
+		}
 
 		/*
 		if (movementDirection && movementDirection * Encoders::encoders[ENCODER_THIS_CPU_SELECT].detentPos > 0 &&
@@ -741,7 +758,8 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 
 // This display-> any (rare) specific errors generated, then spits out just a boolean success.
 // For the "may" arguments, 0 means no; 1 means auto; 2 means do definitely as the user has specifically requested it.
-bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable) {
+bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
+                                     bool loadWithoutExiting) {
 
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
@@ -1036,8 +1054,10 @@ doLoadAsSample:
 		}
 	}
 
-	exitAndNeverDeleteDrum();
-	uiNeedsRendering(&audioClipView);
+	if (!loadWithoutExiting) {
+		exitAndNeverDeleteDrum();
+		uiNeedsRendering(&audioClipView);
+	}
 	display->removeWorkingAnimation();
 	return true;
 }

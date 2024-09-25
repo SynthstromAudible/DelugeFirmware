@@ -41,6 +41,9 @@
   - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the selected note row's audition pad will blink. You can select other note row's by pressing the note row audition pad or by scrolling with the vertical encoder.
   - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the `SELECT` encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
 
+##### Synth/Kit Clips
+- Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
+
 ### MIDI
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
