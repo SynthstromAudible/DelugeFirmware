@@ -12,17 +12,15 @@ To edit note / note row iteration and fill settings you need to access the new n
 
 Hold a note and press the select encoder to enter the note editor menu. 
 
-The note you were holding will be the note selected when you enter the note editor.
+The note you were holding will be the note selected when you enter the note editor. If playback is off, you will hear what that note sounds like.
 
 ### Selecting a Note
 
-While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
+While in the note editor menu, the selected note will blink. 
 
-While in the note editor you can also vertical scroll or horizontal scroll / zoom to select other notes. 
+You can select another note by pressing the note on the grid. 
 
-You can select other note's by:
-- pressing the notes on the grid
-- vertical or horizontal scroll / zoom to select other notes
+You can vertical scroll, horizontal scroll, and zoom in / out to find a note you want to edit.
 
 Note: if you scroll, the note you previously selected will get de-selected. If you were in a note parameter menu, it will kick you back out to the main note editor menu. If you then try to enter one of those note parameter menu's, it will tell you to select a note first.
 
@@ -39,11 +37,13 @@ You can exit the menu by pressing BACK to back out or you can press the greyed o
 
 ## Note Row Editor Menu
 
-### Enter Note Row Menu
+### Enter Note Row Editor Menu
 
 Hold a note row audition pad and press the select encoder to enter the note row editor menu. 
 
 The note row you were holding will be the note row selected when you enter the note row editor.
+
+While in the Note Row Editor Menu, the audition pads will not sound. They will function as if you are holding Shift to select rows silently.
 
 ### Selecting A Note Row
 
@@ -70,13 +70,11 @@ By physically holding an audition pad you can:
 While holding shift or sticky shift, you can:
 - add / remove notes on the grid
 - press and hold one or more notes to edit the same parameter selected for the row but for only for the notes you selected
-- with a note selected you can edit it's velocity by turning the horizontal encoder <>
+- with a note selected you can edit its velocity by turning the horizontal encoder <>
 - with a note selected you can nudge it by pressing and turning the horizontal encoder <>
-- with a note selected you can edit it's repeats by pressing and turning the vertical encoder
-- vertical scroll, horizontal scroll and zoom to select other notes
-- rotate a row by physically holding the audition pad and pressing and turning the horizontal encoder
+- with a note selected you can edit its repeats by pressing and turning the vertical encoder
 
-### Exit Note Row Menu
+### Exit Note Row Editor Menu
 
 You can exit the menu by pressing BACK to back out or you can press the greyed out Main Grid Pads
 
