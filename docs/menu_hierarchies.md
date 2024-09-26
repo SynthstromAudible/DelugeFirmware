@@ -407,6 +407,38 @@ Firmware Version (FIRM)
 </details>
 
 <details>
+<summary>Song Grid View Clip Settings Menu</summary>
+
+The Clip Settings menu is accessible from Song Grid View by pressing and holding a `CLIP` and pressing the `SELECT ENCODER`
+
+The Clip settings menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Convert to Audio (CONV)</summary></details>
+<details><summary>Clip Mode (MODE)</summary>
+
+	- INFINITE (INF)
+	- FILL
+	- ONCE
+</details>
+<details><summary>Clip Name (NAME)</summary></details>
+</details>
+
+<details>
+<summary>Song Row View Clip Mode Menu</summary>
+
+The Clip Mode menu is accessible from Song Row View by pressing and holding the `CLIP MUTE` pad in first column of the sidebar and pressing the `SELECT ENCODER`.
+
+The Clip Mode menu contains the following menu options:
+
+<blockquote>
+
+	- INFINITE (INF)
+	- FILL
+	- ONCE
+</details>
+
+<details>
 <summary>Song Menu</summary>
 
 The Song menu is accessible from Arranger View and Song View by pressing on the `SELECT ENCODER`
@@ -1339,7 +1371,10 @@ The Audio Clip menu contains the following menu hierarchy:
 	- Bal. Input (Monitoring) (BALA.)
 	- Deluge Mix (Pre FX) (MIX)
 	- Deluge Output (Post FX) (OUTP)
+	- Specific Track (TRAK)
+	- Specific Track (FX Processing) (TRAK.)
 </details>
+<details><summary>Specific Track (TRAK)</summary></details>
 <details><summary>Master (MASTR)</summary>
 
 	- Volume (VOLU)
