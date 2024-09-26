@@ -4647,7 +4647,7 @@ doneLookingForRootNoteOnScreen:
 	// Need to figure out the scale first...
 	getCurrentInstrumentClip()->inScaleMode = true;
 	// Computation to find out what notes in scale
-	// currentSong->setRootNote(newRootNote, getCurrentInstrumentClip());  // TODO remove this line when sure we don't
+	currentSong->setRootNote(newRootNote, getCurrentInstrumentClip());
 	// need it
 
 	int32_t yVisual = getCurrentInstrumentClip()->getYVisualFromYNote(pinAnimationToYNote, currentSong);
@@ -4686,8 +4686,6 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 	PadLEDs::numAnimatedRows = 0;
 	for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = clip->noteRows.getElement(i);
-		D_PRINTLN("Entering Scale with noteRow from %d with degree %d", thisNoteRow->y,
-		          currentSong->key.degreeOf(thisNoteRow->y));
 		int32_t yVisualTo = clip->getYVisualFromYNote(thisNoteRow->y, currentSong);
 		int32_t yDisplayTo = yVisualTo - newScroll;
 		int32_t yDisplayFrom = thisNoteRow->y - clip->yScroll;
@@ -4777,8 +4775,6 @@ void InstrumentClipView::exitScaleMode() {
 	PadLEDs::numAnimatedRows = 0;
 	for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = clip->noteRows.getElement(i);
-		D_PRINTLN("Exiting Scale with noteRow from %d with degree %d", thisNoteRow->y,
-		          currentSong->key.degreeOf(thisNoteRow->y));
 		int32_t yDisplayTo = thisNoteRow->y - (clip->yScroll + scrollAdjust);
 		clip->inScaleMode = true;
 		int32_t yDisplayFrom = clip->getYVisualFromYNote(thisNoteRow->y, currentSong) - clip->yScroll;
@@ -6044,8 +6040,6 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-			D_PRINTLN("Rendering with noteRow from %d with degree %d", noteRow->y,
-			          currentSong->key.degreeOf(noteRow->y));
 
 			uint8_t* occupancyMaskOfRow = NULL;
 			if (occupancyMask) {
