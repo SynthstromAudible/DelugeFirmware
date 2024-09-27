@@ -3581,9 +3581,10 @@ doSilentAudition:
 				instrumentClipView.auditionPadIsPressed[yDisplay] = 0;
 				instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] = 255;
 
-				// Stop the note sounding - but only if a sequenced note isn't in fact being played
-				// here.
-				if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF) {
+				// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
+				// Or if it's drone note, end auditioning to transfer the note's sustain to the sequencer
+				if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF
+				    || noteRowOnActiveClip->isDroning(modelStackWithNoteRowOnCurrentClip->getLoopLength())) {
 					instrumentClipView.sendAuditionNote(false, yDisplay, 64, 0);
 				}
 			}

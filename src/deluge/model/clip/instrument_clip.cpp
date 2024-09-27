@@ -4295,6 +4295,12 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 					// front than any previous Clip-lengthening that took place.
 
 					lastNote->setLength(loopLength - lastNote->pos);
+
+					// if we just recorded a drone note, transfer the note to the sequencer
+					// so that we can stop auditioning / sending midi and note will continue sustaining
+					if (thisNoteRow->isDroning(loopLength)) {
+						thisNoteRow->soundingStatus = STATUS_SEQUENCED_NOTE;
+					}
 				}
 
 				// And, that'll be the last Note we need to deal with

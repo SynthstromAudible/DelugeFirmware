@@ -238,6 +238,8 @@ public:
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
 
+	bool isDroning(int32_t effectiveLength);
+
 private:
 	void playNote(bool, ModelStackWithNoteRow* modelStack, Note*, int32_t ticksLate = 0, uint32_t samplesLate = 0,
 	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = NULL);
