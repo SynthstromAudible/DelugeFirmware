@@ -163,6 +163,16 @@ The Settings menu contains the following menu hierarchy:
 				- Momentary Modwheel (MMOD)
 					- Disabled (OFF)
 					- Enabled (ON)
+		- Clip Type (CLIP)
+			- New Clip Type (TYPE)
+				- Synth
+				- Kit
+				- Midi
+				- CV
+				- Audio
+			- Use Last Clip Type (LAST)
+				- Disabled (OFF)
+				- Enabled (ON)
 	- Automation (AUTO)
 		- Interpolation (INTE)
 			- Disabled (OFF)

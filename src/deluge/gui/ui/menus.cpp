@@ -43,6 +43,7 @@
 #include "gui/menu_item/defaults/slice_mode.h"
 #include "gui/menu_item/defaults/startup_song_mode.h"
 #include "gui/menu_item/defaults/swing_interval.h"
+#include "gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h"
 #include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
@@ -982,9 +983,20 @@ Submenu defaultUISession{
     {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
 };
 
+defaults::ui::clip_type::DefaultNewClipType defaultNewClipTypeMenu{STRING_FOR_DEFAULT_NEW_CLIP_TYPE,
+                                                                   STRING_FOR_DEFAULT_NEW_CLIP_TYPE};
+ToggleBool defaultUseLastClipTypeMenu{STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE,
+                                      FlashStorage::defaultUseLastClipType};
+
+Submenu defaultClipTypeMenu{STRING_FOR_DEFAULT_CLIP_TYPE,
+                            {
+                                &defaultNewClipTypeMenu,
+                                &defaultUseLastClipTypeMenu,
+                            }};
+
 Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {&defaultUISession, &defaultUIKeyboard},
+    {&defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu},
 };
 
 ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,

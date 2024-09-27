@@ -903,6 +903,11 @@ enum class String : size_t {
 	STRING_FOR_CLIP_MODE,
 	STRING_FOR_CLIP_NAME,
 
+	// string for default clip creation type
+	STRING_FOR_DEFAULT_CLIP_TYPE,
+	STRING_FOR_DEFAULT_NEW_CLIP_TYPE,
+	STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE,
+
 	STRING_LAST
 };
 
