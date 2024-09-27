@@ -73,6 +73,9 @@ extern std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 extern bool accessibilityShortcuts;
 extern bool accessibilityMenuHighlighting;
 
+extern OutputType defaultNewClipType;
+extern bool defaultUseLastClipType;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

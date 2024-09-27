@@ -36,6 +36,13 @@ Sized<char const**> NewClipType::getOptions() {
 bool NewClipType::setupAndCheckAvailability() {
 	currentUIMode = UI_MODE_CREATING_CLIP;
 
+	if (FlashStorage::defaultUseLastClipType && sessionView.lastTypeCreated != OutputType::NONE) {
+		toCreate = sessionView.lastTypeCreated;
+	}
+	else {
+		toCreate = FlashStorage::defaultNewClipType;
+	}
+
 	updateSelectedOption();
 
 	indicator_leds::blinkLed(IndicatorLED::BACK);
