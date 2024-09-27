@@ -128,14 +128,20 @@
 
 ##### Creating New Clips
 - Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`.
-  - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
-    - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last created clip type.
+  - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
+    - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
+    - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
+    - If you just a tap a pad quickly to create a new clip, it will create that new clip using either the default clip type or the last clip type you created (if you enable this).
     - If you press and hold a pad, you can choose a different type to create in a number of ways:
       - by turning the select encoder to switch between the various clip types. You can create that clip type by pressing on the select encoder or letting go of the pad.
       - by pressing one of the clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV`). 
       - If you let go of the pad without selecting a different type, it will create the clip using the last create type (or the last selected type if you changed selection using select encoder).
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.  
     - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
+- Added additional flexibility for creating New Clips in `SONG ROW VIEW`.
+    - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
+      - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
+      - NOTE: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
 
 ##### Clip Settings Menu    
 - Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode and Clip Name in Song Grid View

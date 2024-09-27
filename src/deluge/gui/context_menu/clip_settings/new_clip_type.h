@@ -30,7 +30,7 @@ public:
 	void disableLedForOption(int32_t option);
 	void blinkLedForOption(int32_t option);
 
-	OutputType toCreate = OutputType::AUDIO;
+	OutputType toCreate = OutputType::NONE;
 
 	/// Title
 	char const* getTitle() override;

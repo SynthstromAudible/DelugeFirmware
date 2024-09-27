@@ -181,6 +181,8 @@ enum Entries {
 173: default disabled scales high byte
 174: accessibilityShortcuts
 175: accessibilityMenuHighlighting
+176: default new clip type
+177: use last clip type
 */
 
 uint8_t defaultScale;
@@ -236,6 +238,9 @@ static_assert(NUM_PRESET_SCALES <= 16);
 
 bool accessibilityShortcuts = false;
 bool accessibilityMenuHighlighting = true;
+
+OutputType defaultNewClipType = OutputType::SYNTH;
+bool defaultUseLastClipType = true;
 
 void resetSettings() {
 
@@ -334,6 +339,9 @@ void resetSettings() {
 
 	accessibilityShortcuts = false;
 	accessibilityMenuHighlighting = true;
+
+	defaultNewClipType = OutputType::SYNTH;
+	defaultUseLastClipType = true;
 }
 
 void resetMidiFollowSettings() {
@@ -725,6 +733,20 @@ void readSettings() {
 	else {
 		accessibilityMenuHighlighting = buffer[175];
 	}
+
+	if (buffer[176] < 0 && buffer[176] > util::to_underlying(OutputType::AUDIO)) {
+		defaultNewClipType = OutputType::SYNTH;
+	}
+	else {
+		defaultNewClipType = static_cast<OutputType>(buffer[176]);
+	}
+
+	if (buffer[177] != 0 && buffer[177] != 1) {
+		defaultUseLastClipType = true;
+	}
+	else {
+		defaultUseLastClipType = buffer[177];
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -990,6 +1012,9 @@ void writeSettings() {
 
 	buffer[174] = accessibilityShortcuts;
 	buffer[175] = accessibilityMenuHighlighting;
+
+	buffer[176] = util::to_underlying(defaultNewClipType);
+	buffer[177] = defaultUseLastClipType;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
