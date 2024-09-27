@@ -33,6 +33,7 @@ public:
 		    l10n::getView(STRING_FOR_SAW),
 		    l10n::getView(STRING_FOR_SAMPLE_AND_HOLD),
 		    l10n::getView(STRING_FOR_RANDOM_WALK),
+		    l10n::getView(STRING_FOR_WARBLE),
 		};
 	}
 };

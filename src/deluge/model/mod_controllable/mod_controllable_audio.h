@@ -27,6 +27,7 @@
 #include "modulation/lfo.h"
 #include "modulation/midi/midi_knob_array.h"
 #include "modulation/params/param_descriptor.h"
+#include "modulation/params/param_set.h"
 #include "modulation/sidechain/sidechain.h"
 
 struct Grain {
@@ -192,4 +193,25 @@ private:
 	                                                       int32_t noteRowIndex);
 	void switchHPFModeWithOff();
 	void switchLPFModeWithOff();
+	void processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
+	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd);
+	// not grain!
+	void processModFXBuffer(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
+	                        const StereoSample* bufferEnd, LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
+	                        int32_t thisModFXDelayDepth, int32_t feedback);
+	void processOneGrainSample(StereoSample* currentSample);
+	void processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
+	void processOneModFXSample(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
+	                           int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
+	void setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams);
+	/// flanger, phaser, warble - generally any modulated delay tap based effect with feedback
+	void setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
+	                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
+	                         int32_t& thisModFXDelayDepth, int32_t& feedback) const;
+	void setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
+	                 LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const;
+	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
+	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd);
+	void processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
+	                   int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
 };
