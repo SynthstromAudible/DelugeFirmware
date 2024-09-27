@@ -53,6 +53,7 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "util/comparison.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/misc.h"
@@ -360,7 +361,8 @@ ModFXType Sound::getModFXType() {
 
 // Returns false if not enough ram
 bool Sound::setModFXType(ModFXType newType) {
-	if (newType == ModFXType::FLANGER || newType == ModFXType::CHORUS || newType == ModFXType::CHORUS_STEREO) {
+
+	if (util::one_of(newType, {ModFXType::FLANGER, ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::WARBLE})) {
 		if (!modFXBuffer) {
 			// TODO: should give an error here if no free ram
 			modFXBuffer =

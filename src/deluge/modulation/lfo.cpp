@@ -30,6 +30,9 @@ uint32_t getLFOInitialPhaseForZero(LFOType waveType) {
 
 void LFO::setLocalInitialPhase(const LFOConfig& config) {
 	phase = getLFOInitialPhaseForNegativeExtreme(config.waveType);
+	holdValue = 0;
+	speed = 0;
+	target = 0;
 }
 
 void LFO::setGlobalInitialPhase(const LFOConfig& config) {
@@ -39,4 +42,7 @@ void LFO::setGlobalInitialPhase(const LFOConfig& config) {
 	else {
 		phase = getLFOInitialPhaseForNegativeExtreme(config.waveType);
 	}
+	holdValue = 0;
+	speed = 0;
+	target = 0;
 }

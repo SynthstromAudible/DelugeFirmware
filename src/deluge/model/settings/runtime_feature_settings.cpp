@@ -154,10 +154,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT,
 	                  "lightShift", RuntimeFeatureStateToggle::Off);
 
-	// EnableGrainFX
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGrainFX], STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX,
-	                  "enableGrainFX", RuntimeFeatureStateToggle::Off);
-
 	// EnableDxShortcuts
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableDxShortcuts], STRING_FOR_COMMUNITY_FEATURE_DX_SHORTCUTS,
 	                  "enableDxShortcuts", RuntimeFeatureStateToggle::Off);
