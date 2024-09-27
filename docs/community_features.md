@@ -342,13 +342,23 @@ which track to record from. To run the instrument through the audio clip's FX ch
     - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
-### 3.30 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
+#### 3.30 Added ability to Start / Restart Playback from Specific Clip Pad in Arranger View
 - ([#2615]) Added ability to start / restart arrangement playback from the clip pad you're holding in arranger view.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
 #### 3.31 Added Song New Midi Learn Menu
 - ([#2645]) Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
+
+#### 3.32 - Alternative Delay Types for Param Encoders (Gold encoders)
+
+- ([#282]) Ability to select in `COMMUNITY FEATURES` menu, which parameters are controlled when you click the `DELAY`
+  -related golden encoders. The default (for upper and lower encoders) is `PINGPONG` (`ON/OFF`)
+  and `TYPE` (`DIGITAL`/`ANALOG`), and you can modify it so the encoder clicks change
+  the `SYNC TYPE` (`EVEN, TRIPLETS, DOTTED`) and `SYNC RATE` (`OFF, WHOLE, 2ND, 4TH, ETC`) respectively.
+
+    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
 
 ## 4. New Features Added
 
@@ -580,35 +590,25 @@ In `KEYBOARD VIEW`, macros are available as a sidebar control.
 - ([#120]) New Stereo Chorus type added to Mod FX. `MOD FX DEPTH` will adjust the amount of stereo widening the effect
   has.
 
-#### 4.2.3 - MIDI Takeover Mode
+#### 4.2.3 - Warbler Effect
 
-This mode affects how the Deluge handles MIDI input for learned CC controls.
+- ([#2712]) New Warble fx, which provides randomly warbling pitch shifting and delays to simulate things from a tape reel
+warbling up to getting chewed up by the machine and spat back out. It's essentially a flanger/chorus/whatever based modulation
+abomination that makes super cool lofi warbley noises. It essentially consists of two things, a randomly drifting vibrato
+and a comb filter. Controls are the normal rate/depth/feedback/offset.
 
-- ([#170]) A new `TAKEOVER` submenu was created in the `MIDI` settings menu which consists of three modes that can be
-  selected from:
+    - To make a tape warble type thing set rate to 15ish, depth to 5-10, feedback 0-2 and offset at 25
 
-  **1. `JUMP`:** This is the default mode for the Deluge. As soon as a MIDI encoder/Fader position is changed, the
-  Deluge's internal encoder position/Parameter value jumps to the position of the MIDI encoder/Fader.
+    - With depth at 0 and feedback at 0 it's not doing anything. If you turn up feedback you'll start to comb filter the signal, offset controls the length of the comb filter. Turning depth up adds modulation to that delay time (like a chorus or flanger) but since the modulation is unpredictable it sounds more "warm" "analog" "chewy" "lofi"
 
-  **2. `PICKUP`:** The Deluge will ignore changes to its internal encoder position/Parameter value until the MIDI
-  encoder/Fader's position is equal to the Deluge encoder position. After which the MIDI encoder/Fader will move in sync
-  with the Deluge.
+    - Turning rate up makes it go faster
 
-  **3. `SCALE`:** The Deluge will increase/decrease its internal encoder position/Parameter value relative to the change
-  of the MIDI encoder/Fader position and the amount of "runway" remaining on the MIDI controller. Once the MIDI
-  controller reaches its maximum or minimum position, the MIDI encoder/Fader will move in sync with the Deluge. The
-  Deluge value will always decrease/increase in the same direction as the MIDI controller.
+    - Turning feedback up makes it get super weird
 
-  **4. `RELATIVE`:** The Deluge will increase/decrease its internal encoder position/Parameter value using the relative value changes (offset) sent by the controller. The controller must be actually sending relative value changes (127 for down and 1 for up) in order for this to work.
+    - Turning offset up adds phasing (unless feedback is 0, in which case it does nothing)
 
-#### 4.2.4 - Alternative Delay Types for Param Encoders (Gold encoders)
-
-- ([#282]) Ability to select in `COMMUNITY FEATURES` menu, which parameters are controlled when you click the `DELAY`
-  -related golden encoders. The default (for upper and lower encoders) is `PINGPONG` (`ON/OFF`)
-  and `TYPE` (`DIGITAL`/`ANALOG`), and you can modify it so the encoder clicks change
-  the `SYNC TYPE` (`EVEN, TRIPLETS, DOTTED`) and `SYNC RATE` (`OFF, WHOLE, 2ND, 4TH, ETC`) respectively.
-
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+#### 4.2.4 - Warble LFO
+- ([#2712]) The randomly varying wave at the center of the warbler, but made into an LFO
 
 #### 4.2.5 - Patchable Wavefolding Distortion
 

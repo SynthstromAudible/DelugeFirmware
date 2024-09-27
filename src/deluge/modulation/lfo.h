@@ -18,7 +18,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "io/debug/log.h"
 #include "model/sync.h"
+#include "util/fixedpoint.h"
 #include "util/waves.h"
 
 class LFOConfig {
@@ -33,8 +35,10 @@ public:
 class LFO {
 public:
 	LFO() = default;
-	uint32_t phase;
-	int32_t holdValue;
+	uint32_t phase{0};
+	int32_t holdValue{0};
+	int32_t target{0};
+	int32_t speed{0};
 	void setLocalInitialPhase(const LFOConfig& config);
 	void setGlobalInitialPhase(const LFOConfig& config);
 	[[gnu::always_inline]] int32_t render(int32_t numSamples, LFOConfig& config, uint32_t phaseIncrement) {
@@ -44,7 +48,7 @@ public:
 		int32_t value;
 		switch (waveType) {
 		case LFOType::SAW:
-			value = phase;
+			value = static_cast<int32_t>(phase);
 			break;
 
 		case LFOType::SQUARE:
@@ -69,7 +73,7 @@ public:
 			}
 			break;
 
-		case LFOType::RANDOM_WALK:
+		case LFOType::RANDOM_WALK: {
 			uint32_t range = 4294967295u / 20;
 			if (phase == 0) {
 				value = (range / 2) - CONG % range;
@@ -86,13 +90,27 @@ public:
 				// equal chance for next holdValue smaller or lager than current
 				// holdValue == -8 * range => (holdValue / -16) + (range / 2) ==
 				// range => next holdValue >= current holdValuie
-				holdValue += (holdValue / -16) + (range / 2) - CONG % range;
+				holdValue = add_saturation((holdValue / -16) + (range / 2) - CONG % range, holdValue);
 				value = holdValue;
 			}
 			else {
 				value = holdValue;
 			}
 			break;
+		}
+		case LFOType::WARBLER: {
+			phaseIncrement *= 2;
+			if (phase + phaseIncrement * numSamples < phase) {
+				target = CONG;
+				speed = 0;
+			}
+			// this is a second order filter - the rate that the held value approaches the target is filtered instead of
+			// the difference. It makes a nice smooth random curve since the derivative is 0 at the start and end
+			auto targetSpeed = target - holdValue;
+			speed = speed + numSamples * (multiply_32x32_rshift32(targetSpeed, phaseIncrement >> 8));
+			holdValue = add_saturation(holdValue, speed);
+			value = holdValue;
+		}
 		}
 
 		phase += phaseIncrement * numSamples;

@@ -28,8 +28,12 @@ public:
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
 		return (util::one_of(modControllable->getModFXType(),
-		                     {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::GRAIN}));
+		                     {ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::GRAIN, ModFXType::WARBLE}));
 	}
+	[[nodiscard]] std::string_view getName() const override {
+		return modfx::getParamName(soundEditor.currentModControllable->getModFXType(), ModFXParam::OFFSET);
+	}
+	[[nodiscard]] virtual std::string_view getTitle() const { return getName(); }
 };
 
 } // namespace deluge::gui::menu_item::mod_fx

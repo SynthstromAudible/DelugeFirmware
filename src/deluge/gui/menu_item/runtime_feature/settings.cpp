@@ -41,7 +41,6 @@ SettingToggle menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightInc
 SettingToggle menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 ShiftIsSticky menuShiftIsSticky{};
 SettingToggle menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
-SettingToggle menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
 SettingToggle menuEnableDX7Engine(RuntimeFeatureSettingType::EnableDX7Engine);
 EmulatedDisplay menuEmulatedDisplay{};
 SettingToggle menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
@@ -65,7 +64,6 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDisplayNornsLayout,
     &menuShiftIsSticky,
     &menuLightShiftLed,
-    &menuEnableGrainFX,
     &menuEnableDX7Engine,
     &menuEmulatedDisplay,
     &menuEnableKeyboardViewSidebarMenuExit,

@@ -404,16 +404,10 @@ enum class LFOType : uint8_t {
 	SAW,
 	SAMPLE_AND_HOLD,
 	RANDOM_WALK,
+	WARBLER,
 };
 
-constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK) + 1;
-
-enum class SynthMode : uint8_t {
-	SUBTRACTIVE,
-	FM,
-	RINGMOD,
-};
-constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
+constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::WARBLER) + 1;
 
 enum class ModFXType : uint8_t {
 	NONE,
@@ -421,11 +415,17 @@ enum class ModFXType : uint8_t {
 	CHORUS,
 	PHASER,
 	CHORUS_STEREO,
+	WARBLE,
 	GRAIN, // Look below if you want to add another one
 };
-
-// Warning: Currently GRAIN can be disabled and kNumModFXTypes might need to be used - 1
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
+
+enum class SynthMode : uint8_t {
+	SUBTRACTIVE,
+	FM,
+	RINGMOD,
+};
+constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
 constexpr int32_t SAMPLE_MIN_TRANSPOSE = (-96);
@@ -553,6 +553,7 @@ enum class ModFXParam {
 	FEEDBACK,
 	OFFSET,
 };
+constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
 
 enum class CompParam {
 	RATIO,
@@ -562,8 +563,6 @@ enum class CompParam {
 	BLEND,
 	LAST,
 };
-
-constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
 
 enum class PatchCableAcceptance {
 	DISALLOWED,

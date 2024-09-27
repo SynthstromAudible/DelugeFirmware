@@ -10,6 +10,9 @@
 
 ## c1.3.0
 
+### Sound Engine
+- Added a Warbler fx and a warble LFO to synths/kits/kit rows/song/audio clips
+
 ### User Interface
 
 #### <ins>Accessibility</ins>

@@ -179,332 +179,7 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 	StereoSample* bufferEnd = buffer + numSamples;
 
 	// Mod FX -----------------------------------------------------------------------------------
-	if (modFXType != ModFXType::NONE) {
-
-		LFOType modFXLFOWaveType;
-		int32_t modFXDelayOffset;
-		int32_t thisModFXDelayDepth;
-		int32_t feedback;
-
-		if (modFXType == ModFXType::FLANGER || modFXType == ModFXType::PHASER) {
-
-			int32_t a = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK) >> 1;
-			int32_t b = 2147483647 - ((a + 1073741824) >> 2) * 3;
-			int32_t c = multiply_32x32_rshift32(b, b);
-			int32_t d = multiply_32x32_rshift32(b, c);
-
-			feedback = 2147483648 - (d << 2);
-
-			// Adjust volume for flanger feedback
-			int32_t squared = multiply_32x32_rshift32(feedback, feedback) << 1;
-			int32_t squared2 = multiply_32x32_rshift32(squared, squared) << 1;
-			squared2 = multiply_32x32_rshift32(squared2, squared) << 1;
-			squared2 = (multiply_32x32_rshift32(squared2, squared2) >> 4)
-			           * 23; // 22 // Make bigger to have more of a volume cut happen at high resonance
-			//*postFXVolume = (multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2) >> 1) * 3;
-			*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2);
-			if (modFXType == ModFXType::FLANGER) {
-				*postFXVolume <<= 1;
-			}
-			// Though, this would be more ideally placed affecting volume before the flanger
-
-			if (modFXType == ModFXType::FLANGER) {
-				modFXDelayOffset = kFlangerOffset;
-				thisModFXDelayDepth = kFlangerAmplitude;
-				modFXLFOWaveType = LFOType::TRIANGLE;
-			}
-			else { // Phaser
-				modFXLFOWaveType = LFOType::SINE;
-			}
-		}
-		else if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
-			modFXDelayOffset = multiply_32x32_rshift32(
-			    kModFXMaxDelay, (unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824);
-			thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 2;
-			modFXLFOWaveType = LFOType::SINE;
-			*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 1518500250) << 1; // Divide by sqrt(2)
-		}
-		else if (modFXType == ModFXType::GRAIN) {
-			AudioEngine::logAction("grain start");
-			if (!grainInitialized && modFXGrainBufferWriteIndex >= 65536) {
-				grainInitialized = true;
-			}
-			*postFXVolume = multiply_32x32_rshift32(*postFXVolume, ONE_OVER_SQRT2_Q31) << 1; // Divide by sqrt(2)
-			// Shift
-			grainShift = 44 * 300; //(kSampleRate / 1000) * 300;
-			// Size
-			grainSize = 44 * ((((unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824) >> 21));
-			grainSize = std::clamp<int32_t>(grainSize, 440, 35280); // 10ms - 800ms
-			// Rate
-			int32_t grainRateRaw = std::clamp<int32_t>((quickLog(modFXRate) - 364249088) >> 21, 0, 256);
-			grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); // 0 - 180hz
-			grainRate = std::max<int32_t>(1, grainRate);
-			grainRate = (kSampleRate << 1) / grainRate;
-			// Preset 0=default
-			grainPitchType = (int8_t)(multiply_32x32_rshift32_rounded(
-			    unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), 5)); // Select 5 presets -2 to 2
-			grainPitchType = std::clamp<int8_t>(grainPitchType, -2, 2);
-			// Temposync
-			if (grainPitchType == 2) {
-				int tempoBPM = (int32_t)(playbackHandler.calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5);
-				grainRate = std::clamp<int32_t>(256 - grainRateRaw, 0, 256) << 4; // 4096msec
-				grainRate = 44 * grainRate;                                       //(kSampleRate*grainRate)/1000;
-				int32_t baseNoteSamples = (kSampleRate * 60 / tempoBPM);          // 4th
-				if (grainRate < baseNoteSamples) {
-					baseNoteSamples = baseNoteSamples >> 2; // 16th
-				}
-				grainRate = std::clamp<int32_t>((grainRate / baseNoteSamples) * baseNoteSamples, baseNoteSamples,
-				                                baseNoteSamples << 2);            // Quantize
-				if (grainRate < 2205) {                                           // 50ms = 20hz
-					grainSize = std::min<int32_t>(grainSize, grainRate << 3) - 1; // 16 layers=<<4, 8layers = <<3
-				}
-				bool currentTickCountIsZero = (playbackHandler.getCurrentInternalTickCount() == 0);
-				if (grainLastTickCountIsZero && currentTickCountIsZero == false) { // Start Playback
-					modFXGrainBufferWriteIndex = 0;                                // Reset WriteIndex
-				}
-				grainLastTickCountIsZero = currentTickCountIsZero;
-			}
-			// Rate Adjustment
-			if (grainRate < 882) {                                            // 50hz or more
-				grainSize = std::min<int32_t>(grainSize, grainRate << 3) - 1; // 16 layers=<<4, 8layers = <<3
-			}
-			// Volume
-			grainVol = modFXDepth - 2147483648;
-			grainVol =
-			    (multiply_32x32_rshift32_rounded(multiply_32x32_rshift32_rounded(grainVol, grainVol), grainVol) << 2)
-			    + 2147483648; // Cubic
-			grainVol = std::max<int32_t>(0, std::min<int32_t>(2147483647, grainVol));
-			grainDryVol = (int32_t)std::clamp<int64_t>(((int64_t)(2147483648 - grainVol) << 3), 0, 2147483647);
-			grainFeedbackVol = grainVol >> 3;
-		}
-
-		StereoSample* currentSample = buffer;
-		do {
-
-			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
-
-			if (modFXType == ModFXType::PHASER) {
-
-				// "1" is sorta represented by 1073741824 here
-				int32_t _a1 =
-				    1073741824
-				    - multiply_32x32_rshift32_rounded((((uint32_t)lfoOutput + (uint32_t)2147483648) >> 1), modFXDepth);
-
-				phaserMemory.l = currentSample->l + (multiply_32x32_rshift32_rounded(phaserMemory.l, feedback) << 1);
-				phaserMemory.r = currentSample->r + (multiply_32x32_rshift32_rounded(phaserMemory.r, feedback) << 1);
-
-				// Do the allpass filters
-				for (auto& sample : allpassMemory) {
-					StereoSample whatWasInput = phaserMemory;
-
-					phaserMemory.l = (multiply_32x32_rshift32_rounded(phaserMemory.l, -_a1) << 2) + sample.l;
-					sample.l = (multiply_32x32_rshift32_rounded(phaserMemory.l, _a1) << 2) + whatWasInput.l;
-
-					phaserMemory.r = (multiply_32x32_rshift32_rounded(phaserMemory.r, -_a1) << 2) + sample.r;
-					sample.r = (multiply_32x32_rshift32_rounded(phaserMemory.r, _a1) << 2) + whatWasInput.r;
-				}
-
-				currentSample->l += phaserMemory.l;
-				currentSample->r += phaserMemory.r;
-			}
-			else if (modFXType == ModFXType::GRAIN && modFXGrainBuffer) {
-				if (modFXGrainBufferWriteIndex >= kModFXGrainBufferSize) {
-					modFXGrainBufferWriteIndex = 0;
-					wrapsToShutdown -= 1;
-				}
-				int32_t writeIndex = modFXGrainBufferWriteIndex; // % kModFXGrainBufferSize
-				if (modFXGrainBufferWriteIndex % grainRate == 0) {
-					for (int32_t i = 0; i < 8; i++) {
-						if (grains[i].length <= 0) {
-							grains[i].length = grainSize;
-							int32_t spray = random(kModFXGrainBufferSize >> 1) - (kModFXGrainBufferSize >> 2);
-							grains[i].startPoint =
-							    (modFXGrainBufferWriteIndex + kModFXGrainBufferSize - grainShift + spray)
-							    & kModFXGrainBufferIndexMask;
-							grains[i].counter = 0;
-							grains[i].rev = (getRandom255() < 76);
-
-							int32_t pitchRand = getRandom255();
-							switch (grainPitchType) {
-							case -2:
-								grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; // unison + octave + reverse
-								grains[i].rev = 1;
-								break;
-							case -1:
-								grains[i].pitch = (pitchRand < 76) ? 512 : 1024; // unison + octave lower
-								break;
-							case 0:
-								grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; // unison + octave (default)
-								break;
-							case 1:
-								grains[i].pitch = (pitchRand < 76) ? 1534 : 2048; // 5th + octave
-								break;
-							case 2:
-								grains[i].pitch = (pitchRand < 25)    ? 512
-								                  : (pitchRand < 153) ? 2048
-								                                      : 1024; // unison + octave + octave lower
-								break;
-							}
-							if (grains[i].rev) {
-								grains[i].startPoint =
-								    (writeIndex + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
-								grains[i].length =
-								    (grains[i].pitch > 1024)
-								        ? std::min<int32_t>(grains[i].length, 21659)  // Buffer length*0.3305
-								        : std::min<int32_t>(grains[i].length, 30251); // 1.48s - 0.8s
-							}
-							else {
-								if (grains[i].pitch > 1024) {
-									int32_t startPointMax =
-									    (writeIndex + grains[i].length - ((grains[i].length * grains[i].pitch) >> 10)
-									     + kModFXGrainBufferSize)
-									    & kModFXGrainBufferIndexMask;
-									if (!(grains[i].startPoint < startPointMax && grains[i].startPoint > writeIndex)) {
-										grains[i].startPoint =
-										    (startPointMax + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
-									}
-								}
-								else if (grains[i].pitch < 1024) {
-									int32_t startPointMax =
-									    (writeIndex + grains[i].length - ((grains[i].length * grains[i].pitch) >> 10)
-									     + kModFXGrainBufferSize)
-									    & kModFXGrainBufferIndexMask;
-
-									if (!(grains[i].startPoint > startPointMax && grains[i].startPoint < writeIndex)) {
-										grains[i].startPoint =
-										    (writeIndex + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
-									}
-								}
-							}
-							if (!grainInitialized) {
-								if (!grains[i].rev) { // forward
-									grains[i].pitch = 1024;
-									if (modFXGrainBufferWriteIndex > 13231) {
-										int32_t newStartPoint =
-										    std::max<int32_t>(440, random(modFXGrainBufferWriteIndex - 2));
-										grains[i].startPoint = (writeIndex - newStartPoint + kModFXGrainBufferSize)
-										                       & kModFXGrainBufferIndexMask;
-									}
-									else {
-										grains[i].length = 0;
-									}
-								}
-								else {
-									grains[i].pitch = std::min<int32_t>(grains[i].pitch, 1024);
-									if (modFXGrainBufferWriteIndex > 13231) {
-										grains[i].length =
-										    std::min<int32_t>(grains[i].length, modFXGrainBufferWriteIndex - 2);
-										grains[i].startPoint =
-										    (writeIndex - 1 + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
-									}
-									else {
-										grains[i].length = 0;
-									}
-								}
-							}
-							if (grains[i].length > 0) {
-								grains[i].volScale = (2147483647 / (grains[i].length >> 1));
-								grains[i].volScaleMax = grains[i].volScale * (grains[i].length >> 1);
-								shouldDoPanning((getRandom255() - 128) << 23, &grains[i].panVolL,
-								                &grains[i].panVolR); // Pan Law 0
-							}
-							break;
-						}
-					}
-				}
-
-				int32_t grains_l = 0;
-				int32_t grains_r = 0;
-				for (int32_t i = 0; i < 8; i++) {
-					if (grains[i].length > 0) {
-						// triangle window
-						int32_t vol = grains[i].counter <= (grains[i].length >> 1)
-						                  ? grains[i].counter * grains[i].volScale
-						                  : grains[i].volScaleMax
-						                        - (grains[i].counter - (grains[i].length >> 1)) * grains[i].volScale;
-						int32_t delta = grains[i].counter * (grains[i].rev == 1 ? -1 : 1);
-						if (grains[i].pitch != 1024) {
-							delta = ((delta * grains[i].pitch) >> 10);
-						}
-						int32_t pos =
-						    (grains[i].startPoint + delta + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
-
-						grains_l = multiply_accumulate_32x32_rshift32_rounded(
-						    grains_l, multiply_32x32_rshift32(modFXGrainBuffer[pos].l, vol) << 0, grains[i].panVolL);
-						grains_r = multiply_accumulate_32x32_rshift32_rounded(
-						    grains_r, multiply_32x32_rshift32(modFXGrainBuffer[pos].r, vol) << 0, grains[i].panVolR);
-
-						grains[i].counter++;
-						if (grains[i].counter >= grains[i].length) {
-							grains[i].length = 0;
-						}
-					}
-				}
-
-				grains_l <<= 3;
-				grains_r <<= 3;
-				// Feedback (Below grainFeedbackVol means "grainVol >> 4")
-				modFXGrainBuffer[writeIndex].l =
-				    multiply_accumulate_32x32_rshift32_rounded(currentSample->l, grains_l, grainFeedbackVol);
-				modFXGrainBuffer[writeIndex].r =
-				    multiply_accumulate_32x32_rshift32_rounded(currentSample->r, grains_r, grainFeedbackVol);
-				// WET and DRY Vol
-				currentSample->l = add_saturation(multiply_32x32_rshift32(currentSample->l, grainDryVol) << 1,
-				                                  multiply_32x32_rshift32(grains_l, grainVol) << 1);
-				currentSample->r = add_saturation(multiply_32x32_rshift32(currentSample->r, grainDryVol) << 1,
-				                                  multiply_32x32_rshift32(grains_r, grainVol) << 1);
-				modFXGrainBufferWriteIndex++;
-			}
-			else {
-
-				int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
-
-				int32_t strength2 = (delayTime & 65535) << 15;
-				int32_t strength1 = (65535 << 15) - strength2;
-				int32_t sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
-
-				int32_t scaledValue1L =
-				    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].l, strength1);
-				int32_t scaledValue2L =
-				    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
-				int32_t modFXOutputL = scaledValue1L + scaledValue2L;
-
-				if (modFXType == ModFXType::CHORUS_STEREO) {
-					delayTime = multiply_32x32_rshift32(lfoOutput, -thisModFXDelayDepth) + modFXDelayOffset;
-					strength2 = (delayTime & 65535) << 15;
-					strength1 = (65535 << 15) - strength2;
-					sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
-				}
-
-				int32_t scaledValue1R =
-				    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].r, strength1);
-				int32_t scaledValue2R =
-				    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].r, strength2);
-				int32_t modFXOutputR = scaledValue1R + scaledValue2R;
-
-				if (modFXType == ModFXType::FLANGER) {
-					modFXOutputL = multiply_32x32_rshift32_rounded(modFXOutputL, feedback) << 2;
-					modFXBuffer[modFXBufferWriteIndex].l = modFXOutputL + currentSample->l; // Feedback
-					modFXOutputR = multiply_32x32_rshift32_rounded(modFXOutputR, feedback) << 2;
-					modFXBuffer[modFXBufferWriteIndex].r = modFXOutputR + currentSample->r; // Feedback
-				}
-
-				else { // Chorus
-					modFXOutputL <<= 1;
-					modFXBuffer[modFXBufferWriteIndex].l = currentSample->l; // Feedback
-					modFXOutputR <<= 1;
-					modFXBuffer[modFXBufferWriteIndex].r = currentSample->r; // Feedback
-				}
-
-				currentSample->l += modFXOutputL;
-				currentSample->r += modFXOutputR;
-				modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
-			}
-		} while (++currentSample != bufferEnd);
-		if (modFXType == ModFXType::GRAIN) {
-			AudioEngine::logAction("grain end");
-		}
-	}
+	processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd);
 
 	// EQ -------------------------------------------------------------------------------------
 	bool thisDoBass = hasBassAdjusted(paramManager);
@@ -536,6 +211,415 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 
 	// Delay ----------------------------------------------------------------------------------
 	delay.process({buffer, static_cast<size_t>(numSamples)}, delayWorkingState);
+}
+void ModControllableAudio::processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate,
+                                        int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
+                                        const StereoSample* bufferEnd) {
+	if (modFXType == ModFXType::GRAIN) {
+		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd);
+	}
+	else if (modFXType != ModFXType::NONE) {
+
+		LFOType modFXLFOWaveType{};
+		int32_t modFXDelayOffset;
+		int32_t thisModFXDelayDepth;
+		int32_t feedback;
+
+		if (modFXType == ModFXType::FLANGER || modFXType == ModFXType::PHASER || modFXType == ModFXType::WARBLE) {
+
+			setupModFXWFeedback(modFXType, modFXDepth, postFXVolume, unpatchedParams, modFXLFOWaveType,
+			                    modFXDelayOffset, thisModFXDelayDepth, feedback);
+		}
+		else if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
+			setupChorus(modFXDepth, postFXVolume, unpatchedParams, modFXLFOWaveType, modFXDelayOffset,
+			            thisModFXDelayDepth);
+		}
+
+		processModFXBuffer(buffer, modFXType, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType, modFXDelayOffset,
+		                   thisModFXDelayDepth, feedback);
+	}
+}
+void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth,
+                                          int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
+                                          const StereoSample* bufferEnd) {
+	setupGrainFX(modFXRate, modFXDepth, postFXVolume, unpatchedParams);
+	StereoSample* currentSample = buffer;
+
+	do {
+		processOneGrainSample(currentSample);
+
+	} while (++currentSample != bufferEnd);
+}
+void ModControllableAudio::setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
+                                       LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
+                                       int32_t& thisModFXDelayDepth) const {
+	modFXDelayOffset = multiply_32x32_rshift32(
+	    kModFXMaxDelay, (unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824);
+	thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 2;
+	modFXLFOWaveType = LFOType::SINE;
+	*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 1518500250) << 1; // Divide by sqrt(2)
+}
+void ModControllableAudio::setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
+                                               UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType,
+                                               int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth,
+                                               int32_t& feedback) const {
+	int32_t a = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK) >> 1;
+	int32_t b = 2147483647 - ((a + 1073741824) >> 2) * 3;
+	int32_t c = multiply_32x32_rshift32(b, b);
+	int32_t d = multiply_32x32_rshift32(b, c);
+
+	feedback = 2147483648 - (d << 2);
+
+	// Adjust volume for flanger feedback
+	int32_t squared = multiply_32x32_rshift32(feedback, feedback) << 1;
+	int32_t squared2 = multiply_32x32_rshift32(squared, squared) << 1;
+	squared2 = multiply_32x32_rshift32(squared2, squared) << 1;
+	squared2 = (multiply_32x32_rshift32(squared2, squared2) >> 4)
+	           * 23; // 22 // Make bigger to have more of a volume cut happen at high resonance
+	//*postFXVolume = (multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2) >> 1) * 3;
+	*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2);
+
+	if (modFXType == ModFXType::FLANGER) {
+		*postFXVolume <<= 1;
+		modFXDelayOffset = kFlangerOffset;
+		thisModFXDelayDepth = kFlangerAmplitude;
+		modFXLFOWaveType = LFOType::TRIANGLE;
+	}
+	else if (modFXType == ModFXType::WARBLE) {
+		*postFXVolume <<= 1;
+		modFXDelayOffset = kFlangerOffset;
+		modFXDelayOffset +=
+		    multiply_32x32_rshift32(kFlangerOffset, (unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET)));
+		thisModFXDelayDepth = multiply_32x32_rshift32(kFlangerOffset, modFXDepth) << 1;
+		modFXLFOWaveType = LFOType::WARBLER;
+	}
+	else { // Phaser
+		modFXLFOWaveType = LFOType::SINE;
+	}
+}
+void ModControllableAudio::setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
+                                        UnpatchedParamSet* unpatchedParams) {
+	AudioEngine::logAction("grain start");
+	if (!grainInitialized && modFXGrainBufferWriteIndex >= 65536) {
+		grainInitialized = true;
+	}
+	*postFXVolume = multiply_32x32_rshift32(*postFXVolume, ONE_OVER_SQRT2_Q31) << 1; // Divide by sqrt(2)
+	                                                                                 // Shift
+	grainShift = 44 * 300;                                                           //(kSampleRate / 1000) * 300;
+	// Size
+	grainSize = 44 * ((((unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824) >> 21));
+	grainSize = std::clamp<int32_t>(grainSize, 440, 35280); // 10ms - 800ms
+	// Rate
+	int32_t grainRateRaw = std::clamp<int32_t>((quickLog(modFXRate) - 364249088) >> 21, 0, 256);
+	grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); // 0 - 180hz
+	grainRate = std::max<int32_t>(1, grainRate);
+	grainRate = (kSampleRate << 1) / grainRate;
+	// Preset 0=default
+	grainPitchType = (int8_t)(multiply_32x32_rshift32_rounded(
+	    unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), 5)); // Select 5 presets -2 to 2
+	grainPitchType = std::clamp<int8_t>(grainPitchType, -2, 2);
+	// Temposync
+	if (grainPitchType == 2) {
+		int tempoBPM = (int32_t)(playbackHandler.calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5);
+		grainRate = std::clamp<int32_t>(256 - grainRateRaw, 0, 256) << 4; // 4096msec
+		grainRate = 44 * grainRate;                                       //(kSampleRate*grainRate)/1000;
+		int32_t baseNoteSamples = (kSampleRate * 60 / tempoBPM);          // 4th
+		if (grainRate < baseNoteSamples) {
+			baseNoteSamples = baseNoteSamples >> 2; // 16th
+		}
+		grainRate = std::clamp<int32_t>((grainRate / baseNoteSamples) * baseNoteSamples, baseNoteSamples,
+		                                baseNoteSamples << 2);            // Quantize
+		if (grainRate < 2205) {                                           // 50ms = 20hz
+			grainSize = std::min<int32_t>(grainSize, grainRate << 3) - 1; // 16 layers=<<4, 8layers = <<3
+		}
+		bool currentTickCountIsZero = (playbackHandler.getCurrentInternalTickCount() == 0);
+		if (grainLastTickCountIsZero && currentTickCountIsZero == false) { // Start Playback
+			modFXGrainBufferWriteIndex = 0;                                // Reset WriteIndex
+		}
+		grainLastTickCountIsZero = currentTickCountIsZero;
+	}
+	// Rate Adjustment
+	if (grainRate < 882) {                                            // 50hz or more
+		grainSize = std::min<int32_t>(grainSize, grainRate << 3) - 1; // 16 layers=<<4, 8layers = <<3
+	}
+	// Volume
+	grainVol = modFXDepth - 2147483648;
+	grainVol = (multiply_32x32_rshift32_rounded(multiply_32x32_rshift32_rounded(grainVol, grainVol), grainVol) << 2)
+	           + 2147483648; // Cubic
+	grainVol = std::max<int32_t>(0, std::min<int32_t>(2147483647, grainVol));
+	grainDryVol = (int32_t)std::clamp<int64_t>(((int64_t)(2147483648 - grainVol) << 3), 0, 2147483647);
+	grainFeedbackVol = grainVol >> 3;
+}
+void ModControllableAudio::processModFXBuffer(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate,
+                                              int32_t modFXDepth, const StereoSample* bufferEnd,
+                                              LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
+                                              int32_t thisModFXDelayDepth, int32_t feedback) {
+	StereoSample* currentSample = buffer;
+	if (modFXType == ModFXType::PHASER) {
+		do {
+			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+			processOnePhaserSample(modFXDepth, feedback, currentSample, lfoOutput);
+
+		} while (++currentSample != bufferEnd);
+	}
+	else if (modFXType == ModFXType::WARBLE) {
+		do {
+			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+			processWarble(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput);
+
+		} while (++currentSample != bufferEnd);
+	}
+	else {
+		do {
+			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+			processOneModFXSample(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput);
+
+		} while (++currentSample != bufferEnd);
+	}
+}
+void ModControllableAudio::processOneModFXSample(const ModFXType& modFXType, int32_t modFXDelayOffset,
+                                                 int32_t thisModFXDelayDepth, int32_t feedback,
+                                                 StereoSample* currentSample, int32_t lfoOutput) {
+	int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
+
+	int32_t strength2 = (delayTime & 65535) << 15;
+	int32_t strength1 = (65535 << 15) - strength2;
+	int32_t sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
+
+	int32_t scaledValue1L =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].l, strength1);
+	int32_t scaledValue2L =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
+	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
+
+	// todo - this should probably just be a seperate flag, we could do flanger and warble in stereo too (stereo warble
+	// sounds great)
+	if (modFXType == ModFXType::CHORUS_STEREO) {
+		delayTime = multiply_32x32_rshift32(lfoOutput, -thisModFXDelayDepth) + modFXDelayOffset;
+		strength2 = (delayTime & 65535) << 15;
+		strength1 = (65535 << 15) - strength2;
+		sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
+	}
+
+	int32_t scaledValue1R =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].r, strength1);
+	int32_t scaledValue2R =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].r, strength2);
+	int32_t modFXOutputR = scaledValue1R + scaledValue2R;
+
+	// feedback also controls the mix? Weird but ok, I guess it makes it work on one knob
+	if (modFXType == ModFXType::FLANGER) {
+		modFXOutputL = multiply_32x32_rshift32_rounded(modFXOutputL, feedback) << 2;
+		modFXBuffer[modFXBufferWriteIndex].l = modFXOutputL + currentSample->l; // Feedback
+		modFXOutputR = multiply_32x32_rshift32_rounded(modFXOutputR, feedback) << 2;
+		modFXBuffer[modFXBufferWriteIndex].r = modFXOutputR + currentSample->r; // Feedback
+	}
+	else { // Chorus
+		modFXOutputL <<= 1;
+		modFXBuffer[modFXBufferWriteIndex].l = currentSample->l; // Feedback
+		modFXOutputR <<= 1;
+		modFXBuffer[modFXBufferWriteIndex].r = currentSample->r; // Feedback
+	}
+
+	currentSample->l += modFXOutputL;
+	currentSample->r += modFXOutputR;
+	modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
+}
+
+void ModControllableAudio::processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset,
+                                         int32_t thisModFXDelayDepth, int32_t feedback, StereoSample* currentSample,
+                                         int32_t lfoOutput) {
+	int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
+
+	int32_t strength2 = (delayTime & 65535) << 15;
+	int32_t strength1 = (65535 << 15) - strength2;
+	int32_t sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
+
+	int32_t scaledValue1L =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].l, strength1);
+	int32_t scaledValue2L =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
+	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
+
+	int32_t scaledValue1R =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].r, strength1);
+	int32_t scaledValue2R =
+	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].r, strength2);
+	int32_t modFXOutputR = scaledValue1R + scaledValue2R;
+
+	auto fback = multiply_32x32_rshift32_rounded(modFXOutputL, feedback);
+	modFXBuffer[modFXBufferWriteIndex].l = fback + currentSample->l; // Feedback
+	fback = multiply_32x32_rshift32_rounded(modFXOutputR, feedback);
+	modFXBuffer[modFXBufferWriteIndex].r = fback + currentSample->r; // Feedback
+
+	modFXOutputL <<= 2;
+	modFXOutputR <<= 2;
+
+	currentSample->l = modFXOutputL;
+	currentSample->r = modFXOutputR;
+	modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
+}
+void ModControllableAudio::processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample,
+                                                  int32_t lfoOutput) { // "1" is sorta represented by 1073741824 here
+	int32_t _a1 =
+	    1073741824 - multiply_32x32_rshift32_rounded((((uint32_t)lfoOutput + (uint32_t)2147483648) >> 1), modFXDepth);
+
+	phaserMemory.l = currentSample->l + (multiply_32x32_rshift32_rounded(phaserMemory.l, feedback) << 1);
+	phaserMemory.r = currentSample->r + (multiply_32x32_rshift32_rounded(phaserMemory.r, feedback) << 1);
+
+	// Do the allpass filters
+	for (auto& sample : allpassMemory) {
+		StereoSample whatWasInput = phaserMemory;
+
+		phaserMemory.l = (multiply_32x32_rshift32_rounded(phaserMemory.l, -_a1) << 2) + sample.l;
+		sample.l = (multiply_32x32_rshift32_rounded(phaserMemory.l, _a1) << 2) + whatWasInput.l;
+
+		phaserMemory.r = (multiply_32x32_rshift32_rounded(phaserMemory.r, -_a1) << 2) + sample.r;
+		sample.r = (multiply_32x32_rshift32_rounded(phaserMemory.r, _a1) << 2) + whatWasInput.r;
+	}
+
+	currentSample->l += phaserMemory.l;
+	currentSample->r += phaserMemory.r;
+}
+void ModControllableAudio::processOneGrainSample(StereoSample* currentSample) {
+	if (modFXGrainBufferWriteIndex >= kModFXGrainBufferSize) {
+		modFXGrainBufferWriteIndex = 0;
+		wrapsToShutdown -= 1;
+	}
+	int32_t writeIndex = modFXGrainBufferWriteIndex; // % kModFXGrainBufferSize
+	if (modFXGrainBufferWriteIndex % grainRate == 0) {
+		for (int32_t i = 0; i < 8; i++) {
+			if (grains[i].length <= 0) {
+				grains[i].length = grainSize;
+				int32_t spray = random(kModFXGrainBufferSize >> 1) - (kModFXGrainBufferSize >> 2);
+				grains[i].startPoint = (modFXGrainBufferWriteIndex + kModFXGrainBufferSize - grainShift + spray)
+				                       & kModFXGrainBufferIndexMask;
+				grains[i].counter = 0;
+				grains[i].rev = (getRandom255() < 76);
+
+				int32_t pitchRand = getRandom255();
+				switch (grainPitchType) {
+				case -2:
+					grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; // unison + octave + reverse
+					grains[i].rev = 1;
+					break;
+				case -1:
+					grains[i].pitch = (pitchRand < 76) ? 512 : 1024; // unison + octave lower
+					break;
+				case 0:
+					grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; // unison + octave (default)
+					break;
+				case 1:
+					grains[i].pitch = (pitchRand < 76) ? 1534 : 2048; // 5th + octave
+					break;
+				case 2:
+					grains[i].pitch = (pitchRand < 25)    ? 512
+					                  : (pitchRand < 153) ? 2048
+					                                      : 1024; // unison + octave + octave lower
+					break;
+				}
+				if (grains[i].rev) {
+					grains[i].startPoint = (writeIndex + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
+					grains[i].length = (grains[i].pitch > 1024)
+					                       ? std::min<int32_t>(grains[i].length, 21659)  // Buffer length*0.3305
+					                       : std::min<int32_t>(grains[i].length, 30251); // 1.48s - 0.8s
+				}
+				else {
+					if (grains[i].pitch > 1024) {
+						int32_t startPointMax = (writeIndex + grains[i].length
+						                         - ((grains[i].length * grains[i].pitch) >> 10) + kModFXGrainBufferSize)
+						                        & kModFXGrainBufferIndexMask;
+						if (!(grains[i].startPoint < startPointMax && grains[i].startPoint > writeIndex)) {
+							grains[i].startPoint =
+							    (startPointMax + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
+						}
+					}
+					else if (grains[i].pitch < 1024) {
+						int32_t startPointMax = (writeIndex + grains[i].length
+						                         - ((grains[i].length * grains[i].pitch) >> 10) + kModFXGrainBufferSize)
+						                        & kModFXGrainBufferIndexMask;
+
+						if (!(grains[i].startPoint > startPointMax && grains[i].startPoint < writeIndex)) {
+							grains[i].startPoint =
+							    (writeIndex + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
+						}
+					}
+				}
+				if (!grainInitialized) {
+					if (!grains[i].rev) { // forward
+						grains[i].pitch = 1024;
+						if (modFXGrainBufferWriteIndex > 13231) {
+							int32_t newStartPoint = std::max<int32_t>(440, random(modFXGrainBufferWriteIndex - 2));
+							grains[i].startPoint =
+							    (writeIndex - newStartPoint + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
+						}
+						else {
+							grains[i].length = 0;
+						}
+					}
+					else {
+						grains[i].pitch = std::min<int32_t>(grains[i].pitch, 1024);
+						if (modFXGrainBufferWriteIndex > 13231) {
+							grains[i].length = std::min<int32_t>(grains[i].length, modFXGrainBufferWriteIndex - 2);
+							grains[i].startPoint =
+							    (writeIndex - 1 + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
+						}
+						else {
+							grains[i].length = 0;
+						}
+					}
+				}
+				if (grains[i].length > 0) {
+					grains[i].volScale = (2147483647 / (grains[i].length >> 1));
+					grains[i].volScaleMax = grains[i].volScale * (grains[i].length >> 1);
+					shouldDoPanning((getRandom255() - 128) << 23, &grains[i].panVolL,
+					                &grains[i].panVolR); // Pan Law 0
+				}
+				break;
+			}
+		}
+	}
+
+	int32_t grains_l = 0;
+	int32_t grains_r = 0;
+	for (int32_t i = 0; i < 8; i++) {
+		if (grains[i].length > 0) {
+			// triangle window
+			int32_t vol =
+			    grains[i].counter <= (grains[i].length >> 1)
+			        ? grains[i].counter * grains[i].volScale
+			        : grains[i].volScaleMax - (grains[i].counter - (grains[i].length >> 1)) * grains[i].volScale;
+			int32_t delta = grains[i].counter * (grains[i].rev == 1 ? -1 : 1);
+			if (grains[i].pitch != 1024) {
+				delta = ((delta * grains[i].pitch) >> 10);
+			}
+			int32_t pos = (grains[i].startPoint + delta + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
+
+			grains_l = multiply_accumulate_32x32_rshift32_rounded(
+			    grains_l, multiply_32x32_rshift32(modFXGrainBuffer[pos].l, vol) << 0, grains[i].panVolL);
+			grains_r = multiply_accumulate_32x32_rshift32_rounded(
+			    grains_r, multiply_32x32_rshift32(modFXGrainBuffer[pos].r, vol) << 0, grains[i].panVolR);
+
+			grains[i].counter++;
+			if (grains[i].counter >= grains[i].length) {
+				grains[i].length = 0;
+			}
+		}
+	}
+
+	grains_l <<= 3;
+	grains_r <<= 3;
+	// Feedback (Below grainFeedbackVol means "grainVol >> 4")
+	modFXGrainBuffer[writeIndex].l =
+	    multiply_accumulate_32x32_rshift32_rounded(currentSample->l, grains_l, grainFeedbackVol);
+	modFXGrainBuffer[writeIndex].r =
+	    multiply_accumulate_32x32_rshift32_rounded(currentSample->r, grains_r, grainFeedbackVol);
+	// WET and DRY Vol
+	currentSample->l = add_saturation(multiply_32x32_rshift32(currentSample->l, grainDryVol) << 1,
+	                                  multiply_32x32_rshift32(grains_l, grainVol) << 1);
+	currentSample->r = add_saturation(multiply_32x32_rshift32(currentSample->r, grainDryVol) << 1,
+	                                  multiply_32x32_rshift32(grains_r, grainVol) << 1);
+	modFXGrainBufferWriteIndex++;
 }
 
 void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
