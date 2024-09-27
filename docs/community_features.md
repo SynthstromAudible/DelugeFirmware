@@ -55,11 +55,25 @@ as the micromonsta and the dreadbox nymphes.
   be sent to port 1 (or vice versa). A third port is added for future use such as a desktop/mobile companion app, DAW
   control or Mackie HUI emulation. When USB for MIDI is plugged into the Deluge, you can browse these settings
   in `SETTINGS > MIDI > DEVICES > UPSTREAM USB PORT 1` or `UPSTREAM USB PORT 2`.
+
 - ([#147]) Allows CCs to be learnt to the global commands (play, stop, loop, fill, etc.)
 
-- ([#1251]) `MIDI learn for kit` - from song or arranger view, a kit can now be learnt to a midi channel in the same way
-  as synths. The note sent for the learn will be treated as the first row for the kit, and increasing notes get mapped
-  to the next rows
+- ([#170]) A new `TAKEOVER` submenu was created in the `MIDI` settings menu which consists of three modes that can be
+  selected from. This mode affects how the Deluge handles MIDI input for learned CC controls:
+
+  **1. `JUMP`:** This is the default mode for the Deluge. As soon as a MIDI encoder/Fader position is changed, the
+  Deluge's internal encoder position/Parameter value jumps to the position of the MIDI encoder/Fader.
+
+  **2. `PICKUP`:** The Deluge will ignore changes to its internal encoder position/Parameter value until the MIDI
+  encoder/Fader's position is equal to the Deluge encoder position. After which the MIDI encoder/Fader will move in sync
+  with the Deluge.
+
+  **3. `SCALE`:** The Deluge will increase/decrease its internal encoder position/Parameter value relative to the change
+  of the MIDI encoder/Fader position and the amount of "runway" remaining on the MIDI controller. Once the MIDI
+  controller reaches its maximum or minimum position, the MIDI encoder/Fader will move in sync with the Deluge. The
+  Deluge value will always decrease/increase in the same direction as the MIDI controller.
+
+  **4. `RELATIVE`:** The Deluge will increase/decrease its internal encoder position/Parameter value using the relative value changes (offset) sent by the controller. The controller must be actually sending relative value changes (127 for down and 1 for up) in order for this to work.
 
 - ([#837]) `MIDI control over transpose / scale.`
     - Accessed via external MIDI via a new learnable global MIDI command in `SETTINGS > MIDI > CMD > TRANSPOSE`. It
@@ -128,6 +142,10 @@ as the micromonsta and the dreadbox nymphes.
   updating the kit row selection, you can now control the parameters for that kit row. With midi follow and midi
   feedback enabled, this will also send updated cc feedback for the new kit row selection.
 
+- ([#1251]) `MIDI learn for kit` - from song or arranger view, a kit can now be learnt to a midi channel in the same way
+  as synths. The note sent for the learn will be treated as the first row for the kit, and increasing notes get mapped
+  to the next rows
+
 #### 3.4 - Tempo & Swing
 
 - ([#178]) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
@@ -142,12 +160,19 @@ as the micromonsta and the dreadbox nymphes.
 
 - ([#2367]) Tempo changes can now be recorded to automation in arranger view
 
-#### 3.5 - Kits
+#### 3.5 - Alternative Delay Types for Param Encoders (Gold encoders)
+- ([#282]) Ability to select in `COMMUNITY FEATURES` menu, which parameters are controlled when you click the `DELAY`
+  -related golden encoders. The default (for upper and lower encoders) is `PINGPONG` (`ON/OFF`)
+  and `TYPE` (`DIGITAL`/`ANALOG`), and you can modify it so the encoder clicks change
+  the `SYNC TYPE` (`EVEN, TRIPLETS, DOTTED`) and `SYNC RATE` (`OFF, WHOLE, 2ND, 4TH, ETC`) respectively.
+    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+
+#### 3.6 - Kits
 
 - ([#395]) Load synth presets into kit rows by holding the row's `AUDITION` + `SYNTH`. Saving can be done by holding the
   audition pad and pressing save.
 
-#### 3.6 - Global Interface
+#### 3.7 - Global Interface
 
 - ([#118]) Sticky Shift - When enabled, tapping `SHIFT` will lock shift `ON` unless another button is also pressed
   during the short press duration.
@@ -157,11 +182,11 @@ as the micromonsta and the dreadbox nymphes.
     - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 - ([#1305]) Number of count-in bars is now configurable under `SETTINGS > RECORDING > COUNT-IN BARS`.
 
-#### 3.7 - Mod Wheel
+#### 3.8 - Mod Wheel
 
 - ([#512]) Incoming mod wheel MIDI data from non-MPE devices now maps to the `Y` axis.
 
-#### 3.8 - Visual Feedback on Value Changes with Mod Encoders and Increased Resolution for Value's in Menu's
+#### 3.9 - Visual Feedback on Value Changes with Mod Encoders and Increased Resolution for Value's in Menu's
 
 - ([#636]) Changing parameter values with Mod (Gold) Encoders now displays a pop-up with the current value of the
   parameter. The `SOUND` and `MODULATION` screens when parameter and modulation editing have also been adjusted to show
@@ -171,12 +196,12 @@ as the micromonsta and the dreadbox nymphes.
     - Note: In the Menu, if you wish to scroll through the parameter value range faster at an accelerated rate of +/- 5,
       hold `SHIFT` while turning the Select Encoder.
 
-#### 3.9 - Enable Stutter Rate Automation
+#### 3.10 - Enable Stutter Rate Automation
 
 - ([#653]) Enabled ability to record stutter rate automation with mod (gold) encoder.
     - Note: This feature does not enable you to automate the triggering of stutter
 
-#### 3.10 - Adjust Metronome Volume
+#### 3.11 - Adjust Metronome Volume
 
 - ([#683]) The Metronome's volume now respects the song's volume and will increase and decrease in volume together with
   the Gold Volume Encoder.
@@ -184,12 +209,12 @@ as the micromonsta and the dreadbox nymphes.
       to further adjust the volume of the Metronome. 1 being the lowest metronome volume that can be heard when the
       Song's volume is at its maximum and 50 being the loudest metronome volume.
 
-#### 3.11 - Mod Button Pop-up
+#### 3.12 - Mod Button Pop-up
 
 - ([#888]) Added Mod Button pop-up to display the current Mod (Gold) Encoder context (e.g. LPF/HPF Mode, Delay Mode and
   Type, Reverb Room Size, Compressor Mode, ModFX Type and Param).
 
-#### 3.12 - Automatically load the last open/saved song or user-defined template at startup.
+#### 3.13 - Automatically load the last open/saved song or user-defined template at startup.
 
 - ([#1272]) Added feature to load automatically projects at startup.
   To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > STARTUP SONG`.
@@ -206,18 +231,18 @@ as the micromonsta and the dreadbox nymphes.
       - `LAST OPENED SONG`/ `LAST SAVED SONG` / `TEMPLATE` refers to another song, in which case previous canary file will be ignored (but still needs to be manually removed).
 - In case of the crash still persists, you can always factory reset by holding `SELECT` while powering on the Deluge, which will force to boot up on `NEW SONG`.
 
-#### 3.13 - Preserve Pad Brightness Preference Through Power Cycle
+#### 3.14 - Preserve Pad Brightness Preference Through Power Cycle
 
 - ([#1312]) Save user-defined pad brightness level and restore it at startup.
   To use this feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > PAD BRIGHTNESS`.
     - Default : Full brightness (`100`).
     - Min value `4`, Max Value `100`.
 
-#### 3.14 - Learn Mod (Gold) Encoders to full Mod Matrix / Patch Cable value range
+#### 3.15 - Learn Mod (Gold) Encoders to full Mod Matrix / Patch Cable value range
 - ([#1382]) Mod (Gold) Encoders learned to the Mod Matrix / Patch Cable parameters can now access the full value range of those parameters (e.g. from -50 to +50)
   - In addition, a pop-up was added when using gold encoders learned to the Mod Matrix / Patch Cable parameters to show the source parameter(s) and destination parameter.
 
-#### 3.15 - Make Mod (Gold) Encoders LED indicators bipolar
+#### 3.16 - Make Mod (Gold) Encoders LED indicators bipolar
 - ([#1480]) As a follow-up to [#1382] which enabled Gold Knobs to access the full range of a Patch cable, the LED indicators for gold knobs editing bipolar params (e.g. Pan, Pitch, Patch Cable), are now bipolar. The lights of a bipolar LED indicator are lit up as follows
   - Middle value = No lights lit
   - Maximum value = Top two lights fully lit
@@ -225,23 +250,23 @@ as the micromonsta and the dreadbox nymphes.
   - Minimum value = Bottom two lights fully lit
     - Between middle and minimum, the bottom two lights will be lit up proportionately to the value in that range
 
-#### 3.16 - High CPU Usage Indicator
+#### 3.17 - High CPU Usage Indicator
 - ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
   - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 
-#### 3.17 - Select Audio Clip Source from Audio Clip Menu
+#### 3.18 - Select Audio Clip Source from Audio Clip Menu
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
 - ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose 
 which track to record from. To run the instrument through the audio clip's FX choose the FX PROCESSING option
 
-#### 3.18 - Set Audio Clip Length Equal to Sample Length
+#### 3.19 - Set Audio Clip Length Equal to Sample Length
 - ([#1542]) Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample.
     - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 
-#### 3.19 - Sample Slice Default Mode
+#### 3.20 - Sample Slice Default Mode
 
 - ([#1589]) Added a new default setting that controls which playback mode new slices of a kit will get. 
 -  To change the setting, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
@@ -250,45 +275,47 @@ which track to record from. To run the instrument through the audio clip's FX ch
   - the setting is persistent after reboot
   - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
 
-#### 3.20 Default Hold Press Time
+#### 3.21 Default Hold Press Time
 
 - ([#1846]) Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
 
-#### 3.21 Eased Timeline Zoom Level Restrictions
+#### 3.22 Eased Timeline Zoom Level Restrictions
 
 - ([#1962]) The maximum zoom level has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - This allows for more flexibility when entering long notes and chord progressions.
 - While changing the zoom level, the horizontal encoder will briefly pause while passing the zoom level which represents the entire sequence. This is to prevent frustration from users who are used to the prior limitations.
 
-#### 3.22 Exit menus by holding back
+#### 3.23 Exit menus by holding back
 
 - ([#2166]) Holding back will now fully exit your current menu
 
-#### 3.23 Automated Stem Exporting
+#### 3.24 Automated Stem Exporting
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Stem Export Documentation]
 - ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
 - ([#2327]) You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 - ([#2330]) You can configure settings for the stem export via the `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT STEMS\CONFIGURE EXPORT\` to configure various stem export settings.
 
-#### 3.24 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
+#### 3.25 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
 - ([#2315]) A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 
-#### 3.25 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
+#### 3.26 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
 - ([#2315]) The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
 
-#### 3.26 Updated UI for Interacting with Toggle Menu's and Sub Menu's
+#### 3.27 Updated UI for Interacting with Toggle Menu's and Sub Menu's
 - ([#2345]) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
  - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
  - Submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
-#### 3.27 Updated UI for Creating New Clips in New Tracks in Song Grid View
+#### 3.28 Updated UI for Creating New Clips in New Tracks in Song Grid View
 - ([#2429]) Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`
-  - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
-    - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last created clip type.
+  - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
+    - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
+    - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
+    - If you just a tap a pad quickly to create a new clip, it will create that new clip using either the default clip type or the last clip type you created (if you enable this).
     - If you press and hold a pad, you can choose a different type to create in a number of ways:
       - by turning the select encoder to switch between the various clip types. You can create that clip type by pressing on the select encoder or letting go of the pad.
       - by pressing one of the clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV`). 
@@ -296,7 +323,7 @@ which track to record from. To run the instrument through the audio clip's FX ch
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.
 - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
-#### 3.28 Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode and Clip Name in Song Grid View
+#### 3.29 Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode and Clip Name in Song Grid View
 - ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now open the `CLIP SETTINGS` menu.
 - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
   1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.

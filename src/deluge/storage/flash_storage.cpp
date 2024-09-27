@@ -179,6 +179,10 @@ enum Entries {
 171: default swing interval
 172: default disabled scales low byte
 173: default disabled scales high byte
+174: accessibilityShortcuts
+175: accessibilityMenuHighlighting
+176: default new clip type
+177: use last clip type
 */
 
 uint8_t defaultScale;
@@ -231,6 +235,9 @@ std::bitset<NUM_PRESET_SCALES> defaultDisabledPresetScales;
 // will have it's own disabled-flags. If we ever add more, we need to spend at least one byte
 // more of flash.
 static_assert(NUM_PRESET_SCALES <= 16);
+
+OutputType defaultNewClipType = OutputType::SYNTH;
+bool defaultUseLastClipType = true;
 
 void resetSettings() {
 
@@ -326,6 +333,9 @@ void resetSettings() {
 	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 
 	defaultDisabledPresetScales = {0};
+
+	defaultNewClipType = OutputType::SYNTH;
+	defaultUseLastClipType = true;
 }
 
 void resetMidiFollowSettings() {
@@ -703,6 +713,20 @@ void readSettings() {
 	else {
 		defaultDisabledPresetScales = std::bitset<NUM_PRESET_SCALES>((buffer[173] << 8) | buffer[172]);
 	}
+
+	if (buffer[176] < 0 && buffer[176] > util::to_underlying(OutputType::AUDIO)) {
+		defaultNewClipType = OutputType::SYNTH;
+	}
+	else {
+		defaultNewClipType = static_cast<OutputType>(buffer[176]);
+	}
+
+	if (buffer[177] != 0 && buffer[177] != 1) {
+		defaultUseLastClipType = true;
+	}
+	else {
+		defaultUseLastClipType = buffer[177];
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -965,6 +989,9 @@ void writeSettings() {
 	unsigned long disabledBits = defaultDisabledPresetScales.to_ulong();
 	buffer[172] = 0xff & disabledBits;
 	buffer[173] = 0xff & (disabledBits >> 8);
+
+	buffer[176] = util::to_underlying(defaultNewClipType);
+	buffer[177] = defaultUseLastClipType;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

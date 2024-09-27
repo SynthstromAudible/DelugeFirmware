@@ -453,6 +453,8 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_CONVERT_TO_AUDIO, "CONV"},
         {STRING_FOR_CLIP_MODE, "MODE"},
         {STRING_FOR_CLIP_NAME, "NAME"},
+        {STRING_FOR_DEFAULT_NEW_CLIP_TYPE, "TYPE"},
+        {STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, "LAST"},
     },
     &built_in::english,
 };
