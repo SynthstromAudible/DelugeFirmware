@@ -15,6 +15,7 @@
 #include "util/containers.h"
 #include "util/pack.h"
 #include <cstring>
+#include "io/debug/print.h"
 
 #define MAX_DIR_LINES 25
 
@@ -23,7 +24,7 @@ uint32_t offsetCounter;
 
 JsonSerializer jWriter;
 String activeDirName;
-const size_t blockBufferMax = 512;
+const size_t blockBufferMax = 1024;
 uint8_t* writeBlockBuffer = NULL;
 uint8_t* readBlockBuffer = NULL;
 const uint32_t MAX_OPEN_FILES = 4;
@@ -231,6 +232,7 @@ void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 		// AM_RDO  0x01 Read only
 		// AM_HID  0x02 Hidden
 		// AM_SYS  0x04 System
+
 		// AM_DIR  0x10 Directory
 		// AM_ARC  0x20 Archive
 		jWriter.writeAttribute("attr", fno.fattrib);
@@ -242,12 +244,14 @@ void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 	sendMsg(device, jWriter);
 }
 
+
 void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t addr = 0;
-	uint32_t size = 512;
+	uint32_t size = blockBufferMax;
 	int32_t fid = 0;
 
+	auto repSN = reader.getReplySeqNum();
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "fid")) {
@@ -288,6 +292,9 @@ void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
 				errCode = f_read(&fp->file, readBlockBuffer, size, &actuallyRead);
 				size = actuallyRead;
 				srcAddr = readBlockBuffer;
+			} else {
+				D_PRINTLN("lseek issue: %d", errCode);
+
 			}
 		}
 	}
@@ -366,6 +373,14 @@ void smSysex::writeBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	D_PRINTLN("Decoded block len: %d", decoded);
 }
 
+const char* testLine = "abcdefghijklmnopqrstuvwxyz01234567890";
+void smSysex::doPing(MIDIDevice* device, JsonDeserializer& reader) {
+	startReply(jWriter, reader);
+	jWriter.writeOpeningTag("^ping", false, true);
+	jWriter.closeTag(true);
+	sendMsg(device, jWriter);
+}
+
 uint32_t smSysex::decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax) {
 	char zip = 0;
 	if (!reader.readChar(&zip) || zip) // skip separator, fail if not there.
@@ -405,6 +420,9 @@ void smSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 		else if (!strcmp(tagName, "write")) {
 			writeBlock(device, parser);
 			return; // Already skipped end.
+		}
+		else if (!strcmp(tagName, "ping")) {
+			doPing(device, parser);
 		}
 		parser.exitTag();
 	}

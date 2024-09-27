@@ -20,5 +20,6 @@ void closeFile(MIDIDevice* device, JsonDeserializer& reader);
 void readBlock(MIDIDevice* device, JsonDeserializer& reader);
 void writeBlock(MIDIDevice* device, JsonDeserializer& reader);
 void getDirEntries(MIDIDevice* device, JsonDeserializer& reader);
+void doPing(MIDIDevice* device, JsonDeserializer& reader);
 uint32_t decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax);
 } // namespace smSysex

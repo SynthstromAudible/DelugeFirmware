@@ -667,6 +667,7 @@ FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
 	fileClusterBuffer = memBuffer;
 	currentReadBufferEndPos = bufLen;
 	memoryBased = true;
+	callRoutines = false;
 	fileReadBufferCurrentPos = 0;
 }
 
@@ -768,6 +769,7 @@ bool FileReader::readChar(char* thisChar) {
 void FileReader::readDone() {
 	readCount++; // Increment first, cos we don't want to call SD routine immediately when it's 0
 
+	if (!callRoutines) return;
 	if (!(readCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
 		AudioEngine::routineWithClusterLoading();
 
@@ -851,7 +853,7 @@ void FileWriter::writeByte(int8_t b) {
 	fileWriteBufferCurrentPos++;
 
 	// Ensure we do some of the audio routine once in a while
-	if (!(fileWriteBufferCurrentPos & 0b11111111)) {
+	if (callRoutines && !(fileWriteBufferCurrentPos & 0b11111111)) {
 		AudioEngine::logAction("writeCharsJson");
 		uiTimerManager.routine();
 		if (display->haveOLED()) {
