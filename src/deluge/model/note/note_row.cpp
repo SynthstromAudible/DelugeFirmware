@@ -2168,9 +2168,8 @@ noFurtherNotes:
 
 			if (!notes.getNumElements()) {
 stopNote:
-				stopCurrentlyPlayingNote(
-				    modelStack, true,
-				    thisNote); // Ideally (but optionally) supply the note, so lift-velocity can be used
+				// Ideally (but optionally) supply the note, so lift-velocity can be used
+				stopCurrentlyPlayingNote(modelStack, true, thisNote);
 			}
 			else {
 
@@ -2224,7 +2223,7 @@ stopNote:
 				if (ticksTilNextNoteEvent <= 0) {
 
 					// If it's a droning, full-length note...
-					if (thisNote->pos == 0 && thisNote->length == effectiveLength) {
+					if (thisNote->isDrone(effectiveLength)) {
 
 						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered
 						// again from the start. Same for time-stretching - although those can loop themselves,
@@ -4418,6 +4417,19 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, Sequen
 			}
 		}
 	}
+}
+
+/// check to see if this note row has only one note and that note is a drone note
+/// drone note = note at position 0 with length equal to the note row's length
+bool NoteRow::isDroning(int32_t effectiveLength) {
+	int32_t numNotes = notes.getNumElements();
+	if (numNotes == 1) {
+		Note* note = notes.getElement(0);
+		if (note->isDrone(effectiveLength)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /*
