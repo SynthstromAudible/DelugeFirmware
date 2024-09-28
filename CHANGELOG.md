@@ -6,6 +6,8 @@
 
 ### Sound Engine
 - Added a Warbler fx and a warble LFO to synths/kits/kit rows/song/audio clips
+- Added panic button to stop playback and all sound and notes. Press `SHIFT` + `PLAY`.
+  - Note: for any active `MIDI and CV Instrument Clips` this will also send an `All Notes Off` (CC#123) message.
 
 ### User Interface
 

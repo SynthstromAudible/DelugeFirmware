@@ -305,6 +305,10 @@ void AudioOutput::cutAllSound() {
 	}
 }
 
+void AudioOutput::stopDelay() {
+	GlobalEffectableForClip::stopDelay();
+}
+
 void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
                                          ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
                                          int32_t* highestReverbAmountFound) {

@@ -229,3 +229,7 @@ void SoundDrum::drumWontBeRenderedForAWhile() {
 ArpeggiatorBase* SoundDrum::getArp() {
 	return &arpeggiator;
 }
+
+void SoundDrum::stopDelay() {
+	Sound::stopDelay();
+}

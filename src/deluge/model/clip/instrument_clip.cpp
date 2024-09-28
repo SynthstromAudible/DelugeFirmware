@@ -3364,6 +3364,10 @@ void InstrumentClip::stopAllNotesForMIDIOrCV(ModelStackWithTimelineCounter* mode
 
 	// And then we still need this but in case any notes have been sent out via audition, or I guess being echoed thru
 
+	sendAllNotesOffForMIDIOrCV();
+}
+
+void InstrumentClip::sendAllNotesOffForMIDIOrCV() {
 	// CV - easy
 	if (output->type == OutputType::CV) {
 		cvEngine.sendNote(false, ((CVInstrument*)output)->channel);

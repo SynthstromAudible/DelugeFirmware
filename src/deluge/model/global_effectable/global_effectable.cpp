@@ -1127,6 +1127,10 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 	return delayWorkingState;
 }
 
+void GlobalEffectable::stopDelay() {
+	delay.discardBuffers();
+}
+
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
                                                     int32_t* postFXVolume, ParamManager* paramManager,
                                                     const Delay::State& delayWorkingState, bool grainHadInput) {

@@ -171,6 +171,10 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	}
 }
 
+void GlobalEffectableForClip::stopDelay() {
+	GlobalEffectable::stopDelay();
+}
+
 int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager) {
 	int32_t sidechainVolumeParam = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_VOLUME);
 	return (sidechainVolumeParam >> 2) + 536870912;

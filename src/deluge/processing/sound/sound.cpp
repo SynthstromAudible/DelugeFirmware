@@ -2473,6 +2473,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	doParamLPF(numSamples, modelStackWithSoundFlags);
 }
 
+void Sound::stopDelay() {
+	delay.discardBuffers();
+}
+
 // This is virtual, and gets extended by drums!
 void Sound::setSkippingRendering(bool newSkipping) {
 	skippingRendering = newSkipping;

@@ -143,6 +143,13 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			considerCrossScreenReleaseForCrossScreenMode = true;
 		}
 	}
+	// panic button, this button combo will no longer do anything else
+	else if (b == PLAY && isShiftButtonPressed()) {
+		if (currentSong) {
+			currentSong->panicStopAllSound();
+		}
+		goto dealtWith;
+	}
 
 	result = getCurrentUI()->buttonAction(b, on, inCardRoutine);
 

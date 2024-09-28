@@ -515,6 +515,16 @@ void Kit::cutAllSound() {
 	}
 }
 
+void Kit::stopDelay() {
+	// stop kit affect entire delay
+	GlobalEffectableForClip::stopDelay();
+
+	// stop delay at drum level
+	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
+		thisDrum->stopDelay();
+	}
+}
+
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
 bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
                                         int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,

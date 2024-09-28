@@ -170,6 +170,8 @@ public:
 	void setupPatchingForAllParamManagers();
 	void replaceInstrument(Instrument* oldInstrument, Instrument* newInstrument, bool keepNoteRowsWithMIDIInput = true);
 	void stopAllMIDIAndGateNotesPlaying();
+	void sendAllNotesOffForMIDIOrCV();
+	void stopAllDelay();
 	void stopAllAuditioning();
 	void deleteOrHibernateOutput(Output* output);
 	Instrument* getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
@@ -446,6 +448,9 @@ public:
 	}
 
 	int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
+
+	// Panic button
+	void panicStopAllSound();
 
 private:
 	ScaleMapper scaleMapper;

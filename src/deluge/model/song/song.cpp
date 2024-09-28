@@ -4323,6 +4323,26 @@ void Song::stopAllMIDIAndGateNotesPlaying() {
 	}
 }
 
+// send all notes off for any active midi instruments
+void Song::sendAllNotesOffForMIDIOrCV() {
+	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
+		if (isClipActive(instrumentClip) && instrumentClip->output->type != OutputType::SYNTH) {
+			instrumentClip->sendAllNotesOffForMIDIOrCV();
+		}
+	}
+}
+
+// stop any delay FX in the entire song (e.g. to stop feedbacking)
+void Song::stopAllDelay() {
+	// stop any delaying at song level
+	globalEffectable.stopDelay();
+
+	// stop any delaying at output level
+	for (Output* output = firstOutput; output; output = output->next) {
+		output->stopDelay();
+	}
+}
+
 void Song::stopAllAuditioning() {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -5842,6 +5862,24 @@ void Song::updateBPMFromAutomation() {
 		setBPMInner((float)currentTempo / 100, false);
 		intBPM = currentTempo;
 	}
+}
+
+// stops all sound from sounding, and for midi / cv any sends extra note off message
+// useful if you have some crazy delay feedback / reverb that just never ends or you just made an ear piercing sound
+void Song::panicStopAllSound() {
+	// stop song playback if it's active
+	// this will also take care of stopping active notes
+	if (playbackHandler.isEitherClockActive()) {
+		playbackHandler.playButtonPressed(kInternalButtonPressLatency);
+	}
+
+	// stop any sound
+	stopAllAuditioning();
+	AudioEngine::unassignAllVoices();
+	stopAllDelay();
+
+	// send all notes off for midi or cv
+	sendAllNotesOffForMIDIOrCV();
 }
 
 /*

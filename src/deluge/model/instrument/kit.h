@@ -45,6 +45,7 @@ public:
 
 	Error loadAllAudioFiles(bool mayActuallyReadFiles) override;
 	void cutAllSound() override;
+	void stopDelay() override;
 	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                  bool shouldLimitDelayFeedback, bool isClipActive) override;

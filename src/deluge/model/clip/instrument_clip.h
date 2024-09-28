@@ -199,6 +199,7 @@ public:
 	int32_t getDistanceToNextNote(Note* givenNote, ModelStackWithNoteRow* modelStack);
 	void reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) override;
 	void stopAllNotesForMIDIOrCV(ModelStackWithTimelineCounter* modelStack);
+	void sendAllNotesOffForMIDIOrCV();
 	void sendMIDIPGM();
 	void noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song);
 	void clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,

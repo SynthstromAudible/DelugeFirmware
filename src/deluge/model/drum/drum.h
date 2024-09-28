@@ -90,4 +90,6 @@ public:
 	void getCombinedExpressionInputs(int16_t* combined);
 
 	virtual ModControllable* toModControllable() { return NULL; }
+
+	virtual void stopDelay() {}
 };

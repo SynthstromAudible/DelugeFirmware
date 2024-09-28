@@ -113,6 +113,7 @@ public:
 	virtual void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                          int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                          bool shouldLimitDelayFeedback, bool isClipActive) = 0;
+	virtual void stopDelay() {}
 
 	virtual void setupWithoutActiveClip(ModelStack* modelStack);
 	virtual bool setActiveClip(

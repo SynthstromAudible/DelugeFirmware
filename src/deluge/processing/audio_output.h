@@ -46,6 +46,7 @@ public:
 	uint8_t* getModKnobMode() { return &modKnobMode; }
 
 	void cutAllSound();
+	void stopDelay();
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb,
 	                            Kit** kitWithMostReverb, int32_t* highestReverbAmountFound);
 
