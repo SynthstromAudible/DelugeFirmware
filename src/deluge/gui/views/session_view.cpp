@@ -631,8 +631,8 @@ doActualSimpleChange:
 		goto changeOutputType;
 	}
 	else if (b == KEYBOARD) {
-		if (on && (currentUIMode == UI_MODE_NONE)
-		    && (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid)) {
+		if (on && (currentUIMode == UI_MODE_NONE)) {
+			performanceSessionView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
 			changeRootUI(&performanceSessionView);
 		}
 	}
@@ -3147,10 +3147,6 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 		}
 		break;
 	}
-	case GridMode::PINK: {
-		modeActive = performanceSessionView.gridModeActive;
-		modeColour = colours::pastel::pink; // Pink
-	}
 
 	default: {
 		modeExists = false;
@@ -3733,13 +3729,6 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 					playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING);
 				}
 				break;
-			}
-			case GridMode::PINK: {
-				performanceSessionView.gridModeActive = true;
-				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
-				changeRootUI(&performanceSessionView);
-				uiNeedsRendering(&performanceSessionView);
-				return ActionResult::DEALT_WITH;
 			}
 			}
 		}
