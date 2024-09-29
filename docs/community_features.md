@@ -1182,6 +1182,13 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 - ([#1390]) Allows saving and loading midi presets. They end up in a new folder named MIDI.
   - Note: The information that is saved is the MIDI channel selection, and the assignments of CC parameters to golden knobs.
 
+#### 4.7.2 - Save/Load MIDI CC Labels
+
+- ([#2721]) Added ability to rename MIDI CC's in MIDI clips. Changed are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a MIDI preset and with the song.
+  - To rename a `MIDI CC`, enter `Automation View` and select the CC you wish to rename using the `Select Encoder`.
+  - With the `MIDI CC` selected, press down either `Gold (Mod) Encoder` and then press the `Name` grid shortcut to open the `MIDI CC Renaming UI`. Enter a new name and press `Select` or `Enter`.
+  - The new `MIDI CC` name will be immediately visible in `Automation View` and you can assign that CC to a `Gold Knob` in the MIDI clip and it will show that name when you press down on the `Gold (Mod) Encoder`.
+
 ### 4.8 Audio Clip View - Features
 
 #### 4.8.1 - Shift Clip
@@ -1553,6 +1560,8 @@ different firmware
 [#2712]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2712
 
 [#2716]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2716
+
+[#2721]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2721
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

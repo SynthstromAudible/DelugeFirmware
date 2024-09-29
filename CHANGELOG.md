@@ -50,6 +50,13 @@
 ##### Synth/Kit Clips
 - Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
 
+##### MIDI Clips
+- Added ability to rename MIDI CC's in MIDI clips. Changed are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a MIDI preset and with the song.
+  - To rename a `MIDI CC`, enter `Automation View` and select the CC you wish to rename using the `Select Encoder`.
+  - With the `MIDI CC` selected, press down either `Gold (Mod) Encoder` and then press the `Name` grid shortcut to open the `MIDI CC Renaming UI`. Enter a new name and press `Select` or `Enter`.
+  - The new `MIDI CC` name will be immediately visible in `Automation View` and you can assign that CC to a `Gold Knob` in the MIDI clip and it will show that name when you press down on the `Gold (Mod) Encoder`.
+- Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
+
 ### MIDI
 
 #### <ins>Learn</ins>

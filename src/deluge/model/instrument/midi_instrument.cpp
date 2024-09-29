@@ -41,6 +41,9 @@ MIDIInstrument::MIDIInstrument()
       modKnobCCAssignments() {
 	modKnobMode = 0;
 	modKnobCCAssignments.fill(CC_NUMBER_NONE);
+	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
+		ccNames[i].clear();
+	}
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -327,6 +330,21 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeAttribute("mpe", (int32_t)collapseMPE);
 		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
+
+		writer.writeOpeningTagBeginning("ccNames");
+		for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
+			if (i != CC_EXTERNAL_MOD_WHEEL) {
+				char ccNumber[10];
+				intToString(i, ccNumber, 1);
+				if (ccNames[i].isEmpty()) {
+					writer.writeAttribute(ccNumber, "");
+				}
+				else {
+					writer.writeAttribute(ccNumber, ccNames[i].get());
+				}
+			}
+		}
+		writer.closeTag();
 	}
 	else {
 		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
@@ -391,6 +409,9 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 	else if (!strcmp(tagName, subSlotXMLTag)) {
 		channelSuffix = reader.readTagOrAttributeValueInt();
 	}
+	else if (!strcmp(tagName, "ccNames")) {
+		readCCNamesFromFile();
+	}
 	else if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
 		return true;
 	}
@@ -427,6 +448,28 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 		if (m >= kNumModButtons * kNumPhysicalModKnobs) {
 			break;
 		}
+	}
+
+	editedByUser = true;
+	return Error::NONE;
+}
+
+Error MIDIInstrument::readCCNamesFromFile() {
+	int32_t cc = 0;
+	char const* tagName;
+	Deserializer& reader = *activeDeserializer;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		char ccNumber[10];
+		cc = stringToInt(tagName);
+
+		if (cc < 0 || cc >= kNumRealCCNumbers) {
+			reader.exitTag();
+			continue;
+		}
+
+		ccNames[cc].concatenate(reader.readTagOrAttributeValue());
+
+		reader.exitTag();
 	}
 
 	editedByUser = true;
@@ -1119,5 +1162,31 @@ void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity,
 	switch (channel) {
 	case MIDI_CHANNEL_TRANSPOSE:
 		MIDITranspose::doTranspose(on, note);
+	}
+}
+
+// used with the renameMidiCCUI class to check if you're renaming a MIDI CC to the same name as
+// another midi CC
+int32_t MIDIInstrument::getCCFromName(String* name) {
+	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
+		if (ccNames[i].equalsCaseIrrespective(name)) {
+			return i;
+		}
+	}
+	return 255;
+}
+
+void MIDIInstrument::getNameFromCC(int32_t cc, String* name) {
+	if (cc >= 0 && cc < kNumRealCCNumbers) {
+		name->set(&ccNames[cc]);
+	}
+	else {
+		name->clear();
+	}
+}
+
+void MIDIInstrument::setNameForCC(int32_t cc, String* name) {
+	if (cc >= 0 && cc < kNumRealCCNumbers) {
+		ccNames[cc].set(name);
 	}
 }

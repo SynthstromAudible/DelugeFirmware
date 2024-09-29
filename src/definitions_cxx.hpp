@@ -213,7 +213,8 @@ enum class UIType : uint8_t {
 	SLICER,
 	SOUND_EDITOR,
 	TIMELINE,
-	RENAME_CLIPNAME,
+	RENAME_CLIP,
+	RENAME_MIDI_CC,
 	NONE = 255,
 };
 

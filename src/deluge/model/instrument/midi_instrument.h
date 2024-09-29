@@ -45,6 +45,14 @@ public:
 	bool readTagFromFile(Deserializer& reader, char const* tagName);
 	Error readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
+
+	// cc names
+	String ccNames[kNumRealCCNumbers];
+	Error readCCNamesFromFile();
+	int32_t getCCFromName(String* name);
+	void getNameFromCC(int32_t cc, String* name);
+	void setNameForCC(int32_t cc, String* name);
+
 	void sendMIDIPGM();
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);

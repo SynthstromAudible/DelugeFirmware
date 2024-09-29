@@ -29,6 +29,7 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/rename/rename_drum_ui.h"
+#include "gui/ui/rename/rename_midi_cc_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -39,6 +40,7 @@
 #include "gui/views/session_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
+#include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/encoders.h"
@@ -1505,10 +1507,10 @@ void AutomationView::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType ou
 		// before the value is displayed
 		// otherwise if there's no automation, just scroll the parameter name
 		if (padSelected || (playbackStarted && isAutomated)) {
-			display->displayPopup(parameterName.c_str());
+			display->displayPopup(parameterName.c_str(), 3, true, isAutomated ? 3 : 255);
 		}
 		else {
-			display->setScrollingText(parameterName.c_str());
+			display->setScrollingText(parameterName.c_str(), 0, 600, -1, isAutomated ? 3 : 255);
 		}
 	}
 }
@@ -1616,13 +1618,34 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 		}
 		else {
-			parameterName.append("CC");
-			if (display->haveOLED()) {
-				parameterName.append(' ');
-				parameterName.appendInt(clip->lastSelectedParamID);
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
+			String name;
+
+			if (clip->lastSelectedParamID >= 0 && clip->lastSelectedParamID < kNumRealCCNumbers) {
+				midiInstrument->getNameFromCC(clip->lastSelectedParamID, &name);
 			}
 			else {
-				parameterName.appendInt(clip->lastSelectedParamID, 3);
+				name.clear();
+			}
+
+			// if we have a name for this midi cc set by the user, display that instead of the cc number
+			if (!name.isEmpty()) {
+				parameterName.append(name.get());
+			}
+			else {
+				if (display->haveOLED()) {
+					parameterName.append("CC ");
+					parameterName.appendInt(clip->lastSelectedParamID);
+				}
+				else {
+					if (clip->lastSelectedParamID < 100) {
+						parameterName.append("CC");
+					}
+					else {
+						parameterName.append("C");
+					}
+					parameterName.appendInt(clip->lastSelectedParamID);
+				}
 			}
 		}
 	}
@@ -2305,6 +2328,19 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	Output* output = clip->output;
 	OutputType outputType = output->type;
+
+	// if we're in a midi clip, with a midi cc selected and we press the name shortcut
+	// while holding either mod encoder, then enter the rename midi cc UI
+	if (outputType == OutputType::MIDI_OUT) {
+		if ((Buttons::isButtonPressed(deluge::hid::button::MOD_ENCODER_0)
+		     || Buttons::isButtonPressed(deluge::hid::button::MOD_ENCODER_1))
+		    && x == 11 && y == 5) {
+			if (!onAutomationOverview()) {
+				openUI(&renameMidiCCUI);
+				return ActionResult::DEALT_WITH;
+			}
+		}
+	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;

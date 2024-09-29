@@ -167,6 +167,7 @@ public:
 	                                        char const* name, char const* dirPath, bool searchHibernatingToo = true,
 	                                        bool searchNonHibernating = true);
 	AudioOutput* getAudioOutputFromName(String* name);
+	Clip* getClipFromName(String* name);
 	void setupPatchingForAllParamManagers();
 	void replaceInstrument(Instrument* oldInstrument, Instrument* newInstrument, bool keepNoteRowsWithMIDIInput = true);
 	void stopAllMIDIAndGateNotesPlaying();

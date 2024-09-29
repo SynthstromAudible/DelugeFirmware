@@ -15,30 +15,43 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/ui/rename/rename_clipname_ui.h"
+#include "gui/ui/rename/rename_midi_cc_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
-#include "gui/views/instrument_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
 
-RenameClipNameUI renameClipNameUI{};
+RenameMidiCCUI renameMidiCCUI{};
 
-RenameClipNameUI::RenameClipNameUI() {
-	title = "Clip Name";
+RenameMidiCCUI::RenameMidiCCUI() {
+	title = "CC Name";
 }
 
-bool RenameClipNameUI::opened() {
+bool RenameMidiCCUI::opened() {
 	bool success = QwertyUI::opened();
 	if (!success) {
 		return false;
 	}
 
-	enteredText.set(&clip->clipName);
+	Clip* clip = getCurrentClip();
+
+	int32_t cc = clip->lastSelectedParamID;
+
+	// if we're not dealing with a real cc number
+	// then don't allow user to edit the name
+	if (cc < 0 || cc >= kNumRealCCNumbers) {
+		return false;
+	}
+
+	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
+
+	midiInstrument->getNameFromCC(cc, &enteredText);
 
 	displayText();
 
@@ -47,12 +60,12 @@ bool RenameClipNameUI::opened() {
 	return true;
 }
 
-bool RenameClipNameUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+bool RenameMidiCCUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0b11;
 	return true;
 }
 
-ActionResult RenameClipNameUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult RenameMidiCCUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Back button
@@ -82,53 +95,52 @@ ActionResult RenameClipNameUI::buttonAction(deluge::hid::Button b, bool on, bool
 	return ActionResult::DEALT_WITH;
 }
 
-void RenameClipNameUI::enterKeyPress() {
+void RenameMidiCCUI::enterKeyPress() {
+
+	Clip* clip = getCurrentClip();
+	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
+	int32_t cc = clip->lastSelectedParamID;
 
 	// If actually changing it...
-	if (!clip->clipName.equalsCaseIrrespective(&enteredText)) {
-		if (currentSong->getAudioOutputFromName(&enteredText)) {
+	String name;
+	midiInstrument->getNameFromCC(cc, &name);
+
+	if (!name.equalsCaseIrrespective(&enteredText)) {
+		// don't let user set a name that is a duplicate of another name that has been set for another cc
+		if (midiInstrument->getCCFromName(&enteredText) != 255) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
 	}
-	clip->clipName.set(&enteredText);
+	midiInstrument->setNameForCC(cc, &enteredText);
+	midiInstrument->editedByUser = true; // need to set this to true so that the name gets saved with the song / preset
 	exitUI();
 }
 
-bool RenameClipNameUI::exitUI() {
+bool RenameMidiCCUI::exitUI() {
 	display->setNextTransitionDirection(-1);
 	close();
 	return true;
 }
 
-ActionResult RenameClipNameUI::padAction(int32_t x, int32_t y, int32_t on) {
-
-	// Audition pad
-	if (x == kDisplayWidth + 1) {
-		return instrumentClipView.padAction(x, y, on);
-	}
+ActionResult RenameMidiCCUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Main pad
-	else if (x < kDisplayWidth) {
+	if (x < kDisplayWidth) {
 		return QwertyUI::padAction(x, y, on);
 	}
 
 	// Otherwise, exit
-	else {
-		if (on && !currentUIMode) {
-			if (sdRoutineLock) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-			exitUI();
+	if (on && !currentUIMode) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
+		exitUI();
 	}
 
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult RenameClipNameUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-		return ActionResult::DEALT_WITH;
-	}
-	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+ActionResult RenameMidiCCUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	return ActionResult::DEALT_WITH;
 }
