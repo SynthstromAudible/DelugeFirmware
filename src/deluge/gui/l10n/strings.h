@@ -920,6 +920,9 @@ enum class String : size_t {
 
 	// string for note row editor menu
 	STRING_FOR_NOTE_ROW_EDITOR,
+	STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY,
+	STRING_FOR_NOTE_ROW_EDITOR_ITERANCE,
+	STRING_FOR_NOTE_ROW_EDITOR_FILL,
 
 	// string for default clip creation type
 	STRING_FOR_DEFAULT_CLIP_TYPE,

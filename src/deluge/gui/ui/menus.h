@@ -36,8 +36,17 @@ extern deluge::gui::menu_item::Submenu soundEditorRootMenuSongView;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuKitGlobalFX;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenu;
 extern deluge::gui::menu_item::Submenu settingsRootMenu;
+
+// note editor menu's
 extern deluge::gui::menu_item::Submenu noteEditorRootMenu;
+extern deluge::gui::menu_item::Submenu noteProbabilityMenu;
+extern deluge::gui::menu_item::Submenu noteIteranceMenu;
+extern deluge::gui::menu_item::Submenu noteFillMenu;
+// note row editor menu's
 extern deluge::gui::menu_item::Submenu noteRowEditorRootMenu;
+extern deluge::gui::menu_item::Submenu noteRowProbabilityMenu;
+extern deluge::gui::menu_item::Submenu noteRowIteranceMenu;
+extern deluge::gui::menu_item::Submenu noteRowFillMenu;
 
 extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
