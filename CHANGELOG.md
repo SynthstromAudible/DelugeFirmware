@@ -19,6 +19,10 @@
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
+#### <ins> Song Macros</ins>
+- Added ability to create song macros to quickly switch playing clips from inside clip view without needing to go into song view.
+- From song view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros
+
 #### <ins>Song Grid View</ins>
 
 ##### Entering Clips
