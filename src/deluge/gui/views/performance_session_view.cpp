@@ -1038,7 +1038,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 						sessionView.gridHandlePads(xDisplay, yDisplay, on);
 					}
 					// if you pressed the green or blue mode pads, go back to grid view and change mode
-					else if ((yDisplay == 7) || (yDisplay == 6)) {
+					else if ((yDisplay == GridMode::GREEN) || (yDisplay == GridMode::BLUE)) {
 						releaseViewOnExit(modelStack);
 						changeRootUI(&sessionView);
 						sessionView.gridHandlePads(xDisplay, yDisplay, on);
