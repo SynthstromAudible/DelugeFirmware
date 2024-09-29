@@ -3,6 +3,12 @@
 #include "gui/menu_item/audio_clip/sample_marker_editor.h"
 #include "gui/menu_item/defaults/swing_interval.h"
 #include "gui/menu_item/firmware/version.h"
+#include "gui/menu_item/note/fill.h"
+#include "gui/menu_item/note/iterance.h"
+#include "gui/menu_item/note/probability.h"
+#include "gui/menu_item/note_row/fill.h"
+#include "gui/menu_item/note_row/iterance.h"
+#include "gui/menu_item/note_row/probability.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
 #include "gui/menu_item/patch_cables.h"
@@ -39,14 +45,14 @@ extern deluge::gui::menu_item::Submenu settingsRootMenu;
 
 // note editor menu's
 extern deluge::gui::menu_item::Submenu noteEditorRootMenu;
-extern deluge::gui::menu_item::Submenu noteProbabilityMenu;
-extern deluge::gui::menu_item::Submenu noteIteranceMenu;
-extern deluge::gui::menu_item::Submenu noteFillMenu;
+extern deluge::gui::menu_item::note::Probability noteProbabilityMenu;
+extern deluge::gui::menu_item::note::Iterance noteIteranceMenu;
+extern deluge::gui::menu_item::note::Fill noteFillMenu;
 // note row editor menu's
 extern deluge::gui::menu_item::Submenu noteRowEditorRootMenu;
-extern deluge::gui::menu_item::Submenu noteRowProbabilityMenu;
-extern deluge::gui::menu_item::Submenu noteRowIteranceMenu;
-extern deluge::gui::menu_item::Submenu noteRowFillMenu;
+extern deluge::gui::menu_item::note_row::Probability noteRowProbabilityMenu;
+extern deluge::gui::menu_item::note_row::Iterance noteRowIteranceMenu;
+extern deluge::gui::menu_item::note_row::Fill noteRowFillMenu;
 
 extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
