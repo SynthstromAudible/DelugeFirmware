@@ -25,7 +25,7 @@ Specifications:
 
 ## Usage:
 
-#### 1) Enter performance view from song row view / arranger view by pressing the keyboard button / Enter performance view from song grid view by pressing the pink grid mode pad in the bottom right hand corner of the sidebar
+#### 1) Enter performance view from song / arranger views by pressing the keyboard button.
 
 #### 2) Short press (< 100ms by default) a pad in the columns to hold that pad's value (parameter and held value is displayed on the screen)
 
