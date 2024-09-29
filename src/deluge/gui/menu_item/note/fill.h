@@ -23,6 +23,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 
@@ -39,11 +40,20 @@ public:
 	/// Should make sure the menu's internal state matches the system and redraw the display.
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readValueAgain(); }
 
-	void readCurrentValue() final override { this->setValue(instrumentClipView.editPadPresses[0].intendedFill); }
+	void readCurrentValue() final override {
+		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
+
+		if (leftMostNote) {
+			this->setValue(leftMostNote->getFill());
+		}
+	}
 
 	void selectEncoderAction(int32_t offset) final override {
 		instrumentClipView.adjustNoteFill(offset);
 		readValueAgain();
+		if (currentSong->isFillModeActive()) {
+			uiNeedsRendering(&instrumentClipView);
+		}
 	}
 
 	void drawPixelsForOled() final override {
