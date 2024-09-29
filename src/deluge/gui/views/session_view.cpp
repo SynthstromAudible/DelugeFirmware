@@ -2416,8 +2416,9 @@ void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whic
 			// Just redrawing should be faster than evaluating every cell in every row
 			uiNeedsRendering(ui, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
-
-		uiNeedsRendering(ui, whichMainRows, whichSideRows);
+		else {
+			uiNeedsRendering(ui, whichMainRows, whichSideRows);
+		}
 	}
 }
 
@@ -3039,10 +3040,10 @@ void SessionView::selectLayout(int8_t offset) {
 	bool keepFirst = matrixDriver.isPadPressed(gridFirstPressedX, gridFirstPressedY);
 	gridResetPresses(!keepFirst);
 	gridModeActive = gridModeSelected;
-	if (matrixDriver.isPadPressed(kDisplayWidth + 1, GREEN)) {
+	if (matrixDriver.isPadPressed(kDisplayWidth, GREEN)) {
 		gridModeActive = SessionGridMode::SessionGridModeLaunch;
 	}
-	else if (matrixDriver.isPadPressed(kDisplayWidth + 1, BLUE)) {
+	else if (matrixDriver.isPadPressed(kDisplayWidth, BLUE)) {
 		gridModeActive = SessionGridMode::SessionGridModeEdit;
 	}
 	// Layout change
@@ -3126,10 +3127,10 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 
 	// Section column
-	uint32_t sectionColumnIndex = kDisplayWidth;
+	uint32_t sectionColumnIndex = kDisplayWidth + 1;
 	for (int32_t y = (kGridHeight - 1); y >= 0; --y) {
 		if (gridModeActive == SessionGridModeMacros) {
-			view.renderMacros(sectionColumnIndex, y, selectedMacro, image, occupancyMask);
+			view.renderMacros(kDisplayWidth, y, selectedMacro, image, occupancyMask);
 		}
 		else {
 			occupancyMask[y][sectionColumnIndex] = 64;
@@ -3153,9 +3154,10 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 					}
 				}
 			}
-		}
 
-		gridRenderActionModes(y, image, occupancyMask);
+			// don't render modes while in the macros editor
+			gridRenderActionModes(y, image, occupancyMask);
+		}
 	}
 
 	return true;
@@ -3164,7 +3166,7 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	// Action modes column
-	uint32_t actionModeColumnIndex = kDisplayWidth + 1;
+	uint32_t actionModeColumnIndex = kDisplayWidth;
 	bool modeExists = true;
 	bool modeActive = false;
 	RGB modeColour = colours::black;
@@ -3185,14 +3187,14 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 	}
 	case GridMode::RED: {
 		if (enableLoopPads) {
-			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, RED);
+			modeActive = matrixDriver.isPadPressed(kDisplayWidth, RED);
 			modeColour = colours::red; // Red
 		}
 		break;
 	}
 	case GridMode::MAGENTA: {
 		if (enableLoopPads) {
-			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, MAGENTA);
+			modeActive = matrixDriver.isPadPressed(kDisplayWidth, MAGENTA);
 			modeColour = colours::magenta; // Magenta
 		}
 		break;
@@ -3756,8 +3758,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	// Right sidebar column - action modes
-	if (x > kDisplayWidth) {
+	// Left sidebar column - action modes
+	if (x == kDisplayWidth && gridModeActive != SessionGridModeMacros) {
 
 		if (on) {
 			if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
@@ -3843,8 +3845,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 }
 
 ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, Clip* clip) {
-	// Left sidebar column (sections)
-	if (x == kDisplayWidth) {
+	// Right sidebar column (sections)
+	if (x == (kDisplayWidth + 1)) {
 		// Get pressed section
 		auto section = gridSectionFromY(y);
 		if (section < 0) {
@@ -4010,8 +4012,8 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
 
-	// Left sidebar column (sections)
-	if (x == kDisplayWidth) {
+	// Right sidebar column (sections)
+	if (x == (kDisplayWidth + 1)) {
 		// Get pressed section
 		auto section = gridSectionFromY(y);
 		if (section < 0) {

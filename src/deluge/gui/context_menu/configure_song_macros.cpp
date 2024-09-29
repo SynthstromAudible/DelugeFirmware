@@ -32,7 +32,7 @@ namespace deluge::gui::context_menu {
 ConfigureSongMacros configureSongMacros{};
 
 bool ConfigureSongMacros::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
-	*cols = 0x01; // Only mode (audition) column
+	*cols = 0x01; // Only section (audition) column
 	*rows = 0x0;
 	return true;
 }
@@ -83,11 +83,11 @@ ActionResult ConfigureSongMacros::padAction(int32_t x, int32_t y, int32_t on) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	// don't allow user to switch modes
+	// don't allow user to switch sections
 	if (x <= kDisplayWidth) {
 		return sessionView.gridHandlePads(x, y, on);
 	}
-	// exit menu with audition pad column
+	// exit menu with section column
 	else {
 		sessionView.exitMacrosConfigMode();
 		return ContextMenu::padAction(x, y, on);

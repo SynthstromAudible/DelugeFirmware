@@ -21,6 +21,9 @@
 
 #### <ins>Song Grid View</ins>
 
+##### General
+- Swapped section and mode sidebar columns for further consistency with `SONG ROW VIEW`.
+
 ##### Entering Clips
 - Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
 

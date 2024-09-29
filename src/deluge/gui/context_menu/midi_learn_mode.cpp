@@ -34,7 +34,7 @@ namespace deluge::gui::context_menu {
 MidiLearnMode midiLearnMode{};
 
 bool MidiLearnMode::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
-	*cols = 0x01; // Only mode (audition) column
+	*cols = 0x02; // Only mode (mute) column
 	*rows = 0x0;
 	return true;
 }
@@ -86,10 +86,10 @@ ActionResult MidiLearnMode::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	// don't allow user to switch modes
-	if (x <= kDisplayWidth) {
+	if (x < kDisplayWidth || x > kDisplayWidth) {
 		return sessionView.padAction(x, y, on);
 	}
-	// exit menu with audition pad column
+	// exit menu with mute / mode column
 	else {
 		sessionView.exitMidiLearnMode();
 		return ContextMenu::padAction(x, y, on);
