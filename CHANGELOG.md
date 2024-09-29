@@ -34,6 +34,10 @@
     - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
     - NOTE for `SONG ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
 
+##### Entering Performance View
+- Changed the shortcut to enter Performance View in `SONG GRID VIEW` from the `PINK GRID MODE` to the `KEYBOARD` button for consistency with `SONG ROW VIEW` and `ARRANGER VIEW`.
+- Removed `PINK GRID MODE`
+
 #### <ins>Instrument Clip View</ins>
 
 ##### Automation View
@@ -271,7 +275,7 @@
     - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
 
 #### <ins>Performance View</ins>
-- Added `PERFORMANCE VIEW`, accessible in Song Row View by pressing the Keyboard button and in Song Grid View by pressing the Pink Mode pad. Allows quick control of Song Global FX.
+- Added `PERFORMANCE VIEW`, accessible in Song View by pressing the Keyboard button. Allows quick control of Song Global FX.
 
 #### <ins>Automation View</ins>  
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
