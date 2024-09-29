@@ -146,10 +146,16 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
 	int32_t navSysId = getNavSysId();
 
+	// exception to usual checks for zooming and scrolling
+	// if you're in the note row editor, UI mode auditioning will always be active
+	// in addition, if shift is enabled, we allow zooming and scrolling
+	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
 	// Encoder button pressed, zoom.
 	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 
-		if (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
+		// in note row editor we are holding horizontal encoder + auditioning to zoom
+		if (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) || inNoteRowEditor) {
 			int32_t oldXZoom = currentSong->xZoom[navSysId];
 			int32_t zoomMagnitude = -offset;
 			uint32_t newZoom = zoomMagnitude == -1 ? oldXZoom >> 1 : oldXZoom << 1;
@@ -190,7 +196,8 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 	// Encoder button not pressed, scroll
 	else if (isNoUIModeActive() || isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
 		// If shift button not pressed
-		if (!Buttons::isShiftButtonPressed()) {
+		// or it's pressed and you're in note row editor
+		if (!Buttons::isShiftButtonPressed() || inNoteRowEditor) {
 
 			int32_t newXScroll = currentSong->xScroll[navSysId] + offset * currentSong->xZoom[navSysId] * kDisplayWidth;
 

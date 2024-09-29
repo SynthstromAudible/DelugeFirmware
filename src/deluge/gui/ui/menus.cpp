@@ -1199,9 +1199,9 @@ menu_item::Submenu noteEditorRootMenu{
     },
 };
 
-menu_item::note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
-menu_item::note_row::Iterance noteRowIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
-menu_item::note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
+menu_item::note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY};
+menu_item::note_row::Iterance noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
+menu_item::note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
 
 // Root menu for Note Row Editor
 menu_item::Submenu noteRowEditorRootMenu{

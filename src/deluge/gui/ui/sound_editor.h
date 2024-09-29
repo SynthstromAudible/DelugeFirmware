@@ -117,8 +117,6 @@ public:
 	bool editingReverbSidechain();
 	MenuItem* getCurrentMenuItem();
 	bool inSettingsMenu();
-	bool inNoteEditor();
-	bool inNoteRowEditor();
 	bool setupKitGlobalFXMenu;
 	bool exitUI() override {
 		exitCompletely();
@@ -151,6 +149,11 @@ public:
 	const char* getName() { return "sound_editor"; }
 
 	bool selectedNoteRow;
+
+	// Note / Note Row Editor
+	bool inNoteEditor();
+	bool inNoteRowEditor();
+	void toggleNoteEditorParamMenu(int32_t on);
 
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map

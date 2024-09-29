@@ -31,7 +31,7 @@ public:
 	using Integer::Integer;
 
 	bool shouldEnterSubmenu() {
-		if (currentUIMode != UI_MODE_AUDITIONING) {
+		if (!isUIModeActive(UI_MODE_AUDITIONING)) {
 			display->displayPopup("Select Row");
 			return false;
 		}

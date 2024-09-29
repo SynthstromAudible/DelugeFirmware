@@ -55,6 +55,7 @@ class ModelStackWithNoteRow;
 class ParamManagerForTimeline;
 
 struct SquareInfo {
+	Note* firstNote;
 	int32_t squareStartPos;
 	int32_t squareEndPos;
 	int32_t numNotes;

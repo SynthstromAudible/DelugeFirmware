@@ -31,7 +31,7 @@ public:
 	using Selection::Selection;
 
 	bool shouldEnterSubmenu() {
-		if (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor() && currentUIMode != UI_MODE_AUDITIONING) {
+		if (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor() && !isUIModeActive(UI_MODE_AUDITIONING)) {
 			display->displayPopup("Select Row");
 			return false;
 		}

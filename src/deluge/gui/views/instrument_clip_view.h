@@ -221,7 +221,7 @@ public:
 	ActionResult handleNoteEditorHorizontalEncoderAction(int32_t offset);
 	ActionResult handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
-	SquareInfo lastSelectedNoteSquareInfo;
+	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth];
 	int32_t lastSelectedNoteXDisplay;
 	int32_t lastSelectedNoteYDisplay;
 
@@ -234,6 +234,7 @@ public:
 	void adjustNoteProbability(int32_t offset);
 	void adjustNoteIterance(int32_t offset);
 	void adjustNoteFill(int32_t offset);
+	Note* getLeftMostNotePressed();
 	void adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
 	                              int32_t parameterMaxValue);
 
@@ -247,10 +248,12 @@ public:
 	// note row editor
 	bool enterNoteRowEditor();
 	void exitNoteRowEditor();
-	void handleNoteRowEditorSidebarPadAction(int32_t x, int32_t y, int32_t on);
+	bool handleNoteRowEditorPadAction(int32_t x, int32_t y, int32_t on);
+	bool handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on);
 	void handleNoteRowEditorAuditionPadAction(int32_t y);
 	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
+	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
 	// adjust note row parameters
 	int32_t setNoteRowProbability(int32_t offset);

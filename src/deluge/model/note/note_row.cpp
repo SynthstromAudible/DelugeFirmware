@@ -210,6 +210,7 @@ void NoteRow::initRowSquareInfo(SquareInfo rowSquareInfo[kDisplayWidth], bool an
 }
 
 void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
+	squareInfo.firstNote = nullptr;
 	// if there's notes, get square boundaries (start and end pos)
 	// so that we can compare where notes are relative to the square
 	// e.g. are they inside the square, extending into the square (tail), etc.
@@ -329,6 +330,7 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 			// and summing all note velocities in this square
 			squareInfo.averageVelocity += (*note)->getVelocity();
 			if (!gotFirstNoteParams) {
+				squareInfo.firstNote = (*note);
 				squareInfo.probability = (*note)->getProbability();
 				squareInfo.iterance = (*note)->getIterance();
 				squareInfo.fill = (*note)->getFill();
@@ -354,6 +356,7 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 
 		// If that note's tail does overlap into this square...
 		if (noteEnd > squareInfo.squareStartPos) {
+			squareInfo.firstNote = *note;
 			squareInfo.numNotes += 1;
 			squareInfo.squareType = SQUARE_NOTE_TAIL;
 			squareInfo.averageVelocity += (*note)->getVelocity();

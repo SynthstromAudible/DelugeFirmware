@@ -31,12 +31,15 @@ public:
 	using Integer::Integer;
 
 	bool shouldEnterSubmenu() {
-		if (instrumentClipView.lastSelectedNoteXDisplay == 255 || instrumentClipView.lastSelectedNoteYDisplay == 255
-		    || instrumentClipView.lastSelectedNoteSquareInfo.isValid == false) {
-			display->displayPopup("Select Note");
-			return false;
+		int32_t xDisplay = instrumentClipView.lastSelectedNoteXDisplay;
+		int32_t yDisplay = instrumentClipView.lastSelectedNoteYDisplay;
+		if (xDisplay != kNoSelection && yDisplay != kNoSelection) {
+			if (instrumentClipView.gridSquareInfo[yDisplay][xDisplay].isValid) {
+				return true;
+			}
 		}
-		return true;
+		display->displayPopup("Select Note");
+		return false;
 	}
 };
 } // namespace deluge::gui::menu_item::note

@@ -39,7 +39,15 @@ public:
 	/// Should make sure the menu's internal state matches the system and redraw the display.
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readValueAgain(); }
 
-	void readCurrentValue() override { this->setValue(instrumentClipView.lastSelectedNoteSquareInfo.averageVelocity); }
+	void readCurrentValue() override {
+		int32_t xDisplay = instrumentClipView.lastSelectedNoteXDisplay;
+		int32_t yDisplay = instrumentClipView.lastSelectedNoteYDisplay;
+		if (xDisplay != kNoSelection && yDisplay != kNoSelection) {
+			if (instrumentClipView.gridSquareInfo[yDisplay][xDisplay].isValid) {
+				this->setValue(instrumentClipView.gridSquareInfo[yDisplay][xDisplay].averageVelocity);
+			}
+		}
+	}
 
 	void selectEncoderAction(int32_t offset) final override {
 		instrumentClipView.adjustVelocity(offset);

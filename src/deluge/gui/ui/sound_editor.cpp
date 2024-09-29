@@ -16,6 +16,7 @@
 #include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -379,7 +380,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	// Affect-entire button
-	else if (b == AFFECT_ENTIRE && isUIInstrumentClipView) {
+	else if (b == AFFECT_ENTIRE && isUIInstrumentClipView && !inNoteEditor() && !inNoteRowEditor()) {
 		if (getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -445,6 +446,10 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	else if (inNoteEditor()) {
 		return instrumentClipView.handleNoteEditorButtonAction(b, on, inCardRoutine);
+	}
+
+	else if (inNoteRowEditor()) {
+		return instrumentClipView.handleNoteRowEditorButtonAction(b, on, inCardRoutine);
 	}
 
 	else {
@@ -772,10 +777,14 @@ void SoundEditor::scrollFinished() {
 	uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 }
 
+const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
+                                         UI_MODE_AUDITIONING, 0};
+
 void SoundEditor::selectEncoderAction(int8_t offset) {
 
 	// 5x acceleration of select encoder when holding the shift button
-	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
+	// don't do this if you're in the note or note row editors
+	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT) && !inNoteEditor() && !inNoteRowEditor()) {
 		offset = offset * 5;
 	}
 
@@ -787,9 +796,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 		automationView.modEncoderAction(0, offset);
 	}
 	else {
-		if (currentUIMode != UI_MODE_NONE && currentUIMode != UI_MODE_AUDITIONING
-		    && currentUIMode != UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
-		    && currentUIMode != UI_MODE_NOTES_PRESSED) {
+		if (!isUIModeWithinRange(selectEncoderUIModes)) {
 			return;
 		}
 
@@ -1144,12 +1151,8 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			return ActionResult::DEALT_WITH;
 		}
 		else if (inNoteRowEditor()) {
-			// allow user to interact with audition and mute pads
-			if (x >= kDisplayWidth) {
-				instrumentClipView.handleNoteRowEditorSidebarPadAction(x, y, on);
-			}
-			// exit menu if you press main pads
-			else {
+			bool handled = instrumentClipView.handleNoteRowEditorPadAction(x, y, on);
+			if (!handled) {
 				exitCompletely();
 			}
 			return ActionResult::DEALT_WITH;
@@ -1250,14 +1253,14 @@ bool SoundEditor::isEditingAutomationViewParam() {
 }
 
 ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-		return ActionResult::DEALT_WITH;
-	}
 	if (inNoteEditor()) {
 		return instrumentClipView.handleNoteEditorVerticalEncoderAction(offset, inCardRoutine);
 	}
 	else if (inNoteRowEditor()) {
 		return instrumentClipView.handleNoteRowEditorVerticalEncoderAction(offset, inCardRoutine);
+	}
+	else if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
+		return ActionResult::DEALT_WITH;
 	}
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
@@ -1562,6 +1565,52 @@ bool SoundEditor::inNoteEditor() {
 
 bool SoundEditor::inNoteRowEditor() {
 	return (menuItemNavigationRecord[0] == &noteRowEditorRootMenu);
+}
+
+// used to jump from note row editor to note editor and back
+void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
+	MenuItem* currentMenuItem = getCurrentMenuItem();
+	MenuItem* newMenuItem = nullptr;
+
+	// if you're holding down a note
+	// see if you're currently editing a row param
+	// if so, enter the note editor menu for that param
+	if (on) {
+		if (currentMenuItem == &noteRowProbabilityMenu) {
+			newMenuItem = &noteProbabilityMenu;
+		}
+		else if (currentMenuItem == &noteRowIteranceMenu) {
+			newMenuItem = &noteIteranceMenu;
+		}
+		else if (currentMenuItem == &noteRowFillMenu) {
+			newMenuItem = &noteFillMenu;
+		}
+	}
+	// if you're release a note
+	// see if you're currently editing a note param
+	// if so, enter the note row editor menu for that param
+	else {
+		if (currentMenuItem == &noteProbabilityMenu) {
+			newMenuItem = &noteRowProbabilityMenu;
+		}
+		else if (currentMenuItem == &noteIteranceMenu) {
+			newMenuItem = &noteRowIteranceMenu;
+		}
+		else if (currentMenuItem == &noteFillMenu) {
+			newMenuItem = &noteRowFillMenu;
+		}
+	}
+
+	if (newMenuItem && newMenuItem->shouldEnterSubmenu()) {
+		// holding down note pad, enter note param menu
+		if (on) {
+			enterSubmenu(newMenuItem);
+		}
+		// release note pad, go back to previous row menu
+		else {
+			goUpOneLevel();
+		}
+	}
 }
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {

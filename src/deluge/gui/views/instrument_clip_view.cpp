@@ -46,6 +46,7 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -1805,6 +1806,13 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				return;
 			}
 
+			bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
+			// if you're in note row editor, don't create new note row's for kit's
+			if (inNoteRowEditor && instrument->type == OutputType::KIT) {
+				return;
+			}
+
 			// And create the new NoteRow
 			modelStackWithNoteRow = createNoteRowForYDisplay(modelStack, yDisplay);
 			if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
@@ -1924,6 +1932,10 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				if (instrument->type == OutputType::KIT) {
 					setSelectedDrum(noteRow->drum);
 				}
+
+				noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
+				lastSelectedNoteXDisplay = xDisplay;
+				lastSelectedNoteYDisplay = yDisplay;
 			}
 		}
 
@@ -2113,7 +2125,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 
 					reassessAuditionStatus(yDisplay);
 
-					noteRow->getSquareInfo(xDisplay, effectiveLength, lastSelectedNoteSquareInfo);
+					noteRow->getRowSquareInfo(effectiveLength, gridSquareInfo[yDisplay]);
 					lastSelectedNoteXDisplay = xDisplay;
 					lastSelectedNoteYDisplay = yDisplay;
 				}
@@ -2149,8 +2161,14 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 			// here
 			endEditPadPress(i);
 
+			// if you're holding multiple notes across multiple rows, we don't want to delete any of them
+			// because you might be trying to, for example, edit the probability of multiple notes
+			// or just view their values in the note row editor
+			// removing the chance of any of the notes being deleted ensures no accidents
+			bool shouldDeleteOnDepress = numEditPadPressesPerNoteRowOnScreen[yDisplay] == numEditPadPresses;
+
 			// If we're meant to be deleting it on depress...
-			if (editPadPresses[i].deleteOnDepress
+			if (shouldDeleteOnDepress && editPadPresses[i].deleteOnDepress
 			    && AudioEngine::audioSampleTimer - timeLastEditPadPress < kShortPressTime) {
 
 				ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -2240,8 +2258,11 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 		exitUIMode(UI_MODE_NOTES_PRESSED);
 		actionLogger.closeAction(ActionType::NOTE_EDIT);
 		quantizeAmount = 0;
-		lastSelectedNoteXDisplay = kNoSelection;
-		lastSelectedNoteYDisplay = kNoSelection;
+		if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
+			gridSquareInfo[lastSelectedNoteXDisplay][lastSelectedNoteYDisplay].isValid = false;
+			lastSelectedNoteXDisplay = kNoSelection;
+			lastSelectedNoteYDisplay = kNoSelection;
+		}
 	}
 }
 
@@ -2250,11 +2271,15 @@ void InstrumentClipView::checkIfAllEditPadPressesEnded(bool mayRenderSidebar) {
 void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 	int32_t velocityValue = 0;
 
+	UI* currentUI = getCurrentUI();
+	bool inAutomationView = currentUI == &automationView;
+	bool inSoundEditor = currentUI == &soundEditor;
+
 	Action* action;
 	// Sean: we're only going to adjust velocity when there's a pop-up or we're in automation velocity editing view
 	// or we're in the sound editor note editor
 	// no need to get an action otherwise
-	if (display->hasPopup() || getCurrentUI() == &automationView || getCurrentUI() == &soundEditor) {
+	if (display->hasPopup() || inAutomationView || inSoundEditor) {
 		action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 		if (!action) {
 			return; // Necessary why?
@@ -2287,7 +2312,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 					// Sean: check for pop-up so that you don't change encoder turn (cause you may just want to see the
 					// value) in automation view we change it right away because you see the value on the display when
 					// pressing pad
-					if (display->hasPopup() || getCurrentUI() == &automationView || getCurrentUI() == &soundEditor) {
+					if (display->hasPopup() || inAutomationView || inSoundEditor) {
 						noteRow->changeNotesAcrossAllScreens(note->pos, modelStackWithNoteRow, action,
 						                                     CORRESPONDING_NOTES_ADJUST_VELOCITY, velocityChange);
 					}
@@ -2308,7 +2333,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 			// Only one note in square
 			else {
-				if (display->hasPopup() || getCurrentUI() == &automationView || getCurrentUI() == &soundEditor) {
+				if (display->hasPopup() || inAutomationView || inSoundEditor) {
 					// Sean: We're adjusting the intendedVelocity here because this is the velocity that is used to
 					// audition the pad press note so you can hear the velocity changes as you're holding the note down
 					editPadPresses[i].intendedVelocity =
@@ -2320,11 +2345,14 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 				updateVelocityValue(velocityValue, editPadPresses[i].intendedVelocity);
 			}
 
-			lastSelectedNoteSquareInfo.averageVelocity = editPadPresses[i].intendedVelocity;
+			gridSquareInfo[editPadPresses[i].yDisplay][editPadPresses[i].xDisplay].averageVelocity =
+			    editPadPresses[i].intendedVelocity;
 		}
 	}
 
-	if (getCurrentUI() != &soundEditor) {
+	bool inNoteEditor = inSoundEditor && soundEditor.inNoteEditor();
+
+	if (!inNoteEditor) {
 		displayVelocity(velocityValue, velocityChange);
 	}
 
@@ -2372,8 +2400,11 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 			// updated when user releases last press.
 		}
 		else {
+			UI* currentUI = getCurrentUI();
+			bool inAutomationView = currentUI == &automationView;
+			bool inNoteEditor = currentUI == &soundEditor && soundEditor.inNoteEditor();
 			getCurrentInstrument()->defaultVelocity = velocityValue;
-			if ((getCurrentUI() != &automationView) && (getCurrentUI() != &soundEditor)) {
+			if (!inAutomationView && !inNoteEditor) {
 				if (display->haveOLED()) {
 					strcpy(buffer, "Velocity: ");
 					intToString(velocityValue, buffer + strlen(buffer));
@@ -2412,6 +2443,34 @@ void InstrumentClipView::adjustNoteFill(int32_t offset) {
 	adjustNoteParameterValue(offset, CORRESPONDING_NOTES_SET_FILL, FillMode::OFF, kNumFillValues);
 }
 
+// used with the note probability, iterance and fill note editing menu
+// when adjusting multiple notes, the value displayed is the value of the left most note
+Note* InstrumentClipView::getLeftMostNotePressed() {
+	Note* leftMostNote = nullptr;
+	if (numEditPadPresses != 0) {
+		int32_t leftMostPos = 2147483647;
+		for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+			if (editPadPresses[i].isActive) {
+				int32_t xDisplay = editPadPresses[i].xDisplay;
+				int32_t yDisplay = editPadPresses[i].yDisplay;
+				bool isValid = gridSquareInfo[yDisplay][xDisplay].isValid;
+				if (isValid) {
+					Note* firstNote = gridSquareInfo[yDisplay][xDisplay].firstNote;
+					if (firstNote && firstNote->pos < leftMostPos) {
+						leftMostPos = firstNote->pos;
+						leftMostNote = firstNote;
+					}
+				}
+				// if there's no more pad presses, we're done
+				if (numEditPadPresses == 1) {
+					break;
+				}
+			}
+		}
+	}
+	return leftMostNote;
+}
+
 // adjusts note probability, iterance, fill
 void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
                                                   int32_t parameterMaxValue) {
@@ -2423,7 +2482,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	bool inNoteEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteEditor();
+	bool inNoteEditor = getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
 
 	// If just one press...
 	if (numEditPadPresses == 1) {
@@ -2762,7 +2821,15 @@ bool InstrumentClipView::enterNoteEditor() {
 	    && lastSelectedNoteYDisplay != kNoSelection) {
 		dontDeleteNotesOnDepress();
 		display->setNextTransitionDirection(1);
-		if (soundEditor.setup(getCurrentInstrumentClip())) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (soundEditor.setup(clip)) {
+			// if it's a kit with affect entire enabled, toggle it off when entering note editor
+			if (clip->output->type == OutputType::KIT) {
+				if (clip->affectEntire) {
+					clip->affectEntire = false;
+					view.setActiveModControllableTimelineCounter(clip);
+				}
+			}
 			openUI(&soundEditor);
 			blinkSelectedNote();
 			return true;
@@ -2775,12 +2842,14 @@ bool InstrumentClipView::enterNoteEditor() {
 }
 
 void InstrumentClipView::exitNoteEditor() {
-	if (currentUIMode == UI_MODE_NOTES_PRESSED) {
-		editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
+	if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
+		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+			editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
+		}
+		gridSquareInfo[lastSelectedNoteXDisplay][lastSelectedNoteYDisplay].isValid = false;
+		lastSelectedNoteXDisplay = kNoSelection;
+		lastSelectedNoteYDisplay = kNoSelection;
 	}
-	lastSelectedNoteXDisplay = kNoSelection;
-	lastSelectedNoteYDisplay = kNoSelection;
-	lastSelectedNoteSquareInfo.isValid = false;
 	resetSelectedNoteBlinking();
 }
 
@@ -2807,10 +2876,7 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 				if (squareInfo.numNotes) {
 					// if there are notes, update note selection and refresh menu
 					// but first, release previous press and make new press
-					if (currentUIMode == UI_MODE_NOTES_PRESSED) {
-						editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay,
-						              currentSong->xZoom[NAVIGATION_CLIP]);
-					}
+					exitNoteEditor();
 
 					// now make new press for new note selection
 					editPadAction(1, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
@@ -2818,7 +2884,6 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 
 					// update menu selection
 					soundEditor.getCurrentMenuItem()->readValueAgain();
-					resetSelectedNoteBlinking();
 					blinkSelectedNote();
 				}
 			}
@@ -2829,17 +2894,9 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 // before scrolling, we need to reset the note selection
 // if we're in a submenu, we'll need to go up a level
 void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
-	if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
-		editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
-		lastSelectedNoteYDisplay = kNoSelection;
-		lastSelectedNoteXDisplay = kNoSelection;
-		lastSelectedNoteSquareInfo.isValid = false;
-
-		if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu) {
-			soundEditor.goUpOneLevel();
-		}
-
-		resetSelectedNoteBlinking();
+	exitNoteEditor();
+	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu) {
+		soundEditor.goUpOneLevel();
 	}
 }
 
@@ -2863,8 +2920,14 @@ ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Butto
 	using namespace deluge::hid::button;
 
 	// to allow you to zoom in / out
-	if (b == X_ENC) {
+	// to allow you to toggle fill
+	if (b == X_ENC || b == SYNC_SCALING) {
 		return buttonAction(b, on, inCardRoutine);
+	}
+	// to allow you to toggle playback on / off
+	// to allow you to toggle mod encoders on / off
+	else if (b == PLAY || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
+		return ActionResult::NOT_DEALT_WITH;
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -2892,9 +2955,23 @@ bool InstrumentClipView::enterNoteRowEditor() {
 		// does note row exist?
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			display->setNextTransitionDirection(1);
-			if (soundEditor.setup(getCurrentInstrumentClip())) {
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			if (soundEditor.setup(clip)) {
+				// if it's a kit with affect entire enabled, toggle it off when entering note row editor
+				if (clip->output->type == OutputType::KIT) {
+					if (clip->affectEntire) {
+						clip->affectEntire = false;
+						view.setActiveModControllableTimelineCounter(clip);
+					}
+				}
 				openUI(&soundEditor);
-				sendAuditionNote(false, lastAuditionedYDisplay, 127, 0); // turn off auditioned note
+				// if we weren't auditioning silently when we entered note row editor
+				// let's cancel the previous audition and re-audition silently
+				// this prevents any re-auditioning from happening
+				if (!auditioningSilently) {
+					auditionPadAction(0, lastAuditionedYDisplay, true);
+					auditionPadAction(1, lastAuditionedYDisplay, true);
+				}
 				blinkSelectedNoteRow();
 				return true;
 			}
@@ -2911,27 +2988,72 @@ bool InstrumentClipView::enterNoteRowEditor() {
 }
 
 void InstrumentClipView::exitNoteRowEditor() {
-	if (currentUIMode == UI_MODE_AUDITIONING) {
-		auditionPadAction(0, lastAuditionedYDisplay, false);
+	if (isUIModeActive(UI_MODE_AUDITIONING)) {
+		auditionPadAction(0, lastAuditionedYDisplay, true);
 	}
 	resetSelectedNoteRowBlinking();
 }
 
-void InstrumentClipView::handleNoteRowEditorSidebarPadAction(int32_t x, int32_t y, int32_t on) {
-	if (on) {
-		if (x == kDisplayWidth) {
-			mutePadPress(y);
-		}
-		else {
-			handleNoteRowEditorAuditionPadAction(y);
+bool InstrumentClipView::handleNoteRowEditorPadAction(int32_t x, int32_t y, int32_t on) {
+	// main pad action
+	if (x < kDisplayWidth) {
+		return handleNoteRowEditorMainPadAction(x, y, on);
+	}
+	// sidebar pad action
+	else {
+		if (on) {
+			if (x == kDisplayWidth) {
+				mutePadPress(y);
+			}
+			else {
+				handleNoteRowEditorAuditionPadAction(y);
+			}
 		}
 	}
+	return true;
+}
+
+// handles editing notes if shift is pressed
+bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, int32_t on) {
+	// if shift is active, allow editing notes on the grid
+	if (Buttons::isShiftButtonPressed()) {
+		bool wasntHoldingNote = !isUIModeActive(UI_MODE_NOTES_PRESSED);
+
+		editPadAction(on, y, x, currentSong->xZoom[NAVIGATION_CLIP]);
+
+		bool nowHoldingNote = isUIModeActive(UI_MODE_NOTES_PRESSED);
+
+		// toggle note menu if you weren't holding note and now you are
+		// or if you were holding note and now you aren't
+		bool toggleMenu = (wasntHoldingNote && nowHoldingNote) || (!wasntHoldingNote && !nowHoldingNote);
+
+		// if we selected a note / created a note
+		// update the row selection
+		// so that menu can be potentially refreshed
+		if (lastSelectedNoteYDisplay != kNoSelection) {
+			handleNoteRowEditorAuditionPadAction(lastSelectedNoteYDisplay);
+		}
+
+		if (toggleMenu) {
+			// toggle showing note editor param menu while holding / release note pad
+			soundEditor.toggleNoteEditorParamMenu(on);
+		}
+		else {
+			// if you were holding a note and are still holding a note
+			// it means you were holding more than one note and released one
+			// so refresh parameter menu so it reflects the note remaining
+			soundEditor.getCurrentMenuItem()->readValueAgain();
+		}
+
+		return true;
+	}
+	return false;
 }
 
 void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
 	// did you press a different pad?
 	// if no, ignore press
-	if (currentUIMode != UI_MODE_AUDITIONING || y != lastAuditionedYDisplay) {
+	if (!isUIModeActive(UI_MODE_AUDITIONING) || y != lastAuditionedYDisplay) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2952,16 +3074,13 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			// update note row selection and refresh menu
 			// but first, release previous press and make new press
-			if (currentUIMode == UI_MODE_AUDITIONING) {
-				auditionPadAction(0, lastAuditionedYDisplay, false);
-			}
+			exitNoteRowEditor();
 
 			// now make new press for new note row selection
 			auditionPadAction(1, y, true);
 
 			// update menu selection
 			soundEditor.getCurrentMenuItem()->readValueAgain();
-			resetSelectedNoteRowBlinking();
 			blinkSelectedNoteRow();
 		}
 	}
@@ -2972,7 +3091,7 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 
 	// if you haven't selected a row and you are holding down vertical encoder
 	// ignore this action because it makes it too easy to transpose by mistake
-	if (currentUIMode != UI_MODE_AUDITIONING && isHoldingVerticalEncoder) {
+	if (!isUIModeActive(UI_MODE_AUDITIONING) && isHoldingVerticalEncoder) {
 		return ActionResult::DEALT_WITH;
 	}
 	else if (!isHoldingVerticalEncoder) {
@@ -2982,6 +3101,9 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 	}
 
 	ActionResult result = verticalEncoderAction(offset, inCardRoutine);
+
+	// if you're not pressing vertical encoder, then you did some vertical scrolling
+	// if you're in a parameter menu, update value displayed
 	if (!isHoldingVerticalEncoder) {
 		MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
 		if (currentMenuItem != &noteRowEditorRootMenu) {
@@ -2992,7 +3114,7 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 }
 
 ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int32_t offset) {
-	if (currentUIMode != UI_MODE_AUDITIONING || !Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
+	if (!isUIModeActive(UI_MODE_AUDITIONING)) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -3000,7 +3122,57 @@ ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int3
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
 
-	rotateNoteRowHorizontally(offset);
+	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
+		// nudge notes
+		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+			nudgeNotes(offset);
+			return ActionResult::DEALT_WITH;
+		}
+		// rotate row
+		else if (!matrixDriver.isPadPressed(kDisplayWidth + 1, lastAuditionedYDisplay)) {
+			rotateNoteRowHorizontally(offset);
+			return ActionResult::DEALT_WITH;
+		}
+	}
+	else {
+		// adjust velocity
+		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
+			adjustVelocity(offset);
+			return ActionResult::DEALT_WITH;
+		}
+		// edit note row length
+		else if (matrixDriver.isPadPressed(kDisplayWidth + 1, lastAuditionedYDisplay)) {
+			editNoteRowLength(offset);
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
+	// horizontal scroll / zoom
+	return ClipView::horizontalEncoderAction(offset);
+}
+
+ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
+
+	// to allow you to zoom in / out
+	// to allow you to toggle fill
+	if (b == X_ENC || b == SYNC_SCALING) {
+		return buttonAction(b, on, inCardRoutine);
+	}
+	// to allow you to toggle affect entire on / off in kits
+	else if (on && b == AFFECT_ENTIRE) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		if (clip->output->type == OutputType::KIT) {
+			clip->affectEntire = !clip->affectEntire;
+			view.setActiveModControllableTimelineCounter(clip);
+		}
+	}
+	// to allow you to toggle playback on / off
+	// to allow you to toggle shift on / off
+	// to allow you to toggle mod encoders on / off
+	else if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
 
 	return ActionResult::DEALT_WITH;
 }
@@ -5062,6 +5234,8 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
 
+	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
 	// If encoder button pressed
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		// User may be trying to move a noteCode...
@@ -5097,7 +5271,8 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 		}
 
 		// Or note repeat...
-		else if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
+		else if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)
+		         || (inNoteRowEditor && isUIModeActive(UI_MODE_NOTES_PRESSED))) {
 			editNoteRepeat(offset);
 		}
 
@@ -5123,7 +5298,8 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	}
 
 	// Or, if shift key is pressed
-	else if (Buttons::isShiftButtonPressed()) {
+	// no colour shifting in note row editor
+	else if (Buttons::isShiftButtonPressed() && !inNoteRowEditor) {
 		uint32_t whichRowsToRender = 0;
 
 		// If NoteRow(s) auditioned, shift its colour (Kits only)
@@ -5553,6 +5729,9 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 // Supply offset as 0 to just popup number, not change anything
 void InstrumentClipView::nudgeNotes(int32_t offset) {
 
+	// if we're in note row editor and we nudge a note we're holding
+	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+
 	shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
 
 	// If just popping up number, but multiple presses, we're quite limited with what intelligible stuff we can
@@ -5676,6 +5855,20 @@ doCompareNote:
 				if (error != Error::NONE) {
 					display->displayError(error);
 					return;
+				}
+
+				// if you do any nudging, the square info we saved previously will be out of date
+				if (inNoteRowEditor) {
+					int32_t yDisplay = editPadPresses[i].yDisplay;
+					noteRow->getRowSquareInfo(modelStackWithNoteRow->getLoopLength(), gridSquareInfo[yDisplay]);
+					if (soundEditor.getCurrentMenuItem() != &noteRowEditorRootMenu) {
+						int32_t xDisplay = editPadPresses[i].xDisplay;
+						// if the note is no longer in the square we're pressing,
+						// go back up a level to row editor
+						if (!gridSquareInfo[yDisplay][xDisplay].firstNote) {
+							soundEditor.goUpOneLevel();
+						}
+					}
 				}
 
 				// Nudge automation with notes and MPE when default setting is false
