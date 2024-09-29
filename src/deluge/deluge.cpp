@@ -46,6 +46,7 @@
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
+#include "io/debug/print.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -103,6 +104,19 @@ bool sdRoutineLock = false;
 
 bool allowSomeUserActionsEvenWhenInCardRoutine = false;
 
+extern "C" int deluge_tusb_print(char const* const format, ...) {
+	constexpr size_t bufsize = 512;
+	static char buffer[bufsize];
+	va_list args;
+
+	va_start(args, format);
+	vsnprintf(buffer, bufsize, format, args);
+	va_end(args);
+
+	Debug::print(buffer);
+	return 0;
+}
+
 extern "C" void midiAndGateTimerGoneOff(void) {
 	cvEngine.updateGateOutputs();
 	midiEngine.flushMIDI();
@@ -116,8 +130,16 @@ uint16_t batteryMV;
 bool batteryLEDState = false;
 
 // TODO: Move this to somewhere better
-void usb_int(uint32_t sense) {
+extern "C" void usb_int(uint32_t sense) {
 	tud_int_handler(0);
+}
+
+extern "C" void osal_task_delay(uint32_t msec) {
+	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
+	uint16_t stopTime = startTime + msToSlowTimerCount(msec);
+	do {
+		routineForSD();
+	} while ((int16_t)(*TCNT[TIMER_SYSTEM_SLOW] - stopTime) < 0);
 }
 
 void batteryLEDBlink() {
@@ -560,9 +582,6 @@ void setupOLED() {
 	PIC::flush();
 }
 
-extern "C" void usb_pstd_pcd_task(void);
-extern "C" void usb_cstd_usb_task(void);
-
 extern "C" void usb_main_host(void);
 
 void registerTasks() {
@@ -595,6 +614,7 @@ void registerTasks() {
 	                 "playback routine", RESOURCE_SD | RESOURCE_USB);
 	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.00001, 0.00001, 0.00002,
 	                 "load clusters", RESOURCE_NONE);
+	addRepeatingTask([]() { tud_task(); }, p++, 0.002, 0.002, 0.002, "read USB");
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
 	addRepeatingTask(&AudioEngine::slowRoutine, p++, 0.001, 0.005, 0.05, "audio slow", RESOURCE_NONE);
@@ -861,28 +881,17 @@ extern "C" int32_t deluge_main(void) {
 		deluge::hid::display::swapDisplayType();
 	}
 
-	R_INTC_RegistIntFunc(INTC_ID_USBI0, usb_int);
-	tusb_init();
-
 	{
 		deluge::io::usb::USBAutoLock lock;
-		openUSBHost();
 
-		if (anythingInitiallyAttachedAsUSBHost == 0) {
-			// If nothing was plugged in to us as host, we'll go peripheral
-			// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
-			// To do that, I'd really need to know at any point in time whether the user had just made a connection,
-			// just then, that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral
-			// yet.
-			D_PRINTLN("switching from host to peripheral");
-			closeUSBHost();
-			openUSBPeripheral();
+		// XXX: need to test for host mode here
+		R_INTC_RegistIntFunc(INTC_ID_USBI0, usb_int);
+		R_INTC_SetPriority(INTC_ID_USBI0, 9);
 
-			// configuredAsPeripheral will set the root complex.
-		}
-		else {
-			MIDIDeviceManager::setUSBRoot(new MIDIRootComplexUSBHosted());
-		}
+		tusb_init();
+		tud_init(0);
+
+		tud_connect();
 	}
 
 	// Hopefully we can read these files now

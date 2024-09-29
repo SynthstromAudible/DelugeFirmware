@@ -47,9 +47,9 @@ target_link_libraries(tinyusb PUBLIC
 
 add_library(tinyusb-rusb2)
 target_sources(tinyusb-rusb2 PRIVATE
-    ${tinyusb_SOURCE_DIR}/src/portable/renesas/rusb2/dcd_rusb2.c
-    ${tinyusb_SOURCE_DIR}/src/portable/renesas/rusb2/hcd_rusb2.c
-    ${tinyusb_SOURCE_DIR}/src/portable/renesas/rusb2/rusb2_common.c
+    ${tinyusb_SOURCE_DIR}/src/portable/renesas/rusb1/dcd_rusb1.c
+    ${tinyusb_SOURCE_DIR}/src/portable/renesas/rusb1/hcd_rusb1.c
+    ${tinyusb_SOURCE_DIR}/src/portable/renesas/rusb1/rusb1_common.c
 )
 target_link_libraries(tinyusb-rusb2 PUBLIC
     tinyusb

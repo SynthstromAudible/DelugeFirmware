@@ -1,6 +1,8 @@
 #ifndef TUSB_CONFIG_H_
 #define TUSB_CONFIG_H_
 
+#include "lib/printf.h"
+
 #ifdef __cplusplus
  extern "C" {
 #endif
@@ -18,6 +20,11 @@
 #error CFG_TUSB_MCU must be defined
 #endif
 
+// Use UCKsel 0, the 48MHz oscillator
+#define RUSB1_CLOCK_SOURCE 0
+// 5 wait cycles due to USB:sysclk ratio
+#define RUSB1_WAIT_CYCLES 5
+
 #ifndef CFG_TUSB_OS
 #define CFG_TUSB_OS           OPT_OS_NONE
 #endif
@@ -26,11 +33,14 @@
 #define CFG_TUSB_DEBUG        0
 #endif
 
+#define CFG_TUSB_DEBUG_PRINTF deluge_tusb_print
+extern int deluge_tusb_print(char const * fmt, ...);
+
 // Enable Device stack
 #define CFG_TUD_ENABLED       1
 
-// Default is max speed that hardware controller could support with on-chip PHY
-#define CFG_TUD_MAX_SPEED     BOARD_TUD_MAX_SPEED
+// Set max speed to full for now. In theory the HW supports HS, but that will be enabled in followup work.
+#define CFG_TUD_MAX_SPEED     OPT_MODE_FULL_SPEED
 
 /* USB DMA on some MCUs can only access a specific SRAM region with restriction on alignment.
  * Tinyusb use follows macros to declare transferring memory so that they can be put
@@ -56,10 +66,15 @@
 #endif
 
 //------------- CLASS -------------//
-#define CFG_TUD_DFU               1
+#define CFG_TUD_DFU               0
+#define CFG_TUD_MIDI              1
 
 // DFU buffer size, it has to be set to the buffer size used in TUD_DFU_DESCRIPTOR
 #define CFG_TUD_DFU_XFER_BUFSIZE  (TUD_OPT_HIGH_SPEED ? 512 : 64)
+
+// MIDI FIFO size of TX and RX
+#define CFG_TUD_MIDI_RX_BUFSIZE   (TUD_OPT_HIGH_SPEED ? 512 : 64)
+#define CFG_TUD_MIDI_TX_BUFSIZE   (TUD_OPT_HIGH_SPEED ? 512 : 64)
 
 #ifdef __cplusplus
  }

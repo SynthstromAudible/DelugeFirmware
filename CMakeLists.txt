@@ -180,8 +180,9 @@ add_compile_options(
     -DUSE_TASK_MANAGER
 
     # TinyUSB config
-    -DCFG_TUSB_MCU=OPT_MCU_RZAXX
+    -DCFG_TUSB_MCU=OPT_MCU_RZA1X
     -DCFG_TUSB_OS=OPT_OS_NONE
+    -DCFG_TUSB_DEBUG=3
 
     # C++ stuff
     $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
