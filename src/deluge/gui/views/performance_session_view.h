@@ -122,9 +122,7 @@ public:
 	void renderFXDisplay(deluge::modulation::params::Kind paramKind, int32_t paramID, int32_t knobPos = kNoSelection);
 	bool onFXDisplay;
 
-	// public so Grid View can access it
-	bool gridModeActive;
-	uint32_t timeGridModePress;
+	uint32_t timeKeyboardShortcutPress;
 
 	// public so mod controllable audio and midi follow can access it
 	bool possiblyRefreshPerformanceViewDisplay(deluge::modulation::params::Kind kind, int32_t id, int32_t newKnobPos);
