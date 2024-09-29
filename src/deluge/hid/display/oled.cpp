@@ -756,6 +756,9 @@ void OLED::popupText(char const* text, bool persistent, PopupType type) {
 	}
 
 	for (int32_t l = 0; l < textLineBreakdown.numLines; l++) {
+		if (textPixelY >= OLED_MAIN_HEIGHT_PIXELS) {
+			continue;
+		}
 		int32_t textPixelX = (OLED_MAIN_WIDTH_PIXELS - textLineBreakdown.lineWidths[l]) >> 1;
 		popup.drawString(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]}, textPixelX,
 		                 textPixelY, kTextSpacingX, kTextSpacingY);
