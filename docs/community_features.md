@@ -493,7 +493,7 @@ Here is a list of features that have been added to the firmware as a list, group
 ### 4.1.9 - Song macros
 
 Macros are a way to quickly switch playing clips without needing to go into song view.
-From session view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros. 
+From song view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros. 
 
 There are 8 macro slots shown in the left sidebar. 
 
