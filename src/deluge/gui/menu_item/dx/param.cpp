@@ -245,10 +245,11 @@ bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 		if (display->have7SEG()) {
 			flashParamName();
 		}
-		return true;
 	}
 
-	return false;
+	// even if we didn't find param, we want to return true so that we ignore other non-dx shortcut presses
+	// while in the dx editor, otherwise you get taken out of the dx editor into the sound editor and it's confusing
+	return true;
 }
 
 const char* desc_op_long[] = {"env rate1",   "env rate2",  "env rate3",  "env rate4",     "env level1",  "env level2",
