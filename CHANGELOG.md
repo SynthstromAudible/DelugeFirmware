@@ -4,6 +4,9 @@
 
 ## c1.3.0
 
+### Sound Engine
+- Added a Warbler fx and a warble LFO to synths/kits/kit rows/song/audio clips
+
 ### User Interface
 
 #### <ins>Accessibility</ins>
@@ -16,8 +19,20 @@
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
+#### <ins> Song Macros</ins>
+- Added ability to create song macros to quickly switch playing clips from inside clip view without needing to go into song view.
+- From song view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros
+
 #### <ins>Song Grid View</ins>
+
+##### Entering Clips
 - Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
+
+##### Creating New Clips
+- Updated mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and `SONG ROW VIEW`.
+  - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
+    - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
+    - NOTE for `SONG ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
 
 #### <ins>Instrument Clip View</ins>
 
@@ -31,6 +46,10 @@
 - Added new note and note row editor menu's to edit note and note row parameters.
   - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
   - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
+  
+##### Recording
+- Enabled seamless linear recording of drone notes using audition pads or external midi.
+  - When linear recording to a clip, you can seamlessly record a drone note using the audition pads or from external midi by continuing to audition / send a note until the linear recording stops. After linear recording stops, you can stop auditioning / send a note off and the drone note will persist without any breaks or re-triggering.
 
 ##### Synth/Kit Clips
 - Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
@@ -128,8 +147,10 @@
 
 ##### Creating New Clips
 - Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`.
-  - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. By default it will select the last clip type you created as the clip type to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
-    - If you just a tap a pad quickly to create a new clip, it will create that new clip using the last created clip type.
+  - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
+    - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
+    - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
+    - If you just a tap a pad quickly to create a new clip, it will create that new clip using either the default clip type or the last clip type you created (if you enable this).
     - If you press and hold a pad, you can choose a different type to create in a number of ways:
       - by turning the select encoder to switch between the various clip types. You can create that clip type by pressing on the select encoder or letting go of the pad.
       - by pressing one of the clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV`). 

@@ -37,24 +37,8 @@ public:
 
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGrainFX) == RuntimeFeatureStateToggle::Off) {
-			return {
-			    l10n::getView(STRING_FOR_DISABLED),      //<
-			    l10n::getView(STRING_FOR_FLANGER),       //<
-			    l10n::getView(STRING_FOR_CHORUS),        //<
-			    l10n::getView(STRING_FOR_PHASER),        //<
-			    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
-			};
-		}
 
-		return {
-		    l10n::getView(STRING_FOR_DISABLED),      //<
-		    l10n::getView(STRING_FOR_FLANGER),       //<
-		    l10n::getView(STRING_FOR_CHORUS),        //<
-		    l10n::getView(STRING_FOR_PHASER),        //<
-		    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
-		    l10n ::getView(STRING_FOR_GRAIN),        //<
-		};
+		return modfx::getModNames();
 	}
 };
 } // namespace deluge::gui::menu_item::mod_fx

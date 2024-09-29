@@ -43,6 +43,7 @@
 #include "gui/menu_item/defaults/slice_mode.h"
 #include "gui/menu_item/defaults/startup_song_mode.h"
 #include "gui/menu_item/defaults/swing_interval.h"
+#include "gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h"
 #include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
@@ -1003,29 +1004,38 @@ Submenu defaultAccessibilityMenu{STRING_FOR_DEFAULT_ACCESSIBILITY,
                                      &defaultAccessibilityMenuHighlighting,
                                  }};
 
+defaults::ui::clip_type::DefaultNewClipType defaultNewClipTypeMenu{STRING_FOR_DEFAULT_NEW_CLIP_TYPE,
+                                                                   STRING_FOR_DEFAULT_NEW_CLIP_TYPE};
+ToggleBool defaultUseLastClipTypeMenu{STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE,
+                                      FlashStorage::defaultUseLastClipType};
+
+Submenu defaultClipTypeMenu{STRING_FOR_DEFAULT_CLIP_TYPE,
+                            {
+                                &defaultNewClipTypeMenu,
+                                &defaultUseLastClipTypeMenu,
+                            }};
+
 Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard},
+    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu},
 };
 
-ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
-                                            STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
+ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
+                                            STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
                                             FlashStorage::automationInterpolate};
 
-ToggleBool defaultAutomationClearMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR,
-                                      STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR, FlashStorage::automationClear};
+ToggleBool defaultAutomationClearMenu{STRING_FOR_DEFAULT_AUTOMATION_CLEAR, STRING_FOR_DEFAULT_AUTOMATION_CLEAR,
+                                      FlashStorage::automationClear};
 
-ToggleBool defaultAutomationShiftMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT,
-                                      STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT, FlashStorage::automationShift};
+ToggleBool defaultAutomationShiftMenu{STRING_FOR_DEFAULT_AUTOMATION_SHIFT, STRING_FOR_DEFAULT_AUTOMATION_SHIFT,
+                                      FlashStorage::automationShift};
 
-ToggleBool defaultAutomationNudgeNoteMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE,
-                                          STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE,
-                                          FlashStorage::automationNudgeNote};
+ToggleBool defaultAutomationNudgeNoteMenu{STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE,
+                                          STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE, FlashStorage::automationNudgeNote};
 
 ToggleBool defaultAutomationDisableAuditionPadShortcutsMenu{
-    STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
-    STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
-    FlashStorage::automationDisableAuditionPadShortcuts};
+    STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+    STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS, FlashStorage::automationDisableAuditionPadShortcuts};
 
 Submenu defaultAutomationMenu{
     STRING_FOR_AUTOMATION,

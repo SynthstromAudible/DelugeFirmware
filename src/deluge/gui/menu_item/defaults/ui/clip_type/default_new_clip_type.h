@@ -15,27 +15,23 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
+#include "storage/flash_storage.h"
+#include "util/misc.h"
 
-namespace deluge::gui::menu_item::lfo {
-
-class Shape : public Selection {
+namespace deluge::gui::menu_item::defaults::ui::clip_type {
+class DefaultNewClipType final : public Selection {
 public:
 	using Selection::Selection;
-
+	void readCurrentValue() override { this->setValue(FlashStorage::defaultNewClipType); }
+	void writeCurrentValue() override { FlashStorage::defaultNewClipType = this->getValue<OutputType>(); }
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;
 		return {
-		    l10n::getView(STRING_FOR_SINE),
-		    l10n::getView(STRING_FOR_TRIANGLE),
-		    l10n::getView(STRING_FOR_SQUARE),
-		    l10n::getView(STRING_FOR_SAW),
-		    l10n::getView(STRING_FOR_SAMPLE_AND_HOLD),
-		    l10n::getView(STRING_FOR_RANDOM_WALK),
-		    l10n::getView(STRING_FOR_WARBLE),
+		    "SYNTH", "KIT", "MIDI", "CV", "AUDIO",
 		};
 	}
 };
-
-} // namespace deluge::gui::menu_item::lfo
+} // namespace deluge::gui::menu_item::defaults::ui::clip_type
