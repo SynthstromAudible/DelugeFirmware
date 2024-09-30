@@ -95,3 +95,17 @@ Holding a pad on a row and press and turning `◀︎▶︎` allows you to change
 ### Scale Considerations
 
 The Chord Library will show chords utilizing both notes entirely in your current scale and not. With the current implementation of accidentals in the Deluge, if you record chords while in scale mode with out of scale notes, these will be added to your scale. A future update is in development to address this limitation.
+
+### Notation
+
+In the interest of brevity, especially in the interest of display as much of the chord name as possible for the 7SEG Deluge, the Chord names use  a concise notation. The chords list the note name with no octave number, followed by the chord symbol. The main types of chord symbols used are:
+  - Major: `M`
+  - Minor: `-`
+  - Diminished: `DIM`
+  - Augmented: `AUG`
+  - suspended: `SUS`
+  
+Then the chord would be followed by any additional information such as the extension (7, 9, 11, 13) or alterations (b5, #5, b9, #9, #11, b13). Finally, if the chord has a well known nickname, it may be included as well.
+
+So for example, a C Major chord would be displayed as `CM`, a C Minor chord would be displayed as `C-`, and a C Diminished chord would be displayed as `CDIM`. A C Dominant 7 chord would be displayed as `C7`, a C Minor 7 Flat 5 chord would be displayed as `C-7FLAT5`.
+  
