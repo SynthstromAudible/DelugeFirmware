@@ -27,7 +27,7 @@ The Chord Keyboard Layout is designed to facilitate the creation and exploration
 
 #### Column Mode
 
-This mode arranges harmonically similar chords vertically. Chords in the same column can often be substituted for each other to explore different harmonic flavors. As an example, if your in a major scale, the first column will contain various option for the I chord, the second column will contain various options for the ii chord, and so on. 
+This mode arranges harmonically similar chords vertically. Chords in the same column can often be substituted for each other to explore different harmonic flavors. For example, if you are in a major scale, the first column will contain various options for the I chord, the second column will contain various options for the ii chord, and so on. 
 
 #### Row Mode
 
@@ -57,8 +57,8 @@ turning either `◀︎▶︎` or  `▼︎▲︎` will move up or down by scale d
 
 #### Embedded Controls:
 
-Because the Chord Keyboard has more features than other keyboard layouts, embedded into the right couple columns of the main grid is are controls. Currently it includes controls for switching between Row Mode and Column Mode, with more features planned for the future.
-  - At the top of the right most main grid column, you can select the current mode (`ROW` and `COLUMN`) by pressing the corresponding pad. It defaults to Column Mode.
+Because the Chord Keyboard has more features than other keyboard layouts, controls are embedded into the two rightmost columns of the main grid. Currently it includes controls for switching between Row Mode and Column Mode, with more features planned for the future.
+  - At the top of the rightmost main grid column, you can select the current mode (`ROW` and `COLUMN`) by pressing the corresponding pad. It defaults to Column Mode.
     - In addition, you can use `SHIFT` + `◀︎▶︎` to also cycle through the `ROW` and `COLUMN` mode.
     
 
@@ -86,7 +86,7 @@ When out of scale mode, the final 2 columns change colors each 8 chords you scro
   
 #### Controls
 
-Turning `◀︎▶︎` scrolls through the scale, allowing you to raise or lower the chords. Turning `▼︎▲︎` scrolls up to access more chords.
+Turning `◀︎▶︎` scrolls through the scale, allowing you to raise or lower the chords. Turning `▼︎▲︎` scrolls up or down to access more chords.
 
 #### Voicing Adjustment
 
@@ -98,7 +98,7 @@ The Chord Library will show chords utilizing both notes entirely in your current
 
 ### Notation
 
-In the interest of brevity, especially in the interest of display as much of the chord name as possible for the 7SEG Deluge, the Chord names use  a concise notation. The chords list the note name with no octave number, followed by the chord symbol. The main types of chord symbols used are:
+In the interest of brevity, and to display as much of the chord name as possible for the 7SEG Deluge, the Chord names use  a concise notation. The chords list the note name with no octave number, followed by the chord symbol. The main types of chord symbols used are:
   - Major: `M`
   - Minor: `-`
   - Diminished: `DIM`
