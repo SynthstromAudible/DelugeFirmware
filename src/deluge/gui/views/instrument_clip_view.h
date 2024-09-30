@@ -81,7 +81,7 @@ public:
 	/// Learn notes from current clip + scale mode clips as USER scale.
 	/// Enters scale mode if wasn't in it already. LEARN + SCALE.
 	ActionResult commandLearnUserScale();
-	/// Cycle through preset scales. SHIFT + SCALE in scale mode.
+	/// Cycle through preset scales. SHIFT + SCALE (or SCALE + SELECT) in scale mode
 	ActionResult commandCycleThroughScales();
 	/// Flash the current root note. Part of SCALE down.
 	ActionResult commandFlashRootNote();

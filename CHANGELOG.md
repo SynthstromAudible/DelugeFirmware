@@ -50,6 +50,10 @@
 ##### Synth/Kit Clips
 - Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
 
+##### Scales
+- Added new way to change `SCALE` in non-kit instrument clips: Hold `SCALE` and press `SELECT`
+- Added new way to change scale `ROOT NOTE` in non-kit instument clips: Hold `SCALE` and turn `SELECT`
+
 ### MIDI
 
 #### <ins>Learn</ins>

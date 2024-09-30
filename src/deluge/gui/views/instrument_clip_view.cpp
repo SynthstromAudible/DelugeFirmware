@@ -280,7 +280,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 			return commandLearnUserScale();
 		}
 		else if (on && inScaleMode && Buttons::isShiftButtonPressed()) {
-			// If we're note in scale mode, we defer to commands that
+			// If we're not in scale mode, we defer to commands that
 			// will instead enter the scale mode.
 			return commandCycleThroughScales();
 		}
@@ -893,6 +893,10 @@ doCancelPopup:
 					return ActionResult::DEALT_WITH;
 				}
 			}
+			// if in scale mode and holding scale button, pressing select will cycle through scales
+			else if (getCurrentInstrumentClip()->inScaleMode && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
+				return commandCycleThroughScales();
+			}
 			goto passToOthers;
 		}
 	}
@@ -1423,6 +1427,18 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
 		adjustNoteProbability(offset);
 	}
+
+	// if holding scale mode button + turning select encoder, change root note
+	else if (getCurrentOutputType() != OutputType::KIT && currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED
+	         && getCurrentInstrumentClip()->inScaleMode) {
+		toggleScaleModeOnButtonRelease = false;
+		int32_t newRootNote = ((currentSong->key.rootNote + kOctaveSize) + offset) % kOctaveSize;
+		setupChangingOfRootNote(newRootNote);
+		recalculateColours();
+		uiNeedsRendering(this);
+		currentSong->displayCurrentRootNoteAndScaleName();
+	}
+
 	// Or, normal option - trying to change Instrument presets
 	else {
 		InstrumentClipMinder::selectEncoderAction(offset);
