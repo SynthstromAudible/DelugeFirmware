@@ -58,7 +58,7 @@ public:
 	bool supportsKit() override { return false; }
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }
 
-	ChordKeyboardMode mode = ChordKeyboardMode::ROW;
+	ChordKeyboardMode mode = ChordKeyboardMode::COLUMN;
 
 protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
