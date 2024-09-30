@@ -1434,9 +1434,13 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		toggleScaleModeOnButtonRelease = false;
 		int32_t newRootNote = ((currentSong->key.rootNote + kOctaveSize) + offset) % kOctaveSize;
 		setupChangingOfRootNote(newRootNote);
+		
 		recalculateColours();
 		uiNeedsRendering(this);
 		currentSong->displayCurrentRootNoteAndScaleName();
+		
+		// Hook point for specificMidiDevice
+		iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_CHANGE_ROOT_NOTE);
 	}
 
 	// Or, normal option - trying to change Instrument presets
