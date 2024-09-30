@@ -231,7 +231,7 @@ ActionResult InstrumentClipView::commandChangeRootNote(uint8_t yDisplay) {
 	int32_t newRootNote = getCurrentInstrumentClip()->getYNoteFromYVisual(oldYVisual, currentSong);
 
 	setupChangingOfRootNote(newRootNote, yDisplay);
-	displayCurrentScaleName();
+	currentSong->displayCurrentRootNoteAndScaleName();
 
 	recalculateColours();
 	uiNeedsRendering(this);
@@ -257,61 +257,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
-		// Kits can't do scales!
-		if (getCurrentOutputType() == OutputType::KIT) {
-			if (on) {
-				indicator_leds::indicateAlertOnLed(IndicatorLED::KIT);
-			}
-			return ActionResult::DEALT_WITH;
-		}
-
-		actionLogger.deleteAllLogs(); // Can't undo past this!
-
-		bool inScaleMode = getCurrentInstrumentClip()->inScaleMode;
-
-		if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-			if (!inScaleMode) {
-				commandEnterScaleMode();
-			}
-			return commandLearnUserScale();
-		}
-		else if (on && inScaleMode && Buttons::isShiftButtonPressed()) {
-			// If we're note in scale mode, we defer to commands that
-			// will instead enter the scale mode.
-			return commandCycleThroughScales();
-		}
-		else if (on && oneNoteAuditioning()) {
-			if (inScaleMode) {
-				return commandChangeRootNote(lastAuditionedYDisplay);
-			}
-			else {
-				return commandEnterScaleModeWithRoot(lastAuditionedYDisplay);
-			}
-		}
-		else if (on) {
-			currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
-			toggleScaleModeOnButtonRelease = true;
-			return commandFlashRootNote();
-		}
-		else {
-			// Button release
-			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-				currentUIMode = UI_MODE_NONE;
-			}
-			if (toggleScaleModeOnButtonRelease) {
-				toggleScaleModeOnButtonRelease = false;
-				if (inScaleMode) {
-					return commandExitScaleMode();
-				}
-				else {
-					return commandEnterScaleMode();
-				}
-			}
-		}
+		return handleScaleButtonAction(on, inCardRoutine);
 	}
 
 	// Song view button
@@ -873,12 +819,6 @@ doCancelPopup:
 				goto doCancelPopup;
 			}
 		}
-
-		if (on && (currentUIMode == UI_MODE_NONE) && !Buttons::isShiftButtonPressed()) {
-			if (getCurrentInstrumentClip()->isScaleModeClip()) {
-				currentSong->displayCurrentRootNoteAndScaleName();
-			}
-		}
 	}
 
 	else if (b == SELECT_ENC) {
@@ -906,6 +846,74 @@ passToOthers:
 		return ClipView::buttonAction(b, on, inCardRoutine);
 	}
 
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRoutine) {
+	if (inCardRoutine) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+
+	// Kits can't do scales!
+	if (getCurrentOutputType() == OutputType::KIT) {
+		if (on) {
+			indicator_leds::indicateAlertOnLed(IndicatorLED::KIT);
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
+	actionLogger.deleteAllLogs(); // Can't undo past this!
+
+	bool inScaleMode = getCurrentInstrumentClip()->inScaleMode;
+
+	if (on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+		if (!inScaleMode) {
+			commandEnterScaleMode();
+		}
+		return commandLearnUserScale();
+	}
+	else if (on && inScaleMode && Buttons::isShiftButtonPressed()) {
+		// If we're note in scale mode, we defer to commands that
+		// will instead enter the scale mode.
+		return commandCycleThroughScales();
+	}
+	else if (on && oneNoteAuditioning()) {
+		if (inScaleMode) {
+			return commandChangeRootNote(lastAuditionedYDisplay);
+		}
+		else {
+			return commandEnterScaleModeWithRoot(lastAuditionedYDisplay);
+		}
+	}
+	else if (on) {
+		currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
+		toggleScaleModeOnButtonRelease = true;
+		scaleButtonPressTime = AudioEngine::audioSampleTimer;
+		// if you're already in scale mode, display the current scale
+		if (getCurrentInstrumentClip()->inScaleMode) {
+			currentSong->displayCurrentRootNoteAndScaleName();
+		}
+		return commandFlashRootNote();
+	}
+	else {
+		// Button release
+		if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
+			currentUIMode = UI_MODE_NONE;
+		}
+		if (toggleScaleModeOnButtonRelease && isShortPress(scaleButtonPressTime)) {
+			toggleScaleModeOnButtonRelease = false;
+			if (inScaleMode) {
+				display->cancelPopup();
+				return commandExitScaleMode();
+			}
+			else {
+				return commandEnterScaleMode();
+			}
+		}
+		else if (inScaleMode && display->have7SEG()) {
+			displayCurrentScaleName();
+		}
+	}
 	return ActionResult::DEALT_WITH;
 }
 
@@ -4856,54 +4864,66 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 
 	int32_t newScroll = setupForEnteringScaleMode(newRootNote, yDisplay);
 
-	// See which NoteRows need to animate
-	PadLEDs::numAnimatedRows = 0;
-	for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = clip->noteRows.getElement(i);
-		int32_t yVisualTo = clip->getYVisualFromYNote(thisNoteRow->y, currentSong);
-		int32_t yDisplayTo = yVisualTo - newScroll;
-		int32_t yDisplayFrom = thisNoteRow->y - clip->yScroll;
+	UI* currentUI = getCurrentUI();
 
-		// If this NoteRow is going to end up on-screen or come from on-screen...
-		if ((yDisplayTo >= 0 && yDisplayTo < kDisplayHeight) || (yDisplayFrom >= 0 && yDisplayFrom < kDisplayHeight)) {
+	// don't do animation if called from another view (e.g. automation view)
+	if (currentUI == this) {
+		// See which NoteRows need to animate
+		PadLEDs::numAnimatedRows = 0;
+		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
+			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
+			int32_t yVisualTo = clip->getYVisualFromYNote(thisNoteRow->y, currentSong);
+			int32_t yDisplayTo = yVisualTo - newScroll;
+			int32_t yDisplayFrom = thisNoteRow->y - clip->yScroll;
 
-			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
+			// If this NoteRow is going to end up on-screen or come from on-screen...
+			if ((yDisplayTo >= 0 && yDisplayTo < kDisplayHeight)
+			    || (yDisplayFrom >= 0 && yDisplayFrom < kDisplayHeight)) {
 
-			PadLEDs::animatedRowGoingTo[PadLEDs::numAnimatedRows] = yDisplayTo;
-			PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
-			RGB mainColour = clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip));
-			RGB tailColour = mainColour.forTail();
-			RGB blurColour = mainColour.forBlur();
+				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
 
-			thisNoteRow->renderRow(
-			    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
-			    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
-			    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-			    currentSong->xZoom[NAVIGATION_CLIP]);
-			drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
-			               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
-			PadLEDs::numAnimatedRows++;
-			if (PadLEDs::numAnimatedRows >= kMaxNumAnimatedRows) {
-				break;
+				PadLEDs::animatedRowGoingTo[PadLEDs::numAnimatedRows] = yDisplayTo;
+				PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
+				RGB mainColour = clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip));
+				RGB tailColour = mainColour.forTail();
+				RGB blurColour = mainColour.forBlur();
+
+				thisNoteRow->renderRow(
+				    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
+				    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
+				    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
+				    currentSong->xZoom[NAVIGATION_CLIP]);
+				drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
+				               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
+				PadLEDs::numAnimatedRows++;
+				if (PadLEDs::numAnimatedRows >= kMaxNumAnimatedRows) {
+					break;
+				}
 			}
 		}
-	}
 
-	PadLEDs::setupInstrumentClipCollapseAnimation(false);
+		PadLEDs::setupInstrumentClipCollapseAnimation(false);
+	}
 
 	clip->yScroll = newScroll;
 
-	displayCurrentScaleName();
+	if (display->haveOLED()) {
+		currentSong->displayCurrentRootNoteAndScaleName();
+	}
+	else {
+		displayCurrentScaleName();
+	}
 
 	// And tidy up
 	recalculateColours();
-	currentUIMode = UI_MODE_NOTEROWS_EXPANDING_OR_COLLAPSING;
-	PadLEDs::recordTransitionBegin(kNoteRowCollapseSpeed);
 	setLedStates();
 
-	// drawAllAuditionSquares(false);
-
-	PadLEDs::renderNoteRowExpandOrCollapse();
+	// don't do animation if called from another view (e.g. automation view)
+	if (currentUI == this) {
+		currentUIMode = UI_MODE_NOTEROWS_EXPANDING_OR_COLLAPSING;
+		PadLEDs::recordTransitionBegin(kNoteRowCollapseSpeed);
+		PadLEDs::renderNoteRowExpandOrCollapse();
+	}
 
 	// Hook point for specificMidiDevice
 	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_ENTER_SCALE_MODE);
@@ -4945,48 +4965,56 @@ void InstrumentClipView::exitScaleMode() {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	// See which NoteRows need to animate
-	PadLEDs::numAnimatedRows = 0;
-	for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
-		NoteRow* thisNoteRow = clip->noteRows.getElement(i);
-		int32_t yDisplayTo = thisNoteRow->y - (clip->yScroll + scrollAdjust);
-		clip->inScaleMode = true;
-		int32_t yDisplayFrom = clip->getYVisualFromYNote(thisNoteRow->y, currentSong) - clip->yScroll;
-		clip->inScaleMode = false;
+	UI* currentUI = getCurrentUI();
+	// don't do animation if called from another view (e.g. automation view)
+	if (currentUI == this) {
+		// See which NoteRows need to animate
+		PadLEDs::numAnimatedRows = 0;
+		for (int32_t i = 0; i < clip->noteRows.getNumElements(); i++) {
+			NoteRow* thisNoteRow = clip->noteRows.getElement(i);
+			int32_t yDisplayTo = thisNoteRow->y - (clip->yScroll + scrollAdjust);
+			clip->inScaleMode = true;
+			int32_t yDisplayFrom = clip->getYVisualFromYNote(thisNoteRow->y, currentSong) - clip->yScroll;
+			clip->inScaleMode = false;
 
-		// If this NoteRow is going to end up on-screen or come from on-screen...
-		if ((yDisplayTo >= 0 && yDisplayTo < kDisplayHeight) || (yDisplayFrom >= 0 && yDisplayFrom < kDisplayHeight)) {
-			PadLEDs::animatedRowGoingTo[PadLEDs::numAnimatedRows] = yDisplayTo;
-			PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
-			RGB mainColour = clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip));
-			RGB tailColour = mainColour.forTail();
-			RGB blurColour = mainColour.forBlur();
+			// If this NoteRow is going to end up on-screen or come from on-screen...
+			if ((yDisplayTo >= 0 && yDisplayTo < kDisplayHeight)
+			    || (yDisplayFrom >= 0 && yDisplayFrom < kDisplayHeight)) {
+				PadLEDs::animatedRowGoingTo[PadLEDs::numAnimatedRows] = yDisplayTo;
+				PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
+				RGB mainColour = clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip));
+				RGB tailColour = mainColour.forTail();
+				RGB blurColour = mainColour.forBlur();
 
-			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
+				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
 
-			thisNoteRow->renderRow(
-			    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
-			    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
-			    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
-			    currentSong->xZoom[NAVIGATION_CLIP]);
-			drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
-			               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
-			PadLEDs::numAnimatedRows++;
-			if (PadLEDs::numAnimatedRows >= kMaxNumAnimatedRows) {
-				break;
+				thisNoteRow->renderRow(
+				    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
+				    PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows], true, modelStackWithNoteRow->getLoopLength(),
+				    clip->allowNoteTails(modelStackWithNoteRow), kDisplayWidth, currentSong->xScroll[NAVIGATION_CLIP],
+				    currentSong->xZoom[NAVIGATION_CLIP]);
+				drawMuteSquare(thisNoteRow, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
+				               PadLEDs::occupancyMaskStore[PadLEDs::numAnimatedRows]);
+				PadLEDs::numAnimatedRows++;
+				if (PadLEDs::numAnimatedRows >= kMaxNumAnimatedRows) {
+					break;
+				}
 			}
 		}
 	}
 
 	clip->yScroll += scrollAdjust;
 
-	PadLEDs::setupInstrumentClipCollapseAnimation(false);
-
 	recalculateColours();
-	currentUIMode = UI_MODE_NOTEROWS_EXPANDING_OR_COLLAPSING;
-	PadLEDs::recordTransitionBegin(kNoteRowCollapseSpeed);
 	setLedStates();
-	PadLEDs::renderNoteRowExpandOrCollapse();
+
+	// don't do animation if called from another view (e.g. automation view)
+	if (currentUI == this) {
+		PadLEDs::setupInstrumentClipCollapseAnimation(false);
+		currentUIMode = UI_MODE_NOTEROWS_EXPANDING_OR_COLLAPSING;
+		PadLEDs::recordTransitionBegin(kNoteRowCollapseSpeed);
+		PadLEDs::renderNoteRowExpandOrCollapse();
+	}
 
 	// Hook point for specificMidiDevice
 	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_EXIT_SCALE_MODE);

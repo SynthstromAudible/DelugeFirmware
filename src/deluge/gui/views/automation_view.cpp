@@ -1713,9 +1713,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
-		if (handleScaleButtonAction((InstrumentClip*)clip, outputType, on)) {
-			return ActionResult::DEALT_WITH;
-		}
+		return instrumentClipView.handleScaleButtonAction(on, inCardRoutine);
 	}
 
 	// Song view button
@@ -1845,35 +1843,6 @@ passToOthers:
 	}
 
 	return ActionResult::DEALT_WITH;
-}
-
-// called by button action if b == SCALE_MODE
-bool AutomationView::handleScaleButtonAction(InstrumentClip* instrumentClip, OutputType outputType, bool on) {
-	// Kits can't do scales!
-	if (outputType == OutputType::KIT) {
-		if (on) {
-			indicator_leds::indicateAlertOnLed(IndicatorLED::KIT);
-		}
-		return true;
-	}
-
-	actionLogger.deleteAllLogs(); // Can't undo past this!
-
-	if (on && currentUIMode == UI_MODE_NONE) {
-		// If user holding shift and we're already in scale mode, cycle through available scales
-		if (Buttons::isShiftButtonPressed() && instrumentClip->inScaleMode) {
-			cycleThroughScales();
-			instrumentClipView.recalculateColours();
-			uiNeedsRendering(this);
-		}
-		else if (instrumentClip->inScaleMode) {
-			exitScaleMode();
-		}
-		else {
-			enterScaleMode();
-		}
-	}
-	return false;
 }
 
 // called by button action if b == SESSION_VIEW
@@ -2185,12 +2154,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 // handle by button action if b == Y_ENC
 void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 	if (on) {
-		if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
-			if (onArrangerView || getCurrentInstrumentClip()->isScaleModeClip()) {
-				currentSong->displayCurrentRootNoteAndScaleName();
-			}
-		}
-		else if (inNoteEditor()) {
+		if (inNoteEditor()) {
 			if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 				// Just pop up number - don't do anything
 				instrumentClipView.editNoteRepeat(0);
@@ -2232,54 +2196,6 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 			openUI(&soundEditor);
 		}
 	}
-}
-
-// simplified version of the InstrumentClipView::enterScaleMode function. No need to render any
-// animation. not used with Audio Clip Automation View or Arranger Automation View
-void AutomationView::enterScaleMode(uint8_t yDisplay) {
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
-
-	if (clip->output->type == OutputType::MIDI_OUT
-	    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
-	    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_ENTER_SCALE));
-		return;
-	}
-
-	int32_t newRootNote;
-	if (yDisplay == 255) {
-		newRootNote = 2147483647;
-	}
-	else {
-		newRootNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
-	}
-
-	int32_t newScroll = instrumentClipView.setupForEnteringScaleMode(newRootNote, yDisplay);
-
-	clip->yScroll = newScroll;
-
-	displayCurrentScaleName();
-
-	// And tidy up
-	setLedStates();
-}
-
-// simplified version of the InstrumentClipView::enterScaleMode function. No need to render any
-// animation. not used with Audio Clip Automation View or Arranger Automation View
-void AutomationView::exitScaleMode() {
-	int32_t scrollAdjust = instrumentClipView.setupForExitingScaleMode();
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
-
-	clip->yScroll += scrollAdjust;
-
-	instrumentClipView.recalculateColours();
-	setLedStates();
 }
 
 // pad action

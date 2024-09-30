@@ -32,6 +32,10 @@
 
 #### <ins>Instrument Clip View</ins>
 
+##### Scale Mode
+- If scale mode is active, you can now check the current root note and scale by long pressing the scale button. On 7SEG it will display the root note on press and scale on release.
+- Long pressing the scale button will not result in entering or exiting scale mode so you can safely check the current root note and scale without accidentally exiting scale mode.
+
 ##### Automation View
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
 

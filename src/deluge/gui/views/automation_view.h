@@ -152,7 +152,6 @@ public:
 
 private:
 	// button action functions
-	bool handleScaleButtonAction(InstrumentClip* instrumentClip, OutputType outputType, bool on);
 	void handleSessionButtonAction(Clip* clip, bool on);
 	void handleKeyboardButtonAction(bool on);
 	void handleClipButtonAction(bool on, bool isAudioClip);
@@ -267,10 +266,6 @@ private:
 	void renderAutomationEditorDisplay7SEG(Clip* clip, OutputType outputType, int32_t knobPosLeft,
 	                                       bool modEncoderAction);
 	void renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft);
-
-	// Enter/Exit Scale Mode
-	void enterScaleMode(uint8_t yDisplay = 255);
-	void exitScaleMode();
 
 	// Horizontal Encoder Action
 	void shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
