@@ -367,19 +367,48 @@ void smSysex::writeBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	// We should be on the separator character, check to make
 	char aChar;
 	if (reader.peekChar(&aChar) && aChar != 0) {
-		D_PRINTLN("Missing Separater error in putBlock");
+		D_PRINTLN("Missing Separater error in writeBlock");
 	}
-	uint32_t decoded = decodeDataFromReader(reader, writeBlockBuffer, size);
-	D_PRINTLN("Decoded block len: %d", decoded);
+	uint32_t decodedSize = decodeDataFromReader(reader, writeBlockBuffer, size);
+	D_PRINTLN("Decoded block len: %d", decodedSize);
+
+	// Here is where we actually write the buffer out.
+	FRESULT errCode = FRESULT::FR_OK;
+	FILdata* fp = NULL;
+
+	if (fileId > 0 && fileId <= MAX_OPEN_FILES) {
+		fp = openFiles + (fileId - 1);
+	}
+	if (fp == NULL) {
+		errCode = FRESULT::FR_NOT_ENABLED;
+	}
+	if (writeBlockBuffer && fp) {
+		//errCode = f_lseek(&fp->file, addr);
+		if (errCode == FRESULT::FR_OK) {
+			UINT actuallyWritten = 0;
+			errCode = f_write(&fp->file, writeBlockBuffer, decodedSize, &actuallyWritten);
+			size = actuallyWritten;
+		}
+	}
+	startReply(jWriter, reader);
+	jWriter.writeOpeningTag("^write", false, true);
+	jWriter.writeAttribute("fid", fileId);
+	jWriter.writeAttribute("addr", addr);
+	jWriter.writeAttribute("size", size);
+	jWriter.writeAttribute("err", errCode);
+	jWriter.closeTag(true);
+
+	sendMsg(device, jWriter);
 }
 
-const char* testLine = "abcdefghijklmnopqrstuvwxyz01234567890";
+
 void smSysex::doPing(MIDIDevice* device, JsonDeserializer& reader) {
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^ping", false, true);
 	jWriter.closeTag(true);
 	sendMsg(device, jWriter);
 }
+
 
 uint32_t smSysex::decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax) {
 	char zip = 0;
