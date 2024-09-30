@@ -61,7 +61,6 @@ Because the Chord Keyboard has more features than other keyboard layouts, contro
   - At the top of the rightmost main grid column, you can select the current mode (`ROW` and `COLUMN`) by pressing the corresponding pad. It defaults to Column Mode.
     - In addition, you can use `SHIFT` + `◀︎▶︎` to also cycle through the `ROW` and `COLUMN` mode.
 
-
 ### Scale Considerations
 
 The Chord Keyboard is currently limited to scales that are modes of the major scale. (Major, Minor, Dorian, Phrygian, Lydian, Mixolydian, and Locrian scales).
