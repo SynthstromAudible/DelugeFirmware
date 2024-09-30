@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "io/debug/log.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -907,6 +908,7 @@ bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, RGB image[][kDisplayW
 	if (getRootUI() != &keyboardScreen) {
 		return false;
 	}
+	D_PRINTLN("SampleMarkerEditor::renderSidebar");
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }
 

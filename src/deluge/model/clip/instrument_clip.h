@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "io/debug/log.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
@@ -254,6 +255,7 @@ public:
 
 	bool renderSidebar(uint32_t whichRows = 0, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) override {
+		D_PRINTLN("InstrumentClip::renderSidebar");
 		return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 	};
 

@@ -274,6 +274,10 @@ public:
 	bool noteRowFlashOn;
 	bool noteRowBlinking;
 
+	// blink out of scale note rows
+	void blinkOutOfScaleRows();
+	void resetOutOfScaleRowsBlinking();
+
 	const char* getFillString(uint8_t fill);
 
 	// public for velocity keyboard view to access

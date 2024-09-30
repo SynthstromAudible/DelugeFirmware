@@ -124,6 +124,10 @@ void UITimerManager::routine() {
 					instrumentClipView.blinkSelectedNoteRow();
 					break;
 
+				case TimerName::OUT_OF_SCALE_ROW_BLINK:
+					instrumentClipView.blinkOutOfScaleRows();
+					break;
+
 				case TimerName::MATRIX_DRIVER:
 					PadLEDs::timerRoutine();
 					break;

@@ -4838,16 +4838,26 @@ bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayW
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 		return true;
 	}
+	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	int32_t macroColumn = kDisplayWidth;
 	bool armed = false;
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
 		if (whichRows & (1 << i)) {
+			// We calculate yNote instead of using noteRow->y because noteRow may be NULL
+			// int32_t yNote = clip->getYNoteFromYDisplay(i, currentSong);
+			// NoteRow* noteRowBelow = clip->getNoteRowForYNote(yNote - 1);
+			// bool isOutOfScale = noteRowBelow && (currentSong->key.degreeOf(noteRowBelow->getNoteCode()) == -1);
+			// // NoteRow* noteRowAbove = modelStackWithNoteRowAbove->getNoteRowAllowNull();
+			// // if (noteRowBelow && isOutOfScale && clip->inScaleMode) {
+			// if (noteRowBelow && isOutOfScale) {
+			// 	D_PRINTLN("note row below ydisplay %d with note Row y %d", i, noteRowBelow->y);
+			// }
 			if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
 				armed |= view.renderMacros(macroColumn, i, -1, image, occupancyMask);
 			}
 			else {
-				drawMuteSquare(getCurrentInstrumentClip()->getNoteRowOnScreen(i, currentSong), image[i],
+				drawMuteSquare(clip->getNoteRowOnScreen(i, currentSong), image[i],
 				               occupancyMask[i]);
 			}
 			drawAuditionSquare(i, image[i]);
@@ -6006,6 +6016,7 @@ void InstrumentClipView::notifyPlaybackBegun() {
 bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                         bool drawUndefinedArea) {
+	D_PRINTLN("InstrumentClipView::renderMainPads");
 	if (!image) {
 		return true;
 	}
@@ -6028,11 +6039,15 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
                                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
                                              uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
                                              bool drawUndefinedArea) {
+	// resetSelectedNoteRowBlinking();
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
+	// uint32_t outOfScaleRows = 0;
+
+	std::array<ModelStackWithNoteRow*, kDisplayHeight> outOfScaleRows;
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		if (whichRows & (1 << yDisplay)) {
@@ -6040,11 +6055,24 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 			ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
 
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+			D_PRINTLN("Rendering row ydiplay %d with note Row y %d", yDisplay, noteRow->y);
 
 			uint8_t* occupancyMaskOfRow = NULL;
 			if (occupancyMask) {
 				occupancyMaskOfRow = occupancyMask[yDisplay];
 			}
+
+
+			int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
+			ModelStackWithNoteRow* modelStackWithNoteRowBelow = clip->getNoteRowForYNote(yNote - 1, modelStack);
+			outOfScaleRows[yDisplay] = modelStackWithNoteRowBelow;
+			// NoteRow* noteRowBelow = clip->getNoteRowForYNote(yNote - 1);
+			// bool isOutOfScale = noteRowBelow && (currentSong->key.degreeOf(noteRowBelow->getNoteCode()) == -1);
+			// NoteRow* noteRowAbove = modelStackWithNoteRowAbove->getNoteRowAllowNull();
+			// if (clip->inScaleMode && noteRowBelow && isOutOfScale) {
+			// 	outOfScaleRows |= 1 << yDisplay;
+			// 	// D_PRINTLN("note row below ydisplay %d with note Row y %d", yDisplay, noteRowBelow->y);
+			// }
 
 			// If row doesn't have a NoteRow, wipe it empty
 			if (!noteRow) {
@@ -6061,6 +6089,12 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 				                   clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
 				                   renderWidth, false);
 			}
+			// if (clip->inScaleMode && noteRowBelow && isOutOfScale) {
+			// 	noteRowBelow->renderRow(this, rowColour[yDisplay].rotate(), rowTailColour[yDisplay].rotate(), rowBlurColour[yDisplay].rotate(), image, occupancyMaskOfRow,
+			// 	                        false, modelStackWithNoteRow->getLoopLength(),
+			// 	                        clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
+			// 	                        renderWidth, false);
+			// }
 
 			if (drawUndefinedArea) {
 				int32_t effectiveLength = modelStackWithNoteRow->getLoopLength();
@@ -6072,6 +6106,11 @@ void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
 
 		image += imageWidth;
 	}
+
+	// if (outOfScaleRows) {
+	// 	blinkSelectedNoteRow(outOfScaleRows);
+	// }
+
 }
 
 void InstrumentClipView::playbackEnded() {
@@ -6662,4 +6701,56 @@ void InstrumentClipView::blinkSelectedNoteRow(int32_t whichMainRows) {
 	noteRowFlashOn = !noteRowFlashOn;
 	uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);
 	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 180);
+}
+
+void InstrumentClipView::blinkOutOfScaleRows() {
+
+	auto image = &PadLEDs::imageStore[kDisplayHeight][0];
+	// RGB image[][kDisplayWidth + kSideBarWidth] = NULL;
+	auto occupancyMask = &PadLEDs::occupancyMaskStore[kDisplayHeight];
+	bool drawUndefinedArea = true;
+	int32_t xScroll = currentSong->xScroll[NAVIGATION_CLIP];
+	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
+	int32_t renderWidth = kDisplayWidth;
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		uint8_t* occupancyMaskOfRow = NULL;
+		if (occupancyMask) {
+			occupancyMaskOfRow = occupancyMask[yDisplay];
+		}
+		int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
+		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForYNote(yNote - 1, modelStack);
+		// ModelStackWithNoteRow* modelStackWithNoteRow = outOfScaleRows[yDisplay];
+		NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+		bool isOutOfScale = noteRow && (currentSong->key.degreeOf(noteRow->getNoteCode()) == -1);
+		if (clip->inScaleMode && noteRow && isOutOfScale) {
+			noteRow->renderRow(this, rowColour[yDisplay].rotate(), rowTailColour[yDisplay].rotate(), rowBlurColour[yDisplay].rotate(), image, occupancyMaskOfRow,
+									false, modelStackWithNoteRow->getLoopLength(),
+									clip->allowNoteTails(modelStackWithNoteRow), renderWidth, xScroll, xZoom, 0,
+									renderWidth, false);
+			}
+	}
+
+			// NoteRow* noteRowAbove = modelStackWithNoteRowAbove->getNoteRowAllowNull();
+			// if (clip->inScaleMode && noteRowBelow && isOutOfScale) {
+			// 	outOfScaleRows |= 1 << yDisplay;
+			// 	// D_PRINTLN("note row below ydisplay %d with note Row y %d", yDisplay, noteRowBelow->y);
+			// }
+
+	// noteRowBlinking = true;
+	// noteRowFlashOn = !noteRowFlashOn;
+	// uiNeedsRendering(getRootUI(), whichMainRows, 0xFFFFFFFF);
+	uiTimerManager.setTimer(TimerName::OUT_OF_SCALE_ROW_BLINK, 180);
+}
+
+// used to blink selected noted row when using the note row view or the note row menu
+void InstrumentClipView::resetOutOfScaleRowsBlinking() {
+	uiTimerManager.unsetTimer(TimerName::OUT_OF_SCALE_ROW_BLINK);
+	// noteRowBlinking = false;
+	// noteRowFlashOn = false;
 }

@@ -1140,6 +1140,7 @@ bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, RGB image[][kDisp
 	if (getRootUI() != &keyboardScreen) {
 		return false;
 	}
+	D_PRINTLN("LoadInstrumentPresetUI::renderSidebar");
 	return instrumentClipView.renderSidebar(whichRows, image, occupancyMask);
 }
 
