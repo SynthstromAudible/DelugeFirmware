@@ -17,26 +17,18 @@
 
 #include "model/instrument/melodic_instrument.h"
 #include "definitions_cxx.hpp"
-#include "extern.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_follow.h"
-#include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/midi_instrument.h"
-#include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
-#include "model/song/song.h"
-#include "modulation/automation/auto_param.h"
-#include "modulation/params/param.h"
-#include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
-#include "storage/storage_manager.h"
 #include <cstring>
 
 bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
@@ -112,7 +104,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 		// no break
 	case MIDIMatchType::CHANNEL:
 		// -1 means no change
-		InstrumentClip* instrumentClip = (InstrumentClip*)activeClip;
+		auto* instrumentClip = (InstrumentClip*)activeClip;
 
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    instrumentClip ? instrumentClip->getNoteRowForYNote(note, modelStack) : modelStack->addNoteRow(0, NULL);
@@ -372,7 +364,7 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 	case MIDIMatchType::MPE_MEMBER:
 		if (ccNumber
 		    == CC_EXTERNAL_MPE_Y) { // All other CCs are not supposed to be used for Member Channels, for anything.
-			int32_t value32 = (value - 64) << 25;
+			value32 = (value - 64) << 25;
 			polyphonicExpressionEventPossiblyToRecord(modelStackWithTimelineCounter, value32, Y_SLIDE_TIMBRE, channel,
 			                                          MIDICharacteristic::CHANNEL);
 
@@ -534,7 +526,9 @@ bool MelodicInstrument::isNoteAuditioning(int32_t noteCode) {
 void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity,
                                                 int16_t const* mpeValues, int32_t fromMIDIChannel,
                                                 uint32_t sampleSyncLength) {
-
+	if (!activeClip) {
+		return;
+	}
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
@@ -558,13 +552,16 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 }
 
 void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity) {
+
+	notesAuditioned.deleteAtKey(note);
+	earlyNotes.noteNoLongerActive(note);
+	if (!activeClip) {
+		return;
+	}
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    ((InstrumentClip*)activeClip)->getNoteRowForYNote(note, modelStackWithTimelineCounter);
 	NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-
-	notesAuditioned.deleteAtKey(note);
-	earlyNotes.noteNoLongerActive(note);
 
 	// here we check if this note row has a drone note that is currently sounding
 	// in which case we don't want to stop it from sounding
