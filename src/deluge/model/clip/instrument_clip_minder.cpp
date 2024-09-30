@@ -499,15 +499,10 @@ bool InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 }
 
 void InstrumentClipMinder::calculateDefaultRootNote() {
-	// If there are any other Clips in scale-mode, we use their root note
-	if (currentSong->anyScaleModeClips()) {
-		defaultRootNote = currentSong->key.rootNote;
-
-		// Otherwise, intelligently guess the root note
-	}
-	else {
-		defaultRootNote = getCurrentInstrumentClip()->guessRootNote(currentSong, currentSong->key.rootNote);
-	}
+	// Default root note used to be used to guess the root note when not in scale mode,
+	// But since accidentals are supported, it's not really needed anymore. And we just always
+	// Use the root note of the scale.
+	defaultRootNote = currentSong->key.rootNote;
 }
 
 void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
@@ -533,7 +528,12 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 }
 
 void InstrumentClipMinder::cycleThroughScales() {
-	displayScaleName(currentSong->cycleThroughScales());
+	auto startScale = currentSong->getCurrentScale();
+	auto newScale = currentSong->cycleThroughScales();
+	// If the scale has changed, display the new scale name
+	if (newScale != startScale) {
+		displayScaleName(newScale);
+	}
 }
 
 // Returns if the scale could be changed or not

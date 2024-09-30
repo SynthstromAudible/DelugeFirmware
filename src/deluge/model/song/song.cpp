@@ -573,20 +573,6 @@ void Song::setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjusting
 	key.rootNote = newRootNote;
 
 	int32_t oldNumModeNotes = key.modeNotes.count();
-	NoteSet notesWithinOctavePresent = notesInScaleModeClips();
-
-	// We don't want to reuse "OTHER SCALE", we want the Deluge to guess a new scale.
-	// Check if the previously set scale could fit the notes present in the clips
-	// If so, we need no check at all, we can directly go back to previous scale safely
-	bool previousScaleFits =
-	    getCurrentScale() < NUM_PRESET_SCALES && notesWithinOctavePresent.isSubsetOf(key.modeNotes);
-	if (!previousScaleFits) {
-		key.modeNotes = notesWithinOctavePresent.toImpliedScale();
-		// If this is not a preset, save as the current user scale.
-		if (isUserScale(key.modeNotes)) {
-			userScaleNotes = key.modeNotes;
-		}
-	}
 
 	// Adjust scroll for Clips with the scale. Crudely - not as high quality as happens for the Clip being processed
 	// in enterScaleMode();
@@ -2891,8 +2877,17 @@ Scale Song::cycleThroughScales() {
 		newScale = static_cast<Scale>(mod(newScale + 1, NUM_PRESET_SCALES + 1));
 		if (newScale == USER_SCALE || !disabledPresetScales[newScale]) {
 			currentScale = setScale(newScale);
+			// if (currentScale == NO_SCALE) {
+			// 	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
+			// 	return startScale;
+			// }
 		}
 	} while (newScale != currentScale && newScale != startScale);
+	if ((newScale == startScale) || (newScale == NO_SCALE)) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_CHANGE_SCALE));
+		setScale(startScale);
+		return startScale;
+	}
 	return newScale;
 }
 
@@ -2922,7 +2917,9 @@ bool Song::setScaleNotes(NoteSet newScaleNotes) {
 	notesWithinOctavePresent.add(0);
 
 	// If the new scale cannot fit the notes from the old one, we can't change scale
-	if (notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize()) {
+	// Or if the new scale is not a subset of the key mode notes (We have accidentals in the scale), we can't change
+	if ((notesWithinOctavePresent.scaleSize() > newScaleNotes.scaleSize())
+	    || !notesWithinOctavePresent.isSubsetOf(key.modeNotes)) {
 		return false;
 	}
 

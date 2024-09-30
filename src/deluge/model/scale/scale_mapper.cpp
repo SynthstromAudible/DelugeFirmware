@@ -1,5 +1,6 @@
 #include "model/scale/scale_mapper.h"
 #include "definitions.h"
+#include "io/debug/log.h"
 
 bool oops(const char* msg) {
 #ifdef IN_UNIT_TESTS
