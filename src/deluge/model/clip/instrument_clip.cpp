@@ -55,7 +55,7 @@
 namespace params = deluge::modulation::params;
 
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
-InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT) {
+InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRows() {
 	arpeggiatorRate = 0;
 	arpeggiatorRatchetProbability = 0;
 	arpeggiatorRatchetAmount = 0;

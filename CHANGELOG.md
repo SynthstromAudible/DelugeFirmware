@@ -19,10 +19,6 @@
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
-#### <ins> Song Macros</ins>
-- Added ability to create song macros to quickly switch playing clips from inside clip view without needing to go into song view.
-- From song view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros
-
 #### <ins>Song Grid View</ins>
 
 ##### Entering Clips
@@ -40,12 +36,12 @@
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
 
 ##### Note / Note Row Probability, Iterance, Fill
-- Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
+- Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill. 
   - Holding a note / note row and turning the select encoder now only changes probability.
   - To edit note / note row iteration and fill settings you need to access the new note and note row editor menu's.
 - Added new note and note row editor menu's to edit note and note row parameters.
   - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid.
-  - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the select note row audition pad will blink. You can select other note row's by pressing the note row audition pad.
+  - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the selected note row's audition pad will blink. You can select other note row's by pressing the note row audition pad or by scrolling with the vertical encoder.
   
 ##### Recording
 - Enabled seamless linear recording of drone notes using audition pads or external midi.
@@ -143,6 +139,10 @@
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 
+#### <ins> Song Macros</ins>
+- Added ability to create song macros to quickly switch playing clips from inside clip view without needing to go into song view.
+- From song view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros
+
 #### <ins>Song Grid View</ins>
 
 ##### Creating New Clips
@@ -168,6 +168,10 @@
     - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
     - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW` 
 - Added community feature toggle `Grid View Loop Pads (LOOP)` to illuminate two pads (Red and Magenta) in the `GRID VIEW` sidebar for triggering the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
+
+##### Entering Performance View
+- Changed the shortcut to enter Performance View in `SONG GRID VIEW` from the `PINK GRID MODE` to the `KEYBOARD` button for consistency with `SONG ROW VIEW` and `ARRANGER VIEW`.
+- Removed `PINK GRID MODE`
 
 #### <ins>Performance View</ins>
 - Updated `PERFORMANCE VIEW` UI for exiting out of `EDITING MODE`. While in `EDITING MODE`, you can now press `BACK` to exit out to the previous screen.
@@ -271,7 +275,7 @@
     - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
 
 #### <ins>Performance View</ins>
-- Added `PERFORMANCE VIEW`, accessible in Song Row View by pressing the Keyboard button and in Song Grid View by pressing the Pink Mode pad. Allows quick control of Song Global FX.
+- Added `PERFORMANCE VIEW`, accessible in Song View by pressing the Keyboard button. Allows quick control of Song Global FX.
 
 #### <ins>Automation View</ins>  
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
