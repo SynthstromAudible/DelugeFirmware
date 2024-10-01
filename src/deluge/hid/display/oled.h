@@ -64,7 +64,8 @@ public:
 
 	static void stopScrollingAnimation();
 	static void setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
-	                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight);
+	                              int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight,
+	                              bool scrollDuringPlayback = true);
 	static void drawPermanentPopupLookingText(char const* text);
 
 	/// Call this after doing any rendering work so the next trip through the UI rendering loop actually sends the image

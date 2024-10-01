@@ -2046,7 +2046,7 @@ void SessionView::renderViewDisplay() {
 	else {
 		canvas.drawString(name, 0, yPos, kTextTitleSpacingX, kTextTitleSizeY);
 		deluge::hid::display::OLED::setupSideScroller(0, name, 0, OLED_MAIN_WIDTH_PIXELS, yPos, yPos + kTextTitleSizeY,
-		                                              kTextTitleSpacingX, kTextTitleSizeY, false);
+		                                              kTextTitleSpacingX, kTextTitleSizeY, false, false);
 	}
 
 	yPos = OLED_MAIN_TOPMOST_PIXEL + 32;

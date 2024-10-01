@@ -18,6 +18,7 @@
 #include "oled.h"
 #include "RZA1/mtu/mtu.h"
 #include "definitions_cxx.hpp"
+#include "deluge/playback/playback_handler.h"
 #include "drivers/dmac/dmac.h"
 #include "drivers/pic/pic.h"
 #include "gui/ui_timer_manager.h"
@@ -923,6 +924,7 @@ struct SideScroller {
 	int32_t boxLengthPixels;
 	bool finished;
 	bool doHighlight;
+	bool scrollDuringPlayback;
 };
 
 #define NUM_SIDE_SCROLLERS 2
@@ -930,7 +932,8 @@ struct SideScroller {
 SideScroller sideScrollers[NUM_SIDE_SCROLLERS];
 
 void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t startX, int32_t endX, int32_t startY,
-                             int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight) {
+                             int32_t endY, int32_t textSpacingX, int32_t textSizeY, bool doHighlight,
+                             bool scrollDuringPlayback) {
 
 	SideScroller* scroller = &sideScrollers[index];
 	scroller->textLength = text.size();
@@ -960,6 +963,7 @@ void OLED::setupSideScroller(int32_t index, std::string_view text, int32_t start
 	scroller->textSizeY = textSizeY;
 	scroller->finished = false;
 	scroller->doHighlight = doHighlight;
+	scroller->scrollDuringPlayback = scrollDuringPlayback;
 
 	sideScrollerDirection = 1;
 	uiTimerManager.setTimer(TimerName::OLED_SCROLLING_AND_BLINKING, kScrollTime);
@@ -1000,6 +1004,8 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 	}
 
 	bool finished = true;
+	bool didAnyRendering = false;
+	bool didAnyScrolling = true;
 
 	for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 		SideScroller* scroller = &sideScrollers[s];
@@ -1008,16 +1014,33 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 				continue;
 			}
 
-			scroller->pos += sideScrollerDirection;
+			bool refreshDisplay = true;
 
-			if (scroller->pos <= 0) {
-				scroller->finished = true;
+			// if playback is not running or it's running and you allow scrolling then scroll text
+			if (!playbackHandler.isEitherClockActive()
+			    || (playbackHandler.isEitherClockActive() && scroller->scrollDuringPlayback)) {
+
+				scroller->pos += sideScrollerDirection;
+
+				if (scroller->pos <= 0) {
+					scroller->finished = true;
+				}
+				else if (scroller->pos >= scroller->stringLengthPixels - scroller->boxLengthPixels) {
+					scroller->finished = true;
+				}
+				else {
+					finished = false;
+				}
 			}
-			else if (scroller->pos >= scroller->stringLengthPixels - scroller->boxLengthPixels) {
-				scroller->finished = true;
-			}
+			// otherwise, reset scroller to the beginning (if it's not already there)
 			else {
-				finished = false;
+				// no need to refresh display if scroller is already at pos 0
+				if (scroller->pos == 0) {
+					refreshDisplay = false;
+				}
+				scroller->pos = 0;
+				sideScrollerDirection = 1; // so we scroll forward if you turn playback off
+				didAnyScrolling = false;
 			}
 
 			int32_t endX = scroller->endX;
@@ -1027,21 +1050,27 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 				endX += 4;
 			}
 
-			// Ok, have to render.
-			main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
-			main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
-			                scroller->textSizeY, scroller->pos, scroller->endX);
-			if (scroller->doHighlight && !FlashStorage::accessibilityMenuHighlighting) {
-				main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY, scroller->endY);
+			if (refreshDisplay) {
+				// Ok, have to render.
+				main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
+				main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
+				                scroller->textSizeY, scroller->pos, scroller->endX);
+				if (scroller->doHighlight && !FlashStorage::accessibilityMenuHighlighting) {
+					main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY,
+					                scroller->endY);
+				}
+				didAnyRendering = true;
 			}
 		}
 	}
 
-	markChanged();
-	// Workaround for glitches during scrolling. Not entirely obvious _why_
-	// it glitches, though. Some sort of timing issue between doAnyPendingUIRendering,
-	// uiTimerManager.routine() ?
-	sendMainImage();
+	if (didAnyRendering) {
+		markChanged();
+		// Workaround for glitches during scrolling. Not entirely obvious _why_
+		// it glitches, though. Some sort of timing issue between doAnyPendingUIRendering,
+		// uiTimerManager.routine() ?
+		sendMainImage();
+	}
 
 	int32_t timeInterval;
 	if (!finished) {
@@ -1049,7 +1078,10 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 	}
 	else {
 		timeInterval = kScrollTime;
-		sideScrollerDirection = -sideScrollerDirection;
+		// if we didn't do any scrolling, then no need to change scroll direction
+		if (didAnyScrolling) {
+			sideScrollerDirection = -sideScrollerDirection;
+		}
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			sideScrollers[s].finished = false;
 		}

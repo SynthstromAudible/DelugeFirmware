@@ -1970,7 +1970,7 @@ oledDrawString:
 				canvas.drawString(nameToDraw, 0, yPos, kTextTitleSpacingX, kTextTitleSizeY);
 				deluge::hid::display::OLED::setupSideScroller(0, nameToDraw, 0, OLED_MAIN_WIDTH_PIXELS, yPos,
 				                                              yPos + kTextTitleSizeY, kTextTitleSpacingX,
-				                                              kTextTitleSizeY, false);
+				                                              kTextTitleSizeY, false, false);
 			}
 
 			if (clip) {
@@ -1979,7 +1979,7 @@ oledDrawString:
 					canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
 					deluge::hid::display::OLED::setupSideScroller(1, clip->clipName.get(), 0, OLED_MAIN_WIDTH_PIXELS,
 					                                              yPos, yPos + kTextSpacingY, kTextSpacingX,
-					                                              kTextSpacingY, false);
+					                                              kTextSpacingY, false, false);
 				}
 			}
 		}
