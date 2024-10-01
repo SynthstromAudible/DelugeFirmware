@@ -50,32 +50,38 @@ public:
 	/// allows the buffer to be stolen
 	void startSkippingRendering();
 
-	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t offset, int32_t feedback,
-	                    int32_t* postFXVolume, const StereoSample* bufferEnd, bool anySoundComingIn, float tempoBPM);
+	/// preset is currently converted from a param to a 0-4 preset inside the grain, which is probably not great
+	void processGrainFX(StereoSample* buffer, int32_t grainRate, int32_t grainMix, int32_t grainSize,
+	                    int32_t grainPreset, int32_t* postFXVolume, const StereoSample* bufferEnd,
+	                    bool anySoundComingIn, float tempoBPM);
 
 	void clearGrainFXBuffer();
-	void grainBufferStolen() { modFXGrainBuffer = nullptr; }
+	void grainBufferStolen() { grainBuffer = nullptr; }
 
 private:
-	void setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t offset, int32_t feedback, int32_t* postFXVolume,
-	                  float timePerInternalTick);
+	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainSize, int32_t grainPreset,
+	                  int32_t* postFXVolume, float timePerInternalTick);
 	void processOneGrainSample(StereoSample* currentSample);
 	void getBuffer();
 	void setWrapsToShutdown();
 
-	int32_t wrapsToShutdown;
-	GrainBuffer* modFXGrainBuffer{nullptr};
-	uint32_t modFXGrainBufferWriteIndex;
-	int32_t grainSize;
-	int32_t grainRate;
-	int32_t grainShift;
-	Grain grains[8];
-	int32_t grainFeedbackVol;
-	int32_t grainVol;
-	int32_t grainDryVol;
-	int8_t grainPitchType;
+	// parameters
+	uint32_t bufferWriteIndex;
+	int32_t _grainSize;
+	int32_t _grainRate;
+	int32_t _grainShift;
+	int32_t _grainFeedbackVol;
+	int32_t _grainVol;
+	int32_t _grainDryVol;
+	int8_t _grainPitchType;
+
 	bool grainLastTickCountIsZero;
 	bool grainInitialized;
+
+	Grain grains[8];
+
+	int32_t wrapsToShutdown;
+	GrainBuffer* grainBuffer{nullptr};
 };
 
 class GrainBuffer : public Stealable {
