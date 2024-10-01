@@ -1129,7 +1129,7 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
                                                     int32_t* postFXVolume, ParamManager* paramManager,
-                                                    const Delay::State& delayWorkingState, bool grainHadInput) {
+                                                    const Delay::State& delayWorkingState, bool anySoundComingIn) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;
 
@@ -1162,7 +1162,9 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 		disableGrain();
 	}
 	else if (modFXTypeNow == ModFXType::GRAIN) {
-		enableGrain();
+		if (anySoundComingIn) {
+			enableGrain();
+		}
 	}
 	else {
 		if (modFXBuffer) {
@@ -1173,7 +1175,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	}
 
 	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,
-	          paramManager);
+	          paramManager, anySoundComingIn);
 }
 
 namespace modfx {

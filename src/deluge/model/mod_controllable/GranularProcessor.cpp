@@ -40,24 +40,28 @@ void GranularProcessor::setWrapsToShutdown() {
 	else {
 		wrapsToShutdown = 4;
 	}
+	modFXGrainBuffer->inUse = true;
 }
 void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth,
                                        int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                       const StereoSample* bufferEnd) {
-	setupGrainFX(modFXRate, modFXDepth, postFXVolume, unpatchedParams);
-	StereoSample* currentSample = buffer;
-	int grainHadInput{0};
-	do {
-		processOneGrainSample(currentSample);
-		grainHadInput += currentSample->l;
-		grainHadInput += currentSample->r;
+                                       const StereoSample* bufferEnd, bool anySoundComingIn) {
+	if (anySoundComingIn || wrapsToShutdown >= 0) {
+		if (anySoundComingIn) {
+			setWrapsToShutdown();
+		}
+		if (modFXGrainBuffer == nullptr) {
+			getBuffer(); // in case it was stolen
+		}
+		setupGrainFX(modFXRate, modFXDepth, postFXVolume, unpatchedParams);
+		StereoSample* currentSample = buffer;
+		do {
+			processOneGrainSample(currentSample);
 
-	} while (++currentSample != bufferEnd);
-	if (grainHadInput) {
-		setWrapsToShutdown();
-	}
-	if (wrapsToShutdown < 0) {
-		// tell owner to kill me, probably return false
+		} while (++currentSample != bufferEnd);
+
+		if (wrapsToShutdown < 0) {
+			modFXGrainBuffer->inUse = false;
+		}
 	}
 }
 void GranularProcessor::setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
@@ -121,7 +125,7 @@ void GranularProcessor::processOneGrainSample(StereoSample* currentSample) {
 		wrapsToShutdown -= 1;
 	}
 	int32_t writeIndex = modFXGrainBufferWriteIndex; // % kModFXGrainBufferSize
-	if (modFXGrainBufferWriteIndex % grainRate == 0) {
+	if (modFXGrainBufferWriteIndex % grainRate == 0) [[unlikely]] {
 		for (int32_t i = 0; i < 8; i++) {
 			if (grains[i].length <= 0) {
 				grains[i].length = grainSize;
@@ -228,11 +232,10 @@ void GranularProcessor::processOneGrainSample(StereoSample* currentSample) {
 				delta = ((delta * grains[i].pitch) >> 10);
 			}
 			int32_t pos = (grains[i].startPoint + delta + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
-
 			grains_l = multiply_accumulate_32x32_rshift32_rounded(
-			    grains_l, multiply_32x32_rshift32(modFXGrainBuffer[pos].l, vol) << 0, grains[i].panVolL);
+			    grains_l, multiply_32x32_rshift32((*modFXGrainBuffer)[pos].l, vol) << 0, grains[i].panVolL);
 			grains_r = multiply_accumulate_32x32_rshift32_rounded(
-			    grains_r, multiply_32x32_rshift32(modFXGrainBuffer[pos].r, vol) << 0, grains[i].panVolR);
+			    grains_r, multiply_32x32_rshift32((*modFXGrainBuffer)[pos].r, vol) << 0, grains[i].panVolR);
 
 			grains[i].counter++;
 			if (grains[i].counter >= grains[i].length) {
@@ -244,9 +247,9 @@ void GranularProcessor::processOneGrainSample(StereoSample* currentSample) {
 	grains_l <<= 3;
 	grains_r <<= 3;
 	// Feedback (Below grainFeedbackVol means "grainVol >> 4")
-	modFXGrainBuffer[writeIndex].l =
+	(*modFXGrainBuffer)[writeIndex].l =
 	    multiply_accumulate_32x32_rshift32_rounded(currentSample->l, grains_l, grainFeedbackVol);
-	modFXGrainBuffer[writeIndex].r =
+	(*modFXGrainBuffer)[writeIndex].r =
 	    multiply_accumulate_32x32_rshift32_rounded(currentSample->r, grains_r, grainFeedbackVol);
 	// WET and DRY Vol
 	currentSample->l = add_saturation(multiply_32x32_rshift32(currentSample->l, grainDryVol) << 1,
@@ -261,9 +264,7 @@ void GranularProcessor::clearGrainFXBuffer() {
 	}
 	grainInitialized = false;
 	modFXGrainBufferWriteIndex = 0;
-	if (modFXGrainBuffer) {
-		memset(modFXGrainBuffer, 0, kModFXGrainBufferSize * sizeof(StereoSample));
-	}
+	modFXGrainBuffer->clearBuffer();
 }
 GranularProcessor::GranularProcessor() {
 	wrapsToShutdown = 0;
@@ -280,11 +281,14 @@ GranularProcessor::GranularProcessor() {
 	grainPitchType = 0;
 	grainLastTickCountIsZero = true;
 	grainInitialized = false;
-	modFXGrainBuffer =
-	    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize * sizeof(StereoSample));
+	getBuffer();
+}
+void GranularProcessor::getBuffer() {
+	void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GrainBuffer));
+	modFXGrainBuffer = new (grainBufferMemory) GrainBuffer(this);
 }
 GranularProcessor::~GranularProcessor() {
-	delugeDealloc(modFXGrainBuffer);
+	delete modFXGrainBuffer;
 }
 GranularProcessor::GranularProcessor(const GranularProcessor& other) {
 	wrapsToShutdown = other.wrapsToShutdown;
@@ -301,6 +305,11 @@ GranularProcessor::GranularProcessor(const GranularProcessor& other) {
 	grainPitchType = other.grainPitchType;
 	grainLastTickCountIsZero = true;
 	grainInitialized = false;
-	modFXGrainBuffer =
-	    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize * sizeof(StereoSample));
+	void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GrainBuffer));
+	modFXGrainBuffer = new (grainBufferMemory) GrainBuffer(this);
+}
+void GranularProcessor::startSkippingRendering() {
+	if (modFXGrainBuffer) {
+		modFXGrainBuffer->inUse = false;
+	}
 }

@@ -90,7 +90,7 @@ ModControllableAudio::~ModControllableAudio() {
 	if (modFXBuffer) {
 		delugeDealloc(modFXBuffer);
 	}
-	grainFX->~GranularProcessor();
+	delete grainFX;
 }
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
@@ -139,14 +139,14 @@ bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
 
 void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate,
                                      int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
-                                     ParamManager* paramManager) {
+                                     ParamManager* paramManager, bool anySoundComingIn) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	StereoSample* bufferEnd = buffer + numSamples;
 
 	// Mod FX -----------------------------------------------------------------------------------
-	processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd);
+	processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd, anySoundComingIn);
 
 	// EQ -------------------------------------------------------------------------------------
 	bool thisDoBass = hasBassAdjusted(paramManager);
@@ -181,9 +181,9 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 }
 void ModControllableAudio::processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate,
                                         int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                        const StereoSample* bufferEnd) {
+                                        const StereoSample* bufferEnd, bool anySoundComingIn) {
 	if (modFXType == ModFXType::GRAIN) {
-		grainFX->processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd);
+		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd, anySoundComingIn);
 	}
 	else if (modFXType != ModFXType::NONE) {
 
@@ -204,6 +204,18 @@ void ModControllableAudio::processModFX(StereoSample* buffer, const ModFXType& m
 
 		processModFXBuffer(buffer, modFXType, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType, modFXDelayOffset,
 		                   thisModFXDelayDepth, feedback);
+	}
+}
+void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth,
+                                          int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
+                                          const StereoSample* bufferEnd, bool anySoundComingIn) {
+	// this shouldn't be possible but just in case
+	if (anySoundComingIn && !grainFX) [[unlikely]] {
+		enableGrain();
+	}
+	if (grainFX) {
+		grainFX->processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd,
+		                        anySoundComingIn);
 	}
 }
 void ModControllableAudio::setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,

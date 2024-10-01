@@ -15,12 +15,13 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef DELUGE_GRANULARPROCESSOR_H
-#define DELUGE_GRANULARPROCESSOR_H
+#pragma once
+
 #include "GranularProcessor.h"
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
+#include "memory/stealable.h"
 #include "modulation/lfo.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h"
@@ -37,16 +38,34 @@ struct Grain {
 	int32_t panVolL; // 0 - 1073741823
 	int32_t panVolR; // 0 - 1073741823
 };
+class GrainBuffer;
 
+/// The granular processor is the config and the grain states. It will seperately manage a 4mb stealable buffer for its
+/// memory
 class GranularProcessor {
 public:
 	GranularProcessor();
 	GranularProcessor(const GranularProcessor& other); // copy constructor
 	~GranularProcessor();
+	[[nodiscard]] int32_t getSamplesToShutdown() const { return wrapsToShutdown * kModFXGrainBufferSize; }
+
+	/// allows the buffer to be stolen
+	void startSkippingRendering();
+
+	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
+	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd, bool anySoundComingIn);
+
+	void clearGrainFXBuffer();
+	void grainBufferStolen() { modFXGrainBuffer = nullptr; }
+
+private:
+	void setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams);
+	void processOneGrainSample(StereoSample* currentSample);
+	void getBuffer();
 	void setWrapsToShutdown();
-	// Grain
+
 	int32_t wrapsToShutdown;
-	StereoSample* modFXGrainBuffer{0};
+	GrainBuffer* modFXGrainBuffer{nullptr};
 	uint32_t modFXGrainBufferWriteIndex;
 	int32_t grainSize;
 	int32_t grainRate;
@@ -58,11 +77,31 @@ public:
 	int8_t grainPitchType;
 	bool grainLastTickCountIsZero;
 	bool grainInitialized;
-	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd);
-	void setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams);
-	void processOneGrainSample(StereoSample* currentSample);
-	void clearGrainFXBuffer();
 };
 
-#endif // DELUGE_GRANULARPROCESSOR_H
+class GrainBuffer : public Stealable {
+public:
+	friend class GranularProcessor;
+	GrainBuffer() = delete;
+	GrainBuffer(GrainBuffer& other) = delete;
+	GrainBuffer(const GrainBuffer& other) = delete;
+	explicit GrainBuffer(GranularProcessor* grainFX) { owner = grainFX; }
+	void clearBuffer() { memset(sampleBuffer, 0, kModFXGrainBufferSize * sizeof(StereoSample)); }
+	bool mayBeStolen(void* thingNotToStealFrom) override {
+		if (thingNotToStealFrom != this) {
+			return !inUse;
+		}
+		return false;
+	};
+	void steal(char const* errorCode) override { owner->grainBufferStolen(); };
+
+	// gives it  a high priority - these are huge so reallocating them can be slow
+	StealableQueue getAppropriateQueue() override { return StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE; };
+	StereoSample& operator[](int32_t i) { return sampleBuffer[i]; }
+	StereoSample operator[](int32_t i) const { return sampleBuffer[i]; }
+
+private:
+	bool inUse{true};
+	GranularProcessor* owner;
+	StereoSample sampleBuffer[kModFXGrainBufferSize * sizeof(StereoSample)];
+};

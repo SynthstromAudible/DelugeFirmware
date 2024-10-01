@@ -130,7 +130,8 @@ public:
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
-	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager);
+	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
+	               bool anySoundComingIn);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
 	void switchDelaySyncType();
@@ -173,7 +174,8 @@ private:
 	void switchHPFModeWithOff();
 	void switchLPFModeWithOff();
 	void processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
-	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd);
+	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd,
+	                  bool anySoundComingIn);
 	// not grain!
 	void processModFXBuffer(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
 	                        const StereoSample* bufferEnd, LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
@@ -191,4 +193,6 @@ private:
 
 	void processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
 	                   int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
+	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
+	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd, bool anySoundComingIn);
 };
