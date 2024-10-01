@@ -21,8 +21,17 @@
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
 #include "modulation/envelope.h"
+#include "util/container/enum_to_string_map.hpp"
 
 class ModelStackWithTimelineCounter;
+
+/// Player: plays back a file or samples from input without monitoring
+/// Sampler: Monitoring is enabled but disabled after recording. Overdubbing creates a new clip.
+/// Looper/FX: monitoring always enabled. Overdubbing overdubs the existing audio
+enum class AudioOutputMode : uint8_t { player, sampler, looper };
+constexpr int kNumAudioOutputModes = 3;
+AudioOutputMode stringToAOMode(char const* string);
+char const* aoModeToString(AudioOutputMode mode);
 
 class AudioOutput final : public Output, public GlobalEffectableForClip {
 public:
@@ -42,36 +51,36 @@ public:
 
 	void resetEnvelope();
 
-	ModControllable* toModControllable() { return this; }
-	uint8_t* getModKnobMode() { return &modKnobMode; }
+	ModControllable* toModControllable() override { return this; }
+	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
-	void cutAllSound();
+	void cutAllSound() override;
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb,
 	                            Kit** kitWithMostReverb, int32_t* highestReverbAmountFound);
 
-	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
-	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
-	void deleteBackedUpParamManagers(Song* song);
+	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
+	void deleteBackedUpParamManagers(Song* song) override;
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack,
 	                   PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE) override;
-	bool isSkippingRendering();
-	Output* toOutput() { return this; }
+	bool isSkippingRendering() override;
+	Output* toOutput() override { return this; }
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound);
+	                            int32_t* highestReverbAmountFound) override;
 
 	// A TimelineCounter is required
 	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                    ModelStackWithTimelineCounter* modelStack) {
+	                                    ModelStackWithTimelineCounter* modelStack) override {
 		ModControllableAudio::offerReceivedCCToLearnedParamsForClip(fromDevice, channel, ccNumber, value, modelStack);
 	}
 	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                           ModelStackWithTimelineCounter* modelStack) {
+	                                           ModelStackWithTimelineCounter* modelStack) override {
 		return ModControllableAudio::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2,
 		                                                                   modelStack);
 	}
 
-	char const* getXMLTag() { return "audioTrack"; }
+	char const* getXMLTag() override { return "audioTrack"; }
 
 	Envelope envelope;
 
@@ -86,29 +95,41 @@ public:
 	/// accurate through those changes.
 	///
 	/// int16 so it packs nicely with `echoing` below
-	int16_t outputRecordingFromIndex{-1}; // int16 so it fits with the bool and because that should be enough outputs
-	/// When true, this output is monitoring its input.
-	///
-	/// Does not get copied when this Output is cloned, as that would result in undesirable doubling of the monitored
-	/// audio.
-	bool echoing;
+	int16_t outputRecordingFromIndex{-1}; // int16 so it fits with the bool and mode
+
+	AudioOutputMode mode{AudioOutputMode::player};
 
 	Output* getOutputRecordingFrom() { return outputRecordingFrom; }
-	void clearRecordingFrom() override { setOutputRecordingFrom(nullptr, false); }
-	void setOutputRecordingFrom(Output* toRecordfrom, bool monitoring) {
+	void clearRecordingFrom() override { setOutputRecordingFrom(nullptr); }
+	void setOutputRecordingFrom(Output* toRecordfrom) {
+		if (toRecordfrom == this) {
+			// can happen from bad save files
+			return;
+		}
 		if (outputRecordingFrom) {
 			outputRecordingFrom->setRenderingToAudioOutput(false, nullptr);
 		}
 		outputRecordingFrom = toRecordfrom;
 		if (outputRecordingFrom) {
-			outputRecordingFrom->setRenderingToAudioOutput(monitoring, this);
+			// If we are a SAMPLER or a LOOPER then we're monitoring the audio, so tell the other output that we're in
+			// charge of rendering
+			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
 		}
-		echoing = monitoring;
 	}
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                bool affectEntire, bool useMenuStack);
+	void scrollAudioOutputMode(int offset) {
+		auto modeInt = util::to_underlying(mode);
+		modeInt = (modeInt + offset) % kNumAudioOutputModes;
+
+		mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
+		if (outputRecordingFrom) {
+			// update the output we're recording from on whether we're monitoring
+			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
+		}
+	}
 
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);
