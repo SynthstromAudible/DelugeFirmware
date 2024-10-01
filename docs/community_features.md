@@ -259,7 +259,7 @@ as the micromonsta and the dreadbox nymphes.
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
 - ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose 
-which track to record from. To run the instrument through the audio clip's FX choose the FX PROCESSING option
+which track to record from. The source can also be selected by pressing a clip's pad while in the audio source selection menu. 
 - ([#2702]) Monitoring is now set by the audio output mode. This is done by turning the select encoder
 
     - Player: Monitoring is off, overdubs work by cloning. This is intended to be used for playing a static audio file or recording without monitoring.
