@@ -203,7 +203,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 
 		// If possible, just modify a previous Action to add this new shift amount to it.
 		Action* action = actionLogger.firstAction[BEFORE];

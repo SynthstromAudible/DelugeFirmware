@@ -154,9 +154,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::LightShiftLed], STRING_FOR_COMMUNITY_FEATURE_LIGHT_SHIFT,
 	                  "lightShift", RuntimeFeatureStateToggle::Off);
 
-	// EnableGrainFX
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGrainFX], STRING_FOR_COMMUNITY_FEATURE_GRAIN_FX,
-	                  "enableGrainFX", RuntimeFeatureStateToggle::Off);
 	// EnableDxShortcuts
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableDxShortcuts], STRING_FOR_COMMUNITY_FEATURE_DX_SHORTCUTS,
 	                  "enableDxShortcuts", RuntimeFeatureStateToggle::Off);
@@ -185,11 +182,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour],
 	                  STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR,
 	                  "alternativePlaybackStartBehaviour", RuntimeFeatureStateToggle::Off);
-
-	// AccessibilityShortcuts
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AccessibilityShortcuts],
-	                  STRING_FOR_COMMUNITY_FEATURE_ACCESSIBILITY_SHORTCUTS, "accessibilityShortcuts",
-	                  RuntimeFeatureStateToggle::Off);
 
 	// EnableGridViewLoopPads
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::EnableGridViewLoopPads],

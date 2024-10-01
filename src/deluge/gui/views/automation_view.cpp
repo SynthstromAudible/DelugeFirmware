@@ -370,8 +370,6 @@ AutomationView::AutomationView() {
 	midiCCShortcutsLoaded = false;
 
 	automationParamType = AutomationParamType::PER_SOUND;
-	noteRowBlinking = false;
-	noteRowFlashOn = false;
 
 	probabilityChanged = false;
 	timeSelectKnobLastReleased = 0;
@@ -521,7 +519,7 @@ void AutomationView::focusRegained() {
 		parameterShortcutBlinking = false;
 		interpolationShortcutBlinking = false;
 		padSelectionShortcutBlinking = false;
-		noteRowBlinking = false;
+		instrumentClipView.noteRowBlinking = false;
 		// remove patch cable blink frequencies
 		memset(soundEditor.sourceShortcutBlinkFrequencies, 255, sizeof(soundEditor.sourceShortcutBlinkFrequencies));
 		// possibly restablish parameter shortcut blinking (if parameter is selected)
@@ -2665,7 +2663,7 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	resetParameterShortcutBlinking();
 	if (inNoteEditor()) {
 		automationParamType = AutomationParamType::PER_SOUND;
-		resetSelectedNoteRowBlinking();
+		instrumentClipView.resetSelectedNoteRowBlinking();
 		if (padSelectionOn) {
 			initPadSelection();
 		}
@@ -3583,9 +3581,10 @@ doSilentAudition:
 				instrumentClipView.auditionPadIsPressed[yDisplay] = 0;
 				instrumentClipView.lastAuditionedVelocityOnScreen[yDisplay] = 255;
 
-				// Stop the note sounding - but only if a sequenced note isn't in fact being played
-				// here.
-				if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF) {
+				// Stop the note sounding - but only if a sequenced note isn't in fact being played here.
+				// Or if it's drone note, end auditioning to transfer the note's sustain to the sequencer
+				if (!noteRowOnActiveClip || noteRowOnActiveClip->soundingStatus == STATUS_OFF
+				    || noteRowOnActiveClip->isDroning(modelStackWithNoteRowOnCurrentClip->getLoopLength())) {
 					instrumentClipView.sendAuditionNote(false, yDisplay, 64, 0);
 				}
 			}
@@ -3606,8 +3605,8 @@ getOut:
 	if (selectedRowChanged || (selectedDrumChanged && (!getAffectEntire() || inNoteEditor()))) {
 		if (inNoteEditor()) {
 			renderDisplay();
-			resetSelectedNoteRowBlinking();
-			blinkSelectedNoteRow(0xFFFFFFFF);
+			instrumentClipView.resetSelectedNoteRowBlinking();
+			instrumentClipView.blinkSelectedNoteRow(0xFFFFFFFF);
 		}
 		else if (selectedDrumChanged) {
 			initParameterSelection();
@@ -4521,13 +4520,13 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	else if (inNoteEditor()) {
 		// only allow adjusting probbaility while holding note
 		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
-			instrumentClipView.adjustProbability(offset);
+			instrumentClipView.adjustNoteProbability(offset);
 			timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
 			probabilityChanged = true;
 		}
 		// only allow adjusting row probability while holding audition
 		else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-			instrumentClipView.setRowProbability(offset);
+			instrumentClipView.setNoteRowProbability(offset);
 			timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
 			probabilityChanged = true;
 		}
@@ -5700,12 +5699,12 @@ void AutomationView::blinkShortcuts() {
 		resetPadSelectionShortcutBlinking();
 	}
 	if (inNoteEditor()) {
-		if (!noteRowBlinking) {
-			blinkSelectedNoteRow();
+		if (!instrumentClipView.noteRowBlinking) {
+			instrumentClipView.blinkSelectedNoteRow();
 		}
 	}
 	else {
-		resetSelectedNoteRowBlinking();
+		instrumentClipView.resetSelectedNoteRowBlinking();
 	}
 }
 
@@ -5714,7 +5713,7 @@ void AutomationView::resetShortcutBlinking() {
 	resetParameterShortcutBlinking();
 	resetInterpolationShortcutBlinking();
 	resetPadSelectionShortcutBlinking();
-	resetSelectedNoteRowBlinking();
+	instrumentClipView.resetSelectedNoteRowBlinking();
 }
 
 // created this function to undo any existing parameter shortcut blinking so that it doesn't get
@@ -5749,18 +5748,4 @@ void AutomationView::blinkPadSelectionShortcut() {
 	PadLEDs::flashMainPad(kPadSelectionShortcutX, kPadSelectionShortcutY);
 	uiTimerManager.setTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK, 3000);
 	padSelectionShortcutBlinking = true;
-}
-
-// used to blink selected noted row when using the velocity or MPE note row view
-void AutomationView::resetSelectedNoteRowBlinking() {
-	uiTimerManager.unsetTimer(TimerName::NOTE_ROW_BLINK);
-	noteRowBlinking = false;
-	noteRowFlashOn = false;
-}
-
-void AutomationView::blinkSelectedNoteRow(int32_t whichMainRows) {
-	noteRowBlinking = true;
-	noteRowFlashOn = !noteRowFlashOn;
-	uiNeedsRendering(this, whichMainRows, 0xFFFFFFFF);
-	uiTimerManager.setTimer(TimerName::NOTE_ROW_BLINK, 180);
 }

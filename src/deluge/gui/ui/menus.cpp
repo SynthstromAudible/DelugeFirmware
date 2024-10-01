@@ -43,6 +43,7 @@
 #include "gui/menu_item/defaults/slice_mode.h"
 #include "gui/menu_item/defaults/startup_song_mode.h"
 #include "gui/menu_item/defaults/swing_interval.h"
+#include "gui/menu_item/defaults/ui/clip_type/default_new_clip_type.h"
 #include "gui/menu_item/defaults/velocity.h"
 #include "gui/menu_item/delay/analog.h"
 #include "gui/menu_item/delay/ping_pong.h"
@@ -99,6 +100,13 @@
 #include "gui/menu_item/modulator/transpose.h"
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
+#include "gui/menu_item/note/fill.h"
+#include "gui/menu_item/note/iterance.h"
+#include "gui/menu_item/note/probability.h"
+#include "gui/menu_item/note/velocity.h"
+#include "gui/menu_item/note_row/fill.h"
+#include "gui/menu_item/note_row/iterance.h"
+#include "gui/menu_item/note_row/probability.h"
 #include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/pulse_width.h"
 #include "gui/menu_item/osc/retrigger_phase.h"
@@ -141,7 +149,8 @@
 #include "gui/menu_item/sidechain/send.h"
 #include "gui/menu_item/sidechain/sync.h"
 #include "gui/menu_item/sidechain/volume.h"
-#include "gui/menu_item/song_macros/configure.h"
+#include "gui/menu_item/song/configure_macros.h"
+#include "gui/menu_item/song/midi_learn.h"
 #include "gui/menu_item/source/patched_param/fm.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
@@ -982,29 +991,51 @@ Submenu defaultUISession{
     {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
 };
 
+ToggleBool defaultAccessibilityShortcuts{STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
+                                         STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
+                                         FlashStorage::accessibilityShortcuts};
+ToggleBool defaultAccessibilityMenuHighlighting{STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
+                                                STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING,
+                                                FlashStorage::accessibilityMenuHighlighting};
+
+Submenu defaultAccessibilityMenu{STRING_FOR_DEFAULT_ACCESSIBILITY,
+                                 {
+                                     &defaultAccessibilityShortcuts,
+                                     &defaultAccessibilityMenuHighlighting,
+                                 }};
+
+defaults::ui::clip_type::DefaultNewClipType defaultNewClipTypeMenu{STRING_FOR_DEFAULT_NEW_CLIP_TYPE,
+                                                                   STRING_FOR_DEFAULT_NEW_CLIP_TYPE};
+ToggleBool defaultUseLastClipTypeMenu{STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE,
+                                      FlashStorage::defaultUseLastClipType};
+
+Submenu defaultClipTypeMenu{STRING_FOR_DEFAULT_CLIP_TYPE,
+                            {
+                                &defaultNewClipTypeMenu,
+                                &defaultUseLastClipTypeMenu,
+                            }};
+
 Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {&defaultUISession, &defaultUIKeyboard},
+    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu},
 };
 
-ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
-                                            STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION,
+ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
+                                            STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
                                             FlashStorage::automationInterpolate};
 
-ToggleBool defaultAutomationClearMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR,
-                                      STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR, FlashStorage::automationClear};
+ToggleBool defaultAutomationClearMenu{STRING_FOR_DEFAULT_AUTOMATION_CLEAR, STRING_FOR_DEFAULT_AUTOMATION_CLEAR,
+                                      FlashStorage::automationClear};
 
-ToggleBool defaultAutomationShiftMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT,
-                                      STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT, FlashStorage::automationShift};
+ToggleBool defaultAutomationShiftMenu{STRING_FOR_DEFAULT_AUTOMATION_SHIFT, STRING_FOR_DEFAULT_AUTOMATION_SHIFT,
+                                      FlashStorage::automationShift};
 
-ToggleBool defaultAutomationNudgeNoteMenu{STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE,
-                                          STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE,
-                                          FlashStorage::automationNudgeNote};
+ToggleBool defaultAutomationNudgeNoteMenu{STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE,
+                                          STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE, FlashStorage::automationNudgeNote};
 
 ToggleBool defaultAutomationDisableAuditionPadShortcutsMenu{
-    STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
-    STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
-    FlashStorage::automationDisableAuditionPadShortcuts};
+    STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
+    STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS, FlashStorage::automationDisableAuditionPadShortcuts};
 
 Submenu defaultAutomationMenu{
     STRING_FOR_AUTOMATION,
@@ -1151,6 +1182,37 @@ menu_item::Submenu soundEditorRootMenu{
     },
 };
 
+menu_item::note::Velocity noteVelocityMenu{STRING_FOR_NOTE_EDITOR_VELOCITY};
+menu_item::note::Probability noteProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
+menu_item::note::Iterance noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
+menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
+
+// Root menu for Note Editor
+menu_item::Submenu noteEditorRootMenu{
+    STRING_FOR_NOTE_EDITOR,
+    {
+        &noteVelocityMenu,
+        &noteProbabilityMenu,
+        &noteIteranceMenu,
+        &noteFillMenu,
+    },
+};
+
+menu_item::note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY};
+menu_item::note_row::Iterance noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
+menu_item::note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
+
+// Root menu for Note Row Editor
+menu_item::Submenu noteRowEditorRootMenu{
+    STRING_FOR_NOTE_ROW_EDITOR,
+    {
+        &noteRowProbabilityMenu,
+        &noteRowIteranceMenu,
+        &noteRowFillMenu,
+        &sequenceDirectionMenu,
+    },
+};
+
 // Root menu for MIDI / CV
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
@@ -1197,12 +1259,6 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
     },
 };
 
-bool* getSongMidiLoopback() {
-	return &(currentSong->midiLoopback);
-}
-
-ToggleBoolDyn midiLoopbackMenu{STRING_FOR_MIDILOOPBACK, STRING_FOR_MIDILOOPBACK, getSongMidiLoopback};
-
 // Sub menu for Stem Export
 menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT_STEMS};
 
@@ -1232,7 +1288,8 @@ menu_item::Submenu stemExportMenu{
 
 ActiveScaleMenu activeScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::SONG};
 
-song_macros::Configure configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
+song::ConfigureMacros configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
+song::MidiLearn midiLearnMenu{STRING_FOR_MIDI_LEARN};
 
 // Root menu for Song View
 menu_item::Submenu soundEditorRootMenuSongView{
@@ -1243,8 +1300,8 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalFXMenu,
         &swingIntervalMenu,
         &activeScaleMenu,
-        &midiLoopbackMenu,
         &configureSongMacrosMenu,
+        &midiLearnMenu,
         &stemExportMenu,
     },
 };

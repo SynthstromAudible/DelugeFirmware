@@ -731,16 +731,6 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 			setLedStates();
 		}
 	}
-	// If entering chord mode, set the column control to the keyboard control column
-	layout::ColumnControlState& state = getCurrentInstrumentClip()->keyboardState.columnControl;
-	if (getCurrentInstrumentClip()->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChord) {
-		state.lastLeftFunc = state.leftColFunc;
-		state.leftCol = state.getColumnForFunc(layout::ColumnControlFunction::KEYBOARD_CONTROL);
-	}
-	else {
-		// Otherwise, set it back to what it was
-		state.leftCol = state.getColumnForFunc(state.lastLeftFunc);
-	}
 
 	// Ensure scroll values are calculated in bounds
 	layoutList[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(0, false, pressedPads,

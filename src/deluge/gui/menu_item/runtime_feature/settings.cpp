@@ -41,14 +41,12 @@ SettingToggle menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightInc
 SettingToggle menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 ShiftIsSticky menuShiftIsSticky{};
 SettingToggle menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
-SettingToggle menuEnableGrainFX(RuntimeFeatureSettingType::EnableGrainFX);
 SettingToggle menuEnableDxShortcuts(RuntimeFeatureSettingType::EnableDxShortcuts);
 EmulatedDisplay menuEmulatedDisplay{};
 SettingToggle menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
 SettingToggle menuEnableLaunchEventPlayhead(RuntimeFeatureSettingType::EnableLaunchEventPlayhead);
 SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyboard);
 SettingToggle menuAlternativePlaybackStartBehaviour(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour);
-SettingToggle menuAccessibilityShortcuts(RuntimeFeatureSettingType::AccessibilityShortcuts);
 SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridViewLoopPads);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
@@ -66,14 +64,12 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDisplayNornsLayout,
     &menuShiftIsSticky,
     &menuLightShiftLed,
-    &menuEnableGrainFX,
     &menuEnableDxShortcuts,
     &menuEmulatedDisplay,
     &menuEnableKeyboardViewSidebarMenuExit,
     &menuEnableLaunchEventPlayhead,
     &menuDisplayChordLayout,
     &menuAlternativePlaybackStartBehaviour,
-    &menuAccessibilityShortcuts,
     &menuEnableGridViewLoopPads};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {

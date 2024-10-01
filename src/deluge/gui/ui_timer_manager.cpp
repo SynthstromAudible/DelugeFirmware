@@ -121,7 +121,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::NOTE_ROW_BLINK:
-					automationView.blinkSelectedNoteRow();
+					instrumentClipView.blinkSelectedNoteRow();
 					break;
 
 				case TimerName::MATRIX_DRIVER:

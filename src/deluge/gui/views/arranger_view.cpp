@@ -97,6 +97,8 @@ ArrangerView::ArrangerView() {
 	lastInteractedPos = -1;
 	lastInteractedSection = 0;
 	lastInteractedClipInstance = nullptr;
+
+	lastInteractedArrangementPos = -1;
 }
 
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
@@ -792,7 +794,7 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 
 // Loads from file, etc - doesn't truly "create"
 Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong) {
-	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
+	ReturnOfConfirmPresetOrNextUnlaunchedOne result{};
 
 	result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
 	if (result.error != Error::NONE) {
@@ -1113,6 +1115,8 @@ regularMutePadPress:
 				output->mutedInArrangementMode = true;
 			}
 			break;
+		default:
+			break;
 		}
 
 		uiNeedsRendering(ui, 0, rowsToRedraw);
@@ -1252,6 +1256,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 			// No previous press
 			if (currentUIMode == UI_MODE_NONE) {
 				createNewClipInstance(output, x, y, squareStart, squareEnd, xScroll);
+				lastInteractedArrangementPos = squareStart;
 			}
 
 			// Already pressing - length edit
@@ -1542,7 +1547,7 @@ Clip* ArrangerView::getClipFromSection(Output* output) {
 
 /// called from ArrangerView::editPadAction
 /// adjust the length of an existing clip instance
-void ArrangerView::adjustClipInstanceLength(Output* output, int32_t xPressed, int32_t y, int32_t squareStart,
+void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y, int32_t squareStart,
                                             int32_t squareEnd) {
 	actionOnDepress = false;
 
@@ -1550,8 +1555,8 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t xPressed, in
 		return;
 	}
 
-	int32_t oldSquareStart = getPosFromSquare(xPressed);
-	int32_t oldSquareEnd = getPosFromSquare(xPressed + 1);
+	int32_t oldSquareStart = getPosFromSquare(x);
+	int32_t oldSquareEnd = getPosFromSquare(x + 1);
 
 	// Search for previously pressed ClipInstance
 	ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
@@ -1565,7 +1570,7 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t xPressed, in
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 		if (clipInstance->clip) {
 			arrangement.rowEdited(output, clipInstance->pos + lengthTilNewSquareStart,
-			                      clipInstance->pos + clipInstance->length, clipInstance->clip, NULL);
+			                      clipInstance->pos + clipInstance->length, clipInstance->clip, nullptr);
 		}
 		clipInstance->change(action, output, clipInstance->pos, lengthTilNewSquareStart, clipInstance->clip);
 	}
@@ -2428,6 +2433,8 @@ ActionResult ArrangerView::timerCallback() {
 			blinkOn = !blinkOn;
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 		}
+		break;
+	default:
 		break;
 	}
 

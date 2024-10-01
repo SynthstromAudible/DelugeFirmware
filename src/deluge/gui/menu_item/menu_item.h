@@ -70,6 +70,10 @@ public:
 	///
 	/// @param offset must be either -1 or 1, jumping is not supported by many children.
 	virtual void horizontalEncoderAction(int32_t offset) {}
+	/// @brief Handle vertical encoder movement.
+	///
+	/// @param offset must be either -1 or 1, jumping is not supported by many children.
+	virtual void verticalEncoderAction(int32_t offset) {}
 	/// @brief Handle select encoder movement.
 	///
 	/// Child classes which override this should be careful to handle offsets larger than 1, as holding shift and
@@ -248,16 +252,13 @@ public:
 	virtual bool shouldEnterSubmenu() { return true; }
 
 	/// @brief Handle rendering of submenu item types
-	// length = spacing before (3 pixels)
-	//			+ width of 3 characters (3 * 6 pixels - to accomodate rendering of 3 digit param values)
+	// length = spacing before (4 pixels)
+	//			+ width of icon (7 pixels)
 	//          + spacing after (3 pixels)
 	// spacing before is to ensure that menu item text doesn't overlap and can scroll
-	// length = 6 pixels before + (3 characters * 6 pixels per character) + 3 pixels after
-	virtual int32_t getSubmenuItemTypeRenderLength() { return (3 + (3 * kTextSpacingX) + 3); }
-	// push the start x over so it aligns with the right most character drawn for param value menus
-	// startX = end pixel of menu item string + 3px spacing after it + spacing for 2 characters +
-	// 			shift icon left 1 pixel (it's 1px wider than a regular character)
-	virtual int32_t getSubmenuItemTypeRenderIconStart() { return (OLED_MAIN_WIDTH_PIXELS - 3 - kTextSpacingX - 1); }
+	virtual int32_t getSubmenuItemTypeRenderLength() { return (4 + kSubmenuIconSpacingX + 3); }
+	// icon is rendered 10 pixels from right edge of the display (7px icon width + 3px from edge)
+	virtual int32_t getSubmenuItemTypeRenderIconStart() { return (OLED_MAIN_WIDTH_PIXELS - kSubmenuIconSpacingX - 3); }
 	// render the submenu item type (icon or value)
 	virtual void renderSubmenuItemTypeForOled(int32_t yPixel);
 

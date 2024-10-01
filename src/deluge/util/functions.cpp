@@ -792,7 +792,8 @@ char const* lfoTypeToString(LFOType oscType) {
 
 	case LFOType::RANDOM_WALK:
 		return "rwalk";
-
+	case LFOType::WARBLER:
+		return "warbler";
 	default:
 		return "triangle";
 	}
@@ -810,6 +811,9 @@ LFOType stringToLFOType(char const* string) {
 	}
 	else if (!strcmp(string, "sah")) {
 		return LFOType::SAMPLE_AND_HOLD;
+	}
+	else if (!strcmp(string, "warbler")) {
+		return LFOType::WARBLER;
 	}
 	else if (!strcmp(string, "rwalk")) {
 		return LFOType::RANDOM_WALK;
@@ -891,6 +895,8 @@ char const* fxTypeToString(ModFXType fxType) {
 	switch (fxType) {
 	case ModFXType::FLANGER:
 		return "flanger";
+	case ModFXType::WARBLE:
+		return "TapeWarble";
 
 	case ModFXType::CHORUS:
 		return "chorus";
@@ -911,6 +917,9 @@ char const* fxTypeToString(ModFXType fxType) {
 ModFXType stringToFXType(char const* string) {
 	if (!strcmp(string, "flanger")) {
 		return ModFXType::FLANGER;
+	}
+	else if (!strcmp(string, "TapeWarble")) {
+		return ModFXType::WARBLE;
 	}
 	else if (!strcmp(string, "chorus")) {
 		return ModFXType::CHORUS;
@@ -1983,8 +1992,8 @@ int32_t getWhichKernel(int32_t phaseIncrement) {
 	}
 }
 
-void dissectIterationDependence(int32_t probability, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor) {
-	int32_t value = (probability & 127) - kNumProbabilityValues - 1;
+void dissectIterationDependence(int32_t iterance, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor) {
+	int32_t value = (iterance & 127) - 1;
 	int32_t whichRepeat;
 
 	int32_t tryingWhichDivisor;
@@ -2006,7 +2015,7 @@ int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDiviso
 	for (int32_t i = 2; i < divisor; i++) {
 		value += i;
 	}
-	return value + 1 + kNumProbabilityValues;
+	return value + 1;
 }
 
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
