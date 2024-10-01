@@ -123,7 +123,8 @@ public:
 	void scrollAudioOutputMode(int offset) {
 		auto modeInt = util::to_underlying(mode);
 		modeInt = (modeInt + offset) % kNumAudioOutputModes;
-		mode = static_cast<AudioOutputMode>(modeInt);
+
+		mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
 		if (outputRecordingFrom) {
 			// update the output we're recording from on whether we're monitoring
 			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);

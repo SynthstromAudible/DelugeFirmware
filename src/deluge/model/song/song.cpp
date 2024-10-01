@@ -4984,7 +4984,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 		return NULL;
 	}
 
-	AudioOutput* newOutput = new (outputMemory) AudioOutput();
+	auto* newOutput = new (outputMemory) AudioOutput();
 	newOutput->name.set(&newName);
 
 	// Set input channel to previously used one. If none selected, see what's in Song

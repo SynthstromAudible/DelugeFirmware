@@ -3627,7 +3627,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			}
 
 			if (targetOutput && targetOutput != sourceClip->output && targetOutput->type == OutputType::AUDIO) {
-				((AudioOutput*)targetOutput)->cloneFrom((AudioOutput*)sourceClip->output);
+				((AudioOutput*)targetOutput)->cloneFrom((AudioOutput*)(sourceClip->output));
 				newAudioClip->setOutput(modelStack, targetOutput);
 			}
 		}

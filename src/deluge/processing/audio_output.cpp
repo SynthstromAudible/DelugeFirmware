@@ -64,7 +64,10 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	GlobalEffectableForClip::cloneFrom(other);
 	auto ao = ((AudioOutput*)other);
 	inputChannel = ao->inputChannel;
-	mode = ao->mode;
+
+	auto modeInt = util::to_underlying(ao->mode);
+
+	mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
 	outputRecordingFrom = nullptr;
 	// old style cloning overdubs
 	if (mode == AudioOutputMode::looper || mode == AudioOutputMode::sampler) {
