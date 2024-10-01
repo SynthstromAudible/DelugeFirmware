@@ -661,8 +661,9 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	if (currentUIMode) {
 		return;
 	}
-
-	view.navigateThroughAudioOutputsForAudioClip(offset, getCurrentAudioClip());
+	auto ao = (AudioOutput*)getCurrentAudioClip()->output;
+	ao->scrollAudioOutputMode(offset);
+	renderUIsForOled();
 }
 
 void AudioClipView::setClipLengthEqualToSampleLength() {
