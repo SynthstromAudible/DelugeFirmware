@@ -1159,47 +1159,17 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 				memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
 			}
 		}
-		if (modFXGrainBuffer) {
-			delugeDealloc(modFXGrainBuffer);
-			modFXGrainBuffer = NULL;
-		}
+		disableGrain();
 	}
 	else if (modFXTypeNow == ModFXType::GRAIN) {
-		if (grainHadInput) {
-			setWrapsToShutdown();
-		}
-		if (wrapsToShutdown >= 0) {
-			if (!modFXGrainBuffer) {
-				modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
-				                                                                              * sizeof(StereoSample));
-				if (!modFXGrainBuffer) {
-					modFXTypeNow = ModFXType::NONE;
-				}
-				for (int i = 0; i < 8; i++) {
-					grains[i].length = 0;
-				}
-				grainInitialized = false;
-				modFXGrainBufferWriteIndex = 0;
-			}
-			if (modFXBuffer) {
-				delugeDealloc(modFXBuffer);
-				modFXBuffer = NULL;
-			}
-		}
-		else if (modFXGrainBuffer) {
-			delugeDealloc(modFXGrainBuffer);
-			modFXGrainBuffer = NULL;
-		}
+		enableGrain();
 	}
 	else {
 		if (modFXBuffer) {
 			delugeDealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
-		if (modFXGrainBuffer) {
-			delugeDealloc(modFXGrainBuffer);
-			modFXGrainBuffer = NULL;
-		}
+		disableGrain();
 	}
 
 	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,

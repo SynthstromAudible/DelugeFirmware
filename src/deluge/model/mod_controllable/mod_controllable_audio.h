@@ -17,9 +17,11 @@
 
 #pragma once
 
+#include "GranularProcessor.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
+#include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/fx/stutterer.h"
 #include "model/mod_controllable/filters/filter_config.h"
@@ -29,18 +31,6 @@
 #include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
 #include "modulation/sidechain/sidechain.h"
-
-struct Grain {
-	int32_t length;     // in samples 0=OFF
-	int32_t startPoint; // starttimepos in samples
-	int32_t counter;    // relative pos in samples
-	uint16_t pitch;     // 1024=1.0
-	int32_t volScale;
-	int32_t volScaleMax;
-	bool rev;        // 0=normal, 1 =reverse
-	int32_t panVolL; // 0 - 1073741823
-	int32_t panVolR; // 0 - 1073741823
-};
 
 class Clip;
 class Knob;
@@ -95,7 +85,6 @@ public:
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
-	ActionResult buttonAction(deluge::hid::Button b, bool on, ModelStackWithThreeMainThings* modelStack);
 
 	// Phaser
 	StereoSample phaserMemory;
@@ -126,22 +115,7 @@ public:
 	LFO modFXLFO;
 
 	RMSFeedbackCompressor compressor;
-
-	// Grain
-	int32_t wrapsToShutdown;
-	void setWrapsToShutdown();
-	StereoSample* modFXGrainBuffer;
-	uint32_t modFXGrainBufferWriteIndex;
-	int32_t grainSize;
-	int32_t grainRate;
-	int32_t grainShift;
-	Grain grains[8];
-	int32_t grainFeedbackVol;
-	int32_t grainVol;
-	int32_t grainDryVol;
-	int8_t grainPitchType;
-	bool grainLastTickCountIsZero;
-	bool grainInitialized;
+	GranularProcessor* grainFX{nullptr};
 
 	uint32_t lowSampleRatePos;
 	uint32_t highSampleRatePos;
@@ -186,6 +160,11 @@ protected:
 	void displaySidechainAndReverbSettings(bool on);
 	void displayOtherModKnobSettings(uint8_t whichModButton, bool on);
 
+protected:
+	// returns whether it succeeded
+	bool enableGrain();
+	void disableGrain();
+
 private:
 	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
@@ -199,19 +178,17 @@ private:
 	void processModFXBuffer(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
 	                        const StereoSample* bufferEnd, LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
 	                        int32_t thisModFXDelayDepth, int32_t feedback);
-	void processOneGrainSample(StereoSample* currentSample);
+
 	void processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
 	void processOneModFXSample(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
 	                           int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
-	void setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams);
 	/// flanger, phaser, warble - generally any modulated delay tap based effect with feedback
 	void setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
 	                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
 	                         int32_t& thisModFXDelayDepth, int32_t& feedback) const;
 	void setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
 	                 LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const;
-	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd);
+
 	void processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
 	                   int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
 };

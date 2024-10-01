@@ -371,19 +371,10 @@ bool Sound::setModFXType(ModFXType newType) {
 				return false;
 			}
 		}
-		if (modFXGrainBuffer) {
-			delugeDealloc(modFXGrainBuffer);
-			modFXGrainBuffer = NULL;
-		}
+		disableGrain();
 	}
 	else if (newType == ModFXType::GRAIN) {
-		if (!modFXGrainBuffer) {
-			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
-			                                                                              * sizeof(StereoSample));
-			if (!modFXGrainBuffer) {
-				return false;
-			}
-		}
+		enableGrain();
 		if (modFXBuffer) {
 			delugeDealloc(modFXBuffer);
 			modFXBuffer = NULL;
@@ -394,10 +385,7 @@ bool Sound::setModFXType(ModFXType newType) {
 			delugeDealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
-		if (modFXGrainBuffer) {
-			delugeDealloc(modFXGrainBuffer);
-			modFXGrainBuffer = NULL;
-		}
+		disableGrain();
 	}
 
 	modFXType = newType;
@@ -3493,7 +3481,7 @@ gotError:
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);
 					reader.match('}');          // exit value object
 					reader.exitTag(NULL, true); // exit box.
-				}                               // was a sampleRange or wavetableRange
+				} // was a sampleRange or wavetableRange
 				else {
 					reader.exitTag();
 				}
