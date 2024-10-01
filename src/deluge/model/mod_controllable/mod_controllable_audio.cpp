@@ -16,8 +16,8 @@
  */
 
 #include "model/mod_controllable/mod_controllable_audio.h"
-#include "GranularProcessor.h"
 #include "definitions_cxx.hpp"
+#include "deluge/dsp/granular/GranularProcessor.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "dsp/stereo_sample.h"
 #include "gui/l10n/l10n.h"
@@ -214,8 +214,10 @@ void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRat
 		enableGrain();
 	}
 	if (grainFX) {
-		grainFX->processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd,
-		                        anySoundComingIn);
+		grainFX->processGrainFX(buffer, modFXRate, modFXDepth,
+		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
+		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), postFXVolume, bufferEnd,
+		                        anySoundComingIn, currentSong->calculateBPM());
 	}
 }
 void ModControllableAudio::setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,

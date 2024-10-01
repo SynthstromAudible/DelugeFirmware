@@ -20,12 +20,10 @@
 #include "GranularProcessor.h"
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
-#include "hid/button.h"
 #include "memory/stealable.h"
 #include "modulation/lfo.h"
-#include "modulation/params/param.h"
-#include "modulation/params/param_descriptor.h"
-#include "modulation/params/param_set.h"
+
+class UnpatchedParamSet;
 
 struct Grain {
 	int32_t length;     // in samples 0=OFF
@@ -52,14 +50,15 @@ public:
 	/// allows the buffer to be stolen
 	void startSkippingRendering();
 
-	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd, bool anySoundComingIn);
+	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t offset, int32_t feedback,
+	                    int32_t* postFXVolume, const StereoSample* bufferEnd, bool anySoundComingIn, float tempoBPM);
 
 	void clearGrainFXBuffer();
 	void grainBufferStolen() { modFXGrainBuffer = nullptr; }
 
 private:
-	void setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams);
+	void setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t offset, int32_t feedback, int32_t* postFXVolume,
+	                  float timePerInternalTick);
 	void processOneGrainSample(StereoSample* currentSample);
 	void getBuffer();
 	void setWrapsToShutdown();

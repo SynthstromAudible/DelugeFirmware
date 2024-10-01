@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "GranularProcessor.h"
 #include "definitions_cxx.hpp"
+#include "deluge/dsp/granular/GranularProcessor.h"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/delay/delay.h"
 #include "dsp/stereo_sample.h"

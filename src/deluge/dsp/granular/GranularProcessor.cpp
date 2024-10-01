@@ -20,9 +20,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/fx/stutterer.h"
 #include "model/mod_controllable/mod_controllable.h"
-#include "model/song/song.h"
 #include "modulation/lfo.h"
-#include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 
 void GranularProcessor::setWrapsToShutdown() {
@@ -42,9 +40,9 @@ void GranularProcessor::setWrapsToShutdown() {
 	}
 	modFXGrainBuffer->inUse = true;
 }
-void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth,
-                                       int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                       const StereoSample* bufferEnd, bool anySoundComingIn) {
+void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t offset,
+                                       int32_t feedback, int32_t* postFXVolume, const StereoSample* bufferEnd,
+                                       bool anySoundComingIn, float tempoBPM) {
 	if (anySoundComingIn || wrapsToShutdown >= 0) {
 		if (anySoundComingIn) {
 			setWrapsToShutdown();
@@ -52,7 +50,7 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t modFXRate, 
 		if (modFXGrainBuffer == nullptr) {
 			getBuffer(); // in case it was stolen
 		}
-		setupGrainFX(modFXRate, modFXDepth, postFXVolume, unpatchedParams);
+		setupGrainFX(modFXRate, modFXDepth, 0, 0, postFXVolume, 0);
 		StereoSample* currentSample = buffer;
 		do {
 			processOneGrainSample(currentSample);
@@ -64,8 +62,8 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t modFXRate, 
 		}
 	}
 }
-void GranularProcessor::setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-                                     UnpatchedParamSet* unpatchedParams) {
+void GranularProcessor::setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int32_t offset, int32_t feedback,
+                                     int32_t* postFXVolume, float tempoBPM) {
 	if (!grainInitialized && modFXGrainBufferWriteIndex >= 65536) {
 		grainInitialized = true;
 	}
@@ -73,9 +71,7 @@ void GranularProcessor::setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int3
 	                                                                                 // Shift
 	grainShift = 44 * 300;                                                           //(kSampleRate / 1000) * 300;
 	// Size
-	grainSize = 44
-	            * ((((unpatchedParams->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824)
-	                >> 21));
+	grainSize = 44 * (((offset >> 1) + 1073741824) >> 21);
 	grainSize = std::clamp<int32_t>(grainSize, 440, 35280); // 10ms - 800ms
 	// Rate
 	int32_t grainRateRaw = std::clamp<int32_t>((quickLog(modFXRate) - 364249088) >> 21, 0, 256);
@@ -83,16 +79,14 @@ void GranularProcessor::setupGrainFX(int32_t modFXRate, int32_t modFXDepth, int3
 	grainRate = std::max<int32_t>(1, grainRate);
 	grainRate = (kSampleRate << 1) / grainRate;
 	// Preset 0=default
-	grainPitchType = (int8_t)(multiply_32x32_rshift32_rounded(
-	    unpatchedParams->getValue(deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK),
-	    5)); // Select 5 presets -2 to 2
+	grainPitchType = (int8_t)(multiply_32x32_rshift32_rounded(feedback,
+	                                                          5)); // Select 5 presets -2 to 2
 	grainPitchType = std::clamp<int8_t>(grainPitchType, -2, 2);
 	// Tempo sync
 	if (grainPitchType == 2) {
-		int tempoBPM = (int32_t)(playbackHandler.calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5);
 		grainRate = std::clamp<int32_t>(256 - grainRateRaw, 0, 256) << 4; // 4096msec
 		grainRate = 44 * grainRate;                                       //(kSampleRate*grainRate)/1000;
-		int32_t baseNoteSamples = (kSampleRate * 60 / tempoBPM);          // 4th
+		auto baseNoteSamples = (int32_t)(kSampleRate * 60. / tempoBPM);   // 4th
 		if (grainRate < baseNoteSamples) {
 			baseNoteSamples = baseNoteSamples >> 2; // 16th
 		}
