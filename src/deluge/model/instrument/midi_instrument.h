@@ -47,10 +47,9 @@ public:
 	                                     ParamManagerForTimeline* paramManager = nullptr);
 
 	// cc names
-	String ccNames[kNumRealCCNumbers];
 	Error readCCNamesFromFile();
 	int32_t getCCFromName(String* name);
-	void getNameFromCC(int32_t cc, String* name);
+	String* getNameFromCC(int32_t cc);
 	void setNameForCC(int32_t cc, String* name);
 
 	void sendMIDIPGM();
@@ -123,4 +122,5 @@ private:
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = NULL);
+	String ccNames[kNumRealCCNumbers];
 };

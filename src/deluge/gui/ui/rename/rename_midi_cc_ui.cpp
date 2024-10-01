@@ -45,13 +45,19 @@ bool RenameMidiCCUI::opened() {
 
 	// if we're not dealing with a real cc number
 	// then don't allow user to edit the name
-	if (cc < 0 || cc >= kNumRealCCNumbers) {
+	if (cc < 0 || cc == CC_EXTERNAL_MOD_WHEEL || cc >= kNumRealCCNumbers) {
 		return false;
 	}
 
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
 
-	midiInstrument->getNameFromCC(cc, &enteredText);
+	String* name = midiInstrument->getNameFromCC(cc);
+	if (name) {
+		enteredText.set(name);
+	}
+	else {
+		enteredText.clear();
+	}
 
 	displayText();
 
@@ -102,10 +108,9 @@ void RenameMidiCCUI::enterKeyPress() {
 	int32_t cc = clip->lastSelectedParamID;
 
 	// If actually changing it...
-	String name;
-	midiInstrument->getNameFromCC(cc, &name);
+	String* name = midiInstrument->getNameFromCC(cc);
 
-	if (!name.equalsCaseIrrespective(&enteredText)) {
+	if (name && !name->equalsCaseIrrespective(&enteredText)) {
 		// don't let user set a name that is a duplicate of another name that has been set for another cc
 		if (midiInstrument->getCCFromName(&enteredText) != 255) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));

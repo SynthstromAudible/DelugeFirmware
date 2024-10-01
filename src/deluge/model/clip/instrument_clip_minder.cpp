@@ -135,22 +135,20 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	}
 	else {
 		MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-
-		String name;
+		bool appendedName = false;
 
 		if (controlNumber >= 0 && controlNumber < kNumRealCCNumbers) {
-			midiInstrument->getNameFromCC(controlNumber, &name);
-		}
-		else {
-			name.clear();
+			String* name = midiInstrument->getNameFromCC(controlNumber);
+			// if we have a name for this midi cc set by the user, display that instead of the cc number
+			if (name && !name->isEmpty()) {
+				buffer.append(name->get());
+				doScroll = name->getLength() > 4 ? true : false;
+				appendedName = true;
+			}
 		}
 
-		// if we have a name for this midi cc set by the user, display that instead of the cc number
-		if (!name.isEmpty()) {
-			buffer.append(name.get());
-			doScroll = name.getLength() > 4 ? true : false;
-		}
-		else {
+		// if we don't have a midi cc name set, draw CC number instead
+		if (!appendedName) {
 			if (display->haveOLED()) {
 				buffer.append("CC ");
 				buffer.appendInt(controlNumber);

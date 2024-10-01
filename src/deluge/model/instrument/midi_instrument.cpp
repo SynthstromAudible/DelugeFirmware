@@ -1176,12 +1176,12 @@ int32_t MIDIInstrument::getCCFromName(String* name) {
 	return 255;
 }
 
-void MIDIInstrument::getNameFromCC(int32_t cc, String* name) {
+String* MIDIInstrument::getNameFromCC(int32_t cc) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		name->set(&ccNames[cc]);
+		return &ccNames[cc];
 	}
 	else {
-		name->clear();
+		return nullptr;
 	}
 }
 

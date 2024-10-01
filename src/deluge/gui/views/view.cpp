@@ -1061,8 +1061,6 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 		else if (getCurrentOutputType() == OutputType::MIDI_OUT) {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-			String name;
-
 			if (kind == params::Kind::EXPRESSION) {
 				if (paramID == X_PITCH_BEND) {
 					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
@@ -1076,9 +1074,9 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 				}
 			}
 			else if (paramID >= 0 && paramID < kNumRealCCNumbers) {
-				midiInstrument->getNameFromCC(paramID, &name);
-				if (!name.isEmpty()) {
-					popupMsg.append(name.get());
+				String* name = midiInstrument->getNameFromCC(paramID);
+				if (name && !name->isEmpty()) {
+					popupMsg.append(name->get());
 				}
 				else {
 					popupMsg.append("CC ");

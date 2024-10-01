@@ -1619,20 +1619,19 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 		}
 		else {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-			String name;
+			bool appendedName = false;
 
 			if (clip->lastSelectedParamID >= 0 && clip->lastSelectedParamID < kNumRealCCNumbers) {
-				midiInstrument->getNameFromCC(clip->lastSelectedParamID, &name);
-			}
-			else {
-				name.clear();
+				String* name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
+				// if we have a name for this midi cc set by the user, display that instead of the cc number
+				if (name && !name->isEmpty()) {
+					parameterName.append(name->get());
+					appendedName = true;
+				}
 			}
 
-			// if we have a name for this midi cc set by the user, display that instead of the cc number
-			if (!name.isEmpty()) {
-				parameterName.append(name.get());
-			}
-			else {
+			// if we don't have a midi cc name set, draw CC number instead
+			if (!appendedName) {
 				if (display->haveOLED()) {
 					parameterName.append("CC ");
 					parameterName.appendInt(clip->lastSelectedParamID);
