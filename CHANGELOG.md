@@ -7,6 +7,8 @@
 ### User Interface
 
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+- Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on 
+when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
 
 ## c1.2.0 Chopin
 

@@ -236,11 +236,18 @@ as the micromonsta and the dreadbox nymphes.
 - ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
   - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 
-#### 3.17 - Select Audio Clip Source from Audio Clip Menu
+#### 3.17 - Select Audio Clip Source and Monitoring
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
 - ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose 
 which track to record from. To run the instrument through the audio clip's FX choose the FX PROCESSING option
+- ([#2702]) Monitoring is now set by the audio output mode. This is done by turning the select encoder
+
+    - Player: Monitoring is off, overdubs work by cloning. This is intended to be used for playing a static audio file or recording without monitoring.
+
+    - Sampler: Monitoring is on, monitoring turns off after recording, overdubs work by cloning. This is intended to be used for sampling from an ongoing audio stream where you only want to hear the part you're looping afterwards
+
+    - Looper: Monitoring is on and remains on. Overdubs do a real overdub in place. This is intended for live looping or use as an fx processor
 
 #### 3.18 - Set Audio Clip Length Equal to Sample Length
 - ([#1542]) Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
@@ -1499,6 +1506,8 @@ different firmware
 [#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
 
 [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
+
+[#2702]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2702
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
