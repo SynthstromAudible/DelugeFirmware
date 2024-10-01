@@ -169,6 +169,8 @@ void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 	String path;
 	uint32_t lineOffset = 0;
 	uint32_t linesWanted = 20;
+
+	FRESULT errCode = FRESULT::FR_OK;
 	char const* tagName;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -193,16 +195,16 @@ void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 	const char* pathVal = path.get();
 	const TCHAR* pathTC = (const TCHAR*)pathVal;
 	if (lineOffset == 0 || strcmp(activeDirName.get(), pathVal) || lineOffset != offsetCounter) {
-		FRESULT err = f_opendir(&sxDIR, pathTC);
-		if (err != FRESULT::FR_OK)
-			return;
+		errCode = f_opendir(&sxDIR, pathTC);
+		if (errCode != FRESULT::FR_OK)
+			goto errorFound;
 		offsetCounter = 0;
 		activeDirName.set(pathVal);
 		if (lineOffset > 0) {
 			FILINFO fno;
 			for (uint32_t ix = 0; ix < lineOffset; ++ix) {
-				FRESULT err = f_readdir(&sxDIR, &fno);
-				if (err != FRESULT::FR_OK)
+				errCode = f_readdir(&sxDIR, &fno);
+				if (errCode != FRESULT::FR_OK)
 					break;
 				if (fno.altname[0] == 0)
 					break;
@@ -210,11 +212,12 @@ void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 			}
 		}
 	}
-
+errorFound: ;
 	jWriter.reset();
 	jWriter.setMemoryBased();
 	startReply(jWriter, reader);
-	jWriter.writeArrayStart("^dir", true, true);
+	jWriter.writeOpeningTag("^dir", false, true);
+	jWriter.writeArrayStart("list", true, false);
 
 	for (uint32_t ix = 0; ix < linesWanted; ++ix) {
 		FILINFO fno;
@@ -240,7 +243,9 @@ void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 		jWriter.closeTag();
 		offsetCounter++;
 	}
-	jWriter.writeArrayEnding("^dir", true, true);
+	jWriter.writeArrayEnding("list", true, false);
+	jWriter.writeAttribute("err", errCode);
+	jWriter.closeTag(true);
 	sendMsg(device, jWriter);
 }
 
@@ -340,7 +345,7 @@ void smSysex::writeBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t fileId = 0;
 	uint32_t addr = 0;
-	uint32_t size = 512;
+	uint32_t size = blockBufferMax;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "addr")) {
