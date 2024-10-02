@@ -50,6 +50,7 @@
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
 #include <cmath>
+#include <cstdint>
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -873,20 +874,16 @@ doNewProbability:
 			// if probably setting has resulted in a note on
 			if (conditionPassed) [[likely]] {
 				// now we check if we should skip note based on iteration condition
-				// TODO RAUL: don't do iterance & 127, either do iterance & 32767 (16 bits)
-				int32_t iterance = pendingNoteOnList.pendingNoteOns[i].iterance & 127;
+				int32_t iterance = pendingNoteOnList.pendingNoteOns[i].iterance & 32767;
 
 				// If it's an iteration dependence...
-				if (iterance > kDefaultIteranceValue) [[unlikely]] {
-
-					int32_t divisor, iterationWithinDivisor;
-					dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
-
+				if (iterance != kDefaultIteranceValue) [[unlikely]] {
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(
 					    pendingNoteOnList.pendingNoteOns[i].noteRowId, pendingNoteOnList.pendingNoteOns[i].noteRow);
 
-					conditionPassed = (iterationWithinDivisor
-					                   == ((uint32_t)modelStackWithNoteRow->getRepeatCount() % (uint32_t)divisor));
+					int32_t divisor = iterance >> 8;
+					uint32_t repeatCount ((uint32_t)modelStackWithNoteRow->getRepeatCount() % (uint32_t)divisor);
+					conditionPassed = iterancePassesCheck(iterance, modelStackWithNoteRow->getRepeatCount());
 				}
 
 				// lastly, if after checking iteration we still have a note on

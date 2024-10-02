@@ -53,7 +53,7 @@ public:
 
 	void selectEncoderAction(int32_t offset) final override {
 		int32_t newValue = instrumentClipView.setNoteRowProbability(offset);
-		if (newValue != -1) {
+		if (newValue != -2) {
 			this->setValue(newValue);
 			updateDisplay();
 		}

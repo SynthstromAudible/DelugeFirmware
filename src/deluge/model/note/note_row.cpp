@@ -40,6 +40,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 #include <new>
 #include <string.h>
 
@@ -2971,15 +2973,13 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 	// Go through each Note within the original length
 	for (int32_t i = 0; i < numNotesBefore; i++) {
 		Note* note = notes.getElement(i);
-		// TODO RAUL: don't do iterance & 127, either do iterance & 32767 (16 bits)
-		int32_t iterance = note->iterance & 127;
+		int32_t iterance = note->iterance & 32767;
 		int32_t pos = note->pos;
 
 		// If it's iteration dependent...
 		if (iterance > kDefaultIteranceValue) {
-			int32_t divisor, iterationWithinDivisor;
-			// TODO RAUL: dissectIterationDependence needs to return an array of iterationWithinDivisor values instead of just one
-			dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
+			int32_t divisor, iterationBitsWithinDivisor;
+			dissectIterationDependence(iterance, &divisor, &iterationBitsWithinDivisor);
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
 
@@ -3021,15 +3021,21 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					break; // Shouldn't happen...
 				}
 
-				// TODO RAUL: see what the fuck to do if iterationWithinDivisor needs to be multiple values instead of one:
-				// This: We have an array of iterationWithinDivisor (up to 8 values). We loop through all to check if
-				// whichRepeatWithinLoop != iterationWithinDivisorWithinRepeat. If all disctinct, we go to the FAIL path
-				// If at least one is equal we save that "iterationWithinDivisor" and pass it to the WIN path
-				int32_t iterationWithinDivisorWithinRepeat =
-				    numRepeatsRounded ? ((uint32_t)iterationWithinDivisor % (uint32_t)numRepeatsRounded)
-				                      : iterationWithinDivisor;
+				int32_t iterationWithinDivisor = -1;
+				for (int32_t iteration = 0; iteration < 8; iteration++) {
+					if (iterationBitsWithinDivisor & (1 << it)) {
+						int32_t iterationWithinDivisorWithinRepeat =
+				    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded)
+				                      : iteration;
+						if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
+							iterationWithinDivisor = iteration;
+							break;
+						}
+					}
+				}
 
-				if (whichRepeatWithinLoop != iterationWithinDivisorWithinRepeat) {
+				if (iterationWithinDivisor == -1) {
+					// All failed
 
 					// If deleting the original one, those are what our for loop is currently iterating through,
 					// so alter that process
@@ -3357,9 +3363,18 @@ doReadNoteData:
 				uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
 				uint8_t lift, probability, iterance, fill;
 
-				if (noteHexLength == 26) { // if reading iterance and fill
-					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = hexToIntFixedLength(&hexChars[22], 2);
+				if (noteHexLength == 28) { // if reading custom iterance and fill
+					fill = hexToIntFixedLength(&hexChars[26], 2);
+					iterance = sanitizeIterance(hexToIntFixedLength(&hexChars[22], 4));
+					probability = hexToIntFixedLength(&hexChars[20], 2);
+					lift = hexToIntFixedLength(&hexChars[18], 2);
+					if (lift == 0 || lift > 127) {
+						goto useDefaultLift;
+					}
+				}
+				else if (noteHexLength == 26) { // if reading iterance preset and fill (nightly firmware 1.3 with no custom iterances)
+					fill = hexToIntFixedLength(&hexChars[26], 2);
+					iterance = getIterancePresetFromValue(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3379,9 +3394,10 @@ doReadNoteData:
 						iterance = kDefaultIteranceValue;    // iterance off
 						probability = kNumProbabilityValues; // 100% probability
 					}
-					else if (probability > kNumProbabilityValues) {
+					else if (probability > kNumProbabilityValues
+					         && probability <= kNumProbabilityValues + kNumIterationPresets) {
 						fill = FillMode::OFF;
-						iterance = probability - kNumProbabilityValues;
+						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3406,9 +3422,10 @@ doReadNoteData:
 						iterance = kDefaultIteranceValue;    // iterance off
 						probability = kNumProbabilityValues; // 100% probability
 					}
-					else if (probability > kNumProbabilityValues) {
+					else if (probability > kNumProbabilityValues
+					         && probability <= kNumProbabilityValues + kNumIterationPresets) {
 						fill = FillMode::OFF;
-						iterance = probability - kNumProbabilityValues;
+						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3438,11 +3455,7 @@ useDefaultLift:
 				if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
 					probability = kNumProbabilityValues;
 				}
-				// TODO RAUL: don't do iterance & 127, either do iterance & 32767 (16 bits)
-				// don't compare with presets
-				if ((iterance & 127) > kNumIterationValues || iterance >= (kNumIterationValues | 128)) {
-					iterance = kDefaultIteranceValue;
-				}
+				iterance = sanitizeIterance(iterance);
 				if (fill < FillMode::OFF || fill > FillMode::FILL) {
 					fill = FillMode::OFF;
 				}
@@ -3476,6 +3489,12 @@ getOut: {}
 		// Notes stored as hex data including iterance and fill (community firmware 1.3 onwards)
 		else if (!strcmp(tagName, "noteDataWithIteranceAndFill")) {
 			noteHexLength = 26;
+			goto doReadNoteData;
+		}
+
+		// Notes stored as hex data including iterance and fill (community firmware 1.3 onwards)
+		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
+			noteHexLength = 28;
 			goto doReadNoteData;
 		}
 
@@ -3531,7 +3550,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
-		writer.writeTagNameAndSeperator("noteDataWithIteranceAndFill");
+		writer.writeTagNameAndSeperator("noteDataWithSplitProb");
 		writer.write("\"0x");
 		for (int32_t n = 0; n < notes.getNumElements(); n++) {
 			Note* thisNote = notes.getElement(n);
@@ -3553,7 +3572,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			intToHex(thisNote->getProbability(), buffer, 2);
 			writer.write(buffer);
 
-			intToHex(thisNote->getIterance(), buffer, 2); // TODO RAUL: maybe need here 4 chars for uint16
+			intToHex(thisNote->getIterance(), buffer, 4);
 			writer.write(buffer);
 
 			intToHex(thisNote->getFill(), buffer, 2);

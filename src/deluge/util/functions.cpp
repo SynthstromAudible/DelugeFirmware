@@ -16,6 +16,7 @@
  */
 
 #include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/fatfs.hpp"
 #include "fatfs/ff.h"
@@ -29,6 +30,7 @@
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
 #include <cmath>
+#include <cstdint>
 #include <string.h>
 
 extern "C" {
@@ -1514,7 +1516,7 @@ int32_t fastPythag(int32_t x, int32_t y) {
 		x = a;
 	}
 
-	int32_t divisor = x >> 8;
+	int32_t divisor = x << 8;
 	if (divisor == 0) {
 		return 0;
 	}
@@ -1992,34 +1994,51 @@ int32_t getWhichKernel(int32_t phaseIncrement) {
 	}
 }
 
-void dissectIterationDependence(int32_t iterance, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor) {
-	// TODO RAUL: we have to do something here, take into account that before calling this, iterance is done "& 127" and we don't want that
-    // TODO RAUL: don't do iterance & 127, either do iterance & 32767 (16 bits)
-	// TODO RAUL: this functions needs to return an array of iterationWithinDivisor values (up to 8 values)
-	       // TODO RAUL: add another function that takes the iterance param and the getRepeatCount and returns true or false if condition passed
-	int32_t value = (iterance & 127) - 1;
-	int32_t whichRepeat;
+void dissectIterationDependence(int32_t iterance, int32_t* getDivisor, int32_t* getWhichIterationBitsWithinDivisor) {
+	*getDivisor = (iterance >> 8) & 127;
+	*getWhichIterationBitsWithinDivisor = iterance & 0xFF;
+}
 
-	int32_t tryingWhichDivisor;
+bool iterancePassesCheck(int32_t iterance, int32_t repeatCount) {
+	uint32_t divisor = (iterance >> 8) & 127;
+	int32_t shiftBits = ((uint32_t)repeatCount) % divisor;
+	return (iterance & (1 << shiftBits)) == 1;
+}
 
-	for (tryingWhichDivisor = 2; tryingWhichDivisor <= 8; tryingWhichDivisor++) {
-		if (value < tryingWhichDivisor) {
-			*getWhichIterationWithinDivisor = value;
-			break;
-		}
-
-		value -= tryingWhichDivisor;
+int32_t getIterancePresetFromValue(uint16_t value) {
+	if (value == 0) {
+		// Note: 0 means OFF
+		return 0;
+	}
+	if (value >> 8 == 0) { // divisor is 0, so it means this stored value is old (should not happen)
+		return std::clamp<uint16_t>(value, 0, kNumIterationPresets);
 	}
 
-	*getDivisor = tryingWhichDivisor;
+	for (int32_t i = 0; i < kNumIterationPresets; i++) {
+		if (iterancePresets[i] == value) {
+			return i + 1;
+		}
+	}
+
+	// Custom iteration
+	return kCustomIterancePreset;
+}
+
+int32_t sanitizeIterance(int32_t iterance) {
+	int32_t sanitizedIterance = iterance & 32767;
+	uint8_t divisor = sanitizedIterance << 8;
+	if (divisor < 2 || divisor > 8) {
+		sanitizedIterance = kDefaultIteranceValue;
+	}
+	uint8_t iterationsWithinDivisor = sanitizedIterance & 0xFF;
+	if (iterationsWithinDivisor == 0) {
+		sanitizedIterance = kDefaultIteranceValue;
+	}
+	return sanitizedIterance;
 }
 
 int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDivisor) {
-	int32_t value = iterationWithinDivisor;
-	for (int32_t i = 2; i < divisor; i++) {
-		value += i;
-	}
-	return value + 1;
+	return (divisor << 8) | (1 << (iterationWithinDivisor % divisor));
 }
 
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {

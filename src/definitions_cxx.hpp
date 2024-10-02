@@ -640,11 +640,13 @@ enum class ArmState {
 };
 
 constexpr int32_t kNumProbabilityValues = 20;
-constexpr int32_t kNumIterationValues = 35; // 1of2 to 8of8
+constexpr int32_t kNumIterationPresets = 35; // 1of2 to 8of8
 constexpr int32_t kOldFillProbabilityValue = 0;
 constexpr int32_t kOldNotFillProbabilityValue = 128; // This is like the "latched" state of Fill (zero ORed with 128)
 constexpr int32_t kDefaultLiftValue = 64;
 constexpr int32_t kDefaultIteranceValue = 0; // 0 is off
+constexpr int32_t kCustomIterancePreset = -1;
+constexpr int32_t kCustomIteranceValue = 0x0101; // 1 of 1
 
 enum FillMode : uint8_t {
 	OFF,

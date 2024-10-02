@@ -26,13 +26,14 @@
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "util/functions.h"
 
 namespace deluge::gui::menu_item::note {
 class Iterance final : public SelectedNote {
 public:
 	using SelectedNote::SelectedNote;
 
-	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterationValues; } // TODO RAUL: what happens if custom? lastIndex+1
+	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterationPresets; }
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 
 	/// @brief Begin an editing session with this menu item.
@@ -44,7 +45,8 @@ public:
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
 		if (leftMostNote) {
-			this->setValue(leftMostNote->getIterance());
+			int32_t preset = getIterancePresetFromValue(leftMostNote->getIterance());
+			this->setValue(preset);
 		}
 	}
 
@@ -53,23 +55,38 @@ public:
 		readValueAgain();
 	}
 
+	MenuItem* selectButtonPress() override {
+		// auto current_value = this->getValue<ArpPreset>();
+		// if (current_value == ArpPreset::CUSTOM) {
+		// 	// return &arpeggiator::arpOctaveModeToNoteModeMenu;
+		// 	// TODO RAUL: return new submenu item for custom iterance
+		// 	return nullptr;
+		// }
+		return nullptr;
+	}
+
 	void drawPixelsForOled() {
 		char buffer[20];
 
-		int32_t iterance = this->getValue();
+		int32_t iterancePreset = this->getValue();
 
-		int32_t divisor, iterationWithinDivisor;
-		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
-
-		// TODO RAUL: logic  to paint "CUSTOM" if not within presets
-		// TODO RAUL: and simplify this logic to do a for loop to check for equality with preset values
-		if (iterance == 0) {
+		if (iterancePreset == 0) {
 			strcpy(buffer, "OFF");
 		}
-		else {
-			sprintf(buffer, "%d of %d", iterationWithinDivisor + 1, divisor);
+		else if (iterancePreset == kCustomIterancePreset) {
+			strcpy(buffer, "CUSTOM");
 		}
-		// TODO RAUL: Extra case when index out of maxValue, show CUSTOM
+		else {
+			int32_t divisor, iterationBitsWithinDivisor;
+			dissectIterationDependence(iterancePresets[iterancePreset - 1], &divisor, &iterationBitsWithinDivisor);
+			int32_t i = divisor;
+			for (; i >= 0; i--) {
+				if (iterationBitsWithinDivisor & (1 << i)) {
+					break;
+				}
+			}
+			sprintf(buffer, "%d of %d", i + 1, divisor);
+		}
 
 		deluge::hid::display::OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
 		                                                   kTextHugeSizeY);
@@ -78,16 +95,24 @@ public:
 	void drawValue() final override {
 		char buffer[20];
 
-		int32_t iterance = this->getValue();
+		int32_t iterancePreset = this->getValue();
 
-		int32_t divisor, iterationWithinDivisor;
-		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
-
-		if (iterance == 0) {
+		if (iterancePreset == 0) {
 			strcpy(buffer, "OFF");
 		}
+		else if (iterancePreset == kCustomIterancePreset) {
+			strcpy(buffer, "CUSTOM");
+		}
 		else {
-			sprintf(buffer, "%dof%d", iterationWithinDivisor + 1, divisor);
+			int32_t divisor, iterationBitsWithinDivisor;
+			dissectIterationDependence(iterancePresets[iterancePreset - 1], &divisor, &iterationBitsWithinDivisor);
+			int32_t i = divisor;
+			for (; i >= 0; i--) {
+				if (iterationBitsWithinDivisor & (1 << i)) {
+					break;
+				}
+			}
+			sprintf(buffer, "%dof%d", i + 1, divisor);
 		}
 
 		display->setText(buffer);
