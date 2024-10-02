@@ -3023,7 +3023,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 				int32_t iterationWithinDivisor = -1;
 				for (int32_t iteration = 0; iteration < 8; iteration++) {
-					if (iterationBitsWithinDivisor & (1 << it)) {
+					if (iterationBitsWithinDivisor & (1 << iteration)) {
 						int32_t iterationWithinDivisorWithinRepeat =
 						    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
 						if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
