@@ -3025,8 +3025,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				for (int32_t iteration = 0; iteration < 8; iteration++) {
 					if (iterationBitsWithinDivisor & (1 << it)) {
 						int32_t iterationWithinDivisorWithinRepeat =
-				    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded)
-				                      : iteration;
+						    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
 						if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
 							iterationWithinDivisor = iteration;
 							break;
@@ -3372,7 +3371,7 @@ doReadNoteData:
 						goto useDefaultLift;
 					}
 				}
-				else if (noteHexLength == 26) { // if reading iterance preset and fill (nightly firmware 1.3 with no custom iterances)
+				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
 					fill = hexToIntFixedLength(&hexChars[26], 2);
 					iterance = getIterancePresetFromValue(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);

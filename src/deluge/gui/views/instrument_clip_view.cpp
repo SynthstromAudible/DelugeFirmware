@@ -2508,13 +2508,11 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 					parameterValue = parameter & 32767; // iterance param is 16 bits
 					// transform into preset index temporarily, to inc/dec offset
 					parameterValue = getIterancePresetFromValue(parameterValue);
-
 				}
 				else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 					parameter = editPadPresses[i].intendedFill;
 					parameterValue = parameter & 127; // fill param is 8 bits
 				}
-
 
 				// If editing, continue edit
 				if (display->hasPopup() || inNoteEditor) {
@@ -2584,10 +2582,12 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 						// transform back from preset to real value (only if not CUSTOM)
 						if (parameterValue > 0 && parameterValue <= kNumIterationPresets) {
 							parameterValue = iterancePresets[parameterValue - 1];
-						} else if (parameterValue == kCustomIterancePreset) {
+						}
+						else if (parameterValue == kCustomIterancePreset) {
 							// Reset custom iterance to 1of1
 							parameterValue = kCustomIteranceValue;
-						} else {
+						}
+						else {
 							// Default: Off
 							parameterValue = 0;
 						}
@@ -2677,7 +2677,6 @@ multiplePresses:
 			parameterValue = parameter & 127; // fill param is 8 bits
 		}
 
-
 		// If editing, continue edit
 		if (display->hasPopupOfType(PopupType::PROBABILITY) || inNoteEditor) {
 			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
@@ -2726,12 +2725,15 @@ multiplePresses:
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 						// transform back from preset to real value (only if not CUSTOM)
-						if (parameterValueForMultipleNotes > 0 && parameterValueForMultipleNotes <= kNumIterationPresets) {
+						if (parameterValueForMultipleNotes > 0
+						    && parameterValueForMultipleNotes <= kNumIterationPresets) {
 							parameterValueForMultipleNotes = iterancePresets[parameterValue];
-						} else if (parameterValue == kCustomIterancePreset) {
+						}
+						else if (parameterValue == kCustomIterancePreset) {
 							// Reset custom iterance to 1of1
 							parameterValue = kCustomIteranceValue;
-						} else {
+						}
+						else {
 							// Default: Off
 							parameterValue = 0;
 						}
@@ -3286,7 +3288,8 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t cha
 			// transform back from preset to real value (only if not CUSTOM)
 			if (parameterValue > 0 && parameterValue <= kNumIterationPresets) {
 				parameterValue = iterancePresets[parameterValue - 1];
-			} else {
+			}
+			else {
 				// keep the original custom value or OFF (zero)
 				parameterValue = parameter & 32767;
 			}

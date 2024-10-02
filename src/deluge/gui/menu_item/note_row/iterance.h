@@ -77,7 +77,6 @@ public:
 
 		int32_t iterancePreset = this->getValue();
 
-
 		if (iterancePreset == 0) {
 			strcpy(buffer, "OFF");
 		}
@@ -104,7 +103,6 @@ public:
 		char buffer[20];
 
 		int32_t iterancePreset = this->getValue();
-
 
 		if (iterancePreset == 0) {
 			strcpy(buffer, "OFF");

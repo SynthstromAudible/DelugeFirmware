@@ -16,7 +16,6 @@
  */
 
 #include "util/functions.h"
-#include "util/lookuptables/lookuptables.h"
 #include "definitions_cxx.hpp"
 #include "fatfs/fatfs.hpp"
 #include "fatfs/ff.h"
@@ -29,6 +28,7 @@
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
+#include "util/lookuptables/lookuptables.h"
 #include <cmath>
 #include <cstdint>
 #include <string.h>

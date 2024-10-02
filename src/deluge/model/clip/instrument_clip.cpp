@@ -881,8 +881,6 @@ doNewProbability:
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(
 					    pendingNoteOnList.pendingNoteOns[i].noteRowId, pendingNoteOnList.pendingNoteOns[i].noteRow);
 
-					int32_t divisor = iterance >> 8;
-					uint32_t repeatCount ((uint32_t)modelStackWithNoteRow->getRepeatCount() % (uint32_t)divisor);
 					conditionPassed = iterancePassesCheck(iterance, modelStackWithNoteRow->getRepeatCount());
 				}
 
