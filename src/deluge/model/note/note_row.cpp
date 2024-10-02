@@ -1960,7 +1960,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
 				drewNote = true;
-				pixel = rowColour;
+				pixel = RGB::blend(rowColour, rowTailColour, note->velocity << 9);
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}
