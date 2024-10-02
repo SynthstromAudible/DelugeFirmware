@@ -254,11 +254,19 @@ as the micromonsta and the dreadbox nymphes.
 - ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
   - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 
-#### 3.18 - Select Audio Clip Source from Audio Clip Menu
+
+#### 3.18 - Select Audio Clip Source and Monitoring
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
 - ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose 
-which track to record from. To run the instrument through the audio clip's FX choose the FX PROCESSING option
+which track to record from. The source can also be selected by pressing a clip's pad while in the audio source selection menu. 
+- ([#2702]) Monitoring is now set by the audio output mode. This is done by turning the select encoder
+
+    - Player: Monitoring is off, overdubs work by cloning. This is intended to be used for playing a static audio file or recording without monitoring.
+
+    - Sampler: Monitoring is on, monitoring turns off after recording, overdubs work by cloning. This is intended to be used for sampling from an ongoing audio stream where you only want to hear the part you're looping afterwards
+
+    - Looper: Monitoring is on and remains on. Overdubs do a real overdub in place. This is intended for live looping or use as an fx processor
 
 #### 3.19 - Set Audio Clip Length Equal to Sample Length
 - ([#1542]) Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
@@ -1044,7 +1052,7 @@ to each individual note onset. ([#1978])
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
   documentation: [Chord Keyboard Documentation]
 
-- ([#2475]) Enables `CHORD` keyboard, out of scale view with two modes, `ROW`, with chords spread out on each row across the pads, and `COLUMN`, where each column is a series a harmonically similar chords that can often sound nice substited for each other. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press `SELECT` + `KEYBOARD` to cycle through layouts to find the `CHORD` keyboard layout.
+- ([#2475]) Enables `CHORD` keyboard, out of scale view with two modes, Column mode (providing in-scale harmonically similar chords for substitutions) and Row Mode (based largely on the Launchpad Pro's chord mode that spreads notes out on a row to allow users to build and play interesting chords across the rows). After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press and hold `KEYBOARD` + turn `SELECT` to cycle through layouts to find the `CHORD` keyboard layout.
 
 - As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
 
@@ -1539,6 +1547,8 @@ different firmware
 
 [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
 
+[#2702]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2702
+
 [#2537]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2537
 
 [#2615]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2615
@@ -1552,6 +1562,7 @@ different firmware
 [#2712]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2712
 
 [#2716]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2716
+
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

@@ -1307,10 +1307,9 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 		}
 	}
 	else {
-		// This moves clips around uncomfortably and we have a track for every Audio anyway
-		if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
-			view.navigateThroughAudioOutputsForAudioClip(offset, (AudioClip*)clip, true);
-		}
+		auto ao = (AudioOutput*)clip->output;
+		ao->scrollAudioOutputMode(offset);
+		renderUIsForOled();
 	}
 }
 
@@ -3674,7 +3673,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 				}
 			}
 
-			if (targetOutput && targetOutput != sourceClip->output) {
+			if (targetOutput && targetOutput != sourceClip->output && targetOutput->type == OutputType::AUDIO) {
+				((AudioOutput*)targetOutput)->cloneFrom((AudioOutput*)(sourceClip->output));
 				newAudioClip->setOutput(modelStack, targetOutput);
 			}
 		}
@@ -4596,5 +4596,14 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 		}
 	}
 
+	return nullptr;
+}
+Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		return gridTrackFromX(x, gridTrackCount());
+	}
+	else {
+		return getClipOnScreen(y)->output;
+	}
 	return nullptr;
 }
