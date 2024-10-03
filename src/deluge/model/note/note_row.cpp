@@ -3372,7 +3372,7 @@ doReadNoteData:
 					}
 				}
 				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
-					fill = hexToIntFixedLength(&hexChars[26], 2);
+					fill = hexToIntFixedLength(&hexChars[24], 2);
 					iterance = getIterancePresetFromValue(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
@@ -3491,7 +3491,7 @@ getOut: {}
 			goto doReadNoteData;
 		}
 
-		// Notes stored as hex data including iterance and fill (community firmware 1.3 onwards)
+		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
 		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
 			noteHexLength = 28;
 			goto doReadNoteData;
