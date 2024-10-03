@@ -24,6 +24,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/model_stack.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
