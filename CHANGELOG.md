@@ -36,6 +36,11 @@ when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in a
 
 #### <ins>Instrument Clip View</ins>
 
+##### Pad Rendering
+- Note velocity is now displayed in clips using colour intensities. The note head (the bright part) 
+now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official, 
+at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
+
 ##### Automation View
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
 
