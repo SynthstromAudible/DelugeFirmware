@@ -22,7 +22,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/context_menu/clear_song.h"
-#include "gui/context_menu/clip_settings/launch_style.h"
+#include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -2593,7 +2593,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
-			context_menu::clip_settings::launchStyle.clip = clip;
+			context_menu::clip_settings::clipSettings.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
