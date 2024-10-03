@@ -75,7 +75,7 @@ public:
 
 		int32_t iterancePreset = this->getValue();
 
-		if (iterancePreset == 0) {
+		if (iterancePreset == kDefaultIteranceValue) {
 			strcpy(buffer, "OFF");
 		}
 		else if (iterancePreset == kCustomIterancePreset) {
@@ -102,7 +102,7 @@ public:
 
 		int32_t iterancePreset = this->getValue();
 
-		if (iterancePreset == 0) {
+		if (iterancePreset == kDefaultIteranceValue) {
 			strcpy(buffer, "OFF");
 		}
 		else if (iterancePreset == kCustomIterancePreset) {

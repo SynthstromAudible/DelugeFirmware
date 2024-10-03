@@ -50,7 +50,6 @@
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
 #include <cmath>
-#include <cstdint>
 #include <new>
 
 namespace params = deluge::modulation::params;
