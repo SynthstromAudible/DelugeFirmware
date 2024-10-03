@@ -18,11 +18,19 @@ For more detailed version information, see the [changelog](https://github.com/Sy
 Reference the 'Community Features Menu' section at the end of this document to understand what each entry is and their
 7SEG abbreviations.
 
-## 2. File Compatibility Warning
+
 
 In general, we try to maintain file compatibility with the official firmware. However, **files (including songs,
 presets, etc.) that use community features may not ever load correctly on the official firmware again**. Make sure to
 back up your SD card!
+
+## 2. UI Changes from Official
+
+#### 2.1 Velocity Rendering
+- Note velocity is now displayed in clips using colour intensities. The note head (the bright part) 
+now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official, 
+at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
+
 
 ## 3. General Improvements
 
