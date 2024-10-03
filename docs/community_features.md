@@ -296,14 +296,14 @@ which track to record from. To run the instrument through the audio clip's FX ch
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.
 - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
-#### 3.28 Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode and Clip Name in Song Grid View
-- ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now open the `CLIP SETTINGS` menu.
+#### 3.29 Add Clip Settings Menu in Song View to set Clip Mode and Clip Name and convert Instrument Clips to Audio Clips
+- ([#2299]) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu.
 - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
   1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
+    - Note: for `SONG ROW VIEW`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.  
   2) `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
   3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
 - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
-- This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
 ## 4. New Features Added
 
@@ -343,8 +343,7 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.3 - Fill Clips and Once Clips
 
-- ([#196] and [#1018]) In Song View (Rows mode), holding a clip or the status pad (mute pad) for a clip and pressing `SELECT`
-  brings up a `CLIP MODE` menu. For Grid Mode, only holding a clip and pressing `SELECT` will bring up the `CLIP MODE` menu. 
+- ([#196] and [#1018]) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu. In this menu, you will find a submenu for `CLIP MODE`.
   
   The `CLIP MODE` menu enables you the set the following launch style options for a clip:
     - **`INFINITE (INF)`** - the default Deluge launch style.

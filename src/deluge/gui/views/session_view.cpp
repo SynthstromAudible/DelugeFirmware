@@ -23,7 +23,6 @@
 #include "gui/colour/palette.h"
 #include "gui/context_menu/audio_input_selector.h"
 #include "gui/context_menu/clip_settings/clip_settings.h"
-#include "gui/context_menu/clip_settings/launch_style.h"
 #include "gui/context_menu/clip_settings/new_clip_type.h"
 #include "gui/context_menu/context_menu.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
@@ -489,8 +488,8 @@ moveAfterClipInstance:
 				}
 			}
 			else if (currentUIMode == UI_MODE_HOLDING_STATUS_PAD) {
-				context_menu::clip_settings::launchStyle.setupAndCheckAvailability();
-				openUI(&context_menu::clip_settings::launchStyle);
+				context_menu::clip_settings::clipSettings.setupAndCheckAvailability();
+				openUI(&context_menu::clip_settings::clipSettings);
 			}
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				actionLogger.deleteAllLogs();
