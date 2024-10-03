@@ -17,8 +17,8 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/note_row/selected_note_row.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -62,15 +62,13 @@ public:
 		}
 	}
 
-	MenuItem* selectButtonPress() override {
-		// auto current_value = this->getValue<ArpPreset>();
-		// if (current_value == ArpPreset::CUSTOM) {
-		// 	// return &arpeggiator::arpOctaveModeToNoteModeMenu;
-		// 	// TODO RAUL: return new submenu item for custom iterance
-		// 	return nullptr;
-		// }
-		return nullptr;
-	}
+	// MenuItem* selectButtonPress() override {
+	// 	int32_t iterancePreset = this->getValue();
+	// 	if (iterancePreset == kCustomIterancePreset) {
+	// 		return &noteRowCustomIteranceRootMenu;
+	// 	}
+	// 	return nullptr;
+	// }
 
 	void drawPixelsForOled() {
 		char buffer[20];
@@ -127,4 +125,5 @@ public:
 
 	void writeCurrentValue() override { ; }
 };
+
 } // namespace deluge::gui::menu_item::note_row

@@ -2002,7 +2002,7 @@ void dissectIterationDependence(int32_t iterance, int32_t* getDivisor, int32_t* 
 bool iterancePassesCheck(int32_t iterance, int32_t repeatCount) {
 	uint32_t divisor = (iterance >> 8) & 127;
 	int32_t shiftBits = ((uint32_t)repeatCount) % divisor;
-	return (iterance & (1 << shiftBits)) == 1;
+	return (iterance & (1 << shiftBits)) != 0;
 }
 
 int32_t getIterancePresetFromValue(uint16_t value) {
