@@ -670,6 +670,22 @@ const bool noteCodeIsSharp[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
 
 const uint8_t defaultClipGroupColours[] = {102, 168, 24, 84, 186, 36, 126, 12, 147, 48, 72, 157};
 
+/**
+ * @brief How iterance is encoded:
+ *
+ * The encoding is a uint16_t with the first 8 bits being the divisor and the next 8 bits being the iteration bits.
+ * The 'divisor' is the total number of iterations
+ * The 'iteration bits' is a byte where each of its 8 bits represents a boolean on whether the iteration step is active or not
+ *
+ * Examples:
+ * - If the divisor is 8 (that is, 0x08) and the iteration bits are 0000 0001, then the iteration step 0 is active and other 7 are inactive.
+ *   This iterance will read as "1of8". Iterance value is 0x0801.
+ * - If the divisor is 4 (that is, 0x04) and the iteration bits are 0000 1001, then iteration steps first and forth are active, while others are inactive.
+ *   This iterance is Custom and will read as "1 and 4, of 4". Iterance value is 0x0409
+ * - If the divisor is 6 (that is, 0x06) and the iteration bits are 0011 0000, then iteration steps fifth and sixth are active, while others are inactive.
+ *   This iterance is Custom and will read as "5 and 6, of 6". Iterance value is 0x0630
+ */
+
 const uint16_t iterancePresets[35] = {
 	0x0201, 0x0202,
 	0x0301, 0x0302, 0x0304,

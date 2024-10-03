@@ -3485,7 +3485,7 @@ getOut: {}
 			goto doReadNoteData;
 		}
 
-		// Notes stored as hex data including iterance and fill (community firmware 1.3 onwards)
+		// Notes stored as hex data in nightly firmware 1.3 with no custom iterances
 		else if (!strcmp(tagName, "noteDataWithIteranceAndFill")) {
 			noteHexLength = 26;
 			goto doReadNoteData;

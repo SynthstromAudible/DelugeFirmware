@@ -46,7 +46,8 @@ public:
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 			int32_t iterance = noteRow->iteranceValue;
 			if (iterance == kDefaultIteranceValue) {
-				// if entered custom menu, set to custom value if none set
+				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
+				// so we can make edits from here
 				iterance = kCustomIteranceValue;
 			}
 			int32_t divisor = iterance >> 8;
@@ -63,8 +64,14 @@ public:
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 			int32_t iterance = noteRow->iteranceValue;
+			if (iterance == kDefaultIteranceValue) {
+				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
+				// so we can make edits from here
+				iterance = kCustomIteranceValue;
+			}
 			int32_t mask = (1 << val) - 1; // Creates a mask where the first 'divisor' bits are 1
 			int32_t divisor = val << 8;
+			// Wipe the bits whose index is greater than the current divisor value
 			int32_t newIterance = ((iterance & 0xFF) & mask) | divisor;
 			noteRow->iteranceValue = newIterance;
 		}

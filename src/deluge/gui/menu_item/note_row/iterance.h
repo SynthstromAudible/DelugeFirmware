@@ -50,6 +50,7 @@ public:
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
+			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
 			int32_t preset = getIterancePresetFromValue(noteRow->iteranceValue);
 			this->setValue(preset);
 			updateDisplay();
@@ -59,6 +60,7 @@ public:
 	void selectEncoderAction(int32_t offset) final override {
 		int32_t newValue = instrumentClipView.setNoteRowIterance(offset);
 		if (newValue != -1) {
+			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
 			int32_t preset = getIterancePresetFromValue(newValue);
 			this->setValue(preset);
 			updateDisplay();
@@ -68,6 +70,8 @@ public:
 	MenuItem* selectButtonPress() override {
 		int32_t iterancePreset = this->getValue();
 		if (iterancePreset == kCustomIterancePreset) {
+			// If the "CUSTOM" item is in focus, clicking the Select encoder will
+			// enter the editor for the custom iterance
 			return &noteRowCustomIteranceRootMenu;
 		}
 		return nullptr;
@@ -89,6 +93,7 @@ public:
 			dissectIterationDependence(iterancePresets[iterancePreset - 1], &divisor, &iterationBitsWithinDivisor);
 			int32_t i = divisor;
 			for (; i >= 0; i--) {
+				// try to find which iteration step index is active
 				if (iterationBitsWithinDivisor & (1 << i)) {
 					break;
 				}
@@ -116,6 +121,7 @@ public:
 			dissectIterationDependence(iterancePresets[iterancePreset - 1], &divisor, &iterationBitsWithinDivisor);
 			int32_t i = divisor;
 			for (; i >= 0; i--) {
+				// try to find which iteration step index is active
 				if (iterationBitsWithinDivisor & (1 << i)) {
 					break;
 				}

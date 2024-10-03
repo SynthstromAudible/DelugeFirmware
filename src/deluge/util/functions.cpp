@@ -1994,27 +1994,41 @@ int32_t getWhichKernel(int32_t phaseIncrement) {
 	}
 }
 
+// This methods extracts from the iterance parameter (which is an uint16_t) the divisor and the iteration bits
+// The 'divisor' is the total number of iterations
+// The 'iteration bits' is a byte where each of its 8 bits represents a boolean on
+// whether the iteration step is active or not
 void dissectIterationDependence(int32_t iterance, int32_t* getDivisor, int32_t* getWhichIterationBitsWithinDivisor) {
 	*getDivisor = (iterance >> 8) & 0xFF;
 	*getWhichIterationBitsWithinDivisor = iterance & 0xFF;
 }
 
+// This method checks if this iteration step is active or not depending on the current repeat count
 bool iterancePassesCheck(int32_t iterance, int32_t repeatCount) {
 	uint32_t divisor = (iterance >> 8) & 0xFF;
+	// In shiftBits we check which index of the iteration bits we are checking (which is based on the repeat count
+	// modulo the divisor)
 	int32_t shiftBits = ((uint32_t)repeatCount) % divisor;
+	// If the bit in that position is set to 1, then the iteration step is active
 	return (iterance & (1 << shiftBits)) != 0;
 }
 
+// This methods takes the iterance value and searches the table of iterance presets for a match
+// If no match is found it will return kCustomIterancePreset (which is equal to '1of1')
 int32_t getIterancePresetFromValue(uint16_t value) {
 	if (value == 0) {
-		// Note: 0 means OFF
+		// A value of 0 means OFF
 		return 0;
 	}
-	if (value >> 8 == 0) { // divisor is 0, so it means this stored value is old (should not happen)
+	if (value >> 8 == 0) {
+		// Divisor is 0, so it means this stored value must be from old firmware
+		// (it should not happen as values are already converted when reading song's XML file)
+		// Anyway we treat it as a preset
 		return std::clamp<uint16_t>(value, 0, kNumIterationPresets);
 	}
 
 	for (int32_t i = 0; i < kNumIterationPresets; i++) {
+		// Check if value is one of the presets
 		if (iterancePresets[i] == value) {
 			return i + 1;
 		}
@@ -2024,6 +2038,8 @@ int32_t getIterancePresetFromValue(uint16_t value) {
 	return kCustomIterancePreset;
 }
 
+// This methods cleans the iterance value to be among the possible valid values,
+// just in case we get bad data from the XML file
 int32_t sanitizeIterance(int32_t iterance) {
 	int32_t sanitizedIterance = iterance & 32767;
 	uint8_t divisor = sanitizedIterance << 8;

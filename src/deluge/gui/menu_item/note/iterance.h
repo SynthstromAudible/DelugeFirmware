@@ -44,6 +44,7 @@ public:
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
 		if (leftMostNote) {
+			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
 			int32_t preset = getIterancePresetFromValue(leftMostNote->getIterance());
 			this->setValue(preset);
 		}
@@ -57,6 +58,8 @@ public:
 	MenuItem* selectButtonPress() override {
 		int32_t iterancePreset = this->getValue();
 		if (iterancePreset == kCustomIterancePreset) {
+			// If the "CUSTOM" item is in focus, clicking the Select encoder will
+			// enter the editor for the custom iterance
 			return &noteCustomIteranceRootMenu;
 		}
 		return nullptr;
@@ -78,6 +81,7 @@ public:
 			dissectIterationDependence(iterancePresets[iterancePreset - 1], &divisor, &iterationBitsWithinDivisor);
 			int32_t i = divisor;
 			for (; i >= 0; i--) {
+				// try to find which iteration step index is active
 				if (iterationBitsWithinDivisor & (1 << i)) {
 					break;
 				}
@@ -105,6 +109,7 @@ public:
 			dissectIterationDependence(iterancePresets[iterancePreset - 1], &divisor, &iterationBitsWithinDivisor);
 			int32_t i = divisor;
 			for (; i >= 0; i--) {
+				// try to find which iteration step index is active
 				if (iterationBitsWithinDivisor & (1 << i)) {
 					break;
 				}
