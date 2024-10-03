@@ -1995,12 +1995,12 @@ int32_t getWhichKernel(int32_t phaseIncrement) {
 }
 
 void dissectIterationDependence(int32_t iterance, int32_t* getDivisor, int32_t* getWhichIterationBitsWithinDivisor) {
-	*getDivisor = (iterance >> 8) & 127;
+	*getDivisor = (iterance >> 8) & 0xFF;
 	*getWhichIterationBitsWithinDivisor = iterance & 0xFF;
 }
 
 bool iterancePassesCheck(int32_t iterance, int32_t repeatCount) {
-	uint32_t divisor = (iterance >> 8) & 127;
+	uint32_t divisor = (iterance >> 8) & 0xFF;
 	int32_t shiftBits = ((uint32_t)repeatCount) % divisor;
 	return (iterance & (1 << shiftBits)) != 0;
 }
@@ -2027,7 +2027,7 @@ int32_t getIterancePresetFromValue(uint16_t value) {
 int32_t sanitizeIterance(int32_t iterance) {
 	int32_t sanitizedIterance = iterance & 32767;
 	uint8_t divisor = sanitizedIterance << 8;
-	if (divisor < 2 || divisor > 8) {
+	if (divisor < 1 || divisor > 8) {
 		sanitizedIterance = kDefaultIteranceValue;
 	}
 	uint8_t iterationsWithinDivisor = sanitizedIterance & 0xFF;
