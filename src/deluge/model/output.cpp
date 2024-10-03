@@ -158,7 +158,7 @@ bool Output::clipHasInstance(Clip* clip) {
 // notes or audio files because we don't want to change the output type for all the clips assigned to that output if
 // some have notes / audio files
 bool Output::isEmpty(bool displayPopup) {
-	// loop through the output selected to see if any of the clips are not empty
+	// loop through the output selected to see if any of the clips in arranger are not empty
 	for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
 		Clip* clip = clipInstances.getElement(i)->clip;
 		if (clip && !clip->isEmpty(displayPopup)) {
@@ -166,9 +166,12 @@ bool Output::isEmpty(bool displayPopup) {
 		}
 	}
 
+	// loop through the output selected to see if any of the clips in the song are not empty
 	for (Clip* clip : AllClips::everywhere(currentSong)) {
 		if (clip->output == this) {
-			return false;
+			if (!clip->isEmpty(displayPopup)) {
+				return false;
+			}
 		}
 	}
 	return true;
