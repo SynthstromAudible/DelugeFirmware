@@ -78,7 +78,7 @@ public:
 	[[nodiscard]] constexpr RGB forTail() const {
 		uint32_t averageBrightness = ((uint32_t)r + g + b);
 		return transform([averageBrightness](channel_type channel) { //<
-			return (((int32_t)channel * 21 + averageBrightness) * 157) >> 14;
+			return (((int32_t)channel * 21 + averageBrightness) * 120) >> 14;
 		});
 	}
 
@@ -246,6 +246,16 @@ public:
 	[[nodiscard]] constexpr RGB adjust(uint8_t intensity, uint8_t brightnessDivider) const {
 		return transform([intensity, brightnessDivider](channel_type channel) { //<
 			return ((channel * intensity / 255) / brightnessDivider);
+		});
+	}
+
+	/**
+	 * @brief Adjust a colour by altering its intensity and brightness. Intensity/brightnessDivider must be less than 1
+	 * @return RGB The new colour
+	 */
+	[[nodiscard]] constexpr RGB adjustFractional(uint16_t numerator, uint16_t divisor) const {
+		return transform([numerator, divisor](channel_type channel) { //<
+			return ((channel * numerator) / divisor);
 		});
 	}
 

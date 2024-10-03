@@ -2347,6 +2347,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 			gridSquareInfo[editPadPresses[i].yDisplay][editPadPresses[i].xDisplay].averageVelocity =
 			    editPadPresses[i].intendedVelocity;
+			uiNeedsRendering(this, 1 << editPadPresses[i].yDisplay, 0);
 		}
 	}
 
