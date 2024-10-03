@@ -19,6 +19,7 @@
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/note_row/selected_note_row.h"
+#include "gui/menu_item/submenu.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -26,6 +27,8 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "util/lookuptables/lookuptables.h"
+
+extern deluge::gui::menu_item::Submenu noteRowCustomIteranceRootMenu;
 
 namespace deluge::gui::menu_item::note_row {
 class Iterance final : public SelectedNoteRow {
@@ -62,13 +65,13 @@ public:
 		}
 	}
 
-	// MenuItem* selectButtonPress() override {
-	// 	int32_t iterancePreset = this->getValue();
-	// 	if (iterancePreset == kCustomIterancePreset) {
-	// 		return &noteRowCustomIteranceRootMenu;
-	// 	}
-	// 	return nullptr;
-	// }
+	MenuItem* selectButtonPress() override {
+		int32_t iterancePreset = this->getValue();
+		if (iterancePreset == kCustomIterancePreset) {
+			return &noteRowCustomIteranceRootMenu;
+		}
+		return nullptr;
+	}
 
 	void drawPixelsForOled() {
 		char buffer[20];

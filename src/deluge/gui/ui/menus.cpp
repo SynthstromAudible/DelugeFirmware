@@ -1232,7 +1232,6 @@ menu_item::Submenu noteEditorRootMenu{
         &noteVelocityMenu,
         &noteProbabilityMenu,
         &noteIteranceMenu,
-        &noteCustomIteranceRootMenu,
         &noteFillMenu,
     },
 };
@@ -1281,7 +1280,6 @@ menu_item::Submenu noteRowEditorRootMenu{
     {
         &noteRowProbabilityMenu,
         &noteRowIteranceMenu,
-        &noteRowCustomIteranceRootMenu,
         &noteRowFillMenu,
         &sequenceDirectionMenu,
     },
