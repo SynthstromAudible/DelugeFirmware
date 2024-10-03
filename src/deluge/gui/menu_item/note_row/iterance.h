@@ -32,7 +32,7 @@ class Iterance final : public SelectedNoteRow {
 public:
 	using SelectedNoteRow::SelectedNoteRow;
 
-	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterationPresets; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterationPresets + 1; }
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 
 	/// @brief Begin an editing session with this menu item.
@@ -55,7 +55,7 @@ public:
 
 	void selectEncoderAction(int32_t offset) final override {
 		int32_t newValue = instrumentClipView.setNoteRowIterance(offset);
-		if (newValue != -2) {
+		if (newValue != -1) {
 			int32_t preset = getIterancePresetFromValue(newValue);
 			this->setValue(preset);
 			updateDisplay();

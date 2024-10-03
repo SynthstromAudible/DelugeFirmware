@@ -2437,7 +2437,7 @@ void InstrumentClipView::adjustNoteProbability(int32_t offset) {
 }
 
 void InstrumentClipView::adjustNoteIterance(int32_t offset) {
-	adjustNoteParameterValue(offset, CORRESPONDING_NOTES_SET_ITERANCE, -1, kNumIterationPresets);
+	adjustNoteParameterValue(offset, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterationPresets + 1);
 }
 
 void InstrumentClipView::adjustNoteFill(int32_t offset) {
@@ -2476,7 +2476,7 @@ Note* InstrumentClipView::getLeftMostNotePressed() {
 void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
                                                   int32_t parameterMaxValue) {
 
-	int32_t parameterValue = -2;
+	int32_t parameterValue = -1;
 
 	bool prevBase = false; // only used by probability parameter for latching states
 
@@ -2589,7 +2589,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 						}
 						else {
 							// Default: Off
-							parameterValue = 0;
+							parameterValue = kDefaultIteranceValue;
 						}
 						editPadPresses[i].intendedIterance = parameterValue;
 					}
@@ -3212,7 +3212,7 @@ int32_t InstrumentClipView::setNoteRowProbability(int32_t offset) {
 }
 
 int32_t InstrumentClipView::setNoteRowIterance(int32_t offset) {
-	return setNoteRowParameterValue(offset, CORRESPONDING_NOTES_SET_ITERANCE, -1, kNumIterationPresets);
+	return setNoteRowParameterValue(offset, CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterationPresets + 1);
 }
 
 int32_t InstrumentClipView::setNoteRowFill(int32_t offset) {
@@ -3260,7 +3260,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t cha
 		    inNoteRowEditor ? ActionAddition::ALLOWED : ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED;
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, actionAddition);
 		if (!action) {
-			return -2;
+			return -1;
 		}
 
 		action->recordNoteArrayChangeIfNotAlreadySnapshotted((InstrumentClip*)modelStack->getTimelineCounter(),
@@ -3289,9 +3289,13 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t cha
 			if (parameterValue > 0 && parameterValue <= kNumIterationPresets) {
 				parameterValue = iterancePresets[parameterValue - 1];
 			}
+			else if (parameterValue == kCustomIterancePreset) {
+				// Reset custom iterance to 1of1
+				parameterValue = kCustomIteranceValue;
+			}
 			else {
-				// keep the original custom value or OFF (zero)
-				parameterValue = parameter & 32767;
+				// Default: Off
+				parameterValue = kDefaultIteranceValue;
 			}
 			noteRow->iteranceValue = parameterValue;
 		}

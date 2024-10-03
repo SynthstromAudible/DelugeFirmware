@@ -60,11 +60,6 @@ public:
 				iterance &= ~(1 << index);
 			}
 			leftMostNote->setIterance(iterance);
-			this->setValue((iterance & (1 << index)) != 0);
-
-			char buffer[20];
-			sprintf(buffer, "%x", iterance);
-			display->popupTextTemporary(buffer);
 		}
 	}
 

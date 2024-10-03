@@ -29,7 +29,7 @@ class Iterance final : public SelectedNote {
 public:
 	using SelectedNote::SelectedNote;
 
-	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterationPresets; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterationPresets + 1; }
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 
 	/// @brief Begin an editing session with this menu item.

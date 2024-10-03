@@ -94,8 +94,6 @@ public:
 				iterance &= ~(1 << index);
 			}
 			noteRow->iteranceValue = iterance;
-			this->setValue((iterance & (1 << index)) != 0);
-			updateDisplay();
 		}
 	}
 
