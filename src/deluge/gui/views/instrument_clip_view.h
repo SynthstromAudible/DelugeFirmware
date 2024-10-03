@@ -51,7 +51,7 @@ struct EditPadPress {
 	bool deleteOnDepress; // Can also mean to delete tail
 	uint8_t intendedVelocity;
 	uint8_t intendedProbability;
-	uint8_t intendedIterance;
+	uint16_t intendedIterance;
 	uint8_t intendedFill;
 	bool deleteOnScroll;
 	bool isBlurredSquare;

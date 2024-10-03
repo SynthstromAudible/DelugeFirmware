@@ -138,3 +138,5 @@ extern const uint8_t defaultClipGroupColours[];
 
 extern const uint8_t noteCodeToNoteLetter[];
 extern const bool noteCodeIsSharp[];
+
+extern const uint16_t iterancePresets[];

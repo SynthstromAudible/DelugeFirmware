@@ -74,7 +74,7 @@ struct PendingNoteOn {
 	int32_t ticksLate;
 	uint8_t probability;
 	uint8_t velocity;
-	uint8_t iterance;
+	uint16_t iterance;
 	uint8_t fill;
 };
 
@@ -144,7 +144,7 @@ public:
 	NoteVector notes;
 	// values for whole row
 	uint8_t probabilityValue;
-	uint8_t iteranceValue;
+	uint16_t iteranceValue;
 	uint8_t fillValue;
 	// These are deprecated, and only used during loading for compatibility with old song files
 	LearnedMIDI muteMIDICommand;

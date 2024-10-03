@@ -35,7 +35,7 @@ public:
 	int8_t velocity;
 	int8_t probability;
 	uint8_t lift;
-	int8_t iterance;
+	int16_t iterance;
 	int8_t fill;
 
 	ExistenceChangeType type;
