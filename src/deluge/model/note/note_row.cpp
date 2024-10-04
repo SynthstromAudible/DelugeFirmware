@@ -1962,7 +1962,9 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 			// Or if Note starts exactly on square...
 			else if (note && note->pos == squareStartPos) {
 				drewNote = true;
-				pixel = rowColour;
+				// this is just colour * (0.25 + 0.75 * velocity) but in fixed point, i.e. it'll go linearly from 0.25
+				// to max brightness with velocity
+				pixel = rowColour.adjustFractional((65 + note->velocity + (note->velocity / 2)) << 8, 255 << 8);
 				if (occupancyMask) {
 					occupancyMask[xDisplay] = 64;
 				}

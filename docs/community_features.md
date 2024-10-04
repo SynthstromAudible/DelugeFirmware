@@ -18,11 +18,19 @@ For more detailed version information, see the [changelog](https://github.com/Sy
 Reference the 'Community Features Menu' section at the end of this document to understand what each entry is and their
 7SEG abbreviations.
 
-## 2. File Compatibility Warning
+
 
 In general, we try to maintain file compatibility with the official firmware. However, **files (including songs,
 presets, etc.) that use community features may not ever load correctly on the official firmware again**. Make sure to
 back up your SD card!
+
+## 2. UI Changes from Official
+
+#### 2.1 Velocity Rendering
+- Note velocity is now displayed in clips using colour intensities. The note head (the bright part) 
+now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official, 
+at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
+
 
 ## 3. General Improvements
 
@@ -331,14 +339,14 @@ which track to record from. The source can also be selected by pressing a clip's
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.
 - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
-#### 3.29 Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode and Clip Name in Song Grid View
-- ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now open the `CLIP SETTINGS` menu.
+#### 3.29 Add Clip Settings Menu in Song View to set Clip Mode and Clip Name and convert Instrument Clips to Audio Clips
+- ([#2299]) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu.
 - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
   1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
+    - Note: for `SONG ROW VIEW`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.  
   2) `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
   3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
 - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
-- This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
 #### 3.30 UI Accessibility Defaults Menu
 - ([#2537]) Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes included:
@@ -398,8 +406,7 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.3 - Fill Clips and Once Clips
 
-- ([#196] and [#1018]) In Song View (Rows mode), holding a clip or the status pad (mute pad) for a clip and pressing `SELECT`
-  brings up a `CLIP MODE` menu. For Grid Mode, only holding a clip and pressing `SELECT` will bring up the `CLIP MODE` menu. 
+- ([#196] and [#1018]) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu. In this menu, you will find a submenu for `CLIP MODE`.
   
   The `CLIP MODE` menu enables you the set the following launch style options for a clip:
     - **`INFINITE (INF)`** - the default Deluge launch style.
