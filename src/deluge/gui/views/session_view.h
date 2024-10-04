@@ -132,7 +132,7 @@ public:
 
 	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
 	bool createClip{false};
-	OutputType lastTypeCreated{OutputType::AUDIO};
+	OutputType lastTypeCreated{OutputType::NONE};
 
 	// Grid macros config mode
 	void enterMacrosConfigMode();

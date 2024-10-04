@@ -3550,6 +3550,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 				else {
 					lastTypeCreated = toCreate;
 				}
+				createClip = false;
 			}
 		}
 		else {
@@ -3920,7 +3921,6 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 void SessionView::setupTrackCreation() const { // start clip creation, blink LED corresponding to last type created
-	context_menu::clip_settings::newClipType.toCreate = lastTypeCreated;
 	context_menu::clip_settings::newClipType.setupAndCheckAvailability();
 	openUI(&context_menu::clip_settings::newClipType);
 }
