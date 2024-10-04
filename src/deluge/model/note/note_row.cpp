@@ -3360,11 +3360,12 @@ doReadNoteData:
 				int32_t pos = hexToIntFixedLength(hexChars, 8);
 				int32_t length = hexToIntFixedLength(&hexChars[8], 8);
 				uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
-				uint8_t lift, probability, iterance, fill;
+				uint8_t lift, probability, fill;
+				uint16_t iterance;
 
 				if (noteHexLength == 28) { // if reading custom iterance and fill
 					fill = hexToIntFixedLength(&hexChars[26], 2);
-					iterance = sanitizeIterance(hexToIntFixedLength(&hexChars[22], 4));
+					iterance = hexToIntFixedLength(&hexChars[22], 4);
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
