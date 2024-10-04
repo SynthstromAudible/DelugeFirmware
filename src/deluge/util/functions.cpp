@@ -2040,14 +2040,10 @@ int32_t getIterancePresetFromValue(uint16_t value) {
 
 // This methods cleans the iterance value to be among the possible valid values,
 // just in case we get bad data from the XML file
-int32_t sanitizeIterance(int32_t iterance) {
-	int32_t sanitizedIterance = iterance & 32767;
-	uint8_t divisor = sanitizedIterance << 8;
+uint16_t sanitizeIterance(uint16_t iterance) {
+	uint16_t sanitizedIterance = iterance & 32767;
+	uint8_t divisor = sanitizedIterance >> 8;
 	if (divisor < 1 || divisor > 8) {
-		sanitizedIterance = kDefaultIteranceValue;
-	}
-	uint8_t iterationsWithinDivisor = sanitizedIterance & 0xFF;
-	if (iterationsWithinDivisor == 0) {
 		sanitizedIterance = kDefaultIteranceValue;
 	}
 	return sanitizedIterance;
