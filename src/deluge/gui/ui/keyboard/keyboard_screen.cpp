@@ -174,7 +174,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			if (getCurrentInstrumentClip()->inScaleMode) {
 				instrumentClipView.setupChangingOfRootNote(currentNotesState.notes[0].note);
 				requestRendering();
-				displayCurrentScaleName();
+				currentSong->displayCurrentRootNoteAndScaleName();
 			}
 			else {
 				enterScaleMode(currentNotesState.notes[0].note);
@@ -420,11 +420,13 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
 
+		bool inScaleMode = getCurrentInstrumentClip()->inScaleMode;
+
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 
 				// If user holding shift and we're already in scale mode, cycle through available scales
-				if (Buttons::isShiftButtonPressed() && getCurrentInstrumentClip()->inScaleMode) {
+				if (Buttons::isShiftButtonPressed() && inScaleMode) {
 					cycleThroughScales();
 					requestRendering();
 				}
@@ -433,6 +435,11 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 				else {
 					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
 					toggleScaleModeOnButtonRelease = true;
+					scaleButtonPressTime = AudioEngine::audioSampleTimer;
+					// if you're already in scale mode, display the current scale
+					if (inScaleMode) {
+						currentSong->displayCurrentRootNoteAndScaleName();
+					}
 					// if (!getCurrentInstrumentClip()->inScaleMode) {
 					// 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
 					// released the button 	flashDefaultRootNoteOn = false; 	flashDefaultRootNote();
@@ -441,23 +448,29 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 			}
 
 			// If user is auditioning just one note, we can go directly into Scale Mode and set that root note
-			else if (currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count == 1
-			         && !getCurrentInstrumentClip()->inScaleMode) {
+			else if (currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count == 1 && !inScaleMode) {
 				exitAuditionMode();
 				enterScaleMode(currentNotesState.notes[0].note);
 			}
 		}
 		else {
+			// Button release
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 				currentUIMode = UI_MODE_NONE;
-				if (getCurrentInstrumentClip()->inScaleMode) {
-					if (toggleScaleModeOnButtonRelease) {
-						exitScaleMode();
-					}
+			}
+
+			if (toggleScaleModeOnButtonRelease && isShortPress(scaleButtonPressTime)) {
+				toggleScaleModeOnButtonRelease = false;
+				if (inScaleMode) {
+					display->cancelPopup();
+					exitScaleMode();
 				}
 				else {
 					enterScaleMode();
 				}
+			}
+			else if (inScaleMode && display->have7SEG()) {
+				displayCurrentScaleName();
 			}
 		}
 	}
@@ -869,7 +882,12 @@ void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
 
 	getCurrentInstrumentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(selectedRootNote);
 
-	displayCurrentScaleName();
+	if (display->haveOLED()) {
+		currentSong->displayCurrentRootNoteAndScaleName();
+	}
+	else {
+		displayCurrentScaleName();
+	}
 
 	evaluateActiveNotes();
 	updateActiveNotes();
