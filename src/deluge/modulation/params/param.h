@@ -338,4 +338,5 @@ const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID}};
 // clang-format on
 
+uint32_t expressionParamFromShortcut(int x, int y);
 } // namespace deluge::modulation::params

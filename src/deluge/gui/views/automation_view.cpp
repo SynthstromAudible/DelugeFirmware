@@ -88,6 +88,7 @@
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
 #include "util/cfunctions.h"
+#include "util/comparison.h"
 #include "util/functions.h"
 #include <new>
 #include <string.h>
@@ -763,7 +764,8 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
                                               OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
                                               uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
                                               bool isMIDICVDrum) {
-
+	bool singleSoundDrum = (outputType == OutputType::KIT && !getAffectEntire()) && !isMIDICVDrum;
+	bool affectEntireKit = (outputType == OutputType::KIT && getAffectEntire());
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 
 		RGB& pixel = image[yDisplay][xDisplay];
@@ -771,12 +773,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 		if (!isMIDICVDrum) {
 			ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
-			if (!onArrangerView
-			    && ((outputType == OutputType::SYNTH || (outputType == OutputType::KIT && !getAffectEntire()))
-			        && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-			            || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-			            || params::isPatchCableShortcut(xDisplay, yDisplay)))) {
-
+			if (!onArrangerView && (outputType == OutputType::SYNTH || singleSoundDrum)) {
 				if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
 					modelStackWithParam =
 					    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
@@ -803,30 +800,49 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 					modelStackWithParam = getModelStackWithParamForClip(
 					    modelStackWithTimelineCounter, clip, paramDescriptor.data, params::Kind::PATCH_CABLE);
 				}
-			}
-
-			else if ((onArrangerView || (outputType == OutputType::AUDIO)
-			          || (outputType == OutputType::KIT && getAffectEntire()))
-			         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
-				int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
-				if (onArrangerView) {
-					// don't make pitch adjust or sidechain available for automation in arranger
-					if ((paramID == params::UNPATCHED_PITCH_ADJUST) || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
-					    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
-						pixel = colours::black; // erase pad
-						continue;
+				// expression params, so sounds or midi/cv, or a single drum
+				else if (params::expressionParamFromShortcut(xDisplay, yDisplay) != kNoParamID) {
+					uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
+					if (paramID != kNoParamID) {
+						modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+						                                                    paramID, params::Kind::EXPRESSION);
 					}
-					modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
-				}
-				else {
-					modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
 				}
 			}
 
-			else if (outputType == OutputType::MIDI_OUT
-			         && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
-				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
-				                                                    midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+			else if ((onArrangerView || (outputType == OutputType::AUDIO) || affectEntireKit)) {
+				int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
+				if (paramID != kNoParamID) {
+					if (onArrangerView) {
+						// don't make pitch adjust or sidechain available for automation in arranger
+						if ((paramID == params::UNPATCHED_PITCH_ADJUST)
+						    || (paramID == params::UNPATCHED_SIDECHAIN_SHAPE)
+						    || (paramID == params::UNPATCHED_SIDECHAIN_VOLUME)) {
+							pixel = colours::black; // erase pad
+							continue;
+						}
+						modelStackWithParam =
+						    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, paramID);
+					}
+					else {
+						modelStackWithParam =
+						    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID);
+					}
+				}
+			}
+
+			else if (outputType == OutputType::MIDI_OUT) {
+				if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+					modelStackWithParam = getModelStackWithParamForClip(
+					    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+				}
+			}
+			else if (outputType == OutputType::CV) {
+				uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
+				if (paramID != kNoParamID) {
+					modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, paramID,
+					                                                    params::Kind::EXPRESSION);
+				}
 			}
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
@@ -2560,6 +2576,15 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 
 		// if you are in a midi clip and the shortcut is valid, set the current selected ParamID
 		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
+	}
+	// expression params, so sounds or midi/cv, or a single drum
+	else if (util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
+	         // selected a single sound drum
+	         || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
+	              && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))) {
+		uint32_t paramID = deluge::modulation::params::expressionParamFromShortcut(xDisplay, yDisplay);
+		clip->lastSelectedParamID = paramID;
+		clip->lastSelectedParamKind = params::Kind::EXPRESSION;
 	}
 
 	else {

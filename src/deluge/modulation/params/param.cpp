@@ -609,6 +609,18 @@ constexpr ParamType fileStringToParamConst(Kind kind, char const* name, bool all
 ParamType fileStringToParam(Kind kind, char const* name, bool allowPatched) {
 	return fileStringToParamConst(kind, name, allowPatched);
 }
+uint32_t expressionParamFromShortcut(int x, int y) {
+	if (x == 14 && y == 7) {
+		return X_PITCH_BEND;
+	}
+	else if (x == 15 && y == 0) {
+		return Z_PRESSURE;
+	}
+	else if (x == 15 && y == 7) {
+		return Y_SLIDE_TIMBRE;
+	}
+	return kNoParamID;
+}
 
 constexpr bool validateParams() {
 	bool m = true;
