@@ -201,6 +201,7 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	}
 	else {
 		R_RSPI_SendBasic32(SPI_CHANNEL_CV, output);
+		cvOutPending = false;
 	}
 }
 
