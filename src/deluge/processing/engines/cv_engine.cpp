@@ -196,7 +196,8 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	uint32_t output = (uint32_t)(0b00110000 | (1 << channel)) << 24;
 	output |= (uint32_t)voltage << 8;
-	if (display->haveOLED()) {
+	// if we have a physical oled then we need to send via the pic
+	if (deluge::hid::display::have_oled_screen) {
 		enqueueCVMessage(channel, output);
 	}
 	else {
