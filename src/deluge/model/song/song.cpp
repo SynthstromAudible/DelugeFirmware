@@ -4782,7 +4782,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 	// MIDI / CV
 	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
 
-		int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : NUM_CV_CHANNELS;
+		int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : kNumCVInstrumentChannels;
 
 		while (true) {
 
@@ -5070,7 +5070,7 @@ void Song::getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const*
 Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
                                                   int16_t newSlot, int8_t newSubSlot,
                                                   bool* instrumentWasAlreadyInSong) {
-	int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : NUM_CV_CHANNELS;
+	int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : kNumCVInstrumentChannels;
 	Instrument* newInstrument;
 	int32_t oldSlot = newSlot;
 

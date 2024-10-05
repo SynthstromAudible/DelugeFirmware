@@ -26,7 +26,8 @@ class ModelStackWithSoundFlags;
 
 enum class CVMode : uint8_t { off, pitch, mod, aftertouch, velocity };
 enum class GateMode : uint8_t { off, gate, trigger };
-enum class CVInstrumentMode : uint8_t { one, two, both };
+enum CVInstrumentMode { one, two, both };
+constexpr int32_t kNumCVInstrumentChannels = both + 1;
 
 class CVInstrument final : public NonAudioInstrument {
 public:
@@ -40,9 +41,9 @@ public:
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupWithoutActiveClip(ModelStack* modelStack);
 	static int32_t navigateChannels(int oldChannel, int offset) {
-		auto newChannel = (oldChannel + offset) % NUM_CV_CHANNELS;
+		auto newChannel = (oldChannel + offset) % kNumCVInstrumentChannels;
 		if (newChannel == -1) {
-			newChannel = NUM_CV_CHANNELS - 1;
+			newChannel = kNumCVInstrumentChannels - 1;
 		}
 		return newChannel;
 	}

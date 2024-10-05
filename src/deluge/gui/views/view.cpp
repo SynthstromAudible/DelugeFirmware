@@ -2054,13 +2054,23 @@ yesAlignRight:
 	}
 	else if (outputType == OutputType::CV) {
 		if (display->haveOLED()) {
-			intToString(channel + 1, buffer);
+			if (channel < both) {
+				intToString(channel + 1, buffer);
+			}
+			else {
+				sprintf(buffer, "1 and 2");
+			}
 oledOutputBuffer:
 			nameToDraw = buffer;
 			goto oledDrawString;
 		}
 		else {
-			display->setTextAsNumber(channel + 1, 255, doBlink);
+			if (channel < both) {
+				display->setTextAsNumber(channel + 1, 255, doBlink);
+			}
+			else {
+				display->setText("Both");
+			}
 		}
 	}
 }

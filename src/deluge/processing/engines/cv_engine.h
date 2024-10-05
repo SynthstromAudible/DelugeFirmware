@@ -83,7 +83,7 @@ public:
 	bool isAnythingPending() const { return isGatePending() || isClockPending() || isRunPending(); }
 	GateChannel gateChannels[NUM_GATE_CHANNELS];
 
-	CVChannel cvChannels[NUM_CV_CHANNELS];
+	CVChannel cvChannels[NUM_PHYSICAL_CV_CHANNELS];
 
 	uint8_t minGateOffTime; // in 100uS's
 
