@@ -54,7 +54,7 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		// not relevant for cv
 		const auto type = getCurrentOutputType();
-		return (type == OutputType::CV);
+		return (type == OutputType::CV && ((CVInstrument*)getCurrentOutput())->getChannel() == both);
 	}
 	//	MenuItem* selectButtonPress() override {
 	//		return Selection::selectButtonPress();
