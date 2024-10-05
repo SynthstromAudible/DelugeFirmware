@@ -1319,10 +1319,9 @@ Error Song::readFromFile(Deserializer& reader) {
 
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
-	// reverb mode
-	if (song_firmware_version < FirmwareVersion::official({4, 1, 4})) {
-		AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
-	}
+	// reverb mode is freeverb for songs that predate having multiple options. New songs will set it to mutable anyway
+	// so this is only used as a fallback
+	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
 
 	if (!reader.match('{'))
 		return Error::FILE_CORRUPTED;
