@@ -198,7 +198,10 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
-		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
+		bool isGridView = currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid;
+		if (on
+		    && ((currentUIMode == UI_MODE_NONE) || (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && isGridView))
+		    && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
