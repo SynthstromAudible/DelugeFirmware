@@ -261,6 +261,7 @@ public:
 	int32_t setNoteRowFill(int32_t offset);
 	int32_t setNoteRowParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
 	                                 int32_t parameterMaxValue);
+	void setNoteRowCustomIterance(NoteRow* noteRow, int32_t iterance);
 
 	// other note row functions
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);

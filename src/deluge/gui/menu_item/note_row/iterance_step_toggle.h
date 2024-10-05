@@ -95,7 +95,7 @@ public:
 			else {
 				iterance &= ~(1 << index);
 			}
-			noteRow->iteranceValue = iterance;
+			instrumentClipView.setNoteRowCustomIterance(noteRow, iterance);
 		}
 	}
 

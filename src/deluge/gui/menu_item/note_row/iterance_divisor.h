@@ -73,7 +73,7 @@ public:
 			int32_t divisor = val << 8;
 			// Wipe the bits whose index is greater than the current divisor value
 			int32_t newIterance = ((iterance & 0xFF) & mask) | divisor;
-			noteRow->iteranceValue = newIterance;
+			instrumentClipView.setNoteRowCustomIterance(noteRow, newIterance);
 		}
 	}
 };

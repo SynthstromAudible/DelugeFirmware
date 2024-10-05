@@ -3328,6 +3328,33 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t cha
 	return parameterValue;
 }
 
+// This method mimics the behavior of InstrumentClipView::setNoteRowIterance
+// but it is aimed to just update a custom iterance value and have it applied
+// to all notes of the noteRow
+void InstrumentClipView::setNoteRowCustomIterance(NoteRow* noteRow, int32_t iterance) {
+	if (!noteRow) {
+		return; // Get out if NoteRow doesn't exist
+	}
+	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+	if (!inNoteRowEditor) {
+		return;
+	}
+	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+	if (!action) {
+		return;
+	}
+
+	// Update the value
+	noteRow->iteranceValue = iterance;
+
+	// Change all notes from the row
+	uint32_t numNotes = noteRow->notes.getNumElements();
+	for (int i = 0; i < numNotes; i++) {
+		Note* note = noteRow->notes.getElement(i);
+		note->setIterance(iterance);
+	}
+}
+
 void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
