@@ -2131,7 +2131,7 @@ skipInstance:
 		if (thisOutput->type == OutputType::AUDIO) {
 			auto ao = (AudioOutput*)thisOutput;
 			if (ao->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
-				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex), ao->echoing);
+				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex));
 			}
 		}
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
@@ -2406,8 +2406,10 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
+	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
+	// don't need to
 	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
-	                                              delayWorkingState);
+	                                              delayWorkingState, true);
 
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
@@ -3366,7 +3368,7 @@ traverseClips:
 	// Put the newInstrument into the master list
 	*prevPointer = newOutput;
 	if (outputRecordingOldOutput) {
-		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput, true);
+		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput);
 	}
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
@@ -4975,7 +4977,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 		return NULL;
 	}
 
-	AudioOutput* newOutput = new (outputMemory) AudioOutput();
+	auto* newOutput = new (outputMemory) AudioOutput();
 	newOutput->name.set(&newName);
 
 	// Set input channel to previously used one. If none selected, see what's in Song

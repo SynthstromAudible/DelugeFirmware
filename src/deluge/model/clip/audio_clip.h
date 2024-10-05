@@ -62,10 +62,7 @@ public:
 
 	// we can only do in place overdubs if input monitoring is on right now, recording input seperately might come later
 	// if we're in rows mode then use the old cloning method instead
-	bool shouldCloneForOverdubs() override {
-		return currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows
-		       || !(((AudioOutput*)output)->echoing);
-	};
+	bool shouldCloneForOverdubs() override { return ((AudioOutput*)output)->mode != AudioOutputMode::looper; };
 	Clip* cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) override;
 	int64_t getSamplesFromTicks(int32_t ticks);
 	void unassignVoiceSample(bool wontBeUsedAgain);

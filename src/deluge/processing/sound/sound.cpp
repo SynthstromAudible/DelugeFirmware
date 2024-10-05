@@ -371,19 +371,10 @@ bool Sound::setModFXType(ModFXType newType) {
 				return false;
 			}
 		}
-		if (modFXGrainBuffer) {
-			delugeDealloc(modFXGrainBuffer);
-			modFXGrainBuffer = NULL;
-		}
+		disableGrain();
 	}
 	else if (newType == ModFXType::GRAIN) {
-		if (!modFXGrainBuffer) {
-			modFXGrainBuffer = (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXGrainBufferSize
-			                                                                              * sizeof(StereoSample));
-			if (!modFXGrainBuffer) {
-				return false;
-			}
-		}
+		enableGrain();
 		if (modFXBuffer) {
 			delugeDealloc(modFXBuffer);
 			modFXBuffer = NULL;
@@ -394,10 +385,7 @@ bool Sound::setModFXType(ModFXType newType) {
 			delugeDealloc(modFXBuffer);
 			modFXBuffer = NULL;
 		}
-		if (modFXGrainBuffer) {
-			delugeDealloc(modFXGrainBuffer);
-			modFXGrainBuffer = NULL;
-		}
+		disableGrain();
 	}
 
 	modFXType = newType;
@@ -2052,7 +2040,7 @@ doCutModFXTail:
 						waitSamplesModfx = 20 * 44;
 						break;
 					case ModFXType::GRAIN:
-						waitSamplesModfx = 350 * 441;
+						waitSamplesModfx = grainFX->getSamplesToShutdown();
 						break;
 					default:
 						waitSamplesModfx = (90 * 441);
@@ -2435,7 +2423,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 	processSRRAndBitcrushing((StereoSample*)soundBuffer, numSamples, &postFXVolume, paramManager);
 	processFX((StereoSample*)soundBuffer, numSamples, modFXType, modFXRate, modFXDepth, delayWorkingState,
-	          &postFXVolume, paramManager);
+	          &postFXVolume, paramManager, numVoicesAssigned != 0);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
 	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume, postReverbVolume,
@@ -2488,7 +2476,7 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	// reversible without doing anything
 
 	setSkippingRendering(true);
-
+	grainFX->startSkippingRendering();
 	stopParamLPF(modelStack);
 }
 

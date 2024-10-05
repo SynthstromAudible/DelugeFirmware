@@ -18,11 +18,19 @@ For more detailed version information, see the [changelog](https://github.com/Sy
 Reference the 'Community Features Menu' section at the end of this document to understand what each entry is and their
 7SEG abbreviations.
 
-## 2. File Compatibility Warning
+
 
 In general, we try to maintain file compatibility with the official firmware. However, **files (including songs,
 presets, etc.) that use community features may not ever load correctly on the official firmware again**. Make sure to
 back up your SD card!
+
+## 2. UI Changes from Official
+
+#### 2.1 Velocity Rendering
+- Note velocity is now displayed in clips using colour intensities. The note head (the bright part) 
+now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official, 
+at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
+
 
 ## 3. General Improvements
 
@@ -254,11 +262,19 @@ as the micromonsta and the dreadbox nymphes.
 - ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
   - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 
-#### 3.18 - Select Audio Clip Source from Audio Clip Menu
+
+#### 3.18 - Select Audio Clip Source and Monitoring
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
 - ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose 
-which track to record from. To run the instrument through the audio clip's FX choose the FX PROCESSING option
+which track to record from. The source can also be selected by pressing a clip's pad while in the audio source selection menu. 
+- ([#2702]) Monitoring is now set by the audio output mode. This is done by turning the select encoder
+
+    - Player: Monitoring is off, overdubs work by cloning. This is intended to be used for playing a static audio file or recording without monitoring.
+
+    - Sampler: Monitoring is on, monitoring turns off after recording, overdubs work by cloning. This is intended to be used for sampling from an ongoing audio stream where you only want to hear the part you're looping afterwards
+
+    - Looper: Monitoring is on and remains on. Overdubs do a real overdub in place. This is intended for live looping or use as an fx processor
 
 #### 3.19 - Set Audio Clip Length Equal to Sample Length
 - ([#1542]) Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed. 
@@ -323,14 +339,14 @@ which track to record from. To run the instrument through the audio clip's FX ch
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.
 - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
-#### 3.29 Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode and Clip Name in Song Grid View
-- ([#2299]) `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now open the `CLIP SETTINGS` menu.
+#### 3.29 Add Clip Settings Menu in Song View to set Clip Mode and Clip Name and convert Instrument Clips to Audio Clips
+- ([#2299]) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu.
 - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
   1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
+    - Note: for `SONG ROW VIEW`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.  
   2) `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
   3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
 - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
-- This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
 #### 3.30 UI Accessibility Defaults Menu
 - ([#2537]) Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes included:
@@ -390,8 +406,7 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.3 - Fill Clips and Once Clips
 
-- ([#196] and [#1018]) In Song View (Rows mode), holding a clip or the status pad (mute pad) for a clip and pressing `SELECT`
-  brings up a `CLIP MODE` menu. For Grid Mode, only holding a clip and pressing `SELECT` will bring up the `CLIP MODE` menu. 
+- ([#196] and [#1018]) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu. In this menu, you will find a submenu for `CLIP MODE`.
   
   The `CLIP MODE` menu enables you the set the following launch style options for a clip:
     - **`INFINITE (INF)`** - the default Deluge launch style.
@@ -1044,7 +1059,7 @@ to each individual note onset. ([#1978])
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature
   documentation: [Chord Keyboard Documentation]
 
-- ([#2475]) Enables `CHORD` keyboard, out of scale view with two modes, `ROW`, with chords spread out on each row across the pads, and `COLUMN`, where each column is a series a harmonically similar chords that can often sound nice substited for each other. After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press `SELECT` + `KEYBOARD` to cycle through layouts to find the `CHORD` keyboard layout.
+- ([#2475]) Enables `CHORD` keyboard, out of scale view with two modes, Column mode (providing in-scale harmonically similar chords for substitutions) and Row Mode (based largely on the Launchpad Pro's chord mode that spreads notes out on a row to allow users to build and play interesting chords across the rows). After enabling the `Chord Keyboards (CHRD)` community feature (see the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information), the `CHORD` keyboard is accessible the same way as other instrument supporting keyboards. While on `SYNTH`, `MIDI`, or `CV`, press `KEYBOARD` to enter into a `KEYBOARD` view, and then press and hold `KEYBOARD` + turn `SELECT` to cycle through layouts to find the `CHORD` keyboard layout.
 
 - As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
 
@@ -1539,6 +1554,8 @@ different firmware
 
 [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
 
+[#2702]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2702
+
 [#2537]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2537
 
 [#2615]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2615
@@ -1552,6 +1569,7 @@ different firmware
 [#2712]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2712
 
 [#2716]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2716
+
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

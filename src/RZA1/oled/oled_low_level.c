@@ -26,6 +26,7 @@
 #include "RZA1/uart/sio_char.h"
 #include "deluge/drivers/dmac/dmac.h"
 #include "deluge/drivers/rspi/rspi.h"
+#include "deluge/processing/engines/cv_engine_c_interface.h"
 #include "deluge/util/cfunctions.h"
 
 #define OLED_CODE_FOR_CV 1
@@ -134,6 +135,7 @@ void sendSPITransferFromQueue()
     else
     {
         sendCVTransfer();
+        cvSent();
     }
 }
 

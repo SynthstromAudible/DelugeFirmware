@@ -48,7 +48,7 @@ public:
 		outputIndex += offset;
 		outputIndex = std::clamp<int32_t>(outputIndex, 0, numOutputs - 1);
 		auto newRecordingFrom = currentSong->getOutputFromIndex(outputIndex);
-		audioOutputBeingEdited->setOutputRecordingFrom(newRecordingFrom, audioOutputBeingEdited->echoing);
+		audioOutputBeingEdited->setOutputRecordingFrom(newRecordingFrom);
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}

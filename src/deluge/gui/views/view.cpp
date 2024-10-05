@@ -22,7 +22,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/context_menu/clear_song.h"
-#include "gui/context_menu/clip_settings/launch_style.h"
+#include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -1847,7 +1847,7 @@ char const* View::getReverbPresetDisplayName(int32_t preset) {
 }
 
 void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
-	int32_t channel, channelSuffix;
+	int32_t channel{0}, channelSuffix{0};
 	bool editedByUser = true;
 	if (output->type != OutputType::AUDIO) {
 		Instrument* instrument = (Instrument*)output;
@@ -1861,6 +1861,9 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 			channel = ((NonAudioInstrument*)instrument)->channel;
 			break;
 		}
+	}
+	else {
+		channel = static_cast<int32_t>(((AudioOutput*)output)->mode);
 	}
 
 	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), output->name.isEmpty(),
@@ -2590,7 +2593,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
-			context_menu::clip_settings::launchStyle.clip = clip;
+			context_menu::clip_settings::clipSettings.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}

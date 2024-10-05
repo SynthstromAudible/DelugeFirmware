@@ -30,7 +30,16 @@
     - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
     - NOTE for `SONG ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
 
+#### <ins>Audio Clips</ins>
+- Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on 
+when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
+
 #### <ins>Instrument Clip View</ins>
+
+##### Pad Rendering
+- Note velocity is now displayed in clips using colour intensities. The note head (the bright part) 
+now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official, 
+at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
 
 ##### Scale Mode
 - If scale mode is active, you can now check the current root note and scale by long pressing the scale button. On 7SEG it will display the root note on press and scale on release.
@@ -143,9 +152,20 @@
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 
-#### <ins> Song Macros</ins>
+#### <ins>Song View</ins>
+
+##### Song Macros
 - Added ability to create song macros to quickly switch playing clips from inside clip view without needing to go into song view.
 - From song view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros
+
+##### Clip Settings Menu
+- Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu.
+- If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
+  1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
+    - Note: for `SONG ROW VIEW`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.
+  2) `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
+  3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
+- If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
 
 #### <ins>Song Grid View</ins>
 
@@ -162,15 +182,10 @@
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.  
     - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
-##### Clip Settings Menu    
-- Updated UI for Converting Empty Instrument Clip to Audio Clip, Setting Clip Mode and Clip Name in Song Grid View
-  - `HOLDING PAD FOR THE CLIP` + `PRESSING SELECT` in `SONG GRID VIEW` will now open the `CLIP SETTINGS` menu.
-    - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
-      1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
-      2) `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
-      3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
-    - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
-    - This change only applies to `SONG GRID VIEW` and NOT `SONG ROW VIEW` 
+##### Converting Empty Instrument Clips to Audio Clips
+- To convert an empty Instrument Clip to an Audio Clip, you will now use the `CLIP SETTINGS` menu described above. 
+
+##### Loop and Layering Loop Pads
 - Added community feature toggle `Grid View Loop Pads (LOOP)` to illuminate two pads (Red and Magenta) in the `GRID VIEW` sidebar for triggering the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
 
 ##### Entering Performance View
