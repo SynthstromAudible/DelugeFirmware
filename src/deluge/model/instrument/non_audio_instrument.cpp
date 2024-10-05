@@ -94,6 +94,9 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 			noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, velocity);
 		}
+		if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE && type == OutputType::CV) {
+			noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+		}
 	}
 }
 

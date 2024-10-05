@@ -63,6 +63,16 @@ public:
 	int32_t polyPitchBendValue;
 
 	char const* getXMLTag() { return "cvChannel"; }
+	void setChannel(int channel) override {
+		if (channel <= both) {
+			NonAudioInstrument::setChannel(channel);
+			setMode(static_cast<CVInstrumentMode>(channel));
+		}
+		else {
+			NonAudioInstrument::setChannel(0);
+			setMode(static_cast<CVInstrumentMode>(0));
+		}
+	}
 
 private:
 	void updatePitchBendOutput(bool outputToo = true);
@@ -101,4 +111,5 @@ private:
 	}
 	GateMode gateMode[2]{GateMode::off, GateMode::off};
 	CVMode cvmode[2]{CVMode::off, CVMode::off};
+	void sendMonophonicExpressionEvent(int32_t dimension);
 };

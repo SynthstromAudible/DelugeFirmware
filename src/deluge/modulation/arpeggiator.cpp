@@ -260,9 +260,9 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 
 		ArpNote* arpNote = (ArpNote*)notes.getElementAddress(notesKey);
 		if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCodePreArp) {
-
+			bool arpOff = (settings == nullptr) || settings->mode == ArpMode::OFF;
 			// If no arpeggiation...
-			if ((settings == nullptr) || settings->mode == ArpMode::OFF) {
+			if (arpOff) {
 				instruction->noteCodeOffPostArp = noteCodePreArp;
 				instruction->outputMIDIChannelOff = arpNote->outputMemberChannel;
 			}
@@ -280,10 +280,19 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 
 			notes.deleteAtIndex(notesKey);
 			// We must also search and delete from notesAsPlayed
-			for (int32_t i = 0; i < notesAsPlayed.getNumElements(); i++) {
+			int numNotes = notesAsPlayed.getNumElements();
+			for (int32_t i = 0; i < numNotes; i++) {
 				ArpNote* arpNote = (ArpNote*)notesAsPlayed.getElementAddress(i);
 				if (arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] == noteCodePreArp) {
 					notesAsPlayed.deleteAtIndex(i);
+					if (arpOff && i == numNotes - 1 && i > 0) {
+						// if we're not arpeggiating then pass the second last note back - cv instruments will snap back
+						// to it (like playing a normal mono synth)
+						ArpNote* newArpNote = (ArpNote*)notesAsPlayed.getElementAddress(i - 1);
+						instruction->noteCodeOnPostArp =
+						    newArpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
+						instruction->arpNoteOn = newArpNote;
+					}
 					break;
 				}
 			}

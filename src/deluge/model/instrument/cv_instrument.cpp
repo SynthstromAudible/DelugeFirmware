@@ -34,18 +34,27 @@ void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	updatePitchBendOutput(false);
 
 	cvEngine.sendNote(true, getPitchChannel(), noteCodePostArp);
+	if (cvmode[1] == CVMode::velocity) {
+		cvEngine.sendVoltageOut(1, arpNote->velocity << 8);
+	}
 }
 
 void CVInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) {
+
 	cvEngine.sendNote(false, getPitchChannel(), noteCodePostArp);
 }
 
 void CVInstrument::polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
                                                             int32_t whichExpressionDimension, ArpNote* arpNote) {
-	if (!whichExpressionDimension) { // Pitch bend only
-		if (cvEngine.isNoteOn(getPitchChannel(), noteCodeAfterArpeggiation)) {
+	if (cvEngine.isNoteOn(getPitchChannel(), noteCodeAfterArpeggiation)) {
+		if (!whichExpressionDimension) { // Pitch bend only, handles different polyphonic vs mpe pitch scales
 			polyPitchBendValue = newValue;
 			updatePitchBendOutput();
+		}
+		else {
+			// send the combined mono and poly expression
+			lastCombinedPolyExpression[whichExpressionDimension] = newValue;
+			sendMonophonicExpressionEvent(whichExpressionDimension);
 		}
 	}
 }
@@ -54,6 +63,10 @@ void CVInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpr
 	if (!whichExpressionDimension) { // Pitch bend only
 		monophonicPitchBendValue = newValue;
 		updatePitchBendOutput();
+	}
+	else {
+		lastMonoExpression[whichExpressionDimension] = newValue;
+		sendMonophonicExpressionEvent(whichExpressionDimension);
 	}
 }
 
@@ -128,4 +141,26 @@ void CVInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	NonAudioInstrument::setupWithoutActiveClip(modelStack);
 
 	monophonicPitchBendValue = 0;
+}
+void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
+	int32_t newValue = add_saturation(lastCombinedPolyExpression[dimension], lastMonoExpression[dimension]) >> 16;
+	switch (cvmode[1]) {
+
+	case CVMode::off:
+		break;
+	case CVMode::pitch:
+		break;
+	case CVMode::mod:
+		if (dimension == Expression::Y_SLIDE_TIMBRE) {
+			cvEngine.sendVoltageOut(1, newValue);
+		}
+		break;
+	case CVMode::aftertouch:
+		if (dimension == Expression::Z_PRESSURE) {
+			cvEngine.sendVoltageOut(1, newValue);
+		}
+		break;
+	case CVMode::velocity:
+		break;
+	}
 }
