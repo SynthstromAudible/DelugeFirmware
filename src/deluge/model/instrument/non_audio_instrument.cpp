@@ -238,7 +238,7 @@ bool NonAudioInstrument::readTagFromFile(Deserializer& reader, char const* tagNa
 	char const* slotXMLTag = getSlotXMLTag();
 
 	if (!strcmp(tagName, slotXMLTag)) {
-		channel = reader.readTagOrAttributeValueInt();
+		setChannel(reader.readTagOrAttributeValueInt());
 	}
 
 	else {

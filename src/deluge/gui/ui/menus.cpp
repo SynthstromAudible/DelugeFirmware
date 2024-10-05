@@ -27,6 +27,7 @@
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
+#include "gui/menu_item/cv/cv2mapping.h"
 #include "gui/menu_item/cv/selection.h"
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/cv/transpose.h"
@@ -446,6 +447,7 @@ midi::Bank midiBankMenu{STRING_FOR_BANK, STRING_FOR_MIDI_BANK};
 midi::Sub midiSubMenu{STRING_FOR_SUB_BANK, STRING_FOR_MIDI_SUB_BANK};
 midi::PGM midiPGMMenu{STRING_FOR_PGM, STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE};
 midi::MPEYToModWheel mpeyToModWheelMenu{STRING_FOR_Y_AXIS_CONVERSION, STRING_FOR_Y_AXIS_CONVERSION};
+cv::DualCVSelection cv2SourceMenu{STRING_FOR_CV2_SOURCE};
 midi::AftertouchToMono midiAftertouchCollapseMenu{STRING_FOR_PATCH_SOURCE_AFTERTOUCH,
                                                   STRING_FOR_PATCH_SOURCE_AFTERTOUCH};
 midi::MPEToMono midiMPECollapseMenu{STRING_FOR_MPE, STRING_FOR_MPE};
@@ -1222,6 +1224,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &midiSubMenu,
         &arpMenu,
         &bendMenu,
+        &cv2SourceMenu,
         &mpeyToModWheelMenu,
         &midiMPEMenu,
         &sequenceDirectionMenu,

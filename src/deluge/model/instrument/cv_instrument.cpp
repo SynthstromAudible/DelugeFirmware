@@ -97,13 +97,28 @@ bool CVInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutput
 	// NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below
 	// call
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
-
+	writer.writeAttribute("cv2Source", static_cast<int32_t>(cvmode[1]));
 	if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
 		return false; // If we don't need to write a "device" tag, opt not to end the opening tag
 	}
 
 	writer.writeOpeningTagEnd();
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
+	return true;
+}
+bool CVInstrument::readTagFromFile(Deserializer& reader, char const* tagName) {
+
+	if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
+		return true;
+	}
+	else if (!strcmp(tagName, "cv2Source")) {
+		cvmode[1] = static_cast<CVMode>(reader.readTagOrAttributeValueInt());
+	}
+	else {
+		return false;
+	}
+
+	reader.exitTag();
 	return true;
 }
 
@@ -152,7 +167,7 @@ void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
 		break;
 	case CVMode::mod:
 		if (dimension == Expression::Y_SLIDE_TIMBRE) {
-			cvEngine.sendVoltageOut(1, newValue);
+			cvEngine.sendVoltageOut(1, std::max<int32_t>(newValue, 0));
 		}
 		break;
 	case CVMode::aftertouch:
@@ -163,4 +178,7 @@ void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
 	case CVMode::velocity:
 		break;
 	}
+}
+void CVInstrument::setCV2Mode(CVMode mode) {
+	cvmode[1] = mode;
 }

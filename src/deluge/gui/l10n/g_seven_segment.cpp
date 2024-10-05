@@ -95,6 +95,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_CV_OUTPUT_N, "OUT*"},
         {STRING_FOR_CV_OUTPUT_1, "OUT1"},
         {STRING_FOR_CV_OUTPUT_2, "OUT2"},
+        {STRING_FOR_CV2_SOURCE, "CV2"},
         {STRING_FOR_DIGITAL, "DIGI"},
         {STRING_FOR_ANALOG, "ANA"},
         {STRING_FOR_DRIVE, "Drive"},

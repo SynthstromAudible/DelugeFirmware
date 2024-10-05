@@ -2984,8 +2984,7 @@ doReadBendRange:
 				// No break
 
 			case OutputType::CV:
-				((NonAudioInstrument*)output)
-				    ->setChannel(std::clamp<int32_t>(instrumentPresetSlot, 0, kNumInstrumentSlots));
+				((CVInstrument*)output)->setChannel(std::clamp<int32_t>(instrumentPresetSlot, 0, kNumInstrumentSlots));
 				break;
 
 			case OutputType::SYNTH:

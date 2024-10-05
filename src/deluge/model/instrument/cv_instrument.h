@@ -37,6 +37,7 @@ public:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
 	                                              int32_t whichExpressionDmiension, ArpNote* arpNote);
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
+	bool readTagFromFile(Deserializer& reader, const char* tagName) override;
 	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDmiension);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupWithoutActiveClip(ModelStack* modelStack);
@@ -73,6 +74,9 @@ public:
 			setMode(static_cast<CVInstrumentMode>(0));
 		}
 	}
+	CVMode getCV2Mode() { return cvmode[1]; }
+
+	void setCV2Mode(CVMode mode);
 
 private:
 	void updatePitchBendOutput(bool outputToo = true);
@@ -99,7 +103,9 @@ private:
 			gateMode[0] = GateMode::gate;
 			gateMode[1] = GateMode::trigger;
 			cvmode[0] = CVMode::pitch;
-			cvmode[1] = CVMode::aftertouch;
+			if (cvmode[1] == CVMode::off) {
+				cvmode[1] = CVMode::aftertouch;
+			}
 		}
 		}
 	}
@@ -109,6 +115,7 @@ private:
 		cvmode[0] = CVMode::off;
 		cvmode[1] = CVMode::off;
 	}
+
 	GateMode gateMode[2]{GateMode::off, GateMode::off};
 	CVMode cvmode[2]{CVMode::off, CVMode::off};
 	void sendMonophonicExpressionEvent(int32_t dimension);
