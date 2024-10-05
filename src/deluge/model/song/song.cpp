@@ -3523,47 +3523,18 @@ Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t cha
 
 	if (searchNonHibernating) {
 		for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-			if (thisOutput->type == outputType) {
-
-				bool match;
-
-				if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
-					match = !strcasecmp(name, thisOutput->name.get())
-					        && !strcasecmp(dirPath, ((Instrument*)thisOutput)->dirPath.get());
-				}
-
-				else {
-					match = (((NonAudioInstrument*)thisOutput)->getChannel() == channel
-					         && (outputType == OutputType::CV
-					             || ((MIDIInstrument*)thisOutput)->channelSuffix == channelSuffix));
-				}
-
-				if (match) {
-					return (Instrument*)thisOutput;
-				}
+			bool match = thisOutput->matchesPreset(outputType, channel, channelSuffix, name, dirPath);
+			if (match) {
+				return (Instrument*)thisOutput;
 			}
 		}
 	}
 
 	if (searchHibernating) {
 		for (Output* thisOutput = firstHibernatingInstrument; thisOutput; thisOutput = thisOutput->next) {
-			if (thisOutput->type == outputType) {
-
-				bool match;
-
-				if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
-					match = !strcasecmp(name, thisOutput->name.get())
-					        && !strcasecmp(dirPath, ((Instrument*)thisOutput)->dirPath.get());
-				}
-
-				else {
-					match = (((NonAudioInstrument*)thisOutput)->getChannel() == channel
-					         && ((MIDIInstrument*)thisOutput)->channelSuffix == channelSuffix);
-				}
-
-				if (match) {
-					return (Instrument*)thisOutput;
-				}
+			bool match = thisOutput->matchesPreset(outputType, channel, channelSuffix, name, dirPath);
+			if (match) {
+				return (Instrument*)thisOutput;
 			}
 		}
 	}
@@ -4647,7 +4618,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 		// CV
 		if (outputType == OutputType::CV) {
 			do {
-				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
+				newChannel = CVInstrument::navigateChannels(newChannel, offset);
 
 				if (newChannel == oldChannel) {
 cantDoIt:
@@ -4819,7 +4790,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 				break;
 			}
 
-			newSlot = (newSlot + 1) & (numChannels - 1);
+			newSlot = (newSlot + 1) % numChannels;
 			newSubSlot = -1;
 
 			// If we've searched all channels...

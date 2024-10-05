@@ -82,6 +82,8 @@ class Output {
 public:
 	Output(OutputType newType);
 	virtual ~Output();
+	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
+	                           char const* dirPath) = 0;
 
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;
@@ -159,9 +161,9 @@ public:
 	virtual void loadCrucialAudioFilesOnly() {} // Caller must check that there is an activeClip.
 
 	// No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
-	virtual void resyncLFOs(){};
+	virtual void resyncLFOs() {};
 
-	virtual void sendMIDIPGM(){};
+	virtual void sendMIDIPGM() {};
 	virtual void deleteBackedUpParamManagers(Song* song) {}
 	virtual void prepareForHibernationOrDeletion() {}
 

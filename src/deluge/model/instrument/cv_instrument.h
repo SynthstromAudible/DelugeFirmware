@@ -39,6 +39,22 @@ public:
 	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDmiension);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupWithoutActiveClip(ModelStack* modelStack);
+	static int32_t navigateChannels(int oldChannel, int offset) {
+		auto newChannel = (oldChannel + offset) % NUM_CV_CHANNELS;
+		if (newChannel == -1) {
+			newChannel = NUM_CV_CHANNELS - 1;
+		}
+		return newChannel;
+	}
+	bool matchesPreset(OutputType otherType, int32_t otherChannel, int32_t channelSuffix, char const* otherName,
+	                   char const* otherPath) override {
+		bool match{false};
+		if (type == otherType) {
+			auto ourChannel = getChannel();
+			match = ourChannel == otherChannel || ourChannel == 3 || otherChannel == 3; // 3 means both
+		}
+		return match;
+	}
 
 	// It's much easier to store local copies of the most recent of these, so we never have to go doing complex quizzing
 	// of the arp, or MPE params, which we otherwise would have to do regularly.

@@ -52,6 +52,17 @@ public:
 	bool editedByUser;
 	bool existsOnCard;
 	bool shouldHibernate{true};
+	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
+	                   char const* otherPath) override {
+		bool match{false};
+		if (type == otherType) {
+
+			if (otherType == OutputType::SYNTH || otherType == OutputType::KIT) {
+				match = !strcasecmp(otherName, name.get()) && !strcasecmp(otherPath, dirPath.get());
+			}
+		}
+		return match;
+	}
 	virtual bool doAnySoundsUseCC(uint8_t channel, uint8_t ccNumber, uint8_t value) { return false; }
 	virtual void beenEdited(bool shouldMoveToEmptySlot = true);
 	virtual void setupPatching(ModelStackWithTimelineCounter* modelStack) {
