@@ -27,7 +27,7 @@
 #include "gui/menu_item/bend_range/main.h"
 #include "gui/menu_item/bend_range/per_finger.h"
 #include "gui/menu_item/colour.h"
-#include "gui/menu_item/cv/cv2mapping.h"
+#include "gui/menu_item/cv/cv2Mapping.h"
 #include "gui/menu_item/cv/selection.h"
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/cv/transpose.h"
