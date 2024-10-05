@@ -92,14 +92,22 @@ void CVEngine::init() {
 
 // Gets called even for run and clock
 void CVEngine::updateGateOutputs() {
-	if (gateOutputPending || clockOutputPending || asapGateOutputPending) {
-		for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
+	// clock or run signal
+	if (clockOutputPending || asapGateOutputPending) {
+		for (int32_t g = NUM_CV_CHANNELS; g < NUM_GATE_CHANNELS; g++) {
 			physicallySwitchGate(g);
 		}
-
-		gateOutputPending = false;
 		clockOutputPending = false;
 		asapGateOutputPending = false;
+	}
+	// note or gate on the cv channel - if there's a cv out pending we send the gate after it finishes. This avoids a
+	// situation where the cv is delayed for an oled refresh and the gate gets sent first, causing an audible pitch
+	// correction
+	if (!cvOutPending && gateOutputPending) {
+		for (int32_t g = 0; g < NUM_CV_CHANNELS; g++) {
+			physicallySwitchGate(g);
+		}
+		gateOutputPending = false;
 	}
 }
 
@@ -171,10 +179,13 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 			voltage = calculateVoltage(note, channel);
 			voltage = std::min(voltage, (int32_t)65535);
 			voltage = std::max(voltage, (int32_t)0);
+			cvOutPending = true;
 			sendVoltageOut(channel, voltage);
+			switchGateOn(channel); // won't switch before the cv has been updated
 		}
-
-		switchGateOn(channel);
+		else {
+			switchGateOn(channel);
+		}
 
 		if (channel < NUM_CV_CHANNELS) {
 			cvChannels[channel].noteCurrentlyPlaying = note;
@@ -336,4 +347,14 @@ void CVEngine::updateRunOutput() {
 
 bool CVEngine::isTriggerClockOutputEnabled() {
 	return (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL);
+}
+void CVEngine::cvOutUpdated() {
+	cvOutPending = false;
+	updateGateOutputs();
+}
+
+extern "C" {
+void cvSent() {
+	cvEngine.cvOutUpdated();
+}
 }
