@@ -33,17 +33,17 @@ void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	polyPitchBendValue = (int32_t)arpNote->mpeValues[0] << 16;
 	updatePitchBendOutput(false);
 
-	cvEngine.sendNote(true, channel, noteCodePostArp);
+	cvEngine.sendNote(true, getPitchChannel(), noteCodePostArp);
 }
 
 void CVInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) {
-	cvEngine.sendNote(false, channel, noteCodePostArp);
+	cvEngine.sendNote(false, getPitchChannel(), noteCodePostArp);
 }
 
 void CVInstrument::polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
                                                             int32_t whichExpressionDimension, ArpNote* arpNote) {
 	if (!whichExpressionDimension) { // Pitch bend only
-		if (cvEngine.isNoteOn(channel, noteCodeAfterArpeggiation)) {
+		if (cvEngine.isNoteOn(getPitchChannel(), noteCodeAfterArpeggiation)) {
 			polyPitchBendValue = newValue;
 			updatePitchBendOutput();
 		}
@@ -77,7 +77,7 @@ void CVInstrument::updatePitchBendOutput(bool outputToo) {
 	    (monophonicPitchBendValue >> 8) * cachedBendRanges[BEND_RANGE_MAIN]
 	    + (polyPitchBendValue >> 8) * cachedBendRanges[BEND_RANGE_FINGER_LEVEL];
 
-	cvEngine.setCVPitchBend(channel, totalBendAmount, outputToo);
+	cvEngine.setCVPitchBend(getPitchChannel(), totalBendAmount, outputToo);
 }
 
 bool CVInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {

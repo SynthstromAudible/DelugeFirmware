@@ -190,7 +190,8 @@ void MIDIInstrument::ccReceivedFromInputMIDIChannel(int32_t cc, int32_t value,
 }
 
 int32_t MIDIInstrument::getOutputMasterChannel() {
-	switch (channel) {
+	auto c = getChannel();
+	switch (c) {
 	case MIDI_CHANNEL_MPE_LOWER_ZONE:
 		return 0;
 
@@ -198,7 +199,7 @@ int32_t MIDIInstrument::getOutputMasterChannel() {
 		return 15;
 
 	default:
-		return channel;
+		return c;
 	}
 }
 
@@ -216,7 +217,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
 		                                  lastMonoExpression[whichExpressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
-		midiEngine.sendPitchBend(this, masterChannel, valueSmall & 127, valueSmall >> 7, channel);
+		midiEngine.sendPitchBend(this, masterChannel, valueSmall & 127, valueSmall >> 7, getChannel());
 		break;
 	}
 
@@ -230,14 +231,14 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
 
-		midiEngine.sendCC(this, masterChannel, CC_EXTERNAL_MOD_WHEEL, newValue, channel);
+		midiEngine.sendCC(this, masterChannel, CC_EXTERNAL_MOD_WHEEL, newValue, getChannel());
 		break;
 	}
 	case Z_PRESSURE: {
 		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
 		                                  lastMonoExpression[whichExpressionDimension])
 		                   >> 24;
-		midiEngine.sendChannelAftertouch(this, masterChannel, newValue, channel);
+		midiEngine.sendChannelAftertouch(this, masterChannel, newValue, getChannel());
 		break;
 	}
 	default:
@@ -372,20 +373,20 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 	else if (!strcmp(tagName, "internalDest")) {
 		char const* text = reader.readTagOrAttributeValue();
 		if (!strcmp(text, "transpose")) {
-			channel = MIDI_CHANNEL_TRANSPOSE;
+			setChannel(MIDI_CHANNEL_TRANSPOSE);
 		}
 	}
 	else if (!strcmp(tagName, "midiChannel")) {
 		// fix for incorrect save files created on nightlies between 18/02/24 and 08/04/24
-		channel = reader.readTagOrAttributeValueInt();
+		setChannel(reader.readTagOrAttributeValueInt());
 	}
 	else if (!strcmp(tagName, "zone")) {
 		char const* text = reader.readTagOrAttributeValue();
 		if (!strcmp(text, "lower")) {
-			channel = MIDI_CHANNEL_MPE_LOWER_ZONE;
+			setChannel(MIDI_CHANNEL_MPE_LOWER_ZONE);
 		}
 		else if (!strcmp(text, "upper")) {
-			channel = MIDI_CHANNEL_MPE_UPPER_ZONE;
+			setChannel(MIDI_CHANNEL_MPE_UPPER_ZONE);
 		}
 	}
 	else if (!strcmp(tagName, subSlotXMLTag)) {
@@ -690,8 +691,8 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 		// If it's a MIDI Clip, and it's outputting on the same channel as this MIDI message came in, don't do MIDI
 		// thru!
 		if (doingMidiThru && type == OutputType::MIDI_OUT
-		    && receivedChannel
-		           == channel) { // We'll just say don't do anything to midi-thru if any MPE in the picture, for now
+		    && receivedChannel == getChannel()) { // We'll just say don't do anything to midi-thru if any MPE in the
+			                                      // picture, for now
 			*doingMidiThru = false;
 		}
 	}
@@ -701,7 +702,7 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 }
 
 void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
-
+	int32_t channel = getChannel();
 	ArpeggiatorSettings* arpSettings = NULL;
 	if (activeClip) {
 		arpSettings = &((InstrumentClip*)activeClip)->arpSettings;
@@ -837,6 +838,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 // Will store them too. Only for when we definitely want to send all three.
 // And obviously you can't call this unless you know that this Instrument sendsToMPE().
 void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel) {
+	int32_t channel = getChannel();
 	{ // X
 		int32_t outputValue14 = mpeValuesToUse[0] >> 2;
 		mpeOutputMemberChannels[outputMemberChannel].lastXValueSent = outputValue14;
@@ -859,7 +861,7 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 }
 
 void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMemberChannel, int32_t velocity) {
-
+	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		sendNoteToInternal(false, noteCodePostArp, velocity, oldOutputMemberChannel);
 	}
@@ -918,6 +920,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 }
 
 void MIDIInstrument::allNotesOff() {
+	int32_t channel = getChannel();
 	arpeggiator.reset();
 
 	// If no MPE, nice and simple
@@ -949,7 +952,7 @@ uint8_t const shiftAmountsFrom16Bit[] = {2, 9, 8};
 // place?
 void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, int32_t noteCodeAfterArpeggiation,
                                                               int32_t whichExpressionDimension, ArpNote* arpNote) {
-
+	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		// Do nothing
 	}

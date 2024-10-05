@@ -2244,7 +2244,7 @@ void AutomationView::enterScaleMode(uint8_t yDisplay) {
 
 	if (clip->output->type == OutputType::MIDI_OUT
 	    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
-	    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+	    && ((NonAudioInstrument*)clip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_ENTER_SCALE));
 		return;
 	}

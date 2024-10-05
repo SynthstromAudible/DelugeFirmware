@@ -54,8 +54,8 @@ public:
 	bool readTagFromFile(Deserializer& reader, char const* tagName);
 
 	ModControllable* toModControllable() { return this; }
-
-	int32_t channel = 0;
+	virtual void setChannel(int newChannel) { channel = newChannel; }
+	inline int32_t getChannel() const { return channel; }
 	// Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
 	uint8_t cachedBendRanges[2];
 	bool needsEarlyPlayback() const override;
@@ -63,4 +63,12 @@ public:
 protected:
 	virtual void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
 	                                                      int32_t whichExpressionDimension, ArpNote* arpNote) = 0;
+	// for tracking mono expression output
+	int32_t lastMonoExpression[3]{0};
+	int32_t lastCombinedPolyExpression[3]{0};
+	// could be int8 for aftertouch/Y but Midi 2 will allow those to be 14 bit too
+	int16_t lastOutputMonoExpression[3]{0};
+
+private:
+	int32_t channel = 0;
 };

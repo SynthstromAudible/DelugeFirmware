@@ -1858,7 +1858,7 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 			// No break
 
 		case OutputType::CV:
-			channel = ((NonAudioInstrument*)instrument)->channel;
+			channel = ((NonAudioInstrument*)instrument)->getChannel();
 			break;
 		}
 	}
@@ -2135,7 +2135,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
 
 		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
-		int32_t newChannel = oldNonAudioInstrument->channel;
+		int32_t newChannel = oldNonAudioInstrument->getChannel();
 		int32_t newChannelSuffix;
 		if (outputType == OutputType::MIDI_OUT) {
 			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
@@ -2148,7 +2148,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			while (true) {
 				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
 
-				if (newChannel == oldNonAudioInstrument->channel) {
+				if (newChannel == oldNonAudioInstrument->getChannel()) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
@@ -2175,7 +2175,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			int32_t oldChannel = newChannel;
 
 			if (oldInstrumentCanBeReplaced) {
-				oldNonAudioInstrument->channel = -1; // Get it out of the way
+				oldNonAudioInstrument->setChannel(-1); // Get it out of the way
 			}
 
 			while (true) {
@@ -2213,7 +2213,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 				if (newChannel == oldChannel
 				    && newChannelSuffix == ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix) {
-					oldNonAudioInstrument->channel = oldChannel; // Put it back
+					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
@@ -2235,7 +2235,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				}
 			}
 
-			oldNonAudioInstrument->channel = oldChannel; // Put it back
+			oldNonAudioInstrument->setChannel(oldChannel); // Put it back
 		}
 
 		newInstrument =
@@ -2256,7 +2256,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 			// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change
 			// the existing Instrument object!
-			oldNonAudioInstrument->channel = newChannel;
+			oldNonAudioInstrument->setChannel(newChannel);
 			if (outputType == OutputType::MIDI_OUT) {
 				((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 			}

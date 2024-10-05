@@ -505,7 +505,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 				    modelStack->addTimelineCounter(instrumentClip);
 				if (instrumentClip->isScaleModeClip()) {
 					if (clip->output->type == OutputType::MIDI_OUT
-					    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+					    && ((NonAudioInstrument*)clip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
 						// Must not transpose MIDI clips that are routed to transpose, ie note rows
 						// stay exactly the same.
 						// Just have to scroll the clip so that the change in song root note
@@ -645,7 +645,7 @@ void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspo
 
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
 		if (!affectMIDITranspose && instrumentClip->output->type == OutputType::MIDI_OUT
-		    && ((NonAudioInstrument*)instrumentClip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+		    && ((NonAudioInstrument*)instrumentClip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
 			// Must not transpose MIDI clips that are routed to transpose.
 			continue;
 		}
@@ -3063,7 +3063,7 @@ int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::MIDI_OUT) {
 			MIDIInstrument* instrument = (MIDIInstrument*)output;
-			if (instrument->channel == channel) {
+			if (instrument->getChannel() == channel) {
 				int32_t suffix = instrument->channelSuffix;
 				if (suffix < -1 || suffix >= 26) {
 					continue; // Just for safety
@@ -3533,7 +3533,7 @@ Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t cha
 				}
 
 				else {
-					match = (((NonAudioInstrument*)thisOutput)->channel == channel
+					match = (((NonAudioInstrument*)thisOutput)->getChannel() == channel
 					         && (outputType == OutputType::CV
 					             || ((MIDIInstrument*)thisOutput)->channelSuffix == channelSuffix));
 				}
@@ -3557,7 +3557,7 @@ Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t cha
 				}
 
 				else {
-					match = (((NonAudioInstrument*)thisOutput)->channel == channel
+					match = (((NonAudioInstrument*)thisOutput)->getChannel() == channel
 					         && ((MIDIInstrument*)thisOutput)->channelSuffix == channelSuffix);
 				}
 
@@ -3920,7 +3920,7 @@ bool Song::doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_
 
 			Instrument* instrument = (Instrument*)clip->output;
 
-			if (instrument->type == outputType && ((NonAudioInstrument*)instrument)->channel == slot
+			if (instrument->type == outputType && ((NonAudioInstrument*)instrument)->getChannel() == slot
 			    && (outputType == OutputType::CV || ((MIDIInstrument*)instrument)->channelSuffix == subSlot)) {
 				return true;
 			}
@@ -4305,7 +4305,7 @@ MIDIInstrument* Song::grabHibernatingMIDIInstrument(int32_t channel, int32_t cha
 		toReturn->setActiveClip(nullptr, PgmChangeSend::NEVER); // Not really necessary?
 		toReturn->inValidState = false;
 
-		toReturn->channel = channel;
+		toReturn->setChannel(channel);
 		toReturn->channelSuffix = channelSuffix;
 	}
 	return toReturn;
@@ -4635,8 +4635,8 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
 
-		int32_t oldChannel = oldNonAudioInstrument->channel;
-		int32_t newChannel = oldNonAudioInstrument->channel;
+		int32_t oldChannel = oldNonAudioInstrument->getChannel();
+		int32_t newChannel = oldNonAudioInstrument->getChannel();
 
 		int32_t oldChannelSuffix, newChannelSuffix;
 		if (outputType == OutputType::MIDI_OUT) {
@@ -4661,7 +4661,7 @@ cantDoIt:
 		// Or MIDI
 		else {
 
-			oldNonAudioInstrument->channel = -1; // Get it out of the way
+			oldNonAudioInstrument->setChannel(-1); // Get it out of the way
 
 			do {
 				newChannelSuffix += offset;
@@ -4683,14 +4683,14 @@ cantDoIt:
 				}
 
 				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
-					oldNonAudioInstrument->channel = oldChannel; // Put it back
+					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
 					goto cantDoIt;
 				}
 
 			} while (
 			    currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, NULL, NULL, false));
 
-			oldNonAudioInstrument->channel = oldChannel; // Put it back, before switching notes off etc
+			oldNonAudioInstrument->setChannel(oldChannel); // Put it back, before switching notes off etc
 		}
 
 		if (oldNonAudioInstrument->getActiveClip() && playbackHandler.isEitherClockActive()) {
@@ -4699,7 +4699,7 @@ cantDoIt:
 
 		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change
 		// the existing Instrument object!
-		oldNonAudioInstrument->channel = newChannel;
+		oldNonAudioInstrument->setChannel(newChannel);
 		if (outputType == OutputType::MIDI_OUT) {
 			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 		}
