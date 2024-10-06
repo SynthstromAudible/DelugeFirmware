@@ -73,10 +73,17 @@ public:
 	int32_t getOutputMasterChannel();
 
 	inline bool sendsToMPE() {
-		return (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE);
+		return (getChannel() == MIDI_CHANNEL_MPE_LOWER_ZONE || getChannel() == MIDI_CHANNEL_MPE_UPPER_ZONE);
 	}
-	inline bool sendsToInternal() { return (channel >= IS_A_DEST); }
-
+	inline bool sendsToInternal() { return (getChannel() >= IS_A_DEST); }
+	bool matchesPreset(OutputType otherType, int32_t otherChannel, int32_t otherSuffix, char const* otherName,
+	                   char const* otherPath) override {
+		bool match{false};
+		if (type == otherType) {
+			match = (getChannel() == otherChannel && (channelSuffix == otherSuffix));
+		}
+		return match;
+	}
 	int32_t channelSuffix{-1};
 	int32_t lastNoteCode{32767};
 	bool collapseAftertouch{false};
@@ -89,11 +96,6 @@ public:
 	// Numbers 0 to 15 can all be an MPE member depending on configuration
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];
 
-	// for tracking mono expression output
-	int32_t lastMonoExpression[3]{0};
-	int32_t lastCombinedPolyExpression[3]{0};
-	// could be int8 for aftertouch/Y but Midi 2 will allow those to be 14 bit too
-	int16_t lastOutputMonoExpression[3]{0};
 	char const* getXMLTag() { return "midi"; }
 	char const* getSlotXMLTag() { return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel"; }
 	char const* getSubSlotXMLTag() { return "suffix"; }

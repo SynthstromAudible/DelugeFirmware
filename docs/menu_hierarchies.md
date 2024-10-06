@@ -1349,6 +1349,15 @@ The CV menu contains the following menu hierarchy:
 	- Normal (NORM)
 	- Poly / Finger / MPE (MPE)
 </details>
+<details><summary>CV 2 Source (CV2) </summary>
+	NOTE: This menu only becomes available if you set the CV / Gate channel to `1 AND 2 (BOTH)`
+
+	- OFF
+	- Y
+	- Aftertouch
+	- Velocity
+</details>
+
 <details><summary>Play Direction (DIRE) </summary>
 
 	- Forward

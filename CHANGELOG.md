@@ -63,6 +63,13 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### Synth/Kit Clips
 - Added Auto-Load feature to sample browser, so you can load the sounds to the instrument as you preview them. Auto-Load can be engaged while in sample browser, if you press the `Load` button.
 
+##### CV Clips
+- Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
+  - Turn `SELECT` to choose `1 AND 2 (BOTH)` CV / Gate channel.
+  - Press `SELECT` to enter the `CV Instrument Menu`
+  - Enter the  `CV 2 Source (CV2)` submenu
+  - Select from `OFF, Y, Aftertouch, Velocity`
+
 ### MIDI
 
 #### <ins>Learn</ins>

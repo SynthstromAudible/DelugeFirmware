@@ -263,7 +263,7 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 		bool currentValueChanged = (oldValue != modelStack->autoParam->getCurrentValue());
 		if (currentValueChanged) {
 			MIDIInstrument* instrument = (MIDIInstrument*)modelStack->modControllable;
-			int32_t midiOutputFilter = instrument->channel;
+			int32_t midiOutputFilter = instrument->getChannel();
 			int32_t masterChannel = instrument->getOutputMasterChannel();
 			sendMIDI(instrument, masterChannel, modelStack->paramId, modelStack->autoParam->getCurrentValue(),
 			         midiOutputFilter);

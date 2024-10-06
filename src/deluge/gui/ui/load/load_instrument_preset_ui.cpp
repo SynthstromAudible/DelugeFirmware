@@ -91,7 +91,7 @@ bool LoadInstrumentPresetUI::opened() {
 		// No break
 
 	case OutputType::CV:
-		initialChannel = ((NonAudioInstrument*)instrumentToReplace)->channel;
+		initialChannel = ((NonAudioInstrument*)instrumentToReplace)->getChannel();
 		break;
 	}
 

@@ -50,6 +50,10 @@ public:
 	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
 
 	void resetEnvelope();
+	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
+	                   char const* dirPath) override {
+		return false;
+	};
 
 	ModControllable* toModControllable() override { return this; }
 	uint8_t* getModKnobMode() override { return &modKnobMode; }

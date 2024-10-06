@@ -386,7 +386,7 @@ void readSettings() {
 	                                       .patch = buffer[VERSION_PATCH],
 	                                   });
 
-	for (int chan = 0; chan < NUM_CV_CHANNELS; ++chan) {
+	for (int chan = 0; chan < NUM_PHYSICAL_CV_CHANNELS; ++chan) {
 		cvEngine.setCVVoltsPerOctave(chan, buffer[CV_VOLTS_PER_OCTAVE + chan]);
 		cvEngine.setCVTranspose(chan, buffer[CV_TRANSPOSE + chan], buffer[CV_CENTS + chan]);
 	}
