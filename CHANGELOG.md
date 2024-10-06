@@ -47,6 +47,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Automation View
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
+- Added ability to automate all Expression parameters (X - Pitchbend, Y - Modwheel, Z - Channel Pressure / Aftertouch)
 
 ##### Note / Note Row Probability, Iterance, Fill
 - Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill. 
