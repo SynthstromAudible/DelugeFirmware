@@ -132,7 +132,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_PHASER, "PHASER"},
         {STRING_FOR_STEREO_CHORUS, "S.CHORUS"},
         {STRING_FOR_GRAIN_SIZE, "Size"},
-        {STRING_FOR_GRAIN_TYPE, "Type"},
+        {STRING_FOR_GRAIN_TYPE, "GRTY"},
         {STRING_FOR_GRAIN_AMOUNT, "AMNT"},
         {STRING_FOR_CARRIERS, "CARRIERS"},
         {STRING_FOR_MODULATOR_1, "Mod1"},
