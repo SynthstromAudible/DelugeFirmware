@@ -552,11 +552,15 @@ The Song menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Decimation (DECI)
 		- Bitcrush (CRUS)
@@ -788,11 +792,15 @@ The Sound menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Saturation (SATU)
 		- Decimation (DECI)
@@ -1130,11 +1138,15 @@ The Kit FX menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Decimation (DECI)
 		- Bitcrush (CRUS)
@@ -1500,11 +1512,15 @@ The Audio Clip menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Saturation (SATU)
 		- Decimation (DECI)
