@@ -33,12 +33,42 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Submenu::updateDisplay() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
+	if (ensureCurrentItemIsRelevant()) {
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			(*current_item_)->drawName();
+		}
 	}
-	else {
-		(*current_item_)->drawName();
+}
+
+// sometimes when you refresh a menu, a menu item may become not relevant anymore depending on the context
+// for example, refreshing the custom note iterance menu when selecting a different note with a different divisor
+// this function ensures that when the menu is refreshed that only a relevant menu item is selected
+bool Submenu::ensureCurrentItemIsRelevant() {
+	// check if current item is relevant scrolling in backwards direction
+	for (auto it = current_item_; it >= items.begin(); it--) {
+		MenuItem* menuItem = (*it);
+		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+			current_item_ = it;
+			return true;
+		}
 	}
+
+	// if we still didn't find a relevant one...
+	// then maybe there is a relevant one in the forward direction...
+	for (auto it = current_item_; it <= items.end(); it++) {
+		MenuItem* menuItem = (*it);
+		if (menuItem->isRelevant(soundEditor.currentModControllable, soundEditor.currentSourceIndex)) {
+			current_item_ = it;
+			return true;
+		}
+	}
+
+	// if we still didn't find one...something went really wrong...exit out of this menu
+	soundEditor.goUpOneLevel();
+	return false;
 }
 
 void Submenu::drawPixelsForOled() {

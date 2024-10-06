@@ -52,6 +52,7 @@ public:
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
 	///         At the moment implements the legacy behaviour of wrapping on 7seg but not on OLED.
 	bool wrapAround();
+	bool ensureCurrentItemIsRelevant();
 
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
