@@ -58,7 +58,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		int32_t newValue = instrumentClipView.setNoteRowIterance(offset);
+		int32_t newValue = instrumentClipView.setNoteRowIteranceWithOffset(offset);
 		if (newValue != -1) {
 			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
 			int32_t preset = getIterancePresetFromValue(newValue);

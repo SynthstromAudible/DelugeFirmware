@@ -231,11 +231,12 @@ public:
 	void displayVelocity(int32_t velocityValue, int32_t velocityChange);
 	void popupVelocity(char const* displayString);
 
-	void adjustNoteProbability(int32_t offset);
-	void adjustNoteIterance(int32_t offset);
-	void adjustNoteFill(int32_t offset);
+	void adjustNoteProbabilityWithOffset(int32_t offset);
+	void adjustNoteIteranceWithOffset(int32_t offset);
+	void adjustNoteIteranceWithFinalValue(int32_t finalValue);
+	void adjustNoteFillWithOffset(int32_t offset);
 	Note* getLeftMostNotePressed();
-	void adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
+	void adjustNoteParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType, int32_t parameterMinValue,
 	                              int32_t parameterMaxValue);
 
 	// other note functions
@@ -256,13 +257,12 @@ public:
 	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
 	// adjust note row parameters
-	int32_t setNoteRowProbability(int32_t offset);
-	int32_t setNoteRowIterance(int32_t offset);
-	int32_t setNoteRowFill(int32_t offset);
-	int32_t setNoteRowParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
+	int32_t setNoteRowProbabilityWithOffset(int32_t offset);
+	int32_t setNoteRowIteranceWithOffset(int32_t offset);
+	int32_t setNoteRowIteranceWithFinalValue(int32_t finalValue);
+	int32_t setNoteRowFillWithOffset(int32_t offset);
+	int32_t setNoteRowParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType, int32_t parameterMinValue,
 	                                 int32_t parameterMaxValue);
-	void setNoteRowCustomIterance(NoteRow* noteRow, int32_t iterance);
-
 	// other note row functions
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);

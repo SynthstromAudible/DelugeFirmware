@@ -51,7 +51,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		instrumentClipView.adjustNoteIterance(offset);
+		instrumentClipView.adjustNoteIteranceWithOffset(offset);
 		readValueAgain();
 	}
 

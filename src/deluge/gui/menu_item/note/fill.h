@@ -49,7 +49,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		instrumentClipView.adjustNoteFill(offset);
+		instrumentClipView.adjustNoteFillWithOffset(offset);
 		readValueAgain();
 		if (currentSong->isFillModeActive()) {
 			uiNeedsRendering(&instrumentClipView);

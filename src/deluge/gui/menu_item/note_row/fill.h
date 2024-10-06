@@ -52,7 +52,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		int32_t newValue = instrumentClipView.setNoteRowFill(offset);
+		int32_t newValue = instrumentClipView.setNoteRowFillWithOffset(offset);
 		if (newValue != -1) {
 			this->setValue(newValue);
 			updateDisplay();
