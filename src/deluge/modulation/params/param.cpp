@@ -242,6 +242,15 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		return l10n::get(NAMES[p]);
 	}
 
+	if (kind == Kind::EXPRESSION && p < kNumExpressionDimensions) {
+		static l10n::String const NAMES[kNumExpressionDimensions] = {
+		    [Expression::X_PITCH_BEND] = STRING_FOR_PITCH_BEND,
+		    [Expression::Y_SLIDE_TIMBRE] = STRING_FOR_MOD_WHEEL,
+		    [Expression::Z_PRESSURE] = STRING_FOR_CHANNEL_PRESSURE,
+		};
+		return l10n::get(NAMES[p]);
+	}
+
 	constexpr ParamType unc = UNPATCHED_NUM_SHARED;
 
 	if (kind == Kind::UNPATCHED_SOUND && p < util::to_underlying(UNPATCHED_SOUND_MAX_NUM)) {
