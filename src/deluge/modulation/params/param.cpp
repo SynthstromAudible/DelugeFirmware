@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param.h"
+#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -24,7 +25,8 @@
 namespace deluge::modulation::params {
 
 bool isParamBipolar(Kind kind, int32_t paramID) {
-	return (kind == Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID);
+	return (kind == Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID)
+	       || isParamPitchBend(kind, paramID);
 }
 
 bool isParamPan(Kind kind, int32_t paramID) {
@@ -48,6 +50,10 @@ bool isParamPitch(Kind kind, int32_t paramID) {
 	else {
 		return false;
 	}
+}
+
+bool isParamPitchBend(Kind kind, int32_t paramID) {
+	return (kind == Kind::EXPRESSION && paramID == Expression::X_PITCH_BEND);
 }
 
 bool isParamStutter(Kind kind, int32_t paramID) {
@@ -239,6 +245,15 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_MOD_FX_FEEDBACK] = STRING_FOR_MODFX_FEEDBACK,
 		    [UNPATCHED_SIDECHAIN_SHAPE] = STRING_FOR_SIDECHAIN_SHAPE,
 		    [UNPATCHED_COMPRESSOR_THRESHOLD] = STRING_FOR_THRESHOLD};
+		return l10n::get(NAMES[p]);
+	}
+
+	if (kind == Kind::EXPRESSION && p < kNumExpressionDimensions) {
+		static l10n::String const NAMES[kNumExpressionDimensions] = {
+		    [Expression::X_PITCH_BEND] = STRING_FOR_PITCH_BEND,
+		    [Expression::Y_SLIDE_TIMBRE] = STRING_FOR_MOD_WHEEL,
+		    [Expression::Z_PRESSURE] = STRING_FOR_CHANNEL_PRESSURE,
+		};
 		return l10n::get(NAMES[p]);
 	}
 
@@ -608,6 +623,18 @@ constexpr ParamType fileStringToParamConst(Kind kind, char const* name, bool all
 }
 ParamType fileStringToParam(Kind kind, char const* name, bool allowPatched) {
 	return fileStringToParamConst(kind, name, allowPatched);
+}
+uint32_t expressionParamFromShortcut(int x, int y) {
+	if (x == 14 && y == 7) {
+		return X_PITCH_BEND;
+	}
+	else if (x == 15 && y == 0) {
+		return Z_PRESSURE;
+	}
+	else if (x == 15 && y == 7) {
+		return Y_SLIDE_TIMBRE;
+	}
+	return kNoParamID;
 }
 
 constexpr bool validateParams() {

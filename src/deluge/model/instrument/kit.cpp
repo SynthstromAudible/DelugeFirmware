@@ -1701,6 +1701,9 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 				else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
 					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID);
 				}
+				else if (paramKind == params::Kind::EXPRESSION) {
+					modelStackWithParam = modelStackWithThreeMainThings->getExpressionAutoParamFromID(paramID);
+				}
 			}
 		}
 	}
