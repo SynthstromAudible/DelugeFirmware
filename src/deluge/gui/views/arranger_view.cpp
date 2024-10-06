@@ -2355,7 +2355,7 @@ squareStartPosSet:
 						if (!clipInstance->clip) {
 							// this shouldn't be possible, but it happens when you create a brand new white clip
 							// which doesn't have a timeline counter yet (until you enter the clip)
-							image[xDisplay] = colour.dim(7);
+							image[xDisplay] = colour.dim(4);
 						}
 						else {
 							int32_t relativeSquarePos; // square's position relative to start of clip instance
@@ -2373,15 +2373,15 @@ squareStartPosSet:
 
 							if (isLoopStart) {
 								if (clipInstance->clip->isArrangementOnlyClip()) {
-									*it = image[xDisplay] = colour.dim(3);
+									*it = image[xDisplay] = colour.dim(2);
 								}
 								else {
-									*it = image[xDisplay] = colour.dim(4);
+									*it = image[xDisplay] = colour.dim(3);
 								}
 							}
 							else {
 								if (clipInstance->clip->isArrangementOnlyClip()) {
-									*it = image[xDisplay] = colour.dim(7);
+									*it = image[xDisplay] = colour.dim(4);
 								}
 								else {
 									*it = image[xDisplay] = colour.forBlur().dim(3);
