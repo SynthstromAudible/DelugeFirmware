@@ -986,7 +986,7 @@ extern "C" void yieldingRoutineForSD(RunCondition until) {
 	yield(until);
 	sdRoutineLock = false;
 }
-
+enum class UIStage { UItimer, oled, readEnc, readButtons, renderUI };
 /// this function is used as a busy wait loop for long SD reads, and while swapping songs
 extern "C" void routineForSD(void) {
 
@@ -1002,20 +1002,36 @@ extern "C" void routineForSD(void) {
 
 	sdRoutineLock = true;
 	ignoreForStats();
+	static UIStage step = UIStage::UItimer;
 	AudioEngine::logAction("from routineForSD()");
 	AudioEngine::routine();
+	switch (step) {
 
-	uiTimerManager.routine();
-
-	if (display->haveOLED()) {
-		oledRoutine();
+	case UIStage::UItimer:
+		uiTimerManager.routine();
+		step = UIStage::oled;
+		break;
+	case UIStage::oled:
+		if (display->haveOLED()) {
+			oledRoutine();
+		}
+		PIC::flush();
+		step = UIStage::readEnc;
+		break;
+	case UIStage::readEnc:
+		encoders::readEncoders();
+		encoders::interpretEncoders(true);
+		step = UIStage::readButtons;
+		break;
+	case UIStage::readButtons:
+		readButtonsAndPads();
+		step = UIStage::renderUI;
+		break;
+	case UIStage::renderUI:
+		doAnyPendingUIRendering();
+		step = UIStage::UItimer;
+		break;
 	}
-	PIC::flush();
-
-	encoders::readEncoders();
-	encoders::interpretEncoders(true);
-	readButtonsAndPads();
-	doAnyPendingUIRendering();
 
 	sdRoutineLock = false;
 }
