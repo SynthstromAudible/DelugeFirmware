@@ -1349,9 +1349,9 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 drawAFile:
 			// Draw graphic
 			uint8_t const* graphic = isFolder ? deluge::hid::display::OLED::folderIcon : fileIcon;
-			canvas.drawGraphicMultiLine(graphic, 1, yPixel + 0, 8);
-			if (fileIconPt2 && fileIconPt2Width) {
-				canvas.drawGraphicMultiLine(fileIconPt2, 9, yPixel + 0, fileIconPt2Width);
+			canvas.drawGraphicMultiLine(graphic, iconStartX, yPixel + 0, iconWidth);
+			if (!isFolder && fileIconPt2 && fileIconPt2Width) {
+				canvas.drawGraphicMultiLine(fileIconPt2, iconStartX + iconWidth, yPixel + 0, fileIconPt2Width);
 			}
 
 			// Draw filename
