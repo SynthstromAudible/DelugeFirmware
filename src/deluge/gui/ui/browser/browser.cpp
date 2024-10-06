@@ -1356,7 +1356,7 @@ drawAFile:
 			int32_t iconWidth = 8;
 			uint8_t const* graphic = isFolder ? deluge::hid::display::OLED::folderIcon : fileIcon;
 			canvas.drawGraphicMultiLine(graphic, iconStartX, yPixel + 0, iconWidth);
-			if (fileIconPt2 && fileIconPt2Width) {
+			if (!isFolder && fileIconPt2 && fileIconPt2Width) {
 				canvas.drawGraphicMultiLine(fileIconPt2, iconStartX + iconWidth, yPixel + 0, fileIconPt2Width);
 			}
 
