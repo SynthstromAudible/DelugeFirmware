@@ -30,7 +30,11 @@ public:
 	void readCurrentValue() override {
 
 		auto currentSettings = ((CVInstrument*)getCurrentOutput())->getCV2Mode();
-		this->setValue(currentSettings);
+		int index = static_cast<int>(currentSettings);
+		if (index != 0) {
+			index -= 1;
+		}
+		this->setValue(index);
 	}
 	void writeCurrentValue() override {
 		auto current_value = this->getValue();
