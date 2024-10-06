@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param.h"
+#include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -24,7 +25,8 @@
 namespace deluge::modulation::params {
 
 bool isParamBipolar(Kind kind, int32_t paramID) {
-	return (kind == Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID);
+	return (kind == Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID)
+	       || isParamPitchBend(kind, paramID);
 }
 
 bool isParamPan(Kind kind, int32_t paramID) {
@@ -48,6 +50,10 @@ bool isParamPitch(Kind kind, int32_t paramID) {
 	else {
 		return false;
 	}
+}
+
+bool isParamPitchBend(Kind kind, int32_t paramID) {
+	return (kind == Kind::EXPRESSION && paramID == Expression::X_PITCH_BEND);
 }
 
 bool isParamStutter(Kind kind, int32_t paramID) {
