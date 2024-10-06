@@ -2331,7 +2331,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	Instrument* instrument = (Instrument*)output;
 
 	if (output->type == OutputType::MIDI_OUT) {
-		writer.writeAttribute("midiChannel", ((MIDIInstrument*)instrument)->channel);
+		writer.writeAttribute("midiChannel", ((MIDIInstrument*)instrument)->getChannel());
 
 		if (((MIDIInstrument*)instrument)->channelSuffix != -1) {
 			writer.writeAttribute("midiChannelSuffix", ((MIDIInstrument*)instrument)->channelSuffix);
@@ -2349,7 +2349,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		}
 	}
 	else if (output->type == OutputType::CV) {
-		writer.writeAttribute("cvChannel", ((CVInstrument*)instrument)->channel);
+		writer.writeAttribute("cvChannel", ((CVInstrument*)instrument)->getChannel());
 	}
 	else {
 		writer.writeAttribute("instrumentPresetName", output->name.get());
@@ -2979,8 +2979,7 @@ doReadBendRange:
 				// No break
 
 			case OutputType::CV:
-				((NonAudioInstrument*)output)->channel =
-				    std::clamp<int32_t>(instrumentPresetSlot, 0, kNumInstrumentSlots);
+				((CVInstrument*)output)->setChannel(std::clamp<int32_t>(instrumentPresetSlot, 0, kNumInstrumentSlots));
 				break;
 
 			case OutputType::SYNTH:
@@ -3361,7 +3360,7 @@ void InstrumentClip::stopAllNotesForMIDIOrCV(ModelStackWithTimelineCounter* mode
 
 	// CV - easy
 	if (output->type == OutputType::CV) {
-		cvEngine.sendNote(false, ((CVInstrument*)output)->channel);
+		cvEngine.sendNote(false, ((CVInstrument*)output)->getChannel());
 	}
 
 	// MIDI - hard
@@ -3583,7 +3582,7 @@ void InstrumentClip::shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* mode
 void InstrumentClip::sendMIDIPGM() {
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
 
-	int32_t outputFilter = midiInstrument->channel;
+	int32_t outputFilter = midiInstrument->getChannel();
 	int32_t masterChannel = midiInstrument->getOutputMasterChannel();
 
 	// Send MIDI PGM if there is one...
@@ -3662,7 +3661,7 @@ void InstrumentClip::backupPresetSlot() {
 		// No break
 
 	case OutputType::CV:
-		backedUpInstrumentSlot[outputTypeAsIdx] = ((NonAudioInstrument*)output)->channel;
+		backedUpInstrumentSlot[outputTypeAsIdx] = ((NonAudioInstrument*)output)->getChannel();
 		break;
 
 	case OutputType::SYNTH:
@@ -3736,7 +3735,7 @@ bool InstrumentClip::isScrollWithinRange(int32_t scrollAmount, int32_t newYNote)
 	}
 
 	else if (output->type == OutputType::CV) {
-		int32_t newVoltage = cvEngine.calculateVoltage(newYNote, ((CVInstrument*)output)->channel);
+		int32_t newVoltage = cvEngine.calculateVoltage(newYNote, ((CVInstrument*)output)->getChannel());
 		if (scrollAmount >= 0) {
 			if (newVoltage >= 65536 && newYNote > getTopYNote()) {
 				return false;

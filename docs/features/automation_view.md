@@ -12,7 +12,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 
 1. Automatable Clip View Parameters for Synths and Kits with a row selected and affect entire DISABLED
 
->The 60 parameters that can be edited are:
+>The 63 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -36,6 +36,9 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **Portamento**
 > - **Stutter** Rate
 > - **Compressor** Threshold
+> - **Mono Expression** X (Pitch Bend)
+> - **Mono Expression** Y (Mod Wheel)
+> - **Mono Expression** Z (Channel Pressure / Aftertouch)
 
 >You can also edit any patch cables that are created
 

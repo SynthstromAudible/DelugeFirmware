@@ -82,6 +82,8 @@ class Output {
 public:
 	Output(OutputType newType);
 	virtual ~Output();
+	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
+	                           char const* dirPath) = 0;
 
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;

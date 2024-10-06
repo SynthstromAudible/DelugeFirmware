@@ -164,7 +164,7 @@ dissectionDone:
 		goto sdError;
 	}
 
-	indicator_leds::setLedState(IndicatorLED::SYNTH, !soundEditor.editingKit());
+	indicator_leds::setLedState(IndicatorLED::SYNTH, getCurrentOutputType() == OutputType::SYNTH);
 	indicator_leds::setLedState(IndicatorLED::KIT, soundEditor.editingKit());
 
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);

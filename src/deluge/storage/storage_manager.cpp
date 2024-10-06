@@ -547,7 +547,7 @@ Instrument* StorageManager::createNewNonAudioInstrument(OutputType outputType, i
 	else {
 		newInstrument = new (instrumentMemory) CVInstrument();
 	}
-	newInstrument->channel = slot;
+	newInstrument->setChannel(slot);
 
 	return newInstrument;
 }

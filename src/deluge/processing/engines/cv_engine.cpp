@@ -92,14 +92,22 @@ void CVEngine::init() {
 
 // Gets called even for run and clock
 void CVEngine::updateGateOutputs() {
-	if (gateOutputPending || clockOutputPending || asapGateOutputPending) {
-		for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
+	// clock or run signal
+	if (clockOutputPending || asapGateOutputPending) {
+		for (int32_t g = NUM_PHYSICAL_CV_CHANNELS; g < NUM_GATE_CHANNELS; g++) {
 			physicallySwitchGate(g);
 		}
-
-		gateOutputPending = false;
 		clockOutputPending = false;
 		asapGateOutputPending = false;
+	}
+	// note or gate on the cv channel - if there's a cv out pending we send the gate after it finishes. This avoids a
+	// situation where the cv is delayed for an oled refresh and the gate gets sent first, causing an audible pitch
+	// correction
+	if (!cvOutPending && gateOutputPending) {
+		for (int32_t g = 0; g < NUM_PHYSICAL_CV_CHANNELS; g++) {
+			physicallySwitchGate(g);
+		}
+		gateOutputPending = false;
 	}
 }
 
@@ -151,7 +159,7 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 		// Switch off, unless the note that's playing is a different one (i.e. if a new one had already cut short this
 		// one that we're now saying we wanted to stop)
 		if (gateChannels[channel].on
-		    && (channel >= NUM_CV_CHANNELS || note == ALL_NOTES_OFF
+		    && (channel >= NUM_PHYSICAL_CV_CHANNELS || note == ALL_NOTES_OFF
 		        || cvChannels[channel].noteCurrentlyPlaying == note)) {
 
 			// Physically switch it right now, to get a head-start before it turns back on
@@ -171,12 +179,15 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 			voltage = calculateVoltage(note, channel);
 			voltage = std::min(voltage, (int32_t)65535);
 			voltage = std::max(voltage, (int32_t)0);
+			cvOutPending = true;
 			sendVoltageOut(channel, voltage);
+			switchGateOn(channel); // won't switch before the cv has been updated
+		}
+		else {
+			switchGateOn(channel);
 		}
 
-		switchGateOn(channel);
-
-		if (channel < NUM_CV_CHANNELS) {
+		if (channel < NUM_PHYSICAL_CV_CHANNELS) {
 			cvChannels[channel].noteCurrentlyPlaying = note;
 		}
 	}
@@ -185,11 +196,13 @@ void CVEngine::sendNote(bool on, uint8_t channel, int16_t note) {
 void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	uint32_t output = (uint32_t)(0b00110000 | (1 << channel)) << 24;
 	output |= (uint32_t)voltage << 8;
-	if (display->haveOLED()) {
+	// if we have a physical oled then we need to send via the pic
+	if (deluge::hid::display::have_oled_screen) {
 		enqueueCVMessage(channel, output);
 	}
 	else {
 		R_RSPI_SendBasic32(SPI_CHANNEL_CV, output);
+		cvOutPending = false;
 	}
 }
 
@@ -336,4 +349,14 @@ void CVEngine::updateRunOutput() {
 
 bool CVEngine::isTriggerClockOutputEnabled() {
 	return (gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL);
+}
+void CVEngine::cvOutUpdated() {
+	cvOutPending = false;
+	updateGateOutputs();
+}
+
+extern "C" {
+void cvSent() {
+	cvEngine.cvOutUpdated();
+}
 }

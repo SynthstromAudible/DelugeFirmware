@@ -73,7 +73,14 @@ public:
 	void focusRegained() override;
 	void displayOrLanguageChanged() final;
 	const char* getName() { return "instrument_clip_view"; }
+
+	// BUTTON ACTION button press / release handling
+
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult handleScaleButtonAction(bool on, bool inCardRoutine);
+
+	// PAD ACTION pad press / release handling
+
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	// SCALE MODE related commands.

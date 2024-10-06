@@ -632,14 +632,13 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
 
 #### 4.2.7 - Grain FX
 
-- ([#363]) New `GRAIN` added to Mod FX. This effect is resource-intensive, so it's suggested to use only one instance
-  per song and/or resample and remove the clip or effect afterwards. As such it is turned `OFF` by default for now.
+- ([#363]) New `GRAIN` added to Mod FX.
 
     - Parameters:
         - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
-        - **`MOD DEPTH`:** Controls Grain Volume / Dry Wet Mix
-        - **`MOD FEEDBACK`:** Selects Grain Type (See below for values)
-        - **`MOD OFFSET`:** Adjusts Grain Size (10ms - 800ms)
+        - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
+        - **`MOD FEEDBACK - GRAIN TYPE (GRTY)`:** Selects Grain Type (See below for values)
+        - **`MOD OFFSET - GRAIN SIZE (SIZE)`:** Adjusts Grain Size (10ms - 800ms)
 
     - Grain Type (Presets):
         - **`0-10`:** Unison and +1 Octave (Reversed)
@@ -647,8 +646,6 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
         - **`21-30`:** Unison and +1 Octave (Defalut)
         - **`31-40`:** 5th and +1 Octave
         - **`41-50`:** Unison and +1/-1 Octave (Tempo Sync)
-
-    - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 #### 4.2.8 - Reverb Improvements
 
@@ -1197,20 +1194,29 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 - ([#1390]) Allows saving and loading midi presets. They end up in a new folder named MIDI.
   - Note: The information that is saved is the MIDI channel selection, and the assignments of CC parameters to golden knobs.
 
-### 4.8 Audio Clip View - Features
+### 4.8 Instrument Clip View - CV Clip Features
 
-#### 4.8.1 - Shift Clip
+#### 4.8.1 - Expression
+- Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
+  - Turn `SELECT` to choose `1 AND 2 (BOTH)` CV / Gate channel.
+  - Press `SELECT` to enter the `CV Instrument Menu`
+  - Enter the  `CV 2 Source (CV2)` submenu
+  - Select from `OFF, Y, Aftertouch, Velocity`
+
+### 4.9 Audio Clip View - Features
+
+#### 4.9.1 - Shift Clip
 
 - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument
   clips.
 
-### 4.9 Third Party Device Integration
+### 4.10 Third Party Device Integration
 
 This is largely on the development side and created the start of a system of modules and hook points for enabling
 actions on the Deluge to signal third-party equipment over hosted USB. To start things off this includes some support
 for the Lumi Keys Studio Edition, described below.
 
-### 4.9.1 Lumi Keys Studio Edition
+### 4.10.1 Lumi Keys Studio Edition
 
 - ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark
   until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible
@@ -1263,9 +1269,6 @@ list of all options as listed in OLED and 7SEG displays and what they do:
     * When On, the Deluge will illuminate the shift button when shift is active. Mostly useful in conjunction with
       sticky
       shift.
-* `Grain FX (GRFX)`
-    * When On, `GRAIN` will be a selectable option in the `MOD FX TYPE` category. Resource intensive, recommended to
-      only use one instance per song or resample and remove instance afterwards.
 * `Enable DX Shortcuts (DX7S)`
     * When On, full access is granted to the relevant DX UI behaviors (see [DX7 Synth Documentation]).
 * `Emulated Display (EMUL)`

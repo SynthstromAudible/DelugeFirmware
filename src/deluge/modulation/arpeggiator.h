@@ -138,7 +138,8 @@ public:
 	int16_t noteCodeOffPostArp; // 32767 means none/no action
 	int16_t noteCodeOnPostArp;  // 32767 means none/no action
 
-	// These are only valid if doing a note-on
+	// These are only valid if doing a note-on, or when releasing the most recently played with the arp off when other
+	// notes are still playing (e.g. for mono note priority)
 	uint32_t sampleSyncLengthOn; // This defaults to zero, or may be overwritten by the caller to the Arp - and then the
 	                             // Arp itself may override that.
 	ArpNote* arpNoteOn;
