@@ -1576,8 +1576,7 @@ void AutomationView::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputTyp
 
 // get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputType, StringBuf& parameterName) {
-	if (onArrangerView || outputType == OutputType::SYNTH || outputType == OutputType::KIT
-	    || outputType == OutputType::AUDIO) {
+	if (outputType != OutputType::MIDI_OUT) {
 		params::Kind lastSelectedParamKind = params::Kind::NONE;
 		int32_t lastSelectedParamID = kNoSelection;
 		PatchSource lastSelectedPatchSource = PatchSource::NONE;
@@ -1618,7 +1617,7 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 			parameterName.append(getParamDisplayName(lastSelectedParamKind, lastSelectedParamID));
 		}
 	}
-	else if (outputType == OutputType::MIDI_OUT) {
+	else {
 		if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
 		}
