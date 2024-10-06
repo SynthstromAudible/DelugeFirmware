@@ -32,6 +32,9 @@ struct Base {
 	virtual void setHPF(float f) {}
 	[[nodiscard]] virtual float getHPF() const { return 0; }
 
+	virtual void setLPF(float f) {}
+	[[nodiscard]] virtual float getLPF() const { return 0; }
+
 	virtual void setDamping(float value) {}
 	[[nodiscard]] virtual float getDamping() const { return 0; }
 
