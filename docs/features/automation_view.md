@@ -36,9 +36,9 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **Portamento**
 > - **Stutter** Rate
 > - **Compressor** Threshold
-> - **Expression** X (Pitchbend)
-> - **Expression** Y (Modwheel)
-> - **Expression** Z (Channel Pressure / Aftertouch)
+> - **Mono Expression** X (Pitch Bend)
+> - **Mono Expression** Y (Mod Wheel)
+> - **Mono Expression** Z (Channel Pressure / Aftertouch)
 
 >You can also edit any patch cables that are created
 

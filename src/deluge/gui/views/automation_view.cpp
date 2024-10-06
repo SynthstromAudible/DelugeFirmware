@@ -119,7 +119,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 60;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 63;
 constexpr int32_t kNumGlobalParamsForAutomation = 26;
 constexpr int32_t kParamNodeWidth = 3;
 
@@ -208,6 +208,12 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE},
     // Compressor Threshold
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_THRESHOLD},
+    // Mono Expression: X - Pitch Bend
+    {params::Kind::EXPRESSION, Expression::X_PITCH_BEND},
+    // Mono Expression: Y - Mod Wheel
+    {params::Kind::EXPRESSION, Expression::Y_SLIDE_TIMBRE},
+    // Mono Expression: Z - Channel Pressure
+    {params::Kind::EXPRESSION, Expression::Z_PRESSURE},
 }};
 
 // global FX - sorted in the order that Parameters are scrolled through on the display
@@ -609,8 +615,7 @@ AutomationSubType AutomationView::getAutomationSubType() {
 }
 
 // rendering
-bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, deluge::modulation::params::Kind paramKind,
-                                                         int32_t paramID) {
+bool AutomationView::possiblyRefreshAutomationEditorGrid(Clip* clip, params::Kind paramKind, int32_t paramID) {
 	bool doRefreshGrid = false;
 	if (clip && !automationView.onArrangerView) {
 		if ((clip->lastSelectedParamID == paramID) && (clip->lastSelectedParamKind == paramKind)) {
@@ -1611,7 +1616,7 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 				parameterName.append(display->haveOLED() ? " -> " : " - ");
 			}
 
-			parameterName.append(modulation::params::getPatchedParamShortName(lastSelectedParamID));
+			parameterName.append(params::getPatchedParamShortName(lastSelectedParamID));
 		}
 		else {
 			parameterName.append(getParamDisplayName(lastSelectedParamKind, lastSelectedParamID));
@@ -2581,7 +2586,7 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	         // selected a single sound drum
 	         || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
 	              && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))) {
-		uint32_t paramID = deluge::modulation::params::expressionParamFromShortcut(xDisplay, yDisplay);
+		uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
 		clip->lastSelectedParamID = paramID;
 		clip->lastSelectedParamKind = params::Kind::EXPRESSION;
 	}
@@ -4777,7 +4782,9 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 				    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_SOUND
 				        && unpatchedNonGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
 				    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL
-				        && unpatchedGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)) {
+				        && unpatchedGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
+				    || (clip->lastSelectedParamKind == params::Kind::EXPRESSION
+				        && params::expressionParamFromShortcut(x, y) == clip->lastSelectedParamID)) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
 					paramShortcutFound = true;
