@@ -86,6 +86,8 @@ public:
 			wet = c.Get();
 			dsp::OnePole(hp_r_, wet, hp_cutoff_);
 			wet = wet - hp_r_;
+			dsp::OnePole(lp_r_, wet, lp_cutoff_);
+			wet = wet - lp_r_;
 
 			auto output_right =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
@@ -99,6 +101,8 @@ public:
 			wet = c.Get();
 			dsp::OnePole(hp_l_, wet, hp_cutoff_);
 			wet = wet - hp_l_;
+			dsp::OnePole(lp_l_, wet, lp_cutoff_);
+			wet = wet - lp_l_;
 
 			auto output_left =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
@@ -143,6 +147,12 @@ public:
 
 	[[nodiscard]] float getHPF() const { return hp_cutoff_val_; }
 
+	void setLPF(float f) {
+		lp_cutoff_val_ = f;
+		lp_cutoff_ = calcFilterCutoff(f);
+	}
+
+	[[nodiscard]] float getLPF() const { return lp_cutoff_val_; }
 private:
 	static constexpr float sample_rate = kSampleRate;
 
@@ -171,6 +181,13 @@ private:
 	float hp_cutoff_{calcFilterCutoff(0)};
 	float hp_l_{0.0}; // HP state variable
 	float hp_r_{0.0}; // HP state variable
+
+	// Low-pass
+	float lp_cutoff_val_{0.f};
+	// corresponds to 20Hz
+	float lp_cutoff_{calcFilterCutoff(0)};
+	float lp_l_{0.0}; // LP state variable
+	float lp_r_{0.0}; // LP state variable
 };
 
 } // namespace deluge::dsp::reverb
