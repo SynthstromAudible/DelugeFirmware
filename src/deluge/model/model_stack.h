@@ -246,6 +246,7 @@ public:
 
 	inline ModelStackWithSoundFlags* addSoundFlags() const;
 	inline ModelStackWithSoundFlags* addDummySoundFlags() const;
+	ModelStackWithAutoParam* getExpressionAutoParamFromID(int32_t newParamId);
 };
 
 class ModelStackWithParamCollection : public ModelStackWithThreeMainThings {
