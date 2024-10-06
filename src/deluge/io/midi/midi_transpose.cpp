@@ -83,7 +83,7 @@ void exitScaleModeForMIDITransposeClips() {
 		if (clip != nullptr) {
 			if (clip->output->type == OutputType::MIDI_OUT
 			    && MIDITranspose::controlMethod == MIDITransposeControlMethod::CHROMATIC
-			    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+			    && ((NonAudioInstrument*)clip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
 				instrumentClipView.exitScaleMode();
 				clip->inScaleMode = false;
 			}

@@ -543,6 +543,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_TRANSPOSE, "TRANSPOSE"},
         {STRING_FOR_CV, "CV"},
         {STRING_FOR_CV_OUTPUTS, "CV outputs"},
+        {STRING_FOR_CV2_SOURCE, "CV 2 Source"},
         {STRING_FOR_GATE, "GATE"},
         {STRING_FOR_GATE_OUTPUTS, "Gate outputs"},
         {STRING_FOR_KEY_LAYOUT, "Key layout"},

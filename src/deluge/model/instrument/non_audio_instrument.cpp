@@ -94,6 +94,9 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 			noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, velocity);
 		}
+		if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE && type == OutputType::CV) {
+			noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+		}
 	}
 }
 
@@ -235,7 +238,7 @@ bool NonAudioInstrument::readTagFromFile(Deserializer& reader, char const* tagNa
 	char const* slotXMLTag = getSlotXMLTag();
 
 	if (!strcmp(tagName, slotXMLTag)) {
-		channel = reader.readTagOrAttributeValueInt();
+		setChannel(reader.readTagOrAttributeValueInt());
 	}
 
 	else {

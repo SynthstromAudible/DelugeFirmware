@@ -1196,20 +1196,29 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 - ([#1390]) Allows saving and loading midi presets. They end up in a new folder named MIDI.
   - Note: The information that is saved is the MIDI channel selection, and the assignments of CC parameters to golden knobs.
 
-### 4.8 Audio Clip View - Features
+### 4.8 Instrument Clip View - CV Clip Features
 
-#### 4.8.1 - Shift Clip
+#### 4.8.1 - Expression
+- Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
+  - Turn `SELECT` to choose `1 AND 2 (BOTH)` CV / Gate channel.
+  - Press `SELECT` to enter the `CV Instrument Menu`
+  - Enter the  `CV 2 Source (CV2)` submenu
+  - Select from `OFF, Y, Aftertouch, Velocity`
+
+### 4.9 Audio Clip View - Features
+
+#### 4.9.1 - Shift Clip
 
 - ([#141]) Holding `▼︎▲︎` down while turning `◀︎▶︎` will shift the waveform of an Audio clip, similar to Instrument
   clips.
 
-### 4.9 Third Party Device Integration
+### 4.10 Third Party Device Integration
 
 This is largely on the development side and created the start of a system of modules and hook points for enabling
 actions on the Deluge to signal third-party equipment over hosted USB. To start things off this includes some support
 for the Lumi Keys Studio Edition, described below.
 
-### 4.9.1 Lumi Keys Studio Edition
+### 4.10.1 Lumi Keys Studio Edition
 
 - ([#812]) When using the Deluge as a USB Midi Host and attaching a Lumi Keys Studio Edition, the keys will go dark
   until it is learned to a clip. Once learned to a clip, the keys will match the colour of the currently visible

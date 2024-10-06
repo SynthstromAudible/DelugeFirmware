@@ -69,7 +69,7 @@ public:
 		int32_t channel;
 		if (outputType == OutputType::MIDI_OUT) {
 			Instrument* instrument = (Instrument*)output;
-			channel = ((NonAudioInstrument*)instrument)->channel;
+			channel = ((NonAudioInstrument*)instrument)->getChannel();
 		}
 
 		char const* outputTypeText = getOutputTypeName(outputType, channel);

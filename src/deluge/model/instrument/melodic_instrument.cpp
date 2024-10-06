@@ -295,7 +295,7 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 	else if (instrumentClip->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeNorns
 	         && instrumentClip->onKeyboardScreen && instrumentClip->output
 	         && instrumentClip->output->type == OutputType::MIDI_OUT
-	         && ((MIDIInstrument*)instrumentClip->output)->channel == midiChannel) {
+	         && ((MIDIInstrument*)instrumentClip->output)->getChannel() == midiChannel) {
 		keyboardScreen.nornsNotes[note] = on ? velocity : 0;
 		keyboardScreen.requestRendering();
 	}
@@ -331,7 +331,7 @@ void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelSt
 		// If it's a MIDIInstrtument...
 		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+			if (doingMidiThru && ((MIDIInstrument*)this)->getChannel() == channel) {
 				*doingMidiThru = false;
 			}
 		}
@@ -378,7 +378,7 @@ void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWith
 		// If it's a MIDI Clip...
 		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+			if (doingMidiThru && ((MIDIInstrument*)this)->getChannel() == channel) {
 				*doingMidiThru = false;
 			}
 		}
@@ -439,7 +439,7 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 		// If it's a MIDI Clip...
 		if (type == OutputType::MIDI_OUT) {
 			// .. and it's outputting on the same channel as this MIDI message came in, don't do MIDI thru!
-			if (doingMidiThru && ((MIDIInstrument*)this)->channel == channel) {
+			if (doingMidiThru && ((MIDIInstrument*)this)->getChannel() == channel) {
 				*doingMidiThru = false;
 			}
 		}
