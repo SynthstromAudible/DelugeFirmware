@@ -102,7 +102,7 @@ public:
 			dsp::OnePole(hp_l_, wet, hp_cutoff_);
 			wet = wet - hp_l_;
 			dsp::OnePole(lp_l_, wet, lp_cutoff_);
-			wet = wet - lp_l_;
+			wet = lp_l_;
 
 			auto output_left =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
