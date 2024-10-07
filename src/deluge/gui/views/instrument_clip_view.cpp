@@ -2934,8 +2934,9 @@ ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Butto
 		return buttonAction(b, on, inCardRoutine);
 	}
 	// to allow you to toggle playback on / off
+	// to allow you to toggle shift on / off
 	// to allow you to toggle mod encoders on / off
-	else if (b == PLAY || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
+	else if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
