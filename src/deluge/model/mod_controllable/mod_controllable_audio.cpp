@@ -288,9 +288,12 @@ void ModControllableAudio::processModFXBuffer(StereoSample* buffer, const ModFXT
 		} while (++currentSample != bufferEnd);
 	}
 	else if (modFXType == ModFXType::WARBLE) {
+		uint32_t width = ONE_Q31f * 0.95;
 		do {
 			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
-			processWarble(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput);
+			int32_t lfo2Output = modFXLFOStereo.render(1, modFXLFOWaveType, multiply_32x32_rshift32(modFXRate, width));
+			processWarble(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput,
+			              lfo2Output);
 
 		} while (++currentSample != bufferEnd);
 	}
@@ -353,7 +356,7 @@ void ModControllableAudio::processOneModFXSample(const ModFXType& modFXType, int
 
 void ModControllableAudio::processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset,
                                          int32_t thisModFXDelayDepth, int32_t feedback, StereoSample* currentSample,
-                                         int32_t lfoOutput) {
+                                         int32_t lfoOutput, int32_t lfo2output) {
 	int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
 
 	int32_t strength2 = (delayTime & 65535) << 15;
@@ -365,6 +368,11 @@ void ModControllableAudio::processWarble(const ModFXType& modFXType, int32_t mod
 	int32_t scaledValue2L =
 	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
 	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
+
+	delayTime = multiply_32x32_rshift32(lfo2output, thisModFXDelayDepth) + modFXDelayOffset;
+	strength2 = (delayTime & 65535) << 15;
+	strength1 = (65535 << 15) - strength2;
+	sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
 
 	int32_t scaledValue1R =
 	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].r, strength1);
