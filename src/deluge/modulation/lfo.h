@@ -75,6 +75,9 @@ public:
 
 		case LFOType::RANDOM_WALK: {
 			uint32_t range = 4294967295u / 20;
+
+			float slewRate = 0.01f;
+
 			if (phase == 0) {
 				value = (range / 2) - CONG % range;
 				holdValue = value;
@@ -91,7 +94,19 @@ public:
 				// holdValue == -8 * range => (holdValue / -16) + (range / 2) ==
 				// range => next holdValue >= current holdValuie
 				holdValue = add_saturation((holdValue / -16) + (range / 2) - CONG % range, holdValue);
-				value = holdValue;
+
+				// checks if change is within slew rate
+				if (fabs(holdValue - value) > slewRate) {
+					// limit if so
+					if (holdValue > value) {
+						value += slewRate; // increase
+					} else {
+						value -= slewRate; // decrease
+					}
+				} else {
+					// if change less than slew rate, dirctly assign
+					value = holdValue;
+				}
 			}
 			else {
 				value = holdValue;

@@ -22,7 +22,7 @@
 
 namespace deluge::gui::menu_item::lfo {
 
-class Sync final : public SyncLevel {
+class Sync : public SyncLevel {
 public:
 	Sync(deluge::l10n::String name, deluge::l10n::String type, uint8_t lfoId) : SyncLevel(name, type), lfoId_(lfoId) {}
 
@@ -42,6 +42,12 @@ public:
 
 private:
 	uint8_t lfoId_;
+};
+
+class SyncToSlew final : public Sync {
+public:
+	using Sync::Sync;
+	MenuItem* selectButtonPress() override { return &lfo::slewMenu; }
 };
 
 } // namespace deluge::gui::menu_item::lfo
