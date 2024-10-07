@@ -61,7 +61,7 @@ public:
 			else {
 				iterance &= ~(1 << index);
 			}
-			instrumentClipView.setNoteRowIteranceWithFinalValue(iterance);
+			instrumentClipView.adjustNoteIteranceWithFinalValue(iterance);
 		}
 	}
 
