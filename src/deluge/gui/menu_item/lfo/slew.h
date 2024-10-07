@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/patched_param/integer.h"
 
 
 namespace deluge::gui::menu_item::lfo {
