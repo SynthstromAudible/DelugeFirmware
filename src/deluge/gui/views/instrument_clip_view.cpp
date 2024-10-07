@@ -1413,7 +1413,24 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 			offsetNoteCodeAction(offset);
 		}
 		else {
-			setNoteRowProbability(offset);
+			bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
+			bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
+			bool hasPopup = hasProbabilityPopup || hasIterancePopup;
+
+			// if there's no probability or iterance pop-up yet and we're turning encoder left, edit probability
+			// if there's a probability pop-up, continue editing probability
+			bool shouldEditProbability = (!hasPopup && (offset < 0)) || hasProbabilityPopup;
+
+			// if there's no probability or iterance pop-up yet and we're turning encoder right, edit iterance
+			// if there's an iterance pop-up, continue editing iterance
+			bool shouldEditIterance = (!hasPopup && (offset > 0)) || hasIterancePopup;
+
+			if (shouldEditProbability) {
+				setNoteRowProbability(offset);
+			}
+			else if (shouldEditIterance) {
+				setNoteRowIterance(offset);
+			}
 		}
 	}
 
@@ -1427,9 +1444,26 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		}
 	}
 
-	// Or, if user holding a note(s) down, we'll adjust proability instead
+	// Or, if user holding a note(s) down, we'll adjust proability / iterance instead
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
-		adjustNoteProbability(offset);
+		bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
+		bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
+		bool hasPopup = hasProbabilityPopup || hasIterancePopup;
+
+		// if there's no probability or iterance pop-up yet and we're turning encoder left, edit probability
+		// if there's a probability pop-up, continue editing probability
+		bool shouldEditProbability = (!hasPopup && (offset < 0)) || hasProbabilityPopup;
+
+		// if there's no probability or iterance pop-up yet and we're turning encoder right, edit iterance
+		// if there's an iterance pop-up, continue editing iterance
+		bool shouldEditIterance = (!hasPopup && (offset > 0)) || hasIterancePopup;
+
+		if (shouldEditProbability) {
+			adjustNoteProbability(offset);
+		}
+		else if (shouldEditIterance) {
+			adjustNoteIterance(offset);
+		}
 	}
 	// Or, normal option - trying to change Instrument presets
 	else {
@@ -2483,7 +2517,6 @@ Note* InstrumentClipView::getLeftMostNotePressed() {
 // adjusts note probability, iterance, fill
 void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
                                                   int32_t parameterMaxValue) {
-
 	int32_t parameterValue = -1;
 
 	bool prevBase = false; // only used by probability parameter for latching states
@@ -2492,6 +2525,8 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	bool inNoteEditor = getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
+
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
 
 	// If just one press...
 	if (numEditPadPresses == 1) {
@@ -2520,7 +2555,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 				parameterValue = parameter & 127;
 
 				// If editing, continue edit
-				if (display->hasPopup() || inNoteEditor) {
+				if (hasPopup || inNoteEditor) {
 					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 					if (!action) {
 						return;
@@ -2670,7 +2705,7 @@ multiplePresses:
 		parameterValue = parameter & 127;
 
 		// If editing, continue edit
-		if (display->hasPopupOfType(PopupType::PROBABILITY) || inNoteEditor) {
+		if (hasPopup || inNoteEditor) {
 			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 			if (!action) {
 				return;
@@ -2774,6 +2809,9 @@ multiplePresses:
 		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 			displayProbability(parameterValue, prevBase);
 		}
+		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			displayIterance(parameterValue, prevBase);
+		}
 	}
 }
 
@@ -2800,8 +2838,34 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	if (display->haveOLED()) {
 		display->popupText(buffer, PopupType::PROBABILITY);
 	}
-	if (display->have7SEG()) {
+	else {
 		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
+	}
+}
+
+void InstrumentClipView::displayIterance(uint8_t iterance, bool prevBase) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+
+	// Iteration dependence
+
+	int32_t divisor, iterationWithinDivisor;
+	dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
+
+	int32_t charPos = 0;
+
+	if (iterance == 0) {
+		strcpy(buffer, "Iteration dependence: OFF");
+	}
+	else {
+		sprintf(buffer, ((display->haveOLED() == 1) ? "Iteration dependence: %d of %d" : "%dof%d"),
+		        iterationWithinDivisor + 1, divisor);
+	}
+
+	if (display->haveOLED()) {
+		display->popupText(buffer, PopupType::ITERANCE);
+	}
+	else {
+		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::ITERANCE);
 	}
 }
 
@@ -3213,6 +3277,8 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t cha
 		return -1; // Get out if NoteRow doesn't exist and can't be created
 	}
 
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
+
 	uint8_t parameter;
 
 	if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
@@ -3230,7 +3296,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t cha
 	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
 
 	// If editing, continue edit
-	if (display->hasPopupOfType(PopupType::PROBABILITY) || inNoteRowEditor) {
+	if (hasPopup || inNoteRowEditor) {
 		ActionAddition actionAddition =
 		    inNoteRowEditor ? ActionAddition::ALLOWED : ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED;
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, actionAddition);
@@ -3284,6 +3350,9 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t cha
 	if (!inNoteRowEditor) {
 		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 			displayProbability(parameterValue, false);
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			displayIterance(parameterValue, false);
 		}
 	}
 

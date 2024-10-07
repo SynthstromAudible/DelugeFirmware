@@ -2,9 +2,11 @@
 
 Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
 
-Holding a note / note row and turning the select encoder now only changes probability.
+To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
 
-To edit note / note row iteration and fill settings you need to access the new note and note row editor menu's.
+To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
+
+To edit fill, you need to access the new note and note row editor menu's.
 
 ## Note Editor Menu
 
