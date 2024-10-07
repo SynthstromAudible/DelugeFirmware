@@ -487,6 +487,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_LFO1_TYPE, "LFO1 shape"},
         {STRING_FOR_LFO1_RATE, "LFO1 rate"},
         {STRING_FOR_LFO1_SYNC, "LFO1 sync"},
+        {STRING_FOR_LFO1_SLEW, "LFO2 slew"},
         {STRING_FOR_LFO1, "LFO1"},
         {STRING_FOR_LFO2_TYPE, "LFO2 shape"},
         {STRING_FOR_LFO2_RATE, "LFO2 rate"},

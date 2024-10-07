@@ -96,7 +96,7 @@ public:
 				holdValue = add_saturation((holdValue / -16) + (range / 2) - CONG % range, holdValue);
 
 				// checks if change is within slew rate
-				if (fabs(holdValue - value) > slewRate) {
+				if (abs(holdValue - value) > slewRate) {
 					// limit if so
 					if (holdValue > value) {
 						value += slewRate; // increase
