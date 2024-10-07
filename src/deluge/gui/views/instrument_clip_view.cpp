@@ -2483,7 +2483,14 @@ Note* InstrumentClipView::getLeftMostNotePressed() {
 // adjusts note probability, iterance, fill
 void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
                                                   int32_t parameterMaxValue) {
-
+	// ensure offset is valid (offset acceleration not permitted here)
+	if (offset < 0) {
+		offset = -1;
+	}
+	else if (offset > 0) {
+		offset = 1;
+	}
+	
 	int32_t parameterValue = -1;
 
 	bool prevBase = false; // only used by probability parameter for latching states
@@ -3201,6 +3208,14 @@ int32_t InstrumentClipView::setNoteRowFill(int32_t offset) {
 
 int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
                                                      int32_t parameterMaxValue) {
+	// ensure offset is valid (offset acceleration not permitted here)
+	if (offset < 0) {
+		offset = -1;
+	}
+	else if (offset > 0) {
+		offset = 1;
+	}	
+	
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
