@@ -2490,7 +2490,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t change
 	else if (offset > 0) {
 		offset = 1;
 	}
-	
+
 	int32_t parameterValue = -1;
 
 	bool prevBase = false; // only used by probability parameter for latching states
@@ -3214,8 +3214,8 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t cha
 	}
 	else if (offset > 0) {
 		offset = 1;
-	}	
-	
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
