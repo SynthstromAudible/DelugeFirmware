@@ -18,7 +18,7 @@
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/patched_param/integer.h"
 
-
+//I'm assuming this is all wrong
 namespace deluge::gui::menu_item::lfo {
 class Slew final : public Integer {
 public:

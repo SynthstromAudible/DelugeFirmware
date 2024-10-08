@@ -43,7 +43,7 @@ public:
 private:
 	uint8_t lfoId_;
 };
-
+//making slew accessible by select + sync
 class SyncToSlew final : public Sync {
 public:
 	using Sync::Sync;
