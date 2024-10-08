@@ -68,6 +68,7 @@ StemExport::StemExport() {
 	exportToSilence = true;
 	includeSongFX = false;
 	renderOffline = true;
+	exportArrangement = false;
 
 	timePlaybackStopped = 0xFFFFFFFF;
 
@@ -102,6 +103,9 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	}
 	else if (stemExportType == StemExportType::TRACK) {
 		elementsProcessed = exportInstrumentStems(stemExportType);
+	}
+	else if (stemExportType == StemExportType::ARRANGEMENT) {
+		elementsProcessed = exportArrangementStem(stemExportType);
 	}
 
 	// if process wasn't cancelled, then we got here because we finished
@@ -246,13 +250,22 @@ int32_t StemExport::disarmAllInstrumentsForStemExport() {
 				else {
 					output->exportStem = false;
 				}
-				output->mutedInArrangementModeBeforeStemExport = output->mutedInArrangementMode;
-				output->mutedInArrangementMode = true;
+				// if we're not exporting the full arrangement as a single stem,
+				// then we want to mute all the tracks as we'll be exporting them individually
+				if (!exportArrangement) {
+					output->mutedInArrangementModeBeforeStemExport = output->mutedInArrangementMode;
+					output->mutedInArrangementMode = true;
+				}
 				output->recordingInArrangement = false;
 				output->armedForRecording = false;
 				output->soloingInArrangementMode = false;
 			}
 		}
+	}
+
+	// if exporting arrangement, just exporting one stem
+	if (exportArrangement && totalNumStemsToExport) {
+		totalNumStemsToExport = 1;
 	}
 	return totalNumOutputs;
 }
@@ -277,7 +290,7 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 	// prepare all the instruments for stem export
 	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport();
 
-	if (totalNumOutputs) {
+	if (totalNumOutputs && totalNumStemsToExport) {
 		// now we're going to iterate through all instruments to find the ones that should be exported
 		for (int32_t idxOutput = totalNumOutputs - 1; idxOutput >= 0; --idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
@@ -312,6 +325,42 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 
 	// set instrument mutes back to their previous state (before exporting stems)
 	restoreAllInstrumentMutes(totalNumOutputs);
+
+	return totalNumOutputs;
+}
+
+/// iterates through all instruments, checking if there's any that should be exported (unmuted)
+/// then exports them all as a single arrangement stem
+/// simulates the button combo action of pressing record + play twice to enable resample
+/// and stop recording at the end of the arrangement
+int32_t StemExport::exportArrangementStem(StemExportType stemExportType) {
+	// prepare all the instruments for stem export
+	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport();
+
+	if (totalNumOutputs && totalNumStemsToExport) {
+		// set wav file name for stem to be exported
+		setWavFileNameForStemExport(stemExportType, nullptr, 0);
+
+		// start resampling which ends when end of arrangement is reached and audio is silent
+		startOutputRecordingUntilLoopEndAndSilence();
+
+		// we haven't exported the arrangement yet
+		// so display progress
+		displayStemExportProgress(stemExportType);
+
+		// wait until recording is done and playback is turned off
+		yield([]() {
+			if (stemExport.stopRecording) {
+				stemExport.stopOutputRecording();
+			}
+			return !(playbackHandler.recording != RecordingMode::OFF
+			         || audioRecorder.recordingSource > AudioInputChannel::NONE
+			         || playbackHandler.isEitherClockActive());
+		});
+
+		// update number of stems exported
+		numStemsExported++;
+	}
 
 	return totalNumOutputs;
 }
@@ -410,7 +459,7 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 	// prepare all the clips for stem export
 	int32_t totalNumClips = disarmAllClipsForStemExport();
 
-	if (totalNumClips) {
+	if (totalNumClips && totalNumStemsToExport) {
 		// now we're going to iterate through all clips to find the ones that should be exported
 		for (int32_t idxClip = totalNumClips - 1; idxClip >= 0; --idxClip) {
 			Clip* clip = currentSong->sessionClips.getClipAtIndex(idxClip);
@@ -478,11 +527,11 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 	// set wav file name for stem to be exported
 	setWavFileNameForStemExport(stemExportType, output, indexNumber);
 
-	// start resampling which ends when end of clip is reached and audio is silent
+	// start resampling which ends when end of track / clip is reached and audio is silent
 	startOutputRecordingUntilLoopEndAndSilence();
 
-	// we haven't exported all the clips yet
-	// so display the number of clips we've exported so far
+	// we haven't exported all the track / clips yet
+	// so display the number of tracks / clips we've exported so far
 	displayStemExportProgress(stemExportType);
 
 	return true;
@@ -501,7 +550,7 @@ void StemExport::finishCurrentStemExport(StemExportType stemExportType, bool& mu
 		muteState = true; // output->mutedInArrangementMode
 	}
 
-	// update number of instruments exported
+	// update number of stems exported
 	numStemsExported++;
 }
 
@@ -546,7 +595,7 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 			currentSong->songViewYScroll = indexNumber - kDisplayHeight;
 		}
 	}
-	else if (stemExportType == StemExportType::TRACK) {
+	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::ARRANGEMENT) {
 		// reset arranger view scrolling so we're back at the top left of the arrangement
 		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
 		currentSong->arrangementYScroll = indexNumber - kDisplayHeight;
@@ -829,62 +878,73 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		return;
 	}
 
-	// wavFileNameForStemExport = "/OutputType
-	const char* outputType;
-	switch (output->type) {
-	case OutputType::AUDIO:
-		outputType = "AUDIO";
-		break;
-	case OutputType::SYNTH:
-		outputType = "SYNTH";
-		break;
-	case OutputType::KIT:
-		outputType = "KIT";
-		break;
-	default:
-		break;
-	}
-	error = wavFileNameForStemExport.concatenate(outputType);
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType_
-	error = wavFileNameForStemExport.concatenate("_");
-	if (error != Error::NONE) {
-		return;
-	}
-
-	// wavFileNameForStemExport = "/OutputType_StemExportType_
-	if (stemExportType == StemExportType::CLIP) {
-		error = wavFileNameForStemExport.concatenate("CLIP_");
+	if (stemExportType == StemExportType::ARRANGEMENT) {
+		// wavFileNameForStemExport = "/ARRANAGEMENT
+		error = wavFileNameForStemExport.concatenate("ARRANGEMENT");
 		if (error != Error::NONE) {
 			return;
 		}
 	}
-	else if (stemExportType == StemExportType::TRACK) {
-		error = wavFileNameForStemExport.concatenate("TRACK_");
+	else {
+		// wavFileNameForStemExport = "/OutputType
+		const char* outputType;
+		switch (output->type) {
+		case OutputType::AUDIO:
+			outputType = "AUDIO";
+			break;
+		case OutputType::SYNTH:
+			outputType = "SYNTH";
+			break;
+		case OutputType::KIT:
+			outputType = "KIT";
+			break;
+		default:
+			break;
+		}
+		error = wavFileNameForStemExport.concatenate(outputType);
 		if (error != Error::NONE) {
 			return;
 		}
 	}
 
-	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName
-	error = wavFileNameForStemExport.concatenate(output->name.get());
-	if (error != Error::NONE) {
-		return;
-	}
+	if (stemExportType != StemExportType::ARRANGEMENT) {
+		// wavFileNameForStemExport = "/OutputType_
+		error = wavFileNameForStemExport.concatenate("_");
+		if (error != Error::NONE) {
+			return;
+		}
 
-	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_
-	error = wavFileNameForStemExport.concatenate("_");
-	if (error != Error::NONE) {
-		return;
-	}
+		// wavFileNameForStemExport = "/OutputType_StemExportType_
+		if (stemExportType == StemExportType::CLIP) {
+			error = wavFileNameForStemExport.concatenate("CLIP_");
+			if (error != Error::NONE) {
+				return;
+			}
+		}
+		else if (stemExportType == StemExportType::TRACK) {
+			error = wavFileNameForStemExport.concatenate("TRACK_");
+			if (error != Error::NONE) {
+				return;
+			}
+		}
 
-	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_###
-	error = wavFileNameForStemExport.concatenateInt(fileNumber, 3);
-	if (error != Error::NONE) {
-		return;
+		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName
+		error = wavFileNameForStemExport.concatenate(output->name.get());
+		if (error != Error::NONE) {
+			return;
+		}
+
+		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_
+		error = wavFileNameForStemExport.concatenate("_");
+		if (error != Error::NONE) {
+			return;
+		}
+
+		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_###
+		error = wavFileNameForStemExport.concatenateInt(fileNumber, 3);
+		if (error != Error::NONE) {
+			return;
+		}
 	}
 
 	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_###.WAV
