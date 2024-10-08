@@ -311,6 +311,7 @@ private:
 	// note functions
 	void nudgeNotes(int32_t offset);
 	void displayProbability(uint8_t probability, bool prevBase);
+	void displayIterance(uint16_t iterance);
 
 	// note row functions
 	void copyNotes();
