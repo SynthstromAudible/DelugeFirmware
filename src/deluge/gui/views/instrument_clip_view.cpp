@@ -2743,7 +2743,7 @@ multiplePresses:
 				// Decrementing
 				else {
 					// decrement parameter value
-					if (parameterValue > 1) {
+					if (parameterValue > parameterMinValue) {
 						parameterValue--;
 						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 							// As we are treating multiple notes, we need to reset prevBase and remove the "latching"
@@ -2764,7 +2764,7 @@ multiplePresses:
 				else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 					// transform back from preset to real value (only if not CUSTOM)
 					if (parameterValueForMultipleNotes > 0 && parameterValueForMultipleNotes <= kNumIterationPresets) {
-						parameterValueForMultipleNotes = iterancePresets[parameterValue];
+						parameterValueForMultipleNotes = iterancePresets[parameterValue - 1];
 					}
 					else if (parameterValueForMultipleNotes == kCustomIterancePreset) {
 						// Reset custom iterance to 1of1
