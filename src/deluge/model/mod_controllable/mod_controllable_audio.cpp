@@ -288,10 +288,20 @@ void ModControllableAudio::processModFXBuffer(StereoSample* buffer, const ModFXT
 		} while (++currentSample != bufferEnd);
 	}
 	else if (modFXType == ModFXType::WARBLE) {
-		uint32_t width = ONE_Q31f * 0.95;
+		q31_t width{ONE_Q31};
+		if (AudioEngine::renderInStereo) {
+			// offset the rate of the right slightly relative to the left to create moving stereo imaging in theme with
+			// the warble
+			const q31_t fModifier = (ONE_Q31f * 0.97);
+			width = fModifier;
+		}
+
 		do {
 			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
-			int32_t lfo2Output = modFXLFOStereo.render(1, modFXLFOWaveType, multiply_32x32_rshift32(modFXRate, width));
+			// this needs a second lfo because it's a random process - we can't flip it to make a second sample but
+			// these will always be different anyway
+			int32_t lfo2Output =
+			    modFXLFOStereo.render(1, modFXLFOWaveType, multiply_32x32_rshift32(modFXRate, width) << 1);
 			processWarble(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput,
 			              lfo2Output);
 
@@ -300,14 +310,15 @@ void ModControllableAudio::processModFXBuffer(StereoSample* buffer, const ModFXT
 	else {
 		do {
 			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
-			processOneModFXSample(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput);
+			processOneModFXSample(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput,
+			                      -lfoOutput);
 
 		} while (++currentSample != bufferEnd);
 	}
 }
 void ModControllableAudio::processOneModFXSample(const ModFXType& modFXType, int32_t modFXDelayOffset,
                                                  int32_t thisModFXDelayDepth, int32_t feedback,
-                                                 StereoSample* currentSample, int32_t lfoOutput) {
+                                                 StereoSample* currentSample, int32_t lfoOutput, int32_t lfo2Output) {
 	int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
 
 	int32_t strength2 = (delayTime & 65535) << 15;
@@ -320,10 +331,8 @@ void ModControllableAudio::processOneModFXSample(const ModFXType& modFXType, int
 	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
 	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
 
-	// todo - this should probably just be a seperate flag, we could do flanger and warble in stereo too (stereo warble
-	// sounds great)
-	if (modFXType == ModFXType::CHORUS_STEREO) {
-		delayTime = multiply_32x32_rshift32(lfoOutput, -thisModFXDelayDepth) + modFXDelayOffset;
+	if (lfo2Output != lfoOutput) {
+		delayTime = multiply_32x32_rshift32(lfo2Output, -thisModFXDelayDepth) + modFXDelayOffset;
 		strength2 = (delayTime & 65535) << 15;
 		strength1 = (65535 << 15) - strength2;
 		sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);

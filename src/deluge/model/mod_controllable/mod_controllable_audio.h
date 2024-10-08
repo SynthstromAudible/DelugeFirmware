@@ -183,7 +183,7 @@ private:
 
 	void processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
 	void processOneModFXSample(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
-	                           int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
+	                           int32_t feedback, StereoSample* currentSample, int32_t lfoOutput, int32_t lfo2Output);
 	/// flanger, phaser, warble - generally any modulated delay tap based effect with feedback
 	void setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
 	                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
