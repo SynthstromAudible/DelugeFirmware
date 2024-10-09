@@ -2405,7 +2405,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	}
 
 	if (output->type == OutputType::KIT) {
-		writer.writeOpeningTag("kitParams");
+		writer.writeOpeningTagBeginning("kitParams");
 		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true);
 		writer.writeOpeningTagEnd();
 		GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true);
