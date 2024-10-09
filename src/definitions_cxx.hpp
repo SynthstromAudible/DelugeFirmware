@@ -640,7 +640,7 @@ enum class ArmState {
 };
 
 constexpr int32_t kNumProbabilityValues = 20;
-constexpr int32_t kNumIterationPresets = 35;     // 1of2 through 8of8 (indexes 1 through 35)
+constexpr int32_t kNumIterancePresets = 35;      // 1of2 through 8of8 (indexes 1 through 35)
 constexpr int32_t kCustomIterancePreset = 36;    // The "CUSTOM" iterance value is right after "8of8"
 constexpr int32_t kCustomIteranceValue = 0x0101; // "1of1"
 constexpr int32_t kDefaultIteranceValue = 0;     // 0 means OFF

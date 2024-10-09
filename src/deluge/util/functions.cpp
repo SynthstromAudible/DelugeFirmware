@@ -2024,10 +2024,10 @@ int32_t getIterancePresetFromValue(uint16_t value) {
 		// Divisor is 0, so it means this stored value must be from old firmware
 		// (it should not happen as values are already converted when reading song's XML file)
 		// Anyway we treat it as a preset
-		return std::clamp<uint16_t>(value, 0, kNumIterationPresets);
+		return std::clamp<uint16_t>(value, 0, kNumIterancePresets);
 	}
 
-	for (int32_t i = 0; i < kNumIterationPresets; i++) {
+	for (int32_t i = 0; i < kNumIterancePresets; i++) {
 		// Check if value is one of the presets
 		if (iterancePresets[i] == value) {
 			return i + 1;
@@ -2036,6 +2036,22 @@ int32_t getIterancePresetFromValue(uint16_t value) {
 
 	// Custom iteration
 	return kCustomIterancePreset;
+}
+
+// This method transform back an iterance preset to a real value
+// In the case the preset is Custom, the returned real value is kCustomIteranceValue, that is, "1of1"
+uint16_t getIteranceValueFromPreset(int32_t value) {
+	if (value > 0 && value <= kNumIterancePresets) {
+		return iterancePresets[value - 1];
+	}
+	else if (value == kCustomIterancePreset) {
+		// Reset custom iterance to 1of1
+		return kCustomIteranceValue;
+	}
+	else {
+		// Default: Off
+		return kDefaultIteranceValue;
+	}
 }
 
 // This methods cleans the iterance value to be among the possible valid values,

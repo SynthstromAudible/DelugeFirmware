@@ -239,12 +239,13 @@ public:
 	void popupVelocity(char const* displayString);
 
 	void adjustNoteProbabilityWithOffset(int32_t offset);
-	void adjustNoteIteranceWithOffset(int32_t offset);
+	void adjustNoteIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom = true);
 	void adjustNoteIteranceWithFinalValue(int32_t finalValue);
 	void adjustNoteFillWithOffset(int32_t offset);
 	Note* getLeftMostNotePressed();
 	void adjustNoteParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
-	                              int32_t parameterMinValue, int32_t parameterMaxValue);
+	                              int32_t parameterMinValue, int32_t parameterMaxValue,
+	                              bool allowTogglingBetweenPresetsAndCustom = true);
 
 	// other note functions
 	void editNoteRepeat(int32_t offset);
@@ -265,11 +266,12 @@ public:
 
 	// adjust note row parameters
 	int32_t setNoteRowProbabilityWithOffset(int32_t offset);
-	int32_t setNoteRowIteranceWithOffset(int32_t offset);
+	int32_t setNoteRowIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom = true);
 	int32_t setNoteRowIteranceWithFinalValue(int32_t finalValue);
 	int32_t setNoteRowFillWithOffset(int32_t offset);
 	int32_t setNoteRowParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
-	                                 int32_t parameterMinValue, int32_t parameterMaxValue);
+	                                 int32_t parameterMinValue, int32_t parameterMaxValue,
+	                                 bool allowTogglingBetweenPresetsAndCustom = true);
 	// other note row functions
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);

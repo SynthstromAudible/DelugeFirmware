@@ -3397,7 +3397,7 @@ doReadNoteData:
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else if (probability > kNumProbabilityValues
-					         && probability <= kNumProbabilityValues + kNumIterationPresets) {
+					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
 						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
 						probability = kNumProbabilityValues; // 100% probability
@@ -3425,7 +3425,7 @@ doReadNoteData:
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else if (probability > kNumProbabilityValues
-					         && probability <= kNumProbabilityValues + kNumIterationPresets) {
+					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
 						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
 						probability = kNumProbabilityValues; // 100% probability
