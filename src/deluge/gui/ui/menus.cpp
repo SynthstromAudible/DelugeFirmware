@@ -1273,12 +1273,16 @@ ToggleBool configureSongFXMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, STRING_
                                stemExport.includeSongFX};
 ToggleBool configureOfflineRenderingMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING,
                                          STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING, stemExport.renderOffline};
+ToggleBool configureMasterArrangementExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_MASTER_ARRANGEMENT,
+                                                STRING_FOR_CONFIGURE_EXPORT_STEMS_MASTER_ARRANGEMENT,
+                                                stemExport.exportMasterArrangement};
 menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
                                            {
                                                &configureNormalizationMenu,
                                                &configureSilenceMenu,
                                                &configureSongFXMenu,
                                                &configureOfflineRenderingMenu,
+                                               &configureMasterArrangementExportMenu,
                                            }};
 
 menu_item::Submenu stemExportMenu{
