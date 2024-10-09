@@ -185,9 +185,9 @@ private:
 	// Low-pass
 	float lp_cutoff_val_{1.f};
 	// corresponds to 20Hz
-	float lp_cutoff_{calcFilterCutoff(0)};
-	float lp_l_{0.0}; // LP state variable
-	float lp_r_{0.0}; // LP state variable
+	float lp_cutoff_{calcFilterCutoff(1)};
+	float lp_l_{1.0}; // LP state variable
+	float lp_r_{1.0}; // LP state variable
 };
 
 } // namespace deluge::dsp::reverb
