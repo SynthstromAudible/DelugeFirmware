@@ -31,7 +31,12 @@ public:
 		soundEditor.exitCompletely();
 		RootUI* rootUI = getRootUI();
 		if (rootUI == &arrangerView) {
-			stemExport.startStemExportProcess(StemExportType::TRACK);
+			if (stemExport.exportMasterArrangement) {
+				stemExport.startStemExportProcess(StemExportType::MASTER_ARRANGEMENT);
+			}
+			else {
+				stemExport.startStemExportProcess(StemExportType::TRACK);
+			}
 		}
 		else if (rootUI == &sessionView) {
 			stemExport.startStemExportProcess(StemExportType::CLIP);
