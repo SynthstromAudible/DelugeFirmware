@@ -944,7 +944,7 @@ to each individual note onset. ([#1978])
 
 #### 4.3.10 - Enhanced Note Probability, Iterance and Fill
 
-- ([#2641]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
+- ([#2641], [#2751]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
   - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
   - To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
   - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the `SELECT` encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
@@ -1575,7 +1575,7 @@ different firmware
 
 [#2716]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2716
 
-[#2752]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2752
+[#2752]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
 
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
