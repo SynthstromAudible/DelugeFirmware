@@ -2474,6 +2474,13 @@ Note* InstrumentClipView::getLeftMostNotePressed() {
 // adjusts note probability, iterance, fill
 void InstrumentClipView::adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
                                                   int32_t parameterMaxValue) {
+	// ensure offset is valid (offset acceleration not permitted here)
+	if (offset < 0) {
+		offset = -1;
+	}
+	else if (offset > 0) {
+		offset = 1;
+	}
 
 	int32_t parameterValue = -1;
 
@@ -2925,8 +2932,9 @@ ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Butto
 		return buttonAction(b, on, inCardRoutine);
 	}
 	// to allow you to toggle playback on / off
+	// to allow you to toggle shift on / off
 	// to allow you to toggle mod encoders on / off
-	else if (b == PLAY || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
+	else if (b == PLAY || b == SHIFT || b == MOD_ENCODER_0 || b == MOD_ENCODER_1) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
@@ -3191,6 +3199,14 @@ int32_t InstrumentClipView::setNoteRowFill(int32_t offset) {
 
 int32_t InstrumentClipView::setNoteRowParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
                                                      int32_t parameterMaxValue) {
+	// ensure offset is valid (offset acceleration not permitted here)
+	if (offset < 0) {
+		offset = -1;
+	}
+	else if (offset > 0) {
+		offset = 1;
+	}
+
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
