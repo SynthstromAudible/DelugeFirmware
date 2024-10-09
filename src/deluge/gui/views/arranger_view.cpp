@@ -103,8 +103,8 @@ ArrangerView::ArrangerView() {
 
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
-		if (stemExport.exportArrangement) {
-			stemExport.displayStemExportProgressOLED(StemExportType::ARRANGEMENT);
+		if (stemExport.exportMasterArrangement) {
+			stemExport.displayStemExportProgressOLED(StemExportType::MASTER_ARRANGEMENT);
 		}
 		else {
 			stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
@@ -257,8 +257,8 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 					if (inCardRoutine) {
 						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
-					if (stemExport.exportArrangement) {
-						stemExport.startStemExportProcess(StemExportType::ARRANGEMENT);
+					if (stemExport.exportMasterArrangement) {
+						stemExport.startStemExportProcess(StemExportType::MASTER_ARRANGEMENT);
 					}
 					else {
 						stemExport.startStemExportProcess(StemExportType::TRACK);

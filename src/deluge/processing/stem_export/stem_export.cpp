@@ -68,7 +68,7 @@ StemExport::StemExport() {
 	exportToSilence = true;
 	includeSongFX = false;
 	renderOffline = true;
-	exportArrangement = false;
+	exportMasterArrangement = false;
 
 	timePlaybackStopped = 0xFFFFFFFF;
 
@@ -104,8 +104,8 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	else if (stemExportType == StemExportType::TRACK) {
 		elementsProcessed = exportInstrumentStems(stemExportType);
 	}
-	else if (stemExportType == StemExportType::ARRANGEMENT) {
-		elementsProcessed = exportArrangementStem(stemExportType);
+	else if (stemExportType == StemExportType::MASTER_ARRANGEMENT) {
+		elementsProcessed = exportMasterArrangementStem(stemExportType);
 	}
 
 	// if process wasn't cancelled, then we got here because we finished
@@ -223,7 +223,7 @@ bool StemExport::checkForSilence() {
 }
 
 /// disarms and prepares all the instruments so that they can be exported
-int32_t StemExport::disarmAllInstrumentsForStemExport() {
+int32_t StemExport::disarmAllInstrumentsForStemExport(StemExportType stemExportType) {
 	// when we begin stem export, we haven't exported any instruments yet, so initialize these variables
 	numStemsExported = 0;
 	totalNumStemsToExport = 0;
@@ -250,9 +250,9 @@ int32_t StemExport::disarmAllInstrumentsForStemExport() {
 				else {
 					output->exportStem = false;
 				}
-				// if we're not exporting the full arrangement as a single stem,
+				// if we're not exporting the master arrangement as a single stem,
 				// then we want to mute all the tracks as we'll be exporting them individually
-				if (!exportArrangement) {
+				if (stemExportType != StemExportType::MASTER_ARRANGEMENT) {
 					output->mutedInArrangementModeBeforeStemExport = output->mutedInArrangementMode;
 					output->mutedInArrangementMode = true;
 				}
@@ -263,8 +263,8 @@ int32_t StemExport::disarmAllInstrumentsForStemExport() {
 		}
 	}
 
-	// if exporting arrangement, just exporting one stem
-	if (exportArrangement && totalNumStemsToExport) {
+	// if exporting master arrangement, just exporting one stem
+	if ((stemExportType == StemExportType::MASTER_ARRANGEMENT) && totalNumStemsToExport) {
 		totalNumStemsToExport = 1;
 	}
 	return totalNumOutputs;
@@ -288,7 +288,7 @@ void StemExport::restoreAllInstrumentMutes(int32_t totalNumOutputs) {
 /// and stop recording at the end of the arrangement
 int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 	// prepare all the instruments for stem export
-	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport();
+	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
 
 	if (totalNumOutputs && totalNumStemsToExport) {
 		// now we're going to iterate through all instruments to find the ones that should be exported
@@ -330,12 +330,12 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 }
 
 /// iterates through all instruments, checking if there's any that should be exported (unmuted)
-/// then exports them all as a single arrangement stem
+/// then exports them all as a single master arrangement stem
 /// simulates the button combo action of pressing record + play twice to enable resample
 /// and stop recording at the end of the arrangement
-int32_t StemExport::exportArrangementStem(StemExportType stemExportType) {
+int32_t StemExport::exportMasterArrangementStem(StemExportType stemExportType) {
 	// prepare all the instruments for stem export
-	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport();
+	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
 
 	if (totalNumOutputs && totalNumStemsToExport) {
 		// set wav file name for stem to be exported
@@ -595,7 +595,7 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 			currentSong->songViewYScroll = indexNumber - kDisplayHeight;
 		}
 	}
-	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::ARRANGEMENT) {
+	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::MASTER_ARRANGEMENT) {
 		// reset arranger view scrolling so we're back at the top left of the arrangement
 		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = 0;
 		currentSong->arrangementYScroll = indexNumber - kDisplayHeight;
@@ -878,7 +878,7 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		return;
 	}
 
-	if (stemExportType == StemExportType::ARRANGEMENT) {
+	if (stemExportType == StemExportType::MASTER_ARRANGEMENT) {
 		// wavFileNameForStemExport = "/ARRANAGEMENT
 		error = wavFileNameForStemExport.concatenate("ARRANGEMENT");
 		if (error != Error::NONE) {
@@ -907,7 +907,7 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		}
 	}
 
-	if (stemExportType != StemExportType::ARRANGEMENT) {
+	if (stemExportType != StemExportType::MASTER_ARRANGEMENT) {
 		// wavFileNameForStemExport = "/OutputType_
 		error = wavFileNameForStemExport.concatenate("_");
 		if (error != Error::NONE) {

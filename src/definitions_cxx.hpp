@@ -244,7 +244,7 @@ enum class OutputType : uint8_t {
 enum class StemExportType : uint8_t {
 	CLIP,
 	TRACK,
-	ARRANGEMENT,
+	MASTER_ARRANGEMENT,
 };
 
 enum class ThingType : uint8_t {
