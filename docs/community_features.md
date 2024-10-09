@@ -1306,7 +1306,6 @@ centric features.
 
 ## 7. Compiletime settings
 
-
 This list includes all preprocessor switches that can alter firmware behaviour at compile time and thus require a
 different firmware
 
