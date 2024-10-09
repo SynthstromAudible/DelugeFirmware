@@ -783,8 +783,7 @@ const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_
 void SoundEditor::selectEncoderAction(int8_t offset) {
 
 	// 5x acceleration of select encoder when holding the shift button
-	// don't do this if you're in the note or note row editors
-	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT) && !inNoteEditor() && !inNoteRowEditor()) {
+	if (Buttons::isButtonPressed(deluge::hid::button::SHIFT)) {
 		offset = offset * 5;
 	}
 
