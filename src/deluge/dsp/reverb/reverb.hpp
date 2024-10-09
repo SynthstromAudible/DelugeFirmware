@@ -19,6 +19,7 @@ public:
 	    : base_(&std::get<0>(reverb_)),     //<
 	      room_size_(base_->getRoomSize()), //<
 	      damping_(base_->getDamping()),    //<
+		  lpf_(base_->getLPF()),    //<
 	      width_(base_->getWidth()) {}
 	~Reverb() override = default;
 
