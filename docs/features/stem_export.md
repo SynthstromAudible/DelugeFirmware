@@ -79,7 +79,7 @@ Stem's are given a meaningful name in the following format:
   - Offline rendering can be turned off in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\OFFLINE RENDERING`
 
 ### Export Arrangement
-- Exporting the all unmuted tracks as a single arrangement stem is disabled by default. This can be enabled in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\EXPORT ARRANGEMENT`
+- Exporting all unmuted tracks as a single arrangement stem is disabled by default. This can be enabled in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\EXPORT ARRANGEMENT`
 
 ## Stem Export Menu
 
