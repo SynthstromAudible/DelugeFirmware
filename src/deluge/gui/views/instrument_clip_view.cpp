@@ -2523,10 +2523,10 @@ Note* InstrumentClipView::getLeftMostNotePressed() {
 // adjusts note probability, iterance, fill for notes
 //  - either via offset, providing values -1 or 1 (provide 0 if you don't want to use this parameter)
 //  - or via finalValue, providing value 0 or up (provide -1 if you don't want to use this parameter)
-void InstrumentClipView::adjustNoteParameterValue(
-    int32_t withOffset, int32_t withFinalValue, int32_t changeType, int32_t parameterMinValue,
-    int32_t parameterMaxValue,
-    bool allowTogglingBetweenPresetsAndCustom) { // ensure offset is valid (offset acceleration not permitted here)
+void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
+                                                  int32_t parameterMinValue, int32_t parameterMaxValue,
+                                                  bool allowTogglingBetweenPresetsAndCustom) {
+	// ensure offset is valid (offset acceleration not permitted here)
 	if (withOffset < 0) {
 		withOffset = -1;
 	}
@@ -2556,6 +2556,7 @@ void InstrumentClipView::adjustNoteParameterValue(
 				}
 
 				int32_t originalParameter;
+				bool parameterHasBeenEdited = false;
 
 				if (withOffset != 0) {
 					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
@@ -2575,7 +2576,17 @@ void InstrumentClipView::adjustNoteParameterValue(
 					}
 				}
 				else if (withFinalValue >= 0) {
+					if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+						originalParameter = editPadPresses[i].intendedProbability;
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						originalParameter = editPadPresses[i].intendedIterance;
+					}
+					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+						originalParameter = editPadPresses[i].intendedFill;
+					}
 					parameterValue = withFinalValue;
+					parameterHasBeenEdited = originalParameter != withFinalValue;
 				}
 
 				// If editing, continue edit
@@ -2584,8 +2595,6 @@ void InstrumentClipView::adjustNoteParameterValue(
 					if (!action) {
 						return;
 					}
-
-					bool parameterHasBeenEdited = false;
 
 					// Covers probabily, iterance, and fill (set based on offset)
 					if (withOffset != 0) {
@@ -2766,6 +2775,7 @@ multiplePresses:
 		}
 
 		int32_t originalParameter;
+		bool parameterHasBeenEdited = false;
 
 		// decide the parameter value, based on the existing parameter value of the leftmost note
 		if (withOffset != 0) {
@@ -2786,7 +2796,17 @@ multiplePresses:
 			}
 		}
 		else if (withFinalValue >= 0) {
+			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+				originalParameter = editPadPresses[leftMostIndex].intendedProbability;
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+				originalParameter = editPadPresses[leftMostIndex].intendedIterance;
+			}
+			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+				originalParameter = editPadPresses[leftMostIndex].intendedFill;
+			}
 			parameterValue = withFinalValue;
+			parameterHasBeenEdited = originalParameter != withFinalValue;
 		}
 
 		// If editing, continue edit
@@ -2796,47 +2816,49 @@ multiplePresses:
 				return;
 			}
 
-			bool parameterHasBeenEdited = false;
-
 			// Covers probabily, iterance, and fill (set based on offset)
 			if (withOffset != 0) {
 				// Incrementing
 				if (withOffset == 1) {
 					// increment parameter value
-					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						bool isLastPreset = parameterValue == kNumIterancePresets;
-						if (!isLastPreset || allowTogglingBetweenPresetsAndCustom) {
+					if (parameterValue < parameterMaxValue) {
+						if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+							bool isLastPreset = parameterValue == kNumIterancePresets;
+							if (!isLastPreset || allowTogglingBetweenPresetsAndCustom) {
+								parameterValue++;
+								parameterHasBeenEdited = true;
+							}
+						}
+						else {
 							parameterValue++;
 							parameterHasBeenEdited = true;
-						}
-					}
-					else if (parameterValue < parameterMaxValue) {
-						parameterValue++;
-						parameterHasBeenEdited = true;
-						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
-							// As we are treating multiple notes, we need to reset prevBase and remove the "latching"
-							// state for leftMostNote
-							prevBase = false;
+							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+								// As we are treating multiple notes, we need to reset prevBase and remove the
+								// "latching" state for leftMostNote
+								prevBase = false;
+							}
 						}
 					}
 				}
 				// Decrementing
 				else {
 					// decrement parameter value
-					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						bool isCustom = parameterValue == kCustomIterancePreset;
-						if (!isCustom || allowTogglingBetweenPresetsAndCustom) {
+					if (parameterValue > parameterMinValue) {
+						if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+							bool isCustom = parameterValue == kCustomIterancePreset;
+							if (!isCustom || allowTogglingBetweenPresetsAndCustom) {
+								parameterValue--;
+								parameterHasBeenEdited = true;
+							}
+						}
+						else {
 							parameterValue--;
 							parameterHasBeenEdited = true;
-						}
-					}
-					else if (parameterValue > parameterMinValue) {
-						parameterValue--;
-						parameterHasBeenEdited = true;
-						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
-							// As we are treating multiple notes, we need to reset prevBase and remove the "latching"
-							// state for leftMostNote
-							prevBase = false;
+							if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+								// As we are treating multiple notes, we need to reset prevBase and remove the
+								// "latching" state for leftMostNote
+								prevBase = false;
+							}
 						}
 					}
 				}
@@ -3429,6 +3451,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
 
 	uint16_t originalParameter;
+	bool parameterHasBeenEdited = false;
 	int32_t parameterValue;
 
 	if (withOffset != 0) {
@@ -3448,7 +3471,17 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		}
 	}
 	else if (withFinalValue >= 0) {
+		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
+			originalParameter = noteRow->probabilityValue;
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			originalParameter = noteRow->iteranceValue;
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
+			originalParameter = noteRow->fillValue;
+		}
 		parameterValue = withFinalValue;
+		parameterHasBeenEdited = originalParameter != withFinalValue;
 	}
 
 	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
@@ -3466,22 +3499,38 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		                                                     modelStackWithNoteRow->noteRowId, &noteRow->notes,
 		                                                     false); // Snapshot for undoability. Don't steal data.
 
-		bool parameterHasBeenEdited = false;
-
 		// Covers probabily, iterance, and fill (set based on offset)
 		if (withOffset != 0) {
 			// Incrementing
 			if (withOffset == 1) {
 				if (parameterValue < parameterMaxValue) {
-					parameterValue++;
-					parameterHasBeenEdited = true;
+					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						bool isLastPreset = parameterValue == kNumIterancePresets;
+						if (!isLastPreset || allowTogglingBetweenPresetsAndCustom) {
+							parameterValue++;
+							parameterHasBeenEdited = true;
+						}
+					}
+					else {
+						parameterValue++;
+						parameterHasBeenEdited = true;
+					}
 				}
 			}
 			// Decrementing
 			else {
 				if (parameterValue > parameterMinValue) {
-					parameterValue--;
-					parameterHasBeenEdited = true;
+					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+						bool isCustom = parameterValue == kCustomIterancePreset;
+						if (!isCustom || allowTogglingBetweenPresetsAndCustom) {
+							parameterValue--;
+							parameterHasBeenEdited = true;
+						}
+					}
+					else {
+						parameterValue--;
+						parameterHasBeenEdited = true;
+					}
 				}
 			}
 			if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
