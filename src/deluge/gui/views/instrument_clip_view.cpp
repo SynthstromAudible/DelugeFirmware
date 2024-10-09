@@ -1414,7 +1414,24 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 			offsetNoteCodeAction(offset);
 		}
 		else {
-			setNoteRowProbabilityWithOffset(offset);
+			bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
+			bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
+			bool hasPopup = hasProbabilityPopup || hasIterancePopup;
+
+			// if there's no probability or iterance pop-up yet and we're turning encoder left, edit probability
+			// if there's a probability pop-up, continue editing probability
+			bool shouldEditProbability = (!hasPopup && (offset < 0)) || hasProbabilityPopup;
+
+			// if there's no probability or iterance pop-up yet and we're turning encoder right, edit iterance
+			// if there's an iterance pop-up, continue editing iterance
+			bool shouldEditIterance = (!hasPopup && (offset > 0)) || hasIterancePopup;
+
+			if (shouldEditProbability) {
+				setNoteRowProbabilityWithOffset(offset);
+			}
+			else if (shouldEditIterance) {
+				setNoteRowIteranceWithOffset(offset);
+			}
 		}
 	}
 
@@ -1428,9 +1445,26 @@ void InstrumentClipView::selectEncoderAction(int8_t offset) {
 		}
 	}
 
-	// Or, if user holding a note(s) down, we'll adjust proability instead
+	// Or, if user holding a note(s) down, we'll adjust proability / iterance instead
 	else if (currentUIMode == UI_MODE_NOTES_PRESSED) {
-		adjustNoteProbabilityWithOffset(offset);
+		bool hasProbabilityPopup = display->hasPopupOfType(PopupType::PROBABILITY);
+		bool hasIterancePopup = display->hasPopupOfType(PopupType::ITERANCE);
+		bool hasPopup = hasProbabilityPopup || hasIterancePopup;
+
+		// if there's no probability or iterance pop-up yet and we're turning encoder left, edit probability
+		// if there's a probability pop-up, continue editing probability
+		bool shouldEditProbability = (!hasPopup && (offset < 0)) || hasProbabilityPopup;
+
+		// if there's no probability or iterance pop-up yet and we're turning encoder right, edit iterance
+		// if there's an iterance pop-up, continue editing iterance
+		bool shouldEditIterance = (!hasPopup && (offset > 0)) || hasIterancePopup;
+
+		if (shouldEditProbability) {
+			adjustNoteProbabilityWithOffset(offset);
+		}
+		else if (shouldEditIterance) {
+			adjustNoteIteranceWithOffset(offset);
+		}
 	}
 	// Or, normal option - trying to change Instrument presets
 	else {
@@ -2507,6 +2541,8 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 
 	bool inNoteEditor = getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
 
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
+
 	// If just one press...
 	if (numEditPadPresses == 1) {
 		// Find it
@@ -2542,7 +2578,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 				}
 
 				// If editing, continue edit
-				if (display->hasPopup() || inNoteEditor) {
+				if (hasPopup || inNoteEditor) {
 					Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 					if (!action) {
 						return;
@@ -2727,7 +2763,7 @@ multiplePresses:
 		}
 
 		// If editing, continue edit
-		if (display->hasPopupOfType(PopupType::PROBABILITY) || inNoteEditor) {
+		if (hasPopup || inNoteEditor) {
 			Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 			if (!action) {
 				return;
@@ -2750,7 +2786,7 @@ multiplePresses:
 				// Decrementing
 				else {
 					// decrement parameter value
-					if (parameterValue > 1) {
+					if (parameterValue > parameterMinValue) {
 						parameterValue--;
 						if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 							// As we are treating multiple notes, we need to reset prevBase and remove the "latching"
@@ -2770,17 +2806,18 @@ multiplePresses:
 				}
 				else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 					// transform back from preset to real value (only if not CUSTOM)
-					if (parameterValueForMultipleNotes > 0 && parameterValueForMultipleNotes <= kNumIterationPresets) {
-						parameterValueForMultipleNotes = iterancePresets[parameterValue];
+					if (parameterValue > 0 && parameterValue <= kNumIterationPresets) {
+						parameterValue = iterancePresets[parameterValue - 1];
 					}
-					else if (parameterValueForMultipleNotes == kCustomIterancePreset) {
+					else if (parameterValue == kCustomIterancePreset) {
 						// Reset custom iterance to 1of1
-						parameterValueForMultipleNotes = kCustomIteranceValue;
+						parameterValue = kCustomIteranceValue;
 					}
 					else {
 						// Default: Off
-						parameterValueForMultipleNotes = 0;
+						parameterValue = 0;
 					}
+					parameterValueForMultipleNotes = parameterValue;
 				}
 			}
 
@@ -2849,6 +2886,9 @@ multiplePresses:
 		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 			displayProbability(parameterValue, prevBase);
 		}
+		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			displayIterance(parameterValue);
+		}
 	}
 }
 
@@ -2875,8 +2915,41 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	if (display->haveOLED()) {
 		display->popupText(buffer, PopupType::PROBABILITY);
 	}
-	if (display->have7SEG()) {
+	else {
 		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
+	}
+}
+
+void InstrumentClipView::displayIterance(uint16_t iterance) {
+	char buffer[(display->haveOLED()) ? 29 : 5];
+
+	// Iteration dependence
+	int32_t iterancePreset = getIterancePresetFromValue(iterance);
+
+	if (iterancePreset == kDefaultIteranceValue) {
+		strcpy(buffer, display->haveOLED() ? "Iterance: OFF" : "OFF");
+	}
+	else if (iterancePreset == kCustomIterancePreset) {
+		strcpy(buffer, display->haveOLED() ? "Iterance: CUSTOM" : "CUSTOM");
+	}
+	else {
+		int32_t divisor, iterationBitsWithinDivisor;
+		dissectIterationDependence(iterancePresets[iterancePreset - 1], &divisor, &iterationBitsWithinDivisor);
+		int32_t i = divisor;
+		for (; i >= 0; i--) {
+			// try to find which iteration step index is active
+			if (iterationBitsWithinDivisor & (1 << i)) {
+				break;
+			}
+		}
+		sprintf(buffer, display->haveOLED() ? "Iterance: %d of %d" : "%dof%d", i + 1, divisor);
+	}
+
+	if (display->haveOLED()) {
+		display->popupText(buffer, PopupType::ITERANCE);
+	}
+	else {
+		display->displayPopup(buffer, 0, true, 255, 1, PopupType::ITERANCE);
 	}
 }
 
@@ -3304,6 +3377,8 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		return -1; // Get out if NoteRow doesn't exist and can't be created
 	}
 
+	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE);
+
 	uint16_t parameter;
 	int32_t parameterValue;
 
@@ -3330,7 +3405,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
 
 	// If editing, continue edit
-	if (display->hasPopupOfType(PopupType::PROBABILITY) || inNoteRowEditor) {
+	if (hasPopup || inNoteRowEditor) {
 		ActionAddition actionAddition =
 		    inNoteRowEditor ? ActionAddition::ALLOWED : ActionAddition::ALLOWED_ONLY_IF_NO_TIME_PASSED;
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, actionAddition);
@@ -3409,6 +3484,9 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 	if (!inNoteRowEditor) {
 		if (changeType == CORRESPONDING_NOTES_SET_PROBABILITY) {
 			displayProbability(parameterValue, false);
+		}
+		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
+			displayIterance(parameterValue);
 		}
 	}
 
