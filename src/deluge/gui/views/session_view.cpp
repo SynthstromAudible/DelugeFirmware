@@ -2019,7 +2019,7 @@ void SessionView::renderViewDisplay() {
 #endif
 
 	DEF_STACK_STRING_BUF(tempoBPM, 10);
-	lastDisplayedTempo = currentSong->calculateBPM();
+	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
 	displayTempoBPM(canvas, tempoBPM, false);
 
@@ -2336,12 +2336,15 @@ void SessionView::graphicsRoutine() {
 void SessionView::displayPotentialTempoChange(UI* ui) {
 	// check UI in case graphics routine is called while we're in another UI (e.g. menu)
 	if (getCurrentUI() == ui) {
-		float tempo = currentSong->calculateBPM();
-		if (tempo != lastDisplayedTempo) {
+		float tempo = playbackHandler.calculateBPMForDisplay();
+		float diff = std::abs(tempo - lastDisplayedTempo);
+		// always catch manual adjustments, limit rate of others
+		if (diff > 0.5) {
 			DEF_STACK_STRING_BUF(tempoBPM, 10);
 			playbackHandler.getTempoStringForOLED(tempo, tempoBPM);
 			displayTempoBPM(deluge::hid::display::OLED::main, tempoBPM, true);
 			deluge::hid::display::OLED::markChanged();
+			lastDisplayedTempo = tempo;
 		}
 	}
 }
