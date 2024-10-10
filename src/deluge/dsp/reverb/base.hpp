@@ -47,6 +47,6 @@ struct Base {
 private:
 	int32_t amplitude_right_ = 0;
 	int32_t amplitude_left_ = 0;
-	float _lpf{1}
+	float _lpf{1};
 };
 } // namespace deluge::dsp::reverb
