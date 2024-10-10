@@ -172,6 +172,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	// Setup reverb temp variables
 	reverbRoomSize = (float)30 / 50;
 	reverbDamp = (float)36 / 50;
+	reverbLPF = (float)50 / 50;
 	reverbWidth = 1;
 	reverbPan = 0;
 	reverbSidechainVolume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
