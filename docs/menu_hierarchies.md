@@ -1459,11 +1459,9 @@ This menu enables you to edit note row specific parameters for a selected note r
 The Note Row Editor menu contains the following menu hierarchy:
 
 <blockquote>
-<details><summary>Note Row Velocity (VELO)</summary>
+<details><summary>Row Probability (PROB)</summary>
 </details>
-<details><summary>Note Row Probability (PROB)</summary>
-</details>
-<details><summary>Note Row Iterance (ITER)</summary>
+<details><summary>Row Iterance (ITER)</summary>
 
 	- 1 OF 2 (1OF2)
 	- 2 OF 2 (2OF2)
@@ -1507,7 +1505,7 @@ The Note Row Editor menu contains the following menu hierarchy:
 	- 7 OF 8 (7OF8)
 	- 8 OF 8 (8OF8)
 </details>
-<details><summary>Note Row Fill (FILL)</summary>
+<details><summary>Row Fill (FILL)</summary>
 
 	- OFF
 	- NOT FILL
