@@ -230,6 +230,8 @@ public:
 
 	void tryLoopCommand(GlobalMIDICommand command);
 
+	float calculateBPMForDisplay();
+
 private:
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);
 

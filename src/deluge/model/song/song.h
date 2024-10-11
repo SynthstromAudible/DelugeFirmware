@@ -434,8 +434,13 @@ public:
 	// Tempo automation
 	void clearTempoAutomation();
 	void updateBPMFromAutomation();
+
 	float calculateBPM() {
 		float timePerTimerTick = getTimePerTimerTickFloat();
+		return calculateBPM(timePerTimerTick);
+	}
+	float calculateBPM(float timePerTimerTick) {
+
 		if (insideWorldTickMagnitude > 0) {
 			timePerTimerTick *= ((uint32_t)1 << (insideWorldTickMagnitude));
 		}
