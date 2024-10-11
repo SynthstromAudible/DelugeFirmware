@@ -26,7 +26,7 @@ struct Base {
 		// for the LPF the result will be from 2300 to 20000 with half the knob range at 7978.537hz
 		// then shift to 20-520Hz as there is a low end buildup in the reverb that should always be filtered out
 		if (filtertype == FilterType::LowPass) {
-			minFreq = 2300.0f;
+			minFreq = 0.0f;
 			maxFreq = 5083.74f;
 		} else if (filtertype == FilterType::HighPass) {
 			minFreq = 20.0f;
