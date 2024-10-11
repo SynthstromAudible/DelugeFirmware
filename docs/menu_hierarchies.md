@@ -417,9 +417,11 @@ Firmware Version (FIRM)
 </details>
 
 <details>
-<summary>Song Grid View Clip Settings Menu</summary>
+<summary>Song Clip Settings Menu</summary>
 
-The Clip Settings menu is accessible from Song Grid View by pressing and holding a `CLIP` and pressing the `SELECT ENCODER`
+The Clip Settings menu is accessible from `Song Grid View` by pressing and holding a `CLIP` and pressing the `SELECT ENCODER`.
+
+The Clip Settings menu is accessible from `Song Row View` by pressing and holding the `CLIP MUTE` pad in the first column of the sidebar and pressing the `SELECT ENCODER`.
 
 The Clip settings menu contains the following menu hierarchy:
 
@@ -435,23 +437,9 @@ The Clip settings menu contains the following menu hierarchy:
 </details>
 
 <details>
-<summary>Song Row View Clip Mode Menu</summary>
-
-The Clip Mode menu is accessible from Song Row View by pressing and holding the `CLIP MUTE` pad in first column of the sidebar and pressing the `SELECT ENCODER`.
-
-The Clip Mode menu contains the following menu options:
-
-<blockquote>
-
-	- INFINITE (INF)
-	- FILL
-	- ONCE
-</details>
-
-<details>
 <summary>Song Menu</summary>
 
-The Song menu is accessible from Arranger View and Song View by pressing on the `SELECT ENCODER`
+The Song menu is accessible from `Arranger View` and `Song View` by pressing on the `SELECT ENCODER`
 
 The Song menu contains the following menu hierarchy:
 
