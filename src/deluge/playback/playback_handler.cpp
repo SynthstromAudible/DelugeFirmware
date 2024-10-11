@@ -2265,12 +2265,16 @@ void PlaybackHandler::displayTempoFromParams(int32_t magnitude, int8_t whichValu
 }
 
 void PlaybackHandler::commandDisplayTempo() {
-	float bpm = calculateBPM(getTimePerInternalTickFloat());
+	float bpm = calculateBPMForDisplay();
 	displayTempoBPM(bpm);
+}
+// takes into account incoming clock sync
+float PlaybackHandler::calculateBPMForDisplay() {
+	return calculateBPM(getTimePerInternalTickFloat());
 }
 
 float PlaybackHandler::calculateBPM(float timePerInternalTick) {
-	return currentSong->calculateBPM();
+	return currentSong->calculateBPM(timePerInternalTick);
 }
 
 void PlaybackHandler::getTempoStringForOLED(float tempoBPM, StringBuf& buffer) {
