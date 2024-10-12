@@ -750,6 +750,8 @@ record::Quantize recordQuantizeMenu{STRING_FOR_QUANTIZATION};
 ToggleBool recordMarginsMenu{STRING_FOR_LOOP_MARGINS, STRING_FOR_LOOP_MARGINS, FlashStorage::audioClipRecordMargins};
 record::CountIn recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN};
 monitor::Mode monitorModeMenu{STRING_FOR_SAMPLING_MONITORING, STRING_FOR_MONITORING};
+ToggleBool thresholdRecordingMenu{STRING_FOR_THRESHOLD_RECORDING, STRING_FOR_THRESHOLD_RECORDING,
+                                  FlashStorage::defaultUseThresholdRecording};
 
 Submenu recordSubmenu{
     STRING_FOR_RECORDING,
@@ -758,6 +760,7 @@ Submenu recordSubmenu{
         &recordQuantizeMenu,
         &recordMarginsMenu,
         &monitorModeMenu,
+        &thresholdRecordingMenu,
     },
 };
 

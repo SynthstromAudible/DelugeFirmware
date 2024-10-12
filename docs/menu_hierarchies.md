@@ -336,6 +336,9 @@ NOTE: These options can change depending on how your default resolution is set
 		- Conditional (COND)
 		- Enabled (ON)
 		- Disabled (OFF)
+	- Threshold Recording (THRE)
+		- Disabled (OFF)
+		- Enabled (ON)
 </details>
 
 <details><summary>Community Features (FEAT)</summary>
