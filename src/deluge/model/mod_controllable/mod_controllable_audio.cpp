@@ -288,24 +288,30 @@ void ModControllableAudio::processModFXBuffer(StereoSample* buffer, const ModFXT
 		} while (++currentSample != bufferEnd);
 	}
 	else if (modFXType == ModFXType::WARBLE) {
-		q31_t width{ONE_Q31};
+
 		if (AudioEngine::renderInStereo) {
-			// offset the rate of the right slightly relative to the left to create moving stereo imaging in theme with
-			// the warble
-			const q31_t fModifier = (ONE_Q31f * 0.97);
-			width = fModifier;
+
+			do {
+				// anymore and they get audibly out of sync, this just sounds wobblier
+				constexpr q31_t width = 0.97 * ONE_Q31;
+				int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+				// this needs a second lfo because it's a random process - we can't flip it to make a second sample but
+				// these will always be different anyway
+				int32_t lfo2Output =
+				    modFXLFOStereo.render(1, modFXLFOWaveType, multiply_32x32_rshift32(modFXRate, width) << 1);
+				processWarble(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput,
+				              lfo2Output);
+
+			} while (++currentSample != bufferEnd);
 		}
+		else {
+			do {
+				int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+				processWarble(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput,
+				              lfoOutput);
 
-		do {
-			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
-			// this needs a second lfo because it's a random process - we can't flip it to make a second sample but
-			// these will always be different anyway
-			int32_t lfo2Output =
-			    modFXLFOStereo.render(1, modFXLFOWaveType, multiply_32x32_rshift32(modFXRate, width) << 1);
-			processWarble(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput,
-			              lfo2Output);
-
-		} while (++currentSample != bufferEnd);
+			} while (++currentSample != bufferEnd);
+		}
 	}
 	else {
 		do {
