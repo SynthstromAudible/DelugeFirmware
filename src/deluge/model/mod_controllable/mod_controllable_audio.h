@@ -109,7 +109,7 @@ public:
 	FilterRoute filterRoute;
 
 	// Mod FX
-	ModFXType modFXType;
+	ModFXType modFXType_;
 	StereoSample* modFXBuffer;
 	uint16_t modFXBufferWriteIndex;
 	LFO modFXLFO;
@@ -177,13 +177,16 @@ private:
 	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd,
 	                  bool anySoundComingIn);
 	// not grain!
-	void processModFXBuffer(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
-	                        const StereoSample* bufferEnd, LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
-	                        int32_t thisModFXDelayDepth, int32_t feedback);
+	template <ModFXType modFXType>
+	void processModFXBuffer(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, const StereoSample* bufferEnd,
+	                        LFOType& modFXLFOWaveType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
+	                        int32_t feedback, bool stereo);
 
 	void processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
-	void processOneModFXSample(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
-	                           int32_t feedback, StereoSample* currentSample, int32_t lfoOutput, int32_t lfo2Output);
+
+	template <ModFXType modFXType, bool stereo>
+	void processOneModFXSample(int32_t modFXDelayOffset, int32_t thisModFXDelayDepth, int32_t feedback,
+	                           StereoSample* currentSample, int32_t lfoOutput, int32_t lfo2Output);
 	/// flanger, phaser, warble - generally any modulated delay tap based effect with feedback
 	void setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
 	                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
@@ -191,6 +194,7 @@ private:
 	void setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
 	                 LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const;
 
+	template <bool stereo>
 	void processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
 	                   int32_t feedback, StereoSample* currentSample, int32_t lfoOutput, int32_t lfo2output);
 	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
