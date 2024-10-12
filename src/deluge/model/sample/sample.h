@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/envelope_follower/absolute_value.h"
 #include "model/sample/sample_cluster.h"
 #include "model/sample/sample_cluster_array.h"
 #include "storage/audio/audio_file.h"
@@ -42,6 +43,7 @@ class SampleCache;
 class MultisampleRange;
 class TimeStretcher;
 class SampleHolder;
+class AbsValueFollower;
 
 class Sample final : public AudioFile {
 public:
@@ -98,6 +100,7 @@ public:
 	uint32_t audioDataStartPosBytes; // That is, the offset from the start of the WAV file
 	uint64_t audioDataLengthBytes;
 	uint32_t bitMask;
+	bool audioStartDetected;
 
 	uint64_t lengthInSamples;
 
@@ -139,6 +142,8 @@ public:
 	uint32_t waveTableCycleSize; // In case this later gets used for a WaveTable
 
 	SampleClusterArray clusters;
+
+	AbsValueFollower envelopeFollower{};
 
 protected:
 #if ALPHA_OR_BETA_VERSION

@@ -51,6 +51,7 @@ public:
 	Error setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
 	            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
 	            Output* outputRecordingFrom);
+	void setRecordingThreshold();
 	void feedAudio(int32_t* inputAddress, int32_t numSamples, bool applyGain = false, uint8_t gainToApply = 5);
 	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
@@ -112,6 +113,7 @@ public:
 	bool recordingExtraMargins = false;
 	bool pointerHeldElsewhere = false;
 	bool capturedTooMuch = false;
+	bool thresholdRecording = false;
 
 	// Most of these are not captured in the case of BALANCED input for AudioClips
 	bool recordingClippedRecently;
@@ -128,6 +130,8 @@ public:
 
 	uint32_t audioDataLengthBytesAsWrittenToFile;
 	uint32_t loopEndSampleAsWrittenToFile;
+
+	float startValueThreshold;
 
 	int32_t* sourcePos;
 

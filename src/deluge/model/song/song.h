@@ -453,6 +453,11 @@ public:
 
 	int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
 
+	// Threshold
+	void changeThresholdRecordingMode(int8_t offset);
+	void displayThresholdRecordingMode();
+	ThresholdRecordingMode thresholdRecordingMode;
+
 private:
 	ScaleMapper scaleMapper;
 	NoteSet userScaleNotes;

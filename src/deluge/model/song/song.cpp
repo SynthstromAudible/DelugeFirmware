@@ -56,6 +56,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
@@ -194,6 +195,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	masterTransposeInterval = 0;
 
 	dirPath.set("SONGS");
+
+	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
 Song::~Song() {
@@ -276,6 +279,8 @@ void Song::setupDefault() {
 	disabledPresetScales[whichScale] = false;
 
 	key.modeNotes = presetScaleNotes[whichScale];
+
+	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
 void Song::deleteAllOutputs(Output** prevPointer) {
@@ -5810,6 +5815,7 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 
 	return modelStackWithParam;
 }
+
 void Song::updateBPMFromAutomation() {
 	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
 	// that
@@ -5818,6 +5824,56 @@ void Song::updateBPMFromAutomation() {
 		setBPMInner((float)currentTempo / 100, false);
 		intBPM = currentTempo;
 	}
+}
+
+void Song::changeThresholdRecordingMode(int8_t offset) {
+	// have we displayed the current threshold recording mode?
+	// if yes, allow user to edit threshold recording mode
+	if (display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)) {
+		int8_t newThresholdRecordingMode = util::to_underlying(currentSong->thresholdRecordingMode);
+		if (offset < 0) {
+			newThresholdRecordingMode = std::clamp(int8_t(newThresholdRecordingMode + offset),
+			                                       kFirstThresholdRecordingMode, newThresholdRecordingMode);
+		}
+		else if (offset > 0) {
+			newThresholdRecordingMode = std::clamp(int8_t(newThresholdRecordingMode + offset),
+			                                       newThresholdRecordingMode, kLastThresholdRecordingMode);
+		}
+
+		currentSong->thresholdRecordingMode = static_cast<ThresholdRecordingMode>(newThresholdRecordingMode);
+	}
+
+	displayThresholdRecordingMode();
+}
+
+void Song::displayThresholdRecordingMode() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+	if (display->haveOLED()) {
+		popupMsg.append("Threshold: ");
+	}
+
+	switch (currentSong->thresholdRecordingMode) {
+	case ThresholdRecordingMode::OFF:
+		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DISABLED));
+		break;
+
+	case ThresholdRecordingMode::LOW:
+		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_LOW));
+		break;
+
+	case ThresholdRecordingMode::MEDIUM:
+		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MEDIUM));
+		break;
+
+	case ThresholdRecordingMode::HIGH:
+		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HIGH));
+		break;
+
+	default:
+		break;
+	}
+
+	display->popupText(popupMsg.c_str(), PopupType::THRESHOLD_RECORDING_MODE);
 }
 
 /*
