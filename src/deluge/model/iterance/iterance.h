@@ -28,15 +28,22 @@ struct Iterance {
 		return other.divisor == divisor && other.iteranceStep == iteranceStep;
 	}
 
+	[[nodiscard]] uint16_t toInt() const {
+		return (uint16_t)(divisor << 8) | (uint16_t)(iteranceStep.to_ulong() & 0xFF);
+	}
 
+	[[nodiscard]] bool passesCheck(int32_t repeatCount) const { return iteranceStep[repeatCount % divisor]; }
+
+	[[nodiscard]] static Iterance fromInt(int32_t value) {
+		return Iterance{(uint8_t)(value >> 8), (uint8_t)(value & 0xFF)};
+	}
 };
 
-// Iterance utils
-Iterance convertIntToIterance(int32_t value);
-uint16_t convertIteranceToInt(Iterance value);
-bool iterancePassesCheck(Iterance iterance, int32_t repeatCount);
+// Preset to/from int or Iterance
 int32_t getIterancePresetIndexFromValue(Iterance value);
 int32_t getIterancePresetIndexFromIntValue(uint16_t value);
 Iterance getIteranceValueFromPresetIndex(int32_t presetIndex);
 uint16_t getIntIteranceValueFromPresetIndex(int32_t presetIndex);
+
+// Converstion from XML parameter
 Iterance convertAndSanitizeIteranceFromInt(int32_t iterance);

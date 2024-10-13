@@ -1816,7 +1816,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 			} break;
 
 			case CORRESPONDING_NOTES_SET_ITERANCE: {
-				thisNote->setIterance(convertIntToIterance(changeValue));
+				thisNote->setIterance(Iterance::fromInt(changeValue));
 			} break;
 
 			case CORRESPONDING_NOTES_SET_FILL: {
@@ -3572,7 +3572,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			intToHex(thisNote->getProbability(), buffer, 2);
 			writer.write(buffer);
 
-			intToHex(convertIteranceToInt(thisNote->getIterance()), buffer, 4);
+			intToHex(thisNote->getIterance().toInt(), buffer, 4);
 			writer.write(buffer);
 
 			intToHex(thisNote->getFill(), buffer, 2);

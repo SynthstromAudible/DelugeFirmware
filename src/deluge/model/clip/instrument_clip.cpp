@@ -881,7 +881,7 @@ doNewProbability:
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(
 					    pendingNoteOnList.pendingNoteOns[i].noteRowId, pendingNoteOnList.pendingNoteOns[i].noteRow);
 
-					conditionPassed = iterancePassesCheck(iterance, modelStackWithNoteRow->getRepeatCount());
+					conditionPassed = iterance.passesCheck(modelStackWithNoteRow->getRepeatCount());
 				}
 
 				// lastly, if after checking iteration we still have a note on

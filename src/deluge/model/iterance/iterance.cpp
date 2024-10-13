@@ -21,20 +21,6 @@
 #include "util/lookuptables/lookuptables.h"
 #include <cstdint>
 
-Iterance convertIntToIterance(int32_t value) {
-	return Iterance{(uint8_t)(value >> 8), (uint8_t)(value & 0xFF)};
-}
-uint16_t convertIteranceToInt(Iterance value) {
-	uint16_t result = value.divisor << 8 | (value.iteranceStep.to_ulong() & 0xFF);
-	return result;
-}
-
-// This method checks if this iteration step is active or not depending on the current repeat count
-bool iterancePassesCheck(Iterance iterance, int32_t repeatCount) {
-	int32_t index = repeatCount % iterance.divisor;
-	return iterance.iteranceStep[index];
-}
-
 // This methods takes the iterance value and searches the table of iterance presets for a match
 // If no match is found it will return kCustomIterancePreset (which is equal to '1of1')
 int32_t getIterancePresetIndexFromValue(Iterance value) {
@@ -53,7 +39,7 @@ int32_t getIterancePresetIndexFromValue(Iterance value) {
 	return kCustomIterancePreset;
 }
 int32_t getIterancePresetIndexFromIntValue(uint16_t value) {
-	return getIterancePresetIndexFromValue(convertIntToIterance(value));
+	return getIterancePresetIndexFromValue(Iterance::fromInt(value));
 }
 
 // This method transform back an iterance preset to a real value
@@ -72,13 +58,13 @@ Iterance getIteranceValueFromPresetIndex(int32_t presetIndex) {
 	}
 }
 uint16_t getIntIteranceValueFromPresetIndex(int32_t presetIndex) {
-	return convertIteranceToInt(getIteranceValueFromPresetIndex(presetIndex));
+	return getIteranceValueFromPresetIndex(presetIndex).toInt();
 }
 
 // This methods cleans the iterance value to be among the possible valid values,
 // just in case we get bad data from the XML file
 Iterance convertAndSanitizeIteranceFromInt(int32_t value) {
-	Iterance iterance = convertIntToIterance(value);
+	Iterance iterance = Iterance::fromInt(value);
 	if (iterance.divisor < 1 || iterance.divisor > 8) {
 		return kDefaultIteranceValue;
 	}

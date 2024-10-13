@@ -2485,8 +2485,7 @@ void InstrumentClipView::adjustNoteIteranceWithOffset(int32_t offset, bool allow
 }
 
 void InstrumentClipView::adjustNoteIteranceWithFinalValue(Iterance finalValue) {
-	adjustNoteParameterValue(0, convertIteranceToInt(finalValue), CORRESPONDING_NOTES_SET_ITERANCE, 0,
-	                         kNumIterancePresets + 1);
+	adjustNoteParameterValue(0, finalValue.toInt(), CORRESPONDING_NOTES_SET_ITERANCE, 0, kNumIterancePresets + 1);
 }
 
 void InstrumentClipView::adjustNoteFillWithOffset(int32_t offset) {
@@ -2566,7 +2565,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 						prevBase = (originalParameter & 128);
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						originalParameter = convertIteranceToInt(editPadPresses[i].intendedIterance);
+						originalParameter = editPadPresses[i].intendedIterance.toInt();
 						parameterValue = originalParameter; // iterance param is 16 bits
 						// transform into preset index temporarily, to inc/dec offset
 						parameterValue = getIterancePresetIndexFromIntValue(parameterValue);
@@ -2581,7 +2580,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 						originalParameter = editPadPresses[i].intendedProbability;
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						originalParameter = convertIteranceToInt(editPadPresses[i].intendedIterance);
+						originalParameter = editPadPresses[i].intendedIterance.toInt();
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 						originalParameter = editPadPresses[i].intendedFill;
@@ -2685,7 +2684,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 								// Respect the original iterance (could be a Custom one)
 								parameterValue = originalParameter;
 							}
-							editPadPresses[i].intendedIterance = convertIntToIterance(parameterValue);
+							editPadPresses[i].intendedIterance = Iterance::fromInt(parameterValue);
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 							editPadPresses[i].intendedFill = parameterValue;
@@ -2700,7 +2699,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 							editPadPresses[i].intendedProbability = parameterValue;
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-							editPadPresses[i].intendedIterance = convertIntToIterance(parameterValue);
+							editPadPresses[i].intendedIterance = Iterance::fromInt(parameterValue);
 						}
 						else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 							editPadPresses[i].intendedFill = parameterValue;
@@ -2786,7 +2785,7 @@ multiplePresses:
 				prevBase = (originalParameter & 128);
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				originalParameter = convertIteranceToInt(editPadPresses[leftMostIndex].intendedIterance);
+				originalParameter = editPadPresses[leftMostIndex].intendedIterance.toInt();
 				parameterValue = originalParameter; // iterance param is 16 bits
 				// transform into preset index temporarily, to inc/dec offset
 				parameterValue = getIterancePresetIndexFromIntValue(parameterValue);
@@ -2801,7 +2800,7 @@ multiplePresses:
 				originalParameter = editPadPresses[leftMostIndex].intendedProbability;
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				originalParameter = convertIteranceToInt(editPadPresses[leftMostIndex].intendedIterance);
+				originalParameter = editPadPresses[leftMostIndex].intendedIterance.toInt();
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 				originalParameter = editPadPresses[leftMostIndex].intendedFill;
@@ -2892,7 +2891,7 @@ multiplePresses:
 						editPadPresses[i].intendedProbability = parameterValueForMultipleNotes;
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						editPadPresses[i].intendedIterance = convertIntToIterance(parameterValueForMultipleNotes);
+						editPadPresses[i].intendedIterance = Iterance::fromInt(parameterValueForMultipleNotes);
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 						editPadPresses[i].intendedFill = parameterValueForMultipleNotes;
@@ -2958,7 +2957,7 @@ multiplePresses:
 			displayProbability(parameterValue, prevBase);
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-			displayIterance(convertIntToIterance(parameterValue));
+			displayIterance(Iterance::fromInt(parameterValue));
 		}
 	}
 }
@@ -3415,7 +3414,7 @@ int32_t InstrumentClipView::setNoteRowIteranceWithOffset(int32_t offset, bool al
 }
 
 int32_t InstrumentClipView::setNoteRowIteranceWithFinalValue(Iterance finalValue) {
-	return setNoteRowParameterValue(0, convertIteranceToInt(finalValue), CORRESPONDING_NOTES_SET_ITERANCE, 0,
+	return setNoteRowParameterValue(0, finalValue.toInt(), CORRESPONDING_NOTES_SET_ITERANCE, 0,
 	                                kNumIterancePresets + 1);
 }
 
@@ -3461,7 +3460,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			parameterValue = originalParameter & 127; // probability param is 8 bits
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-			originalParameter = convertIteranceToInt(noteRow->iteranceValue);
+			originalParameter = noteRow->iteranceValue.toInt();
 			parameterValue = originalParameter; // iterance param is 16 bits
 			// transform into preset index temporarily, to inc/dec offset
 			parameterValue = getIterancePresetIndexFromIntValue(parameterValue);
@@ -3476,7 +3475,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			originalParameter = noteRow->probabilityValue;
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-			originalParameter = convertIteranceToInt(noteRow->iteranceValue);
+			originalParameter = noteRow->iteranceValue.toInt();
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 			originalParameter = noteRow->fillValue;
@@ -3546,7 +3545,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 					// Respect the original iterance (could be a Custom one)
 					parameterValue = originalParameter;
 				}
-				noteRow->iteranceValue = convertIntToIterance(parameterValue);
+				noteRow->iteranceValue = Iterance::fromInt(parameterValue);
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 				noteRow->fillValue = parameterValue;
@@ -3558,7 +3557,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 				noteRow->probabilityValue = parameterValue;
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				noteRow->iteranceValue = convertIntToIterance(parameterValue);
+				noteRow->iteranceValue = Iterance::fromInt(parameterValue);
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 				noteRow->fillValue = parameterValue;
@@ -3572,7 +3571,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 				note->setProbability(parameterValue);
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				note->setIterance(convertIntToIterance(parameterValue));
+				note->setIterance(Iterance::fromInt(parameterValue));
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 				note->setFill(parameterValue);
@@ -3592,7 +3591,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			displayProbability(parameterValue, false);
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-			displayIterance(convertIntToIterance(parameterValue));
+			displayIterance(Iterance::fromInt(parameterValue));
 		}
 	}
 
