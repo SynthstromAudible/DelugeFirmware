@@ -67,7 +67,6 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
-#include "model/iterance/iterance.h"
 #include "model/model_stack.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"

@@ -29,7 +29,6 @@
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
 #include "model/instrument/kit.h"
-#include "model/iterance/iterance.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
