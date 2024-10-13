@@ -3366,7 +3366,7 @@ doReadNoteData:
 
 				if (noteHexLength == 28) { // if reading custom iterance and fill
 					fill = hexToIntFixedLength(&hexChars[26], 2);
-					iterance = convertAndSanitizeIteranceFromInt(hexToIntFixedLength(&hexChars[22], 4));
+					iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3375,7 +3375,7 @@ doReadNoteData:
 				}
 				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
 					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = getIteranceValueFromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
+					iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {

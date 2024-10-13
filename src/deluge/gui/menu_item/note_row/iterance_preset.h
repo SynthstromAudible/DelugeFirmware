@@ -51,7 +51,7 @@ public:
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
-			int32_t preset = getIterancePresetIndexFromValue(noteRow->iteranceValue);
+			int32_t preset = noteRow->iteranceValue.toPresetIndex();
 			this->setValue(preset);
 			updateDisplay();
 		}
@@ -61,7 +61,7 @@ public:
 		int32_t newValue = instrumentClipView.setNoteRowIteranceWithOffset(offset);
 		if (newValue != -1) {
 			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
-			int32_t preset = getIterancePresetIndexFromIntValue(newValue);
+			int32_t preset = Iterance::fromInt(newValue).toPresetIndex();
 			this->setValue(preset);
 			updateDisplay();
 		}

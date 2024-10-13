@@ -44,7 +44,7 @@ public:
 
 		if (leftMostNote) {
 			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
-			int32_t preset = getIterancePresetIndexFromValue(leftMostNote->getIterance());
+			int32_t preset = leftMostNote->getIterance().toPresetIndex();
 			this->setValue(preset);
 		}
 	}

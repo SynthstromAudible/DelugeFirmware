@@ -2568,7 +2568,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 						originalParameter = editPadPresses[i].intendedIterance.toInt();
 						parameterValue = originalParameter; // iterance param is 16 bits
 						// transform into preset index temporarily, to inc/dec offset
-						parameterValue = getIterancePresetIndexFromIntValue(parameterValue);
+						parameterValue = Iterance::fromInt(parameterValue).toPresetIndex();
 					}
 					else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 						originalParameter = editPadPresses[i].intendedFill;
@@ -2678,7 +2678,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 						else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 							// transform back from preset to real value (only if not CUSTOM)
 							if (parameterHasBeenEdited) {
-								parameterValue = getIntIteranceValueFromPresetIndex(parameterValue);
+								parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
 							}
 							else {
 								// Respect the original iterance (could be a Custom one)
@@ -2719,7 +2719,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 					// In the case the operation didn't change anything, we need to transform Iterance back from preset
 					// to real value anyway, for the Popup code at the end of this method
 					if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-						parameterValue = getIntIteranceValueFromPresetIndex(parameterValue);
+						parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
 					}
 				}
 				break;
@@ -2788,7 +2788,7 @@ multiplePresses:
 				originalParameter = editPadPresses[leftMostIndex].intendedIterance.toInt();
 				parameterValue = originalParameter; // iterance param is 16 bits
 				// transform into preset index temporarily, to inc/dec offset
-				parameterValue = getIterancePresetIndexFromIntValue(parameterValue);
+				parameterValue = Iterance::fromInt(parameterValue).toPresetIndex();
 			}
 			else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 				originalParameter = editPadPresses[leftMostIndex].intendedFill;
@@ -2874,7 +2874,7 @@ multiplePresses:
 				else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 					// transform back from preset to real value (only if not CUSTOM)
 					if (parameterHasBeenEdited) {
-						parameterValue = getIntIteranceValueFromPresetIndex(parameterValue);
+						parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
 					}
 					else {
 						// Respect the original iterance (could be a Custom one)
@@ -2947,7 +2947,7 @@ multiplePresses:
 			// In the case the operation didn't change anything, we need to transform Iterance back from preset to real
 			// value anyway, for the Popup code at the end of this method
 			if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-				parameterValue = getIntIteranceValueFromPresetIndex(parameterValue);
+				parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
 			}
 		}
 	}
@@ -2994,7 +2994,7 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
 
 	// Iteration dependence
-	int32_t iterancePreset = getIterancePresetIndexFromValue(iterance);
+	int32_t iterancePreset = iterance.toPresetIndex();
 
 	if (iterancePreset == kDefaultIterancePreset) {
 		strcpy(buffer, display->haveOLED() ? "Iterance: OFF" : "OFF");
@@ -3463,7 +3463,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			originalParameter = noteRow->iteranceValue.toInt();
 			parameterValue = originalParameter; // iterance param is 16 bits
 			// transform into preset index temporarily, to inc/dec offset
-			parameterValue = getIterancePresetIndexFromIntValue(parameterValue);
+			parameterValue = Iterance::fromInt(parameterValue).toPresetIndex();
 		}
 		else if (changeType == CORRESPONDING_NOTES_SET_FILL) {
 			originalParameter = noteRow->fillValue;
@@ -3539,7 +3539,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 			else if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
 				// transform back from preset to real value (only if not CUSTOM)
 				if (parameterHasBeenEdited) {
-					parameterValue = getIntIteranceValueFromPresetIndex(parameterValue);
+					parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
 				}
 				else {
 					// Respect the original iterance (could be a Custom one)
@@ -3582,7 +3582,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		// In the case the operation didn't change anything, we need to transform Iterance back from preset
 		// to real value anyway, for the Popup code at the end of this method
 		if (changeType == CORRESPONDING_NOTES_SET_ITERANCE) {
-			parameterValue = getIntIteranceValueFromPresetIndex(parameterValue);
+			parameterValue = Iterance::fromPresetIndex(parameterValue).toInt();
 		}
 	}
 
