@@ -82,4 +82,11 @@ public:
 	ArpeggiatorBase* getArp();
 	char const* getXMLTag() { return "sound"; }
 	ArpeggiatorSettings defaultArpSettings;
+
+	// when not NULL, the syx file in `dirPath` this instrument was loaded from. Only used when loading
+	// to browse neighbouring patches. Ignored on save as then
+	// this will be saved as an .xml file with deluge setttings in additon.
+	String syxPath{};
+	// slot number (0-31), OR -1 in case this was a single-patch syx file
+	int8_t syxSlot{-1};
 };
