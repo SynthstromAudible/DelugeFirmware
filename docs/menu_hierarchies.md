@@ -417,9 +417,11 @@ Firmware Version (FIRM)
 </details>
 
 <details>
-<summary>Song Grid View Clip Settings Menu</summary>
+<summary>Song Clip Settings Menu</summary>
 
-The Clip Settings menu is accessible from Song Grid View by pressing and holding a `CLIP` and pressing the `SELECT ENCODER`
+The Clip Settings menu is accessible from `Song Grid View` by pressing and holding a `CLIP` and pressing the `SELECT ENCODER`.
+
+The Clip Settings menu is accessible from `Song Row View` by pressing and holding the `CLIP MUTE` pad in the first column of the sidebar and pressing the `SELECT ENCODER`.
 
 The Clip settings menu contains the following menu hierarchy:
 
@@ -435,23 +437,9 @@ The Clip settings menu contains the following menu hierarchy:
 </details>
 
 <details>
-<summary>Song Row View Clip Mode Menu</summary>
-
-The Clip Mode menu is accessible from Song Row View by pressing and holding the `CLIP MUTE` pad in first column of the sidebar and pressing the `SELECT ENCODER`.
-
-The Clip Mode menu contains the following menu options:
-
-<blockquote>
-
-	- INFINITE (INF)
-	- FILL
-	- ONCE
-</details>
-
-<details>
 <summary>Song Menu</summary>
 
-The Song menu is accessible from Arranger View and Song View by pressing on the `SELECT ENCODER`
+The Song menu is accessible from `Arranger View` and `Song View` by pressing on the `SELECT ENCODER`
 
 The Song menu contains the following menu hierarchy:
 
@@ -582,6 +570,9 @@ The Song menu contains the following menu hierarchy:
 			- Disabled (OFF)
 			- Enabled (ON)
 		- Offline Rendering (OFFR)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Export Master Arrangement (MSTR)
 			- Disabled (OFF)
 			- Enabled (ON)
 </details>
@@ -1370,6 +1361,144 @@ The CV menu contains the following menu hierarchy:
 	- Velocity
 </details>
 
+<details><summary>Play Direction (DIRE) </summary>
+
+	- Forward
+	- Reversed
+	- Ping-Pong
+</details>
+
+</details>
+
+<details>
+<summary>Instrument Clip Note Editor Menu</summary>
+
+The Note Editor menu is accessible from Instrument Clips (Synth / Kit / MIDI / CV) by holding a `NOTE` pressing on the `SELECT ENCODER`.
+
+This menu enables you to edit note specific parameters for a note in a selected step. If there are multiple notes in a step (e.g. it is a blurred note), it will adjust all notes in that step.
+
+The Note Editor menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Note Velocity (VELO)</summary>
+</details>
+<details><summary>Note Probability (PROB)</summary>
+</details>
+<details><summary>Note Iterance (ITER)</summary>
+
+	- 1 OF 2 (1OF2)
+	- 2 OF 2 (2OF2)
+ 
+	- 1 OF 3 (1OF3)
+	- 2 OF 3 (2OF3)
+	- 3 OF 3 (3OF3)
+    
+	- 1 OF 4 (1OF4)
+	- 2 OF 4 (2OF4)
+	- 3 OF 4 (3OF4)
+	- 4 OF 4 (4OF4)
+	
+	- 1 OF 5 (1OF5)
+	- 2 OF 5 (2OF5)
+	- 3 OF 5 (3OF5)
+	- 4 OF 5 (4OF5)
+	- 5 OF 5 (5OF5)
+     
+	- 1 OF 6 (1OF6)
+	- 2 OF 6 (2OF6)
+	- 3 OF 6 (3OF6)
+	- 4 OF 6 (4OF6)
+	- 5 OF 6 (5OF6)
+	- 6 OF 6 (6OF6)
+   
+	- 1 OF 7 (1OF7)
+	- 2 OF 7 (2OF7)
+	- 3 OF 7 (3OF7)
+	- 4 OF 7 (4OF7)
+	- 5 OF 7 (5OF7)
+	- 6 OF 7 (6OF7)
+	- 7 OF 7 (7OF7)
+    
+	- 1 OF 8 (1OF8)
+	- 2 OF 8 (2OF8)
+	- 3 OF 8 (3OF8)
+	- 4 OF 8 (4OF8)
+	- 5 OF 8 (5OF8)
+	- 6 OF 8 (6OF8)
+	- 7 OF 8 (7OF8)
+	- 8 OF 8 (8OF8)
+</details>
+<details><summary>Note Fill (FILL)</summary>
+
+	- OFF
+	- NOT FILL
+	- FILL
+</details>
+
+</details>
+
+<details>
+<summary>Instrument Clip Note Row Editor Menu</summary>
+
+The Note Row Editor menu is accessible from Instrument Clips (Synth / Kit / MIDI / CV) by holding an `AUDITION PAD` and pressing on the `SELECT ENCODER`.
+
+This menu enables you to edit note row specific parameters for a selected note row. Adjusting a note row parameter will change that parameter for all notes in the note row.
+
+The Note Row Editor menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Row Probability (PROB)</summary>
+</details>
+<details><summary>Row Iterance (ITER)</summary>
+
+	- 1 OF 2 (1OF2)
+	- 2 OF 2 (2OF2)
+ 
+	- 1 OF 3 (1OF3)
+	- 2 OF 3 (2OF3)
+	- 3 OF 3 (3OF3)
+    
+	- 1 OF 4 (1OF4)
+	- 2 OF 4 (2OF4)
+	- 3 OF 4 (3OF4)
+	- 4 OF 4 (4OF4)
+	
+	- 1 OF 5 (1OF5)
+	- 2 OF 5 (2OF5)
+	- 3 OF 5 (3OF5)
+	- 4 OF 5 (4OF5)
+	- 5 OF 5 (5OF5)
+     
+	- 1 OF 6 (1OF6)
+	- 2 OF 6 (2OF6)
+	- 3 OF 6 (3OF6)
+	- 4 OF 6 (4OF6)
+	- 5 OF 6 (5OF6)
+	- 6 OF 6 (6OF6)
+   
+	- 1 OF 7 (1OF7)
+	- 2 OF 7 (2OF7)
+	- 3 OF 7 (3OF7)
+	- 4 OF 7 (4OF7)
+	- 5 OF 7 (5OF7)
+	- 6 OF 7 (6OF7)
+	- 7 OF 7 (7OF7)
+    
+	- 1 OF 8 (1OF8)
+	- 2 OF 8 (2OF8)
+	- 3 OF 8 (3OF8)
+	- 4 OF 8 (4OF8)
+	- 5 OF 8 (5OF8)
+	- 6 OF 8 (6OF8)
+	- 7 OF 8 (7OF8)
+	- 8 OF 8 (8OF8)
+</details>
+<details><summary>Row Fill (FILL)</summary>
+
+	- OFF
+	- NOT FILL
+	- FILL
+</details>
 <details><summary>Play Direction (DIRE) </summary>
 
 	- Forward

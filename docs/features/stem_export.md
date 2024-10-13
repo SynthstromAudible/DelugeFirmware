@@ -28,6 +28,7 @@ Stem's are given a meaningful name in the following format:
 > 
 > SYNTH_CLIP_PRESETNAME_000.WAV
 > SYNTH_TRACK_PRESETNAME_000.WAV
+> ARRANGEMENT.WAV
 
 ## Shortcuts to Start/Stop Stem Exporting
 
@@ -77,6 +78,9 @@ Stem's are given a meaningful name in the following format:
 - Offline Rendering is enabled by default. Offline rendering enables you to render and export stems faster than if you recorded playback using live audio (e.g. resampling). There are still improvements to be made to make offline rendering even faster, but it is significantly fast as is!
   - Offline rendering can be turned off in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\OFFLINE RENDERING`
 
+### Export Master Arrangement
+- Exporting all unmuted tracks as a single arrangement stem is disabled by default. This can be enabled in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\EXPORT MASTER ARRANGEMENT`
+
 ## Stem Export Menu
 
 A new `EXPORT STEMS` menu has been added to the `SONG` menu accessible in Song and Arranger Views. 
@@ -91,6 +95,7 @@ This menu allows you to start a stem export and configure various settings relat
       - `EXPORT TO SILENCE`: Stems are recorded until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured.
       - `SONG FX`: Stems are recorded with or without Song FX applied.
       - `OFFLINE RENDERING`: Stems are exported with offline rendering. You will not hear any audio playback when stems are being exported which is enables the stems to be rendered and exported at a faster than real-time basis.
+      - `EXPORT MASTER ARRANGEMENT`: A single stem is exported for all unmuted tracks in Arranger View.
 
 ## Troubleshooting
 

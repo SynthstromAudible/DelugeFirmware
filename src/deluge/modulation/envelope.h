@@ -48,4 +48,5 @@ public:
 
 private:
 	void setState(EnvelopeStage newState);
+	int32_t smoothedSustain{0};
 };
