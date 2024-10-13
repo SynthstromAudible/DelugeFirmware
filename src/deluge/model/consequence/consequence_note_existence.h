@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
+#include "model/iterance/iterance.h"
 #include <cstdint>
 
 class Note;
@@ -35,7 +36,7 @@ public:
 	int8_t velocity;
 	int8_t probability;
 	uint8_t lift;
-	int16_t iterance;
+	Iterance iterance;
 	int8_t fill;
 
 	ExistenceChangeType type;

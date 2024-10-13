@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/l10n/strings.h"
+#include "model/iterance/iterance.h"
 #include <array>
 #include <cstdint>
 
@@ -139,4 +140,4 @@ extern const uint8_t defaultClipGroupColours[];
 extern const uint8_t noteCodeToNoteLetter[];
 extern const bool noteCodeIsSharp[];
 
-extern const uint16_t iterancePresets[];
+extern const std::array<Iterance, 35> iterancePresets;

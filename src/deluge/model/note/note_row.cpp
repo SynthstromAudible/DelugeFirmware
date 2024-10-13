@@ -29,6 +29,7 @@
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
 #include "model/instrument/kit.h"
+#include "model/iterance/iterance.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -231,7 +232,7 @@ void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
 	squareInfo.numNotes = 0;
 	squareInfo.averageVelocity = 0;
 	squareInfo.probability = 0;
-	squareInfo.iterance = 0;
+	squareInfo.iterance = kDefaultIteranceValue;
 	squareInfo.fill = 0;
 	squareInfo.isValid = true;
 }
@@ -701,7 +702,7 @@ int32_t NoteRow::getDefaultProbability() {
 	return probabilityValue;
 }
 
-int32_t NoteRow::getDefaultIterance() {
+Iterance NoteRow::getDefaultIterance() {
 	return iteranceValue;
 }
 
@@ -717,7 +718,7 @@ int32_t NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
 // This gets called after we've scrolled and attempted to drag notes. And for recording.
 // If you supply an Action, it'll add an individual ConsequenceNoteExistenceChange. Or, you can supply NULL and do
 // something else yourself. Returns distanceToNextNote, or 0 on fail.
-int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, int32_t iterance,
+int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
                                 int32_t fill, ModelStackWithNoteRow* modelStack, Action* action) {
 
 	int32_t loopLength = modelStack->getLoopLength();
@@ -1080,7 +1081,7 @@ modifyNote:
 		// Doing a wrap while reversed is unique because we have to move our note from one end of the array to the other
 		if (wrapping && reversed) {
 			int32_t probability = note->getProbability();
-			int32_t iterance = note->getIterance();
+			Iterance iterance = note->getIterance();
 			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
 			notes.deleteAtIndex(0, 1, false);
@@ -1816,7 +1817,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 			} break;
 
 			case CORRESPONDING_NOTES_SET_ITERANCE: {
-				thisNote->setIterance(changeValue);
+				thisNote->setIterance(convertUint16ToIterance(changeValue));
 			} break;
 
 			case CORRESPONDING_NOTES_SET_FILL: {
@@ -2975,13 +2976,12 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 	// Go through each Note within the original length
 	for (int32_t i = 0; i < numNotesBefore; i++) {
 		Note* note = notes.getElement(i);
-		int32_t iterance = note->iterance & 32767;
+		Iterance iterance = note->iterance;
 		int32_t pos = note->pos;
 
 		// If it's iteration dependent...
-		if (iterance > kDefaultIteranceValue) {
-			int32_t divisor, iterationBitsWithinDivisor;
-			dissectIterationDependence(iterance, &divisor, &iterationBitsWithinDivisor);
+		if (iterance != kDefaultIteranceValue) {
+			int32_t divisor = iterance.divisor;
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
 
@@ -3025,7 +3025,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 				int32_t iterationWithinDivisor = -1;
 				for (int32_t iteration = 0; iteration < 8; iteration++) {
-					if (iterationBitsWithinDivisor & (1 << iteration)) {
+					if (iterance.iteranceStep[iteration]) {
 						int32_t iterationWithinDivisorWithinRepeat =
 						    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
 						if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
@@ -3049,7 +3049,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				}
 				else {
 
-					int32_t newIterance;
+					Iterance newIterance;
 					if (newNumFullLoops == 0) {
 						// I think this bit is for, like, if we had a note doing 1of6, and we're doing two
 						// repeats total on this Clip, well then to keep it sounding the same, we'd now need the
@@ -3061,7 +3061,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 						int32_t newIterationWithinDivisor =
 						    (uint32_t)iterationWithinDivisor / (uint32_t)numRepeatsRounded;
 
-						newIterance = encodeIterationDependence(newDivisor, newIterationWithinDivisor);
+						newIterance = Iterance{(uint8_t)newDivisor, 1 << newIterationWithinDivisor};
 					}
 					else {
 switchOff:
@@ -3363,11 +3363,11 @@ doReadNoteData:
 				int32_t length = hexToIntFixedLength(&hexChars[8], 8);
 				uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
 				uint8_t lift, probability, fill;
-				uint16_t iterance;
+				Iterance iterance;
 
 				if (noteHexLength == 28) { // if reading custom iterance and fill
 					fill = hexToIntFixedLength(&hexChars[26], 2);
-					iterance = hexToIntFixedLength(&hexChars[22], 4);
+					iterance = convertAndSanitizeIteranceFromInteger(hexToIntFixedLength(&hexChars[22], 4));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3376,7 +3376,7 @@ doReadNoteData:
 				}
 				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
 					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = getIterancePresetFromValue(hexToIntFixedLength(&hexChars[22], 2));
+					iterance = getIteranceValueFromPreset(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3457,7 +3457,6 @@ useDefaultLift:
 				if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
 					probability = kNumProbabilityValues;
 				}
-				iterance = sanitizeIterance(iterance);
 				if (fill < FillMode::OFF || fill > FillMode::FILL) {
 					fill = FillMode::OFF;
 				}
@@ -3574,7 +3573,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			intToHex(thisNote->getProbability(), buffer, 2);
 			writer.write(buffer);
 
-			intToHex(thisNote->getIterance(), buffer, 4);
+			intToHex(convertIteranceToUint16(thisNote->getIterance()), buffer, 4);
 			writer.write(buffer);
 
 			intToHex(thisNote->getFill(), buffer, 2);

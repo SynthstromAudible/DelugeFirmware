@@ -19,7 +19,6 @@
 #include "gui/menu_item/toggle.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
-#include "model/note/note.h"
 #include "model/note/note_row.h"
 
 namespace deluge::gui::menu_item::note_row {
@@ -65,13 +64,13 @@ public:
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-			int32_t iterance = noteRow->iteranceValue;
+			Iterance iterance = noteRow->iteranceValue;
 			if (iterance == kDefaultIteranceValue) {
 				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
 				// so we can make edits from here
 				iterance = kCustomIteranceValue;
 			}
-			this->setValue((iterance & (1 << index)) != 0);
+			this->setValue(iterance.iteranceStep[index]);
 			updateDisplay();
 		}
 	}
@@ -83,19 +82,20 @@ public:
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-			int32_t iterance = noteRow->iteranceValue;
+			Iterance iterance = noteRow->iteranceValue;
 			if (iterance == kDefaultIteranceValue) {
 				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
 				// so we can make edits from here
 				iterance = kCustomIteranceValue;
 			}
+			int32_t newIteranceSteps = convertIteranceToUint16(iterance) & 0xFF;
 			if (value) {
-				iterance |= (1 << index);
+				newIteranceSteps |= (1 << index);
 			}
 			else {
-				iterance &= ~(1 << index);
+				newIteranceSteps &= ~(1 << index);
 			}
-			instrumentClipView.setNoteRowIteranceWithFinalValue(iterance);
+			instrumentClipView.setNoteRowIteranceWithFinalValue(Iterance{iterance.divisor, newIteranceSteps});
 		}
 	}
 
@@ -108,9 +108,9 @@ public:
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-			int32_t iterance = noteRow->iteranceValue;
+			Iterance iterance = noteRow->iteranceValue;
 			// Only show this iteration step if its index is smaller than current divisor value
-			return (iterance == 0 && index == 0) || (iterance >> 8) > index;
+			return (iterance == kDefaultIteranceValue && index == 0) || iterance.divisor > index;
 		}
 		return false;
 	}

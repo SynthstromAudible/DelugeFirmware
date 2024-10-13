@@ -1224,7 +1224,7 @@ menu_item::Submenu noteCustomIteranceRootMenu{
 
 menu_item::note::Velocity noteVelocityMenu{STRING_FOR_NOTE_EDITOR_VELOCITY};
 menu_item::note::Probability noteProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
-menu_item::note::Iterance noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
+menu_item::note::IterancePreset noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
 menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
 
 // Root menu for Note Editor
@@ -1273,7 +1273,7 @@ menu_item::Submenu noteRowCustomIteranceRootMenu{
 };
 
 menu_item::note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY};
-menu_item::note_row::Iterance noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
+menu_item::note_row::IterancePreset noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
 menu_item::note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
 
 // Root menu for Note Row Editor

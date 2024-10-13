@@ -40,13 +40,13 @@ public:
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
 		if (leftMostNote) {
-			int32_t iterance = leftMostNote->getIterance();
+			Iterance iterance = leftMostNote->getIterance();
 			if (iterance == kDefaultIteranceValue) {
 				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
 				// so we can make edits from here
 				iterance = kCustomIteranceValue;
 			}
-			int32_t divisor = iterance >> 8;
+			int32_t divisor = iterance.divisor;
 			this->setValue(std::clamp<int32_t>(divisor, 1, 8));
 		}
 	}
@@ -54,17 +54,16 @@ public:
 		int32_t val = this->getValue();
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 		if (leftMostNote) {
-			int32_t iterance = leftMostNote->getIterance();
+			Iterance iterance = leftMostNote->getIterance();
 			if (iterance == kDefaultIteranceValue) {
 				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
 				// so we can make edits from here
 				iterance = kCustomIteranceValue;
 			}
 			int32_t mask = (1 << val) - 1; // Creates a mask where the first 'divisor' bits are 1
-			int32_t divisor = val << 8;
 			// Wipe the bits whose index is greater than the current divisor value
-			int32_t newIterance = ((iterance & 0xFF) & mask) | divisor;
-			instrumentClipView.adjustNoteIteranceWithFinalValue(newIterance);
+			int32_t newIteranceSteps = ((convertIteranceToUint16(iterance) & 0xFF) & mask);
+			instrumentClipView.adjustNoteIteranceWithFinalValue(Iterance{(uint8_t)val, newIteranceSteps});
 		}
 	}
 };

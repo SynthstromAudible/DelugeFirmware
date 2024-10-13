@@ -23,12 +23,11 @@
 #include "model/clip/instrument_clip.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
-#include "util/functions.h"
 
 extern deluge::gui::menu_item::Submenu noteCustomIteranceRootMenu;
 
 namespace deluge::gui::menu_item::note {
-class Iterance final : public SelectedNote {
+class IterancePreset final : public SelectedNote {
 public:
 	using SelectedNote::SelectedNote;
 
@@ -45,7 +44,7 @@ public:
 
 		if (leftMostNote) {
 			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
-			int32_t preset = getIterancePresetFromValue(leftMostNote->getIterance());
+			int32_t preset = getIterancePresetIndexFromValue(leftMostNote->getIterance());
 			this->setValue(preset);
 		}
 	}
@@ -70,23 +69,22 @@ public:
 
 		int32_t iterancePreset = this->getValue();
 
-		if (iterancePreset == kDefaultIteranceValue) {
+		if (iterancePreset == kDefaultIterancePreset) {
 			strcpy(buffer, "OFF");
 		}
 		else if (iterancePreset == kCustomIterancePreset) {
 			strcpy(buffer, "CUSTOM");
 		}
 		else {
-			int32_t divisor, iterationBitsWithinDivisor;
-			dissectIterationDependence(iterancePresets[iterancePreset - 1], &divisor, &iterationBitsWithinDivisor);
-			int32_t i = divisor;
+			Iterance iterance = iterancePresets[iterancePreset - 1];
+			int32_t i = iterance.divisor;
 			for (; i >= 0; i--) {
 				// try to find which iteration step index is active
-				if (iterationBitsWithinDivisor & (1 << i)) {
+				if (iterance.iteranceStep[i]) {
 					break;
 				}
 			}
-			sprintf(buffer, "%d of %d", i + 1, divisor);
+			sprintf(buffer, "%d of %d", i + 1, iterance.divisor);
 		}
 
 		deluge::hid::display::OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
@@ -98,23 +96,22 @@ public:
 
 		int32_t iterancePreset = this->getValue();
 
-		if (iterancePreset == kDefaultIteranceValue) {
+		if (iterancePreset == kDefaultIterancePreset) {
 			strcpy(buffer, "OFF");
 		}
 		else if (iterancePreset == kCustomIterancePreset) {
 			strcpy(buffer, "CUSTOM");
 		}
 		else {
-			int32_t divisor, iterationBitsWithinDivisor;
-			dissectIterationDependence(iterancePresets[iterancePreset - 1], &divisor, &iterationBitsWithinDivisor);
-			int32_t i = divisor;
+			Iterance iterance = iterancePresets[iterancePreset - 1];
+			int32_t i = iterance.divisor;
 			for (; i >= 0; i--) {
 				// try to find which iteration step index is active
-				if (iterationBitsWithinDivisor & (1 << i)) {
+				if (iterance.iteranceStep[i]) {
 					break;
 				}
 			}
-			sprintf(buffer, "%dof%d", i + 1, divisor);
+			sprintf(buffer, "%dof%d", i + 1, iterance.divisor);
 		}
 
 		display->setText(buffer);

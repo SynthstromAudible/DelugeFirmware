@@ -44,13 +44,13 @@ public:
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-			int32_t iterance = noteRow->iteranceValue;
+			Iterance iterance = noteRow->iteranceValue;
 			if (iterance == kDefaultIteranceValue) {
 				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
 				// so we can make edits from here
 				iterance = kCustomIteranceValue;
 			}
-			int32_t divisor = iterance >> 8;
+			int32_t divisor = iterance.divisor;
 			this->setValue(std::clamp<int32_t>(divisor, 1, 8));
 			updateDisplay();
 		}
@@ -63,17 +63,16 @@ public:
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-			int32_t iterance = noteRow->iteranceValue;
+			Iterance iterance = noteRow->iteranceValue;
 			if (iterance == kDefaultIteranceValue) {
 				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
 				// so we can make edits from here
 				iterance = kCustomIteranceValue;
 			}
 			int32_t mask = (1 << val) - 1; // Creates a mask where the first 'divisor' bits are 1
-			int32_t divisor = val << 8;
 			// Wipe the bits whose index is greater than the current divisor value
-			int32_t newIterance = ((iterance & 0xFF) & mask) | divisor;
-			instrumentClipView.setNoteRowIteranceWithFinalValue(newIterance);
+			int32_t newIteranceSteps = ((convertIteranceToUint16(iterance) & 0xFF) & mask);
+			instrumentClipView.setNoteRowIteranceWithFinalValue(Iterance{(uint8_t)val, newIteranceSteps});
 		}
 	}
 };

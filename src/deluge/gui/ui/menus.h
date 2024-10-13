@@ -50,7 +50,7 @@ extern deluge::gui::menu_item::Submenu settingsRootMenu;
 // note editor menu's
 extern deluge::gui::menu_item::Submenu noteEditorRootMenu;
 extern deluge::gui::menu_item::note::Probability noteProbabilityMenu;
-extern deluge::gui::menu_item::note::Iterance noteIteranceMenu;
+extern deluge::gui::menu_item::note::IterancePreset noteIteranceMenu;
 extern deluge::gui::menu_item::note::IteranceDivisor noteCustomIteranceDivisor;
 extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep1;
 extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep2;
@@ -64,7 +64,7 @@ extern deluge::gui::menu_item::note::Fill noteFillMenu;
 // note row editor menu's
 extern deluge::gui::menu_item::Submenu noteRowEditorRootMenu;
 extern deluge::gui::menu_item::note_row::Probability noteRowProbabilityMenu;
-extern deluge::gui::menu_item::note_row::Iterance noteRowIteranceMenu;
+extern deluge::gui::menu_item::note_row::IterancePreset noteRowIteranceMenu;
 extern deluge::gui::menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor;
 extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1;
 extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep2;

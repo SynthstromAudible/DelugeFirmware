@@ -686,12 +686,12 @@ const uint8_t defaultClipGroupColours[] = {102, 168, 24, 84, 186, 36, 126, 12, 1
  *   This iterance is Custom and will read as "5 and 6, of 6". Iterance value is 0x0630
  */
 
-const uint16_t iterancePresets[35] = {
-	0x0201, 0x0202,
-	0x0301, 0x0302, 0x0304,
-	0x0401, 0x0402, 0x0404, 0x0408,
-	0x0501, 0x0502, 0x0504, 0x0508, 0x0510,
-	0x0601, 0x0602, 0x0604, 0x0608, 0x0610, 0x0620,
-	0x0701, 0x0702, 0x0704, 0x0708, 0x0710, 0x0720, 0x0740,
-	0x0801, 0x0802, 0x0804, 0x0808, 0x0810, 0x0820, 0x0840, 0x0880
+const std::array<Iterance, 35> iterancePresets = {
+	Iterance{2, 0b1}, Iterance{2, 0b10},
+	Iterance{3, 0b1}, Iterance{3, 0b10}, Iterance{3, 0b100},
+	Iterance{4, 0b1}, Iterance{4, 0b10}, Iterance{4, 0b100}, Iterance{4, 0b1000},
+	Iterance{5, 0b1}, Iterance{5, 0b10}, Iterance{5, 0b100}, Iterance{5, 0b1000}, Iterance{5, 0b10000},
+	Iterance{6, 0b1}, Iterance{6, 0b10}, Iterance{6, 0b100}, Iterance{6, 0b1000}, Iterance{6, 0b10000}, Iterance{6, 0b100000},
+	Iterance{7, 0b1}, Iterance{7, 0b10}, Iterance{7, 0b100}, Iterance{7, 0b1000}, Iterance{7, 0b10000}, Iterance{7, 0b100000}, Iterance{7, 0b1000000},
+	Iterance{8, 0b1}, Iterance{8, 0b10}, Iterance{8, 0b100}, Iterance{8, 0b1000}, Iterance{8, 0b10000}, Iterance{8, 0b100000}, Iterance{8, 0b1000000}, Iterance{8, 0b10000000}
 	};

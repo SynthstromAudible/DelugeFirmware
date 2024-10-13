@@ -412,12 +412,6 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 void concatenateLines(const char* lines[], size_t numLines, char* resultString);
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);
-void dissectIterationDependence(int32_t iterance, int32_t* getDivisor, int32_t* getWhichIterationBitsWithinDivisor);
-bool iterancePassesCheck(int32_t iterance, int32_t repeatCount);
-int32_t getIterancePresetFromValue(uint16_t value);
-uint16_t getIteranceValueFromPreset(int32_t value);
-int32_t sanitizeIterance(int32_t iterance);
-int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDivisor);
 
 [[gnu::always_inline]] inline uint32_t swapEndianness32(uint32_t input) {
 	int32_t out;
