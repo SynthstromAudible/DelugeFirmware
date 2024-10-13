@@ -1816,7 +1816,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 			} break;
 
 			case CORRESPONDING_NOTES_SET_ITERANCE: {
-				thisNote->setIterance(convertUint16ToIterance(changeValue));
+				thisNote->setIterance(convertIntToIterance(changeValue));
 			} break;
 
 			case CORRESPONDING_NOTES_SET_FILL: {
@@ -3366,7 +3366,7 @@ doReadNoteData:
 
 				if (noteHexLength == 28) { // if reading custom iterance and fill
 					fill = hexToIntFixedLength(&hexChars[26], 2);
-					iterance = convertAndSanitizeIteranceFromInteger(hexToIntFixedLength(&hexChars[22], 4));
+					iterance = convertAndSanitizeIteranceFromInt(hexToIntFixedLength(&hexChars[22], 4));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3375,7 +3375,7 @@ doReadNoteData:
 				}
 				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
 					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = getIteranceValueFromPreset(hexToIntFixedLength(&hexChars[22], 2));
+					iterance = getIteranceValueFromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3572,7 +3572,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			intToHex(thisNote->getProbability(), buffer, 2);
 			writer.write(buffer);
 
-			intToHex(convertIteranceToUint16(thisNote->getIterance()), buffer, 4);
+			intToHex(convertIteranceToInt(thisNote->getIterance()), buffer, 4);
 			writer.write(buffer);
 
 			intToHex(thisNote->getFill(), buffer, 2);

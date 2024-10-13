@@ -27,15 +27,16 @@ struct Iterance {
 	bool operator==(Iterance const& other) const {
 		return other.divisor == divisor && other.iteranceStep == iteranceStep;
 	}
+
+
 };
 
 // Iterance utils
-Iterance convertUint16ToIterance(int32_t value);
-uint16_t convertIteranceToUint16(Iterance value);
+Iterance convertIntToIterance(int32_t value);
+uint16_t convertIteranceToInt(Iterance value);
 bool iterancePassesCheck(Iterance iterance, int32_t repeatCount);
 int32_t getIterancePresetIndexFromValue(Iterance value);
-int32_t getIterancePresetIndexFromUint16Value(uint16_t value);
-int32_t getIterancePresetFromEncodedValue(int32_t value);
-Iterance getIteranceValueFromPreset(int32_t value);
-uint16_t getUint16IteranceValueFromPreset(int32_t value);
-Iterance convertAndSanitizeIteranceFromInteger(int32_t iterance);
+int32_t getIterancePresetIndexFromIntValue(uint16_t value);
+Iterance getIteranceValueFromPresetIndex(int32_t presetIndex);
+uint16_t getIntIteranceValueFromPresetIndex(int32_t presetIndex);
+Iterance convertAndSanitizeIteranceFromInt(int32_t iterance);

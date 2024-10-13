@@ -21,10 +21,10 @@
 #include "util/lookuptables/lookuptables.h"
 #include <cstdint>
 
-Iterance convertUint16ToIterance(int32_t value) {
+Iterance convertIntToIterance(int32_t value) {
 	return Iterance{(uint8_t)(value >> 8), (uint8_t)(value & 0xFF)};
 }
-uint16_t convertIteranceToUint16(Iterance value) {
+uint16_t convertIteranceToInt(Iterance value) {
 	uint16_t result = value.divisor << 8 | (value.iteranceStep.to_ulong() & 0xFF);
 	return result;
 }
@@ -52,33 +52,17 @@ int32_t getIterancePresetIndexFromValue(Iterance value) {
 	// Custom iteration
 	return kCustomIterancePreset;
 }
-int32_t getIterancePresetIndexFromUint16Value(uint16_t value) {
-	return getIterancePresetIndexFromValue(convertUint16ToIterance(value));
-}
-
-int32_t getIterancePresetFromEncodedValue(int32_t value) {
-	if (value == 0) {
-		// A value of 0 means OFF
-		return 0;
-	}
-	for (int32_t i = 0; i < kNumIterancePresets; i++) {
-		// Check if value is one of the presets
-		if (iterancePresets[i].divisor == (uint8_t)(value >> 8) && iterancePresets[i].iteranceStep == (value & 0xFF)) {
-			return i + 1;
-		}
-	}
-
-	// Custom iteration
-	return kCustomIterancePreset;
+int32_t getIterancePresetIndexFromIntValue(uint16_t value) {
+	return getIterancePresetIndexFromValue(convertIntToIterance(value));
 }
 
 // This method transform back an iterance preset to a real value
 // In the case the preset is Custom, the returned real value is kCustomIteranceValue, that is, "1of1"
-Iterance getIteranceValueFromPreset(int32_t value) {
-	if (value > 0 && value <= kNumIterancePresets) {
-		return iterancePresets[value - 1];
+Iterance getIteranceValueFromPresetIndex(int32_t presetIndex) {
+	if (presetIndex > 0 && presetIndex <= kNumIterancePresets) {
+		return iterancePresets[presetIndex - 1];
 	}
-	else if (value == kCustomIterancePreset) {
+	else if (presetIndex == kCustomIterancePreset) {
 		// Reset custom iterance to 1of1
 		return kCustomIteranceValue;
 	}
@@ -87,14 +71,14 @@ Iterance getIteranceValueFromPreset(int32_t value) {
 		return kDefaultIteranceValue;
 	}
 }
-uint16_t getUint16IteranceValueFromPreset(int32_t value) {
-	return convertIteranceToUint16(getIteranceValueFromPreset(value));
+uint16_t getIntIteranceValueFromPresetIndex(int32_t presetIndex) {
+	return convertIteranceToInt(getIteranceValueFromPresetIndex(presetIndex));
 }
 
 // This methods cleans the iterance value to be among the possible valid values,
 // just in case we get bad data from the XML file
-Iterance convertAndSanitizeIteranceFromInteger(int32_t iteranceValue) {
-	Iterance iterance = convertUint16ToIterance(iteranceValue);
+Iterance convertAndSanitizeIteranceFromInt(int32_t value) {
+	Iterance iterance = convertIntToIterance(value);
 	if (iterance.divisor < 1 || iterance.divisor > 8) {
 		return kDefaultIteranceValue;
 	}

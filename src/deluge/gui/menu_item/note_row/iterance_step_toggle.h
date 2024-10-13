@@ -88,7 +88,7 @@ public:
 				// so we can make edits from here
 				iterance = kCustomIteranceValue;
 			}
-			int32_t newIteranceSteps = convertIteranceToUint16(iterance) & 0xFF;
+			int32_t newIteranceSteps = convertIteranceToInt(iterance) & 0xFF;
 			if (value) {
 				newIteranceSteps |= (1 << index);
 			}

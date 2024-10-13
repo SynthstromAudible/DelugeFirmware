@@ -61,7 +61,7 @@ public:
 		int32_t newValue = instrumentClipView.setNoteRowIteranceWithOffset(offset);
 		if (newValue != -1) {
 			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
-			int32_t preset = getIterancePresetIndexFromUint16Value(newValue);
+			int32_t preset = getIterancePresetIndexFromIntValue(newValue);
 			this->setValue(preset);
 			updateDisplay();
 		}
