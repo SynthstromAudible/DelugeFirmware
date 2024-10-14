@@ -18,7 +18,8 @@ struct Base {
 		LowPass,
 		HighPass
 	};
-	static constexpr float calcFilterCutoff(float f, FilterType filtertype) {
+	template <FilterType filtertype>
+	static constexpr float calcFilterCutoff(float f) {
 		float minFreq;
 		float maxFreq;
 		// this exp will be between 1 and 4.48, half the knob range is about 2
