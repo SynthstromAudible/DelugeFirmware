@@ -569,6 +569,7 @@ Submenu globalReverbMenu{
         &reverbDampingMenu,
         &reverbWidthMenu,
         &reverbHPFMenu,
+		&reverbLPFMenu,
         &reverbPanMenu,
         &reverbSidechainMenu,
     },
