@@ -29,7 +29,7 @@ struct Base {
 		if constexpr (filtertype == FilterType::LowPass) {
 			minFreq = 0.0f;
 			maxFreq = 5083.74f;
-		} else if (filtertype == FilterType::HighPass) {
+		} else if constexpr (filtertype == FilterType::HighPass) {
 			minFreq = 20.0f;
 			maxFreq = 150.0f;
 		}
