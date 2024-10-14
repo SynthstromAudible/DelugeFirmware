@@ -150,8 +150,7 @@ public:
 
 	void setLPF(float f) {
 		lp_cutoff_val_ = f;
-		FilterType type = FilterType::LowPass;
-		lp_cutoff_ = calcFilterCutoff(f, type);
+		lp_cutoff_ = calcFilterCutoff<FilterType::LowPass>(f, type);
 	}
 
 	[[nodiscard]] float getLPF() const { return lp_cutoff_val_; }
