@@ -184,7 +184,7 @@ private:
 
 	// Low-pass
 	float lp_cutoff_val_{0.f};
-	// corresponds to 20Hz
+	// corresponds to 0Hz
 	float lp_cutoff_{calcFilterCutoff<FilterType::LowPass>(0)};
 	float lp_l_{0.0}; // LP state variable
 	float lp_r_{0.0}; // LP state variable

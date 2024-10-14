@@ -24,8 +24,8 @@ struct Base {
 		float maxFreq;
 		// this exp will be between 1 and 4.48, half the knob range is about 2
 		// for the HPF the result will then be from 0 to 500Hz with half the knob range at 300hz
-		// for the LPF the result will be from 2300 to 20000 with half the knob range at 7978.537hz
 		// then shift to 20-520Hz as there is a low end buildup in the reverb that should always be filtered out
+		// for the LPF the result will be from 0 to 20000 with half the knob range at 5678.537hz
 		if constexpr (filtertype == FilterType::LowPass) {
 			minFreq = 0.0f;
 			maxFreq = 5083.74f;
