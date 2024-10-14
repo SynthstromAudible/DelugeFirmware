@@ -153,6 +153,7 @@ public:
 	}
 
 	[[nodiscard]] float getLPF() const { return lp_cutoff_val_; }
+
 private:
 	static constexpr float sample_rate = kSampleRate;
 

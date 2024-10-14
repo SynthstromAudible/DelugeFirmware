@@ -14,10 +14,7 @@ struct Base {
 		amplitude_right_ = amplitude_right;
 		amplitude_left_ = amplitude_left;
 	}
-	enum class FilterType {
-		LowPass,
-		HighPass
-	};
+	enum class FilterType { LowPass, HighPass };
 	template <FilterType filtertype>
 	static constexpr float calcFilterCutoff(float f) {
 		float minFreq;
@@ -29,7 +26,8 @@ struct Base {
 		if constexpr (filtertype == FilterType::LowPass) {
 			minFreq = 0.0f;
 			maxFreq = 5083.74f;
-		} else if constexpr (filtertype == FilterType::HighPass) {
+		}
+		else if constexpr (filtertype == FilterType::HighPass) {
 			minFreq = 20.0f;
 			maxFreq = 150.0f;
 		}
@@ -61,6 +59,5 @@ struct Base {
 private:
 	int32_t amplitude_right_ = 0;
 	int32_t amplitude_left_ = 0;
-
 };
 } // namespace deluge::dsp::reverb
