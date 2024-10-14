@@ -149,7 +149,7 @@ public:
 
 	void setLPF(float f) {
 		lp_cutoff_val_ = f;
-		lp_cutoff_ = calcFilterCutoff<FilterType::LowPass>(f, type);
+		lp_cutoff_ = calcFilterCutoff<FilterType::LowPass>(f);
 	}
 
 	[[nodiscard]] float getLPF() const { return lp_cutoff_val_; }
@@ -178,14 +178,14 @@ private:
 	// High-pass
 	float hp_cutoff_val_{0.f};
 	// corresponds to 20Hz
-	float hp_cutoff_{calcFilterCutoff(0,FilterType::HighPass)};
+	float hp_cutoff_{calcFilterCutoff<FilterType::HighPass>(0)};
 	float hp_l_{0.0}; // HP state variable
 	float hp_r_{0.0}; // HP state variable
 
 	// Low-pass
 	float lp_cutoff_val_{0.f};
 	// corresponds to 20Hz
-	float lp_cutoff_{calcFilterCutoff(0,FilterType::LowPass)};
+	float lp_cutoff_{calcFilterCutoff<FilterType::LowPass>(f)};
 	float lp_l_{0.0}; // LP state variable
 	float lp_r_{0.0}; // LP state variable
 };
