@@ -142,8 +142,7 @@ public:
 
 	void setHPF(float f) {
 		hp_cutoff_val_ = f;
-		FilterType type = FilterType::HighPass;
-		hp_cutoff_ = calcFilterCutoff(f, type);
+		hp_cutoff_ = calcFilterCutoff<FilterType::HighPass>(f);
 	}
 
 	[[nodiscard]] float getHPF() const { return hp_cutoff_val_; }
