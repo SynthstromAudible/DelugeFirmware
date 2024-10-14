@@ -303,6 +303,8 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		highestUsedAudioRecordingNumberNeedsReChecking[folderID] = false;
 	}
 
+	highestUsedAudioRecordingNumber[folderID]++;
+
 	D_PRINTLN("new file: --------------  %d", highestUsedAudioRecordingNumber[folderID]);
 
 	error = filePath->set(audioRecordingFolderNames[folderID]);
@@ -336,7 +338,6 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		if (error != Error::NONE) {
 			return error;
 		}
-		highestUsedAudioRecordingNumber[folderID]++;
 
 		if (doingTempFolder) {
 			error =
