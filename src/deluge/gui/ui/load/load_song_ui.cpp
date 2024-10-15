@@ -229,14 +229,17 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 }
 
 void LoadSongUI::loadNextSongIfAvailable() {
-	sortFileItems();
-	if (fileIndexSelected + 1 < fileItems.getNumElements()) {
-		fileIndexSelected = fileIndexSelected + 1;
-		LoadUI::enterKeyPress();
-		performLoad();
-		if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-			runtimeFeatureSettings.writeSettingsToFile();
-		}
+	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
+	    || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED
+	    || currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
+	    || currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
+		// While in the process of loading a song, don't do anything
+		return;
+	}
+	if (openUI(&loadSongUI)) {
+		currentUIMode = UI_MODE_NONE;
+		LoadUI::selectEncoderAction(1);
+		LoadSongUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
 	}
 }
 

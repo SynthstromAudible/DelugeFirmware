@@ -864,9 +864,7 @@ void Song::changeFillMode(bool on) {
 }
 
 void Song::loadNextSong() {
-	if (openUI(&loadSongUI)) {
-		loadSongUI.loadNextSongIfAvailable();
-	}
+	loadSongUI.loadNextSongIfAvailable();
 }
 
 // If action is NULL, that means this is being called as part of an undo, so don't do any extra stuff.
