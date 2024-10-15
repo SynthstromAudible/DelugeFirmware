@@ -61,6 +61,8 @@ LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
 	title = "Load song";
+
+	skipAnimations = false;
 }
 
 bool LoadSongUI::opened() {
@@ -79,11 +81,13 @@ gotError:
 		return false;                    // Exit UI instantly
 	}
 
-	currentUIMode = UI_MODE_VERTICAL_SCROLL;
-	PadLEDs::vertical::setupScroll(1, true);
-	scrollingIntoSlot = false;
-	deletedPartsOfOldSong = false;
-	timerCallback(); // Start scrolling animation out of the View
+	if (!skipAnimations) {
+		currentUIMode = UI_MODE_VERTICAL_SCROLL;
+		PadLEDs::vertical::setupScroll(1, true);
+		scrollingIntoSlot = false;
+		deletedPartsOfOldSong = false;
+		timerCallback(); // Start scrolling animation out of the View
+	}
 
 	PadLEDs::clearTickSquares();
 
@@ -109,13 +113,15 @@ gotError:
 
 	focusRegained();
 
-	PadLEDs::vertical::setupScroll(1, false);
-	scrollingIntoSlot = true;
+	if (!skipAnimations) {
+		PadLEDs::vertical::setupScroll(1, false);
+		scrollingIntoSlot = true;
 
-	if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
-		currentUIMode =
-		    UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit of the scroll
-		timerCallback();
+		if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
+			currentUIMode =
+				UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit of the scroll
+			timerCallback();
+		}
 	}
 
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
@@ -236,6 +242,7 @@ void LoadSongUI::loadNextSongIfAvailable() {
 		// While in the process of loading a song, don't do anything
 		return;
 	}
+	skipAnimations = true;
 	if (openUI(&loadSongUI)) {
 		currentUIMode = UI_MODE_NONE;
 		LoadUI::selectEncoderAction(1);
@@ -243,6 +250,7 @@ void LoadSongUI::loadNextSongIfAvailable() {
 		// force re-render display
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
+	skipAnimations = false;
 }
 
 // Before calling this, you must set loadButtonReleased.
@@ -567,7 +575,7 @@ ActionResult LoadSongUI::timerCallback() {
 			// *2 caused glitches occasionally
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4);
 		}
-getOut: {}
+getOut : {}
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -661,7 +669,7 @@ ignoring the file extension.
 
 void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 
-	if (movementDirection) {
+	if (movementDirection && !skipAnimations) {
 		qwertyVisible = false;
 
 		// Start horizontal scrolling

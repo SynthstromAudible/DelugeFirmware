@@ -52,6 +52,7 @@ private:
 	void drawSongPreview(bool toStore = true);
 	void displayArmedPopup();
 
+	bool skipAnimations;
 	bool scrollingIntoSlot;
 	// int32_t findNextFile(int32_t offset);
 	void exitThisUI();
