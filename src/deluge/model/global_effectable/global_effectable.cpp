@@ -1204,7 +1204,7 @@ const char* getParamName(ModFXType type, ModFXParam param) {
 		case ModFXParam::DEPTH:
 			return l10n::get(STRING_FOR_GRAIN_AMOUNT);
 		case ModFXParam::FEEDBACK:
-			return l10n::get(STRING_FOR_GRAIN_TYPE);
+			return l10n::get(STRING_FOR_GRAIN_RANDOMNESS);
 		case ModFXParam::OFFSET:
 			return l10n::get(STRING_FOR_GRAIN_DENSITY);
 		default:

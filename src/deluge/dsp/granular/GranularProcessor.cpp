@@ -84,8 +84,8 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 	                                                                                 // Shift
 	_grainShift =
 	    44 * 300; // this is where we should tempo sync ( it's kSampleRate / 1000 * 300 for a 300ms base delay amount);
-	// Size
-	if (_densityKnobPos != grainDensity) {
+	// Size depends on both density and rate
+	if (_densityKnobPos != grainDensity || _rateKnobPos != grainRate) {
 		_densityKnobPos = grainDensity;
 		q31_t density = ((grainDensity / 2) + (1073741824)); // convert to 0-2^31
 		// the maximum length is 8x the rate, past that grains get stolen for new grains. This keeps a consistent
