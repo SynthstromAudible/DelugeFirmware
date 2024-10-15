@@ -56,11 +56,14 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, 
 		int i = 0;
 		do {
 			StereoSample grainWet = processOneGrainSample(currentSample);
-			auto wetl = multiply_32x32_rshift32(grainWet.l, _grainVol) << 1;
-			auto wetr = multiply_32x32_rshift32(grainWet.r, _grainVol) << 1;
+			auto wetl = q31_mult(grainWet.l, _grainVol);
+			auto wetr = q31_mult(grainWet.r, _grainVol);
+			// filter slightly - one pole at 12ish khz
+			wetl = lpf_l.doFilter(wetl, 1 << 29);
+			wetr = lpf_r.doFilter(wetr, 1 << 29);
 			// WET and DRY Vol
-			currentSample->l = add_saturation(multiply_32x32_rshift32(currentSample->l, _grainDryVol) << 1, wetl);
-			currentSample->r = add_saturation(multiply_32x32_rshift32(currentSample->r, _grainDryVol) << 1, wetr);
+			currentSample->l = add_saturation(q31_mult(currentSample->l, _grainDryVol), wetl);
+			currentSample->r = add_saturation(q31_mult(currentSample->r, _grainDryVol), wetr);
 			// adding a small amount of extra reverb covers a lot of the granular artifacts
 			AudioEngine::feedReverbBackdoorForGrain(i, (wetl + wetr) >> 3);
 			i += 1;
@@ -93,6 +96,7 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 	if (_rateKnobPos != grainRate) {
 		_rateKnobPos = grainRate;
 		int32_t grainRateRaw = std::clamp<int32_t>((quickLog(grainRate) - 364249088) >> 21, 0, 256);
+
 		_grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); // 0 - 180hz
 		_grainRate = std::max<int32_t>(1, _grainRate);
 		_grainRate = (kSampleRate << 1) / _grainRate;
@@ -118,111 +122,7 @@ StereoSample GranularProcessor::processOneGrainSample(StereoSample* currentSampl
 	}
 	int32_t writeIndex = bufferWriteIndex; // % kModFXGrainBufferSize
 	if (bufferWriteIndex % _grainRate == 0) [[unlikely]] {
-		for (int32_t i = 0; i < 8; i++) {
-			if (grains[i].length <= 0) {
-				grains[i].length = _grainSize;
-				int32_t spray = random(kModFXGrainBufferSize >> 1) - (kModFXGrainBufferSize >> 2);
-				grains[i].startPoint =
-				    (bufferWriteIndex + kModFXGrainBufferSize - _grainShift + spray) & kModFXGrainBufferIndexMask;
-				grains[i].counter = 0;
-				grains[i].rev = (getRandom255() < 76);
-
-				int32_t pitchRand = getRandom255();
-				// randomly select a type of grain to generate, options are based on the amount of randomness
-				int8_t typeRand = multiply_32x32_rshift32(q31_mult(getNoise(), _pitchRandomness), 7);
-				switch (typeRand) {
-
-				case -3:
-					grains[i].pitch = 512; // octave down
-					grains[i].rev = true;
-					break;
-				case -2:
-					grains[i].pitch = 767; // 4th down (e.g. it's the 5th)
-					grains[i].rev = true;
-					break;
-				case -1:
-					grains[i].pitch = 1024; // unison reverse
-					grains[i].rev = true;
-					break;
-				case 0:
-					grains[i].pitch = 1024; // unison
-					break;
-				case 1:
-					grains[i].pitch = 2048; //  octave
-					break;
-				case 2:
-					grains[i].pitch = 1534; // 5th
-					break;
-				case 3:
-					grains[i].pitch = 2048; //  octave
-					grains[i].rev = true;
-					break;
-					// This is pretty rare even at max randomness
-				default:
-					grains[i].pitch = 30772; //  octave + 5th
-					grains[i].rev = true;
-					break;
-				}
-				if (grains[i].rev) {
-					grains[i].startPoint = (writeIndex + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
-					grains[i].length = (grains[i].pitch > 1024)
-					                       ? std::min<int32_t>(grains[i].length, 21659)  // Buffer length*0.3305
-					                       : std::min<int32_t>(grains[i].length, 30251); // 1.48s - 0.8s
-				}
-				else {
-					if (grains[i].pitch > 1024) {
-						int32_t startPointMax = (writeIndex + grains[i].length
-						                         - ((grains[i].length * grains[i].pitch) >> 10) + kModFXGrainBufferSize)
-						                        & kModFXGrainBufferIndexMask;
-						if (!(grains[i].startPoint < startPointMax && grains[i].startPoint > writeIndex)) {
-							grains[i].startPoint =
-							    (startPointMax + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
-						}
-					}
-					else if (grains[i].pitch < 1024) {
-						int32_t startPointMax = (writeIndex + grains[i].length
-						                         - ((grains[i].length * grains[i].pitch) >> 10) + kModFXGrainBufferSize)
-						                        & kModFXGrainBufferIndexMask;
-
-						if (!(grains[i].startPoint > startPointMax && grains[i].startPoint < writeIndex)) {
-							grains[i].startPoint =
-							    (writeIndex + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
-						}
-					}
-				}
-				if (!grainInitialized) {
-					if (!grains[i].rev) { // forward
-						grains[i].pitch = 1024;
-						if (bufferWriteIndex > 13231) {
-							int32_t newStartPoint = std::max<int32_t>(440, random(bufferWriteIndex - 2));
-							grains[i].startPoint =
-							    (writeIndex - newStartPoint + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
-						}
-						else {
-							grains[i].length = 0;
-						}
-					}
-					else {
-						grains[i].pitch = std::min<int32_t>(grains[i].pitch, 1024);
-						if (bufferWriteIndex > 13231) {
-							grains[i].length = std::min<int32_t>(grains[i].length, bufferWriteIndex - 2);
-							grains[i].startPoint =
-							    (writeIndex - 1 + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
-						}
-						else {
-							grains[i].length = 0;
-						}
-					}
-				}
-				if (grains[i].length > 0) {
-					grains[i].volScale = (2147483647 / (grains[i].length >> 1));
-					grains[i].volScaleMax = grains[i].volScale * (grains[i].length >> 1);
-					shouldDoPanning((getRandom255() - 128) << 23, &grains[i].panVolL,
-					                &grains[i].panVolR); // Pan Law 0
-				}
-				break;
-			}
-		}
+		setupGrainsIfNeeded(writeIndex);
 	}
 
 	int32_t grains_l = 0;
@@ -261,6 +161,110 @@ StereoSample GranularProcessor::processOneGrainSample(StereoSample* currentSampl
 
 	bufferWriteIndex++;
 	return StereoSample{grains_l, grains_r};
+}
+void GranularProcessor::setupGrainsIfNeeded(int32_t writeIndex) {
+	for (int32_t i = 0; i < 8; i++) {
+		if (grains[i].length <= 0) {
+			grains[i].length = _grainSize;
+			int32_t spray = random(kModFXGrainBufferSize >> 1) - (kModFXGrainBufferSize >> 2);
+			grains[i].startPoint =
+			    (bufferWriteIndex + kModFXGrainBufferSize - _grainShift + spray) & kModFXGrainBufferIndexMask;
+			grains[i].counter = 0;
+			grains[i].rev = (getRandom255() < 76);
+
+			int32_t pitchRand = getRandom255();
+			// randomly select a type of grain to generate, options are based on the amount of randomness
+			int8_t typeRand = multiply_32x32_rshift32(q31_mult(getNoise(), _pitchRandomness), 7);
+			switch (typeRand) {
+
+			case -3:
+				grains[i].pitch = 512; // octave down
+				grains[i].rev = true;
+				break;
+			case -2:
+				grains[i].pitch = 767; // 4th down (e.g. it's the 5th)
+				grains[i].rev = true;
+				break;
+			case -1:
+				grains[i].pitch = 1024; // unison reverse
+				grains[i].rev = true;
+				break;
+			case 0:
+				grains[i].pitch = 1024; // unison
+				break;
+			case 1:
+				grains[i].pitch = 2048; //  octave
+				break;
+			case 2:
+				grains[i].pitch = 1534; // 5th
+				break;
+			case 3:
+				grains[i].pitch = 2048; //  octave
+				grains[i].rev = true;
+				break;
+				// This is pretty rare even at max randomness
+			default:
+				grains[i].pitch = 30772; //  octave + 5th
+				grains[i].rev = true;
+				break;
+			}
+			if (grains[i].rev) {
+				grains[i].startPoint = (writeIndex + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
+				grains[i].length = (grains[i].pitch > 1024)
+				                       ? std::min<int32_t>(grains[i].length, 21659)  // Buffer length*0.3305
+				                       : std::min<int32_t>(grains[i].length, 30251); // 1.48s - 0.8s
+			}
+			else {
+				if (grains[i].pitch > 1024) {
+					int32_t startPointMax = (writeIndex + grains[i].length
+					                         - ((grains[i].length * grains[i].pitch) >> 10) + kModFXGrainBufferSize)
+					                        & kModFXGrainBufferIndexMask;
+					if (!(grains[i].startPoint < startPointMax && grains[i].startPoint > writeIndex)) {
+						grains[i].startPoint = (startPointMax + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
+					}
+				}
+				else if (grains[i].pitch < 1024) {
+					int32_t startPointMax = (writeIndex + grains[i].length
+					                         - ((grains[i].length * grains[i].pitch) >> 10) + kModFXGrainBufferSize)
+					                        & kModFXGrainBufferIndexMask;
+
+					if (!(grains[i].startPoint > startPointMax && grains[i].startPoint < writeIndex)) {
+						grains[i].startPoint = (writeIndex + kModFXGrainBufferSize - 1) & kModFXGrainBufferIndexMask;
+					}
+				}
+			}
+			if (!grainInitialized) {
+				if (!grains[i].rev) { // forward
+					grains[i].pitch = 1024;
+					if (bufferWriteIndex > 13231) {
+						int32_t newStartPoint = std::max<int32_t>(440, random(bufferWriteIndex - 2));
+						grains[i].startPoint =
+						    (writeIndex - newStartPoint + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
+					}
+					else {
+						grains[i].length = 0;
+					}
+				}
+				else {
+					grains[i].pitch = std::min<int32_t>(grains[i].pitch, 1024);
+					if (bufferWriteIndex > 13231) {
+						grains[i].length = std::min<int32_t>(grains[i].length, bufferWriteIndex - 2);
+						grains[i].startPoint = (writeIndex - 1 + kModFXGrainBufferSize) & kModFXGrainBufferIndexMask;
+					}
+					else {
+						grains[i].length = 0;
+					}
+				}
+			}
+			if (grains[i].length > 0) {
+				grains[i].volScale = (2147483647 / (grains[i].length >> 1));
+				grains[i].volScaleMax = grains[i].volScale * (grains[i].length >> 1);
+				shouldDoPanning((getRandom255() - 128) << 23, &grains[i].panVolL,
+				                &grains[i].panVolR); // Pan Law 0
+			}
+			break;
+		}
+	}
 }
 void GranularProcessor::clearGrainFXBuffer() {
 	for (int i = 0; i < 8; i++) {
