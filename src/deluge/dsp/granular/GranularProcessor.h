@@ -51,15 +51,15 @@ public:
 	void startSkippingRendering();
 
 	/// preset is currently converted from a param to a 0-4 preset inside the grain, which is probably not great
-	void processGrainFX(StereoSample* buffer, int32_t grainRate, int32_t grainMix, int32_t grainSize,
-	                    int32_t grainPreset, int32_t* postFXVolume, const StereoSample* bufferEnd,
+	void processGrainFX(StereoSample* buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
+	                    int32_t pitchRandomness, int32_t* postFXVolume, const StereoSample* bufferEnd,
 	                    bool anySoundComingIn, float tempoBPM);
 
 	void clearGrainFXBuffer();
 	void grainBufferStolen() { grainBuffer = nullptr; }
 
 private:
-	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainSize, int32_t grainPreset,
+	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainDensity, int32_t pitchRandomness,
 	                  int32_t* postFXVolume, float timePerInternalTick);
 	StereoSample processOneGrainSample(StereoSample* currentSample);
 	void getBuffer();
@@ -73,7 +73,7 @@ private:
 	int32_t _grainFeedbackVol;
 	int32_t _grainVol;
 	int32_t _grainDryVol;
-	int8_t _grainPitchType;
+	int32_t _pitchRandomness;
 
 	bool grainLastTickCountIsZero;
 	bool grainInitialized;

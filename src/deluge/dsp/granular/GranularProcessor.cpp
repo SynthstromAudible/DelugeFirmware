@@ -41,8 +41,8 @@ void GranularProcessor::setWrapsToShutdown() {
 	grainBuffer->inUse = true;
 }
 
-void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, int32_t grainMix, int32_t grainSize,
-                                       int32_t grainPreset, int32_t* postFXVolume, const StereoSample* bufferEnd,
+void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
+                                       int32_t pitchRandomness, int32_t* postFXVolume, const StereoSample* bufferEnd,
                                        bool anySoundComingIn, float tempoBPM) {
 	if (anySoundComingIn || wrapsToShutdown >= 0) {
 		if (anySoundComingIn) {
@@ -51,7 +51,7 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, 
 		if (grainBuffer == nullptr) {
 			getBuffer(); // in case it was stolen
 		}
-		setupGrainFX(grainRate, grainMix, grainSize, grainPreset, postFXVolume, tempoBPM);
+		setupGrainFX(grainRate, grainMix, grainDensity, pitchRandomness, postFXVolume, tempoBPM);
 		StereoSample* currentSample = buffer;
 		int i = 0;
 		do {
@@ -61,7 +61,8 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, 
 			// WET and DRY Vol
 			currentSample->l = add_saturation(multiply_32x32_rshift32(currentSample->l, _grainDryVol) << 1, wetl);
 			currentSample->r = add_saturation(multiply_32x32_rshift32(currentSample->r, _grainDryVol) << 1, wetr);
-			AudioEngine::feedReverbBackdoorForGrain(i, wetl + wetr >> 3);
+			// adding a small amount of extra reverb covers a lot of the granular artifacts
+			AudioEngine::feedReverbBackdoorForGrain(i, (wetl + wetr) >> 3);
 			i += 1;
 
 		} while (++currentSample != bufferEnd);
@@ -71,7 +72,7 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, 
 		}
 	}
 }
-void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainSize, int32_t grainPreset,
+void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainDensity, int32_t pitchRandomness,
                                      int32_t* postFXVolume, float tempoBPM) {
 	if (!grainInitialized && bufferWriteIndex >= 65536) {
 		grainInitialized = true;
@@ -80,21 +81,19 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 	                                                                                 // Shift
 	_grainShift = 44 * 300;                                                          //(kSampleRate / 1000) * 300;
 	// Size
-	uint32_t density = ((grainSize / 2) + (1073741824)) * 2; // convert to 0-2^31
+	q31_t density = ((grainDensity / 2) + (1073741824)); // convert to 0-2^31
 	// the maximum length is 8x the rate, past that grains get stolen for new grains. This keeps a consistent proportion
 	// of grain sound as you increase the rate
-	_grainSize = 1760 + q31tRescale(_grainRate << 3, density);
+	_grainSize = 1760 + q31_mult(_grainRate << 3, density);
 	// Rate
 	int32_t grainRateRaw = std::clamp<int32_t>((quickLog(grainRate) - 364249088) >> 21, 0, 256);
 	_grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); // 0 - 180hz
 	_grainRate = std::max<int32_t>(1, _grainRate);
 	_grainRate = (kSampleRate << 1) / _grainRate;
-	// Preset 0=default
-	_grainPitchType = (int8_t)(multiply_32x32_rshift32_rounded(grainPreset,
-	                                                           5)); // Select 5 presets -2 to 2
-	_grainPitchType = std::clamp<int8_t>(_grainPitchType, -2, 2);
+
+	_pitchRandomness = toPositive(pitchRandomness);
 	// Tempo sync
-	if (_grainPitchType == 2) {
+	if (false) {
 		_grainRate = std::clamp<int32_t>(256 - grainRateRaw, 0, 256) << 4; // 4096msec
 		_grainRate = 44 * _grainRate;                                      //(kSampleRate*grainRate)/1000;
 		auto baseNoteSamples = (int32_t)(kSampleRate * 60. / tempoBPM);    // 4th
@@ -138,24 +137,39 @@ StereoSample GranularProcessor::processOneGrainSample(StereoSample* currentSampl
 				grains[i].rev = (getRandom255() < 76);
 
 				int32_t pitchRand = getRandom255();
-				switch (_grainPitchType) {
+				// randomly select a type of grain to generate, options are based on the amount of randomness
+				int8_t typeRand = multiply_32x32_rshift32(q31_mult(getNoise(), _pitchRandomness), 7);
+				switch (typeRand) {
+
+				case -3:
+					grains[i].pitch = 512; // octave down
+					grains[i].rev = true;
+					break;
 				case -2:
-					grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; // unison + octave + reverse
-					grains[i].rev = 1;
+					grains[i].pitch = 767; // 4th down (e.g. it's the 5th)
+					grains[i].rev = true;
 					break;
 				case -1:
-					grains[i].pitch = (pitchRand < 76) ? 512 : 1024; // unison + octave lower
+					grains[i].pitch = 1024; // unison reverse
+					grains[i].rev = true;
 					break;
 				case 0:
-					grains[i].pitch = (pitchRand < 76) ? 2048 : 1024; // unison + octave (default)
+					grains[i].pitch = 1024; // unison
 					break;
 				case 1:
-					grains[i].pitch = (pitchRand < 76) ? 1534 : 2048; // 5th + octave
+					grains[i].pitch = 2048; //  octave
 					break;
 				case 2:
-					grains[i].pitch = (pitchRand < 25)    ? 512
-					                  : (pitchRand < 153) ? 2048
-					                                      : 1024; // unison + octave + octave lower
+					grains[i].pitch = 1534; // 5th
+					break;
+				case 3:
+					grains[i].pitch = 2048; //  octave
+					grains[i].rev = true;
+					break;
+					// This is pretty rare even at max randomness
+				default:
+					grains[i].pitch = 30772; //  octave + 5th
+					grains[i].rev = true;
 					break;
 				}
 				if (grains[i].rev) {
@@ -277,7 +291,7 @@ GranularProcessor::GranularProcessor() {
 	}
 	_grainVol = 0;
 	_grainDryVol = 2147483647;
-	_grainPitchType = 0;
+	_pitchRandomness = 0;
 	grainLastTickCountIsZero = true;
 	grainInitialized = false;
 	getBuffer();
@@ -301,7 +315,7 @@ GranularProcessor::GranularProcessor(const GranularProcessor& other) {
 	}
 	_grainVol = other._grainVol;
 	_grainDryVol = other._grainDryVol;
-	_grainPitchType = other._grainPitchType;
+	_pitchRandomness = other._pitchRandomness;
 	grainLastTickCountIsZero = true;
 	grainInitialized = false;
 	void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GrainBuffer));

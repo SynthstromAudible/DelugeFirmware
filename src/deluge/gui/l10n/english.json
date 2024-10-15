@@ -571,7 +571,7 @@
         "STRING_FOR_MOD_FX_RATE": "MOD FX rate",
         "STRING_FOR_DEPTH": "DEPTH",
         "STRING_FOR_MOD_FX_DEPTH": "MOD FX depth",
-        "STRING_FOR_GRAIN_SIZE": "Grain Size",
+        "STRING_FOR_GRAIN_DENSITY": "Grain Density",
         "STRING_FOR_GRAIN_TYPE": "Grain Type",
         "STRING_FOR_GRAIN_AMOUNT": "Grain Amount",
         "STRING_FOR_RATE": "RATE",

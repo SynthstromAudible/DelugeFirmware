@@ -1206,7 +1206,7 @@ const char* getParamName(ModFXType type, ModFXParam param) {
 		case ModFXParam::FEEDBACK:
 			return l10n::get(STRING_FOR_GRAIN_TYPE);
 		case ModFXParam::OFFSET:
-			return l10n::get(STRING_FOR_GRAIN_SIZE);
+			return l10n::get(STRING_FOR_GRAIN_DENSITY);
 		default:
 			return l10n::get(STRING_FOR_NONE);
 		}
