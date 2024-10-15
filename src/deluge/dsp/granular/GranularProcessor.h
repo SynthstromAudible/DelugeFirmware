@@ -82,7 +82,9 @@ private:
 
 	int32_t wrapsToShutdown;
 	GrainBuffer* grainBuffer{nullptr};
-	bool _tempoSync{true};
+	int32_t _densityKnobPos{0};
+	int32_t _rateKnobPos{0};
+	int32_t _mixKnobPos{0};
 };
 
 class GrainBuffer : public Stealable {

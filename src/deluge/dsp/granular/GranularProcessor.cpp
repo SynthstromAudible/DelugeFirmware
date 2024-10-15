@@ -79,46 +79,37 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 	}
 	*postFXVolume = multiply_32x32_rshift32(*postFXVolume, ONE_OVER_SQRT2_Q31) << 1; // Divide by sqrt(2)
 	                                                                                 // Shift
-	_grainShift = 44 * 300;                                                          //(kSampleRate / 1000) * 300;
+	_grainShift =
+	    44 * 300; // this is where we should tempo sync ( it's kSampleRate / 1000 * 300 for a 300ms base delay amount);
 	// Size
-	q31_t density = ((grainDensity / 2) + (1073741824)); // convert to 0-2^31
-	// the maximum length is 8x the rate, past that grains get stolen for new grains. This keeps a consistent proportion
-	// of grain sound as you increase the rate
-	_grainSize = 1760 + q31_mult(_grainRate << 3, density);
-	// Rate
-	int32_t grainRateRaw = std::clamp<int32_t>((quickLog(grainRate) - 364249088) >> 21, 0, 256);
-	_grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); // 0 - 180hz
-	_grainRate = std::max<int32_t>(1, _grainRate);
-	_grainRate = (kSampleRate << 1) / _grainRate;
-
-	_pitchRandomness = toPositive(pitchRandomness);
-	// Tempo sync
-	if (false) {
-		_grainRate = std::clamp<int32_t>(256 - grainRateRaw, 0, 256) << 4; // 4096msec
-		_grainRate = 44 * _grainRate;                                      //(kSampleRate*grainRate)/1000;
-		auto baseNoteSamples = (int32_t)(kSampleRate * 60. / tempoBPM);    // 4th
-		if (_grainRate < baseNoteSamples) {
-			baseNoteSamples = baseNoteSamples >> 2; // 16th
-		}
-		_grainRate = std::clamp<int32_t>((_grainRate / baseNoteSamples) * baseNoteSamples, baseNoteSamples,
-		                                 baseNoteSamples << 2);              // Quantize
-		if (_grainRate < 2205) {                                             // 50ms = 20hz
-			_grainSize = std::min<int32_t>(_grainSize, _grainRate << 3) - 1; // 16 layers=<<4, 8layers = <<3
-		}
-		bool currentTickCountIsZero = (playbackHandler.getCurrentInternalTickCount() == 0);
-		if (grainLastTickCountIsZero && !currentTickCountIsZero) { // Start Playback
-			bufferWriteIndex = 0;                                  // Reset WriteIndex
-		}
-		grainLastTickCountIsZero = currentTickCountIsZero;
+	if (_densityKnobPos != grainDensity) {
+		_densityKnobPos = grainDensity;
+		q31_t density = ((grainDensity / 2) + (1073741824)); // convert to 0-2^31
+		// the maximum length is 8x the rate, past that grains get stolen for new grains. This keeps a consistent
+		// proportion of grain sound as you increase the rate
+		_grainSize = 1760 + q31_mult(_grainRate << 3, density);
 	}
-
+	// Rate
+	if (_rateKnobPos != grainRate) {
+		_rateKnobPos = grainRate;
+		int32_t grainRateRaw = std::clamp<int32_t>((quickLog(grainRate) - 364249088) >> 21, 0, 256);
+		_grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); // 0 - 180hz
+		_grainRate = std::max<int32_t>(1, _grainRate);
+		_grainRate = (kSampleRate << 1) / _grainRate;
+	}
+	// this is only 2 cycles so there's no point in checking
+	_pitchRandomness = toPositive(pitchRandomness);
 	// Volume
-	_grainVol = grainMix - 2147483648;
-	_grainVol = (multiply_32x32_rshift32_rounded(multiply_32x32_rshift32_rounded(_grainVol, _grainVol), _grainVol) << 2)
-	            + 2147483648; // Cubic
-	_grainVol = std::max<int32_t>(0, std::min<int32_t>(2147483647, _grainVol));
-	_grainDryVol = (int32_t)std::clamp<int64_t>(((int64_t)(2147483648 - _grainVol) << 3), 0, 2147483647);
-	_grainFeedbackVol = _grainVol >> 2;
+	if (_mixKnobPos != grainMix) {
+		_mixKnobPos = grainMix;
+		_grainVol = grainMix - 2147483648;
+		_grainVol =
+		    (multiply_32x32_rshift32_rounded(multiply_32x32_rshift32_rounded(_grainVol, _grainVol), _grainVol) << 2)
+		    + 2147483648; // Cubic
+		_grainVol = std::max<int32_t>(0, std::min<int32_t>(2147483647, _grainVol));
+		_grainDryVol = (int32_t)std::clamp<int64_t>(((int64_t)(2147483648 - _grainVol) << 3), 0, 2147483647);
+		_grainFeedbackVol = _grainVol >> 2;
+	}
 }
 StereoSample GranularProcessor::processOneGrainSample(StereoSample* currentSample) {
 	if (bufferWriteIndex >= kModFXGrainBufferSize) {
