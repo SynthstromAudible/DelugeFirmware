@@ -229,23 +229,19 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 }
 
 void LoadSongUI::loadNextSongIfAvailable() {
-	if (!loadingSong) {
-		sortFileItems();
-		if (fileIndexSelected + 1 < fileItems.getNumElements()) {
-			fileIndexSelected = fileIndexSelected + 1;
-			LoadUI::enterKeyPress();
-			performLoad();
-			if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-				runtimeFeatureSettings.writeSettingsToFile();
-			}
+	sortFileItems();
+	if (fileIndexSelected + 1 < fileItems.getNumElements()) {
+		fileIndexSelected = fileIndexSelected + 1;
+		LoadUI::enterKeyPress();
+		performLoad();
+		if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+			runtimeFeatureSettings.writeSettingsToFile();
 		}
 	}
 }
 
 // Before calling this, you must set loadButtonReleased.
 void LoadSongUI::performLoad() {
-	loadingSong = true;
-
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
@@ -253,7 +249,6 @@ void LoadSongUI::performLoad() {
 		                          ? Error::FILE_NOT_FOUND
 		                          : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
 		                                                                     // for consistency with old times.
-		loadingSong = false;
 		return;
 	}
 
@@ -370,7 +365,6 @@ fail:
 		}
 		currentUIMode = UI_MODE_NONE;
 		display->removeWorkingAnimation();
-		loadingSong = false;
 		return;
 	}
 
@@ -535,7 +529,6 @@ swapDone:
 	currentUIMode = UI_MODE_NONE;
 
 	display->removeWorkingAnimation();
-	loadingSong = false;
 }
 
 ActionResult LoadSongUI::timerCallback() {
