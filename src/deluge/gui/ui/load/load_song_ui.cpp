@@ -239,7 +239,9 @@ void LoadSongUI::loadNextSongIfAvailable() {
 	if (openUI(&loadSongUI)) {
 		currentUIMode = UI_MODE_NONE;
 		LoadUI::selectEncoderAction(1);
-		LoadSongUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
+		LoadSongUI::enterKeyPress();
+		// force re-render display
+		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 }
 
