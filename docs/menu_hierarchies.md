@@ -532,7 +532,7 @@ The Song menu contains the following menu hierarchy:
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
   		- HPF (if Mutable is Selected)
-    		- LPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
@@ -798,7 +798,7 @@ The Sound menu contains the following menu hierarchy:
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
   		- HPF (if Mutable is Selected)
-    		- LPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
@@ -1146,7 +1146,7 @@ The Kit FX menu contains the following menu hierarchy:
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
   		- HPF (if Mutable is Selected)
-    		- LPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
@@ -1660,7 +1660,7 @@ The Audio Clip menu contains the following menu hierarchy:
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
   		- HPF (if Mutable is Selected)
-    		- LPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
