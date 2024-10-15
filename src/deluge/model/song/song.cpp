@@ -44,6 +44,7 @@
 #include "model/sample/sample_recorder.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "model/scale/utils.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
@@ -859,6 +860,12 @@ void Song::changeFillMode(bool on) {
 	if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 	     == RuntimeFeatureStateSyncScalingAction::Fill)) {
 		indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, on);
+	}
+}
+
+void Song::loadNextSong() {
+	if (openUI(&loadSongUI)) {
+		loadSongUI.loadNextSongIfAvailable();
 	}
 }
 

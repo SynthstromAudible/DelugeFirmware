@@ -2700,6 +2700,10 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel,
 				currentSong->changeFillMode(true);
 				break;
 
+			case GlobalMIDICommand::NEXT_SONG:
+				currentSong->loadNextSong();
+				break;
+
 			// case GlobalMIDICommand::TAP:
 			default:
 				if (getCurrentUI() == getRootUI()) {

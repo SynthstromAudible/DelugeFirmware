@@ -183,6 +183,9 @@ enum Entries {
 175: accessibilityMenuHighlighting
 176: default new clip type
 177: use last clip type
+178: GlobalMIDICommand::NEXT_SONG channel + 1
+179: GlobalMIDICommand::NEXT_SONG noteCode + 1
+180-183: GlobalMIDICommand::NEXT_SONG product / vendor ids
 */
 
 uint8_t defaultScale;
@@ -434,6 +437,8 @@ void readSettings() {
 	    buffer[71] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone = buffer[114] - 1;
 	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC = buffer[115] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].channelOrZone = buffer[178] - 1;
+	midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC = buffer[179] - 1;
 
 	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::PLAYBACK_RESTART, &buffer[80]);
 	/* buffer[81]  \
@@ -471,6 +476,10 @@ void readSettings() {
 	/* buffer[117]  \
 	   buffer[118]   device reference above occupies 4 bytes
 	   buffer[119] */
+	MIDIDeviceManager::readDeviceReferenceFromFlash(GlobalMIDICommand::NEXT_SONG, &buffer[180]);
+	/* buffer[181]  \
+	   buffer[182]   device reference above occupies 4 bytes
+	   buffer[183] */
 
 	if (buffer[50] >= kNumInputMonitoringModes) {
 		AudioEngine::inputMonitoringMode = InputMonitoringMode::SMART;
@@ -859,6 +868,8 @@ void writeSettings() {
 	buffer[68] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::REDO)].noteOrCC + 1;
 	buffer[114] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].channelOrZone + 1;
 	buffer[115] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].noteOrCC + 1;
+	buffer[178] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].channelOrZone + 1;
+	buffer[179] = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].noteOrCC + 1;
 	buffer[70] =
 	    midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING)].channelOrZone
 	    + 1;
@@ -902,6 +913,10 @@ void writeSettings() {
 	/* buffer[117]  \
 	   buffer[118]   device reference above occupies 4 bytes
 	   buffer[119] */
+	MIDIDeviceManager::writeDeviceReferenceToFlash(GlobalMIDICommand::NEXT_SONG, &buffer[180]);
+	/* buffer[181]  \
+	   buffer[182]   device reference above occupies 4 bytes
+	   buffer[183] */
 
 	buffer[50] = util::to_underlying(AudioEngine::inputMonitoringMode);
 

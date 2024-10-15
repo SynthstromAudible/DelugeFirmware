@@ -151,6 +151,7 @@ enum class MidiLearn : uint8_t {
 	SECTION,
 	INSTRUMENT_INPUT,
 	DRUM_INPUT,
+	LOAD_BUTTON,
 };
 
 constexpr size_t kMinTimePerTimerTick = 1;
@@ -584,6 +585,7 @@ enum class GlobalMIDICommand {
 	REDO,
 	FILL,
 	TRANSPOSE,
+	NEXT_SONG,
 	LAST, // Keep as boundary
 };
 constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;
