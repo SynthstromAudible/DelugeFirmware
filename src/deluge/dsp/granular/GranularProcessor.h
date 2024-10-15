@@ -61,7 +61,7 @@ public:
 private:
 	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainSize, int32_t grainPreset,
 	                  int32_t* postFXVolume, float timePerInternalTick);
-	void processOneGrainSample(StereoSample* currentSample);
+	StereoSample processOneGrainSample(StereoSample* currentSample);
 	void getBuffer();
 	void setWrapsToShutdown();
 
@@ -82,6 +82,7 @@ private:
 
 	int32_t wrapsToShutdown;
 	GrainBuffer* grainBuffer{nullptr};
+	bool _tempoSync{true};
 };
 
 class GrainBuffer : public Stealable {

@@ -53,8 +53,16 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, 
 		}
 		setupGrainFX(grainRate, grainMix, grainSize, grainPreset, postFXVolume, tempoBPM);
 		StereoSample* currentSample = buffer;
+		int i = 0;
 		do {
-			processOneGrainSample(currentSample);
+			StereoSample grainWet = processOneGrainSample(currentSample);
+			auto wetl = multiply_32x32_rshift32(grainWet.l, _grainVol) << 1;
+			auto wetr = multiply_32x32_rshift32(grainWet.r, _grainVol) << 1;
+			// WET and DRY Vol
+			currentSample->l = add_saturation(multiply_32x32_rshift32(currentSample->l, _grainDryVol) << 1, wetl);
+			currentSample->r = add_saturation(multiply_32x32_rshift32(currentSample->r, _grainDryVol) << 1, wetr);
+			AudioEngine::feedReverbBackdoorForGrain(i, wetl + wetr >> 3);
+			i += 1;
 
 		} while (++currentSample != bufferEnd);
 
@@ -72,8 +80,10 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 	                                                                                 // Shift
 	_grainShift = 44 * 300;                                                          //(kSampleRate / 1000) * 300;
 	// Size
-	_grainSize = 44 * (((grainSize >> 1) + 1073741824) >> 21);
-	_grainSize = std::clamp<int32_t>(_grainSize, 440, 35280); // 10ms - 800ms
+	uint32_t density = ((grainSize / 2) + (1073741824)) * 2; // convert to 0-2^31
+	// the maximum length is 8x the rate, past that grains get stolen for new grains. This keeps a consistent proportion
+	// of grain sound as you increase the rate
+	_grainSize = 1760 + q31tRescale(_grainRate << 3, density);
 	// Rate
 	int32_t grainRateRaw = std::clamp<int32_t>((quickLog(grainRate) - 364249088) >> 21, 0, 256);
 	_grainRate = ((360 * grainRateRaw >> 8) * grainRateRaw >> 8); // 0 - 180hz
@@ -102,19 +112,16 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 		}
 		grainLastTickCountIsZero = currentTickCountIsZero;
 	}
-	// Rate Adjustment
-	if (_grainRate < 882) {                                              // 50hz or more
-		_grainSize = std::min<int32_t>(_grainSize, _grainRate << 3) - 1; // 16 layers=<<4, 8layers = <<3
-	}
+
 	// Volume
 	_grainVol = grainMix - 2147483648;
 	_grainVol = (multiply_32x32_rshift32_rounded(multiply_32x32_rshift32_rounded(_grainVol, _grainVol), _grainVol) << 2)
 	            + 2147483648; // Cubic
 	_grainVol = std::max<int32_t>(0, std::min<int32_t>(2147483647, _grainVol));
 	_grainDryVol = (int32_t)std::clamp<int64_t>(((int64_t)(2147483648 - _grainVol) << 3), 0, 2147483647);
-	_grainFeedbackVol = _grainVol >> 3;
+	_grainFeedbackVol = _grainVol >> 2;
 }
-void GranularProcessor::processOneGrainSample(StereoSample* currentSample) {
+StereoSample GranularProcessor::processOneGrainSample(StereoSample* currentSample) {
 	if (bufferWriteIndex >= kModFXGrainBufferSize) {
 		bufferWriteIndex = 0;
 		wrapsToShutdown -= 1;
@@ -246,12 +253,9 @@ void GranularProcessor::processOneGrainSample(StereoSample* currentSample) {
 	    multiply_accumulate_32x32_rshift32_rounded(currentSample->l, grains_l, _grainFeedbackVol);
 	(*grainBuffer)[writeIndex].r =
 	    multiply_accumulate_32x32_rshift32_rounded(currentSample->r, grains_r, _grainFeedbackVol);
-	// WET and DRY Vol
-	currentSample->l = add_saturation(multiply_32x32_rshift32(currentSample->l, _grainDryVol) << 1,
-	                                  multiply_32x32_rshift32(grains_l, _grainVol) << 1);
-	currentSample->r = add_saturation(multiply_32x32_rshift32(currentSample->r, _grainDryVol) << 1,
-	                                  multiply_32x32_rshift32(grains_r, _grainVol) << 1);
+
 	bufferWriteIndex++;
+	return StereoSample{grains_l, grains_r};
 }
 void GranularProcessor::clearGrainFXBuffer() {
 	for (int i = 0; i < 8; i++) {
