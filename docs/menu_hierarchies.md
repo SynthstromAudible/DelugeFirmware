@@ -1552,17 +1552,12 @@ The Audio Clip menu contains the following menu hierarchy:
 
 	- Disabled (OFF)
 	- Left Input (LEFT)
-	- Left Input (Monitoring) (LEFT.)
 	- Right Input (RIGH)
-	- Right Input (Monitoring) (RIGH.)
 	- Stereo Input (STER)
-	- Stereo Input (Monitoring) (STER.)
 	- Bal. Input (BALA)
-	- Bal. Input (Monitoring) (BALA.)
 	- Deluge Mix (Pre FX) (MIX)
 	- Deluge Output (Post FX) (OUTP)
 	- Specific Track (TRAK)
-	- Specific Track (FX Processing) (TRAK.)
 </details>
 <details><summary>Specific Track (TRAK)</summary></details>
 <details><summary>Master (MASTR)</summary>
