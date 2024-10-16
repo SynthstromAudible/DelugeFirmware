@@ -352,6 +352,14 @@ int32_t getDecay4(uint32_t input, uint8_t numBitsInInput);
 	return CONG;
 }
 
+/// generates a triangle distribution from -1q31 to 1q31 centered on 0 (Irwin-Hall)
+inline q31_t getTriangle() {
+	auto u1 = getNoise();
+	auto u2 = getNoise();
+	auto s = add_saturation(u1, u2);
+	return s;
+}
+
 void seedRandom();
 
 extern bool shouldInterpretNoteNames;

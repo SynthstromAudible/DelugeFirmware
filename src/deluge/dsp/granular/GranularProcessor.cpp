@@ -174,7 +174,7 @@ void GranularProcessor::setupGrainsIfNeeded(int32_t writeIndex) {
 
 			int32_t pitchRand = getRandom255();
 			// randomly select a type of grain to generate, options are based on the amount of randomness
-			int8_t typeRand = multiply_32x32_rshift32(q31_mult(getNoise(), _pitchRandomness), 7);
+			int8_t typeRand = multiply_32x32_rshift32(q31_mult(getTriangle(), _pitchRandomness), 7);
 			switch (typeRand) {
 
 			case -3:
@@ -199,12 +199,12 @@ void GranularProcessor::setupGrainsIfNeeded(int32_t writeIndex) {
 				grains[i].pitch = 1534; // 5th
 				break;
 			case 3:
-				grains[i].pitch = 2048; //  octave
+				grains[i].pitch = 2048; //  octave reverse
 				grains[i].rev = true;
 				break;
 				// This is pretty rare even at max randomness
 			default:
-				grains[i].pitch = 30772; //  octave + 5th
+				grains[i].pitch = 3072; //  octave + 5th
 				grains[i].rev = true;
 				break;
 			}
