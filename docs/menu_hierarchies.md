@@ -104,6 +104,8 @@ The Settings menu contains the following menu hierarchy:
 		- Loop
 		- Layering Loop (LAYE)
 		- Fill
+		- Transpose
+		- Load Next Song (SONG)
 	- Differentiate Inputs (DIFF)
 		- Disabled (OFF)
 		- Enabled (ON)
