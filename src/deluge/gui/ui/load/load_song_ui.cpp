@@ -608,7 +608,7 @@ ActionResult LoadSongUI::timerCallback() {
 			// *2 caused glitches occasionally
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4);
 		}
-getOut : {}
+getOut: {}
 		return ActionResult::DEALT_WITH;
 	}
 
