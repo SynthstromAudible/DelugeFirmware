@@ -118,8 +118,8 @@ gotError:
 		scrollingIntoSlot = true;
 
 		if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
-			currentUIMode =
-				UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit of the scroll
+			currentUIMode = UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit
+			                                         // of the scroll
 			timerCallback();
 		}
 	}
@@ -238,19 +238,52 @@ void LoadSongUI::loadNextSongIfAvailable() {
 	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
 	    || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED
 	    || currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
-	    || currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING) {
+	    || currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING || skipAnimations) {
 		// While in the process of loading a song, don't do anything
 		return;
 	}
-	skipAnimations = true;
+
+	skipAnimations = true; // disable animations while auto-loading a song
 	if (openUI(&loadSongUI)) {
 		currentUIMode = UI_MODE_NONE;
+		int32_t currentFileIndexSelected = fileIndexSelected;
+
+		// scroll to the next song
 		LoadUI::selectEncoderAction(1);
-		LoadSongUI::enterKeyPress();
+
+		bool songFound = false;
+		do {
+			FileItem* currentFileItem = getCurrentFileItem();
+			if (currentFileItem != nullptr) {
+				// Check if it's a directory...
+				if (currentFileItem->isFolder) {
+					// it is a folder
+					// scroll to the next item
+					LoadUI::selectEncoderAction(1);
+				}
+				else {
+					// if is a file, select it
+					songFound = true;
+					LoadUI::enterKeyPress();
+					performLoad();
+					if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+						runtimeFeatureSettings.writeSettingsToFile();
+					}
+				}
+			}
+		} while (currentFileIndexSelected != fileIndexSelected && !songFound);
+		// in case we wrapped around the whole list of files and didn't find a song,
+		// we just exit without doing anything else
+
+		if (!songFound) {
+			// if song not found, close the UI
+			exitThisUI();
+		}
+
 		// force re-render display
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
-	skipAnimations = false;
+	skipAnimations = false; // re-enable animations
 }
 
 // Before calling this, you must set loadButtonReleased.
