@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2023 Synthstrom Audible Limited
+ * Copyright © 2014-2023 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,27 +17,22 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "model/consequence/consequence.h"
-#include "model/iterance/iterance.h"
+#include <bitset>
 #include <cstdint>
 
-class Note;
+struct Iterance {
+	uint8_t divisor;
+	std::bitset<8> iteranceStep;
 
-class ConsequenceNoteExistence final : public Consequence {
-public:
-	ConsequenceNoteExistence(InstrumentClip* newClip, int32_t newNoteRowId, Note* note, ExistenceChangeType newType);
-	Error revert(TimeType time, ModelStack* modelStack) override;
+	bool operator==(Iterance const& other) const {
+		return other.divisor == divisor && other.iteranceStep == iteranceStep;
+	}
 
-	InstrumentClip* clip;
-	int32_t noteRowId;
-	int32_t pos;
-	int32_t length;
-	int8_t velocity;
-	int8_t probability;
-	uint8_t lift;
-	Iterance iterance;
-	int8_t fill;
+	[[nodiscard]] bool passesCheck(int32_t repeatCount) const { return iteranceStep[repeatCount % divisor]; }
 
-	ExistenceChangeType type;
+	[[nodiscard]] uint16_t toInt();
+	static Iterance fromInt(int32_t value);
+
+	[[nodiscard]] int32_t toPresetIndex();
+	static Iterance fromPresetIndex(int32_t presetIndex);
 };
