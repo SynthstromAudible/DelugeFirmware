@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
+#include "model/iterance/iterance.h"
 #include "model/note/note_vector.h"
 #include "modulation/params/param_manager.h"
 
@@ -62,7 +63,7 @@ struct SquareInfo {
 	uint8_t squareType;
 	int32_t averageVelocity;
 	int32_t probability;
-	int32_t iterance;
+	Iterance iterance;
 	int32_t fill;
 	bool isValid{false};
 };
@@ -74,7 +75,7 @@ struct PendingNoteOn {
 	int32_t ticksLate;
 	uint8_t probability;
 	uint8_t velocity;
-	uint8_t iterance;
+	Iterance iterance;
 	uint8_t fill;
 };
 
@@ -144,7 +145,7 @@ public:
 	NoteVector notes;
 	// values for whole row
 	uint8_t probabilityValue;
-	uint8_t iteranceValue;
+	Iterance iteranceValue;
 	uint8_t fillValue;
 	// These are deprecated, and only used during loading for compatibility with old song files
 	LearnedMIDI muteMIDICommand;
@@ -165,9 +166,9 @@ public:
 	uint32_t ignoreNoteOnsBefore_;
 
 	int32_t getDefaultProbability();
-	int32_t getDefaultIterance();
+	Iterance getDefaultIterance();
 	int32_t getDefaultFill(ModelStackWithNoteRow* modelStack);
-	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, int32_t iterance,
+	int32_t attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
 	                       int32_t fill, ModelStackWithNoteRow* modelStack, Action* action);
 	int32_t attemptNoteAddReversed(ModelStackWithNoteRow* modelStack, int32_t pos, int32_t velocity,
 	                               bool allowingNoteTails);

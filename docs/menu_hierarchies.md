@@ -1429,6 +1429,17 @@ The Note Editor menu contains the following menu hierarchy:
 	- 6 OF 8 (6OF8)
 	- 7 OF 8 (7OF8)
 	- 8 OF 8 (8OF8)
+
+	- CUSTOM
+		- Divisor (DIV)
+		- Iteration 1 (IT 1)
+		- Iteration 2 (IT 2)
+		- Iteration 3 (IT 3)
+		- Iteration 4 (IT 4)
+		- Iteration 5 (IT 5)
+		- Iteration 6 (IT 6)
+		- Iteration 7 (IT 7)
+		- Iteration 8 (IT 1)
 </details>
 <details><summary>Note Fill (FILL)</summary>
 
@@ -1494,6 +1505,17 @@ The Note Row Editor menu contains the following menu hierarchy:
 	- 6 OF 8 (6OF8)
 	- 7 OF 8 (7OF8)
 	- 8 OF 8 (8OF8)
+
+	- CUSTOM
+		- Divisor (DIV)
+		- Iteration 1 (IT 1)
+		- Iteration 2 (IT 2)
+		- Iteration 3 (IT 3)
+		- Iteration 4 (IT 4)
+		- Iteration 5 (IT 5)
+		- Iteration 6 (IT 6)
+		- Iteration 7 (IT 7)
+		- Iteration 8 (IT 1)
 </details>
 <details><summary>Row Fill (FILL)</summary>
 
