@@ -19,6 +19,7 @@ public:
 	    : base_(&std::get<0>(reverb_)),     //<
 	      room_size_(base_->getRoomSize()), //<
 	      damping_(base_->getDamping()),    //<
+	      lpf_(base_->getLPF()),            //<
 	      width_(base_->getWidth()) {}
 	~Reverb() override = default;
 
@@ -35,6 +36,7 @@ public:
 		base_->setDamping(damping_);
 		base_->setWidth(width_);
 		base_->setHPF(hpf_);
+		base_->setLPF(lpf_);
 		model_ = m;
 	}
 
@@ -83,6 +85,12 @@ public:
 	}
 	[[nodiscard]] virtual float getHPF() const { return base_->getHPF(); }
 
+	virtual void setLPF(float f) {
+		lpf_ = f;
+		base_->setLPF(f);
+	}
+	[[nodiscard]] virtual float getLPF() const { return base_->getLPF(); }
+
 	template <typename T>
 	constexpr T& reverb_as() {
 		return std::get<T>(reverb_);
@@ -103,5 +111,6 @@ private:
 	float damping_;
 	float width_;
 	float hpf_;
+	float lpf_;
 };
 } // namespace deluge::dsp

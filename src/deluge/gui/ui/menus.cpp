@@ -130,6 +130,7 @@
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/reverb/damping.h"
 #include "gui/menu_item/reverb/hpf.h"
+#include "gui/menu_item/reverb/lpf.h"
 #include "gui/menu_item/reverb/model.h"
 #include "gui/menu_item/reverb/pan.h"
 #include "gui/menu_item/reverb/room_size.h"
@@ -413,6 +414,7 @@ reverb::Width reverbWidthMenu{STRING_FOR_WIDTH, STRING_FOR_REVERB_WIDTH};
 reverb::Pan reverbPanMenu{STRING_FOR_PAN, STRING_FOR_REVERB_PAN};
 reverb::Model reverbModelMenu{STRING_FOR_MODEL};
 reverb::HPF reverbHPFMenu{STRING_FOR_HPF};
+reverb::LPF reverbLPFMenu{STRING_FOR_LPF};
 
 Submenu reverbMenu{
     STRING_FOR_REVERB,
@@ -423,6 +425,7 @@ Submenu reverbMenu{
         &reverbDampingMenu,
         &reverbWidthMenu,
         &reverbHPFMenu,
+        &reverbLPFMenu,
         &reverbPanMenu,
         &reverbSidechainMenu,
     },
@@ -570,6 +573,7 @@ Submenu globalReverbMenu{
         &reverbDampingMenu,
         &reverbWidthMenu,
         &reverbHPFMenu,
+        &reverbLPFMenu,
         &reverbPanMenu,
         &reverbSidechainMenu,
     },

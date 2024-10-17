@@ -658,6 +658,7 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
 - ([#2080]) Reverb can now be panned fully left or right. Old songs retain their reverb panning behavior, but display
   it as smaller numbers. This change also fixes an issue with reverb values displaying differently than how they were
   set.
+- ([#2788]) Added LPF to Mutable Instruments Model. 50 (default) corresponds to 20khz and 0 corresponds to 0hz.
 
 ### 4.3 - Instrument Clip View - General Features
 
