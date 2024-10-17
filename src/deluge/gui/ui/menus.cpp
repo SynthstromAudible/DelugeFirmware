@@ -101,11 +101,15 @@
 #include "gui/menu_item/monitor/mode.h"
 #include "gui/menu_item/mpe/direction_selector.h"
 #include "gui/menu_item/note/fill.h"
-#include "gui/menu_item/note/iterance.h"
+#include "gui/menu_item/note/iterance_divisor.h"
+#include "gui/menu_item/note/iterance_preset.h"
+#include "gui/menu_item/note/iterance_step_toggle.h"
 #include "gui/menu_item/note/probability.h"
 #include "gui/menu_item/note/velocity.h"
 #include "gui/menu_item/note_row/fill.h"
-#include "gui/menu_item/note_row/iterance.h"
+#include "gui/menu_item/note_row/iterance_divisor.h"
+#include "gui/menu_item/note_row/iterance_preset.h"
+#include "gui/menu_item/note_row/iterance_step_toggle.h"
 #include "gui/menu_item/note_row/probability.h"
 #include "gui/menu_item/osc/audio_recorder.h"
 #include "gui/menu_item/osc/pulse_width.h"
@@ -1183,9 +1187,43 @@ menu_item::Submenu soundEditorRootMenu{
     },
 };
 
+menu_item::note::IteranceDivisor noteCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
+menu_item::note::IteranceStepToggle noteCustomIteranceStep1{STRING_FOR_ITERATION_STEP_1, STRING_FOR_ITERATION_STEP_1,
+                                                            0};
+menu_item::note::IteranceStepToggle noteCustomIteranceStep2{STRING_FOR_ITERATION_STEP_2, STRING_FOR_ITERATION_STEP_2,
+                                                            1};
+menu_item::note::IteranceStepToggle noteCustomIteranceStep3{STRING_FOR_ITERATION_STEP_3, STRING_FOR_ITERATION_STEP_3,
+                                                            2};
+menu_item::note::IteranceStepToggle noteCustomIteranceStep4{STRING_FOR_ITERATION_STEP_4, STRING_FOR_ITERATION_STEP_4,
+                                                            3};
+menu_item::note::IteranceStepToggle noteCustomIteranceStep5{STRING_FOR_ITERATION_STEP_5, STRING_FOR_ITERATION_STEP_5,
+                                                            4};
+menu_item::note::IteranceStepToggle noteCustomIteranceStep6{STRING_FOR_ITERATION_STEP_6, STRING_FOR_ITERATION_STEP_6,
+                                                            5};
+menu_item::note::IteranceStepToggle noteCustomIteranceStep7{STRING_FOR_ITERATION_STEP_7, STRING_FOR_ITERATION_STEP_7,
+                                                            6};
+menu_item::note::IteranceStepToggle noteCustomIteranceStep8{STRING_FOR_ITERATION_STEP_8, STRING_FOR_ITERATION_STEP_8,
+                                                            7};
+
+// Root menu for note custom iterance
+menu_item::Submenu noteCustomIteranceRootMenu{
+    STRING_FOR_CUSTOM,
+    {
+        &noteCustomIteranceDivisor,
+        &noteCustomIteranceStep1,
+        &noteCustomIteranceStep2,
+        &noteCustomIteranceStep3,
+        &noteCustomIteranceStep4,
+        &noteCustomIteranceStep5,
+        &noteCustomIteranceStep6,
+        &noteCustomIteranceStep7,
+        &noteCustomIteranceStep8,
+    },
+};
+
 menu_item::note::Velocity noteVelocityMenu{STRING_FOR_NOTE_EDITOR_VELOCITY};
 menu_item::note::Probability noteProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
-menu_item::note::Iterance noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
+menu_item::note::IterancePreset noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
 menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
 
 // Root menu for Note Editor
@@ -1199,8 +1237,42 @@ menu_item::Submenu noteEditorRootMenu{
     },
 };
 
+menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
+menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1{STRING_FOR_ITERATION_STEP_1,
+                                                                   STRING_FOR_ITERATION_STEP_1, 0};
+menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep2{STRING_FOR_ITERATION_STEP_2,
+                                                                   STRING_FOR_ITERATION_STEP_2, 1};
+menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep3{STRING_FOR_ITERATION_STEP_3,
+                                                                   STRING_FOR_ITERATION_STEP_3, 2};
+menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep4{STRING_FOR_ITERATION_STEP_4,
+                                                                   STRING_FOR_ITERATION_STEP_4, 3};
+menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep5{STRING_FOR_ITERATION_STEP_5,
+                                                                   STRING_FOR_ITERATION_STEP_5, 4};
+menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep6{STRING_FOR_ITERATION_STEP_6,
+                                                                   STRING_FOR_ITERATION_STEP_6, 5};
+menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep7{STRING_FOR_ITERATION_STEP_7,
+                                                                   STRING_FOR_ITERATION_STEP_7, 6};
+menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep8{STRING_FOR_ITERATION_STEP_8,
+                                                                   STRING_FOR_ITERATION_STEP_8, 7};
+
+// Root menu for note row custom iterance
+menu_item::Submenu noteRowCustomIteranceRootMenu{
+    STRING_FOR_CUSTOM,
+    {
+        &noteRowCustomIteranceDivisor,
+        &noteRowCustomIteranceStep1,
+        &noteRowCustomIteranceStep2,
+        &noteRowCustomIteranceStep3,
+        &noteRowCustomIteranceStep4,
+        &noteRowCustomIteranceStep5,
+        &noteRowCustomIteranceStep6,
+        &noteRowCustomIteranceStep7,
+        &noteRowCustomIteranceStep8,
+    },
+};
+
 menu_item::note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY};
-menu_item::note_row::Iterance noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
+menu_item::note_row::IterancePreset noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
 menu_item::note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
 
 // Root menu for Note Row Editor

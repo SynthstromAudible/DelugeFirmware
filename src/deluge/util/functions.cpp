@@ -27,7 +27,9 @@
 #include "hid/encoders.h"
 #include "modulation/arpeggiator.h"
 #include "processing/sound/sound.h"
+#include "util/lookuptables/lookuptables.h"
 #include <cmath>
+#include <cstdint>
 #include <string.h>
 
 extern "C" {
@@ -1493,7 +1495,7 @@ int32_t fastPythag(int32_t x, int32_t y) {
 		x = a;
 	}
 
-	int32_t divisor = x >> 8;
+	int32_t divisor = x << 8;
 	if (divisor == 0) {
 		return 0;
 	}
@@ -1969,32 +1971,6 @@ int32_t getWhichKernel(int32_t phaseIncrement) {
 
 		return whichKernel;
 	}
-}
-
-void dissectIterationDependence(int32_t iterance, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor) {
-	int32_t value = (iterance & 127) - 1;
-	int32_t whichRepeat;
-
-	int32_t tryingWhichDivisor;
-
-	for (tryingWhichDivisor = 2; tryingWhichDivisor <= 8; tryingWhichDivisor++) {
-		if (value < tryingWhichDivisor) {
-			*getWhichIterationWithinDivisor = value;
-			break;
-		}
-
-		value -= tryingWhichDivisor;
-	}
-
-	*getDivisor = tryingWhichDivisor;
-}
-
-int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDivisor) {
-	int32_t value = iterationWithinDivisor;
-	for (int32_t i = 2; i < divisor; i++) {
-		value += i;
-	}
-	return value + 1;
 }
 
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {

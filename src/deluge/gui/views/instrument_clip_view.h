@@ -21,6 +21,7 @@
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/iterance/iterance.h"
 #include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
@@ -51,7 +52,7 @@ struct EditPadPress {
 	bool deleteOnDepress; // Can also mean to delete tail
 	uint8_t intendedVelocity;
 	uint8_t intendedProbability;
-	uint8_t intendedIterance;
+	Iterance intendedIterance;
 	uint8_t intendedFill;
 	bool deleteOnScroll;
 	bool isBlurredSquare;
@@ -231,12 +232,14 @@ public:
 	void displayVelocity(int32_t velocityValue, int32_t velocityChange);
 	void popupVelocity(char const* displayString);
 
-	void adjustNoteProbability(int32_t offset);
-	void adjustNoteIterance(int32_t offset);
-	void adjustNoteFill(int32_t offset);
+	void adjustNoteProbabilityWithOffset(int32_t offset);
+	void adjustNoteIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom = true);
+	void adjustNoteIteranceWithFinalValue(Iterance finalValue);
+	void adjustNoteFillWithOffset(int32_t offset);
 	Note* getLeftMostNotePressed();
-	void adjustNoteParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
-	                              int32_t parameterMaxValue);
+	void adjustNoteParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
+	                              int32_t parameterMinValue, int32_t parameterMaxValue,
+	                              bool allowTogglingBetweenPresetsAndCustom = true);
 
 	// other note functions
 	void editNoteRepeat(int32_t offset);
@@ -256,12 +259,13 @@ public:
 	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 
 	// adjust note row parameters
-	int32_t setNoteRowProbability(int32_t offset);
-	int32_t setNoteRowIterance(int32_t offset);
-	int32_t setNoteRowFill(int32_t offset);
-	int32_t setNoteRowParameterValue(int32_t offset, int32_t changeType, int32_t parameterMinValue,
-	                                 int32_t parameterMaxValue);
-
+	int32_t setNoteRowProbabilityWithOffset(int32_t offset);
+	int32_t setNoteRowIteranceWithOffset(int32_t offset, bool allowTogglingBetweenPresetsAndCustom = true);
+	int32_t setNoteRowIteranceWithFinalValue(Iterance finalValue);
+	int32_t setNoteRowFillWithOffset(int32_t offset);
+	int32_t setNoteRowParameterValue(int32_t withOffset, int32_t withFinalValue, int32_t changeType,
+	                                 int32_t parameterMinValue, int32_t parameterMaxValue,
+	                                 bool allowTogglingBetweenPresetsAndCustom = true);
 	// other note row functions
 	ModelStackWithNoteRow* createNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
 	ModelStackWithNoteRow* getOrCreateNoteRowForYDisplay(ModelStackWithTimelineCounter* modelStack, int32_t yDisplay);
@@ -303,6 +307,7 @@ private:
 	// note functions
 	void nudgeNotes(int32_t offset);
 	void displayProbability(uint8_t probability, bool prevBase);
+	void displayIterance(Iterance iterance);
 
 	// note row functions
 	void copyNotes();

@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <cstdint>
-
+#include "model/iterance/iterance.h"
 #include "model/positionable.h"
+#include <cstdint>
 
 class Note : public Positionable {
 public:
@@ -41,9 +41,9 @@ public:
 
 	inline int32_t getProbability() { return probability; }
 
-	inline void setIterance(int32_t newIterance) { iterance = newIterance; }
+	inline void setIterance(Iterance newIterance) { iterance = newIterance; }
 
-	inline int32_t getIterance() { return iterance; }
+	inline Iterance getIterance() { return iterance; }
 
 	inline void setFill(int32_t newFill) { fill = newFill; }
 
@@ -53,7 +53,7 @@ public:
 	int32_t length;
 	uint8_t velocity;
 	uint8_t probability;
-	uint8_t iterance;
+	Iterance iterance;
 	uint8_t fill;
 	/// Lift is noteOff velocity.
 	uint8_t lift;

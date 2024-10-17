@@ -49,7 +49,7 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		instrumentClipView.adjustNoteProbability(offset);
+		instrumentClipView.adjustNoteProbabilityWithOffset(offset);
 		readValueAgain();
 	}
 

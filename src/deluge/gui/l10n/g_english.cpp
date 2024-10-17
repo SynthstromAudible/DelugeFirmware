@@ -808,6 +808,18 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY, "Row Probability"},
         {STRING_FOR_NOTE_ROW_EDITOR_ITERANCE, "Row Iterance"},
         {STRING_FOR_NOTE_ROW_EDITOR_FILL, "Row Fill"},
+        {STRING_FOR_ITERANCE_DIVISOR, "Divisor"},
+        {STRING_FOR_ITERATION_STEP_1, "Iteration 1"},
+        {STRING_FOR_ITERATION_STEP_2, "Iteration 2"},
+        {STRING_FOR_ITERATION_STEP_3, "Iteration 3"},
+        {STRING_FOR_ITERATION_STEP_4, "Iteration 4"},
+        {STRING_FOR_ITERATION_STEP_5, "Iteration 5"},
+        {STRING_FOR_ITERATION_STEP_6, "Iteration 6"},
+        {STRING_FOR_ITERATION_STEP_7, "Iteration 7"},
+        {STRING_FOR_ITERATION_STEP_8, "Iteration 8"},
+        {STRING_FOR_DEFAULT_CLIP_TYPE, "Clip Type"},
+        {STRING_FOR_DEFAULT_NEW_CLIP_TYPE, "New Clip Type"},
+        {STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, "Use Last Clip Type"},
     },
 };
 } // namespace deluge::l10n::built_in

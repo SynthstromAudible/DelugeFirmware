@@ -17,21 +17,25 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/note_row/selected_note_row.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/menu_item/submenu.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "util/lookuptables/lookuptables.h"
+
+extern deluge::gui::menu_item::Submenu noteRowCustomIteranceRootMenu;
 
 namespace deluge::gui::menu_item::note_row {
-class Iterance final : public SelectedNoteRow {
+class IterancePreset final : public SelectedNoteRow {
 public:
 	using SelectedNoteRow::SelectedNoteRow;
 
-	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterationValues; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kNumIterancePresets + 1; }
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 
 	/// @brief Begin an editing session with this menu item.
@@ -46,32 +50,54 @@ public:
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull() != nullptr) {
 			NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
-			this->setValue(noteRow->iteranceValue);
+			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
+			int32_t preset = noteRow->iteranceValue.toPresetIndex();
+			this->setValue(preset);
 			updateDisplay();
 		}
 	}
 
 	void selectEncoderAction(int32_t offset) final override {
-		int32_t newValue = instrumentClipView.setNoteRowIterance(offset);
+		int32_t newValue = instrumentClipView.setNoteRowIteranceWithOffset(offset);
 		if (newValue != -1) {
-			this->setValue(newValue);
+			// Convert value to preset to choose from, if preset not found, then maybe it is CUSTOM
+			int32_t preset = Iterance::fromInt(newValue).toPresetIndex();
+			this->setValue(preset);
 			updateDisplay();
 		}
+	}
+
+	MenuItem* selectButtonPress() override {
+		int32_t iterancePreset = this->getValue();
+		if (iterancePreset == kCustomIterancePreset) {
+			// If the "CUSTOM" item is in focus, clicking the Select encoder will
+			// enter the editor for the custom iterance
+			return &noteRowCustomIteranceRootMenu;
+		}
+		return nullptr;
 	}
 
 	void drawPixelsForOled() {
 		char buffer[20];
 
-		int32_t iterance = this->getValue();
+		int32_t iterancePreset = this->getValue();
 
-		int32_t divisor, iterationWithinDivisor;
-		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
-
-		if (iterance == 0) {
+		if (iterancePreset == kDefaultIterancePreset) {
 			strcpy(buffer, "OFF");
 		}
+		else if (iterancePreset == kCustomIterancePreset) {
+			strcpy(buffer, "CUSTOM");
+		}
 		else {
-			sprintf(buffer, "%d of %d", iterationWithinDivisor + 1, divisor);
+			Iterance iterance = iterancePresets[iterancePreset - 1];
+			int32_t i = iterance.divisor;
+			for (; i >= 0; i--) {
+				// try to find which iteration step index is active
+				if (iterance.iteranceStep[i]) {
+					break;
+				}
+			}
+			sprintf(buffer, "%d of %d", i + 1, iterance.divisor);
 		}
 
 		deluge::hid::display::OLED::main.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
@@ -81,16 +107,24 @@ public:
 	void drawValue() final override {
 		char buffer[20];
 
-		int32_t iterance = this->getValue();
+		int32_t iterancePreset = this->getValue();
 
-		int32_t divisor, iterationWithinDivisor;
-		dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
-
-		if (iterance == 0) {
+		if (iterancePreset == kDefaultIterancePreset) {
 			strcpy(buffer, "OFF");
 		}
+		else if (iterancePreset == kCustomIterancePreset) {
+			strcpy(buffer, "CUSTOM");
+		}
 		else {
-			sprintf(buffer, "%dof%d", iterationWithinDivisor + 1, divisor);
+			Iterance iterance = iterancePresets[iterancePreset - 1];
+			int32_t i = iterance.divisor;
+			for (; i >= 0; i--) {
+				// try to find which iteration step index is active
+				if (iterance.iteranceStep[i]) {
+					break;
+				}
+			}
+			sprintf(buffer, "%dof%d", i + 1, iterance.divisor);
 		}
 
 		display->setText(buffer);
@@ -98,4 +132,5 @@ public:
 
 	void writeCurrentValue() override { ; }
 };
+
 } // namespace deluge::gui::menu_item::note_row

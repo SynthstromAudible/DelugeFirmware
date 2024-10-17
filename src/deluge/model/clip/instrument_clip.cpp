@@ -35,6 +35,7 @@
 #include "model/drum/drum_name.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/iterance/iterance.h"
 #include "model/note/note.h"
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
@@ -466,7 +467,7 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 					int32_t probability = noteRow->getDefaultProbability();
-					int32_t iterance = noteRow->getDefaultIterance();
+					Iterance iterance = noteRow->getDefaultIterance();
 					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action);
 					if (!thisDrum->earlyNoteStillActive) {
@@ -496,7 +497,7 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
 					int32_t probability = noteRow->getDefaultProbability();
-					int32_t iterance = noteRow->getDefaultIterance();
+					Iterance iterance = noteRow->getDefaultIterance();
 					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
 					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, probability, iterance, fill,
 					                        modelStackWithNoteRow, action);
@@ -874,19 +875,14 @@ doNewProbability:
 			// if probably setting has resulted in a note on
 			if (conditionPassed) [[likely]] {
 				// now we check if we should skip note based on iteration condition
-				int32_t iterance = pendingNoteOnList.pendingNoteOns[i].iterance & 127;
+				Iterance iterance = pendingNoteOnList.pendingNoteOns[i].iterance;
 
 				// If it's an iteration dependence...
-				if (iterance > kDefaultIteranceValue) [[unlikely]] {
-
-					int32_t divisor, iterationWithinDivisor;
-					dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
-
+				if (iterance != kDefaultIteranceValue) [[unlikely]] {
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(
 					    pendingNoteOnList.pendingNoteOns[i].noteRowId, pendingNoteOnList.pendingNoteOns[i].noteRow);
 
-					conditionPassed = (iterationWithinDivisor
-					                   == ((uint32_t)modelStackWithNoteRow->getRepeatCount() % (uint32_t)divisor));
+					conditionPassed = iterance.passesCheck(modelStackWithNoteRow->getRepeatCount());
 				}
 
 				// lastly, if after checking iteration we still have a note on
@@ -4626,7 +4622,7 @@ doNormal: // Wrap it back to the start.
 
 	else {
 		int32_t probability = noteRow->getDefaultProbability();
-		int32_t iterance = noteRow->getDefaultIterance();
+		Iterance iterance = noteRow->getDefaultIterance();
 		int32_t fill = noteRow->getDefaultFill(modelStack);
 		// Don't supply Action, cos we've done our own thing, above
 		distanceToNextNote =

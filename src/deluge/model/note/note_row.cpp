@@ -40,6 +40,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 #include <new>
 #include <string.h>
 
@@ -229,7 +231,7 @@ void NoteRow::initSquareInfo(SquareInfo& squareInfo, bool anyNotes, int32_t x) {
 	squareInfo.numNotes = 0;
 	squareInfo.averageVelocity = 0;
 	squareInfo.probability = 0;
-	squareInfo.iterance = 0;
+	squareInfo.iterance = kDefaultIteranceValue;
 	squareInfo.fill = 0;
 	squareInfo.isValid = true;
 }
@@ -699,7 +701,7 @@ int32_t NoteRow::getDefaultProbability() {
 	return probabilityValue;
 }
 
-int32_t NoteRow::getDefaultIterance() {
+Iterance NoteRow::getDefaultIterance() {
 	return iteranceValue;
 }
 
@@ -715,7 +717,7 @@ int32_t NoteRow::getDefaultFill(ModelStackWithNoteRow* modelStack) {
 // This gets called after we've scrolled and attempted to drag notes. And for recording.
 // If you supply an Action, it'll add an individual ConsequenceNoteExistenceChange. Or, you can supply NULL and do
 // something else yourself. Returns distanceToNextNote, or 0 on fail.
-int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, int32_t iterance,
+int32_t NoteRow::attemptNoteAdd(int32_t pos, int32_t length, int32_t velocity, int32_t probability, Iterance iterance,
                                 int32_t fill, ModelStackWithNoteRow* modelStack, Action* action) {
 
 	int32_t loopLength = modelStack->getLoopLength();
@@ -1078,7 +1080,7 @@ modifyNote:
 		// Doing a wrap while reversed is unique because we have to move our note from one end of the array to the other
 		if (wrapping && reversed) {
 			int32_t probability = note->getProbability();
-			int32_t iterance = note->getIterance();
+			Iterance iterance = note->getIterance();
 			int32_t fill = note->getFill();
 			int32_t noteOnVelocity = note->getVelocity();
 			notes.deleteAtIndex(0, 1, false);
@@ -1814,7 +1816,7 @@ Error NoteRow::changeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRo
 			} break;
 
 			case CORRESPONDING_NOTES_SET_ITERANCE: {
-				thisNote->setIterance(changeValue);
+				thisNote->setIterance(Iterance::fromInt(changeValue));
 			} break;
 
 			case CORRESPONDING_NOTES_SET_FILL: {
@@ -2972,13 +2974,12 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 	// Go through each Note within the original length
 	for (int32_t i = 0; i < numNotesBefore; i++) {
 		Note* note = notes.getElement(i);
-		int32_t iterance = note->iterance & 127;
+		Iterance iterance = note->iterance;
 		int32_t pos = note->pos;
 
 		// If it's iteration dependent...
-		if (iterance > kDefaultIteranceValue) {
-			int32_t divisor, iterationWithinDivisor;
-			dissectIterationDependence(iterance, &divisor, &iterationWithinDivisor);
+		if (iterance != kDefaultIteranceValue) {
+			int32_t divisor = iterance.divisor;
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
 
@@ -3020,11 +3021,20 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 					break; // Shouldn't happen...
 				}
 
-				int32_t iterationWithinDivisorWithinRepeat =
-				    numRepeatsRounded ? ((uint32_t)iterationWithinDivisor % (uint32_t)numRepeatsRounded)
-				                      : iterationWithinDivisor;
+				int32_t iterationWithinDivisor = -1;
+				for (int32_t iteration = 0; iteration < 8; iteration++) {
+					if (iterance.iteranceStep[iteration]) {
+						int32_t iterationWithinDivisorWithinRepeat =
+						    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
+						if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
+							iterationWithinDivisor = iteration;
+							break;
+						}
+					}
+				}
 
-				if (whichRepeatWithinLoop != iterationWithinDivisorWithinRepeat) {
+				if (iterationWithinDivisor == -1) {
+					// All failed
 
 					// If deleting the original one, those are what our for loop is currently iterating through,
 					// so alter that process
@@ -3037,7 +3047,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				}
 				else {
 
-					int32_t newIterance;
+					Iterance newIterance;
 					if (newNumFullLoops == 0) {
 						// I think this bit is for, like, if we had a note doing 1of6, and we're doing two
 						// repeats total on this Clip, well then to keep it sounding the same, we'd now need the
@@ -3049,7 +3059,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 						int32_t newIterationWithinDivisor =
 						    (uint32_t)iterationWithinDivisor / (uint32_t)numRepeatsRounded;
 
-						newIterance = encodeIterationDependence(newDivisor, newIterationWithinDivisor);
+						newIterance = Iterance{(uint8_t)newDivisor, 1 << newIterationWithinDivisor};
 					}
 					else {
 switchOff:
@@ -3350,11 +3360,21 @@ doReadNoteData:
 				int32_t pos = hexToIntFixedLength(hexChars, 8);
 				int32_t length = hexToIntFixedLength(&hexChars[8], 8);
 				uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
-				uint8_t lift, probability, iterance, fill;
+				uint8_t lift, probability, fill;
+				Iterance iterance;
 
-				if (noteHexLength == 26) { // if reading iterance and fill
+				if (noteHexLength == 28) { // if reading custom iterance and fill
+					fill = hexToIntFixedLength(&hexChars[26], 2);
+					iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
+					probability = hexToIntFixedLength(&hexChars[20], 2);
+					lift = hexToIntFixedLength(&hexChars[18], 2);
+					if (lift == 0 || lift > 127) {
+						goto useDefaultLift;
+					}
+				}
+				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
 					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = hexToIntFixedLength(&hexChars[22], 2);
+					iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3374,9 +3394,10 @@ doReadNoteData:
 						iterance = kDefaultIteranceValue;    // iterance off
 						probability = kNumProbabilityValues; // 100% probability
 					}
-					else if (probability > kNumProbabilityValues) {
+					else if (probability > kNumProbabilityValues
+					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = probability - kNumProbabilityValues;
+						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3401,9 +3422,10 @@ doReadNoteData:
 						iterance = kDefaultIteranceValue;    // iterance off
 						probability = kNumProbabilityValues; // 100% probability
 					}
-					else if (probability > kNumProbabilityValues) {
+					else if (probability > kNumProbabilityValues
+					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = probability - kNumProbabilityValues;
+						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3432,9 +3454,6 @@ useDefaultLift:
 				}
 				if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
 					probability = kNumProbabilityValues;
-				}
-				if ((iterance & 127) > kNumIterationValues || iterance >= (kNumIterationValues | 128)) {
-					iterance = kDefaultIteranceValue;
 				}
 				if (fill < FillMode::OFF || fill > FillMode::FILL) {
 					fill = FillMode::OFF;
@@ -3466,9 +3485,15 @@ getOut: {}
 			goto doReadNoteData;
 		}
 
-		// Notes stored as hex data including iterance and fill (community firmware 1.3 onwards)
+		// Notes stored as hex data in nightly firmware 1.3 with no custom iterances
 		else if (!strcmp(tagName, "noteDataWithIteranceAndFill")) {
 			noteHexLength = 26;
+			goto doReadNoteData;
+		}
+
+		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
+		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
+			noteHexLength = 28;
 			goto doReadNoteData;
 		}
 
@@ -3524,7 +3549,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
-		writer.writeTagNameAndSeperator("noteDataWithIteranceAndFill");
+		writer.writeTagNameAndSeperator("noteDataWithSplitProb");
 		writer.write("\"0x");
 		for (int32_t n = 0; n < notes.getNumElements(); n++) {
 			Note* thisNote = notes.getElement(n);
@@ -3546,7 +3571,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			intToHex(thisNote->getProbability(), buffer, 2);
 			writer.write(buffer);
 
-			intToHex(thisNote->getIterance(), buffer, 2);
+			intToHex(thisNote->getIterance().toInt(), buffer, 4);
 			writer.write(buffer);
 
 			intToHex(thisNote->getFill(), buffer, 2);

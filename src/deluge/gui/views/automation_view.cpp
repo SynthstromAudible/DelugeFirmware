@@ -4519,13 +4519,13 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	else if (inNoteEditor()) {
 		// only allow adjusting probbaility while holding note
 		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
-			instrumentClipView.adjustNoteProbability(offset);
+			instrumentClipView.adjustNoteProbabilityWithOffset(offset);
 			timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
 			probabilityChanged = true;
 		}
 		// only allow adjusting row probability while holding audition
 		else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-			instrumentClipView.setNoteRowProbability(offset);
+			instrumentClipView.setNoteRowProbabilityWithOffset(offset);
 			timeSelectKnobLastReleased = AudioEngine::audioSampleTimer;
 			probabilityChanged = true;
 		}

@@ -4,10 +4,14 @@
 #include "gui/menu_item/defaults/swing_interval.h"
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/note/fill.h"
-#include "gui/menu_item/note/iterance.h"
+#include "gui/menu_item/note/iterance_divisor.h"
+#include "gui/menu_item/note/iterance_preset.h"
+#include "gui/menu_item/note/iterance_step_toggle.h"
 #include "gui/menu_item/note/probability.h"
 #include "gui/menu_item/note_row/fill.h"
-#include "gui/menu_item/note_row/iterance.h"
+#include "gui/menu_item/note_row/iterance_divisor.h"
+#include "gui/menu_item/note_row/iterance_preset.h"
+#include "gui/menu_item/note_row/iterance_step_toggle.h"
 #include "gui/menu_item/note_row/probability.h"
 #include "gui/menu_item/osc/source/wave_index.h"
 #include "gui/menu_item/osc/sync.h"
@@ -46,12 +50,30 @@ extern deluge::gui::menu_item::Submenu settingsRootMenu;
 // note editor menu's
 extern deluge::gui::menu_item::Submenu noteEditorRootMenu;
 extern deluge::gui::menu_item::note::Probability noteProbabilityMenu;
-extern deluge::gui::menu_item::note::Iterance noteIteranceMenu;
+extern deluge::gui::menu_item::note::IterancePreset noteIteranceMenu;
+extern deluge::gui::menu_item::note::IteranceDivisor noteCustomIteranceDivisor;
+extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep1;
+extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep2;
+extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep3;
+extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep4;
+extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep5;
+extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep6;
+extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep7;
+extern deluge::gui::menu_item::note::IteranceStepToggle noteCustomIteranceStep8;
 extern deluge::gui::menu_item::note::Fill noteFillMenu;
 // note row editor menu's
 extern deluge::gui::menu_item::Submenu noteRowEditorRootMenu;
 extern deluge::gui::menu_item::note_row::Probability noteRowProbabilityMenu;
-extern deluge::gui::menu_item::note_row::Iterance noteRowIteranceMenu;
+extern deluge::gui::menu_item::note_row::IterancePreset noteRowIteranceMenu;
+extern deluge::gui::menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor;
+extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1;
+extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep2;
+extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep3;
+extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep4;
+extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep5;
+extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep6;
+extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep7;
+extern deluge::gui::menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep8;
 extern deluge::gui::menu_item::note_row::Fill noteRowFillMenu;
 
 extern deluge::gui::menu_item::PatchCables patchCablesMenu;
