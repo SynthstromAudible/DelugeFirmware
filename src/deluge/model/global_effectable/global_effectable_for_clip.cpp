@@ -138,7 +138,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// Render FX
 	processSRRAndBitcrushing(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip);
 	processFXForGlobalEffectable(globalEffectableBuffer, numSamples, &volumePostFX, paramManagerForClip,
-	                             delayWorkingState, renderedLastTime);
+	                             delayWorkingState, renderedLastTime, reverbSendAmount);
 	processStutter(globalEffectableBuffer, numSamples, paramManagerForClip);
 
 	processReverbSendAndVolume(globalEffectableBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
