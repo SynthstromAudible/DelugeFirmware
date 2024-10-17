@@ -43,7 +43,7 @@ void GranularProcessor::setWrapsToShutdown() {
 
 void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
                                        int32_t pitchRandomness, int32_t* postFXVolume, const StereoSample* bufferEnd,
-                                       bool anySoundComingIn, float tempoBPM) {
+                                       bool anySoundComingIn, float tempoBPM, q31_t reverbAmount) {
 	if (anySoundComingIn || wrapsToShutdown >= 0) {
 		if (anySoundComingIn) {
 			setWrapsToShutdown();
@@ -65,7 +65,7 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, 
 			currentSample->l = add_saturation(q31_mult(currentSample->l, _grainDryVol), wetl);
 			currentSample->r = add_saturation(q31_mult(currentSample->r, _grainDryVol), wetr);
 			// adding a small amount of extra reverb covers a lot of the granular artifacts
-			AudioEngine::feedReverbBackdoorForGrain(i, (wetl + wetr) >> 3);
+			AudioEngine::feedReverbBackdoorForGrain(i, q31_mult((wetl + wetr), reverbAmount));
 			i += 1;
 
 		} while (++currentSample != bufferEnd);
@@ -112,7 +112,7 @@ void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_
 		    + 2147483648; // Cubic
 		_grainVol = std::max<int32_t>(0, std::min<int32_t>(2147483647, _grainVol));
 		_grainDryVol = (int32_t)std::clamp<int64_t>(((int64_t)(2147483648 - _grainVol) << 3), 0, 2147483647);
-		_grainFeedbackVol = _grainVol >> 2;
+		_grainFeedbackVol = _grainVol >> 1;
 	}
 }
 StereoSample GranularProcessor::processOneGrainSample(StereoSample* currentSample) {

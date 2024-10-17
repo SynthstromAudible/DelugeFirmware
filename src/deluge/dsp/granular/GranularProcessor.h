@@ -54,7 +54,7 @@ public:
 	/// preset is currently converted from a param to a 0-4 preset inside the grain, which is probably not great
 	void processGrainFX(StereoSample* buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
 	                    int32_t pitchRandomness, int32_t* postFXVolume, const StereoSample* bufferEnd,
-	                    bool anySoundComingIn, float tempoBPM);
+	                    bool anySoundComingIn, float tempoBPM, q31_t reverbAmount);
 
 	void clearGrainFXBuffer();
 	void grainBufferStolen() { grainBuffer = nullptr; }
