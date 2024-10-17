@@ -42,7 +42,9 @@ To use MIDI follow mode, you will need to configure the various MIDI Follow Mode
 - In the MIDI-Follow > Feedback > Filter Responses submenu, Enable or Disable filtering of responses received within 1 second of sending a MIDI feedback value update.
 
 ### **Input Device Differentiation**
-If you wish to use Input Device Differentiation with MIDI Follow Mode, you will need to learn your device to the required MIDI Follow Channel(s).
+If you wish to use Input Device Differentiation with MIDI Follow Mode, you will need to enable Input Differentiation and learn your device to the required MIDI Follow Channel(s).
+
+To enable Input Differentiation, go to `SETTINGS > MIDI > Differentiate Inputs (DIFF)`
 
 To learn the device, you need to enter the MIDI Follow Channel submenu, hold the Learn button and then send a Note or CC.
 
