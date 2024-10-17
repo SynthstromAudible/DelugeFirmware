@@ -560,6 +560,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_UNDO, "UNDO"},
         {STRING_FOR_REDO, "REDO"},
         {STRING_FOR_LOOP, "LOOP"},
+        {STRING_FOR_SONG_LOAD_NEXT, "LOAD NEXT SONG"},
         {STRING_FOR_LAYERING_LOOP, "LAYERING loop"},
         {STRING_FOR_MIDI_COMMANDS, "MIDI commands"},
         {STRING_FOR_DIFFERENTIATE_INPUTS, "Differentiate inputs"},
