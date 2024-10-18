@@ -572,7 +572,11 @@ After assigning a clip to a slot, you can press the macro slot to see what clip 
 
 Inside a `CLIP TIMELINE VIEW`, hold `SONG` button and press the `LEFT SIDEBAR` to launch a macro.
 
-In `KEYBOARD VIEW`, macros are available as a sidebar control. `SHIFT` makes the launch immediate just like in song view. `AFFECT ENTIRE` + `CLIP MACRO` can be used to jump to edit the clip.
+In `KEYBOARD VIEW`, macros are available as a sidebar control. 
+
+`SHIFT` makes the launch immediate just like in song view. 
+
+`AFFECT ENTIRE` + `CLIP MACRO` can be used to jump to edit the clip.
 
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
