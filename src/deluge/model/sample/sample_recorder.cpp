@@ -18,6 +18,7 @@
 #include "model/sample/sample_recorder.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
+#include "dsp/envelope_follower/absolute_value.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -47,6 +48,8 @@ extern "C" void routineForSD(void);
 extern uint8_t currentlyAccessingCard;
 
 #define MAX_FILE_SIZE_MAGNITUDE 32
+
+AbsValueFollower envelopeFollower{};
 
 SampleRecorder::~SampleRecorder() {
 	D_PRINTLN("~SampleRecorder()");
@@ -1101,11 +1104,12 @@ doFinishCapturing:
 			// check if there's any audio in this cycle
 			else {
 				StereoFloatSample approxRMSLevel =
-				    sample->envelopeFollower.calcApproxRMS((StereoSample*)beginInputNow, numSamplesThisCycle);
+				    envelopeFollower.calcApproxRMS((StereoSample*)beginInputNow, numSamplesThisCycle);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
 					writePos = writePosNow;
 					numSamplesCaptured += numSamplesThisCycle;
 					sample->audioStartDetected = true;
+					envelopeFollower = {};
 				}
 			}
 		}
