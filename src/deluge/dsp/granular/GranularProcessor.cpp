@@ -172,9 +172,8 @@ void GranularProcessor::setupGrainsIfNeeded(int32_t writeIndex) {
 			grains[i].counter = 0;
 			grains[i].rev = (getRandom255() < 76);
 
-			int32_t pitchRand = getRandom255();
 			// randomly select a type of grain to generate, options are based on the amount of randomness
-			int8_t typeRand = multiply_32x32_rshift32(q31_mult(getTriangle(), _pitchRandomness), 7);
+			int8_t typeRand = multiply_32x32_rshift32(q31_mult(sampleTriangleDistribution(), _pitchRandomness), 7);
 			switch (typeRand) {
 
 			case -3:
