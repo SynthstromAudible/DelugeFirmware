@@ -3287,10 +3287,8 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// Migrate input MIDI channel / device. Putting this up here before any calls to changeInstrument() is good,
 	// because then if a default velocity is set, for the MIDIDevice, that gets grabbed by the Clip's ParamManager
 	// during that call.
-	if (newOutput->type != OutputType::KIT && oldOutput->type != OutputType::KIT) {
-		((MelodicInstrument*)newOutput)->midiInput = ((MelodicInstrument*)oldOutput)->midiInput;
-		((MelodicInstrument*)oldOutput)->midiInput.clear();
-	}
+	((Instrument*)newOutput)->midiInput = ((Instrument*)oldOutput)->midiInput;
+	((Instrument*)oldOutput)->midiInput.clear();
 
 	Output* outputRecordingOldOutput = oldOutput->getOutputRecordingThis();
 
