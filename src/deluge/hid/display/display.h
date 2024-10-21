@@ -26,6 +26,8 @@ enum class PopupType {
 	TEMPO,
 	/// Quantize and humanize
 	QUANTIZE,
+	/// Threshold Recording Mode
+	THRESHOLD_RECORDING_MODE,
 	// Note: Add here more popup types
 };
 

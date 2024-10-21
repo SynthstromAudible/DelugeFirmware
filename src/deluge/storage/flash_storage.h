@@ -76,6 +76,8 @@ extern bool accessibilityMenuHighlighting;
 extern OutputType defaultNewClipType;
 extern bool defaultUseLastClipType;
 
+extern ThresholdRecordingMode defaultThresholdRecordingMode;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

@@ -29,6 +29,7 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
+#include "util/functions.h"
 #include <new>
 
 extern "C" {
@@ -241,6 +242,8 @@ gotError:
 	int32_t lengthSamples = lengthSec * sample->sampleRate;
 	audioDataLengthBytesAsWrittenToFile = lengthSamples * 3 * recordingNumChannels;
 
+	setRecordingThreshold();
+
 	// Riff chunk -------------------------------------------------------
 	writeInt32(&writePos, 0x46464952);                                                               // "RIFF"
 	writeInt32(&writePos, audioDataLengthBytesAsWrittenToFile + sample->audioDataStartPosBytes - 8); // Chunk size
@@ -287,6 +290,44 @@ gotError:
 	writeInt32(&writePos, audioDataLengthBytesAsWrittenToFile); // Chunk size
 
 	return Error::NONE;
+}
+
+void SampleRecorder::setRecordingThreshold() {
+	// don't use threshold recording if we're resampling internal input
+	if (currentSong->thresholdRecordingMode == ThresholdRecordingMode::OFF
+	    || mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
+		startValueThreshold = 0;
+		thresholdRecording = false;
+	}
+	else {
+		// max possible sample value = 1 << kBitDepth = 16777216
+
+		// these thresholds were determined through iterative testing to find
+		// the right sample value to start recording audio input based on different input
+		// levels
+
+		switch (currentSong->thresholdRecordingMode) {
+		// used for input sources with low input volume
+		case ThresholdRecordingMode::LOW:
+			startValueThreshold = 11.5;
+			break;
+
+		// used for input sources with medium-high input volume
+		case ThresholdRecordingMode::MEDIUM:
+			startValueThreshold = 14.5;
+			break;
+
+		// used for input sources with high input volume (good for microphones with gain)
+		case ThresholdRecordingMode::HIGH:
+			startValueThreshold = 17.5;
+			break;
+
+		default:
+			break;
+		}
+
+		thresholdRecording = true;
+	}
 }
 
 // Beware! This could get called during card routine - e.g. if user stopped playback. So we'll just store a changed
@@ -925,6 +966,7 @@ doFinishCapturing:
 				FREEZE_WITH_ERROR("aaaa");
 			}
 
+			int32_t* beginInputNow = inputAddress;
 			int32_t* endInputNow = inputAddress + (numSamplesThisCycle << NUM_MONO_INPUT_CHANNELS_MAGNITUDE);
 
 			char* __restrict__ writePosNow = writePos;
@@ -986,6 +1028,7 @@ doFinishCapturing:
 						recordingClippedRecently = true;
 					}
 
+					// recording stereo
 					if (recordingNumChannels == 2) {
 						int32_t rxR = *(inputAddress + 1);
 						if (applyGain) {
@@ -1049,9 +1092,22 @@ doFinishCapturing:
 				} while (inputAddress < endInputNow);
 			}
 
-			writePos = writePosNow;
-
-			numSamplesCaptured += numSamplesThisCycle;
+			// if we're not threshold recording or we're threshold recording and detected audio
+			if (!thresholdRecording || sample->audioStartDetected) {
+				writePos = writePosNow;
+				numSamplesCaptured += numSamplesThisCycle;
+			}
+			// if we're threshold recording and didn't detect audio in previous cycles
+			// check if there's any audio in this cycle
+			else {
+				StereoFloatSample approxRMSLevel =
+				    envelopeFollower.calcApproxRMS((StereoSample*)beginInputNow, numSamplesThisCycle);
+				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
+					writePos = writePosNow;
+					numSamplesCaptured += numSamplesThisCycle;
+					sample->audioStartDetected = true;
+				}
+			}
 		}
 
 		numSamplesBeenRunning += numSamplesThisCycle;
@@ -1079,29 +1135,35 @@ void SampleRecorder::endSyncedRecording(int32_t buttonLatencyForTempolessRecordi
 	}
 #endif
 
-	int32_t numMoreSamplesTilEndLoopPoint =
-	    numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
-	int32_t numMoreSamplesToCapture = numMoreSamplesTilEndLoopPoint;
+	if (numSamplesCaptured) {
+		int32_t numMoreSamplesTilEndLoopPoint =
+		    numSamplesExtraToCaptureAtEndSyncingWise - buttonLatencyForTempolessRecording;
+		int32_t numMoreSamplesToCapture = numMoreSamplesTilEndLoopPoint;
 
-	D_PRINTLN("buttonLatencyForTempolessRecording:  %d", buttonLatencyForTempolessRecording);
+		D_PRINTLN("buttonLatencyForTempolessRecording:  %d", buttonLatencyForTempolessRecording);
 
-	if (recordingExtraMargins) {
-		numMoreSamplesToCapture += kAudioClipMarginSizePostEnd; // Means we also have an audioClip
-	}
-
-	uint32_t loopEndPointSamples = numSamplesCaptured + numMoreSamplesTilEndLoopPoint;
-
-	totalSampleLengthNowKnown(numSamplesCaptured + numMoreSamplesToCapture, loopEndPointSamples);
-
-	if (numMoreSamplesToCapture <= 0) {
-		if (numMoreSamplesToCapture < 0) {
-			capturedTooMuch = true;
-			D_PRINTLN("captured too much.");
+		if (recordingExtraMargins) {
+			numMoreSamplesToCapture += kAudioClipMarginSizePostEnd; // Means we also have an audioClip
 		}
-		finishCapturing();
+
+		uint32_t loopEndPointSamples = numSamplesCaptured + numMoreSamplesTilEndLoopPoint;
+
+		totalSampleLengthNowKnown(numSamplesCaptured + numMoreSamplesToCapture, loopEndPointSamples);
+
+		if (numMoreSamplesToCapture <= 0) {
+			if (numMoreSamplesToCapture < 0) {
+				capturedTooMuch = true;
+				D_PRINTLN("captured too much.");
+			}
+			finishCapturing();
+		}
+		else {
+			status = RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP;
+		}
 	}
 	else {
-		status = RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP;
+		// if we haven't captured any samples (which can happen with threshold recording), abort
+		abort();
 	}
 }
 

@@ -189,7 +189,8 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 
 	// Got to check reachedMaxFileSize here, cos that'll go true a bit before cardRoutine() sets status to ERROR
-	if (recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize) {
+	// also check if we haven't captured any samples (which can happen with threshold recording)
+	if (recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize || !recorder->numSamplesCaptured) {
 		abortRecording();
 		return;
 	}
