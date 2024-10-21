@@ -1,5 +1,0 @@
-# Don't do any formatting in this folder, it's upstream code and clang-format
-# can't properly handle the NEON intrinsics.
-SortIncludes: Never
-DisableFormat: true
-

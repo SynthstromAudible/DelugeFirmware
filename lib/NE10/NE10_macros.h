@@ -35,6 +35,8 @@
 
 #ifndef NE10_MACROS_H
 #define NE10_MACROS_H
+
+#include <stdlib.h>
 #include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {
