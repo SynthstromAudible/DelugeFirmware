@@ -64,6 +64,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DisplayChordKeyboard,
 	AlternativePlaybackStartBehaviour,
 	EnableGridViewLoopPads,
+	AlternativeTapTempoBehaviour,
 	MaxElement // Keep as boundary
 };
 

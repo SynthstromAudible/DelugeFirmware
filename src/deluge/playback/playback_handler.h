@@ -171,7 +171,7 @@ public:
 	uint64_t getTimePerInternalTickBig();
 	float getTimePerInternalTickFloat();
 	uint32_t getTimePerInternalTickInverse(bool getStickyValue = false);
-	void tapTempoButtonPress();
+	void tapTempoButtonPress(bool useNormalTapTempoBehaviour);
 	void doTriggerClockOutTick();
 	void doMIDIClockOutTick();
 	void resyncAnalogOutTicksToInternalTicks();

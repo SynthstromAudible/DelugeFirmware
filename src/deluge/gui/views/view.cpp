@@ -167,7 +167,10 @@ doEndMidiLearnPressSession:
 				}
 				// Otherwise, normal - tap tempo, but not during record count in
 				else if (currentUIMode == UI_MODE_NONE) {
-					playbackHandler.tapTempoButtonPress();
+					bool useNormalTapTempoBehaviour =
+					    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour)
+					     == RuntimeFeatureStateToggle::Off);
+					playbackHandler.tapTempoButtonPress(useNormalTapTempoBehaviour);
 				}
 			}
 		}

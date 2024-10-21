@@ -1292,6 +1292,8 @@ list of all options as listed in OLED and 7SEG displays and what they do:
       * With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
 * `Grid View Loop Pads (LOOP)`
     * When On, two pads (Red and Magenta) in the `GRID VIEW` sidebar will be illuminated and enable you to trigger the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
+* `Alternative Tap Tempo Behaviour (TAPT)`
+    * When On, the number of `TAP TEMPO` button presses to engage `TAP TEMPO` is changed to `FOUR (4)` to avoid mistakingly changing tempo.
 
 ## 6. Sysex Handling
 
