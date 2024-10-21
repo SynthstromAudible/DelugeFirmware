@@ -20,14 +20,17 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_midi_device_definition_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_kit_row_ui.h"
+#include "gui/ui/save/save_midi_device_definition_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
+#include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/led/indicator_leds.h"
 #include "io/midi/midi_engine.h"
@@ -48,6 +51,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
+#include <string.h>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -116,42 +120,69 @@ void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas&
 #pragma GCC diagnostic ignored "-Wstack-usage="
 void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool automationExists) {
 
-	char buffer[display->haveOLED() ? 30 : 5];
-	bool finish = false;
+	DEF_STACK_STRING_BUF(buffer, 30);
+
+	bool doScroll = false;
+
 	if (controlNumber == CC_NUMBER_NONE) {
-		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
+		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
 	}
 	else if (controlNumber == CC_NUMBER_PITCH_BEND) {
-		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
 	}
 	else if (controlNumber == CC_NUMBER_AFTERTOUCH) {
-		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
 	}
 	else if (controlNumber == CC_NUMBER_Y_AXIS) {
 		// in mono expression this is mod wheel, and y-axis is not directly controllable
-		strcpy(buffer, deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
 	}
 	else {
-		buffer[0] = 'C';
-		buffer[1] = 'C';
-		if (display->haveOLED()) {
-			buffer[2] = ' ';
-			intToString(controlNumber, &buffer[3]);
+		MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
+		bool appendedName = false;
+
+		if (controlNumber >= 0 && controlNumber < kNumRealCCNumbers) {
+			String* name = midiInstrument->getNameFromCC(controlNumber);
+			// if we have a name for this midi cc set by the user, display that instead of the cc number
+			if (name && !name->isEmpty()) {
+				buffer.append(name->get());
+				doScroll = name->getLength() > 4 ? true : false;
+				appendedName = true;
+			}
 		}
-		else {
-			char* numberStartPos = (controlNumber < 100) ? (buffer + 2) : (buffer + 1);
-			intToString(controlNumber, numberStartPos);
+
+		// if we don't have a midi cc name set, draw CC number instead
+		if (!appendedName) {
+			if (display->haveOLED()) {
+				buffer.append("CC ");
+				buffer.appendInt(controlNumber);
+			}
+			else {
+				if (controlNumber < 100) {
+					buffer.append("CC");
+				}
+				else {
+					buffer.append("C");
+				}
+				buffer.appendInt(controlNumber);
+			}
 		}
 	}
 
 	if (display->haveOLED()) {
 		if (automationExists) {
-			strcat(buffer, "\n(automated)");
+			buffer.append("\n");
+			buffer.append("(automated)");
 		}
-		display->popupText(buffer);
+		display->popupText(buffer.c_str());
 	}
 	else {
-		display->setText(buffer, true, automationExists ? 3 : 255, false);
+		if (doScroll) {
+			display->setScrollingText(buffer.c_str(), 0, 600, -1, automationExists ? 3 : 255);
+		}
+		else {
+			display->setText(buffer.c_str(), true, automationExists ? 3 : 255, false);
+		}
 	}
 }
 #pragma GCC pop
@@ -345,9 +376,12 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 
-		if (b == SYNTH && getCurrentOutputType() == OutputType::SYNTH
-		    || b == KIT && getCurrentOutputType() == OutputType::KIT
-		    || b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT) {
+		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
+			openUI(&saveMidiDeviceDefinitionUI);
+		}
+		else if (b == SYNTH && getCurrentOutputType() == OutputType::SYNTH
+		         || b == KIT && getCurrentOutputType() == OutputType::KIT
+		         || b == MIDI && getCurrentOutputType() == OutputType::MIDI_OUT) {
 			openUI(&saveInstrumentPresetUI);
 		}
 	}
@@ -356,27 +390,32 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	else if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON && on) {
 		currentUIMode = UI_MODE_NONE;
 		indicator_leds::setLedState(IndicatorLED::LOAD, false);
-		OutputType newOutputType;
-		if (b == SYNTH) {
-			newOutputType = OutputType::SYNTH;
+		if (getCurrentOutputType() == OutputType::MIDI_OUT && (b == MOD_ENCODER_0 || b == MOD_ENCODER_1)) {
+			openUI(&loadMidiDeviceDefinitionUI);
 		}
-		else if (b == KIT) {
-			newOutputType = OutputType::KIT;
-		}
-		else if (b == MIDI) {
-			newOutputType = OutputType::MIDI_OUT;
-		}
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		Output* output = clip->output;
-		OutputType oldOutputType = output->type;
-		Instrument* instrument = (Instrument*)output;
-		// don't allow clip type change if clip is not empty
-		// only impose this restriction if switching to/from kit clip
-		if (!((oldOutputType != newOutputType)
-		      && ((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
-		      && (!clip->isEmpty() || !clip->output->isEmpty()))) {
-			loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, clip);
-			openUI(&loadInstrumentPresetUI);
+		else {
+			OutputType newOutputType;
+			if (b == SYNTH) {
+				newOutputType = OutputType::SYNTH;
+			}
+			else if (b == KIT) {
+				newOutputType = OutputType::KIT;
+			}
+			else if (b == MIDI) {
+				newOutputType = OutputType::MIDI_OUT;
+			}
+			InstrumentClip* clip = getCurrentInstrumentClip();
+			Output* output = clip->output;
+			OutputType oldOutputType = output->type;
+			Instrument* instrument = (Instrument*)output;
+			// don't allow clip type change if clip is not empty
+			// only impose this restriction if switching to/from kit clip
+			if (!((oldOutputType != newOutputType)
+			      && ((oldOutputType == OutputType::KIT) || (newOutputType == OutputType::KIT))
+			      && (!clip->isEmpty() || !clip->output->isEmpty()))) {
+				loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, clip);
+				openUI(&loadInstrumentPresetUI);
+			}
 		}
 	}
 
