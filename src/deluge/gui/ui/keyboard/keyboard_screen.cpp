@@ -32,6 +32,7 @@
 #include "hid/led/pad_leds.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -173,7 +174,7 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 			if (getCurrentInstrumentClip()->inScaleMode) {
 				instrumentClipView.setupChangingOfRootNote(currentNotesState.notes[0].note);
 				requestRendering();
-				displayCurrentScaleName();
+				currentSong->displayCurrentRootNoteAndScaleName();
 			}
 			else {
 				enterScaleMode(currentNotesState.notes[0].note);
@@ -419,11 +420,13 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 		actionLogger.deleteAllLogs(); // Can't undo past this!
 
+		bool inScaleMode = getCurrentInstrumentClip()->inScaleMode;
+
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 
 				// If user holding shift and we're already in scale mode, cycle through available scales
-				if (Buttons::isShiftButtonPressed() && getCurrentInstrumentClip()->inScaleMode) {
+				if (Buttons::isShiftButtonPressed() && inScaleMode) {
 					cycleThroughScales();
 					requestRendering();
 				}
@@ -432,6 +435,11 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 				else {
 					currentUIMode = UI_MODE_SCALE_MODE_BUTTON_PRESSED;
 					toggleScaleModeOnButtonRelease = true;
+					scaleButtonPressTime = AudioEngine::audioSampleTimer;
+					// if you're already in scale mode, display the current scale
+					if (inScaleMode) {
+						currentSong->displayCurrentRootNoteAndScaleName();
+					}
 					// if (!getCurrentInstrumentClip()->inScaleMode) {
 					// 	calculateDefaultRootNote(); // Calculate it now so we can show the user even before they've
 					// released the button 	flashDefaultRootNoteOn = false; 	flashDefaultRootNote();
@@ -440,23 +448,29 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 			}
 
 			// If user is auditioning just one note, we can go directly into Scale Mode and set that root note
-			else if (currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count == 1
-			         && !getCurrentInstrumentClip()->inScaleMode) {
+			else if (currentUIMode == UI_MODE_AUDITIONING && currentNotesState.count == 1 && !inScaleMode) {
 				exitAuditionMode();
 				enterScaleMode(currentNotesState.notes[0].note);
 			}
 		}
 		else {
+			// Button release
 			if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
 				currentUIMode = UI_MODE_NONE;
-				if (getCurrentInstrumentClip()->inScaleMode) {
-					if (toggleScaleModeOnButtonRelease) {
-						exitScaleMode();
-					}
+			}
+
+			if (toggleScaleModeOnButtonRelease && isShortPress(scaleButtonPressTime)) {
+				toggleScaleModeOnButtonRelease = false;
+				if (inScaleMode) {
+					display->cancelPopup();
+					exitScaleMode();
 				}
 				else {
 					enterScaleMode();
 				}
+			}
+			else if (inScaleMode && display->have7SEG()) {
+				displayCurrentScaleName();
 			}
 		}
 	}
@@ -586,6 +600,38 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		xEncoderActive = on;
 	}
 
+	// Load / kit button if auditioning
+	else if (currentUIMode == UI_MODE_AUDITIONING && ((b == LOAD) || (b == KIT))
+	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
+
+		if (on) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+
+			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
+			Output* output = instrumentClip->output;
+
+			// Auditioning drum
+			if (output->type == OutputType::KIT) {
+				Kit* kit = (Kit*)output;
+				if (kit->selectedDrum) {
+					exitAuditionMode();
+
+					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+					ModelStackWithTimelineCounter* modelStack =
+					    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+					ModelStackWithNoteRow* modelStackWithNoteRow =
+					    instrumentClip->getNoteRowForDrum(modelStack, kit->selectedDrum);
+
+					instrumentClipView.enterDrumCreator(modelStackWithNoteRow, false);
+				}
+			}
+		}
+	}
+
 	else {
 		requestRendering();
 		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
@@ -697,16 +743,6 @@ void KeyboardScreen::selectLayout(int8_t offset) {
 			exitScaleMode();
 			setLedStates();
 		}
-	}
-	// If entering chord mode, set the column control to the keyboard control column
-	layout::ColumnControlState& state = getCurrentInstrumentClip()->keyboardState.columnControl;
-	if (getCurrentInstrumentClip()->keyboardState.currentLayout == KeyboardLayoutType::KeyboardLayoutTypeChord) {
-		state.lastLeftFunc = state.leftColFunc;
-		state.leftCol = state.getColumnForFunc(layout::ColumnControlFunction::KEYBOARD_CONTROL);
-	}
-	else {
-		// Otherwise, set it back to what it was
-		state.leftCol = state.getColumnForFunc(state.lastLeftFunc);
 	}
 
 	// Ensure scroll values are calculated in bounds
@@ -846,7 +882,12 @@ void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
 
 	getCurrentInstrumentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(selectedRootNote);
 
-	displayCurrentScaleName();
+	if (display->haveOLED()) {
+		currentSong->displayCurrentRootNoteAndScaleName();
+	}
+	else {
+		displayCurrentScaleName();
+	}
 
 	evaluateActiveNotes();
 	updateActiveNotes();

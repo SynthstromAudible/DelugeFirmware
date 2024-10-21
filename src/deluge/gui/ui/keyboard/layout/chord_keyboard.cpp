@@ -34,13 +34,14 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	currentNotesState = NotesState{}; // Erase active notes
 	KeyboardStateChord& state = getState().chord;
 
-	for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; --idxPress) {
+	// We run through the presses in reverse order to display the most recent pressed chord on top
+	for (int32_t idxPress = kMaxNumKeyboardPadPresses - 1; idxPress >= 0; idxPress--) {
 
 		PressedPad pressed = presses[idxPress];
 		if (!pressed.active) {
 			continue;
 		}
-		if (pressed.x < kDisplayWidth) {
+		if (pressed.x < kChordKeyboardColumns) {
 			if (mode == ChordKeyboardMode::ROW) {
 				evaluatePadsRow(pressed);
 			}
@@ -50,6 +51,9 @@ void KeyboardLayoutChord::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 			else {
 				D_PRINTLN("Invalid mode");
 			}
+		}
+		else if (pressed.x < kDisplayWidth) {
+			handleControlButton(pressed.x, pressed.y);
 		}
 	}
 	ColumnControlsKeyboard::evaluatePads(presses);
@@ -62,12 +66,12 @@ void KeyboardLayoutChord::evaluatePadsRow(deluge::gui::ui::keyboard::PressedPad 
 	uint8_t scaleNoteCount = getScaleNoteCount();
 	int32_t root = getRootNote() + state.noteOffset + state.modOffset;
 
-	if (pressed.x < kDisplayWidth - 1) {
+	if (pressed.x < kChordKeyboardColumns - 1) {
 		int32_t note = noteFromCoordsRow(pressed.x, pressed.y, root, scaleNotes, scaleNoteCount);
 		drawChordName(note); // TODO: print full chord played on all pads?
 		enableNote(note, velocity);
 	}
-	else if (pressed.x == kDisplayWidth - 1) {
+	else if (pressed.x == kChordKeyboardColumns - 1) {
 		for (int32_t i = 0; i < 3; ++i) {
 			int32_t note = noteFromCoordsRow(i, pressed.y, root, scaleNotes, scaleNoteCount);
 			if (i == 0) {
@@ -82,29 +86,16 @@ void KeyboardLayoutChord::evaluatePadsColumn(PressedPad pressed) {
 	KeyboardStateChord& state = getState().chord;
 
 	NoteSet& scaleNotes = getScaleNotes();
-	int32_t octaveDisplacement = (pressed.x) / scaleNotes.count();
-	int32_t steps = getScaleSteps(pressed.x, scaleNotes);
+	// We use the floor function to round down to the nearest octave instead of truncating
+	int32_t octaveDisplacement = (int32_t)floor(float(pressed.x + state.scaleOffset) / scaleNotes.count());
+	int32_t steps = scaleNotes[mod(pressed.x + state.scaleOffset, scaleNotes.count())];
 	int32_t root = getRootNote() + state.noteOffset + steps;
-
 	NoteSet scaleMode = scaleNotes.modulateByOffset(kOctaveSize - steps);
 	ChordQuality quality = getChordQuality(scaleMode);
 	auto chords = *chordColumns[static_cast<int>(quality)];
-	Chord chord{0};
-	int32_t chordIdx = 0;
-	int32_t chordNo = 0;
-	// This loop is to find the pressed.y in-scale chord (mod chords.size())
-	while (chordNo <= pressed.y) {
-		chord = chords[chordIdx % chords.size()];
-		if (chord.name == kEmptyChord.name) {
-			chordIdx = 0;
-			chord = chords[chordIdx];
-		}
-		NoteSet intervalSet = chord.intervalSet;
-		NoteSet modulatedNoteSet = intervalSet.modulateByOffset(mod(root, kOctaveSize));
-		if (modulatedNoteSet.isSubsetOf(scaleNotes)) {
-			chordNo++;
-		}
-		chordIdx++;
+	Chord chord = chords[pressed.y % chords.size()];
+	if (chord.name == kEmptyChord.name) {
+		return;
 	}
 
 	Voicing voicing = chord.voicings[0];
@@ -132,8 +123,7 @@ void KeyboardLayoutChord::handleVerticalEncoder(int32_t offset) {
 	if (verticalEncoderHandledByColumns(offset)) {
 		return;
 	}
-	KeyboardStateChord& state = getState().chord;
-	state.modOffset += offset;
+	offsetPads(offset, false);
 }
 
 void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
@@ -141,6 +131,10 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	if (horizontalEncoderHandledByColumns(offset, shiftEnabled)) {
 		return;
 	}
+	offsetPads(offset, shiftEnabled);
+}
+
+void KeyboardLayoutChord::offsetPads(int32_t offset, bool shiftEnabled) {
 	if (shiftEnabled) {
 		if (mode == ChordKeyboardMode::ROW) {
 			mode = ChordKeyboardMode::COLUMN;
@@ -148,11 +142,10 @@ void KeyboardLayoutChord::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 		else {
 			mode = ChordKeyboardMode::ROW;
 		}
+		offset = 0;
 	}
-	else {
-		KeyboardStateChord& state = getState().chord;
-		state.scaleOffset += offset;
-	}
+	KeyboardStateChord& state = getState().chord;
+	state.scaleOffset += offset;
 	precalculate();
 }
 
@@ -180,12 +173,13 @@ void KeyboardLayoutChord::precalculate() {
 		lastScale = currentScale;
 		NoteSet& scaleNotes = getScaleNotes();
 
-		for (int32_t i = 0; i < noteColours.size(); ++i) {
+		for (int32_t i = 0; i < qualities.size(); ++i) {
 			// Since each row is an degree of our scale, if we modulate by the inverse of the scale note,
 			//  we get the scale modes.
 			NoteSet scaleMode = scaleNotes.modulateByOffset((kOctaveSize - scaleNotes[i % scaleNotes.count()]));
 			ChordQuality chordQuality = getChordQuality(scaleMode);
-			noteColours[i] = qualityColours[static_cast<int>(chordQuality)];
+			int32_t quality = static_cast<int32_t>(chordQuality);
+			qualities[i] = quality;
 		}
 	}
 }
@@ -196,7 +190,7 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	NoteSet& scaleNotes = getScaleNotes();
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; ++y) {
-			if (x < kDisplayWidth) {
+			if (x < kChordKeyboardColumns) {
 				int32_t idx;
 				if (mode == ChordKeyboardMode::ROW) {
 					idx = y;
@@ -206,16 +200,60 @@ void KeyboardLayoutChord::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 				}
 				int32_t noteIdx = mod(idx + state.scaleOffset, scaleNotes.count());
 				if (noteIdx == 0) {
-					image[y][x] = noteColours[noteIdx];
+					image[y][x] = qualityColours[qualities[noteIdx]];
 				}
 				else {
-					image[y][x] = noteColours[noteIdx].forTail();
+					image[y][x] = qualityColours[qualities[noteIdx]].forTail();
+				}
+				if (mode == ChordKeyboardMode::COLUMN) {
+					int32_t quality = qualities[noteIdx];
+					auto chords = *chordColumns[quality];
+					Chord chord = chords[y % chords.size()];
+					if (chord.name == kEmptyChord.name) {
+						image[y][x] = colours::black;
+					}
 				}
 			}
-			if ((x == kDisplayWidth - 1) && (mode == ChordKeyboardMode::ROW)) {
+			else {
+				image[y][x] = colours::black;
+			}
+			if ((x == kChordKeyboardColumns - 1) && (mode == ChordKeyboardMode::ROW)) {
 				image[y][x] = colours::orange;
 			}
 		}
+	}
+	// TODO: Enable auto voice leading when it is implemented more fully
+	// if (state.autoVoiceLeading) {
+	// 	image[0][kDisplayWidth - 1] = colours::green;
+	// }
+	// else {
+	// 	image[0][kDisplayWidth - 1] = colours::red;
+	// }
+	image[kDisplayHeight - 1][kDisplayWidth - 1] =
+	    mode == ChordKeyboardMode::ROW ? colours::blue : colours::blue.forTail(); // Row mode
+	image[kDisplayHeight - 2][kDisplayWidth - 1] =
+	    mode == ChordKeyboardMode::COLUMN ? colours::purple : colours::purple.forTail(); // Column mode
+}
+
+void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
+	KeyboardStateChord& state = getState().chord;
+	// TODO: Enable auto voice leading when it is implemented more fully
+	// if (x == kDisplayWidth - 1 && y == 0) {
+	// 	state.autoVoiceLeading = !state.autoVoiceLeading;
+	// 	if (state.autoVoiceLeading) {
+	// 		char const* shortLong[2] = {"AUTO", "Auto Voice Leading: Beta"};
+	// 		display->displayPopup(shortLong);
+	// 	}
+	// }
+	if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
+		mode = ChordKeyboardMode::ROW;
+		char const* shortLong[2] = {"ROW", "Chord Row Mode"};
+		display->displayPopup(shortLong);
+	}
+	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 2) {
+		mode = ChordKeyboardMode::COLUMN;
+		char const* shortLong[2] = {"COLM", "Chord Column Mode"};
+		display->displayPopup(shortLong);
 	}
 }
 
@@ -245,9 +283,10 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 uint8_t KeyboardLayoutChord::noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,
                                                uint8_t scaleNoteCount) {
 	KeyboardStateChord& state = getState().chord;
-	int32_t octaveDisplacement = state.autoVoiceLeading ? 0 : (y + scaleSteps[x]) / scaleNoteCount;
-	// int32_t steps = scaleNotes[(y + scaleSteps[x]) % scaleNoteCount];
-	int32_t steps = getScaleSteps(y + scaleSteps[x], scaleNotes);
+	// We use the floor function to round down to the nearest octave instead of truncating
+	int32_t octaveDisplacement =
+	    state.autoVoiceLeading ? 0 : (int32_t)floor(float(y + scaleSteps[x] + state.scaleOffset) / scaleNoteCount);
+	int32_t steps = scaleNotes[mod(y + scaleSteps[x] + state.scaleOffset, scaleNoteCount)];
 	return root + steps + octaveDisplacement * kOctaveSize;
 }
 

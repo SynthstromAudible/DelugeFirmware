@@ -16,13 +16,13 @@
  */
 
 #include "gui/context_menu/context_menu.h"
-
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/ui.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
+#include "storage/flash_storage.h"
 
 namespace deluge::gui {
 
@@ -51,6 +51,7 @@ bool ContextMenu::opened() {
 */
 
 void ContextMenu::focusRegained() {
+	indicator_leds::blinkLed(IndicatorLED::BACK);
 	if (display->have7SEG()) {
 		drawCurrentOption();
 	}
@@ -89,12 +90,18 @@ void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		}
 
 		if (isCurrentOptionAvailable()) {
-			canvas.drawString(options[currentOption], 22, textPixelY, kTextSpacingX, kTextSpacingY, 0,
-			                  OLED_MAIN_WIDTH_PIXELS - 26);
+			int32_t invertStartX = 22;
+			int32_t textPixelX = invertStartX + 1;
+			if (FlashStorage::accessibilityMenuHighlighting) {
+				textPixelX += kTextSpacingX;
+			}
+			canvas.drawString(options[currentOption], textPixelX, textPixelY, kTextSpacingX, kTextSpacingY, 0,
+			                  OLED_MAIN_WIDTH_PIXELS - 27);
 			if (currentOption == actualCurrentOption) {
-				canvas.invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8);
-				deluge::hid::display::OLED::setupSideScroller(0, options[currentOption], 22,
-				                                              OLED_MAIN_WIDTH_PIXELS - 26, textPixelY, textPixelY + 8,
+				canvas.invertLeftEdgeForMenuHighlighting(invertStartX, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY,
+				                                         textPixelY + 8);
+				deluge::hid::display::OLED::setupSideScroller(0, options[currentOption], textPixelX,
+				                                              OLED_MAIN_WIDTH_PIXELS - 27, textPixelY, textPixelY + 8,
 				                                              kTextSpacingX, kTextSpacingY, true);
 			}
 			textPixelY += kTextSpacingY;
@@ -148,7 +155,8 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 	}
 }
 
-const uint32_t buttonAndPadActionUIModes[] = {UI_MODE_STEM_EXPORT, 0};
+const uint32_t buttonAndPadActionUIModes[] = {UI_MODE_STEM_EXPORT, UI_MODE_CLIP_PRESSED_IN_SONG_VIEW,
+                                              UI_MODE_MIDI_LEARN, 0};
 
 ActionResult ContextMenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;

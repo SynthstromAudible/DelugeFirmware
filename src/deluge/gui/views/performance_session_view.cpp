@@ -193,8 +193,7 @@ PerformanceSessionView::PerformanceSessionView() {
 
 	justExitedSoundEditor = false;
 
-	gridModeActive = false;
-	timeGridModePress = 0;
+	timeKeyboardShortcutPress = 0;
 
 	resetPadPressInfo();
 
@@ -928,6 +927,14 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				}
 			}
 		}
+		else {
+			// if you released the keyboard button and it was held for longer than hold time
+			// switch back to session view (it just peeks performance view)
+			if (((AudioEngine::audioSampleTimer - timeKeyboardShortcutPress) >= FlashStorage::holdTime)) {
+				releaseViewOnExit(modelStack);
+				changeRootUI(&sessionView);
+			}
+		}
 	}
 
 	else if (b == Y_ENC) {
@@ -1021,7 +1028,7 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			// if in session view
 			else {
 				// if in row mode
-				if (!gridModeActive) {
+				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 					sessionView.padAction(xDisplay, yDisplay, on);
 				}
 				// if in grid mode
@@ -1030,29 +1037,11 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 					if (xDisplay == kDisplayWidth) {
 						sessionView.gridHandlePads(xDisplay, yDisplay, on);
 					}
-					else {
-						// if you're using grid song view and you pressed / released a pad in the grid mode launcher
-						// column
-						if (xDisplay > kDisplayWidth) {
-							// pressing the pink mode pad
-							if (yDisplay == 0) {
-								// if you released the pink pad and it was held for longer than hold time
-								// switch back to session view (this happens if you enter performance view with a
-								// long press from grid mode - it just peeks performance view)
-								if (!on
-								    && ((AudioEngine::audioSampleTimer - timeGridModePress)
-								        >= FlashStorage::holdTime)) {
-									releaseViewOnExit(modelStack);
-									changeRootUI(&sessionView);
-								}
-							}
-							// if you pressed the green or blue mode pads, go back to grid view and change mode
-							else if ((yDisplay == 7) || (yDisplay == 6)) {
-								releaseViewOnExit(modelStack);
-								changeRootUI(&sessionView);
-								sessionView.gridHandlePads(xDisplay, yDisplay, on);
-							}
-						}
+					// if you pressed the green or blue mode pads, go back to grid view and change mode
+					else if ((yDisplay == GridMode::GREEN) || (yDisplay == GridMode::BLUE)) {
+						releaseViewOnExit(modelStack);
+						changeRootUI(&sessionView);
+						sessionView.gridHandlePads(xDisplay, yDisplay, on);
 					}
 				}
 			}
@@ -1369,7 +1358,6 @@ void PerformanceSessionView::releaseViewOnExit(ModelStackWithThreeMainThings* mo
 	releaseStutter(modelStack);
 	defaultEditingMode = false;
 	editingParam = false;
-	gridModeActive = false;
 }
 
 /// initialize pad press info structs

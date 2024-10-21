@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions.h"
+#include "model/iterance/iterance.h"
 #include "util/misc.h"
 
 #include <cstddef>
@@ -244,6 +245,7 @@ enum class OutputType : uint8_t {
 enum class StemExportType : uint8_t {
 	CLIP,
 	TRACK,
+	MASTER_ARRANGEMENT,
 };
 
 enum class ThingType : uint8_t {
@@ -403,16 +405,10 @@ enum class LFOType : uint8_t {
 	SAW,
 	SAMPLE_AND_HOLD,
 	RANDOM_WALK,
+	WARBLER,
 };
 
-constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::RANDOM_WALK) + 1;
-
-enum class SynthMode : uint8_t {
-	SUBTRACTIVE,
-	FM,
-	RINGMOD,
-};
-constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
+constexpr int32_t kNumLFOTypes = util::to_underlying(LFOType::WARBLER) + 1;
 
 enum class ModFXType : uint8_t {
 	NONE,
@@ -420,11 +416,17 @@ enum class ModFXType : uint8_t {
 	CHORUS,
 	PHASER,
 	CHORUS_STEREO,
+	WARBLE,
 	GRAIN, // Look below if you want to add another one
 };
-
-// Warning: Currently GRAIN can be disabled and kNumModFXTypes might need to be used - 1
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
+
+enum class SynthMode : uint8_t {
+	SUBTRACTIVE,
+	FM,
+	RINGMOD,
+};
+constexpr int kNumSynthModes = util::to_underlying(::SynthMode::RINGMOD) + 1;
 
 constexpr int32_t SAMPLE_MAX_TRANSPOSE = 24;
 constexpr int32_t SAMPLE_MIN_TRANSPOSE = (-96);
@@ -552,6 +554,7 @@ enum class ModFXParam {
 	FEEDBACK,
 	OFFSET,
 };
+constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
 
 enum class CompParam {
 	RATIO,
@@ -561,8 +564,6 @@ enum class CompParam {
 	BLEND,
 	LAST,
 };
-
-constexpr auto kNumModFXParams = util::to_underlying(ModFXParam::OFFSET) + 1;
 
 enum class PatchCableAcceptance {
 	DISALLOWED,
@@ -641,10 +642,22 @@ enum class ArmState {
 };
 
 constexpr int32_t kNumProbabilityValues = 20;
-constexpr int32_t kNumIterationValues = 35; // 1of2 to 8of8
-constexpr int32_t kFillProbabilityValue = 0;
-constexpr int32_t kNotFillProbabilityValue = 128; // This is like the "latched" state of Fill (zero ORed with 128)
+constexpr int32_t kNumIterancePresets = 35;                // 1of2 through 8of8 (indexes 1 through 35)
+constexpr int32_t kCustomIterancePreset = 36;              // The "CUSTOM" iterance value is right after "8of8"
+constexpr Iterance kCustomIteranceValue = Iterance{1, 1};  // "1of1"
+constexpr Iterance kDefaultIteranceValue = Iterance{0, 0}; // 0 means OFF
+constexpr int32_t kDefaultIterancePreset = 0;              // 0 means OFF
+constexpr int32_t kOldFillProbabilityValue = 0;
+constexpr int32_t kOldNotFillProbabilityValue = 128; // This is like the "latched" state of Fill (zero ORed with 128)
 constexpr int32_t kDefaultLiftValue = 64;
+
+enum FillMode : uint8_t {
+	OFF,
+	NOT_FILL,
+	FILL,
+};
+
+constexpr int32_t kNumFillValues = FillMode::FILL;
 
 enum Navigation {
 	NAVIGATION_CLIP,
@@ -926,6 +939,9 @@ constexpr int32_t kTextBigSizeY = 13;
 constexpr int32_t kTextHugeSpacingX = 18;
 constexpr int32_t kTextHugeSizeY = 20;
 
+// submenu icons
+constexpr int32_t kSubmenuIconSpacingX = 7;
+
 constexpr int32_t kNoteForDrum = 60;
 
 enum BendRange {
@@ -996,7 +1012,7 @@ enum GridDefaultActiveMode : uint8_t {
 
 // mapping of grid modes to y axis
 enum GridMode : uint8_t {
-	PINK,
+	Unassigned0,
 	Unassigned1,
 	Unassigned2,
 	MAGENTA,

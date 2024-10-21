@@ -99,6 +99,7 @@ public:
 	void clipNeedsReRendering(Clip* clip);
 	void sampleNeedsReRendering(Sample* sample);
 	Clip* getClipOnScreen(int32_t yDisplay);
+	Output* getOutputFromPad(int32_t x, int32_t y);
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	ActionResult verticalScrollOneSquare(int32_t direction);
 
@@ -126,19 +127,23 @@ public:
 	// Members for grid layout
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
+	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 	// ui
 	UIType getUIType() { return UIType::SESSION; }
 
 	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
 	bool createClip{false};
-	OutputType lastTypeCreated{OutputType::AUDIO};
+	OutputType lastTypeCreated{OutputType::NONE};
 
 	// Grid macros config mode
 	void enterMacrosConfigMode();
 	void exitMacrosConfigMode();
 	char const* getMacroKindString(SessionMacroKind kind);
-	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
+
+	// Midi learn mode
+	void enterMidiLearnMode();
+	void exitMidiLearnMode();
 
 	// display tempo
 	void displayPotentialTempoChange(UI* ui);
@@ -149,6 +154,9 @@ public:
 	void displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
 	                                        StringBuf& rootNoteAndScaleName, bool clearArea);
 	int16_t lastDisplayedRootNote = 0;
+
+	// convert instrument clip to audio clip
+	void replaceInstrumentClipWithAudioClip(Clip* clip);
 
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
@@ -172,7 +180,6 @@ private:
 
 	Clip* createNewAudioClip(int32_t yDisplay);
 	Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay);
-	void replaceInstrumentClipWithAudioClip(Clip* clip);
 
 	bool createNewTrackForAudioClip(AudioClip* newClip);
 	bool createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip);
@@ -186,6 +193,7 @@ private:
 	void renderLayoutChange(bool displayPopup = true);
 	void selectSpecificLayout(SessionLayoutType layout);
 	SessionLayoutType previousLayout;
+	SessionGridMode previousGridModeActive;
 
 	bool sessionButtonActive = false;
 	bool sessionButtonUsed = false;
@@ -206,6 +214,7 @@ private:
 	ActionResult gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip);
+	void gridHandlePadsWithMidiLearnPressed(int32_t x, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip);
 	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
 

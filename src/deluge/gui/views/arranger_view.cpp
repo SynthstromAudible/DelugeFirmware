@@ -97,11 +97,18 @@ ArrangerView::ArrangerView() {
 	lastInteractedPos = -1;
 	lastInteractedSection = 0;
 	lastInteractedClipInstance = nullptr;
+
+	lastInteractedArrangementPos = -1;
 }
 
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
-		stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
+		if (stemExport.exportMasterArrangement) {
+			stemExport.displayStemExportProgressOLED(StemExportType::MASTER_ARRANGEMENT);
+		}
+		else {
+			stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
+		}
 		return;
 	}
 	sessionView.renderOLED(canvas);
@@ -247,7 +254,15 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
 				}
 				else {
-					stemExport.startStemExportProcess(StemExportType::TRACK);
+					if (inCardRoutine) {
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					}
+					if (stemExport.exportMasterArrangement) {
+						stemExport.startStemExportProcess(StemExportType::MASTER_ARRANGEMENT);
+					}
+					else {
+						stemExport.startStemExportProcess(StemExportType::TRACK);
+					}
 					return ActionResult::DEALT_WITH;
 				}
 			}
@@ -789,7 +804,7 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 
 // Loads from file, etc - doesn't truly "create"
 Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong) {
-	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
+	ReturnOfConfirmPresetOrNextUnlaunchedOne result{};
 
 	result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
 	if (result.error != Error::NONE) {
@@ -970,7 +985,7 @@ ActionResult ArrangerView::handleEditPadAction(int32_t x, int32_t y, int32_t vel
 			// NAME shortcut
 			if (x == 11 && y == 5) {
 				Output* output = outputsOnScreen[yPressedEffective];
-				if (output && output->type != OutputType::MIDI_OUT && output->type != OutputType::CV) {
+				if (output && output->type != OutputType::CV) {
 					endAudition(output);
 					currentUIMode = UI_MODE_NONE;
 					renameOutputUI.output = output;
@@ -1109,6 +1124,8 @@ regularMutePadPress:
 				}
 				output->mutedInArrangementMode = true;
 			}
+			break;
+		default:
 			break;
 		}
 
@@ -1249,6 +1266,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 			// No previous press
 			if (currentUIMode == UI_MODE_NONE) {
 				createNewClipInstance(output, x, y, squareStart, squareEnd, xScroll);
+				lastInteractedArrangementPos = squareStart;
 			}
 
 			// Already pressing - length edit
@@ -1539,7 +1557,7 @@ Clip* ArrangerView::getClipFromSection(Output* output) {
 
 /// called from ArrangerView::editPadAction
 /// adjust the length of an existing clip instance
-void ArrangerView::adjustClipInstanceLength(Output* output, int32_t xPressed, int32_t y, int32_t squareStart,
+void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y, int32_t squareStart,
                                             int32_t squareEnd) {
 	actionOnDepress = false;
 
@@ -1547,8 +1565,8 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t xPressed, in
 		return;
 	}
 
-	int32_t oldSquareStart = getPosFromSquare(xPressed);
-	int32_t oldSquareEnd = getPosFromSquare(xPressed + 1);
+	int32_t oldSquareStart = getPosFromSquare(x);
+	int32_t oldSquareEnd = getPosFromSquare(x + 1);
 
 	// Search for previously pressed ClipInstance
 	ClipInstance* clipInstance = output->clipInstances.getElement(pressedClipInstanceIndex);
@@ -1562,7 +1580,7 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t xPressed, in
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 		if (clipInstance->clip) {
 			arrangement.rowEdited(output, clipInstance->pos + lengthTilNewSquareStart,
-			                      clipInstance->pos + clipInstance->length, clipInstance->clip, NULL);
+			                      clipInstance->pos + clipInstance->length, clipInstance->clip, nullptr);
 		}
 		clipInstance->change(action, output, clipInstance->pos, lengthTilNewSquareStart, clipInstance->clip);
 	}
@@ -2347,7 +2365,7 @@ squareStartPosSet:
 						if (!clipInstance->clip) {
 							// this shouldn't be possible, but it happens when you create a brand new white clip
 							// which doesn't have a timeline counter yet (until you enter the clip)
-							image[xDisplay] = colour.dim(7);
+							image[xDisplay] = colour.dim(4);
 						}
 						else {
 							int32_t relativeSquarePos; // square's position relative to start of clip instance
@@ -2365,15 +2383,15 @@ squareStartPosSet:
 
 							if (isLoopStart) {
 								if (clipInstance->clip->isArrangementOnlyClip()) {
-									*it = image[xDisplay] = colour.dim(3);
+									*it = image[xDisplay] = colour.dim(2);
 								}
 								else {
-									*it = image[xDisplay] = colour.dim(4);
+									*it = image[xDisplay] = colour.dim(3);
 								}
 							}
 							else {
 								if (clipInstance->clip->isArrangementOnlyClip()) {
-									*it = image[xDisplay] = colour.dim(7);
+									*it = image[xDisplay] = colour.dim(4);
 								}
 								else {
 									*it = image[xDisplay] = colour.forBlur().dim(3);
@@ -2425,6 +2443,8 @@ ActionResult ArrangerView::timerCallback() {
 			blinkOn = !blinkOn;
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kFastFlashTime);
 		}
+		break;
+	default:
 		break;
 	}
 

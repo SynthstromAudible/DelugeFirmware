@@ -72,7 +72,7 @@ inline OutputType buttonToOutputType(deluge::hid::Button b) {
 		return OutputType::KIT;
 	case CV:
 		return OutputType::CV;
-	case CROSS_SCREEN_EDIT:
+	case SELECT_ENC:
 		return OutputType::AUDIO;
 	default:
 		return OutputType::NONE;
@@ -82,6 +82,8 @@ class Output {
 public:
 	Output(OutputType newType);
 	virtual ~Output();
+	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
+	                           char const* dirPath) = 0;
 
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;

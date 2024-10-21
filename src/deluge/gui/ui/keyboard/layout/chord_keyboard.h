@@ -37,6 +37,7 @@ const int32_t SCALESEVENTH = 6;
 const int32_t SCALEOCTAVE = 7;
 
 enum class ChordKeyboardMode { ROW, COLUMN };
+const int32_t kChordKeyboardColumns = 14;
 
 /// @brief Represents a keyboard layout for chord-based input.
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
@@ -55,22 +56,20 @@ public:
 	char const* name() override { return "Chord"; }
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
-	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Enabled; }
+	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }
 
-	ChordKeyboardMode mode = ChordKeyboardMode::ROW;
+	ChordKeyboardMode mode = ChordKeyboardMode::COLUMN;
 
 protected:
 	bool allowSidebarType(ColumnControlFunction sidebarType) override;
 
 private:
+	void offsetPads(int32_t offset, bool shiftEnabled);
+	void handleControlButton(int32_t x, int32_t y);
 	uint8_t noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes, uint8_t scaleNoteCount);
 	void evaluatePadsRow(PressedPad pressed);
 	void evaluatePadsColumn(PressedPad pressed);
 	void drawChordName(int16_t noteCode, const char* chordName = "", const char* voicingName = "");
-	inline int32_t getScaleSteps(int32_t i, NoteSet& scaleNotes) {
-		KeyboardStateChord& state = getState().chord;
-		return scaleNotes[mod(i + state.scaleOffset, scaleNotes.count())];
-	}
 
 	Scale lastScale = NO_SCALE;
 
@@ -80,7 +79,8 @@ private:
 	    colours::blue, colours::purple, colours::green, colours::kelly::very_light_blue,
 	    colours::cyan, colours::yellow};
 
-	std::array<RGB, kOctaveSize + kDisplayHeight + kDisplayWidth> noteColours;
+	std::array<int32_t, kOctaveSize + kDisplayHeight + kDisplayWidth> qualities;
+
 	std::array<int32_t, kDisplayWidth - 1> scaleSteps = {
 	    SCALEFIRST,
 	    SCALEFIFTH,

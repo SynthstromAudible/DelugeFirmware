@@ -31,7 +31,7 @@ public:
 	void selectEncoderAction(int8_t offset) override;
 	bool setupAndCheckAvailability();
 	bool canSeeViewUnderneath() override { return true; }
-
+	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
 	AudioOutput* audioOutput;
 
 	/// Title

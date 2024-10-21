@@ -19,9 +19,12 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/filter/filter_set.h"
+#include "gui/l10n/l10n.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "util/containers.h"
 using namespace deluge;
 class Serializer;
+
 class GlobalEffectable : public ModControllableAudio {
 public:
 	GlobalEffectable();
@@ -38,7 +41,7 @@ public:
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
 	void processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples, int32_t* postFXVolume,
 	                                  ParamManager* paramManager, const Delay::State& delayWorkingState,
-	                                  bool grainHadInput = true);
+	                                  bool anySoundComingIn = true);
 
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
 	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);
@@ -80,3 +83,11 @@ private:
 	char const* getModFXTypeDisplayName();
 	char const* getModFXParamDisplayName();
 };
+// helper functions for the mod fx types
+namespace modfx {
+deluge::vector<std::string_view> getModNames();
+
+const char* getParamName(ModFXType type, ModFXParam param);
+
+const char* modFXToString(ModFXType type);
+} // namespace modfx

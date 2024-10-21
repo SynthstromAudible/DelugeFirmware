@@ -1310,10 +1310,15 @@ void Browser::currentFileDeleted() {
 	currentFileChanged(0);
 }
 
-int32_t textStartX = 14;
-
 void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	canvas.drawScreenTitle(title);
+
+	int32_t textStartX = 14;
+	int32_t iconStartX = 1;
+	if (FlashStorage::accessibilityMenuHighlighting) {
+		textStartX += kTextSpacingX;
+		iconStartX = kTextSpacingX;
+	}
 
 	int32_t yPixel = (OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14;
 	yPixel += OLED_MAIN_TOPMOST_PIXEL;
@@ -1348,10 +1353,11 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 			}
 drawAFile:
 			// Draw graphic
+			int32_t iconWidth = 8;
 			uint8_t const* graphic = isFolder ? deluge::hid::display::OLED::folderIcon : fileIcon;
-			canvas.drawGraphicMultiLine(graphic, 1, yPixel + 0, 8);
-			if (fileIconPt2 && fileIconPt2Width) {
-				canvas.drawGraphicMultiLine(fileIconPt2, 9, yPixel + 0, fileIconPt2Width);
+			canvas.drawGraphicMultiLine(graphic, iconStartX, yPixel + 0, iconWidth);
+			if (!isFolder && fileIconPt2 && fileIconPt2Width) {
+				canvas.drawGraphicMultiLine(fileIconPt2, iconStartX + iconWidth, yPixel + 0, fileIconPt2Width);
 			}
 
 			// Draw filename

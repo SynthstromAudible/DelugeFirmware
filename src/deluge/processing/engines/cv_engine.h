@@ -55,15 +55,16 @@ public:
 class CVEngine {
 public:
 	CVEngine();
-	void init(bool have_oled);
+	void init();
 	void sendNote(bool on, uint8_t channel, int16_t note = -32768);
 	void setGateType(uint8_t whichGate, GateType value);
 	void setCVVoltsPerOctave(uint8_t channel, uint8_t value);
 	void setCVTranspose(uint8_t channel, int32_t semitones, int32_t cents);
 	void setCVPitchBend(uint8_t channel, int32_t value, bool outputToo = true);
-	void delayInterrupt();
 	int32_t calculateVoltage(int32_t note, uint8_t channel);
 	void physicallySwitchGate(int32_t channel);
+	// defer updating the gate while CV is pending and do it when it's done
+	void cvOutUpdated();
 
 	void analogOutTick();
 	void playbackBegun();
@@ -75,18 +76,18 @@ public:
 	/// physically send all gate outs if any output pending
 	void updateGateOutputs();
 
+	bool isGatePending() const { return gateOutputPending; }
+	bool isRunPending() const { return asapGateOutputPending; }
+	bool isClockPending() const { return clockOutputPending; }
+	bool isAnythingButRunPending() const { return isGatePending() || isClockPending(); }
+	bool isAnythingPending() const { return isGatePending() || isClockPending() || isRunPending(); }
 	GateChannel gateChannels[NUM_GATE_CHANNELS];
 
-	CVChannel cvChannels[NUM_CV_CHANNELS];
+	CVChannel cvChannels[NUM_PHYSICAL_CV_CHANNELS];
 
 	uint8_t minGateOffTime; // in 100uS's
 
 	bool clockState;
-
-	// Note: I'm not sure we actually need these things separate?
-	bool gateOutputPending;
-	bool asapGateOutputPending;
-	bool clockOutputPending;
 
 	// When one or more note-on is pending, this is the latest time that one of them last switched off.
 	// But it seems I only use this very coarsely - more to see if we're still in the same audio frame than to measure
@@ -103,6 +104,14 @@ private:
 	void recalculateCVChannelVoltage(uint8_t channel);
 	void switchGateOff(int32_t channel);
 	void switchGateOn(int32_t channel, int32_t doInstantlyIfPossible = false);
+	/// signifies there's a gate that can't go until the cv is output
+	bool cvOutPending{false};
+	/// gate 1-4 as synths or drums
+	bool gateOutputPending{false};
+	/// gate 3 as a run signal
+	bool asapGateOutputPending;
+	/// gate 4 as a clock signal
+	bool clockOutputPending;
 };
 
 extern CVEngine cvEngine;

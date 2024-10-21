@@ -59,8 +59,9 @@ struct SampleCacheElement {
 };
 
 Sample::Sample()
-    : percCacheZones{sizeof(SamplePercCacheZone), sizeof(SamplePercCacheZone)}, caches(sizeof(SampleCacheElement), 4),
-      AudioFile(AudioFileType::SAMPLE) {
+    : percCacheZones{OrderedResizeableArrayWith32bitKey(sizeof(SamplePercCacheZone)),
+                     OrderedResizeableArrayWith32bitKey(sizeof(SamplePercCacheZone))},
+      caches(sizeof(SampleCacheElement), 4), AudioFile(AudioFileType::SAMPLE) {
 	audioDataLengthBytes = 0;
 	audioDataStartPosBytes = 0;
 	lengthInSamples = 0;

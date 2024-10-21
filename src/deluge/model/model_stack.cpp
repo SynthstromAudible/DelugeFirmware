@@ -259,3 +259,16 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchCableAutoParamFr
 	}
 	return modelStackWithParam;
 }
+
+ModelStackWithAutoParam* ModelStackWithThreeMainThings::getExpressionAutoParamFromID(int32_t newParamId) {
+	if (newParamId >= kNumExpressionDimensions) {
+		return addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
+	}
+
+	paramManager->ensureExpressionParamSetExists(); // Allowed to fail
+	ParamCollectionSummary* summary = paramManager->getExpressionParamSetSummary();
+	ModelStackWithParamId* modelStackWithParamId =
+	    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
+
+	return summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+}

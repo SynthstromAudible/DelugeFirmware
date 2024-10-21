@@ -83,7 +83,6 @@ void AudioClipView::focusRegained() {
 	ClipView::focusRegained();
 	endMarkerVisible = false;
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
 
@@ -662,8 +661,9 @@ void AudioClipView::selectEncoderAction(int8_t offset) {
 	if (currentUIMode) {
 		return;
 	}
-
-	view.navigateThroughAudioOutputsForAudioClip(offset, getCurrentAudioClip());
+	auto ao = (AudioOutput*)getCurrentAudioClip()->output;
+	ao->scrollAudioOutputMode(offset);
+	renderUIsForOled();
 }
 
 void AudioClipView::setClipLengthEqualToSampleLength() {

@@ -74,7 +74,7 @@ public:
 	bool isCurrentlyRecording();
 	void positionPointerReceived(uint8_t data1, uint8_t data2);
 	void doSongSwap(bool preservePlayPosition = false);
-	void forceResetPlayPos(Song* song);
+	void forceResetPlayPos(Song* song, bool restartingPlayback = false);
 	void expectEvent();
 	void setMidiInClockEnabled(bool newValue);
 	int32_t getActualArrangementRecordPos();
@@ -228,6 +228,8 @@ public:
 	void getTempoStringForOLED(float tempoBPM, StringBuf& buffer);
 
 	void tryLoopCommand(GlobalMIDICommand command);
+
+	float calculateBPMForDisplay();
 
 private:
 	uint32_t timerTicksToOutputTicks(uint32_t timerTicks);

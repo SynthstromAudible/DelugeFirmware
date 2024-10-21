@@ -242,6 +242,7 @@
         "STRING_FOR_SCALE": "Scale",
         "STRING_FOR_RELATIVE": "Relative",
 
+        "STRING_FOR_WARBLE" : "WARBLE",
         "STRING_FOR_FLANGER": "Flanger",
         "STRING_FOR_CHORUS": "Chorus",
         "STRING_FOR_PHASER": "Phaser",
@@ -283,7 +284,7 @@
         "STRING_FOR_ERROR_CREATING_MULTISAMPLED_INSTRUMENT": "Error creating multisampled instrument",
         "STRING_FOR_CLIP_IS_RECORDING": "Clip is recording",
         "STRING_FOR_AUDIO_FILE_IS_USED_IN_CURRENT_SONG": "Audio file is used in current song",
-        "STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT": "Can only user slicer for brand-new kit",
+        "STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT": "Can only use slicer for brand-new kit",
         "STRING_FOR_TEMP_FOLDER_CANT_BE_BROWSED": "TEMP folder can't be browsed",
         "STRING_FOR_UNLOADED_PARTS": "Can't return to current song, as parts have been unloaded",
         "STRING_FOR_SD_CARD_ERROR": "SD card error",
@@ -467,12 +468,12 @@
         "STRING_FOR_COMMUNITY_FEATURE_DELETE_UNUSED_KIT_ROWS": "Delete Unused Kit Rows",
         "STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS": "Alternative Golden Knob Delay Params",
         "STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER": "Stutter Rate Quantize",
-        "STRING_FOR_COMMUNITY_FEATURE_AUTOMATION": "Automation",
-        "STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_INTERPOLATION": "Interpolation",
-        "STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_CLEAR": "Clear",
-        "STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_NUDGE_NOTE": "Nudge Note",
-        "STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_SHIFT": "Shift",
-        "STRING_FOR_COMMUNITY_FEATURE_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS": "Disable Audition Pad Shortcuts",
+        "STRING_FOR_DEFAULT_AUTOMATION": "Automation",
+        "STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION": "Interpolation",
+        "STRING_FOR_DEFAULT_AUTOMATION_CLEAR": "Clear",
+        "STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE": "Nudge Note",
+        "STRING_FOR_DEFAULT_AUTOMATION_SHIFT": "Shift",
+        "STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS": "Disable Audition Pad Shortcuts",
         "STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX": "Allow Insecure Develop Sysex Messages",
         "STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION": "Sync Scaling Action",
         "STRING_FOR_COMMUNITY_FEATURE_HIGHLIGHT_INCOMING_NOTES": "Highlight Incoming Notes",
@@ -486,7 +487,6 @@
         "STRING_FOR_COMMUNITY_FEATURE_LAUNCH_EVENT_PLAYHEAD": "Launch Event Playhead",
         "STRING_FOR_COMMUNITY_FEATURE_CHORD_KEYBOARD": "Chord Keyboards",
         "STRING_FOR_COMMUNITY_FEATURE_ALTERNATIVE_PLAYBACK_START_BEHAVIOUR": "Alternative Playback Start Behaviour",
-        "STRING_FOR_COMMUNITY_FEATURE_ACCESSIBILITY_SHORTCUTS": "Accessibility Shortcuts",
         "STRING_FOR_COMMUNITY_FEATURE_GRID_VIEW_LOOP_PADS": "Grid View Loop Layer Pads",
 
         "STRING_FOR_TRACK_STILL_HAS_CLIPS_IN_SESSION": "Track still has clips in session",
@@ -571,6 +571,9 @@
         "STRING_FOR_MOD_FX_RATE": "MOD FX rate",
         "STRING_FOR_DEPTH": "DEPTH",
         "STRING_FOR_MOD_FX_DEPTH": "MOD FX depth",
+        "STRING_FOR_GRAIN_SIZE": "Grain Size",
+        "STRING_FOR_GRAIN_TYPE": "Grain Type",
+        "STRING_FOR_GRAIN_AMOUNT": "Grain Amount",
         "STRING_FOR_RATE": "RATE",
         "STRING_FOR_DELAY": "DELAY",
         "STRING_FOR_AMOUNT": "AMOUNT",
@@ -586,6 +589,7 @@
         "STRING_FOR_TRANSPOSE": "TRANSPOSE",
         "STRING_FOR_CV": "CV",
         "STRING_FOR_CV_OUTPUTS": "CV outputs",
+        "STRING_FOR_CV2_SOURCE": "CV 2 Source",
         "STRING_FOR_GATE": "GATE",
         "STRING_FOR_GATE_OUTPUTS": "Gate outputs",
         "STRING_FOR_KEY_LAYOUT": "Key layout",
@@ -693,6 +697,9 @@
         "STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE": "Pad brightness.",
         "STRING_FOR_DEFAULT_SLICE_MODE": "Sample Slice Mode",
         "STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE": "Sample Slice Mode",
+        "STRING_FOR_DEFAULT_ACCESSIBILITY": "Accessibility",
+        "STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS": "Shortcuts",
+        "STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING": "Menu Highlighting",
 
         "STRING_FOR_CV_INSTRUMENT": "CV instrument",
 
@@ -795,8 +802,6 @@
         "STRING_FOR_PERFORM_DEFAULTS_LOADED": "Defaults Loaded",
         "STRING_FOR_PERFORM_DEFAULTS_SAVED": "Defaults Saved",
 
-        "STRING_FOR_MIDILOOPBACK": "MIDI Loopback",
-
         "STRING_FOR_KIT_GLOBAL_FX": "Kit FX",
         "STRING_FOR_PITCH": "Pitch",
 
@@ -845,6 +850,7 @@
         "STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE": "Export to Silence",
         "STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX": "Song FX",
         "STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING": "Offline Rendering",
+        "STRING_FOR_CONFIGURE_EXPORT_STEMS_MASTER_ARRANGEMENT": "Export Master Arrangement",
         "STRING_FOR_CANT_EXPORT_STEMS": "Turn off playback and/or recording",
         "STRING_FOR_STOP_EXPORT_STEMS_QMARK": "Cancel Export?",
         "STRING_FOR_STOP_EXPORT_STEMS": "Export Cancelled",
@@ -860,8 +866,39 @@
         "STRING_FOR_SONG_MACRO_KIND_SECTION": "Kind: Section",
         "STRING_FOR_SONG_MACRO_KIND_NONE": "Kind: None",
 
+        "STRING_FOR_MIDI_LEARN": "Midi Learn",
+
         "STRING_FOR_ACTIONS": "Actions",
         "STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH": "Set Clip Length Equal to Sample Length",
-        "STRING_FOR_CLIP_LENGTH_ADJUSTED": "Clip Length Adjusted"
+        "STRING_FOR_CLIP_LENGTH_ADJUSTED": "Clip Length Adjusted",
+
+        "STRING_FOR_CONVERT_TO_AUDIO": "Convert to Audio",
+        "STRING_FOR_CLIP_MODE": "Clip Mode",
+        "STRING_FOR_CLIP_NAME": "Clip Name",
+        
+        "STRING_FOR_NOTE_EDITOR": "Note Editor",
+        "STRING_FOR_NOTE_EDITOR_VELOCITY": "Note Velocity",
+        "STRING_FOR_NOTE_EDITOR_PROBABILITY": "Note Probability",
+        "STRING_FOR_NOTE_EDITOR_ITERANCE": "Note Iterance",
+        "STRING_FOR_NOTE_EDITOR_FILL": "Note Fill",
+
+        "STRING_FOR_NOTE_ROW_EDITOR": "Row Editor",
+        "STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY": "Row Probability",
+        "STRING_FOR_NOTE_ROW_EDITOR_ITERANCE": "Row Iterance",
+        "STRING_FOR_NOTE_ROW_EDITOR_FILL": "Row Fill",
+
+        "STRING_FOR_ITERANCE_DIVISOR": "Divisor",
+        "STRING_FOR_ITERATION_STEP_1": "Iteration 1",
+        "STRING_FOR_ITERATION_STEP_2": "Iteration 2",
+        "STRING_FOR_ITERATION_STEP_3": "Iteration 3",
+        "STRING_FOR_ITERATION_STEP_4": "Iteration 4",
+        "STRING_FOR_ITERATION_STEP_5": "Iteration 5",
+        "STRING_FOR_ITERATION_STEP_6": "Iteration 6",
+        "STRING_FOR_ITERATION_STEP_7": "Iteration 7",
+        "STRING_FOR_ITERATION_STEP_8": "Iteration 8",
+        
+        "STRING_FOR_DEFAULT_CLIP_TYPE": "Clip Type",
+        "STRING_FOR_DEFAULT_NEW_CLIP_TYPE": "New Clip Type",
+        "STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE": "Use Last Clip Type"        
     }
 }

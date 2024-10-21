@@ -22,9 +22,10 @@
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
 #include "gui/context_menu/audio_input_selector.h"
-#include "gui/context_menu/clip_settings/launch_style.h"
+#include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/context_menu/clip_settings/new_clip_type.h"
 #include "gui/context_menu/context_menu.h"
+#include "gui/context_menu/midi_learn_mode.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -93,6 +94,7 @@ SessionView sessionView{};
 
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
+	createClip = false;
 }
 
 bool SessionView::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -156,7 +158,13 @@ void SessionView::focusRegained() {
 
 	ClipNavigationTimelineView::focusRegained();
 	view.focusRegained();
-	view.setActiveModControllableTimelineCounter(currentSong);
+	// this could happen if you've just converted an instrument clip to an audio clip
+	// using the clip settings menu in grid view and it sent you back to song view
+	// and the mod controllable was set to the newly converted audio clip
+	// if you're still holding that clip, don't change the active mod controllable
+	if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+		view.setActiveModControllableTimelineCounter(currentSong);
+	}
 
 	if (display->haveOLED()) {
 		setCentralLEDStates();
@@ -192,7 +200,10 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// Clip-view button
 	if (b == CLIP_VIEW) {
-		if (on && currentUIMode == UI_MODE_NONE && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
+		bool isGridView = currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid;
+		if (on
+		    && ((currentUIMode == UI_MODE_NONE) || (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && isGridView))
+		    && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
@@ -382,6 +393,9 @@ moveAfterClipInstance:
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
 				}
 				else {
+					if (inCardRoutine) {
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					}
 					stemExport.startStemExportProcess(StemExportType::CLIP);
 					return ActionResult::DEALT_WITH;
 				}
@@ -479,8 +493,8 @@ moveAfterClipInstance:
 				}
 			}
 			else if (currentUIMode == UI_MODE_HOLDING_STATUS_PAD) {
-				context_menu::clip_settings::launchStyle.setupAndCheckAvailability();
-				openUI(&context_menu::clip_settings::launchStyle);
+				context_menu::clip_settings::clipSettings.setupAndCheckAvailability();
+				openUI(&context_menu::clip_settings::clipSettings);
 			}
 			else if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				actionLogger.deleteAllLogs();
@@ -490,9 +504,9 @@ moveAfterClipInstance:
 				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 					requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 					if (clip != nullptr) {
-						context_menu::clip_settings::launchStyle.clip = clip;
-						context_menu::clip_settings::launchStyle.setupAndCheckAvailability();
-						openUI(&context_menu::clip_settings::launchStyle);
+						context_menu::clip_settings::clipSettings.clip = clip;
+						context_menu::clip_settings::clipSettings.setupAndCheckAvailability();
+						openUI(&context_menu::clip_settings::clipSettings);
 					}
 				}
 				else if (clip != nullptr) {
@@ -620,32 +634,9 @@ doActualSimpleChange:
 		newOutputType = OutputType::CV;
 		goto changeOutputType;
 	}
-	// used for changing clip type to audio clip
-	else if (b == CROSS_SCREEN_EDIT) {
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			if (on && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && !Buttons::isShiftButtonPressed()) {
-				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
-					return ActionResult::DEALT_WITH;
-				}
-
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
-
-				actionLogger.deleteAllLogs();
-				performActionOnPadRelease = false;
-				Clip* clip = getClipForLayout();
-				if (clip != nullptr) {
-					replaceInstrumentClipWithAudioClip(clip);
-				}
-			}
-		}
-	}
-
 	else if (b == KEYBOARD) {
-		if (on && (currentUIMode == UI_MODE_NONE)
-		    && (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid)) {
+		if (on && (currentUIMode == UI_MODE_NONE)) {
+			performanceSessionView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
 			changeRootUI(&performanceSessionView);
 		}
 	}
@@ -829,10 +820,27 @@ startHoldingDown:
 					// if (possiblyCreatePendingNextOverdub(clipIndex, OverdubType::EXTENDING)) return
 					// ActionResult::DEALT_WITH;
 
-					clip = createNewInstrumentClip(OutputType::SYNTH, yDisplay);
+					OutputType toCreate;
+					if (FlashStorage::defaultUseLastClipType && lastTypeCreated != OutputType::NONE) {
+						toCreate = lastTypeCreated;
+					}
+					else {
+						toCreate = FlashStorage::defaultNewClipType;
+					}
+
+					// we can't create CV or Audio Clip's first because audio clips can't be subsequently converted
+					// to other clip types (yet) and CV clips will block creating any other clips after two CV clips are
+					// created
+					if (toCreate == OutputType::NONE || toCreate == OutputType::CV || toCreate == OutputType::AUDIO) {
+						toCreate = OutputType::SYNTH;
+					}
+					clip = createNewInstrumentClip(toCreate, yDisplay);
 					if (!clip) {
 						return ActionResult::DEALT_WITH;
 					}
+
+					lastTypeCreated = clip->output->type;
+					createClip = true;
 
 					int32_t numClips = currentSong->sessionClips.getNumElements();
 					if (clipIndex < 0) {
@@ -881,7 +889,9 @@ startHoldingDown:
 						if (sdRoutineLock) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
-						view.endMIDILearn();
+						if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
+							view.endMIDILearn();
+						}
 						gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)clip->output;
 						gui::context_menu::audioInputSelector.setupAndCheckAvailability();
 						openUI(&gui::context_menu::audioInputSelector);
@@ -928,6 +938,7 @@ midiLearnMelodicInstrumentAction:
 					// Enter Clip
 					Clip* clip = getClipOnScreen(selectedClipYDisplay);
 					transitionToViewForClip(clip);
+					createClip = false;
 				}
 
 				// If doing nothing, at least exit the submode - if this was that initial press
@@ -939,6 +950,17 @@ justEndClipPress:
 							                                                     // it's still loading an Instrument
 							                                                     // they selected,
 						}
+
+						// check if we just created a clip and whether we changed the clip type before releasing the
+						// press
+						if (createClip) {
+							OutputType thisType = getClipForLayout()->output->type;
+							if (thisType != lastTypeCreated) {
+								lastTypeCreated = thisType;
+							}
+							createClip = false;
+						}
+
 						// and we don't want the loading animation or anything to get stuck onscreen
 						clipPressEnded();
 					}
@@ -1284,10 +1306,9 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 		}
 	}
 	else {
-		// This moves clips around uncomfortably and we have a track for every Audio anyway
-		if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeGrid) {
-			view.navigateThroughAudioOutputsForAudioClip(offset, (AudioClip*)clip, true);
-		}
+		auto ao = (AudioOutput*)clip->output;
+		ao->scrollAudioOutputMode(offset);
+		renderUIsForOled();
 	}
 }
 
@@ -1374,7 +1395,8 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 		}
 	}
 	else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
-	         || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING) {
+	         || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING
+	         || getCurrentUI() == &deluge::gui::context_menu::midiLearnMode) {
 
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
@@ -1997,7 +2019,7 @@ void SessionView::renderViewDisplay() {
 #endif
 
 	DEF_STACK_STRING_BUF(tempoBPM, 10);
-	lastDisplayedTempo = currentSong->calculateBPM();
+	lastDisplayedTempo = playbackHandler.calculateBPM(playbackHandler.getTimePerInternalTickFloat());
 	playbackHandler.getTempoStringForOLED(lastDisplayedTempo, tempoBPM);
 	displayTempoBPM(canvas, tempoBPM, false);
 
@@ -2314,12 +2336,15 @@ void SessionView::graphicsRoutine() {
 void SessionView::displayPotentialTempoChange(UI* ui) {
 	// check UI in case graphics routine is called while we're in another UI (e.g. menu)
 	if (getCurrentUI() == ui) {
-		float tempo = currentSong->calculateBPM();
-		if (tempo != lastDisplayedTempo) {
+		float tempo = playbackHandler.calculateBPMForDisplay();
+		float diff = std::abs(tempo - lastDisplayedTempo);
+		// always catch manual adjustments, limit rate of others
+		if (diff > 0.5) {
 			DEF_STACK_STRING_BUF(tempoBPM, 10);
 			playbackHandler.getTempoStringForOLED(tempo, tempoBPM);
 			displayTempoBPM(deluge::hid::display::OLED::main, tempoBPM, true);
 			deluge::hid::display::OLED::markChanged();
+			lastDisplayedTempo = tempo;
 		}
 	}
 }
@@ -3085,6 +3110,19 @@ void SessionView::exitMacrosConfigMode() {
 	selectSpecificLayout(previousLayout);
 }
 
+void SessionView::enterMidiLearnMode() {
+	previousGridModeActive = gridModeActive;
+	gridModeActive = SessionGridModeLaunch;
+	requestRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
+	view.startMIDILearn();
+}
+
+void SessionView::exitMidiLearnMode() {
+	view.endMIDILearn();
+	gridModeActive = previousGridModeActive;
+	requestRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
+}
+
 bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 
@@ -3159,10 +3197,6 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 			modeColour = colours::magenta; // Magenta
 		}
 		break;
-	}
-	case GridMode::PINK: {
-		modeActive = performanceSessionView.gridModeActive;
-		modeColour = colours::pastel::pink; // Pink
 	}
 
 	default: {
@@ -3243,7 +3277,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 
 	// MIDI Learning
 	if (view.midiLearnFlashOn) {
-		if (gridModeActive == SessionGridModeLaunch) {
+		if (getCurrentUI() == &deluge::gui::context_menu::midiLearnMode) {
 			// Clip arm learned
 			if (clip->muteMIDICommand.containsSomething()) {
 				return colours::midi_command;
@@ -3253,7 +3287,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip) {
 				return colours::black; // Flash black
 			}
 		}
-		else if (gridModeActive == SessionGridModeEdit) {
+		else {
 			// Instrument learned
 			OutputType type = clip->output->type;
 			bool canLearn = (type != OutputType::AUDIO && type != OutputType::NONE);
@@ -3568,6 +3602,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 				else {
 					lastTypeCreated = toCreate;
 				}
+				createClip = false;
 			}
 		}
 		else {
@@ -3640,7 +3675,8 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 				}
 			}
 
-			if (targetOutput && targetOutput != sourceClip->output) {
+			if (targetOutput && targetOutput != sourceClip->output && targetOutput->type == OutputType::AUDIO) {
+				((AudioOutput*)targetOutput)->cloneFrom((AudioOutput*)(sourceClip->output));
 				newAudioClip->setOutput(modelStack, targetOutput);
 			}
 		}
@@ -3722,7 +3758,9 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	if (x > kDisplayWidth) {
 
 		if (on) {
-			clipPressEnded();
+			if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
+				clipPressEnded();
+			}
 			gridActiveModeUsed = false;
 			bool enableLoopPads = runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGridViewLoopPads)
 			                      == RuntimeFeatureStateToggle::On;
@@ -3746,13 +3784,6 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 					playbackHandler.tryLoopCommand(GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING);
 				}
 				break;
-			}
-			case GridMode::PINK: {
-				performanceSessionView.gridModeActive = true;
-				performanceSessionView.timeGridModePress = AudioEngine::audioSampleTimer;
-				changeRootUI(&performanceSessionView);
-				uiNeedsRendering(&performanceSessionView);
-				return ActionResult::DEALT_WITH;
 			}
 			}
 		}
@@ -3834,22 +3865,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 
 	// Learn MIDI for tracks
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (clip != nullptr) {
-			if (clip->type != ClipType::AUDIO) {
-				// Learn + Holding pad = Learn MIDI channel
-				Output* output = gridTrackFromX(x, gridTrackCount());
-				if (output && (output->type != OutputType::AUDIO && output->type != OutputType::NONE)) {
-					view.instrumentMidiLearnPadPressed(on, (Instrument*)output);
-				}
-			}
-			else {
-				view.endMIDILearn();
-				gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)clip->output;
-				gui::context_menu::audioInputSelector.setupAndCheckAvailability();
-				openUI(&gui::context_menu::audioInputSelector);
-				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-			}
-		}
+		gridHandlePadsWithMidiLearnPressed(x, on, clip);
 
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
@@ -3945,7 +3961,6 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 void SessionView::setupTrackCreation() const { // start clip creation, blink LED corresponding to last type created
-	context_menu::clip_settings::newClipType.toCreate = lastTypeCreated;
 	context_menu::clip_settings::newClipType.setupAndCheckAvailability();
 	openUI(&context_menu::clip_settings::newClipType);
 }
@@ -3972,7 +3987,6 @@ void SessionView::exitTrackCreation() {
 	indicator_leds::setLedState(IndicatorLED::MIDI, false, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false, false);
 	indicator_leds::setLedState(IndicatorLED::CV, false, false);
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false, false);
 	exitUIMode(UI_MODE_CREATING_CLIP);
 	requestRendering(&sessionView);
@@ -4099,7 +4113,12 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 
 	// Learn MIDI ARM
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
-		view.clipStatusMidiLearnPadPressed(on, clip);
+		if (getCurrentUI() == &deluge::gui::context_menu::midiLearnMode) {
+			view.clipStatusMidiLearnPadPressed(on, clip);
+		}
+		else {
+			gridHandlePadsWithMidiLearnPressed(x, on, clip);
+		}
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
 
@@ -4192,6 +4211,26 @@ void SessionView::gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate) {
 	}
 }
 
+void SessionView::gridHandlePadsWithMidiLearnPressed(int32_t x, int32_t on, Clip* clip) {
+	if (clip != nullptr) {
+		if (clip->type != ClipType::AUDIO) {
+			// Learn + Holding pad = Learn MIDI channel
+			Output* output = gridTrackFromX(x, gridTrackCount());
+			if (output && (output->type != OutputType::AUDIO && output->type != OutputType::NONE)) {
+				view.instrumentMidiLearnPadPressed(on, (Instrument*)output);
+			}
+		}
+		else {
+			if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
+				view.endMIDILearn();
+			}
+			gui::context_menu::audioInputSelector.audioOutput = (AudioOutput*)clip->output;
+			gui::context_menu::audioInputSelector.setupAndCheckAvailability();
+			openUI(&gui::context_menu::audioInputSelector);
+		}
+	}
+}
+
 ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip) {
 	if (x < kDisplayWidth) {
 		if (selectedMacro == -1 || !on) {
@@ -4278,8 +4317,10 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	gridResetPresses();
-	clipPressEnded();
+	if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
+		gridResetPresses();
+		clipPressEnded();
+	}
 
 	// Fix the range
 	currentSong->songGridScrollY =
@@ -4557,5 +4598,14 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 		}
 	}
 
+	return nullptr;
+}
+Output* SessionView::getOutputFromPad(int32_t x, int32_t y) {
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		return gridTrackFromX(x, gridTrackCount());
+	}
+	else {
+		return getClipOnScreen(y)->output;
+	}
 	return nullptr;
 }

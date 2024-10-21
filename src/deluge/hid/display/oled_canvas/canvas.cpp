@@ -18,6 +18,7 @@
 #include "canvas.h"
 #include "definitions_cxx.hpp"
 #include "gui/fonts/fonts.h"
+#include "storage/flash_storage.h"
 
 using deluge::hid::display::oled_canvas::Canvas;
 
@@ -493,6 +494,32 @@ void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t end
 			*currentPos ^= currentRowMask;
 			currentPos++;
 		}
+
+		currentRowMask = 0xFF;
+	}
+}
+
+/// inverts just the left edge
+void Canvas::invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
+	if (!FlashStorage::accessibilityMenuHighlighting) {
+		return invertArea(xMin, width, startY, endY);
+	}
+
+	int32_t firstRowY = startY >> 3;
+	int32_t lastRowY = endY >> 3;
+
+	uint8_t currentRowMask = (255 << (startY & 7));
+	uint8_t lastRowMask = (255 >> (7 - (endY & 7)));
+
+	// For each row
+	for (int32_t rowY = firstRowY; rowY <= lastRowY; rowY++) {
+
+		if (rowY == lastRowY) {
+			currentRowMask &= lastRowMask;
+		}
+
+		uint8_t* __restrict__ leftEdgePos = &image_[rowY][xMin];
+		*leftEdgePos ^= currentRowMask;
 
 		currentRowMask = 0xFF;
 	}

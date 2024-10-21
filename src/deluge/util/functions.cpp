@@ -26,8 +26,11 @@
 #include "hid/display/display.h"
 #include "hid/encoders.h"
 #include "modulation/arpeggiator.h"
+#include "processing/audio_output.h"
 #include "processing/sound/sound.h"
+#include "util/lookuptables/lookuptables.h"
 #include <cmath>
+#include <cstdint>
 #include <string.h>
 
 extern "C" {
@@ -154,7 +157,7 @@ int32_t getParamNeutralValue(int32_t p) {
 	}
 }
 
-void makeParameterRangeConstants() {
+void functionsInit() {
 
 	for (int32_t p = 0; p < kNumParams; p++) {
 		paramRanges[p] = getParamRange(p);
@@ -578,8 +581,19 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel) {
 		}
 	case OutputType::CV:
 		return "CV / gate";
-	case OutputType::AUDIO:
+	case OutputType::AUDIO: {
+		auto mode = static_cast<AudioOutputMode>(channel);
+		switch (mode) {
+
+		case AudioOutputMode::player:
+			return "Audio Player";
+		case AudioOutputMode::sampler:
+			return "Audio Sampler";
+		case AudioOutputMode::looper:
+			return "Audio Looper";
+		}
 		return "Audio";
+	}
 	default:
 		return "None";
 	}
@@ -780,7 +794,8 @@ char const* lfoTypeToString(LFOType oscType) {
 
 	case LFOType::RANDOM_WALK:
 		return "rwalk";
-
+	case LFOType::WARBLER:
+		return "warbler";
 	default:
 		return "triangle";
 	}
@@ -798,6 +813,9 @@ LFOType stringToLFOType(char const* string) {
 	}
 	else if (!strcmp(string, "sah")) {
 		return LFOType::SAMPLE_AND_HOLD;
+	}
+	else if (!strcmp(string, "warbler")) {
+		return LFOType::WARBLER;
 	}
 	else if (!strcmp(string, "rwalk")) {
 		return LFOType::RANDOM_WALK;
@@ -879,6 +897,8 @@ char const* fxTypeToString(ModFXType fxType) {
 	switch (fxType) {
 	case ModFXType::FLANGER:
 		return "flanger";
+	case ModFXType::WARBLE:
+		return "TapeWarble";
 
 	case ModFXType::CHORUS:
 		return "chorus";
@@ -899,6 +919,9 @@ char const* fxTypeToString(ModFXType fxType) {
 ModFXType stringToFXType(char const* string) {
 	if (!strcmp(string, "flanger")) {
 		return ModFXType::FLANGER;
+	}
+	else if (!strcmp(string, "TapeWarble")) {
+		return ModFXType::WARBLE;
 	}
 	else if (!strcmp(string, "chorus")) {
 		return ModFXType::CHORUS;
@@ -1493,7 +1516,7 @@ int32_t fastPythag(int32_t x, int32_t y) {
 		x = a;
 	}
 
-	int32_t divisor = x >> 8;
+	int32_t divisor = x << 8;
 	if (divisor == 0) {
 		return 0;
 	}
@@ -1969,32 +1992,6 @@ int32_t getWhichKernel(int32_t phaseIncrement) {
 
 		return whichKernel;
 	}
-}
-
-void dissectIterationDependence(int32_t probability, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor) {
-	int32_t value = (probability & 127) - kNumProbabilityValues - 1;
-	int32_t whichRepeat;
-
-	int32_t tryingWhichDivisor;
-
-	for (tryingWhichDivisor = 2; tryingWhichDivisor <= 8; tryingWhichDivisor++) {
-		if (value < tryingWhichDivisor) {
-			*getWhichIterationWithinDivisor = value;
-			break;
-		}
-
-		value -= tryingWhichDivisor;
-	}
-
-	*getDivisor = tryingWhichDivisor;
-}
-
-int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDivisor) {
-	int32_t value = iterationWithinDivisor;
-	for (int32_t i = 2; i < divisor; i++) {
-		value += i;
-	}
-	return value + 1 + kNumProbabilityValues;
 }
 
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {

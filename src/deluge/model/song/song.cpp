@@ -169,12 +169,11 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	paramsInAutomationMode = false;
 
-	// default to off
-	midiLoopback = false;
-
 	// Setup reverb temp variables
 	reverbRoomSize = (float)30 / 50;
 	reverbDamp = (float)36 / 50;
+	reverbHPF = 0;
+	reverbLPF = (float)50 / 50;
 	reverbWidth = 1;
 	reverbPan = 0;
 	reverbSidechainVolume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
@@ -508,7 +507,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 				    modelStack->addTimelineCounter(instrumentClip);
 				if (instrumentClip->isScaleModeClip()) {
 					if (clip->output->type == OutputType::MIDI_OUT
-					    && ((NonAudioInstrument*)clip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+					    && ((NonAudioInstrument*)clip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
 						// Must not transpose MIDI clips that are routed to transpose, ie note rows
 						// stay exactly the same.
 						// Just have to scroll the clip so that the change in song root note
@@ -648,7 +647,7 @@ void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspo
 
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
 		if (!affectMIDITranspose && instrumentClip->output->type == OutputType::MIDI_OUT
-		    && ((NonAudioInstrument*)instrumentClip->output)->channel == MIDI_CHANNEL_TRANSPOSE) {
+		    && ((NonAudioInstrument*)instrumentClip->output)->getChannel() == MIDI_CHANNEL_TRANSPOSE) {
 			// Must not transpose MIDI clips that are routed to transpose.
 			continue;
 		}
@@ -1122,7 +1121,6 @@ weAreInArrangementEditorOrInClipInstance:
 	globalEffectable.writeAttributesToFile(writer, false);
 
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("midiLoopback", midiLoopback);
 	writer.writeAttribute("songGridScrollX", songGridScrollX);
 	writer.writeAttribute("songGridScrollY", songGridScrollY);
 	writer.writeAttribute("sessionLayout", sessionLayout);
@@ -1140,14 +1138,20 @@ weAreInArrangementEditorOrInClipInstance:
 	uint32_t roomSize = AudioEngine::reverb.getRoomSize() * (uint32_t)2147483648u;
 	uint32_t damping = AudioEngine::reverb.getDamping() * (uint32_t)2147483648u;
 	uint32_t width = AudioEngine::reverb.getWidth() * (uint32_t)2147483648u;
+	uint32_t hpf = AudioEngine::reverb.getHPF() * (uint32_t)2147483648u;
+	uint32_t lpf = AudioEngine::reverb.getLPF() * (uint32_t)2147483648u;
 
 	roomSize = std::min(roomSize, (uint32_t)2147483647);
 	damping = std::min(damping, (uint32_t)2147483647);
 	width = std::min(width, (uint32_t)2147483647);
+	hpf = std::min(hpf, (uint32_t)2147483647);
+	lpf = std::min(lpf, (uint32_t)2147483647);
 
 	writer.writeAttribute("roomSize", roomSize);
 	writer.writeAttribute("dampening", damping);
 	writer.writeAttribute("width", width);
+	writer.writeAttribute("hpf", hpf);
+	writer.writeAttribute("lpf", lpf);
 	writer.writeAttribute("pan", AudioEngine::reverbPan);
 	writer.writeAttribute("model", util::to_underlying(model));
 	writer.writeOpeningTagEnd();
@@ -1323,10 +1327,9 @@ Error Song::readFromFile(Deserializer& reader) {
 
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
 
-	// reverb mode
-	if (song_firmware_version < FirmwareVersion::official({4, 1, 4})) {
-		AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
-	}
+	// reverb mode is freeverb for songs that predate having multiple options. New songs will set it to mutable anyway
+	// so this is only used as a fallback
+	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
 
 	if (!reader.match('{'))
 		return Error::FILE_CORRUPTED;
@@ -1359,6 +1362,14 @@ Error Song::readFromFile(Deserializer& reader) {
 						}
 						reverbWidth = (float)widthInt / 2147483648u;
 						reader.exitTag("width");
+					}
+					else if (!strcmp(tagName, "hpf")) {
+						reverbHPF = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
+						reader.exitTag("hpf");
+					}
+					else if (!strcmp(tagName, "lpf")) {
+						reverbLPF = (float)reader.readTagOrAttributeValueInt() / 2147483648u;
+						reader.exitTag("lpf");
 					}
 					else if (!strcmp(tagName, "pan")) {
 						reverbPan = reader.readTagOrAttributeValueInt();
@@ -1600,11 +1611,6 @@ unknownTag:
 			else if (!strcmp(tagName, "affectEntire")) {
 				affectEntire = reader.readTagOrAttributeValueInt();
 				reader.exitTag("affectEntire");
-			}
-
-			else if (!strcmp(tagName, "midiLoopback")) {
-				midiLoopback = reader.readTagOrAttributeValueInt();
-				reader.exitTag("midiLoopback");
 			}
 
 			else if (!strcmp(tagName, "lastSelectedParamID")) {
@@ -2140,7 +2146,7 @@ skipInstance:
 		if (thisOutput->type == OutputType::AUDIO) {
 			auto ao = (AudioOutput*)thisOutput;
 			if (ao->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
-				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex), ao->echoing);
+				ao->setOutputRecordingFrom(getOutputFromIndex(ao->outputRecordingFromIndex));
 			}
 		}
 		// If saved before V2.1, set sample-based synth instruments to linear interpolation, cos that's how it was
@@ -2415,8 +2421,10 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
+	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
+	// don't need to
 	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
-	                                              delayWorkingState);
+	                                              delayWorkingState, true);
 
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
@@ -3070,7 +3078,7 @@ int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::MIDI_OUT) {
 			MIDIInstrument* instrument = (MIDIInstrument*)output;
-			if (instrument->channel == channel) {
+			if (instrument->getChannel() == channel) {
 				int32_t suffix = instrument->channelSuffix;
 				if (suffix < -1 || suffix >= 26) {
 					continue; // Just for safety
@@ -3296,6 +3304,27 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 		((MelodicInstrument*)oldOutput)->midiInput.clear();
 	}
 
+	// if we're replacing the same output type
+	if (newOutput->type == oldOutput->type) {
+		// Migrate any midi learned params for synth and kit clip preset changes
+		// For kit clips it will migrate only kit affect entire midi learned params
+		// Scenario:
+		// - you create a clip
+		// - you midi learn a controller to that clip's params
+		// - you then go to change the preset for that clip
+		// - you expect that you can continue controlling the same params for the new preset
+		Sound* oldSound = (Sound*)oldOutput->toModControllable();
+		if (oldSound) {
+			int32_t numKnobs = oldSound->midiKnobArray.getNumElements();
+			if (numKnobs) {
+				Sound* newSound = (Sound*)newOutput->toModControllable();
+				newSound->midiKnobArray.cloneFrom(&oldSound->midiKnobArray);
+				oldSound->midiKnobArray.deleteAtIndex(0, numKnobs);
+				oldSound->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+			}
+		}
+	}
+
 	Output* outputRecordingOldOutput = oldOutput->getOutputRecordingThis();
 
 	outputClipInstanceListIsCurrentlyInvalid = true;
@@ -3375,7 +3404,7 @@ traverseClips:
 	// Put the newInstrument into the master list
 	*prevPointer = newOutput;
 	if (outputRecordingOldOutput) {
-		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput, true);
+		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput);
 	}
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
@@ -3530,47 +3559,18 @@ Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t cha
 
 	if (searchNonHibernating) {
 		for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-			if (thisOutput->type == outputType) {
-
-				bool match;
-
-				if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
-					match = !strcasecmp(name, thisOutput->name.get())
-					        && !strcasecmp(dirPath, ((Instrument*)thisOutput)->dirPath.get());
-				}
-
-				else {
-					match = (((NonAudioInstrument*)thisOutput)->channel == channel
-					         && (outputType == OutputType::CV
-					             || ((MIDIInstrument*)thisOutput)->channelSuffix == channelSuffix));
-				}
-
-				if (match) {
-					return (Instrument*)thisOutput;
-				}
+			bool match = thisOutput->matchesPreset(outputType, channel, channelSuffix, name, dirPath);
+			if (match) {
+				return (Instrument*)thisOutput;
 			}
 		}
 	}
 
 	if (searchHibernating) {
 		for (Output* thisOutput = firstHibernatingInstrument; thisOutput; thisOutput = thisOutput->next) {
-			if (thisOutput->type == outputType) {
-
-				bool match;
-
-				if (outputType == OutputType::SYNTH || outputType == OutputType::KIT) {
-					match = !strcasecmp(name, thisOutput->name.get())
-					        && !strcasecmp(dirPath, ((Instrument*)thisOutput)->dirPath.get());
-				}
-
-				else {
-					match = (((NonAudioInstrument*)thisOutput)->channel == channel
-					         && ((MIDIInstrument*)thisOutput)->channelSuffix == channelSuffix);
-				}
-
-				if (match) {
-					return (Instrument*)thisOutput;
-				}
+			bool match = thisOutput->matchesPreset(outputType, channel, channelSuffix, name, dirPath);
+			if (match) {
+				return (Instrument*)thisOutput;
 			}
 		}
 	}
@@ -3927,7 +3927,7 @@ bool Song::doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_
 
 			Instrument* instrument = (Instrument*)clip->output;
 
-			if (instrument->type == outputType && ((NonAudioInstrument*)instrument)->channel == slot
+			if (instrument->type == outputType && ((NonAudioInstrument*)instrument)->getChannel() == slot
 			    && (outputType == OutputType::CV || ((MIDIInstrument*)instrument)->channelSuffix == subSlot)) {
 				return true;
 			}
@@ -4312,7 +4312,7 @@ MIDIInstrument* Song::grabHibernatingMIDIInstrument(int32_t channel, int32_t cha
 		toReturn->setActiveClip(nullptr, PgmChangeSend::NEVER); // Not really necessary?
 		toReturn->inValidState = false;
 
-		toReturn->channel = channel;
+		toReturn->setChannel(channel);
 		toReturn->channelSuffix = channelSuffix;
 	}
 	return toReturn;
@@ -4642,8 +4642,8 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
 
-		int32_t oldChannel = oldNonAudioInstrument->channel;
-		int32_t newChannel = oldNonAudioInstrument->channel;
+		int32_t oldChannel = oldNonAudioInstrument->getChannel();
+		int32_t newChannel = oldNonAudioInstrument->getChannel();
 
 		int32_t oldChannelSuffix, newChannelSuffix;
 		if (outputType == OutputType::MIDI_OUT) {
@@ -4654,7 +4654,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 		// CV
 		if (outputType == OutputType::CV) {
 			do {
-				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
+				newChannel = CVInstrument::navigateChannels(newChannel, offset);
 
 				if (newChannel == oldChannel) {
 cantDoIt:
@@ -4668,7 +4668,7 @@ cantDoIt:
 		// Or MIDI
 		else {
 
-			oldNonAudioInstrument->channel = -1; // Get it out of the way
+			oldNonAudioInstrument->setChannel(-1); // Get it out of the way
 
 			do {
 				newChannelSuffix += offset;
@@ -4690,14 +4690,14 @@ cantDoIt:
 				}
 
 				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
-					oldNonAudioInstrument->channel = oldChannel; // Put it back
+					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
 					goto cantDoIt;
 				}
 
 			} while (
 			    currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, NULL, NULL, false));
 
-			oldNonAudioInstrument->channel = oldChannel; // Put it back, before switching notes off etc
+			oldNonAudioInstrument->setChannel(oldChannel); // Put it back, before switching notes off etc
 		}
 
 		if (oldNonAudioInstrument->getActiveClip() && playbackHandler.isEitherClockActive()) {
@@ -4706,7 +4706,7 @@ cantDoIt:
 
 		// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change
 		// the existing Instrument object!
-		oldNonAudioInstrument->channel = newChannel;
+		oldNonAudioInstrument->setChannel(newChannel);
 		if (outputType == OutputType::MIDI_OUT) {
 			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 		}
@@ -4818,7 +4818,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 	// MIDI / CV
 	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
 
-		int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : NUM_CV_CHANNELS;
+		int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : kNumCVInstrumentChannels;
 
 		while (true) {
 
@@ -4826,7 +4826,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 				break;
 			}
 
-			newSlot = (newSlot + 1) & (numChannels - 1);
+			newSlot = (newSlot + 1) % numChannels;
 			newSubSlot = -1;
 
 			// If we've searched all channels...
@@ -4984,7 +4984,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 		return NULL;
 	}
 
-	AudioOutput* newOutput = new (outputMemory) AudioOutput();
+	auto* newOutput = new (outputMemory) AudioOutput();
 	newOutput->name.set(&newName);
 
 	// Set input channel to previously used one. If none selected, see what's in Song
@@ -5106,7 +5106,7 @@ void Song::getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const*
 Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Availability availabilityRequirement,
                                                   int16_t newSlot, int8_t newSubSlot,
                                                   bool* instrumentWasAlreadyInSong) {
-	int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : NUM_CV_CHANNELS;
+	int32_t numChannels = (newOutputType == OutputType::MIDI_OUT) ? 16 : kNumCVInstrumentChannels;
 	Instrument* newInstrument;
 	int32_t oldSlot = newSlot;
 

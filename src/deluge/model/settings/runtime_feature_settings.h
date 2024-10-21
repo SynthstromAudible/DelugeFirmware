@@ -57,14 +57,12 @@ enum RuntimeFeatureSettingType : uint32_t {
 	DisplayNornsLayout,
 	ShiftIsSticky,
 	LightShiftLed,
-	EnableGrainFX,
 	EnableDxShortcuts,
 	EmulatedDisplay,
 	EnableKeyboardViewSidebarMenuExit,
 	EnableLaunchEventPlayhead,
 	DisplayChordKeyboard,
 	AlternativePlaybackStartBehaviour,
-	AccessibilityShortcuts,
 	EnableGridViewLoopPads,
 	MaxElement // Keep as boundary
 };

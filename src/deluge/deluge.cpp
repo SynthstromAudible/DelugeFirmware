@@ -65,6 +65,7 @@
 #include "storage/storage_manager.h"
 #include "task_scheduler.h"
 #include "util/misc.h"
+#include "util/pack.h"
 #include <stdlib.h>
 
 #if AUTOMATED_TESTER_ENABLED
@@ -656,21 +657,17 @@ void mainLoop() {
 #endif
 	}
 }
-
-bool checkOLED() {
+extern "C" int32_t deluge_main(void) {
 	// Piggyback off of bootloader DMA setup.
 	uint32_t oledSPIDMAConfig = (0b1101000 | (OLED_SPI_DMA_CHANNEL & 7));
 	bool have_oled = ((DMACn(OLED_SPI_DMA_CHANNEL).CHCFG_n & oledSPIDMAConfig) == oledSPIDMAConfig);
-	return have_oled;
-}
 
-void initPads(bool have_oled) {
-
+	// Give the PIC some startup instructions
 	if (have_oled) {
 		PIC::enableOLED();
 	}
 
-	PIC::setDebounce(20); // Set debounce time (mS)
+	PIC::setDebounce(20); // Set debounce time (mS) to...
 
 	PadLEDs::setRefreshTime(23);
 	PIC::setMinInterruptInterval(8);
@@ -678,45 +675,51 @@ void initPads(bool have_oled) {
 
 	PIC::setUARTSpeed();
 	PIC::flush();
-}
 
-void initAnalogIO() {
+	functionsInit();
+
+#if AUTOMATED_TESTER_ENABLED
+	AutomatedTester::init();
+#endif
+
+	currentPlaybackMode = &session;
+
 	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, 1); // Switch it off (1 is off for open-drain)
-	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);
+	setPinAsOutput(BATTERY_LED.port, BATTERY_LED.pin);    // Battery LED control
 
 	setOutputState(SYNCED_LED.port, SYNCED_LED.pin, 0); // Switch it off
-	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);
+	setPinAsOutput(SYNCED_LED.port, SYNCED_LED.pin);    // Synced LED
 
+	// Codec control
 	setPinAsOutput(CODEC.port, CODEC.pin);
 	setOutputState(CODEC.port, CODEC.pin, 0); // Switch it off
 
+	// Speaker / amp control
 	setPinAsOutput(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin);
 	setOutputState(SPEAKER_ENABLE.port, SPEAKER_ENABLE.pin, 0); // Switch it off
 
-	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin);
-	setPinAsInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);
-	setPinAsInput(MIC_DETECT.port, MIC_DETECT.pin);
+	setPinAsInput(HEADPHONE_DETECT.port, HEADPHONE_DETECT.pin); // Headphone detect
+	setPinAsInput(LINE_IN_DETECT.port, LINE_IN_DETECT.pin);     // Line in detect
+	setPinAsInput(MIC_DETECT.port, MIC_DETECT.pin);             // Mic detect
 
-	setPinMux(VOLT_SENSE.port, VOLT_SENSE.pin, 1);
+	setPinMux(VOLT_SENSE.port, VOLT_SENSE.pin, 1); // Analog input for voltage sense
 
+	// Trigger clock input
 	setPinMux(ANALOG_CLOCK_IN.port, ANALOG_CLOCK_IN.pin, 2);
 
+	// Line out detect pins
 	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
-	// Setup audio output on SSI0
-	ssiInit(0, 1);
-}
-
-void init_OLED_and_CV(bool have_oled) {
+	// SPI for CV
 	R_RSPI_Create(SPI_CHANNEL_CV,
 	              have_oled ? 10000000 // Higher than this would probably work... but let's stick to the OLED
 	                                   // datasheet's spec of 100ns (10MHz).
 	                        : 30000000,
 	              0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
-	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);
-	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3);
+	setPinMux(SPI_CLK.port, SPI_CLK.pin, 3);   // CLK
+	setPinMux(SPI_MOSI.port, SPI_MOSI.pin, 3); // MOSI
 
 	if (have_oled) {
 		// If OLED sharing SPI channel, have to manually control SSL pin.
@@ -725,21 +728,61 @@ void init_OLED_and_CV(bool have_oled) {
 
 		setupSPIInterrupts();
 		oledDMAInit();
-		setupOLED();
+		setupOLED(); // Set up OLED now
 		display = new deluge::hid::display::OLED;
 	}
 	else {
-		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3);
+		setPinMux(SPI_SSL.port, SPI_SSL.pin, 3); // SSL
 		display = new deluge::hid::display::SevenSegment;
 	}
-
 	// remember the physical display type
 	deluge::hid::display::have_oled_screen = have_oled;
-}
 
-void maybeFactoryReset() {
-	PIC::requestFirmwareVersion();
-	PIC::resendButtonStates();
+	// Setup audio output on SSI0
+	ssiInit(0, 1);
+
+#if RECORD_TEST_MODE == 1
+	makeTestRecording();
+#endif
+
+	encoders::init();
+
+#if TEST_GENERAL_MEMORY_ALLOCATION
+	GeneralMemoryAllocator::get().test();
+#endif
+
+	init_crc_table();
+
+	// Setup for gate output
+	cvEngine.init();
+
+	// Wait for PIC Uart to flush out. Could this help Ron R with his Deluge sometimes not booting? (No probably wasn't
+	// that.) Otherwise didn't seem necessary.
+	PIC::waitForFlush();
+
+	PIC::setupForPads();
+	setOutputState(CODEC.port, CODEC.pin, 1); // Enable codec
+
+	AudioEngine::init();
+
+#if HARDWARE_TEST_MODE
+	ramTestLED();
+#endif
+
+	audioFileManager.init();
+
+	// Setup SPIBSC. Crucial that this only be done now once everything else is running, because I've injected graphics
+	// and audio routines into the SPIBSC wait routines, so that has to be running
+	setPinMux(4, 2, 2);
+	setPinMux(4, 3, 2);
+	setPinMux(4, 4, 2);
+	setPinMux(4, 5, 2);
+	setPinMux(4, 6, 2);
+	setPinMux(4, 7, 2);
+	initSPIBSC(); // This will run the audio routine! Ideally, have external RAM set up by now.
+
+	PIC::requestFirmwareVersion(); // Request PIC firmware version
+	PIC::resendButtonStates();     // Tell PIC to re-send button states
 	PIC::flush();
 
 	// Check if the user is holding down the select knob to do a factory reset
@@ -786,10 +829,56 @@ void maybeFactoryReset() {
 			return 0;
 		}
 	});
-}
+
+	FlashStorage::readSettings();
+
+	runtimeFeatureSettings.init();
+
+	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
+	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
+		deluge::hid::display::swapDisplayType();
+	}
+
+	usbLock = 1;
+	openUSBHost();
+
+	// If nothing was plugged in to us as host, we'll go peripheral
+	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
+	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then,
+	// that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
+	if (!anythingInitiallyAttachedAsUSBHost) {
+		D_PRINTLN("switching from host to peripheral");
+		closeUSBHost();
+		openUSBPeripheral();
+	}
+
+	usbLock = 0;
+
+	// Hopefully we can read these files now
+	runtimeFeatureSettings.readSettingsFromFile();
+	MIDIDeviceManager::readDevicesFromFile();
+	midiFollow.readDefaultsFromFile();
+	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
+	setupBlankSong(); // we always need to do this
+	addConditionalTask(setupStartupSong, 100, isCardReady, "load startup song");
+
+#ifdef TEST_VECTOR
+	NoteVector noteVector;
+	noteVector.test();
+#endif
+
+#ifdef TEST_VECTOR_SEARCH_MULTIPLE
+	NoteVector noteVector;
+	noteVector.testSearchMultiple();
+#endif
+
+#ifdef TEST_VECTOR_DUPLICATES
+	NoteVector noteVector;
+	noteVector.testDuplicates();
+#endif
 
 #ifdef TEST_SD_WRITE
-void testSdWrite() {
+
 	FIL fil; // File object
 	FATFS fs;
 	DIR dp;
@@ -806,8 +895,7 @@ void testSdWrite() {
 		int32_t fileSize = (uint32_t)getNoise() % 1000000;
 
 		char fileName[20];
-		strcpy(fileName, "TEST/");
-		intToString(fileNumber, &fileName[5], 4);
+		strcpy(fineName, "TEST/") intToString(fileNumber, &fileName[5], 4);
 		strcat(fileName, ".TXT");
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
@@ -834,90 +922,14 @@ void testSdWrite() {
 
 		count++;
 	}
-}
-#endif // TEST_SD_WRITE
-
-void initUSB() {
-	usbLock = 1;
-	openUSBHost();
-	// If nothing was plugged in to us as host, we'll go peripheral
-	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
-	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then,
-	// that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
-	if (!anythingInitiallyAttachedAsUSBHost) {
-		D_PRINTLN("switching from host to peripheral");
-		closeUSBHost();
-		openUSBPeripheral();
-	}
-
-	usbLock = 0;
-}
-
-void loadSettings() {
-
-	FlashStorage::readSettings();
-	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
-
-	runtimeFeatureSettings.init();
-}
-
-void startupFromSDFiles();
-extern "C" int32_t deluge_main(void) {
-
-	// HARDWARE SETUP
-
-	bool have_oled = checkOLED(); // Detects OLED Screen by DMA settings
-
-	initPads(have_oled);           // Handled by PIC Microcontroller
-	makeParameterRangeConstants(); // Do at compile-time? Constexpr? (not for performance but for tidyness...)
-
-	initAnalogIO(); // General Purpose (GPIO) pins: analog (line, mic, headphone) ports, battery monitoring, some leds
-
-	encoders::init(); // Rotary encoders also handled by GPIO pins
-
-	init_OLED_and_CV(have_oled); // OLED and CV share an SPI (serial peripheral interface) channel
-
-	cvEngine.init(have_oled); // CV setup
-
-	// INIT AUDIO AND MIDI
-
-	currentPlaybackMode = &session; // ?
-	// we told it to flush earlier, wait for that to finish
-	PIC::waitForFlush();
-	PIC::setupForPads();
-	setOutputState(CODEC.port, CODEC.pin, 1); // Enable Audio Output
-
-	AudioEngine::init();
-
-	audioFileManager.init();
-	// Set up "serial flash memory". May run routineForSD? There's no tasks in it yet though so it'll just busy wait
-	initSPIBSC();
-
-	PIC::requestFirmwareVersion(); // Request PIC firmware version
-	PIC::resendButtonStates();     // Tell PIC to re-send button states
-	PIC::flush();
-	// LOAD STUFF
-	maybeFactoryReset(); // Check if the user is holding down the select knob to do a factory reset
-
-	loadSettings(); // Load User Settings from Flash and SD Card, reset to defaults if requested
-	initUSB();      // USB MIDI: If nothing was plugged in to us as host, we'll go peripheral
-
-	setupBlankSong(); // we always need to do this
-
-	// when the card is ready, read the xml settings files and potentially the startup song
-	addConditionalTask(startupFromSDFiles, 100, isCardReady, "boot time sd reading");
-
-	// PREPARE FOR MAIN LOOP
+#endif
 
 	inputRoutine();
 
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
-	sdRoutineLock = false; // Allow SD routine to start happening
-
-	// START MAIN LOOP
-
 	D_PRINTLN("going into main loop");
+	sdRoutineLock = false; // Allow SD routine to start happening
 
 #ifdef USE_TASK_MANAGER
 	registerTasks();
@@ -926,15 +938,6 @@ extern "C" int32_t deluge_main(void) {
 	mainLoop();
 #endif
 	return 0;
-}
-void startupFromSDFiles() {
-	runtimeFeatureSettings.readSettingsFromFile();
-	MIDIDeviceManager::readDevicesFromFile();
-	midiFollow.readDefaultsFromFile();
-	if (runtimeFeatureSettings.get(EmulatedDisplay) == OnBoot) {
-		hid::display::swapDisplayType();
-	}
-	setupStartupSong();
 }
 
 bool inSpamMode = false;
@@ -983,7 +986,7 @@ extern "C" void yieldingRoutineForSD(RunCondition until) {
 	yield(until);
 	sdRoutineLock = false;
 }
-
+enum class UIStage { oled, readEnc, readButtons };
 /// this function is used as a busy wait loop for long SD reads, and while swapping songs
 extern "C" void routineForSD(void) {
 
@@ -999,20 +1002,27 @@ extern "C" void routineForSD(void) {
 
 	sdRoutineLock = true;
 	ignoreForStats();
+	static UIStage step = UIStage::oled;
 	AudioEngine::logAction("from routineForSD()");
 	AudioEngine::routine();
-
-	uiTimerManager.routine();
-
-	if (display->haveOLED()) {
-		oledRoutine();
+	switch (step) {
+	case UIStage::oled:
+		if (display->haveOLED()) {
+			oledRoutine();
+		}
+		PIC::flush();
+		step = UIStage::readEnc;
+		break;
+	case UIStage::readEnc:
+		encoders::readEncoders();
+		encoders::interpretEncoders(true);
+		step = UIStage::readButtons;
+		break;
+	case UIStage::readButtons:
+		readButtonsAndPads();
+		step = UIStage::oled;
+		break;
 	}
-	PIC::flush();
-
-	encoders::readEncoders();
-	encoders::interpretEncoders(true);
-	readButtonsAndPads();
-	doAnyPendingUIRendering();
 
 	sdRoutineLock = false;
 }

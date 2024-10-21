@@ -22,7 +22,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/context_menu/clear_song.h"
-#include "gui/context_menu/clip_settings/launch_style.h"
+#include "gui/context_menu/clip_settings/clip_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -59,6 +59,7 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence.h"
 #include "model/drum/drum.h"
+#include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
@@ -158,14 +159,14 @@ doEndMidiLearnPressSession:
 				endMidiLearnPressSession();
 			}
 		}
-		else if (currentUIMode == UI_MODE_NONE) {
+		else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_RECORD_COUNT_IN) {
 			if (on) {
 				// If shift button, toggle metronome
 				if (Buttons::isShiftButtonPressed()) {
 					playbackHandler.toggleMetronomeStatus();
 				}
-				// Otherwise, normal - tap tempo
-				else {
+				// Otherwise, normal - tap tempo, but not during record count in
+				else if (currentUIMode == UI_MODE_NONE) {
 					playbackHandler.tapTempoButtonPress();
 				}
 			}
@@ -179,13 +180,7 @@ doEndMidiLearnPressSession:
 		}
 
 		if (on) {
-			if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN) {
-				thingPressedForMidiLearn = MidiLearn::NONE;
-				shouldSaveSettingsAfterMidiLearn = false;
-				currentUIMode = UI_MODE_MIDI_LEARN;
-				midiLearnFlash();
-				indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1);
-			}
+			startMIDILearn();
 		}
 		else {
 			endMIDILearn();
@@ -445,6 +440,16 @@ possiblyRevert:
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+void View::startMIDILearn() {
+	if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN) {
+		thingPressedForMidiLearn = MidiLearn::NONE;
+		shouldSaveSettingsAfterMidiLearn = false;
+		currentUIMode = UI_MODE_MIDI_LEARN;
+		midiLearnFlash();
+		indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1);
+	}
 }
 
 void View::endMIDILearn() {
@@ -1843,7 +1848,7 @@ char const* View::getReverbPresetDisplayName(int32_t preset) {
 }
 
 void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
-	int32_t channel, channelSuffix;
+	int32_t channel{0}, channelSuffix{0};
 	bool editedByUser = true;
 	if (output->type != OutputType::AUDIO) {
 		Instrument* instrument = (Instrument*)output;
@@ -1854,9 +1859,12 @@ void View::displayOutputName(Output* output, bool doBlink, Clip* clip) {
 			// No break
 
 		case OutputType::CV:
-			channel = ((NonAudioInstrument*)instrument)->channel;
+			channel = ((NonAudioInstrument*)instrument)->getChannel();
 			break;
 		}
+	}
+	else {
+		channel = static_cast<int32_t>(((AudioOutput*)output)->mode);
 	}
 
 	drawOutputNameFromDetails(output->type, channel, channelSuffix, output->name.get(), output->name.isEmpty(),
@@ -1901,16 +1909,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		bool isGridView =
 		    (getCurrentUI() == &sessionView && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid);
 
-		if (isGridView) {
-			if (outputType == OutputType::AUDIO) {
-				led = LED::CROSS_SCREEN_EDIT;
-			}
-			else {
-				setLedState(LED::CROSS_SCREEN_EDIT, false);
-			}
-			blinkLed(led);
-		}
-		else if (outputType != OutputType::AUDIO) {
+		if (outputType != OutputType::AUDIO) {
 			blinkLed(led);
 		}
 
@@ -1921,9 +1920,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 
 		setLedState(LED::KEYBOARD, (clip && clip->onKeyboardScreen));
 		setLedState(LED::SCALE_MODE, (clip && clip->inScaleMode && clip->output->type != OutputType::KIT));
-		if (!isGridView) {
-			setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
-		}
+		setLedState(LED::CROSS_SCREEN_EDIT, (clip && clip->wrapEditing));
 	}
 
 	// hook to render display for OLED and 7SEG when in Automation View
@@ -2057,13 +2054,23 @@ yesAlignRight:
 	}
 	else if (outputType == OutputType::CV) {
 		if (display->haveOLED()) {
-			intToString(channel + 1, buffer);
+			if (channel < both) {
+				intToString(channel + 1, buffer);
+			}
+			else {
+				sprintf(buffer, "1 and 2");
+			}
 oledOutputBuffer:
 			nameToDraw = buffer;
 			goto oledDrawString;
 		}
 		else {
-			display->setTextAsNumber(channel + 1, 255, doBlink);
+			if (channel < both) {
+				display->setTextAsNumber(channel + 1, 255, doBlink);
+			}
+			else {
+				display->setText("Both");
+			}
 		}
 	}
 }
@@ -2139,7 +2146,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
 
 		NonAudioInstrument* oldNonAudioInstrument = (NonAudioInstrument*)oldInstrument;
-		int32_t newChannel = oldNonAudioInstrument->channel;
+		int32_t newChannel = oldNonAudioInstrument->getChannel();
 		int32_t newChannelSuffix;
 		if (outputType == OutputType::MIDI_OUT) {
 			newChannelSuffix = ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix;
@@ -2150,9 +2157,9 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		// CV
 		if (outputType == OutputType::CV) {
 			while (true) {
-				newChannel = (newChannel + offset) & (NUM_CV_CHANNELS - 1);
+				newChannel = CVInstrument::navigateChannels(newChannel, offset);
 
-				if (newChannel == oldNonAudioInstrument->channel) {
+				if (newChannel == oldNonAudioInstrument->getChannel()) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
@@ -2179,7 +2186,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			int32_t oldChannel = newChannel;
 
 			if (oldInstrumentCanBeReplaced) {
-				oldNonAudioInstrument->channel = -1; // Get it out of the way
+				oldNonAudioInstrument->setChannel(-1); // Get it out of the way
 			}
 
 			while (true) {
@@ -2217,7 +2224,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 				if (newChannel == oldChannel
 				    && newChannelSuffix == ((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix) {
-					oldNonAudioInstrument->channel = oldChannel; // Put it back
+					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
 				}
@@ -2239,7 +2246,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				}
 			}
 
-			oldNonAudioInstrument->channel = oldChannel; // Put it back
+			oldNonAudioInstrument->setChannel(oldChannel); // Put it back
 		}
 
 		newInstrument =
@@ -2260,7 +2267,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 			// Because these are just MIDI / CV instruments and we're changing them for all Clips, we can just change
 			// the existing Instrument object!
-			oldNonAudioInstrument->channel = newChannel;
+			oldNonAudioInstrument->setChannel(newChannel);
 			if (outputType == OutputType::MIDI_OUT) {
 				((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
 			}
@@ -2597,7 +2604,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
-			context_menu::clip_settings::launchStyle.clip = clip;
+			context_menu::clip_settings::clipSettings.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}

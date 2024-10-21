@@ -187,6 +187,9 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	}
 	writer.writeFIL = created.value().inner();
 	writer.reset();
+	if (!writeJsonFlag) {
+		writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	}
 	return Error::NONE;
 }
 
@@ -544,7 +547,7 @@ Instrument* StorageManager::createNewNonAudioInstrument(OutputType outputType, i
 	else {
 		newInstrument = new (instrumentMemory) CVInstrument();
 	}
-	newInstrument->channel = slot;
+	newInstrument->setChannel(slot);
 
 	return newInstrument;
 }

@@ -163,6 +163,16 @@ The Settings menu contains the following menu hierarchy:
 				- Momentary Modwheel (MMOD)
 					- Disabled (OFF)
 					- Enabled (ON)
+		- Clip Type (CLIP)
+			- New Clip Type (TYPE)
+				- Synth
+				- Kit
+				- Midi
+				- CV
+				- Audio
+			- Use Last Clip Type (LAST)
+				- Disabled (OFF)
+				- Enabled (ON)
 	- Automation (AUTO)
 		- Interpolation (INTE)
 			- Disabled (OFF)
@@ -385,6 +395,21 @@ NOTE: These options can change depending on how your default resolution is set
 	- KB View Sidebar Menu Exit (EXIT)
 		- OFF
 		- ON
+	- Launch Event Playhead (PLAY)
+		- OFF
+		- ON
+	- Chord Keyboards (CHRD)
+		- OFF
+		- ON
+	- Alternative Playback Start Behaviour (STAR)
+		- OFF
+		- ON
+	- Accessibility Shortcuts (ACCE)
+		- OFF
+		- ON
+	- Grid View Loop Pads (LOOP)
+		- OFF
+		- ON
 </details>
 
 Firmware Version (FIRM)
@@ -392,9 +417,29 @@ Firmware Version (FIRM)
 </details>
 
 <details>
+<summary>Song Clip Settings Menu</summary>
+
+The Clip Settings menu is accessible from `Song Grid View` by pressing and holding a `CLIP` and pressing the `SELECT ENCODER`.
+
+The Clip Settings menu is accessible from `Song Row View` by pressing and holding the `CLIP MUTE` pad in the first column of the sidebar and pressing the `SELECT ENCODER`.
+
+The Clip settings menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Convert to Audio (CONV)</summary></details>
+<details><summary>Clip Mode (MODE)</summary>
+
+	- INFINITE (INF)
+	- FILL
+	- ONCE
+</details>
+<details><summary>Clip Name (NAME)</summary></details>
+</details>
+
+<details>
 <summary>Song Menu</summary>
 
-The Song menu is accessible from Arranger View and Song View by pressing on the `SELECT ENCODER`
+The Song menu is accessible from `Arranger View` and `Song View` by pressing on the `SELECT ENCODER`
 
 The Song menu contains the following menu hierarchy:
 
@@ -495,22 +540,22 @@ The Song menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Decimation (DECI)
 		- Bitcrush (CRUS)
 </details>
 <details><summary>Swing Interval (SWII)</summary></details>
-<details><summary>MIDI Loopback (M LP)</summary>
-
-	- Disabled (OFF)
-	- Enabled (ON)
-</details>	
 <details><summary>Configure Macros (MACR)</summary></details>
+<details><summary>Midi Learn (MIDI)</summary></details>
 <details><summary>Stem Export (STEM)</summary>
 
 	- Start Export (STEM)
@@ -522,6 +567,12 @@ The Song menu contains the following menu hierarchy:
 			- Disabled (OFF)
 			- Enabled (ON)
 		- Song FX (SONG)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Offline Rendering (OFFR)
+			- Disabled (OFF)
+			- Enabled (ON)
+		- Export Master Arrangement (MSTR)
 			- Disabled (OFF)
 			- Enabled (ON)
 </details>
@@ -732,11 +783,15 @@ The Sound menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Saturation (SATU)
 		- Decimation (DECI)
@@ -1074,11 +1129,15 @@ The Kit FX menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Decimation (DECI)
 		- Bitcrush (CRUS)
@@ -1293,6 +1352,175 @@ The CV menu contains the following menu hierarchy:
 	- Normal (NORM)
 	- Poly / Finger / MPE (MPE)
 </details>
+<details><summary>CV 2 Source (CV2) </summary>
+	NOTE: This menu only becomes available if you set the CV / Gate channel to `1 AND 2 (BOTH)`
+
+	- OFF
+	- Y
+	- Aftertouch
+	- Velocity
+</details>
+
+<details><summary>Play Direction (DIRE) </summary>
+
+	- Forward
+	- Reversed
+	- Ping-Pong
+</details>
+
+</details>
+
+<details>
+<summary>Instrument Clip Note Editor Menu</summary>
+
+The Note Editor menu is accessible from Instrument Clips (Synth / Kit / MIDI / CV) by holding a `NOTE` pressing on the `SELECT ENCODER`.
+
+This menu enables you to edit note specific parameters for a note in a selected step. If there are multiple notes in a step (e.g. it is a blurred note), it will adjust all notes in that step.
+
+The Note Editor menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Note Velocity (VELO)</summary>
+</details>
+<details><summary>Note Probability (PROB)</summary>
+</details>
+<details><summary>Note Iterance (ITER)</summary>
+
+	- 1 OF 2 (1OF2)
+	- 2 OF 2 (2OF2)
+ 
+	- 1 OF 3 (1OF3)
+	- 2 OF 3 (2OF3)
+	- 3 OF 3 (3OF3)
+    
+	- 1 OF 4 (1OF4)
+	- 2 OF 4 (2OF4)
+	- 3 OF 4 (3OF4)
+	- 4 OF 4 (4OF4)
+	
+	- 1 OF 5 (1OF5)
+	- 2 OF 5 (2OF5)
+	- 3 OF 5 (3OF5)
+	- 4 OF 5 (4OF5)
+	- 5 OF 5 (5OF5)
+     
+	- 1 OF 6 (1OF6)
+	- 2 OF 6 (2OF6)
+	- 3 OF 6 (3OF6)
+	- 4 OF 6 (4OF6)
+	- 5 OF 6 (5OF6)
+	- 6 OF 6 (6OF6)
+   
+	- 1 OF 7 (1OF7)
+	- 2 OF 7 (2OF7)
+	- 3 OF 7 (3OF7)
+	- 4 OF 7 (4OF7)
+	- 5 OF 7 (5OF7)
+	- 6 OF 7 (6OF7)
+	- 7 OF 7 (7OF7)
+    
+	- 1 OF 8 (1OF8)
+	- 2 OF 8 (2OF8)
+	- 3 OF 8 (3OF8)
+	- 4 OF 8 (4OF8)
+	- 5 OF 8 (5OF8)
+	- 6 OF 8 (6OF8)
+	- 7 OF 8 (7OF8)
+	- 8 OF 8 (8OF8)
+
+	- CUSTOM
+		- Divisor (DIV)
+		- Iteration 1 (IT 1)
+		- Iteration 2 (IT 2)
+		- Iteration 3 (IT 3)
+		- Iteration 4 (IT 4)
+		- Iteration 5 (IT 5)
+		- Iteration 6 (IT 6)
+		- Iteration 7 (IT 7)
+		- Iteration 8 (IT 1)
+</details>
+<details><summary>Note Fill (FILL)</summary>
+
+	- OFF
+	- NOT FILL
+	- FILL
+</details>
+
+</details>
+
+<details>
+<summary>Instrument Clip Note Row Editor Menu</summary>
+
+The Note Row Editor menu is accessible from Instrument Clips (Synth / Kit / MIDI / CV) by holding an `AUDITION PAD` and pressing on the `SELECT ENCODER`.
+
+This menu enables you to edit note row specific parameters for a selected note row. Adjusting a note row parameter will change that parameter for all notes in the note row.
+
+The Note Row Editor menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Row Probability (PROB)</summary>
+</details>
+<details><summary>Row Iterance (ITER)</summary>
+
+	- 1 OF 2 (1OF2)
+	- 2 OF 2 (2OF2)
+ 
+	- 1 OF 3 (1OF3)
+	- 2 OF 3 (2OF3)
+	- 3 OF 3 (3OF3)
+    
+	- 1 OF 4 (1OF4)
+	- 2 OF 4 (2OF4)
+	- 3 OF 4 (3OF4)
+	- 4 OF 4 (4OF4)
+	
+	- 1 OF 5 (1OF5)
+	- 2 OF 5 (2OF5)
+	- 3 OF 5 (3OF5)
+	- 4 OF 5 (4OF5)
+	- 5 OF 5 (5OF5)
+     
+	- 1 OF 6 (1OF6)
+	- 2 OF 6 (2OF6)
+	- 3 OF 6 (3OF6)
+	- 4 OF 6 (4OF6)
+	- 5 OF 6 (5OF6)
+	- 6 OF 6 (6OF6)
+   
+	- 1 OF 7 (1OF7)
+	- 2 OF 7 (2OF7)
+	- 3 OF 7 (3OF7)
+	- 4 OF 7 (4OF7)
+	- 5 OF 7 (5OF7)
+	- 6 OF 7 (6OF7)
+	- 7 OF 7 (7OF7)
+    
+	- 1 OF 8 (1OF8)
+	- 2 OF 8 (2OF8)
+	- 3 OF 8 (3OF8)
+	- 4 OF 8 (4OF8)
+	- 5 OF 8 (5OF8)
+	- 6 OF 8 (6OF8)
+	- 7 OF 8 (7OF8)
+	- 8 OF 8 (8OF8)
+
+	- CUSTOM
+		- Divisor (DIV)
+		- Iteration 1 (IT 1)
+		- Iteration 2 (IT 2)
+		- Iteration 3 (IT 3)
+		- Iteration 4 (IT 4)
+		- Iteration 5 (IT 5)
+		- Iteration 6 (IT 6)
+		- Iteration 7 (IT 7)
+		- Iteration 8 (IT 1)
+</details>
+<details><summary>Row Fill (FILL)</summary>
+
+	- OFF
+	- NOT FILL
+	- FILL
+</details>
 <details><summary>Play Direction (DIRE) </summary>
 
 	- Forward
@@ -1326,7 +1554,10 @@ The Audio Clip menu contains the following menu hierarchy:
 	- Bal. Input (Monitoring) (BALA.)
 	- Deluge Mix (Pre FX) (MIX)
 	- Deluge Output (Post FX) (OUTP)
+	- Specific Track (TRAK)
+	- Specific Track (FX Processing) (TRAK.)
 </details>
+<details><summary>Specific Track (TRAK)</summary></details>
 <details><summary>Master (MASTR)</summary>
 
 	- Volume (VOLU)
@@ -1422,6 +1653,8 @@ The Audio Clip menu contains the following menu hierarchy:
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
 		- Pan
+		- HPF (if Mutable is selected)
+		- LPF (if Mutable is selected)
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
 	
@@ -1432,11 +1665,15 @@ The Audio Clip menu contains the following menu hierarchy:
 			- Chorus (CHOR)
 			- Phaser (PHAS)
 			- Stereo Chorus (S.CHO)
-			- Grain (GRAI) (if enabled in Community Features menu)
+			- Warble (WARB)
+			- Grain (GRAI)
 		- Rate
-		- Depth (DEPT) (if Chorus, Phaser or Grain is selected)
-		- Feedback (FEED) (if Flanger, Phaser or Grain is selected)
-		- Offset (OFFS) (if Chorus or Grain is selected)
+		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Amount (Amnt) if Grain is selected
+		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+			- Displayed as Grain Type (GRTY) if Grain is selected
+		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
+			- Displayed as Grain Size (SIZE) if Grain is selected
 	- Distortion (DIST)
 		- Saturation (SATU)
 		- Decimation (DECI)
