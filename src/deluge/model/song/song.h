@@ -396,6 +396,7 @@ public:
 	// Reverb params to be stored here between loading and song being made the active one
 	dsp::Reverb::Model model;
 	float reverbRoomSize;
+	float reverbHPF;
 	float reverbDamp;
 	float reverbWidth;
 	int32_t reverbPan;
