@@ -10,12 +10,13 @@ FetchContent_Declare(argon
 )
 FetchContent_MakeAvailable(argon)
 
+add_compile_definitions(NDEBUG)
 set(NE10_ASM_OPTIMIZATION ON)
 set(NE10_TARGET_ARCH armv7)
 
 FetchContent_Declare(Ne10
-  GIT_REPOSITORY https://github.com/projectNe10/Ne10
-  GIT_TAG master
+  GIT_REPOSITORY https://github.com/stellar-aria/Ne10
+  GIT_TAG bare_metal
   GIT_SHALLOW 1
 )
 FetchContent_MakeAvailable(Ne10)
