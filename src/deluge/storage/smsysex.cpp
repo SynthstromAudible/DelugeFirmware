@@ -167,6 +167,7 @@ void smSysex::closeFile(MIDIDevice* device, JsonDeserializer& reader) {
 // Returns a block of directory entries as a Json array.
 void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 	String path;
+	path.set("/");
 	uint32_t lineOffset = 0;
 	uint32_t linesWanted = 20;
 
