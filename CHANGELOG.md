@@ -80,6 +80,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
 - Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Song Grid View Green Mode` by moving `Midi Learn Clip/Section Launch` actions to the `MIDI LEARN` menu mentioned above.
+- Fixed unexpected behaviour for `Synth` and `Kit` clips that would cause `MIDI LEARNED PARAMS` to get lost when changing presets for Synth / Kits. 
+  - Note: for `Kit` clips it will migrate midi learn for `Kit Affect Entire` params only.
 - Added new learnable global command `LOAD NEXT SONG`, which when received, it will load the next song within the folder of the current song.
 
 ## c1.2.0 Chopin
@@ -99,6 +101,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>FM Synth Filters</ins>
 - Added filters in FM synth mode. They're set to OFF by default, enable by changing them to any other mode using the menu or db/oct shortcut.
+
+#### <ins>Reverb</ins>
+- Fixed bug with Reverb HPF not saving to / loading from the Song
 
 ### MIDI
 
