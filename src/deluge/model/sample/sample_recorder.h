@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/stereo_sample.h"
 #include "fatfs/fatfs.hpp"
 #include <cstddef>
@@ -152,4 +153,5 @@ private:
 	void detachSample();
 	Error truncateFileDownToSize(uint32_t newFileSize);
 	Error writeOneCompletedCluster();
+	AbsValueFollower envelopeFollower{};
 };
