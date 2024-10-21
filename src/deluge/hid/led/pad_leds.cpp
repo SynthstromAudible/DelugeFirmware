@@ -291,10 +291,10 @@ RGB prepareColour(int32_t x, int32_t y, RGB colourSource) {
 	return colourSource;
 }
 
-void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t green, uint8_t blue) {
-	image[yDisplay][sideBarX + kDisplayWidth][0] = red;
-	image[yDisplay][sideBarX + kDisplayWidth][1] = green;
-	image[yDisplay][sideBarX + kDisplayWidth][2] = blue;
+void writeToGrid(uint8_t xDisplay, uint8_t yDisplay, uint8_t red, uint8_t green, uint8_t blue) {
+	image[yDisplay][xDisplay][0] = red;
+	image[yDisplay][xDisplay][1] = green;
+	image[yDisplay][xDisplay][2] = blue;
 }
 
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
