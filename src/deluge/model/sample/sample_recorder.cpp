@@ -1109,7 +1109,6 @@ doFinishCapturing:
 					writePos = writePosNow;
 					numSamplesCaptured += numSamplesThisCycle;
 					sample->audioStartDetected = true;
-					envelopeFollower.reset();
 				}
 			}
 		}
