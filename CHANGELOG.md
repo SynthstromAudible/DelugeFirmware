@@ -82,6 +82,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Song Grid View Green Mode` by moving `Midi Learn Clip/Section Launch` actions to the `MIDI LEARN` menu mentioned above.
 - Fixed unexpected behaviour for `Synth` and `Kit` clips that would cause `MIDI LEARNED PARAMS` to get lost when changing presets for Synth / Kits. 
   - Note: for `Kit` clips it will migrate midi learn for `Kit Affect Entire` params only.
+- Added new learnable global command `LOAD NEXT SONG`, which when received, it will load the next song within the folder of the current song.
 
 ## c1.2.0 Chopin
 
