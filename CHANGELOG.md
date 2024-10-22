@@ -171,13 +171,21 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### General
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
-- Added ability to set `CLIP NAMES`. MIDI, SYNTH and KIT clips can now be named. When in a the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view, you are now able to scroll through the clip names when holding a pad.
+- Added ability to set `CLIP NAMES`. MIDI, SYNTH and KIT clips can now be named. When in a the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view with an OLED display, you are now able to scroll through the clip names when holding a clip pad and turning `SELECT` encoder.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.  
 - Fixed a bug where you could not turn `RECORDING OFF` while auditioning a note in an `INSTRUMENT CLIP`. With this fix you can now record drone notes when using `LINEAR RECORDING`.
 
 ##### Velocity View
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
+
+##### Scales
+- Added learning a user specified scale.
+  - Hold `LEARN` and press `SCALE` while in clip view. Notes from current clip & all scale mode clips are learned as the "USER" scale. This scale is part of the normal scale rotation, accessible with `SHIFT + SCALE`, and saved as part of the song. If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
+  - If you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing preset scales, it will be learned as a user scale, overwriting the previous USER scale.
+- Added `ACTIVE SCALES` menu.
+  - `SONG > ACTIVE SCALES` toggles scales on and off from the `SHIFT + SCALE` rotation for the current song. Active scales are saved as part of the song. On 7-segment display dot indicates that the named scale is active, lack of dot indicates it has been disabled.
+  - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
 
 #### <ins>Song View</ins>
 
