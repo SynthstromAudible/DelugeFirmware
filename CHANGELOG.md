@@ -16,6 +16,9 @@
     - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
+#### <ins>Saving</ins>
+- Fixed `7SEG` bug where saving a Song / Preset would propose an incorrect new Song / Preset name based on the number of the current Song / Preset (e.g. a song name `185` would get proposed as `185_186` instead of `185 2`).
+
 #### <ins>Recording</ins>
 - Added `THRESHOLD RECORDING` default setting which can be turned on in the `SETTINGS > RECORDING > THRESHOLD RECORDING (THRE) > MODE` submenu
   - When this is enabled, recording of external audio input (e.g. Line In / Microphone) will only begin when it detects an audio signal according the Recording Threshold mode that has been set. There are four Threshold Recording modes that can be selected from:
