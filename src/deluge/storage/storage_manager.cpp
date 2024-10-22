@@ -418,6 +418,56 @@ paramManagersMissing:
 	return Error::NONE;
 }
 
+Error StorageManager::openMidiDeviceDefinitionFile(FilePointer* filePointer) {
+
+	AudioEngine::logAction("openMidiDeviceDefinitionFile");
+	if (!filePointer->sclust) {
+		return Error::FILE_NOT_FOUND;
+	}
+	char const* firstTagName = "midiDevice";
+	char const* altTagName = "";
+
+	Error error = openXMLFile(filePointer, smDeserializer, firstTagName, altTagName);
+	return error;
+}
+
+// Returns error status
+Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, FilePointer* filePointer,
+                                                   String* fileName, bool updateFileName) {
+	midiInstrument->loadDeviceDefinitionFile = false;
+
+	AudioEngine::logAction("loadMidiDeviceDefinitionFile");
+	D_PRINTLN("opening midi device definition file -  %s %s  from FP  %lu", fileName->get(),
+	          (int32_t)filePointer->sclust);
+
+	Error error = openMidiDeviceDefinitionFile(filePointer);
+	if (error != Error::NONE) {
+		D_PRINTLN("opening midi device definition file failed -  %s", fileName->get());
+		return error;
+	}
+
+	AudioEngine::logAction("readMidiDeviceDefinitionFile");
+
+	error = midiInstrument->readDeviceDefinitionFile(smDeserializer, false);
+
+	FRESULT fileSuccess = activeDeserializer->closeFIL();
+
+	// If that somehow didn't work...
+	if (error != Error::NONE || fileSuccess != FR_OK) {
+		D_PRINTLN("reading midi device definition file failed -  %s", fileName->get());
+		if (!fileSuccess) {
+			error = Error::SD_CARD;
+		}
+
+		return error;
+	}
+	else if (updateFileName) {
+		midiInstrument->deviceDefinitionFileName.set(fileName->get());
+	}
+
+	return Error::NONE;
+}
+
 /**
  * Special function to read a synth preset into a sound drum
  */

@@ -1020,6 +1020,19 @@ giveUsedError:
 	instrumentToReplace = newInstrument;
 	display->removeWorkingAnimation();
 
+	// for the instrument we just loaded, let's check if there's any midi labels we should load
+	if (newInstrument->type == OutputType::MIDI_OUT) {
+		MIDIInstrument* midiInstrument = (MIDIInstrument*)newInstrument;
+		if (midiInstrument->loadDeviceDefinitionFile) {
+			FilePointer tempfp;
+			bool fileExists = StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.get(), &tempfp);
+			if (fileExists) {
+				StorageManager::loadMidiDeviceDefinitionFile(midiInstrument, &tempfp,
+				                                             &midiInstrument->deviceDefinitionFileName, false);
+			}
+		}
+	}
+
 	return Error::NONE;
 }
 

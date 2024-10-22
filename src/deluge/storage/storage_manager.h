@@ -46,6 +46,7 @@ class MIDIParamCollection;
 class ParamManager;
 class SoundDrum;
 class FileItem;
+class MIDIInstrument;
 
 class SMSharedData {};
 
@@ -351,6 +352,10 @@ Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParam
 Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
                              Instrument** getInstrument, FilePointer* filePointer, String* name, String* dirPath);
 Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
+
+Error openMidiDeviceDefinitionFile(FilePointer* filePointer);
+Error loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, FilePointer* filePointer, String* fileName,
+                                   bool updateFileName = true);
 
 Drum* createNewDrum(DrumType drumType);
 Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
