@@ -194,24 +194,26 @@ The Settings menu contains the following menu hierarchy:
 	- Swing Interval (SWII)
 	- Key
 	- Scale (SCAL)
-		- Major (MAJO)
-		- Minor (MINO)
-		- Dorian (DORI)
-		- Phrygian (PHRY)
-		- Lydian (LYDI)
-		- Mixolydian (MIXO)
-		- Locrian (LOCR)
-		- Melodic Minor (MELO)
-		- Harmonic Minor (HARM)
-		- Hungarian Minor (HUNG)
-		- Marva (MARV)
-		- Arabian (ARAB)
-		- Whole Tone (WHOL)
-		- Blues (BLUE)
-		- Pentatonic Minor (PENT)
-		- Hirajoshi (HIRA)
-		- Random (RAND)
-		- None
+		- Init Scale
+		- Active Scales
+			- Major (MAJO)
+			- Minor (MINO)
+			- Dorian (DORI)
+			- Phrygian (PHRY)
+			- Lydian (LYDI)
+			- Mixolydian (MIXO)
+			- Locrian (LOCR)
+			- Melodic Minor (MELO)
+			- Harmonic Minor (HARM)
+			- Hungarian Minor (HUNG)
+			- Marva (MARV)
+			- Arabian (ARAB)
+			- Whole Tone (WHOL)
+			- Blues (BLUE)
+			- Pentatonic Minor (PENT)
+			- Hirajoshi (HIRA)
+			- Random (RAND)
+			- None
 	- Velocity (VELO)
 	- Resolution (RESO)
 	- Bend Range (BEND)
@@ -336,6 +338,12 @@ NOTE: These options can change depending on how your default resolution is set
 		- Conditional (COND)
 		- Enabled (ON)
 		- Disabled (OFF)
+	- Threshold Recording (THRE)
+		- Mode
+			- Disabled (OFF)
+			- Low
+			- Medium
+			- High
 </details>
 
 <details><summary>Community Features (FEAT)</summary>
@@ -554,6 +562,35 @@ The Song menu contains the following menu hierarchy:
 		- Bitcrush (CRUS)
 </details>
 <details><summary>Swing Interval (SWII)</summary></details>
+<details><summary>Active Scales</summary>
+	
+	- Major (MAJO)
+	- Minor (MINO)
+	- Dorian (DORI)
+	- Phrygian (PHRY)
+	- Lydian (LYDI)
+	- Mixolydian (MIXO)
+	- Locrian (LOCR)
+	- Melodic Minor (MELO)
+	- Harmonic Minor (HARM)
+	- Hungarian Minor (HUNG)
+	- Marva (MARV)
+	- Arabian (ARAB)
+	- Whole Tone (WHOL)
+	- Blues (BLUE)
+	- Pentatonic Minor (PENT)
+	- Hirajoshi (HIRA)
+	- Random (RAND)
+	- None
+</details>
+<details><summary>Threshold Recording (THRE)</summary>
+	- Mode
+		- Disabled (OFF)
+		- Conditional (COND)
+		- Low
+		- Medium
+		- High
+</details>
 <details><summary>Configure Macros (MACR)</summary></details>
 <details><summary>Midi Learn (MIDI)</summary></details>
 <details><summary>Stem Export (STEM)</summary>
