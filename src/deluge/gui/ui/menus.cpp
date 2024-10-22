@@ -130,6 +130,7 @@
 #include "gui/menu_item/performance_session_view/editing_mode.h"
 #include "gui/menu_item/record/countin.h"
 #include "gui/menu_item/record/quantize.h"
+#include "gui/menu_item/record/threshold_mode.h"
 #include "gui/menu_item/reverb/damping.h"
 #include "gui/menu_item/reverb/hpf.h"
 #include "gui/menu_item/reverb/lpf.h"
@@ -770,6 +771,15 @@ ToggleBool recordMarginsMenu{STRING_FOR_LOOP_MARGINS, STRING_FOR_LOOP_MARGINS, F
 record::CountIn recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN};
 monitor::Mode monitorModeMenu{STRING_FOR_SAMPLING_MONITORING, STRING_FOR_MONITORING};
 
+record::ThresholdMode defaultThresholdRecordingModeMenu{STRING_FOR_MODE, record::ThresholdMode::DEFAULT};
+
+Submenu defaultThresholdRecordingSubmenu{
+    STRING_FOR_THRESHOLD_RECORDING,
+    {
+        &defaultThresholdRecordingModeMenu,
+    },
+};
+
 Submenu recordSubmenu{
     STRING_FOR_RECORDING,
     {
@@ -777,6 +787,7 @@ Submenu recordSubmenu{
         &recordQuantizeMenu,
         &recordMarginsMenu,
         &monitorModeMenu,
+        &defaultThresholdRecordingSubmenu,
     },
 };
 
@@ -1382,6 +1393,14 @@ menu_item::Submenu stemExportMenu{
 };
 
 ActiveScaleMenu activeScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::SONG};
+record::ThresholdMode songThresholdRecordingModeMenu{STRING_FOR_MODE, record::ThresholdMode::SONG};
+
+Submenu songThresholdRecordingSubmenu{
+    STRING_FOR_THRESHOLD_RECORDING,
+    {
+        &songThresholdRecordingModeMenu,
+    },
+};
 
 song::ConfigureMacros configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
 song::MidiLearn midiLearnMenu{STRING_FOR_MIDI_LEARN};
@@ -1395,6 +1414,7 @@ menu_item::Submenu soundEditorRootMenuSongView{
         &globalFXMenu,
         &swingIntervalMenu,
         &activeScaleMenu,
+        &songThresholdRecordingSubmenu,
         &configureSongMacrosMenu,
         &midiLearnMenu,
         &stemExportMenu,
