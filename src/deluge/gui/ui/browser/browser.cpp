@@ -746,7 +746,7 @@ noNumberYet:
 					goto tryAgain;
 				}
 				numberStartPos = endSearchString.getLength() + 1;
-				error = endSearchString.concatenate(display->haveOLED() ? " :" : "_:");
+				error = endSearchString.concatenate(" :");
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating; // See above comment.
 				}
