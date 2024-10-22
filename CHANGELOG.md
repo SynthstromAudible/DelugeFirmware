@@ -20,6 +20,9 @@
 #### <ins>FM Synth Filters</ins>
 - Added filters in FM synth mode. They're set to OFF by default, enable by changing them to any other mode using the menu or db/oct shortcut.
 
+#### <ins>Reverb</ins>
+- Fixed bug with Reverb HPF not saving to / loading from the Song
+
 ### MIDI
 
 #### <ins>Sysex</ins>
