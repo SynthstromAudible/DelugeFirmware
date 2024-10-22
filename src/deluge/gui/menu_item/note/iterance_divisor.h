@@ -15,55 +15,56 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/note/selected_note.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
 #include "model/clip/instrument_clip.h"
-#include "model/instrument/kit.h"
-#include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
-#include "model/song/song.h"
+#include <cstdint>
 
 namespace deluge::gui::menu_item::note {
-class Fill final : public SelectedNote {
+class IteranceDivisor final : public SelectedNote {
 public:
 	using SelectedNote::SelectedNote;
 
-	[[nodiscard]] int32_t getMaxValue() const override { return FillMode::FILL; }
-	[[nodiscard]] int32_t getMinValue() const override { return FillMode::OFF; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
+	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 
 	/// @brief Begin an editing session with this menu item.
 	///
 	/// Should make sure the menu's internal state matches the system and redraw the display.
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override { readValueAgain(); }
 
-	void readCurrentValue() final override {
+	void readCurrentValue() override {
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
 		if (leftMostNote) {
-			this->setValue(leftMostNote->getFill());
+			Iterance iterance = leftMostNote->getIterance();
+			if (iterance == kDefaultIteranceValue) {
+				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
+				// so we can make edits from here
+				iterance = kCustomIteranceValue;
+			}
+			int32_t divisor = iterance.divisor;
+			this->setValue(std::clamp<int32_t>(divisor, 1, 8));
 		}
 	}
-
-	void selectEncoderAction(int32_t offset) final override {
-		instrumentClipView.adjustNoteFillWithOffset(offset);
-		readValueAgain();
-		if (currentSong->isFillModeActive()) {
-			uiNeedsRendering(&instrumentClipView);
+	void writeCurrentValue() override {
+		int32_t val = this->getValue();
+		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
+		if (leftMostNote) {
+			Iterance iterance = leftMostNote->getIterance();
+			if (iterance == kDefaultIteranceValue) {
+				// if we end up here in this menu, convert OFF to the default CUSTOM value 1of1
+				// so we can make edits from here
+				iterance = kCustomIteranceValue;
+			}
+			int32_t mask = (1 << val) - 1; // Creates a mask where the first 'divisor' bits are 1
+			// Wipe the bits whose index is greater than the current divisor value
+			int32_t newIteranceSteps = ((iterance.toInt() & 0xFF) & mask);
+			instrumentClipView.adjustNoteIteranceWithFinalValue(Iterance{(uint8_t)val, newIteranceSteps});
 		}
 	}
-
-	void drawPixelsForOled() final override {
-		deluge::hid::display::OLED::main.drawStringCentred(instrumentClipView.getFillString(this->getValue()),
-		                                                   18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX,
-		                                                   kTextHugeSizeY);
-	}
-
-	void drawValue() final override { display->setText(instrumentClipView.getFillString(this->getValue())); }
-
-	void writeCurrentValue() override { ; }
 };
 } // namespace deluge::gui::menu_item::note
