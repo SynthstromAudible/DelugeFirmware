@@ -24,8 +24,9 @@ public:
 	}
 
 	inline void InitApproximate() {
-		argon::Neon64<float> sign = 16.0f;
-		argon::Neon64<float> frequencies = frequencies_;
+		using namespace argon;
+		Neon64<float> sign = 16.0f;
+		Neon64<float> frequencies = frequencies_;
 		frequencies.each_lane([&](float& frequency, int i) {
 			frequency -= 0.25f;
 			if (frequency < 0.0f) {
