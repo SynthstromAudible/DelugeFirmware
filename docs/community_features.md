@@ -262,7 +262,6 @@ as the micromonsta and the dreadbox nymphes.
 - ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
   - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 
-
 #### 3.18 - Select Audio Clip Source and Monitoring
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
@@ -378,6 +377,11 @@ which track to record from. The source can also be selected by pressing a clip's
   - You can also view and temporarily change the current threshold recording setting as follows:
     - Press and hold `RECORD` + turn  `SELECT`
     - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+
+#### 3.35 Polyphony / Voice Count
+- ([#1824]) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing `SELECT` in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under `VOICE (VOIC)`
+  - This menu is also accessible from the `Polyphony Type (POLY)` type menu by selected `Polyphonic` and pressing `SELECT`
+- Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`. 
 
 ## 4. New Features Added
 
@@ -1532,6 +1536,8 @@ different firmware
 [#1607]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1607
 
 [#1739]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1739
+
+[#1824]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1824
 
 [#1846]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1846
 
