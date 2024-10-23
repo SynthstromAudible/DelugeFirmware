@@ -99,6 +99,7 @@ public:
 	/// @return true if this Menu can edit parameters across an entire kit if changed with AFFECT_ENTIRE held down.
 	virtual bool usesAffectEntire() { return false; }
 
+	virtual void exitLearnMode() {}
 	/// @}
 	/// @name Session Management
 	/// @{
