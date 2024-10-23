@@ -989,6 +989,17 @@ constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    /
 constexpr uint32_t kMediumFeedbackAutomationRate = (kSampleRate / 1000) * 150; // 150 ms
 constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    // 40 ms
 
+enum class ThresholdRecordingMode : int8_t {
+	OFF,
+	LOW,
+	MEDIUM,
+	HIGH,
+};
+
+constexpr int8_t kFirstThresholdRecordingMode = util::to_underlying(ThresholdRecordingMode::OFF);
+constexpr int8_t kLastThresholdRecordingMode = util::to_underlying(ThresholdRecordingMode::HIGH);
+constexpr int8_t kNumThresholdRecordingModes = kLastThresholdRecordingMode + 1;
+
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
 	KeyboardLayoutTypeInKey,
