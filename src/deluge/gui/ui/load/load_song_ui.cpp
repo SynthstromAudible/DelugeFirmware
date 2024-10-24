@@ -20,6 +20,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -60,6 +61,8 @@ LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
 	title = "Load song";
+
+	skipAnimations = false;
 }
 
 bool LoadSongUI::opened() {
@@ -78,11 +81,13 @@ gotError:
 		return false;                    // Exit UI instantly
 	}
 
-	currentUIMode = UI_MODE_VERTICAL_SCROLL;
-	PadLEDs::vertical::setupScroll(1, true);
-	scrollingIntoSlot = false;
-	deletedPartsOfOldSong = false;
-	timerCallback(); // Start scrolling animation out of the View
+	if (!skipAnimations) {
+		currentUIMode = UI_MODE_VERTICAL_SCROLL;
+		PadLEDs::vertical::setupScroll(1, true);
+		scrollingIntoSlot = false;
+		deletedPartsOfOldSong = false;
+		timerCallback(); // Start scrolling animation out of the View
+	}
 
 	PadLEDs::clearTickSquares();
 
@@ -108,13 +113,15 @@ gotError:
 
 	focusRegained();
 
-	PadLEDs::vertical::setupScroll(1, false);
-	scrollingIntoSlot = true;
+	if (!skipAnimations) {
+		PadLEDs::vertical::setupScroll(1, false);
+		scrollingIntoSlot = true;
 
-	if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
-		currentUIMode =
-		    UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit of the scroll
-		timerCallback();
+		if (currentUIMode != UI_MODE_VERTICAL_SCROLL) {
+			currentUIMode = UI_MODE_VERTICAL_SCROLL; // Have to reset this again - it might have finished the first bit
+			                                         // of the scroll
+			timerCallback();
+		}
 	}
 
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
@@ -227,9 +234,60 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	return ActionResult::DEALT_WITH;
 }
 
+void LoadSongUI::loadNextSongIfAvailable() {
+	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
+	    || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED
+	    || currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
+	    || currentUIMode == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING || skipAnimations) {
+		// While in the process of loading a song, don't do anything
+		return;
+	}
+
+	skipAnimations = true; // disable animations while auto-loading a song
+	if (openUI(&loadSongUI)) {
+		currentUIMode = UI_MODE_NONE;
+		int32_t currentFileIndexSelected = fileIndexSelected;
+
+		// scroll to the next song
+		LoadUI::selectEncoderAction(1);
+
+		bool songFound = false;
+		do {
+			FileItem* currentFileItem = getCurrentFileItem();
+			if (currentFileItem != nullptr) {
+				// Check if it's a directory...
+				if (currentFileItem->isFolder) {
+					// it is a folder
+					// scroll to the next item
+					LoadUI::selectEncoderAction(1);
+				}
+				else {
+					// if is a file, select it
+					songFound = true;
+					LoadUI::enterKeyPress();
+					performLoad();
+					if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+						runtimeFeatureSettings.writeSettingsToFile();
+					}
+				}
+			}
+		} while (currentFileIndexSelected != fileIndexSelected && !songFound);
+		// in case we wrapped around the whole list of files and didn't find a song,
+		// we just exit without doing anything else
+
+		if (!songFound) {
+			// if song not found, close the UI
+			exitThisUI();
+		}
+
+		// force re-render grid
+		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+	}
+	skipAnimations = false; // re-enable animations
+}
+
 // Before calling this, you must set loadButtonReleased.
 void LoadSongUI::performLoad() {
-
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
@@ -644,7 +702,7 @@ ignoring the file extension.
 
 void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 
-	if (movementDirection) {
+	if (movementDirection && !skipAnimations) {
 		qwertyVisible = false;
 
 		// Start horizontal scrolling
