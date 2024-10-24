@@ -280,7 +280,7 @@ void LoadSongUI::loadNextSongIfAvailable() {
 			exitThisUI();
 		}
 
-		// force re-render display
+		// force re-render grid
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 	skipAnimations = false; // re-enable animations
