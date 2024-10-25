@@ -97,7 +97,10 @@ public:
 
 	char* getBufferPtr() { return writeClusterBuffer; }
 	int32_t bytesWritten();
-	void setMemoryBased() { memoryBased = true; callRoutines = false; }
+	void setMemoryBased() {
+		memoryBased = true;
+		callRoutines = false;
+	}
 
 protected:
 	void resetWriter();

@@ -100,7 +100,7 @@ void init() {
 MIDIDevice* midiDebugDevice = nullptr;
 
 void prependTimeStamp(bool isNewLine) {
-#if JFTRACE
+#if 1 // JFTRACE
 	if (!prependDeltaT)
 		return;
 	if (lastWasNewline) {
@@ -242,7 +242,6 @@ void RTimer::stop(const char* stopLabel) {
 	startTime = endTime;
 #endif
 }
-
 
 void RTimer::stop(int number) {
 #if ENABLE_TEXT_OUTPUT

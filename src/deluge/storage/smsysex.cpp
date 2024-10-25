@@ -7,18 +7,22 @@
 #include "hid/display/seven_segment.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
+#include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/sysex.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
+#include "task_scheduler.h"
 #include "util/containers.h"
 #include "util/pack.h"
 #include <cstring>
-#include "io/debug/print.h"
-
 #define MAX_DIR_LINES 25
 
+extern "C" {
+
+extern uint8_t currentlyAccessingCard;
+}
 DIR sxDIR;
 uint32_t offsetCounter;
 
@@ -164,6 +168,67 @@ void smSysex::closeFile(MIDIDevice* device, JsonDeserializer& reader) {
 	sendMsg(device, jWriter);
 }
 
+void smSysex::deleteFile(MIDIDevice* device, JsonDeserializer& reader) {
+	FRESULT errCode = FRESULT::FR_OK;
+
+	char const* tagName;
+	String path;
+	reader.match('{');
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "path")) {
+			reader.readTagOrAttributeValueString(&path);
+		}
+		else {
+			reader.exitTag();
+		}
+	}
+	reader.match('}');
+
+	const char* pathVal = path.get();
+	const TCHAR* pathTC = (const TCHAR*)pathVal;
+
+	if (pathTC && strlen(pathTC) > 0) {
+		D_PRINTLN(pathTC);
+		errCode = f_unlink(pathTC);
+		startReply(jWriter, reader);
+		jWriter.writeOpeningTag("^delete", false, true);
+		jWriter.writeAttribute("err", errCode);
+		jWriter.closeTag(true);
+		sendMsg(device, jWriter);
+	}
+}
+
+void smSysex::createDirectory(MIDIDevice* device, JsonDeserializer& reader) {
+	FRESULT errCode = FRESULT::FR_OK;
+
+	char const* tagName;
+	String path;
+	reader.match('{');
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "path")) {
+			reader.readTagOrAttributeValueString(&path);
+		}
+		else {
+			reader.exitTag();
+		}
+	}
+	reader.match('}');
+
+	const char* pathVal = path.get();
+	const TCHAR* pathTC = (const TCHAR*)pathVal;
+
+	if (pathTC && strlen(pathTC) > 0) {
+		D_PRINTLN(pathTC);
+		errCode = f_mkdir(pathTC);
+		startReply(jWriter, reader);
+		jWriter.writeOpeningTag("^mkdir", false, true);
+		jWriter.writeAttribute("path", pathVal);
+		jWriter.writeAttribute("err", errCode);
+		jWriter.closeTag(true);
+		sendMsg(device, jWriter);
+	}
+}
+
 // Returns a block of directory entries as a Json array.
 void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 	String path;
@@ -213,7 +278,7 @@ void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 			}
 		}
 	}
-errorFound: ;
+errorFound:;
 	jWriter.reset();
 	jWriter.setMemoryBased();
 	startReply(jWriter, reader);
@@ -249,7 +314,6 @@ errorFound: ;
 	jWriter.closeTag(true);
 	sendMsg(device, jWriter);
 }
-
 
 void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	char const* tagName;
@@ -298,9 +362,9 @@ void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
 				errCode = f_read(&fp->file, readBlockBuffer, size, &actuallyRead);
 				size = actuallyRead;
 				srcAddr = readBlockBuffer;
-			} else {
+			}
+			else {
 				D_PRINTLN("lseek issue: %d", errCode);
-
 			}
 		}
 	}
@@ -389,7 +453,7 @@ void smSysex::writeBlock(MIDIDevice* device, JsonDeserializer& reader) {
 		errCode = FRESULT::FR_NOT_ENABLED;
 	}
 	if (writeBlockBuffer && fp) {
-		//errCode = f_lseek(&fp->file, addr);
+		// errCode = f_lseek(&fp->file, addr);
 		if (errCode == FRESULT::FR_OK) {
 			UINT actuallyWritten = 0;
 			errCode = f_write(&fp->file, writeBlockBuffer, decodedSize, &actuallyWritten);
@@ -407,14 +471,12 @@ void smSysex::writeBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	sendMsg(device, jWriter);
 }
 
-
 void smSysex::doPing(MIDIDevice* device, JsonDeserializer& reader) {
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^ping", false, true);
 	jWriter.closeTag(true);
 	sendMsg(device, jWriter);
 }
-
 
 uint32_t smSysex::decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax) {
 	char zip = 0;
@@ -429,6 +491,11 @@ void smSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	if (len < 3) {
 		return;
 	}
+
+	if (currentlyAccessingCard) {
+		// D_PRINT("** nonzero currentlyAccessingCard noted in sysexReceived");
+	}
+
 	char const* tagName;
 	uint8_t msgSeqNum = data[1];
 	JsonDeserializer parser(data + 2, len - 2);
@@ -456,8 +523,17 @@ void smSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 			writeBlock(device, parser);
 			return; // Already skipped end.
 		}
+		else if (!strcmp(tagName, "delete")) {
+			deleteFile(device, parser);
+			return;
+		}
+		else if (!strcmp(tagName, "mkdir")) {
+			createDirectory(device, parser);
+			return;
+		}
 		else if (!strcmp(tagName, "ping")) {
 			doPing(device, parser);
+			return;
 		}
 		parser.exitTag();
 	}

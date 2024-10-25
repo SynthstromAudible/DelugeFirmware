@@ -839,9 +839,18 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 	}
 }
 
+extern "C" {
+
+extern uint8_t currentlyAccessingCard;
+}
+
 void MidiEngine::checkIncomingUsbMidi() {
 
-	if (!usbCurrentlyInitialized) {
+	if (!usbCurrentlyInitialized
+	    || currentlyAccessingCard != 0) { // hack to avoid SysEx handlers clashing with other sd-card activity.
+		if (currentlyAccessingCard != 0) {
+			// D_PRINTLN("checkIncomingUsbMidi seeing currentlyAccessingCard non-zero");
+		}
 		return;
 	}
 
