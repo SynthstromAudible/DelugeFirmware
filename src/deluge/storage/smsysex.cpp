@@ -229,6 +229,44 @@ void smSysex::createDirectory(MIDIDevice* device, JsonDeserializer& reader) {
 	}
 }
 
+void smSysex::rename(MIDIDevice* device, JsonDeserializer& reader) {
+	FRESULT errCode = FRESULT::FR_OK;
+
+	char const* tagName;
+	String fromName;
+	String toName;
+	reader.match('{');
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "from")) {
+			reader.readTagOrAttributeValueString(&fromName);
+		}
+		else if (!strcmp(tagName, "to")) {
+			reader.readTagOrAttributeValueString(&toName);
+		}
+		else {
+			reader.exitTag();
+		}
+	}
+	reader.match('}');
+
+	const char* fromVal = fromName.get();
+	const TCHAR* fromTC = (const TCHAR*)fromVal;
+	const char* toVal = toName.get();
+	const TCHAR* toTC = (const TCHAR*)toVal;
+
+	if (fromTC && strlen(fromTC) && toTC && strlen(toTC)) {
+		D_PRINTLN(fromTC);
+		D_PRINTLN(toTC);
+		errCode = f_rename(fromTC, toTC);
+		startReply(jWriter, reader);
+		jWriter.writeOpeningTag("^mkdir", false, true);
+		jWriter.writeAttribute("path", toName.get());
+		jWriter.writeAttribute("err", errCode);
+		jWriter.closeTag(true);
+		sendMsg(device, jWriter);
+	}
+}
+
 // Returns a block of directory entries as a Json array.
 void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
 	String path;
@@ -529,6 +567,10 @@ void smSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 		}
 		else if (!strcmp(tagName, "mkdir")) {
 			createDirectory(device, parser);
+			return;
+		}
+		else if (!strcmp(tagName, "rename")) {
+			rename(device, parser);
 			return;
 		}
 		else if (!strcmp(tagName, "ping")) {
