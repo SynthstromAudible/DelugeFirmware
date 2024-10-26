@@ -3311,21 +3311,25 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 
 	// if we're replacing the same output type
 	if (newOutput->type == oldOutput->type) {
-		// Migrate any midi learned params for synth and kit clip preset changes
-		// For kit clips it will migrate only kit affect entire midi learned params
-		// Scenario:
-		// - you create a clip
-		// - you midi learn a controller to that clip's params
-		// - you then go to change the preset for that clip
-		// - you expect that you can continue controlling the same params for the new preset
-		Sound* oldSound = (Sound*)oldOutput->toModControllable();
-		if (oldSound) {
-			int32_t numKnobs = oldSound->midiKnobArray.getNumElements();
-			if (numKnobs) {
-				Sound* newSound = (Sound*)newOutput->toModControllable();
-				newSound->midiKnobArray.cloneFrom(&oldSound->midiKnobArray);
-				oldSound->midiKnobArray.deleteAtIndex(0, numKnobs);
-				oldSound->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+		// exclude MIDI and CV instruments from this
+		// only sound instruments have a midi knob array
+		if (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT) {
+			// Migrate any midi learned params for synth and kit clip preset changes
+			// For kit clips it will migrate only kit affect entire midi learned params
+			// Scenario:
+			// - you create a clip
+			// - you midi learn a controller to that clip's params
+			// - you then go to change the preset for that clip
+			// - you expect that you can continue controlling the same params for the new preset
+			Sound* oldSound = (Sound*)oldOutput->toModControllable();
+			if (oldSound) {
+				int32_t numKnobs = oldSound->midiKnobArray.getNumElements();
+				if (numKnobs) {
+					Sound* newSound = (Sound*)newOutput->toModControllable();
+					newSound->midiKnobArray.cloneFrom(&oldSound->midiKnobArray);
+					oldSound->midiKnobArray.deleteAtIndex(0, numKnobs);
+					oldSound->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+				}
 			}
 		}
 	}
