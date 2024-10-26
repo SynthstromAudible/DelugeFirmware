@@ -194,24 +194,26 @@ The Settings menu contains the following menu hierarchy:
 	- Swing Interval (SWII)
 	- Key
 	- Scale (SCAL)
-		- Major (MAJO)
-		- Minor (MINO)
-		- Dorian (DORI)
-		- Phrygian (PHRY)
-		- Lydian (LYDI)
-		- Mixolydian (MIXO)
-		- Locrian (LOCR)
-		- Melodic Minor (MELO)
-		- Harmonic Minor (HARM)
-		- Hungarian Minor (HUNG)
-		- Marva (MARV)
-		- Arabian (ARAB)
-		- Whole Tone (WHOL)
-		- Blues (BLUE)
-		- Pentatonic Minor (PENT)
-		- Hirajoshi (HIRA)
-		- Random (RAND)
-		- None
+		- Init Scale
+		- Active Scales
+			- Major (MAJO)
+			- Minor (MINO)
+			- Dorian (DORI)
+			- Phrygian (PHRY)
+			- Lydian (LYDI)
+			- Mixolydian (MIXO)
+			- Locrian (LOCR)
+			- Melodic Minor (MELO)
+			- Harmonic Minor (HARM)
+			- Hungarian Minor (HUNG)
+			- Marva (MARV)
+			- Arabian (ARAB)
+			- Whole Tone (WHOL)
+			- Blues (BLUE)
+			- Pentatonic Minor (PENT)
+			- Hirajoshi (HIRA)
+			- Random (RAND)
+			- None
 	- Velocity (VELO)
 	- Resolution (RESO)
 	- Bend Range (BEND)
@@ -336,6 +338,12 @@ NOTE: These options can change depending on how your default resolution is set
 		- Conditional (COND)
 		- Enabled (ON)
 		- Disabled (OFF)
+	- Threshold Recording (THRE)
+		- Mode
+			- Disabled (OFF)
+			- Low
+			- Medium
+			- High
 </details>
 
 <details><summary>Community Features (FEAT)</summary>
@@ -524,11 +532,13 @@ The Song menu contains the following menu hierarchy:
 	- Reverb (REVE)
 		- Amount (AMOU)
   			- Freeverb (FVRB)
-     			- Mutable (MTBL)
+          		- Mutable (MTBL)
 		- Model (MODE)
 		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+  		- HPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
@@ -554,6 +564,35 @@ The Song menu contains the following menu hierarchy:
 		- Bitcrush (CRUS)
 </details>
 <details><summary>Swing Interval (SWII)</summary></details>
+<details><summary>Active Scales</summary>
+	
+	- Major (MAJO)
+	- Minor (MINO)
+	- Dorian (DORI)
+	- Phrygian (PHRY)
+	- Lydian (LYDI)
+	- Mixolydian (MIXO)
+	- Locrian (LOCR)
+	- Melodic Minor (MELO)
+	- Harmonic Minor (HARM)
+	- Hungarian Minor (HUNG)
+	- Marva (MARV)
+	- Arabian (ARAB)
+	- Whole Tone (WHOL)
+	- Blues (BLUE)
+	- Pentatonic Minor (PENT)
+	- Hirajoshi (HIRA)
+	- Random (RAND)
+	- None
+</details>
+<details><summary>Threshold Recording (THRE)</summary>
+	- Mode
+		- Disabled (OFF)
+		- Conditional (COND)
+		- Low
+		- Medium
+		- High
+</details>
 <details><summary>Configure Macros (MACR)</summary></details>
 <details><summary>Midi Learn (MIDI)</summary></details>
 <details><summary>Stem Export (STEM)</summary>
@@ -767,11 +806,13 @@ The Sound menu contains the following menu hierarchy:
 	- Reverb (REVE)
 		- Amount (AMOU)
   			- Freeverb (FVRB)
-     			- Mutable (MTBL)
+          		- Mutable (MTBL)
 		- Model (MODE)
 		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+  		- HPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
@@ -1113,11 +1154,13 @@ The Kit FX menu contains the following menu hierarchy:
 	- Reverb (REVE)
 		- Amount (AMOU)
   			- Freeverb (FVRB)
-     			- Mutable (MTBL)
+          		- Mutable (MTBL)
 		- Model (MODE)
 		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+  		- HPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
@@ -1371,6 +1414,166 @@ The CV menu contains the following menu hierarchy:
 </details>
 
 <details>
+<summary>Instrument Clip Note Editor Menu</summary>
+
+The Note Editor menu is accessible from Instrument Clips (Synth / Kit / MIDI / CV) by holding a `NOTE` pressing on the `SELECT ENCODER`.
+
+This menu enables you to edit note specific parameters for a note in a selected step. If there are multiple notes in a step (e.g. it is a blurred note), it will adjust all notes in that step.
+
+The Note Editor menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Note Velocity (VELO)</summary>
+</details>
+<details><summary>Note Probability (PROB)</summary>
+</details>
+<details><summary>Note Iterance (ITER)</summary>
+
+	- 1 OF 2 (1OF2)
+	- 2 OF 2 (2OF2)
+ 
+	- 1 OF 3 (1OF3)
+	- 2 OF 3 (2OF3)
+	- 3 OF 3 (3OF3)
+    
+	- 1 OF 4 (1OF4)
+	- 2 OF 4 (2OF4)
+	- 3 OF 4 (3OF4)
+	- 4 OF 4 (4OF4)
+	
+	- 1 OF 5 (1OF5)
+	- 2 OF 5 (2OF5)
+	- 3 OF 5 (3OF5)
+	- 4 OF 5 (4OF5)
+	- 5 OF 5 (5OF5)
+     
+	- 1 OF 6 (1OF6)
+	- 2 OF 6 (2OF6)
+	- 3 OF 6 (3OF6)
+	- 4 OF 6 (4OF6)
+	- 5 OF 6 (5OF6)
+	- 6 OF 6 (6OF6)
+   
+	- 1 OF 7 (1OF7)
+	- 2 OF 7 (2OF7)
+	- 3 OF 7 (3OF7)
+	- 4 OF 7 (4OF7)
+	- 5 OF 7 (5OF7)
+	- 6 OF 7 (6OF7)
+	- 7 OF 7 (7OF7)
+    
+	- 1 OF 8 (1OF8)
+	- 2 OF 8 (2OF8)
+	- 3 OF 8 (3OF8)
+	- 4 OF 8 (4OF8)
+	- 5 OF 8 (5OF8)
+	- 6 OF 8 (6OF8)
+	- 7 OF 8 (7OF8)
+	- 8 OF 8 (8OF8)
+
+	- CUSTOM
+		- Divisor (DIV)
+		- Iteration 1 (IT 1)
+		- Iteration 2 (IT 2)
+		- Iteration 3 (IT 3)
+		- Iteration 4 (IT 4)
+		- Iteration 5 (IT 5)
+		- Iteration 6 (IT 6)
+		- Iteration 7 (IT 7)
+		- Iteration 8 (IT 1)
+</details>
+<details><summary>Note Fill (FILL)</summary>
+
+	- OFF
+	- NOT FILL
+	- FILL
+</details>
+
+</details>
+
+<details>
+<summary>Instrument Clip Note Row Editor Menu</summary>
+
+The Note Row Editor menu is accessible from Instrument Clips (Synth / Kit / MIDI / CV) by holding an `AUDITION PAD` and pressing on the `SELECT ENCODER`.
+
+This menu enables you to edit note row specific parameters for a selected note row. Adjusting a note row parameter will change that parameter for all notes in the note row.
+
+The Note Row Editor menu contains the following menu hierarchy:
+
+<blockquote>
+<details><summary>Row Probability (PROB)</summary>
+</details>
+<details><summary>Row Iterance (ITER)</summary>
+
+	- 1 OF 2 (1OF2)
+	- 2 OF 2 (2OF2)
+ 
+	- 1 OF 3 (1OF3)
+	- 2 OF 3 (2OF3)
+	- 3 OF 3 (3OF3)
+    
+	- 1 OF 4 (1OF4)
+	- 2 OF 4 (2OF4)
+	- 3 OF 4 (3OF4)
+	- 4 OF 4 (4OF4)
+	
+	- 1 OF 5 (1OF5)
+	- 2 OF 5 (2OF5)
+	- 3 OF 5 (3OF5)
+	- 4 OF 5 (4OF5)
+	- 5 OF 5 (5OF5)
+     
+	- 1 OF 6 (1OF6)
+	- 2 OF 6 (2OF6)
+	- 3 OF 6 (3OF6)
+	- 4 OF 6 (4OF6)
+	- 5 OF 6 (5OF6)
+	- 6 OF 6 (6OF6)
+   
+	- 1 OF 7 (1OF7)
+	- 2 OF 7 (2OF7)
+	- 3 OF 7 (3OF7)
+	- 4 OF 7 (4OF7)
+	- 5 OF 7 (5OF7)
+	- 6 OF 7 (6OF7)
+	- 7 OF 7 (7OF7)
+    
+	- 1 OF 8 (1OF8)
+	- 2 OF 8 (2OF8)
+	- 3 OF 8 (3OF8)
+	- 4 OF 8 (4OF8)
+	- 5 OF 8 (5OF8)
+	- 6 OF 8 (6OF8)
+	- 7 OF 8 (7OF8)
+	- 8 OF 8 (8OF8)
+
+	- CUSTOM
+		- Divisor (DIV)
+		- Iteration 1 (IT 1)
+		- Iteration 2 (IT 2)
+		- Iteration 3 (IT 3)
+		- Iteration 4 (IT 4)
+		- Iteration 5 (IT 5)
+		- Iteration 6 (IT 6)
+		- Iteration 7 (IT 7)
+		- Iteration 8 (IT 1)
+</details>
+<details><summary>Row Fill (FILL)</summary>
+
+	- OFF
+	- NOT FILL
+	- FILL
+</details>
+<details><summary>Play Direction (DIRE) </summary>
+
+	- Forward
+	- Reversed
+	- Ping-Pong
+</details>
+
+</details>
+
+<details>
 <summary>Audio Clip Menu</summary>
 
 The Audio Clip menu is accessible from Audio clips by pressing on the `SELECT ENCODER`
@@ -1385,17 +1588,12 @@ The Audio Clip menu contains the following menu hierarchy:
 
 	- Disabled (OFF)
 	- Left Input (LEFT)
-	- Left Input (Monitoring) (LEFT.)
 	- Right Input (RIGH)
-	- Right Input (Monitoring) (RIGH.)
 	- Stereo Input (STER)
-	- Stereo Input (Monitoring) (STER.)
 	- Bal. Input (BALA)
-	- Bal. Input (Monitoring) (BALA.)
 	- Deluge Mix (Pre FX) (MIX)
 	- Deluge Output (Post FX) (OUTP)
 	- Specific Track (TRAK)
-	- Specific Track (FX Processing) (TRAK.)
 </details>
 <details><summary>Specific Track (TRAK)</summary></details>
 <details><summary>Master (MASTR)</summary>
@@ -1487,11 +1685,13 @@ The Audio Clip menu contains the following menu hierarchy:
 	- Reverb (REVE)
 		- Amount (AMOU)
   			- Freeverb (FVRB)
-     			- Mutable (MTBL)
+          		- Mutable (MTBL)
 		- Model (MODE)
 		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
 		- Damping (DAMP)
 		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+  		- HPF (if Mutable is Selected)
+  		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)

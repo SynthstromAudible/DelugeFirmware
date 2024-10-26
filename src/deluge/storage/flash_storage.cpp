@@ -183,6 +183,7 @@ enum Entries {
 175: accessibilityMenuHighlighting
 176: default new clip type
 177: use last clip type
+178: use threshold recording
 */
 
 uint8_t defaultScale;
@@ -241,6 +242,8 @@ bool accessibilityMenuHighlighting = true;
 
 OutputType defaultNewClipType = OutputType::SYNTH;
 bool defaultUseLastClipType = true;
+
+ThresholdRecordingMode defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 
 void resetSettings() {
 
@@ -342,6 +345,8 @@ void resetSettings() {
 
 	defaultNewClipType = OutputType::SYNTH;
 	defaultUseLastClipType = true;
+
+	defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 }
 
 void resetMidiFollowSettings() {
@@ -747,6 +752,13 @@ void readSettings() {
 	else {
 		defaultUseLastClipType = buffer[177];
 	}
+
+	if (buffer[178] >= kNumThresholdRecordingModes) {
+		defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
+	}
+	else {
+		defaultThresholdRecordingMode = static_cast<ThresholdRecordingMode>(buffer[178]);
+	}
 }
 
 static bool areMidiFollowSettingsValid(std::span<uint8_t> buffer) {
@@ -1015,6 +1027,8 @@ void writeSettings() {
 
 	buffer[176] = util::to_underlying(defaultNewClipType);
 	buffer[177] = defaultUseLastClipType;
+
+	buffer[178] = util::to_underlying(defaultThresholdRecordingMode);
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

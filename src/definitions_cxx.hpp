@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions.h"
+#include "model/iterance/iterance.h"
 #include "util/misc.h"
 
 #include <cstddef>
@@ -641,11 +642,14 @@ enum class ArmState {
 };
 
 constexpr int32_t kNumProbabilityValues = 20;
-constexpr int32_t kNumIterationValues = 35; // 1of2 to 8of8
+constexpr int32_t kNumIterancePresets = 35;                // 1of2 through 8of8 (indexes 1 through 35)
+constexpr int32_t kCustomIterancePreset = 36;              // The "CUSTOM" iterance value is right after "8of8"
+constexpr Iterance kCustomIteranceValue = Iterance{1, 1};  // "1of1"
+constexpr Iterance kDefaultIteranceValue = Iterance{0, 0}; // 0 means OFF
+constexpr int32_t kDefaultIterancePreset = 0;              // 0 means OFF
 constexpr int32_t kOldFillProbabilityValue = 0;
 constexpr int32_t kOldNotFillProbabilityValue = 128; // This is like the "latched" state of Fill (zero ORed with 128)
 constexpr int32_t kDefaultLiftValue = 64;
-constexpr int32_t kDefaultIteranceValue = 0; // 0 is off
 
 enum FillMode : uint8_t {
 	OFF,
@@ -982,6 +986,17 @@ constexpr uint32_t kShortPressTime = kSampleRate / 2;
 constexpr uint32_t kLowFeedbackAutomationRate = (kSampleRate / 1000) * 500;    // 500 ms
 constexpr uint32_t kMediumFeedbackAutomationRate = (kSampleRate / 1000) * 150; // 150 ms
 constexpr uint32_t kHighFeedbackAutomationRate = (kSampleRate / 1000) * 40;    // 40 ms
+
+enum class ThresholdRecordingMode : int8_t {
+	OFF,
+	LOW,
+	MEDIUM,
+	HIGH,
+};
+
+constexpr int8_t kFirstThresholdRecordingMode = util::to_underlying(ThresholdRecordingMode::OFF);
+constexpr int8_t kLastThresholdRecordingMode = util::to_underlying(ThresholdRecordingMode::HIGH);
+constexpr int8_t kNumThresholdRecordingModes = kLastThresholdRecordingMode + 1;
 
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,

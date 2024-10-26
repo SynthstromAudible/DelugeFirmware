@@ -396,6 +396,8 @@ public:
 	// Reverb params to be stored here between loading and song being made the active one
 	dsp::Reverb::Model model;
 	float reverbRoomSize;
+	float reverbHPF;
+	float reverbLPF;
 	float reverbDamp;
 	float reverbWidth;
 	int32_t reverbPan;
@@ -451,6 +453,11 @@ public:
 	}
 
 	int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
+
+	// Threshold
+	void changeThresholdRecordingMode(int8_t offset);
+	void displayThresholdRecordingMode();
+	ThresholdRecordingMode thresholdRecordingMode;
 
 private:
 	ScaleMapper scaleMapper;

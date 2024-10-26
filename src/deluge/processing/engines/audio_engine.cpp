@@ -1328,6 +1328,7 @@ void getReverbParamsFromSong(Song* song) {
 	reverb.setModel(static_cast<dsp::Reverb::Model>(song->model));
 
 	reverb.setRoomSize(song->reverbRoomSize);
+	reverb.setLPF(song->reverbLPF);
 	reverb.setDamping(song->reverbDamp);
 	reverb.setWidth(song->reverbWidth);
 	reverbPan = song->reverbPan;
