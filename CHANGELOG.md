@@ -6,6 +6,7 @@
 
 ### Sound Engine
 - Added a Warbler fx and a warble LFO to synths/kits/kit rows/song/audio clips
+- Made grain much faster and updated controls
 
 ### User Interface
 
