@@ -16,6 +16,17 @@
     - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
+#### <ins>Recording</ins>
+- Added `THRESHOLD RECORDING` default setting which can be turned on in the `SETTINGS > RECORDING > THRESHOLD RECORDING (THRE) > MODE` submenu
+  - When this is enabled, recording of external audio input (e.g. Line In / Microphone) will only begin when it detects an audio signal according the Recording Threshold mode that has been set. There are four Threshold Recording modes that can be selected from:
+    - `DISABLED (OFF)`: Standard Deluge behaviour. Recording starts right away.
+    - `LOW`: Sets a lower threshold for lower input signals.
+    - `MEDIUM`: Sets a medium threshold that is good for most signals (including the internal microphone with gain off).
+    - `HIGH`: Sets a high threshold that is good for noisy signals / microphones with gain
+  - You can also view and temporarily change the current threshold recording setting as follows:
+    - Press and hold `RECORD` + turn  `SELECT`
+    - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
@@ -81,6 +92,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
 - Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Song Grid View Green Mode` by moving `Midi Learn Clip/Section Launch` actions to the `MIDI LEARN` menu mentioned above.
 - `Midi Learned Note Input for the Whole Kit` now persists between Kit preset changes.
+- Fixed unexpected behaviour for `Synth` and `Kit` clips that would cause `MIDI LEARNED PARAMS` to get lost when changing presets for Synth / Kits. 
+  - Note: for `Kit` clips it will migrate midi learn for `Kit Affect Entire` params only.
 
 ## c1.2.0 Chopin
 
@@ -99,6 +112,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>FM Synth Filters</ins>
 - Added filters in FM synth mode. They're set to OFF by default, enable by changing them to any other mode using the menu or db/oct shortcut.
+
+#### <ins>Reverb</ins>
+- Fixed bug with Reverb HPF not saving to / loading from the Song
 
 ### MIDI
 
@@ -156,13 +172,21 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### General
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
-- Added ability to set `CLIP NAMES`. MIDI, SYNTH and KIT clips can now be named. When in a the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view, you are now able to scroll through the clip names when holding a pad.
+- Added ability to set `CLIP NAMES`. MIDI, SYNTH and KIT clips can now be named. When in a the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view with an OLED display, you are now able to scroll through the clip names when holding a clip pad and turning `SELECT` encoder.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.  
 - Fixed a bug where you could not turn `RECORDING OFF` while auditioning a note in an `INSTRUMENT CLIP`. With this fix you can now record drone notes when using `LINEAR RECORDING`.
 
 ##### Velocity View
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
+
+##### Scales
+- Added learning a user specified scale.
+  - Hold `LEARN` and press `SCALE` while in clip view. Notes from current clip & all scale mode clips are learned as the "USER" scale. This scale is part of the normal scale rotation, accessible with `SHIFT + SCALE`, and saved as part of the song. If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
+  - If you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing preset scales, it will be learned as a user scale, overwriting the previous USER scale.
+- Added `ACTIVE SCALES` menu.
+  - `SONG > ACTIVE SCALES` toggles scales on and off from the `SHIFT + SCALE` rotation for the current song. Active scales are saved as part of the song. On 7-segment display dot indicates that the named scale is active, lack of dot indicates it has been disabled.
+  - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
 
 #### <ins>Song View</ins>
 

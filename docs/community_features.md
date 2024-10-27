@@ -368,6 +368,17 @@ which track to record from. The source can also be selected by pressing a clip's
     - NOTE: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
         - This is because Audio Clips cannot currently be converted to other clip types and thus you will be stuck with only being able to create Audio Clips (unless you change the default and/or disable use of last clip type). The same applies to CV clips, which after two CV clips created, would prevent you from creating other clips (unless you change the default and/or disable use of last clip type).
 
+#### 3.34 Threshold Recording
+- ([#2808]) Added `THRESHOLD RECORDING` default setting which can be turned on in the `SETTINGS > RECORDING > THRESHOLD RECORDING (THRE) > MODE` submenu
+  - When this is enabled, recording of external audio input (e.g. Line In / Microphone) will only begin when it detects an audio signal according the Recording Threshold mode that has been set. There are five Threshold Recording modes that can be selected from:
+    - `DISABLED (OFF)`: Standard Deluge behaviour. Recording starts right away.
+    - `LOW`: Sets a lower threshold for lower input signals.
+    - `MEDIUM`: Sets a medium threshold that is good for most signals (including the internal microphone with gain off).
+    - `HIGH`: Sets a high threshold that is good for noisy signals / microphones with gain
+  - You can also view and temporarily change the current threshold recording setting as follows:
+    - Press and hold `RECORD` + turn  `SELECT`
+    - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -572,7 +583,11 @@ After assigning a clip to a slot, you can press the macro slot to see what clip 
 
 Inside a `CLIP TIMELINE VIEW`, hold `SONG` button and press the `LEFT SIDEBAR` to launch a macro.
 
-In `KEYBOARD VIEW`, macros are available as a sidebar control. `SHIFT` makes the launch immediate just like in song view. `AFFECT ENTIRE` + `CLIP MACRO` can be used to jump to edit the clip.
+In `KEYBOARD VIEW`, macros are available as a sidebar control. 
+
+`SHIFT` makes the launch immediate just like in song view. 
+
+`AFFECT ENTIRE` + `CLIP MACRO` can be used to jump to edit the clip.
 
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
@@ -1548,9 +1563,13 @@ different firmware
 
 [#2345]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2345
 
-[#2371]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2371
+[#2365]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2365
 
 [#2367]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2367
+
+[#2371]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2371
+
+[#2376]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2376
 
 [#2385]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2385
 
@@ -1559,8 +1578,6 @@ different firmware
 [#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
 
 [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
-
-[#2702]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2702
 
 [#2537]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2537
 
@@ -1572,12 +1589,15 @@ different firmware
 
 [#2676]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2676
 
+[#2702]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2702
+
 [#2712]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2712
 
 [#2716]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2716
 
 [#2751]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
 
+[#2808]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2808
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
