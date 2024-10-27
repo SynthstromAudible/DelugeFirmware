@@ -24,7 +24,8 @@
 #include <cstring>
 #include <string_view>
 
-#define RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
+#define SETTINGS_FOLDER "SETTINGS"
+#define RUNTIME_FEATURE_SETTINGS_FILE "SETTINGS/CommunityFeatures.XML"
 #define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
 #define TAG_RUNTIME_FEATURE_SETTING "setting"
 #define TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME "name"
@@ -196,10 +197,24 @@ void RuntimeFeatureSettings::init() {
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
 	FilePointer fp;
-
+	// CommunityFeatures.XML
 	bool success = StorageManager::fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
 	if (!success) {
-		return;
+		// since we changed the file path for the CommunityFeatures.XML in c1.3, it's possible
+		// that a CommunityFeatures file may exists in the root of the SD card
+		// if so, let's move it to the new SETTINGS folder (but first make sure folder exists)
+		FRESULT result = f_mkdir(SETTINGS_FOLDER);
+		if (result == FR_OK || result == FR_EXIST) {
+			result = f_rename("CommunityFeatures.XML", RUNTIME_FEATURE_SETTINGS_FILE);
+			if (result == FR_OK) {
+				// this means we moved it
+				// now let's open it
+				success = StorageManager::fileExists(RUNTIME_FEATURE_SETTINGS_FILE, &fp);
+			}
+		}
+		if (!success) {
+			return;
+		}
 	}
 
 	Error error = StorageManager::openXMLFile(&fp, smDeserializer, TAG_RUNTIME_FEATURE_SETTINGS);

@@ -522,12 +522,12 @@ Here is a list of features that have been added to the firmware as a list, group
             - Short press pads (< 100ms by default) in a column to change the value until you press the pad again (resetting it to the value before the pad was pressed)
             - Quickly clear all held values by pressing `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
         - Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
-        - Save defaults as PerformanceView.xml file
+        - Save defaults to `SETTINGS/PerformanceView.XML` file
             - Adjustable default Values assigned to each FX column via `VALUE` editing mode or PerformanceView.xml
             - Adjustable default Param assigned to each FX column via `PARAM` editing mode or PerformanceView.xml
             - Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (
               simply change a held pad in Performance View and save the layout to save the layout with the held pads).
-        - Load defaults from PerformanceView.xml file
+        - Load defaults from `SETTINGS/PerformanceView.XML` file
 
 ### 4.1.7 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips
 
@@ -795,7 +795,7 @@ to each individual note onset. ([#1978])
                         3) go back to the automation overview;
     - ([#1083]) Updated the Automation Overview and grid shortcuts in automation view for MIDI clips to match the grid
       shortcut cc mappings for MIDI Follow. So if you want to change what CC's map to what grid shortcuts in the
-      Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
+      Automation View for MIDI Clips, you would need to edit the `SETTINGS/MIDIFollow.XML` template for MIDI Follow mode.
     - ([#1156]) Change interpolation shortcut + Provide better integration with Deluge menu system and consistency with
       Select encoder usage.
         - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of
@@ -1247,8 +1247,9 @@ for the Lumi Keys Studio Edition, described below.
 ## 5. Community Features Menu (aka Runtime Settings)
 
 In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT" encoder) there is
-the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a
-list of all options as listed in OLED and 7SEG displays and what they do:
+the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a list of all options as listed in OLED and 7SEG displays and what they do:
+
+Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD card.
 
 * `Drum Randomizer (DRUM)`
     * When On, the "AUDITION + RANDOM" shortcut is enabled.

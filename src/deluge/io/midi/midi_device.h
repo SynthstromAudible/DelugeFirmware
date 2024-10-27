@@ -134,10 +134,12 @@ public:
 	int32_t incomingSysexPos = 0;
 
 protected:
-	virtual void writeReferenceAttributesToFile(
-	    Serializer& writer) = 0; // These go both into MIDIDEVICES.XML and also any song/preset
-	                             // files where there's a reference to this Device.
-	void writeDefinitionAttributesToFile(Serializer& writer); // These only go into MIDIDEVICES.XML.
+	// These go both into SETTINGS/MIDIDevices.XML and also any song/preset
+	// files where there's a reference to this Device.
+	virtual void writeReferenceAttributesToFile(Serializer& writer) = 0;
+
+	// These only go into SETTINGS/MIDIDevices.XML
+	void writeDefinitionAttributesToFile(Serializer& writer);
 };
 
 class MIDIDeviceUSB : public MIDIDevice {

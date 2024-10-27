@@ -10,13 +10,13 @@ Master MIDI follow mode whereby after setting a master MIDI follow channel for S
 
 Comes with a MIDI feedback mode to send updated parameter values on the MIDI follow feedback channel for mapped MIDI cc's. Feedback is sent whenever you change context on the deluge and whenever parameter values for the active context are changed.
 
-Comes with an XML file (MIDIFollow.XML) with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
+Comes with an XML file (`SETTINGS/MIDIFollow.XML`) with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
 
 **Simple summary:** 
 - Set your follow and feedback channel(s)
 - Set your MIDI Controller(s) to the same channel(s)
 - Set a root note for your kits
-- Confirm that your controller cc's are mapped to the parameters you want (via MIDIFollow.XML)
+- Confirm that your controller cc's are mapped to the parameters you want (via `SETTINGS/MIDIFollow.XML`)
 - Play and control the deluge instruments and parameters with ease!
 
 **No more re-learning your MIDI controllers every time you start a new song, add new clips or change instrument presets.**
@@ -85,7 +85,7 @@ The parameters are controlled only in the current context.
 - In other words it checks what context you’re in and controls the parameters of that context.
 
 #### Default MIDI CC Mappings
-A default set of MIDI CC # to Deluge Parameter mappings has been created for MIDI Follow Mode. When you launch the Deluge after installing the firmware with MIDI Follow Mode, an XML file will be created to the root folder of the SD card titled "MIDIFollow.XML"
+A default set of MIDI CC # to Deluge Parameter mappings has been created for MIDI Follow Mode. When you launch the Deluge after installing the firmware with MIDI Follow Mode, an XML file will be created in the `SETTINGS` folder in the root of the SD card titled `MIDIFollow.XML`
 
 The default mappings have taken into account standard MIDI CC to parameter mappings and usages. It has also taken into account reserving of MIDI CC's for future Deluge functionality / feature implementations.
 
@@ -100,14 +100,14 @@ Here are the MIDI CC #'s that have been reserved for other purposes:
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/f076d9c8-d25f-4d13-a631-be552f84d7c8)
 
 #### Adjust MIDI CC Mappings
-MIDI CC mappings for MIDI Follow Mode are saved to the root of your SD card in an XML file called MIDIFollow.XML
+MIDI CC mappings for MIDI Follow Mode are saved to the `SETTINGS` folder in the root of your SD card in an XML file called `MIDIFollow.XML`
 
-Within MIDIFollow.XML, all Parameters that can mapped to a MIDI CC are listed. The MIDI CC value is enclosed between a Parameter XML tag - e.g. `<lpfFrequency>74</lpfFrequency>` indicates that MIDI CC 74 is mapped to the LPF Frequency parameter. Conversely when a value of 255 is entered (e.g. `<hpfFrequency>255</hpfFrequency>`) it indicates that no MIDI CC value has been mapped to that parameter.
+Within `MIDIFollow.XML`, all Parameters that can mapped to a MIDI CC are listed. The MIDI CC value is enclosed between a Parameter XML tag - e.g. `<lpfFrequency>74</lpfFrequency>` indicates that MIDI CC 74 is mapped to the LPF Frequency parameter. Conversely when a value of 255 is entered (e.g. `<hpfFrequency>255</hpfFrequency>`) it indicates that no MIDI CC value has been mapped to that parameter.
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/1ae66f8b-1627-4e2f-a05d-fd7a8c73b62f)
-You can manually edit the MIDIFollow.XML to enter your MIDI CC mappings to each Parameter. 
+You can manually edit the `MIDIFollow.XML` to enter your MIDI CC mappings to each Parameter. 
 
-The defaults from MIDIFollow.XML are loaded automatically when you start the Deluge so you can begin controlling the deluge with your MIDI controller right away. 
+The defaults from `MIDIFollow.XML` are loaded automatically when you start the Deluge so you can begin controlling the deluge with your MIDI controller right away. 
 
 Note: A parameter can only be mapped to one MIDI CC. Conversely, a MIDI CC can be mapped to multiple parameters.
 
