@@ -2352,8 +2352,8 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 /// display number of bars or quarter notes remaining until a launch event
 int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 	int32_t sixteenthNotesRemaining = session.getNumSixteenthNotesRemainingTilLaunch();
-	// don't show pop-up if you're pressing a clip in song view
-	if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+	// only show pop-up if you're not in any other UI mode
+	if (currentUIMode == UI_MODE_NONE) {
 		if (sixteenthNotesRemaining > 0) {
 			DEF_STACK_STRING_BUF(popupMsg, 40);
 			if (sixteenthNotesRemaining > 16) {
