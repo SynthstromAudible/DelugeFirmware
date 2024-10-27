@@ -79,6 +79,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 #### <ins>SETTINGS SD card folder</ins>
 - A new folder has been created in the root of the SD card titled `SETTINGS`
 - The following files which were previously saved in the root of the SD card have been moved to the `SETTINGS` folder: `MIDIDevices.XML`, `MIDIFollow.XML`, `PerformanceView.XML` and `CommunityFeatures.XML`.
+  - Note: if you revert back to an earlier firmware, you will need to move these files back to the root of the SD card so that they can be loaded.
 
 #### <ins>Learn</ins>
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
