@@ -233,6 +233,11 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - ([#2166]) Holding back will now fully exit your current menu
 
+#### 3.23 Polyphony / Voice Count
+- ([#1824]) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing `SELECT` in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under the `VOICE (VOIC)` menu.
+  - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
+- Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`.
+
 ## 4. New Features Added
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
@@ -1254,6 +1259,8 @@ different firmware
 [#1607]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1607
 
 [#1739]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1739
+
+[#1824]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1824
 
 [#1846]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1846
 

@@ -32,6 +32,10 @@
 - Added compressors to synths, kits, audio clips, and kit rows. The compressor can be enabled and edited from their respective menus.
 - Compressor behavior has been changed to reduce clipping. Songs made with community release 1.0.x may need to have their volume manually adjusted to compensate. This is done via affect entire in song/arranger mode, or by entering the `SONG MENU` by pressing `SELECT` in Song View and navigating to  `MASTER > VOLUME`
 
+#### <ins>Polyphony / Voice Count </ins>
+- Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument
+- Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`. 
+
 ### User Interface
 
 #### <ins>General</ins>
