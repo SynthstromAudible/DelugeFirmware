@@ -55,7 +55,8 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
-#define MIDI_DEFAULTS_XML "MIDIFollow.XML"
+#define SETTINGS_FOLDER "SETTINGS"
+#define MIDI_FOLLOW_XML "SETTINGS/MIDIFollow.XML"
 #define MIDI_DEFAULTS_TAG "defaults"
 #define MIDI_DEFAULTS_CC_TAG "defaultCCMappings"
 
@@ -750,7 +751,7 @@ bool MidiFollow::isFeedbackEnabled() {
 /// I should check if file exists before creating one
 void MidiFollow::writeDefaultsToFile() {
 	// MidiFollow.xml
-	Error error = StorageManager::createXMLFile(MIDI_DEFAULTS_XML, smSerializer, true);
+	Error error = StorageManager::createXMLFile(MIDI_FOLLOW_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -818,11 +819,25 @@ void MidiFollow::readDefaultsFromFile() {
 
 	FilePointer fp;
 	// MIDIFollow.XML
-	bool success = StorageManager::fileExists(MIDI_DEFAULTS_XML, &fp);
+	bool success = StorageManager::fileExists(MIDI_FOLLOW_XML, &fp);
 	if (!success) {
-		writeDefaultsToFile();
-		successfullyReadDefaultsFromFile = true;
-		return;
+		// since we changed the file path for the MIDIFollow.XML in c1.3, it's possible
+		// that a MIDIFollow file may exists in the root of the SD card
+		// if so, let's move it to the new SETTINGS folder (but first make sure folder exists)
+		FRESULT result = f_mkdir(SETTINGS_FOLDER);
+		if (result == FR_OK || result == FR_EXIST) {
+			result = f_rename("MIDIFollow.XML", MIDI_FOLLOW_XML);
+			if (result == FR_OK) {
+				// this means we moved it
+				// now let's open it
+				success = StorageManager::fileExists(MIDI_FOLLOW_XML, &fp);
+			}
+		}
+		if (!success) {
+			writeDefaultsToFile();
+			successfullyReadDefaultsFromFile = true;
+			return;
+		}
 	}
 
 	//<defaults>

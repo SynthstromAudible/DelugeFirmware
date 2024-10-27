@@ -39,6 +39,9 @@ extern uint8_t anyUSBSendingStillHappening[];
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
+#define SETTINGS_FOLDER "SETTINGS"
+#define MIDI_DEVICES_XML "SETTINGS/MIDIDevices.XML"
+
 PLACE_INTERNAL_FRUNK ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 
 namespace MIDIDeviceManager {
@@ -463,11 +466,11 @@ void writeDevicesToFile() {
 	}
 
 	// If still here, nothing worth writing. Delete the file if there was one.
-	f_unlink("MIDIDevices.XML"); // May give error, but no real consequence from that.
+	f_unlink(MIDI_DEVICES_XML); // May give error, but no real consequence from that.
 	return;
 
 worthIt:
-	Error error = StorageManager::createXMLFile("MIDIDevices.XML", smSerializer, true);
+	Error error = StorageManager::createXMLFile(MIDI_DEVICES_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
@@ -516,9 +519,23 @@ void readDevicesFromFile() {
 	}
 
 	FilePointer fp;
-	bool success = StorageManager::fileExists("MIDIDevices.XML", &fp);
+	bool success = StorageManager::fileExists(MIDI_DEVICES_XML, &fp);
 	if (!success) {
-		return;
+		// since we changed the file path for the MIDIDevices.XML in c1.3, it's possible
+		// that a MIDIDevice file may exists in the root of the SD card
+		// if so, let's move it to the new SETTINGS folder (but first make sure folder exists)
+		FRESULT result = f_mkdir(SETTINGS_FOLDER);
+		if (result == FR_OK || result == FR_EXIST) {
+			result = f_rename("MIDIDevices.XML", MIDI_DEVICES_XML);
+			if (result == FR_OK) {
+				// this means we moved it
+				// now let's open it
+				success = StorageManager::fileExists(MIDI_DEVICES_XML, &fp);
+			}
+		}
+		if (!success) {
+			return;
+		}
 	}
 
 	Error error = StorageManager::openXMLFile(&fp, smDeserializer, "midiDevices");
