@@ -264,7 +264,6 @@ as the micromonsta and the dreadbox nymphes.
 - ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
   - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 
-
 #### 3.18 - Select Audio Clip Source and Monitoring
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
@@ -380,6 +379,11 @@ which track to record from. The source can also be selected by pressing a clip's
   - You can also view and temporarily change the current threshold recording setting as follows:
     - Press and hold `RECORD` + turn  `SELECT`
     - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+
+#### 3.35 Polyphony / Voice Count
+- ([#1824]) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing `SELECT` in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under the `VOICE (VOIC)` menu.
+  - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
+- Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`. 
 
 ## 4. New Features Added
 
@@ -524,12 +528,12 @@ Here is a list of features that have been added to the firmware as a list, group
             - Short press pads (< 100ms by default) in a column to change the value until you press the pad again (resetting it to the value before the pad was pressed)
             - Quickly clear all held values by pressing `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
         - Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
-        - Save defaults as PerformanceView.xml file
+        - Save defaults to `SETTINGS/PerformanceView.XML` file
             - Adjustable default Values assigned to each FX column via `VALUE` editing mode or PerformanceView.xml
             - Adjustable default Param assigned to each FX column via `PARAM` editing mode or PerformanceView.xml
             - Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (
               simply change a held pad in Performance View and save the layout to save the layout with the held pads).
-        - Load defaults from PerformanceView.xml file
+        - Load defaults from `SETTINGS/PerformanceView.XML` file
 
 ### 4.1.7 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips
 
@@ -797,7 +801,7 @@ to each individual note onset. ([#1978])
                         3) go back to the automation overview;
     - ([#1083]) Updated the Automation Overview and grid shortcuts in automation view for MIDI clips to match the grid
       shortcut cc mappings for MIDI Follow. So if you want to change what CC's map to what grid shortcuts in the
-      Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
+      Automation View for MIDI Clips, you would need to edit the `SETTINGS/MIDIFollow.XML` template for MIDI Follow mode.
     - ([#1156]) Change interpolation shortcut + Provide better integration with Deluge menu system and consistency with
       Select encoder usage.
         - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of
@@ -1249,8 +1253,9 @@ for the Lumi Keys Studio Edition, described below.
 ## 5. Community Features Menu (aka Runtime Settings)
 
 In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT" encoder) there is
-the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a
-list of all options as listed in OLED and 7SEG displays and what they do:
+the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a list of all options as listed in OLED and 7SEG displays and what they do:
+
+Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD card.
 
 * `Drum Randomizer (DRUM)`
     * When On, the "AUDITION + RANDOM" shortcut is enabled.
@@ -1309,6 +1314,8 @@ list of all options as listed in OLED and 7SEG displays and what they do:
       * With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
 * `Grid View Loop Pads (LOOP)`
     * When On, two pads (Red and Magenta) in the `GRID VIEW` sidebar will be illuminated and enable you to trigger the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
+* `Alternative Tap Tempo Behaviour (TAPT)`
+    * When On, the number of `TAP TEMPO` button presses to engage `TAP TEMPO` is changed to `FOUR (4)` to avoid mistakingly changing tempo.
 
 ## 6. Sysex Handling
 
@@ -1534,6 +1541,8 @@ different firmware
 [#1607]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1607
 
 [#1739]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1739
+
+[#1824]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1824
 
 [#1846]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1846
 

@@ -42,6 +42,7 @@
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
@@ -3309,28 +3310,31 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// Migrate input MIDI channel / device. Putting this up here before any calls to changeInstrument() is good,
 	// because then if a default velocity is set, for the MIDIDevice, that gets grabbed by the Clip's ParamManager
 	// during that call.
-	if (newOutput->type != OutputType::KIT && oldOutput->type != OutputType::KIT) {
-		((MelodicInstrument*)newOutput)->midiInput = ((MelodicInstrument*)oldOutput)->midiInput;
-		((MelodicInstrument*)oldOutput)->midiInput.clear();
-	}
+	((Instrument*)newOutput)->midiInput = ((Instrument*)oldOutput)->midiInput;
+	((Instrument*)oldOutput)->midiInput.clear();
 
 	// if we're replacing the same output type
 	if (newOutput->type == oldOutput->type) {
-		// Migrate any midi learned params for synth and kit clip preset changes
-		// For kit clips it will migrate only kit affect entire midi learned params
-		// Scenario:
-		// - you create a clip
-		// - you midi learn a controller to that clip's params
-		// - you then go to change the preset for that clip
-		// - you expect that you can continue controlling the same params for the new preset
-		Sound* oldSound = (Sound*)oldOutput->toModControllable();
-		if (oldSound) {
-			int32_t numKnobs = oldSound->midiKnobArray.getNumElements();
-			if (numKnobs) {
-				Sound* newSound = (Sound*)newOutput->toModControllable();
-				newSound->midiKnobArray.cloneFrom(&oldSound->midiKnobArray);
-				oldSound->midiKnobArray.deleteAtIndex(0, numKnobs);
-				oldSound->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+		// exclude MIDI and CV instruments from this
+		// only audio instruments have a midi knob array
+		if (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT) {
+			// Migrate any midi learned params for synth and kit clip preset changes
+			// For kit clips it will migrate only kit affect entire midi learned params
+			// Scenario:
+			// - you create a clip
+			// - you midi learn a controller to that clip's params
+			// - you then go to change the preset for that clip
+			// - you expect that you can continue controlling the same params for the new preset
+			ModControllableAudio* oldModControllableAudio = (ModControllableAudio*)oldOutput->toModControllable();
+			if (oldModControllableAudio) {
+				int32_t numKnobs = oldModControllableAudio->midiKnobArray.getNumElements();
+				if (numKnobs) {
+					ModControllableAudio* newModControllableAudio =
+					    (ModControllableAudio*)newOutput->toModControllable();
+					newModControllableAudio->midiKnobArray.cloneFrom(&oldModControllableAudio->midiKnobArray);
+					oldModControllableAudio->midiKnobArray.deleteAtIndex(0, numKnobs);
+					oldModControllableAudio->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+				}
 			}
 		}
 	}
