@@ -152,7 +152,6 @@ enum class MidiLearn : uint8_t {
 	SECTION,
 	INSTRUMENT_INPUT,
 	DRUM_INPUT,
-	LOAD_BUTTON,
 };
 
 constexpr size_t kMinTimePerTimerTick = 1;

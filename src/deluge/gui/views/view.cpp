@@ -38,7 +38,6 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
 #include "gui/views/session_view.h"
-#include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -200,22 +199,6 @@ doEndMidiLearnPressSession:
 			learnedThing = &midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::PLAY)];
 		}
 		else if (thingPressedForMidiLearn == MidiLearn::PLAY_BUTTON) {
-			goto doEndMidiLearnPressSession;
-		}
-	}
-
-	// Load button for MIDI learn
-	else if (b == LOAD && currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
-		if (on) {
-			deleteMidiCommandOnRelease = true;
-			endMidiLearnPressSession(MidiLearn::LOAD_BUTTON);
-			learnedThing = &midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)];
-		}
-		else if (thingPressedForMidiLearn == MidiLearn::LOAD_BUTTON) {
 			goto doEndMidiLearnPressSession;
 		}
 	}
@@ -486,7 +469,6 @@ void View::endMIDILearn() {
 	}
 
 	playbackHandler.setLedStates();
-	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::setLedState(IndicatorLED::LEARN, false);
 }
 
@@ -593,9 +575,6 @@ void View::endMidiLearnPressSession(MidiLearn newThingPressed) {
 	case MidiLearn::TAP_TEMPO_BUTTON:
 		playbackHandler.setLedStates();
 		break;
-	case MidiLearn::LOAD_BUTTON:
-		indicator_leds::setLedState(IndicatorLED::LOAD, false);
-		break;
 	}
 
 	learnedThing = NULL;
@@ -650,7 +629,6 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 		case MidiLearn::PLAY_BUTTON:
 		case MidiLearn::RECORD_BUTTON:
 		case MidiLearn::TAP_TEMPO_BUTTON:
-		case MidiLearn::LOAD_BUTTON:
 			shouldSaveSettingsAfterMidiLearn = true;
 			// No break
 
@@ -800,10 +778,6 @@ void View::midiLearnFlash() {
 	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TAP)].containsSomething()
 	    || thingPressedForMidiLearn == MidiLearn::TAP_TEMPO_BUTTON) {
 		indicator_leds::setLedState(IndicatorLED::TAP_TEMPO, midiLearnFlashOn);
-	}
-	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)].containsSomething()
-	    || thingPressedForMidiLearn == MidiLearn::LOAD_BUTTON) {
-		indicator_leds::setLedState(IndicatorLED::LOAD, midiLearnFlashOn);
 	}
 }
 
