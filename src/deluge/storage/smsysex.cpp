@@ -49,8 +49,8 @@ const int MaxSysExLength = 1024;
 
 struct SysExDataEntry {
 	MIDIDevice* device;
-	int32_t		len;
-	uint8_t		data[sysexBufferMax];
+	int32_t len;
+	uint8_t data[sysexBufferMax];
 };
 
 deluge::deque<SysExDataEntry> SysExQ;
@@ -120,7 +120,7 @@ FRESULT smSysex::closeFIL(int fx) {
 // Fill in missing directories for the full path name given.
 // Unless the last character in the path is a /, we assume the
 // path given ends with a filename (which we ignore).
-FRESULT smSysex::createPathDirectories(String &path) {
+FRESULT smSysex::createPathDirectories(String& path) {
 
 	FRESULT errCode;
 	if (path.getLength() > 256) {
@@ -134,9 +134,11 @@ FRESULT smSysex::createPathDirectories(String &path) {
 	int len = strlen(working);
 	int lastSlash;
 	for (lastSlash = len - 1; lastSlash >= 0; lastSlash--) {
-		if (working[lastSlash] == '/') break;
+		if (working[lastSlash] == '/')
+			break;
 	}
-	if (lastSlash == 0) return FRESULT::FR_INVALID_PARAMETER;
+	if (lastSlash == 0)
+		return FRESULT::FR_INVALID_PARAMETER;
 
 	int jx = 1; // skip the leading slash.
 	while (jx <= lastSlash) {
@@ -146,12 +148,14 @@ FRESULT smSysex::createPathDirectories(String &path) {
 			strcpy(pathPart, working);
 			working[jx] = '/';
 			if (strlen(pathPart)) {
-				errCode = f_opendir(&wDIR, (TCHAR*) pathPart);
+				errCode = f_opendir(&wDIR, (TCHAR*)pathPart);
 				if (errCode == FRESULT::FR_NO_PATH) {
-					errCode = f_mkdir((TCHAR*) pathPart);
-				} else if (errCode == 0) {
+					errCode = f_mkdir((TCHAR*)pathPart);
+				}
+				else if (errCode == 0) {
 					errCode = f_closedir(&wDIR);
-				} else {
+				}
+				else {
 					return errCode;
 				}
 			}
@@ -594,7 +598,7 @@ void smSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 		return;
 	}
 
-	SysExDataEntry &de = SysExQ.emplace_back();
+	SysExDataEntry& de = SysExQ.emplace_back();
 	de.device = device;
 	de.len = len;
 	memcpy(de.data, data, len);
@@ -602,8 +606,10 @@ void smSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 
 void smSysex::handleNextSysEx() {
 
-	if (SysExQ.empty()) return;
-	if (currentlyAccessingCard != 0) return;
+	if (SysExQ.empty())
+		return;
+	if (currentlyAccessingCard != 0)
+		return;
 
 	SysExDataEntry& de = SysExQ.front();
 
@@ -655,8 +661,3 @@ void smSysex::handleNextSysEx() {
 done:
 	SysExQ.pop_front();
 }
-
-
-
-
-
