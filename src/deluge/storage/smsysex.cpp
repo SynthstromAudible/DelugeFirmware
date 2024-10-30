@@ -29,6 +29,7 @@ uint32_t offsetCounter;
 JsonSerializer jWriter;
 String activeDirName;
 const size_t blockBufferMax = 1024;
+const size_t sysexBufferMax = blockBufferMax + 256;
 uint8_t* writeBlockBuffer = NULL;
 uint8_t* readBlockBuffer = NULL;
 const uint32_t MAX_OPEN_FILES = 4;
@@ -43,6 +44,16 @@ struct FILdata {
 };
 
 FILdata openFiles[MAX_OPEN_FILES];
+
+const int MaxSysExLength = 1024;
+
+struct SysExDataEntry {
+	MIDIDevice* device;
+	int32_t		len;
+	uint8_t		data[sysexBufferMax];
+};
+
+deluge::deque<SysExDataEntry> SysExQ;
 
 // Assign a FIL from our pool.
 int32_t smSysex::findEmptyFIL() {
@@ -106,6 +117,50 @@ FRESULT smSysex::closeFIL(int fx) {
 	return err;
 }
 
+// Fill in missing directories for the full path name given.
+// Unless the last character in the path is a /, we assume the
+// path given ends with a filename (which we ignore).
+FRESULT smSysex::createPathDirectories(String &path) {
+
+	FRESULT errCode;
+	if (path.getLength() > 256) {
+		return FRESULT::FR_INVALID_PARAMETER;
+	}
+
+	char working[257];
+	char pathPart[257];
+	strcpy(working, path.get());
+	// ignore the file name and extension part.
+	int len = strlen(working);
+	int lastSlash;
+	for (lastSlash = len - 1; lastSlash >= 0; lastSlash--) {
+		if (working[lastSlash] == '/') break;
+	}
+	if (lastSlash == 0) return FRESULT::FR_INVALID_PARAMETER;
+
+	int jx = 1; // skip the leading slash.
+	while (jx <= lastSlash) {
+		if (working[jx] == '/') {
+			DIR wDIR;
+			working[jx] = 0;
+			strcpy(pathPart, working);
+			working[jx] = '/';
+			if (strlen(pathPart)) {
+				errCode = f_opendir(&wDIR, (TCHAR*) pathPart);
+				if (errCode == FRESULT::FR_NO_PATH) {
+					errCode = f_mkdir((TCHAR*) pathPart);
+				} else if (errCode == 0) {
+					errCode = f_closedir(&wDIR);
+				} else {
+					return errCode;
+				}
+			}
+		}
+		jx++;
+	}
+	return errCode;
+}
+
 void smSysex::openFile(MIDIDevice* device, JsonDeserializer& reader) {
 	bool forWrite = false;
 	String path;
@@ -123,15 +178,24 @@ void smSysex::openFile(MIDIDevice* device, JsonDeserializer& reader) {
 			reader.exitTag();
 		}
 	}
+
 	reader.match('}');
+	bool pathCreateTried = false;
+retry:
 	FRESULT errCode;
 	uint32_t fSize = 0;
+
 	int fd = openFIL(path.get(), forWrite, &fSize, &errCode);
 	FILdata* fp = NULL;
 	if (fd > 0)
 		fp = openFiles + (fd - 1);
 	if (fp != NULL) {
 		fSize = fp->fSize;
+	}
+	if (forWrite && !pathCreateTried && errCode == FRESULT::FR_NO_PATH) { // was the path missing?
+		createPathDirectories(path);
+		pathCreateTried = true;
+		goto retry;
 	}
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^open", false, true);
@@ -530,53 +594,69 @@ void smSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 		return;
 	}
 
-	if (currentlyAccessingCard) {
-		// D_PRINT("** nonzero currentlyAccessingCard noted in sysexReceived");
-	}
+	SysExDataEntry &de = SysExQ.emplace_back();
+	de.device = device;
+	de.len = len;
+	memcpy(de.data, data, len);
+}
+
+void smSysex::handleNextSysEx() {
+
+	if (SysExQ.empty()) return;
+	if (currentlyAccessingCard != 0) return;
+
+	SysExDataEntry& de = SysExQ.front();
 
 	char const* tagName;
-	uint8_t msgSeqNum = data[1];
-	JsonDeserializer parser(data + 2, len - 2);
+	uint8_t msgSeqNum = de.data[1];
+	JsonDeserializer parser(de.data + 2, de.len - 2);
 	parser.setReplySeqNum(msgSeqNum);
 
 	parser.match('{');
 	while (*(tagName = parser.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "open")) {
-			openFile(device, parser);
-			return;
+			openFile(de.device, parser);
+			goto done;
 		}
 		else if (!strcmp(tagName, "close")) {
-			closeFile(device, parser);
-			return;
+			closeFile(de.device, parser);
+			goto done;
 		}
 		else if (!strcmp(tagName, "dir")) {
-			getDirEntries(device, parser);
-			return;
+			getDirEntries(de.device, parser);
+			goto done;
 		}
 		else if (!strcmp(tagName, "read")) {
-			readBlock(device, parser);
-			return;
+			readBlock(de.device, parser);
+			goto done;
 		}
 		else if (!strcmp(tagName, "write")) {
-			writeBlock(device, parser);
-			return; // Already skipped end.
+			writeBlock(de.device, parser);
+			goto done; // Already skipped end.
 		}
 		else if (!strcmp(tagName, "delete")) {
-			deleteFile(device, parser);
-			return;
+			deleteFile(de.device, parser);
+			goto done;
 		}
 		else if (!strcmp(tagName, "mkdir")) {
-			createDirectory(device, parser);
-			return;
+			createDirectory(de.device, parser);
+			goto done;
 		}
 		else if (!strcmp(tagName, "rename")) {
-			rename(device, parser);
-			return;
+			rename(de.device, parser);
+			goto done;
 		}
 		else if (!strcmp(tagName, "ping")) {
-			doPing(device, parser);
-			return;
+			doPing(de.device, parser);
+			goto done;
 		}
 		parser.exitTag();
 	}
+done:
+	SysExQ.pop_front();
 }
+
+
+
+
+
