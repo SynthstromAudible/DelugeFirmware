@@ -2427,16 +2427,16 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
-	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
-	// don't need to
-	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
-	                                              delayWorkingState, true);
-
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
 	    getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_REVERB_AMOUNT],
 	                                 cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
 	                                     params::UNPATCHED_REVERB_SEND_AMOUNT)));
+
+	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
+	// don't need to
+	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
+	                                              delayWorkingState, true, reverbSendAmount >> 3);
 
 	globalEffectable.processReverbSendAndVolume(outputBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
 	                                            reverbSendAmount >> 1);

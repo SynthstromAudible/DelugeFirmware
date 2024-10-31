@@ -651,20 +651,15 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
 
 #### 4.2.7 - Grain FX
 
-- ([#363]) New `GRAIN` added to Mod FX.
+- ([#363] and [#2815]) New `GRAIN` added to Mod FX.
 
     - Parameters:
         - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
         - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
-        - **`MOD FEEDBACK - GRAIN TYPE (GRTY)`:** Selects Grain Type (See below for values)
-        - **`MOD OFFSET - GRAIN SIZE (SIZE)`:** Adjusts Grain Size (10ms - 800ms)
+        - **`MOD FEEDBACK - GRAIN RANDOMNESS (GRTY)`:** Selects the spread of Grain pitch. At minimum it only generates 
+      unison and octaves, higher values add 5ths and multi octave jumps.
+        - **`MOD OFFSET - GRAIN Density (DENS)`:** Adjusts Grain Density from sparse to 8 layered grains
 
-    - Grain Type (Presets):
-        - **`0-10`:** Unison and +1 Octave (Reversed)
-        - **`11-20`** Unison and -1 Octave
-        - **`21-30`:** Unison and +1 Octave (Defalut)
-        - **`31-40`:** 5th and +1 Octave
-        - **`41-50`:** Unison and +1/-1 Octave (Tempo Sync)
 
 #### 4.2.8 - Reverb Improvements
 
@@ -1603,6 +1598,9 @@ different firmware
 [#2712]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2712
 
 [#2716]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2716
+
+
+[#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
 
 [#2751]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
 
