@@ -398,6 +398,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added ability to save a drum kit row back to an synth preset by pressing `AUDITION` + `SAVE`.
 - Added a new default setting that controls which playback mode new slices of a kit will receive.
 - Drum randomization is no longer limited to only 10 sounds per folder.
+- Pressing `SHIFT` + `RANDOM` now randomizes all non-muted drum kit rows.
 - The default Mod-FX type for kit affect-entire is now `DISABLED` rather than `FLANGER`.
 - Fixed several crashes related to drum randomization.
 
