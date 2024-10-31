@@ -2423,7 +2423,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 
 	processSRRAndBitcrushing((StereoSample*)soundBuffer, numSamples, &postFXVolume, paramManager);
 	processFX((StereoSample*)soundBuffer, numSamples, modFXType, modFXRate, modFXDepth, delayWorkingState,
-	          &postFXVolume, paramManager, numVoicesAssigned != 0);
+	          &postFXVolume, paramManager, numVoicesAssigned != 0, reverbSendAmount >> 1);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
 	processReverbSendAndVolume((StereoSample*)soundBuffer, numSamples, reverbBuffer, postFXVolume, postReverbVolume,

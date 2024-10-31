@@ -19,6 +19,7 @@
 
 #include "GranularProcessor.h"
 #include "definitions_cxx.hpp"
+#include "dsp/filter/ladder_components.h"
 #include "dsp/stereo_sample.h"
 #include "memory/stealable.h"
 #include "modulation/lfo.h"
@@ -51,20 +52,20 @@ public:
 	void startSkippingRendering();
 
 	/// preset is currently converted from a param to a 0-4 preset inside the grain, which is probably not great
-	void processGrainFX(StereoSample* buffer, int32_t grainRate, int32_t grainMix, int32_t grainSize,
-	                    int32_t grainPreset, int32_t* postFXVolume, const StereoSample* bufferEnd,
-	                    bool anySoundComingIn, float tempoBPM);
+	void processGrainFX(StereoSample* buffer, int32_t grainRate, int32_t grainMix, int32_t grainDensity,
+	                    int32_t pitchRandomness, int32_t* postFXVolume, const StereoSample* bufferEnd,
+	                    bool anySoundComingIn, float tempoBPM, q31_t reverbAmount);
 
 	void clearGrainFXBuffer();
 	void grainBufferStolen() { grainBuffer = nullptr; }
 
 private:
-	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainSize, int32_t grainPreset,
+	void setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainDensity, int32_t pitchRandomness,
 	                  int32_t* postFXVolume, float timePerInternalTick);
-	void processOneGrainSample(StereoSample* currentSample);
+	StereoSample processOneGrainSample(StereoSample* currentSample);
 	void getBuffer();
 	void setWrapsToShutdown();
-
+	void setupGrainsIfNeeded(int32_t writeIndex);
 	// parameters
 	uint32_t bufferWriteIndex;
 	int32_t _grainSize;
@@ -73,7 +74,7 @@ private:
 	int32_t _grainFeedbackVol;
 	int32_t _grainVol;
 	int32_t _grainDryVol;
-	int8_t _grainPitchType;
+	int32_t _pitchRandomness;
 
 	bool grainLastTickCountIsZero;
 	bool grainInitialized;
@@ -82,6 +83,12 @@ private:
 
 	int32_t wrapsToShutdown;
 	GrainBuffer* grainBuffer{nullptr};
+	int32_t _densityKnobPos{0};
+	int32_t _rateKnobPos{0};
+	int32_t _mixKnobPos{0};
+	deluge::dsp::filter::BasicFilterComponent lpf_l{};
+	deluge::dsp::filter::BasicFilterComponent lpf_r{};
+	bool tempoSync{true};
 };
 
 class GrainBuffer : public Stealable {
