@@ -1182,6 +1182,7 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 - ([#122]) Pressing `AUDITION` + `RANDOM` on a drum kit row will load a random sample from the same folder as the
   currently enabled sample and load it as the sound for that row.
     - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+- ([#955]) Pressing `SHIFT` + `RANDOM` randomizes all non-muted drum kit rows.
 
 #### 4.6.3 - Manual Slicing / Lazy Chop
 
@@ -1469,6 +1470,8 @@ different firmware
 
 [#934]: https://github.com/SynthstromAudible/DelugeFirmware/pull/934
 
+[#955]: https://github.com/SynthstromAudible/DelugeFirmware/pull/955
+
 [#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
 
 [#966]: https://github.com/SynthstromAudible/DelugeFirmware/pull/966
@@ -1598,7 +1601,6 @@ different firmware
 [#2712]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2712
 
 [#2716]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2716
-
 
 [#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
 
