@@ -300,7 +300,8 @@
 - Added a `KIT FX MENU` to KITS which allows you to customize the AFFECT ENTIRE KIT parameters with greater control.   Accessible in `KIT CLIP VIEW` by pressing `SELECT` with `AFFECT ENTIRE` enabled.
 - Added ability to save a drum kit row back to an synth preset by pressing `AUDITION` + `SAVE`.
 - Added a new default setting that controls which playback mode new slices of a kit will receive.
-- Drum randomization is no longer limited to only 10 sounds per folder.
+- Drum randomization no longer has a limit on the number of sound files to randomize.
+- Pressing `SHIFT` + `RANDOM` now randomizes all non-muted drum kit rows.
 - The default Mod-FX type for kit affect-entire is now `DISABLED` rather than `FLANGER`.
 - Fixed several crashes related to drum randomization.
 
