@@ -139,14 +139,21 @@ bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
 
 void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate,
                                      int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
-                                     ParamManager* paramManager, bool anySoundComingIn) {
+                                     ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	StereoSample* bufferEnd = buffer + numSamples;
 
 	// Mod FX -----------------------------------------------------------------------------------
-	processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd, anySoundComingIn);
+	if (modFXType == ModFXType::GRAIN) {
+		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd, anySoundComingIn,
+		               reverbSendAmount);
+	}
+	else {
+		processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd,
+		             anySoundComingIn);
+	}
 
 	// EQ -------------------------------------------------------------------------------------
 	bool thisDoBass = hasBassAdjusted(paramManager);
@@ -179,13 +186,12 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 	// Delay ----------------------------------------------------------------------------------
 	delay.process({buffer, static_cast<size_t>(numSamples)}, delayWorkingState);
 }
+/// NOT GRAIN! - this only does the comb filter based mod fx
 void ModControllableAudio::processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate,
                                         int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
                                         const StereoSample* bufferEnd, bool anySoundComingIn) {
-	if (modFXType == ModFXType::GRAIN) {
-		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd, anySoundComingIn);
-	}
-	else if (modFXType != ModFXType::NONE) {
+
+	if (modFXType != ModFXType::NONE) {
 
 		LFOType modFXLFOWaveType{};
 		int32_t modFXDelayOffset{};
@@ -208,16 +214,18 @@ void ModControllableAudio::processModFX(StereoSample* buffer, const ModFXType& m
 }
 void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth,
                                           int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                          const StereoSample* bufferEnd, bool anySoundComingIn) {
+                                          const StereoSample* bufferEnd, bool anySoundComingIn, q31_t verbAmount) {
 	// this shouldn't be possible but just in case
 	if (anySoundComingIn && !grainFX) [[unlikely]] {
 		enableGrain();
 	}
+
 	if (grainFX) {
+		int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5;
 		grainFX->processGrainFX(buffer, modFXRate, modFXDepth,
 		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
 		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), postFXVolume, bufferEnd,
-		                        anySoundComingIn, currentSong->calculateBPM());
+		                        anySoundComingIn, currentSong->calculateBPM(), reverbSendAmountAndPostFXVolume);
 	}
 }
 void ModControllableAudio::setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,

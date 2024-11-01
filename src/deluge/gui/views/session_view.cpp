@@ -2352,29 +2352,32 @@ void SessionView::displayPotentialTempoChange(UI* ui) {
 /// display number of bars or quarter notes remaining until a launch event
 int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 	int32_t sixteenthNotesRemaining = session.getNumSixteenthNotesRemainingTilLaunch();
-	if (sixteenthNotesRemaining > 0) {
-		DEF_STACK_STRING_BUF(popupMsg, 40);
-		if (sixteenthNotesRemaining > 16) {
-			int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
-			if (display->haveOLED()) {
-				popupMsg.append("Bars Remaining: ");
+	// only show pop-up if you're not in any other UI mode
+	if (currentUIMode == UI_MODE_NONE) {
+		if (sixteenthNotesRemaining > 0) {
+			DEF_STACK_STRING_BUF(popupMsg, 40);
+			if (sixteenthNotesRemaining > 16) {
+				int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
+				if (display->haveOLED()) {
+					popupMsg.append("Bars Remaining: ");
+				}
+				popupMsg.appendInt(barsRemaining);
 			}
-			popupMsg.appendInt(barsRemaining);
-		}
-		else {
-			int32_t quarterNotesRemaining = ((sixteenthNotesRemaining - 1) / 4) + 1;
-			if (display->haveOLED()) {
-				popupMsg.append("Beats Remaining: ");
+			else {
+				int32_t quarterNotesRemaining = ((sixteenthNotesRemaining - 1) / 4) + 1;
+				if (display->haveOLED()) {
+					popupMsg.append("Beats Remaining: ");
+				}
+				popupMsg.appendInt(quarterNotesRemaining);
 			}
-			popupMsg.appendInt(quarterNotesRemaining);
-		}
-		if (display->haveOLED() && !ephemeral) {
-			deluge::hid::display::OLED::clearMainImage();
-			deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
-			deluge::hid::display::OLED::sendMainImage();
-		}
-		else {
-			display->displayPopup(popupMsg.c_str(), 1, true);
+			if (display->haveOLED() && !ephemeral) {
+				deluge::hid::display::OLED::clearMainImage();
+				deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
+				deluge::hid::display::OLED::sendMainImage();
+			}
+			else {
+				display->displayPopup(popupMsg.c_str(), 1, true);
+			}
 		}
 	}
 	return sixteenthNotesRemaining;
