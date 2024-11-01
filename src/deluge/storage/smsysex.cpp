@@ -17,10 +17,10 @@
 #include "util/containers.h"
 #include "util/pack.h"
 #include <cstring>
+
 #define MAX_DIR_LINES 25
 
 extern "C" {
-
 extern uint8_t currentlyAccessingCard;
 }
 DIR sxDIR;
@@ -402,7 +402,8 @@ errorFound:;
 		jWriter.writeOpeningTag(NULL, true);
 		jWriter.writeAttribute("name", fno.fname);
 		jWriter.writeAttribute("size", fno.fsize);
-		// Maybe add fdate and ftime?
+		jWriter.writeAttribute("date", fno.fdate);
+		jWriter.writeAttribute("time", fno.ftime);
 
 		// AM_RDO  0x01 Read only
 		// AM_HID  0x02 Hidden
