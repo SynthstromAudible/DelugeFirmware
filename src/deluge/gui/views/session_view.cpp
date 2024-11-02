@@ -3925,6 +3925,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			performActionOnPadRelease = false;
 			gridSecondPressedX = x;
 			gridSecondPressedY = y;
+			display->popupText("COPY CLIPS");
 		}
 	}
 	// Release
@@ -3949,6 +3950,10 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 					}
 					return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 				}
+			}
+			// Release first pad, while two pads are held
+			else if (gridSecondPressedX != -1 && gridSecondPressedY != -1) {
+				display->popupTextTemporary("COPY CANCELED");
 			}
 
 			clipPressEnded();
