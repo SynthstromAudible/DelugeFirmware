@@ -4126,7 +4126,8 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 	}
 
 	// Release first pad, while two pads are held
-	if (!on && x == gridFirstPressedX && y == gridFirstPressedY && gridSecondPressedX != -1 && gridSecondPressedY != -1) {
+	if (!on && x == gridFirstPressedX && y == gridFirstPressedY && gridSecondPressedX != -1
+	    && gridSecondPressedY != -1) {
 		display->popupTextTemporary("COPY CANCELLED");
 	}
 
