@@ -3082,7 +3082,7 @@ void InstrumentClipView::exitNoteEditor() {
 void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
 	if (on) {
 		// did you press a different pad?
-		// if no, ignore press
+		// if no, we'll toggle auditioning the note on / off
 		if (x != lastSelectedNoteXDisplay || y != lastSelectedNoteYDisplay) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -3112,6 +3112,29 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 					soundEditor.getCurrentMenuItem()->readValueAgain();
 					blinkSelectedNote();
 				}
+			}
+		}
+		// pressing the same pad as the note selected toggles auditioning on / off
+		else {
+			// Switch note off if it was on
+			if (lastAuditionedVelocityOnScreen[y] != 255) {
+				sendAuditionNote(false, y, 127, 0);
+				lastAuditionedVelocityOnScreen[y] = 255;
+				// set the intendedVelocity to 255 as well so that if reassessAuditionStatus gets called elsewhere
+				// it won't send another note on
+				editPadPresses[0].intendedVelocity = 255;
+			}
+			// Switch note on if it was off
+			else {
+				// intendedVelocity is used by reassessAuditionStatus so if we turned the note off previously
+				// then we need to reset intendedVelocity to the velocity of the left most note in the pad we selected
+				if (editPadPresses[0].intendedVelocity == 255) {
+					Note* leftMostNotePressed = getLeftMostNotePressed();
+					if (leftMostNotePressed) {
+						editPadPresses[0].intendedVelocity = leftMostNotePressed->getVelocity();
+					}
+				}
+				reassessAuditionStatus(y);
 			}
 		}
 	}
