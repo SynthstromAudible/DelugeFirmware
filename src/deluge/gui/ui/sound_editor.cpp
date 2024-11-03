@@ -11,7 +11,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/rename/rename_clipname_ui.h"
+#include "gui/ui/rename/rename_clip_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/sample_marker_editor.h"
@@ -1734,8 +1734,8 @@ bool SoundEditor::handleClipName() {
 		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
 		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
 			if (clip) {
-				renameClipNameUI.clip = clip;
-				openUI(&renameClipNameUI);
+				renameClipUI.clip = clip;
+				openUI(&renameClipUI);
 				return true;
 			}
 		}
