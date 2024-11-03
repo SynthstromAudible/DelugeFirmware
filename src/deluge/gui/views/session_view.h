@@ -224,6 +224,8 @@ private:
 	SessionGridMode gridModeSelected = SessionGridModeEdit;
 	SessionGridMode gridModeActive = SessionGridModeEdit;
 	bool gridActiveModeUsed = false;
+	bool launchInEditMode = false;
+	bool actionPadPressed[kDisplayHeight];
 
 	int32_t gridFirstPressedX = -1;
 	int32_t gridFirstPressedY = -1;
@@ -247,7 +249,7 @@ private:
 	AudioClip* gridCreateAudioClipWithNewTrack();
 	InstrumentClip* gridCreateInstrumentClipWithNewTrack(OutputType type);
 	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
-	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
+	Clip* gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
 	void setupNewClip(Clip* newClip);
 
 	void gridStartSection(uint32_t section, bool instant);
@@ -274,6 +276,11 @@ private:
 			gridModeSelected = SessionGridModeEdit;
 			break;
 		}
+		}
+	}
+	inline void clearActionPadPresses() {
+		for (uint8_t i = 0; i < kDisplayHeight; i++) {
+			actionPadPressed[i] = false;
 		}
 	}
 	void setupTrackCreation() const;

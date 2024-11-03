@@ -137,6 +137,8 @@ bool SessionView::opened() {
 	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
 	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 
+	clearActionPadPresses();
+
 	focusRegained();
 
 	return true;
@@ -3184,7 +3186,7 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 	}
 	case GridMode::BLUE: {
 		modeActive = (gridModeActive == SessionGridModeEdit);
-		modeColour = colours::blue; // Blue
+		modeColour = launchInEditMode ? colours::cyan_full : colours::blue; // Blue
 		break;
 	}
 	case GridMode::RED: {
@@ -3697,26 +3699,26 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	return newClip;
 }
 
-void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY) {
+Clip* SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY) {
 	Clip* sourceClip = gridClipFromCoords(sourceX, sourceY);
 	if (sourceClip == nullptr) {
-		return;
+		return nullptr;
 	}
 
 	// Don't allow copying recording clips
 	if (sourceClip->getCurrentlyRecordingLinearly()) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CLONE_AUDIO_IN_OTHER_TRACK));
-		return;
+		return nullptr;
 	}
 
 	Clip* targetClip = gridClipFromCoords(targetX, targetY);
 	if (targetClip != nullptr) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_TARGET_FULL));
-		return;
+		return nullptr;
 	}
 
-	gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX, gridTrackCount()), sourceClip);
 	display->popupTextTemporary("COPIED");
+	return gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX, gridTrackCount()), sourceClip);
 }
 
 void SessionView::gridStartSection(uint32_t section, bool instant) {
@@ -3759,8 +3761,9 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 	// Right sidebar column - action modes
 	if (x > kDisplayWidth) {
-
+		// action pad pressed
 		if (on) {
+			actionPadPressed[y] = true;
 			if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
 				clipPressEnded();
 			}
@@ -3769,11 +3772,21 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			                      == RuntimeFeatureStateToggle::On;
 			switch (y) {
 			case GridMode::GREEN: {
-				gridModeActive = SessionGridModeLaunch;
+				if (actionPadPressed[GridMode::BLUE]) {
+					launchInEditMode = !launchInEditMode;
+				}
+				else {
+					gridModeActive = SessionGridModeLaunch;
+				}
 				break;
 			}
 			case GridMode::BLUE: {
-				gridModeActive = SessionGridModeEdit;
+				if (actionPadPressed[GridMode::GREEN]) {
+					launchInEditMode = !launchInEditMode;
+				}
+				else {
+					gridModeActive = SessionGridModeEdit;
+				}
 				break;
 			}
 			case GridMode::RED: {
@@ -3790,8 +3803,10 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			}
 			}
 		}
+		// action pad released
 		else {
-			if (FlashStorage::defaultGridActiveMode == GridDefaultActiveModeSelection) {
+			if ((FlashStorage::defaultGridActiveMode == GridDefaultActiveModeSelection)
+			    || (actionPadPressed[GridMode::BLUE] && actionPadPressed[GridMode::GREEN])) {
 				if (!gridActiveModeUsed) {
 					gridModeSelected = gridModeActive;
 				}
@@ -3799,7 +3814,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			else {
 				gridSetDefaultMode();
 			}
-
+			actionPadPressed[y] = false;
 			gridModeActive = gridModeSelected;
 		}
 	}
@@ -3913,6 +3928,10 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 
 			// we've either created or selected a clip, so set it to be current
 			currentSong->setCurrentClip(clip);
+			// launch the clip if we launch in edit mode
+			if (launchInEditMode && !clip->activeIfNoSolo) {
+				gridToggleClipPlay(clip, false);
+			}
 
 			// Allow clip control (selection)
 			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
@@ -3956,8 +3975,13 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 
 		// Second finger up, clone clip
 		else if (gridSecondPressedX == x && gridSecondPressedY == y) {
-			gridClonePad(gridFirstPressedX, gridFirstPressedY, gridSecondPressedX, gridSecondPressedY);
+			Clip* newClip = gridClonePad(gridFirstPressedX, gridFirstPressedY, gridSecondPressedX, gridSecondPressedY);
 			gridResetPresses(false, true);
+			// Launch the new clip if we launch in edit mode
+			if (launchInEditMode) {
+				gridToggleClipPlay(newClip, false);
+			}
+			transitionToViewForClip(newClip);
 		}
 	}
 
