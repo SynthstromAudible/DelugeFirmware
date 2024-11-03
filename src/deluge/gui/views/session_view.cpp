@@ -3934,7 +3934,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			currentSong->setCurrentClip(clip);
 			// launch the clip if we launch in edit mode
 			if (launchInEditMode && !clip->activeIfNoSolo) {
-				gridToggleClipPlay(clip, false);
+				gridToggleClipPlay(clip, Buttons::isShiftButtonPressed());
 			}
 
 			// Allow clip control (selection)
@@ -3984,7 +3984,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			gridResetPresses(false, true);
 			// Launch the new clip if we launch in edit mode
 			if (launchInEditMode) {
-				gridToggleClipPlay(newClip, false);
+				gridToggleClipPlay(newClip, Buttons::isShiftButtonPressed());
 			}
 			transitionToViewForClip(newClip);
 		}
