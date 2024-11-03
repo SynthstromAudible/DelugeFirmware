@@ -239,8 +239,11 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 
 		// Press off
 		else {
-			if (!recordButtonPressUsedUp
-			    && (int32_t)(AudioEngine::audioSampleTimer - timeRecordButtonPressed) < kShortPressTime) {
+			if (display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)) {
+				display->cancelPopup();
+			}
+			else if (!recordButtonPressUsedUp
+			         && (int32_t)(AudioEngine::audioSampleTimer - timeRecordButtonPressed) < kShortPressTime) {
 				if (audioRecorder.isCurrentlyResampling()) {
 					audioRecorder.endRecordingSoon(kInternalButtonPressLatency);
 				}

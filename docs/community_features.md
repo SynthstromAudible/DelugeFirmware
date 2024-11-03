@@ -262,7 +262,6 @@ as the micromonsta and the dreadbox nymphes.
 - ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
   - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 
-
 #### 3.18 - Select Audio Clip Source and Monitoring
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
@@ -367,6 +366,22 @@ which track to record from. The source can also be selected by pressing a clip's
     - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
     - NOTE: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
         - This is because Audio Clips cannot currently be converted to other clip types and thus you will be stuck with only being able to create Audio Clips (unless you change the default and/or disable use of last clip type). The same applies to CV clips, which after two CV clips created, would prevent you from creating other clips (unless you change the default and/or disable use of last clip type).
+
+#### 3.34 Threshold Recording
+- ([#2808]) Added `THRESHOLD RECORDING` default setting which can be turned on in the `SETTINGS > RECORDING > THRESHOLD RECORDING (THRE) > MODE` submenu
+  - When this is enabled, recording of external audio input (e.g. Line In / Microphone) will only begin when it detects an audio signal according the Recording Threshold mode that has been set. There are five Threshold Recording modes that can be selected from:
+    - `DISABLED (OFF)`: Standard Deluge behaviour. Recording starts right away.
+    - `LOW`: Sets a lower threshold for lower input signals.
+    - `MEDIUM`: Sets a medium threshold that is good for most signals (including the internal microphone with gain off).
+    - `HIGH`: Sets a high threshold that is good for noisy signals / microphones with gain
+  - You can also view and temporarily change the current threshold recording setting as follows:
+    - Press and hold `RECORD` + turn  `SELECT`
+    - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+
+#### 3.35 Polyphony / Voice Count
+- ([#1824]) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing `SELECT` in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under the `VOICE (VOIC)` menu.
+  - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
+- Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`. 
 
 ## 4. New Features Added
 
@@ -511,12 +526,12 @@ Here is a list of features that have been added to the firmware as a list, group
             - Short press pads (< 100ms by default) in a column to change the value until you press the pad again (resetting it to the value before the pad was pressed)
             - Quickly clear all held values by pressing `HORIZONTAL ENCODER ◀︎▶︎` + `BACK` (resetting FX values back to their previous state)
         - Editing mode to edit the FX values assigned to each pad and the parameter assigned to each FX column
-        - Save defaults as PerformanceView.xml file
+        - Save defaults to `SETTINGS/PerformanceView.XML` file
             - Adjustable default Values assigned to each FX column via `VALUE` editing mode or PerformanceView.xml
             - Adjustable default Param assigned to each FX column via `PARAM` editing mode or PerformanceView.xml
             - Adjustable default "held pad" settings for each FX column via Performance View or PerformanceView.xml (
               simply change a held pad in Performance View and save the layout to save the layout with the held pads).
-        - Load defaults from PerformanceView.xml file
+        - Load defaults from `SETTINGS/PerformanceView.XML` file
 
 ### 4.1.7 - Added Master Chromatic Transpose of All Scale Mode Instrument Clips
 
@@ -572,7 +587,11 @@ After assigning a clip to a slot, you can press the macro slot to see what clip 
 
 Inside a `CLIP TIMELINE VIEW`, hold `SONG` button and press the `LEFT SIDEBAR` to launch a macro.
 
-In `KEYBOARD VIEW`, macros are available as a sidebar control. `SHIFT` makes the launch immediate just like in song view. `AFFECT ENTIRE` + `CLIP MACRO` can be used to jump to edit the clip.
+In `KEYBOARD VIEW`, macros are available as a sidebar control. 
+
+`SHIFT` makes the launch immediate just like in song view. 
+
+`AFFECT ENTIRE` + `CLIP MACRO` can be used to jump to edit the clip.
 
 ### 4.2 - Clip View - General Features (Instrument and Audio Clips)
 
@@ -632,20 +651,15 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
 
 #### 4.2.7 - Grain FX
 
-- ([#363]) New `GRAIN` added to Mod FX.
+- ([#363] and [#2815]) New `GRAIN` added to Mod FX.
 
     - Parameters:
         - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
         - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
-        - **`MOD FEEDBACK - GRAIN TYPE (GRTY)`:** Selects Grain Type (See below for values)
-        - **`MOD OFFSET - GRAIN SIZE (SIZE)`:** Adjusts Grain Size (10ms - 800ms)
+        - **`MOD FEEDBACK - GRAIN RANDOMNESS (GRTY)`:** Selects the spread of Grain pitch. At minimum it only generates 
+      unison and octaves, higher values add 5ths and multi octave jumps.
+        - **`MOD OFFSET - GRAIN Density (DENS)`:** Adjusts Grain Density from sparse to 8 layered grains
 
-    - Grain Type (Presets):
-        - **`0-10`:** Unison and +1 Octave (Reversed)
-        - **`11-20`** Unison and -1 Octave
-        - **`21-30`:** Unison and +1 Octave (Defalut)
-        - **`31-40`:** 5th and +1 Octave
-        - **`41-50`:** Unison and +1/-1 Octave (Tempo Sync)
 
 #### 4.2.8 - Reverb Improvements
 
@@ -780,7 +794,7 @@ to each individual note onset. ([#1978])
                         3) go back to the automation overview;
     - ([#1083]) Updated the Automation Overview and grid shortcuts in automation view for MIDI clips to match the grid
       shortcut cc mappings for MIDI Follow. So if you want to change what CC's map to what grid shortcuts in the
-      Automation View for MIDI Clips, you would need to edit the MIDIFollow.XML template for MIDI Follow mode.
+      Automation View for MIDI Clips, you would need to edit the `SETTINGS/MIDIFollow.XML` template for MIDI Follow mode.
     - ([#1156]) Change interpolation shortcut + Provide better integration with Deluge menu system and consistency with
       Select encoder usage.
         - Updated `AUTOMATION VIEW` to move the Interpolation shortcut to the Interpolation pad in the first column of
@@ -945,9 +959,11 @@ to each individual note onset. ([#1978])
 
 #### 4.3.10 - Enhanced Note Probability, Iterance and Fill
 
-- ([#2641]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
-  - Holding a note / note row and turning the select encoder now only changes probability.
-  - To edit note / note row iteration and fill settings you need to access the new note and note row editor menu's.
+- ([#2641], [#2751]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
+  - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
+  - To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
+  - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the `SELECT` encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
+  - To edit fill, you need to access the new note and note row editor menu's.
 
 #### 4.3.11 - Added New Note and Note Row Editor Menu's
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Note / Note Row Editor Documentation]
@@ -1166,6 +1182,7 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 - ([#122]) Pressing `AUDITION` + `RANDOM` on a drum kit row will load a random sample from the same folder as the
   currently enabled sample and load it as the sound for that row.
     - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+- ([#955]) Pressing `SHIFT` + `RANDOM` randomizes all non-muted drum kit rows.
 
 #### 4.6.3 - Manual Slicing / Lazy Chop
 
@@ -1230,8 +1247,9 @@ for the Lumi Keys Studio Edition, described below.
 ## 5. Community Features Menu (aka Runtime Settings)
 
 In the main menu of the Deluge (accessed by pressing both "SHIFT" + the "SELECT" encoder) there is
-the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a
-list of all options as listed in OLED and 7SEG displays and what they do:
+the `COMMUNITY FEATURES` (OLED) or `FEAT` (7SEG) entry which allows you to turn features on and off as needed. Here is a list of all options as listed in OLED and 7SEG displays and what they do:
+
+Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD card.
 
 * `Drum Randomizer (DRUM)`
     * When On, the "AUDITION + RANDOM" shortcut is enabled.
@@ -1290,6 +1308,8 @@ list of all options as listed in OLED and 7SEG displays and what they do:
       * With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
 * `Grid View Loop Pads (LOOP)`
     * When On, two pads (Red and Magenta) in the `GRID VIEW` sidebar will be illuminated and enable you to trigger the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
+* `Alternative Tap Tempo Behaviour (TAPT)`
+    * When On, the number of `TAP TEMPO` button presses to engage `TAP TEMPO` is changed to `FOUR (4)` to avoid mistakingly changing tempo.
 
 ## 6. Sysex Handling
 
@@ -1450,6 +1470,8 @@ different firmware
 
 [#934]: https://github.com/SynthstromAudible/DelugeFirmware/pull/934
 
+[#955]: https://github.com/SynthstromAudible/DelugeFirmware/pull/955
+
 [#963]: https://github.com/SynthstromAudible/DelugeFirmware/pull/963
 
 [#966]: https://github.com/SynthstromAudible/DelugeFirmware/pull/966
@@ -1516,6 +1538,8 @@ different firmware
 
 [#1739]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1739
 
+[#1824]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1824
+
 [#1846]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1846
 
 [#1898]: https://github.com/SynthstromAudible/DelugeFirmware/pull/1898
@@ -1546,9 +1570,13 @@ different firmware
 
 [#2345]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2345
 
-[#2371]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2371
+[#2365]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2365
 
 [#2367]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2367
+
+[#2371]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2371
+
+[#2376]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2376
 
 [#2385]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2385
 
@@ -1557,8 +1585,6 @@ different firmware
 [#2429]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2429
 
 [#2475]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2475
-
-[#2702]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2702
 
 [#2537]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2537
 
@@ -1570,10 +1596,17 @@ different firmware
 
 [#2676]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2676
 
+[#2702]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2702
+
 [#2712]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2712
 
 [#2716]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2716
 
+[#2751]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
+
+[#2808]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2808
+
+[#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

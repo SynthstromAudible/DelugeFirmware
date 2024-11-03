@@ -352,6 +352,14 @@ int32_t getDecay4(uint32_t input, uint8_t numBitsInInput);
 	return CONG;
 }
 
+/// generates a triangle distribution from -1q31 to 1q31 centered on 0 (Irwin-Hall)
+inline q31_t sampleTriangleDistribution() {
+	auto u1 = getNoise();
+	auto u2 = getNoise();
+	auto s = add_saturation(u1, u2);
+	return s;
+}
+
 void seedRandom();
 
 extern bool shouldInterpretNoteNames;
@@ -412,8 +420,6 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 void concatenateLines(const char* lines[], size_t numLines, char* resultString);
 double ConvertFromIeeeExtended(unsigned char* bytes /* LCN */);
 int32_t divide_round_negative(int32_t dividend, int32_t divisor);
-void dissectIterationDependence(int32_t iterance, int32_t* getDivisor, int32_t* getWhichIterationWithinDivisor);
-int32_t encodeIterationDependence(int32_t divisor, int32_t iterationWithinDivisor);
 
 [[gnu::always_inline]] inline uint32_t swapEndianness32(uint32_t input) {
 	int32_t out;
