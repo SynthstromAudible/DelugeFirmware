@@ -15,30 +15,30 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "gui/ui/rename/rename_output_ui.h"
+#include "gui/ui/rename/rename_clip_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
-#include "gui/views/arranger_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "model/output.h"
 #include "model/song/song.h"
 
-RenameOutputUI renameOutputUI{};
+RenameClipUI renameClipUI{};
 
-RenameOutputUI::RenameOutputUI() {
-	title = "Track Name";
+RenameClipUI::RenameClipUI() {
+	title = "Clip Name";
 }
 
-bool RenameOutputUI::opened() {
+bool RenameClipUI::opened() {
 	bool success = QwertyUI::opened();
 	if (!success) {
 		return false;
 	}
 
-	enteredText.set(&output->name);
+	enteredText.set(&clip->name);
 
 	displayText();
 
@@ -47,12 +47,12 @@ bool RenameOutputUI::opened() {
 	return true;
 }
 
-bool RenameOutputUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
+bool RenameClipUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	*cols = 0b11;
 	return true;
 }
 
-ActionResult RenameOutputUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult RenameClipUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Back button
@@ -82,34 +82,27 @@ ActionResult RenameOutputUI::buttonAction(deluge::hid::Button b, bool on, bool i
 	return ActionResult::DEALT_WITH;
 }
 
-void RenameOutputUI::enterKeyPress() {
-
-	if (enteredText.isEmpty()) {
-		return;
-	}
+void RenameClipUI::enterKeyPress() {
 
 	// If actually changing it...
-	if (!output->name.equalsCaseIrrespective(&enteredText)) {
-		// if this is an audio output
-		// don't let user set a name that is a duplicate of another name that has been set for another audio output
-		// Sean: do we only want to do this for audio output's?
-		if (currentSong->getAudioOutputFromName(&enteredText)) {
+	if (!clip->name.equalsCaseIrrespective(&enteredText)) {
+		// don't let user set a name that is a duplicate of another name that has been set for another clip
+		if (currentSong->getClipFromName(&enteredText)) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
 	}
-
-	output->name.set(&enteredText);
+	clip->name.set(&enteredText);
 	exitUI();
 }
 
-bool RenameOutputUI::exitUI() {
+bool RenameClipUI::exitUI() {
 	display->setNextTransitionDirection(-1);
 	close();
 	return true;
 }
 
-ActionResult RenameOutputUI::padAction(int32_t x, int32_t y, int32_t on) {
+ActionResult RenameClipUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Main pad
 	if (x < kDisplayWidth) {
@@ -127,6 +120,6 @@ ActionResult RenameOutputUI::padAction(int32_t x, int32_t y, int32_t on) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult RenameOutputUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult RenameClipUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	return ActionResult::DEALT_WITH;
 }

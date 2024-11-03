@@ -96,6 +96,7 @@ void RenameDrumUI::enterKeyPress() {
 
 	// If actually changing it...
 	if (!getDrum()->name.equalsCaseIrrespective(&enteredText)) {
+		// don't let user set a name that is a duplicate of another name that has been set for another drum
 		if (getCurrentKit()->getDrumFromName(enteredText.get())) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
@@ -114,32 +115,22 @@ bool RenameDrumUI::exitUI() {
 
 ActionResult RenameDrumUI::padAction(int32_t x, int32_t y, int32_t on) {
 
-	// Audition pad
-	if (x == kDisplayWidth + 1) {
-		return instrumentClipView.padAction(x, y, on);
-	}
-
 	// Main pad
-	else if (x < kDisplayWidth) {
+	if (x < kDisplayWidth) {
 		return QwertyUI::padAction(x, y, on);
 	}
 
 	// Otherwise, exit
-	else {
-		if (on && !currentUIMode) {
-			if (sdRoutineLock) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-			exitUI();
+	if (on && !currentUIMode) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
+		exitUI();
 	}
 
 	return ActionResult::DEALT_WITH;
 }
 
 ActionResult RenameDrumUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-		return ActionResult::DEALT_WITH;
-	}
-	return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+	return ActionResult::DEALT_WITH;
 }
