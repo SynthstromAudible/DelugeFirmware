@@ -90,15 +90,10 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - Select from `OFF, Y, Aftertouch, Velocity`
   
 ##### MIDI Clips
-- Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`.
+- Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`. See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
 - Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
 
 ### MIDI
-
-#### <ins>SETTINGS SD card folder</ins>
-- A new folder has been created in the root of the SD card titled `SETTINGS`
-- The following files which were previously saved in the root of the SD card have been moved to the `SETTINGS` folder: `MIDIDevices.XML`, `MIDIFollow.XML`, `PerformanceView.XML` and `CommunityFeatures.XML`.
-  - Note: if you revert back to an earlier firmware, you will need to move these files back to the root of the SD card so that they can be loaded.
 
 #### <ins>Learn</ins>
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
@@ -107,6 +102,18 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - `Midi Learned Note Input for the Whole Kit` now persists between Kit preset changes.
 - Fixed unexpected behaviour for `Synth` and `Kit` clips that would cause `MIDI LEARNED PARAMS` to get lost when changing presets for Synth / Kits. 
   - Note: for `Kit` clips it will migrate midi learn for `Kit Affect Entire` params only.
+
+### SD CARD
+
+#### <ins>SETTINGS folder</ins>
+- A new folder has been created in the root of the SD card titled `SETTINGS`
+- The following files which were previously saved in the root of the SD card have been moved to the `SETTINGS` folder: `MIDIDevices.XML`, `MIDIFollow.XML`, `PerformanceView.XML` and `CommunityFeatures.XML`.
+  - Note: if you revert back to an earlier firmware, you will need to move these files back to the root of the SD card so that they can be loaded.
+
+#### <ins>MIDI_DEVICES folder</ins>
+- A new folder has been created in the root of the SD card titled `MIDI_DEVICES`
+- MIDI device definition files can be saved to / loaded from `MIDI_DEVICES/DEFINITION/`
+- See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
 
 ## c1.2.0 Chopin
 
@@ -354,7 +361,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.
   - You can also use the `SELECT ENCODER` while in the `AUTOMATION VIEW EDITOR` to scroll to any patch cables that exist.
 - Updated `AUTOMATION VIEW EDITOR` to allow you to edit Bipolar params according to their Bipolar nature. E.g. positive values are shown in the top four pads, negative value in the bottom four pads, and the middle value (0) is shown by not lighting up any pads.
-- Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset file `MIDI_DEVICES/MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the Automation Overview and with the shortcut combos (e.g. `SHIFT` + `SHORTCUT PAD`).
+- Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset file `SETTINGS/MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the Automation Overview and with the shortcut combos (e.g. `SHIFT` + `SHORTCUT PAD`).
 - Updated `AUTOMATION VIEW` to move the `INTERPOLATION` shortcut to the `INTERPOLATION` pad in the first column of the Deluge grid (second pad from the top). Toggle interpolation on/off using `SHIFT` + `INTERPOLATION` shortcut pad. The Interpolation shortcut pad will blink to indicate that interpolation is enabled.
 - Updated `AUTOMATION VIEW` to move the `PAD SELECTION MODE` shortcut to the `WAVEFORM` pad in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using `SHIFT` + `WAVEFORM` shortcut pad. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.  
 - Updated `AUTOMATION VIEW` to provide access to `SETTINGS` menu (`SHIFT` + press `SELECT`)
