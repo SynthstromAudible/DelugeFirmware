@@ -3550,12 +3550,25 @@ void Song::markAllInstrumentsAsEdited() {
 	}
 }
 
+// used with the renameOutputUI class to check if you're trying to rename an output to the same
+// name as another output
 AudioOutput* Song::getAudioOutputFromName(String* name) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->type == OutputType::AUDIO) {
 			if (thisOutput->name.equalsCaseIrrespective(name)) {
 				return (AudioOutput*)thisOutput;
 			}
+		}
+	}
+	return NULL;
+}
+
+// used with the renameClipUI class to check if you're trying to rename a clip to the same name
+// as another clip
+Clip* Song::getClipFromName(String* name) {
+	for (Clip* clip : AllClips::everywhere(this)) {
+		if (clip->name.equalsCaseIrrespective(name)) {
+			return clip;
 		}
 	}
 	return NULL;
