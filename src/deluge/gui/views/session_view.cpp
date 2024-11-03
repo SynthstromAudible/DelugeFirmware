@@ -1079,6 +1079,10 @@ void SessionView::clipPressEnded() {
 	// the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 	selectedClipYDisplay = 255;
 	clipWasSelectedWithShift = false;
+	// Cancel copying clip
+	if (gridFirstPressedX != -1 && gridFirstPressedY != -1 && gridSecondPressedX != -1 && gridSecondPressedY != -1) {
+		display->popupTextTemporary("COPY CANCELED");
+	}
 	gridResetPresses();
 
 	currentUIMode = UI_MODE_NONE;
@@ -3925,6 +3929,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			performActionOnPadRelease = false;
 			gridSecondPressedX = x;
 			gridSecondPressedY = y;
+			display->popupText("COPY CLIPS");
 		}
 	}
 	// Release
