@@ -1385,7 +1385,7 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 			// If it's being recorded to, some special instructions
 			if (playbackHandler.playbackState && output->recordingInArrangement
 			    && clip->getCurrentlyRecordingLinearly()) {
-					// Can't press here to the left of the play/record cursor!
+				// Can't press here to the left of the play/record cursor!
 				if (squareStart < arrangement.getLivePos()) {
 					return;
 				}
