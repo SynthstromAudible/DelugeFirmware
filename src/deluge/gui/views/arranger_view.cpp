@@ -1298,6 +1298,12 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 				}
 
 				if (x == xPressed && y == yPressedEffective) {
+					// if a section clip instance was changed to an arrangement only clip instance,
+					// the clip itself is created on pad release
+					if (lastInteractedSection == 255 && !lastInteractedClipInstance->clip) {
+						createNewClipForClipInstance(output, lastInteractedClipInstance);
+					}
+
 					// If no action to perform...
 					if (!actionOnDepress || (int32_t)(AudioEngine::audioSampleTimer - pressTime) >= kShortPressTime) {
 						return exitSubModeWithoutAction();
@@ -2364,8 +2370,8 @@ squareStartPosSet:
 					// Or the real Clip - for all squares in the Instance
 					for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
 						if (!clipInstance->clip) {
-							// this shouldn't be possible, but it happens when you create a brand new white clip
-							// which doesn't have a timeline counter yet (until you enter the clip)
+							// Arranger only clip instances created from a section clip (hold clip + turn Select) don't
+							// have a clip until the pad is released. Their "clip preview" gets drawn here
 							image[xDisplay] = colour.dim(4);
 						}
 						else {
@@ -2398,9 +2404,8 @@ squareStartPosSet:
 									*it = image[xDisplay] = colour.forBlur().dim(3);
 								}
 							}
-
-							xDisplay++;
 						}
+						xDisplay++;
 					}
 
 					xDisplay = squareEnd - 1;
