@@ -151,11 +151,37 @@ void Decimal::drawPixelsForOled() {
 	int32_t digitWidth = kTextHugeSpacingX;
 	int32_t stringWidth = digitWidth * length;
 	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
-
-	hid::display::OLED::main.drawString(buffer, stringStartX, 20, digitWidth, kTextHugeSizeY);
-
 	int32_t ourDigitStartX = stringStartX + editingChar * digitWidth;
-	hid::display::OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
+
+	// Dirty fix: for numbers with decimals, manually draw non-monospaced font as monospaced
+	if (numDecimalPlaces) {
+		// recalculate position, the period is 1/2 digitWidth
+		stringWidth = digitWidth * (length - 0.5);
+		stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
+		if (editingChar >= length - numDecimalPlaces) {
+			ourDigitStartX -= digitWidth / 2;
+		}
+		// drawString seems to offset the digits a bit, so we correct
+		constexpr int32_t digitOffset = -4;
+		// draw digits one-by-one
+		int32_t drawPositionX = stringStartX;
+		for (int32_t i = 0; i < length; i++) {
+			hid::display::OLED::main.drawString(std::string(1, buffer[i]), drawPositionX + digitOffset, 20, digitWidth,
+			                                    kTextHugeSizeY);
+			if (i == length - numDecimalPlaces - 1) {
+				drawPositionX += digitWidth / 2;
+			}
+			else {
+				drawPositionX += digitWidth;
+			}
+		}
+	}
+	// values without decimals are drawn by the regular draw method
+	else {
+		hid::display::OLED::main.drawString(buffer, stringStartX, 20, digitWidth, kTextHugeSizeY);
+	}
+	// draw cursor
+	hid::display::OLED::setupBlink(ourDigitStartX, digitWidth, 41, 44, movingCursor);
 }
 
 void Decimal::drawActualValue(bool justDidHorizontalScroll) {
