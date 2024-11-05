@@ -167,6 +167,7 @@ public:
 	                                        char const* name, char const* dirPath, bool searchHibernatingToo = true,
 	                                        bool searchNonHibernating = true);
 	AudioOutput* getAudioOutputFromName(String* name);
+	Clip* getClipFromName(String* name);
 	void setupPatchingForAllParamManagers();
 	void replaceInstrument(Instrument* oldInstrument, Instrument* newInstrument, bool keepNoteRowsWithMIDIInput = true);
 	void stopAllMIDIAndGateNotesPlaying();
@@ -453,6 +454,11 @@ public:
 	}
 
 	int8_t defaultAudioClipOverdubOutputCloning = -1; // -1 means no default set
+
+	// Threshold
+	void changeThresholdRecordingMode(int8_t offset);
+	void displayThresholdRecordingMode();
+	ThresholdRecordingMode thresholdRecordingMode;
 
 private:
 	ScaleMapper scaleMapper;

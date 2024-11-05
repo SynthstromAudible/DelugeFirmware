@@ -6,6 +6,7 @@
 
 ### Sound Engine
 - Added a Warbler fx and a warble LFO to synths/kits/kit rows/song/audio clips
+- Made grain much faster and updated controls
 - Added LPF to Mutable Instruments Reverb
 
 ### User Interface
@@ -15,6 +16,20 @@
   - `Shortcuts (SHOR)` to make specific shortcut combinations more accessible for users with mobility restrictions.
     - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
+
+#### <ins>Tempo</ins>
+- Added Community Feature toggle (`Settings > Community Features > Alternative Tap Tempo Behaviour (TAPT)`) to adjust number of `TAP TEMPO` button presses to engage `TAP TEMPO` to `FOUR (4)` to avoid mistakingly changing tempo.
+
+#### <ins>Recording</ins>
+- Added `THRESHOLD RECORDING` default setting which can be turned on in the `SETTINGS > RECORDING > THRESHOLD RECORDING (THRE) > MODE` submenu
+  - When this is enabled, recording of external audio input (e.g. Line In / Microphone) will only begin when it detects an audio signal according the Recording Threshold mode that has been set. There are four Threshold Recording modes that can be selected from:
+    - `DISABLED (OFF)`: Standard Deluge behaviour. Recording starts right away.
+    - `LOW`: Sets a lower threshold for lower input signals.
+    - `MEDIUM`: Sets a medium threshold that is good for most signals (including the internal microphone with gain off).
+    - `HIGH`: Sets a high threshold that is good for noisy signals / microphones with gain
+  - You can also view and temporarily change the current threshold recording setting as follows:
+    - Press and hold `RECORD` + turn  `SELECT`
+    - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
 
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
@@ -73,6 +88,10 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - Press `SELECT` to enter the `CV Instrument Menu`
   - Enter the  `CV 2 Source (CV2)` submenu
   - Select from `OFF, Y, Aftertouch, Velocity`
+  
+##### MIDI Clips
+- Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`. See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
+- Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
 
 ### MIDI
 
@@ -80,8 +99,21 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
 - Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Song Grid View Green Mode` by moving `Midi Learn Clip/Section Launch` actions to the `MIDI LEARN` menu mentioned above.
+- `Midi Learned Note Input for the Whole Kit` now persists between Kit preset changes.
 - Fixed unexpected behaviour for `Synth` and `Kit` clips that would cause `MIDI LEARNED PARAMS` to get lost when changing presets for Synth / Kits. 
   - Note: for `Kit` clips it will migrate midi learn for `Kit Affect Entire` params only.
+
+### SD CARD
+
+#### <ins>SETTINGS folder</ins>
+- A new folder has been created in the root of the SD card titled `SETTINGS`
+- The following files which were previously saved in the root of the SD card have been moved to the `SETTINGS` folder: `MIDIDevices.XML`, `MIDIFollow.XML`, `PerformanceView.XML` and `CommunityFeatures.XML`.
+  - Note: if you revert back to an earlier firmware, you will need to move these files back to the root of the SD card so that they can be loaded.
+
+#### <ins>MIDI_DEVICES folder</ins>
+- A new folder has been created in the root of the SD card titled `MIDI_DEVICES`
+- MIDI device definition files can be saved to / loaded from `MIDI_DEVICES/DEFINITION/`
+- See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
 
 ## c1.2.0 Chopin
 
@@ -160,13 +192,21 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### General
 - Added ability to sync LFO2. Where LFO1 syncs relative to the grid, LFO2 syncs relative to individual notes.
-- Added ability to set `CLIP NAMES`. MIDI, SYNTH and KIT clips can now be named. When in a the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view, you are now able to scroll through the clip names when holding a pad.
+- Added ability to set `CLIP NAMES`. MIDI, SYNTH and KIT clips can now be named. When in a the clip view, press `SHIFT` + `NAME` and enter the name of the clip. For KIT, its important to activate `AFFECT ENTIRE` to name the KIT clip. When on ARRANGER view with an OLED display, you are now able to scroll through the clip names when holding a clip pad and turning `SELECT` encoder.
 - Fixed a bug where pressing `UNDO` in a `KIT` could cause the `SELECTED DRUM` to change but not update the `GOLD KNOBS` so that they now control that updated kit row.  
 - Fixed a bug where you could not turn `RECORDING OFF` while auditioning a note in an `INSTRUMENT CLIP`. With this fix you can now record drone notes when using `LINEAR RECORDING`.
 
 ##### Velocity View
 - Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`. 
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
+
+##### Scales
+- Added learning a user specified scale.
+  - Hold `LEARN` and press `SCALE` while in clip view. Notes from current clip & all scale mode clips are learned as the "USER" scale. This scale is part of the normal scale rotation, accessible with `SHIFT + SCALE`, and saved as part of the song. If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
+  - If you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing preset scales, it will be learned as a user scale, overwriting the previous USER scale.
+- Added `ACTIVE SCALES` menu.
+  - `SONG > ACTIVE SCALES` toggles scales on and off from the `SHIFT + SCALE` rotation for the current song. Active scales are saved as part of the song. On 7-segment display dot indicates that the named scale is active, lack of dot indicates it has been disabled.
+  - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
 
 #### <ins>Song View</ins>
 
@@ -272,6 +312,10 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added compressors to synths, kits, audio clips, and kit rows. The compressor can be enabled and edited from their respective menus.
 - Compressor behavior has been changed to reduce clipping. Songs made with community release 1.0.x may need to have their volume manually adjusted to compensate. This is done via affect entire in song/arranger mode, or by entering the `SONG MENU` by pressing `SELECT` in Song View and navigating to  `MASTER > VOLUME`
 
+#### <ins>Polyphony / Voice Count </ins>
+- Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument
+- Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`. 
+
 ### User Interface
 
 #### <ins>General</ins>
@@ -317,7 +361,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added `AUTOMATION VIEW` for `PATCH CABLES / MODULATION DEPTH`. Simply enter the modulation menu that displays `SOURCE -> DESTINATION` and then press `CLIP` to access the `AUTOMATION VIEW EDITOR` for that specific Patch Cable / Modulation Depth.
   - You can also use the `SELECT ENCODER` while in the `AUTOMATION VIEW EDITOR` to scroll to any patch cables that exist.
 - Updated `AUTOMATION VIEW EDITOR` to allow you to edit Bipolar params according to their Bipolar nature. E.g. positive values are shown in the top four pads, negative value in the bottom four pads, and the middle value (0) is shown by not lighting up any pads.
-- Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset file `MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the Automation Overview and with the shortcut combos (e.g. `SHIFT` + `SHORTCUT PAD`).
+- Updated `AUTOMATION VIEW` for MIDI Clips to load the Parameter to CC mappings from the `MIDI FOLLOW MODE` preset file `SETTINGS/MIDIFollow.XML`. These Parameter to CC mappings are used as the quick access MIDI CC shortcuts dislayed in the Automation Overview and with the shortcut combos (e.g. `SHIFT` + `SHORTCUT PAD`).
 - Updated `AUTOMATION VIEW` to move the `INTERPOLATION` shortcut to the `INTERPOLATION` pad in the first column of the Deluge grid (second pad from the top). Toggle interpolation on/off using `SHIFT` + `INTERPOLATION` shortcut pad. The Interpolation shortcut pad will blink to indicate that interpolation is enabled.
 - Updated `AUTOMATION VIEW` to move the `PAD SELECTION MODE` shortcut to the `WAVEFORM` pad in the first column of the Deluge grid (very top left pad). Toggle pad selection mode on/off using `SHIFT` + `WAVEFORM` shortcut pad. The Waveform shortcut pad will blink to indicate that pad selection mode is enabled.  
 - Updated `AUTOMATION VIEW` to provide access to `SETTINGS` menu (`SHIFT` + press `SELECT`)
@@ -364,7 +408,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added a `KIT FX MENU` to KITS which allows you to customize the AFFECT ENTIRE KIT parameters with greater control.   Accessible in `KIT CLIP VIEW` by pressing `SELECT` with `AFFECT ENTIRE` enabled.
 - Added ability to save a drum kit row back to an synth preset by pressing `AUDITION` + `SAVE`.
 - Added a new default setting that controls which playback mode new slices of a kit will receive.
-- Drum randomization is no longer limited to only 10 sounds per folder.
+- Drum randomization no longer has a limit on the number of sound files to randomize.
+- Pressing `SHIFT` + `RANDOM` now randomizes all non-muted drum kit rows.
 - The default Mod-FX type for kit affect-entire is now `DISABLED` rather than `FLANGER`.
 - Fixed several crashes related to drum randomization.
 

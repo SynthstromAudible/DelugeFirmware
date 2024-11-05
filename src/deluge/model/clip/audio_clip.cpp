@@ -189,7 +189,8 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 
 	// Got to check reachedMaxFileSize here, cos that'll go true a bit before cardRoutine() sets status to ERROR
-	if (recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize) {
+	// also check if we haven't captured any samples (which can happen with threshold recording)
+	if (recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize || !recorder->numSamplesCaptured) {
 		abortRecording();
 		return;
 	}
@@ -241,7 +242,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 	recorder = NULL;
 
-	clipName.set(sampleHolder.filePath.get());
+	name.set(sampleHolder.filePath.get());
 }
 
 Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldClip, OverDubType newOverdubNature) {
@@ -1217,7 +1218,7 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 void AudioClip::loadSample(bool mayActuallyReadFile) {
 	Error error = sampleHolder.loadFile(sampleControls.reversed, false, mayActuallyReadFile);
-	clipName.set(sampleHolder.filePath.get());
+	name.set(sampleHolder.filePath.get());
 	if (error != Error::NONE) {
 		display->displayError(error);
 	}
@@ -1295,7 +1296,7 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 
 			sampleHolder.filePath.clear();
 			sampleHolder.setAudioFile(NULL);
-			clipName.set("");
+			name.set("");
 		}
 
 		renderData.xScroll = -1;

@@ -208,7 +208,8 @@ void MIDIDevice::readFromFile(Deserializer& reader) {
 	}
 }
 
-void MIDIDevice::writeDefinitionAttributesToFile(Serializer& writer) { // These only go into MIDIDEVICES.XML.
+// These only go into SETTINGS/MIDIDevices.XML
+void MIDIDevice::writeDefinitionAttributesToFile(Serializer& writer) {
 	if (hasDefaultVelocityToLevelSet()) {
 		writer.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
 	}

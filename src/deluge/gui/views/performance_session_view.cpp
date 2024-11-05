@@ -55,7 +55,8 @@ using deluge::modulation::params::kNoParamID;
 using namespace deluge;
 using namespace gui;
 
-#define PERFORM_DEFAULTS_XML "PerformanceView.XML"
+#define SETTINGS_FOLDER "SETTINGS"
+#define PERFORM_DEFAULTS_XML "SETTINGS/PerformanceView.XML"
 #define PERFORM_DEFAULTS_TAG "defaults"
 #define PERFORM_DEFAULTS_FXVALUES_TAG "defaultFXValues"
 #define PERFORM_DEFAULTS_PARAM_TAG "param"
@@ -1840,8 +1841,22 @@ void PerformanceSessionView::readDefaultsFromFile() {
 	// PerformanceView.XML
 	bool success = StorageManager::fileExists(PERFORM_DEFAULTS_XML, &fp);
 	if (!success) {
-		loadDefaultLayout();
-		return;
+		// since we changed the file path for the PerformanceView.XML in c1.3, it's possible
+		// that a PerformanceView file may exists in the root of the SD card
+		// if so, let's move it to the new SETTINGS folder (but first make sure folder exists)
+		FRESULT result = f_mkdir(SETTINGS_FOLDER);
+		if (result == FR_OK || result == FR_EXIST) {
+			result = f_rename("PerformanceView.XML", PERFORM_DEFAULTS_XML);
+			if (result == FR_OK) {
+				// this means we moved it
+				// now let's open it
+				success = StorageManager::fileExists(PERFORM_DEFAULTS_XML, &fp);
+			}
+		}
+		if (!success) {
+			loadDefaultLayout();
+			return;
+		}
 	}
 
 	//<defaults>
