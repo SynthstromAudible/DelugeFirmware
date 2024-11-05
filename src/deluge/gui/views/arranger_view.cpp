@@ -406,6 +406,7 @@ doActualSimpleChange:
 
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
+			performanceSessionView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
 			changeRootUI(&performanceSessionView);
 		}
 	}
