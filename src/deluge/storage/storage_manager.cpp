@@ -450,7 +450,7 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 
 	error = midiInstrument->readDeviceDefinitionFile(smDeserializer, false);
 
-	FRESULT fileSuccess = activeDeserializer->closeFIL();
+	FRESULT fileSuccess = activeDeserializer->closeWriter();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
