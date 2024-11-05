@@ -23,8 +23,9 @@ void writeBlock(MIDIDevice* device, JsonDeserializer& reader);
 void getDirEntries(MIDIDevice* device, JsonDeserializer& reader);
 void deleteFile(MIDIDevice* device, JsonDeserializer& reader);
 void createDirectory(MIDIDevice* device, JsonDeserializer& reader);
-FRESULT createPathDirectories(String& path);
+FRESULT createPathDirectories(String& path, uint32_t date, uint32_t time);
 void rename(MIDIDevice* device, JsonDeserializer& reader);
+void updateTime(MIDIDevice* device, JsonDeserializer& reader);
 void doPing(MIDIDevice* device, JsonDeserializer& reader);
 uint32_t decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax);
 } // namespace smSysex

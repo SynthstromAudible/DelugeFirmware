@@ -120,7 +120,7 @@ FRESULT smSysex::closeFIL(int fx) {
 // Fill in missing directories for the full path name given.
 // Unless the last character in the path is a /, we assume the
 // path given ends with a filename (which we ignore).
-FRESULT smSysex::createPathDirectories(String& path) {
+FRESULT smSysex::createPathDirectories(String& path, uint32_t date, uint32_t time) {
 
 	FRESULT errCode;
 	if (path.getLength() > 256) {
@@ -151,6 +151,12 @@ FRESULT smSysex::createPathDirectories(String& path) {
 				errCode = f_opendir(&wDIR, (TCHAR*)pathPart);
 				if (errCode == FRESULT::FR_NO_PATH) {
 					errCode = f_mkdir((TCHAR*)pathPart);
+					if (errCode == FRESULT::FR_OK && (date != 0 || time != 0)) {
+						FILINFO finfo;
+						finfo.fdate = date;
+						finfo.ftime = time;
+						errCode = f_utime(pathPart, &finfo);
+					}
 				}
 				else if (errCode == 0) {
 					errCode = f_closedir(&wDIR);
@@ -170,6 +176,8 @@ void smSysex::openFile(MIDIDevice* device, JsonDeserializer& reader) {
 	String path;
 	int32_t rn = 0;
 	char const* tagName;
+	uint32_t date = 0;
+	uint32_t time = 0;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "write")) {
@@ -177,6 +185,14 @@ void smSysex::openFile(MIDIDevice* device, JsonDeserializer& reader) {
 		}
 		else if (!strcmp(tagName, "path")) {
 			reader.readTagOrAttributeValueString(&path);
+		}
+		// Since you can't change the date/time of an open file, we use date/time
+		// only for created directoris.
+		else if (!strcmp(tagName, "date")) {
+			date = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "time")) {
+			time = reader.readTagOrAttributeValueInt();
 		}
 		else {
 			reader.exitTag();
@@ -197,10 +213,11 @@ retry:
 		fSize = fp->fSize;
 	}
 	if (forWrite && !pathCreateTried && errCode == FRESULT::FR_NO_PATH) { // was the path missing?
-		createPathDirectories(path);
+		createPathDirectories(path, date, time);
 		pathCreateTried = true;
 		goto retry;
 	}
+
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^open", false, true);
 	jWriter.writeAttribute("fid", fd);
@@ -271,10 +288,18 @@ void smSysex::createDirectory(MIDIDevice* device, JsonDeserializer& reader) {
 
 	char const* tagName;
 	String path;
+	uint32_t date = 0;
+	uint32_t time = 0;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "path")) {
 			reader.readTagOrAttributeValueString(&path);
+		}
+		else if (!strcmp(tagName, "date")) {
+			date = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "time")) {
+			time = reader.readTagOrAttributeValueInt();
 		}
 		else {
 			reader.exitTag();
@@ -288,6 +313,12 @@ void smSysex::createDirectory(MIDIDevice* device, JsonDeserializer& reader) {
 	if (pathTC && strlen(pathTC) > 0) {
 		D_PRINTLN(pathTC);
 		errCode = f_mkdir(pathTC);
+		if (errCode == FRESULT::FR_OK && (date != 0 || time != 0)) {
+			FILINFO finfo;
+			finfo.fdate = date;
+			finfo.ftime = time;
+			errCode = f_utime(pathTC, &finfo);
+		}
 		startReply(jWriter, reader);
 		jWriter.writeOpeningTag("^mkdir", false, true);
 		jWriter.writeAttribute("path", pathVal);
@@ -578,6 +609,49 @@ void smSysex::writeBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	sendMsg(device, jWriter);
 }
 
+void smSysex::updateTime(MIDIDevice* device, JsonDeserializer& reader) {
+
+	FRESULT errCode;
+	char const* tagName;
+	uint32_t date = 0;
+	uint32_t time = 0;
+	String path;
+
+	reader.match('{');
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "path")) {
+			reader.readTagOrAttributeValueString(&path);
+		}
+		else if (!strcmp(tagName, "date")) {
+			date = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "time")) {
+			time = reader.readTagOrAttributeValueInt();
+		}
+		else {
+			reader.exitTag();
+		}
+	}
+	reader.match('}');
+
+	if (!path.isEmpty() && (date != 0 || time != 0)) {
+		FILINFO finfo;
+		finfo.fdate = date;
+		finfo.ftime = time;
+		const char* pathVal = path.get();
+		const TCHAR* pathTC = (const TCHAR*)pathVal;
+		errCode = f_utime(pathTC, &finfo);
+	}
+	else {
+		errCode = FRESULT::FR_INVALID_PARAMETER;
+	}
+	startReply(jWriter, reader);
+	jWriter.writeOpeningTag("^utime", false, true);
+	jWriter.writeAttribute("err", errCode);
+	jWriter.closeTag(true);
+	sendMsg(device, jWriter);
+}
+
 void smSysex::doPing(MIDIDevice* device, JsonDeserializer& reader) {
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^ping", false, true);
@@ -651,6 +725,10 @@ void smSysex::handleNextSysEx() {
 		}
 		else if (!strcmp(tagName, "rename")) {
 			rename(de.device, parser);
+			goto done;
+		}
+		else if (!strcmp(tagName, "utime")) {
+			updateTime(de.device, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "ping")) {

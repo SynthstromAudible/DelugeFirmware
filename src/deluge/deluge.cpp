@@ -594,7 +594,7 @@ void registerTasks() {
 	addRepeatingTask([]() { encoders::interpretEncoders(false); }, p++, 0.005, 0.005, 0.01, "interpret encoders slow");
 
 	// Check for and handle queued SysEx traffic
-	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.005, 0.005, 0.01, "Handle pending SysEx traffic.");
+	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.");
 
 	// 21-29: Low priority (30 for dyn tasks)
 	p = 21;
