@@ -3900,6 +3900,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 					// don't update clip selection if we didn't create a clip
 					if (clip != nullptr && (x != gridFirstPressedX || y != gridFirstPressedY)) {
 						currentSong->setCurrentClip(clip);
+						transitionToViewForClip(clip);
 						return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 					}
 				}
