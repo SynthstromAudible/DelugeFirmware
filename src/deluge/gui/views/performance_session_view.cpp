@@ -930,10 +930,15 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		}
 		else {
 			// if you released the keyboard button and it was held for longer than hold time
-			// switch back to session view (it just peeks performance view)
+			// switch back to arranger or session view (it just peeks performance view)
 			if (((AudioEngine::audioSampleTimer - timeKeyboardShortcutPress) >= FlashStorage::holdTime)) {
 				releaseViewOnExit(modelStack);
-				changeRootUI(&sessionView);
+				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
+					changeRootUI(&arrangerView);
+				}
+				else {
+					changeRootUI(&sessionView);
+				}
 			}
 		}
 	}
