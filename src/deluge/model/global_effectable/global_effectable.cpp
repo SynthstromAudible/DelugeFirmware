@@ -1148,8 +1148,10 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem
 	// strange, but it's because unlike for Sounds, the effect can be switched on and off by changing a parameter
 	// like "depth".
-	if (util::one_of(modFXTypeNow,
-	                 {ModFXType::CHORUS_STEREO, ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::WARBLE})) {
+	// TODO: this saves a tiny amount of memory at the cost of needing allocations during the audio render cycle...
+	// seems kinda dumb
+	if (util::one_of(modFXTypeNow, {ModFXType::CHORUS_STEREO, ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::WARBLE,
+	                                ModFXType::DIMENSION})) {
 		if (!modFXBuffer) {
 			modFXBuffer =
 			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
