@@ -2494,34 +2494,9 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 			                      clipInstance->clip, NULL);
 		}
 
-		int32_t newLength;
-
-		// No newClip means this will become a white clip
-		if (!newClip) {
-			// which will have the same length as the original clip instance
-			newLength = desiredLength;
-		}
-
-		else {
-			// choosing a section clip will reset the clip instance length to the length of that section clip
-			newLength = newClip->loopLength;
-		}
-
-		// Make sure it's not too long
-		ClipInstance* nextClipInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
-		if (nextClipInstance) {
-			int32_t maxLength = nextClipInstance->pos - clipInstance->pos;
-
-			if (newLength > maxLength) {
-				newLength = maxLength;
-			}
-		}
-		if (newLength > kMaxSequenceLength - clipInstance->pos) {
-			newLength = kMaxSequenceLength - clipInstance->pos;
-		}
 		// log action
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
-		clipInstance->change(action, output, clipInstance->pos, newLength, newClip);
+		clipInstance->change(action, output, clipInstance->pos, desiredLength, newClip);
 		// notify the arrangement that this clip instance will be added
 		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
 
