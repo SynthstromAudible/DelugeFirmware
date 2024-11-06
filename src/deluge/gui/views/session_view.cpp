@@ -4074,7 +4074,6 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				gridFirstPressedY = y;
 				// will create the track if it doesn't exist
 				clip = gridCreateClip(gridSectionFromY(y), track, nullptr);
-				transitionToViewForClip(clip);
 				// If playing and Rec enabled, selecting an empty clip creates a new clip and starts it playing
 				// (depending on setting)
 				if (clip != nullptr && playbackHandler.playbackState
