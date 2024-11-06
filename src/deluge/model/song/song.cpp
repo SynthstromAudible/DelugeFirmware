@@ -1008,22 +1008,28 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 
 	int32_t oldIndex = -1;
 	if (prevClip) {
+		// retrieve clip index
 		oldIndex = sessionClips.getIndexForClip(prevClip);
 	}
-
+	// if we didn't retrieve a clip index, this is an arranger-only clip
 	if (oldIndex == -1) {
+		// turning select knob left
 		if (offset < 0) {
+			// use the highest available index
+			// NOTE: resulting index is one-based
 			oldIndex = sessionClips.getNumElements();
 		}
 	}
 
 	int32_t newIndex = oldIndex;
 	while (true) {
+		// iterate index according to select knob direction
 		newIndex += offset;
+		// index out of bounds on either side returns NULL
 		if (newIndex == -1 || newIndex == sessionClips.getNumElements()) {
 			return NULL;
 		}
-
+		// retrieve clip and return
 		Clip* clip = sessionClips.getClipAtIndex(newIndex);
 		if (clip->output == output) {
 			return clip;
