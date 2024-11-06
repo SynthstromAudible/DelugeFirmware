@@ -298,7 +298,7 @@ void ModControllableAudio::setupModFXWFeedback(const ModFXType& modFXType, int32
 		modFXDelayOffset = kFlangerOffset;
 		modFXDelayOffset +=
 		    multiply_32x32_rshift32(kFlangerOffset, (unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET)));
-		thisModFXDelayDepth = multiply_32x32_rshift32(kFlangerOffset, modFXDepth) << 1;
+		thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 1;
 		modFXLFOWaveType = LFOType::WARBLER;
 	}
 	else { // Phaser
