@@ -3482,7 +3482,7 @@ gotError:
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);
 					reader.match('}');          // exit value object
 					reader.exitTag(NULL, true); // exit box.
-				} // was a sampleRange or wavetableRange
+				}                               // was a sampleRange or wavetableRange
 				else {
 					reader.exitTag();
 				}
