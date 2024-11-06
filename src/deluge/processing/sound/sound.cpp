@@ -362,7 +362,8 @@ ModFXType Sound::getModFXType() {
 // Returns false if not enough ram
 bool Sound::setModFXType(ModFXType newType) {
 
-	if (util::one_of(newType, {ModFXType::FLANGER, ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::WARBLE})) {
+	if (util::one_of(newType, {ModFXType::FLANGER, ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::WARBLE,
+	                           ModFXType::DIMENSION})) {
 		if (!modFXBuffer) {
 			// TODO: should give an error here if no free ram
 			modFXBuffer =
@@ -3481,7 +3482,7 @@ gotError:
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);
 					reader.match('}');          // exit value object
 					reader.exitTag(NULL, true); // exit box.
-				}                               // was a sampleRange or wavetableRange
+				} // was a sampleRange or wavetableRange
 				else {
 					reader.exitTag();
 				}

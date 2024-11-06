@@ -1180,7 +1180,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 }
 
 namespace modfx {
-
+// note this is dumb but it needs to match the enum order currently
 deluge::vector<std::string_view> getModNames() {
 	using enum deluge::l10n::String;
 	using namespace deluge;
@@ -1191,7 +1191,8 @@ deluge::vector<std::string_view> getModNames() {
 	    l10n::getView(STRING_FOR_PHASER),        //<
 	    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
 	    l10n::getView(STRING_FOR_WARBLE),
-	    l10n::getView(STRING_FOR_GRAIN), //<
+	    l10n::getView(STRING_FOR_DIMENSION), //<
+	    l10n::getView(STRING_FOR_GRAIN),     //<
 	};
 }
 

@@ -191,8 +191,9 @@ private:
 	void setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
 	                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
 	                         int32_t& thisModFXDelayDepth, int32_t& feedback) const;
-	void setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-	                 LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const;
+	void setupChorus(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
+	                 UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
+	                 int32_t& thisModFXDelayDepth) const;
 
 	template <bool stereo>
 	void processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,

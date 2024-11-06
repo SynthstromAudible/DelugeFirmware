@@ -203,8 +203,9 @@ void ModControllableAudio::processModFX(StereoSample* buffer, const ModFXType& m
 			setupModFXWFeedback(modFXType, modFXDepth, postFXVolume, unpatchedParams, modFXLFOWaveType,
 			                    modFXDelayOffset, thisModFXDelayDepth, feedback);
 		}
-		else if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
-			setupChorus(modFXDepth, postFXVolume, unpatchedParams, modFXLFOWaveType, modFXDelayOffset,
+		else if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO
+		         || modFXType == ModFXType::DIMENSION) {
+			setupChorus(modFXType, modFXDepth, postFXVolume, unpatchedParams, modFXLFOWaveType, modFXDelayOffset,
 			            thisModFXDelayDepth);
 		}
 
@@ -239,6 +240,11 @@ void ModControllableAudio::processModFX(StereoSample* buffer, const ModFXType& m
 			break;
 		case ModFXType::GRAIN:
 			break;
+		case ModFXType::DIMENSION:
+			processModFXBuffer<ModFXType::DIMENSION>(buffer, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType,
+			                                         modFXDelayOffset, thisModFXDelayDepth, feedback,
+			                                         AudioEngine::renderInStereo);
+			break;
 		}
 	}
 }
@@ -258,13 +264,19 @@ void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRat
 		                        anySoundComingIn, currentSong->calculateBPM(), reverbSendAmountAndPostFXVolume);
 	}
 }
-void ModControllableAudio::setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                       LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
-                                       int32_t& thisModFXDelayDepth) const {
+void ModControllableAudio::setupChorus(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
+                                       UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType,
+                                       int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const {
 	modFXDelayOffset = multiply_32x32_rshift32(
 	    kModFXMaxDelay, (unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824);
 	thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 2;
-	modFXLFOWaveType = LFOType::SINE;
+	if (modFXType == ModFXType::DIMENSION) {
+		modFXLFOWaveType = LFOType::TRIANGLE;
+	}
+	else {
+		modFXLFOWaveType = LFOType::SINE;
+	}
+
 	*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 1518500250) << 1; // Divide by sqrt(2)
 }
 void ModControllableAudio::setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
@@ -301,6 +313,7 @@ void ModControllableAudio::setupModFXWFeedback(const ModFXType& modFXType, int32
 		thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 1;
 		modFXLFOWaveType = LFOType::WARBLER;
 	}
+
 	else { // Phaser
 		modFXLFOWaveType = LFOType::SINE;
 	}
@@ -364,7 +377,7 @@ void ModControllableAudio::processOneModFXSample(int32_t modFXDelayOffset, int32
 	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
 	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
 
-	if constexpr (stereo) {
+	if constexpr (stereo || modFXType == ModFXType::DIMENSION) {
 		delayTime = multiply_32x32_rshift32(lfo2Output, thisModFXDelayDepth) + modFXDelayOffset;
 		strength2 = (delayTime & 65535) << 15;
 		strength1 = (65535 << 15) - strength2;
@@ -393,15 +406,22 @@ void ModControllableAudio::processOneModFXSample(int32_t modFXDelayOffset, int32
 		modFXOutputL <<= 1;
 		modFXOutputR <<= 1;
 	}
-	else { // Chorus
+	else { // Chorus, Dimension
 		modFXOutputL <<= 1;
 		modFXBuffer[modFXBufferWriteIndex].l = currentSample->l; // Feedback
 		modFXOutputR <<= 1;
 		modFXBuffer[modFXBufferWriteIndex].r = currentSample->r; // Feedback
 	}
 
-	currentSample->l += modFXOutputL;
-	currentSample->r += modFXOutputR;
+	if constexpr (modFXType == ModFXType::DIMENSION) {
+		currentSample->l = modFXOutputL << 1;
+		currentSample->r = modFXOutputR << 1;
+	}
+	else {
+		currentSample->l += modFXOutputL;
+		currentSample->r += modFXOutputR;
+	}
+
 	modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
 }
 template <bool stereo>
