@@ -165,7 +165,7 @@ void Decimal::drawPixelsForOled() {
 	// draw remaining digits
 	hid::display::OLED::main.drawString(buffer, stringStartX, 20, digitWidth, kTextHugeSizeY, 0, 128, true);
 	// draw cursor
-	hid::display::OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
+	hid::display::OLED::setupBlink(ourDigitStartX + 1, digitWidth - 2, 41, 42, movingCursor);
 }
 
 void Decimal::drawActualValue(bool justDidHorizontalScroll) {
