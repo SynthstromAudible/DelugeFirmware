@@ -152,7 +152,7 @@ void Decimal::drawPixelsForOled() {
 	int32_t stringWidth = digitWidth * length;
 	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
 
-	hid::display::OLED::main.drawString(buffer, stringStartX, 20, digitWidth, kTextHugeSizeY);
+	hid::display::OLED::main.drawString(buffer, stringStartX, 20, digitWidth, kTextHugeSizeY, 0, 128, true);
 
 	int32_t ourDigitStartX = stringStartX + editingChar * digitWidth;
 	hid::display::OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
