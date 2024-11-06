@@ -141,20 +141,30 @@ void Decimal::drawPixelsForOled() {
 		editingChar--;
 	}
 
+	int32_t digitWidth = kTextHugeSpacingX;
+	int32_t periodWidth = digitWidth / 2;
+	int32_t stringWidth = digitWidth * length + (numDecimalPlaces ? periodWidth : 0);
+	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
+	int32_t ourDigitStartX = stringStartX + editingChar * digitWidth;
+
+	// for values with decimal digits showing
 	if (numDecimalPlaces) {
 		int32_t numCharsBeforeDecimalPoint = length - numDecimalPlaces;
-		memmove(&buffer[numCharsBeforeDecimalPoint + 1], &buffer[numCharsBeforeDecimalPoint], numDecimalPlaces + 1);
-		buffer[numCharsBeforeDecimalPoint] = '.';
-		length++;
+		// draw digits before period
+		hid::display::OLED::main.drawString(std::string_view(buffer, numCharsBeforeDecimalPoint), stringStartX, 20,
+		                                    digitWidth, kTextHugeSizeY, 0, 128, true);
+		// draw period
+		hid::display::OLED::main.drawString(".", stringStartX + numCharsBeforeDecimalPoint * digitWidth, 20,
+		                                    periodWidth, kTextHugeSizeY, 0, 128, true);
+		// modify properties so that the remaining digits and the cursor get drawn correctly
+		std::memmove(buffer, buffer + numCharsBeforeDecimalPoint, sizeof(buffer) - numCharsBeforeDecimalPoint);
+		stringStartX += numCharsBeforeDecimalPoint * digitWidth + periodWidth;
+		if (editingChar > numCharsBeforeDecimalPoint)
+			ourDigitStartX -= periodWidth;
 	}
-
-	int32_t digitWidth = kTextHugeSpacingX;
-	int32_t stringWidth = digitWidth * length;
-	int32_t stringStartX = (OLED_MAIN_WIDTH_PIXELS - stringWidth) >> 1;
-
+	// draw remaining digits
 	hid::display::OLED::main.drawString(buffer, stringStartX, 20, digitWidth, kTextHugeSizeY, 0, 128, true);
-
-	int32_t ourDigitStartX = stringStartX + editingChar * digitWidth;
+	// draw cursor
 	hid::display::OLED::setupBlink(ourDigitStartX, digitWidth, 40, 44, movingCursor);
 }
 
