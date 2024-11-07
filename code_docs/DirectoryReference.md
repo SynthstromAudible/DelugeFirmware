@@ -4,7 +4,9 @@
 - [Source Folder](#source-folder)
 - [Deluge Folder](#deluge-folder)
   - [GUI Folder](#gui-folder)
+    - [UI Folder](#ui-folder)
     - [Views Folder](#views-folder)
+    - [Model Folder](#model-folder)
 
 # Main Folder
 `DelugeFirmware/`
@@ -36,7 +38,7 @@ Important folders:
 | hid | human interface device, manages basic functionality of knobs, buttons, pads, LEDs, display
 | io | input/output, manages debug-logging and incoming midi
 | memory | memory management
-| model | manages model_stack, the model Deluge uses to represent and pass around its internal state
+| [model](#model-folder) | manages model_stack, the model Deluge uses to represent and pass around its internal state
 | modulation | manages internal modulating of parameters, including automation and midi
 | playback | manages playback and recording modes
 | processing | manages various processes: audio, CV and live audio engines, sound instruments, metronome, stem export
@@ -48,7 +50,7 @@ Important folders:
 ## GUI Folder
 `DelugeFirmware/src/deluge/gui`
 
-*Graphical User Interface. This folder manages all user-facing behavior of the Deluge and is therefor the main focus-point for fixing bugs and developing new features*
+*Graphical User Interface. This folder manages all user-facing behavior of the Deluge and is therefor the main focus for fixing bugs and developing new features*
 
 | Folder | Contents
 |-|-
@@ -58,8 +60,35 @@ Important folders:
 | l10n | list of strings used in the ui for both 7SEG and oled, can be used for localization
 | menu_item | definitions for the options of all menus
 | ui | manages the foundational layer of the ui including menus, browsers, keyboard views and saving/loading. `ui.cpp` serves as a base-class that the different views/modes of the Deluge are built on
-| views | manages the main views/modes of the Deluge, such as clip view and arranger view
+| [views](#views-folder) | manages the main views/modes of the Deluge, such as clip view and arranger view
 | waveform | manages the waveform view
 
+### UI Folder
+`DelugeFirmware/src/deluge/gui/ui/`
+
 ### Views Folder
-`DelugeFirmware/src/deluge/gui`
+`DelugeFirmware/src/deluge/gui/views`
+
+*This folder manages all the main modes of the Deluge ui*
+
+Each of the `final` views - that is, each view that is not meant to be a base-class for something else - defines a global variable of itself at the bottom of its header file. For example:
+```cpp
+extern AutomationView automationView;
+```
+This global variable is reused anytime that view is activated.
+
+| View | Info
+|-|-
+| `ArrangerView final` | is a `TimelineView` representing the arranger view
+| `AudioClipView final` | is a `ClipView` for audio clips
+| `AutomationView final` | is a `ClipView` that handles the automation layer of a clip
+| `ClipNavigationTimelineView` | is a `TimelineView`
+| `ClipView` | is a `ClipNavigationTimelineView` set up to handle a single clip
+| `InstrumentClipView final` | is a `ClipView` for instrument clips
+| `PerformanceSessionView final` | is a `ClipNavigationTimelineView` that implements performance fx view
+| `SessionView final` | is a `ClipNavigationTimelineView`. This is *Song View* and contains both *Song Row View* and *Song Grid View*
+| `TimelineView` | inherits from `RootUI` and `UI`, and is itself a base class for all other views
+| `View` | defines a global variable `view` which represents a layer of the user interface which is always available, regardless of what specific view we're in
+
+### Model Folder
+`DelugeFirmware/src/deluge/model`
