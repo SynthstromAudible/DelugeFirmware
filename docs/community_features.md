@@ -613,7 +613,10 @@ In `KEYBOARD VIEW`, macros are available as a sidebar control.
 - ([#120]) New Stereo Chorus type added to Mod FX. `MOD FX DEPTH` will adjust the amount of stereo widening the effect
   has.
 
-#### 4.2.3 - Warbler Effect
+#### 4.2.3 - Dimension
+- ([#2882]) Boss/roland style dimension effect. Controls are the same as for chorus
+
+#### 4.2.4 - Warbler Effect
 
 - ([#2712]) New Warble fx, which provides randomly warbling pitch shifting and delays to simulate things from a tape reel 
 warbling up to getting chewed up by the machine and spat back out. It's essentially a flanger/chorus/whatever based modulation 
@@ -629,18 +632,29 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
     - Turning feedback up makes it get super weird
 
     - Turning offset up adds phasing (unless feedback is 0, in which case it does nothing)
+  
+#### 4.2.5 - Grain FX
 
-#### 4.2.4 - Warble LFO
+- ([#363] and [#2815]) New `GRAIN` added to Mod FX.
+
+    - Parameters:
+        - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
+        - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
+        - **`MOD FEEDBACK - GRAIN RANDOMNESS (GRTY)`:** Selects the spread of Grain pitch. At minimum it only generates
+          unison and octaves, higher values add 5ths and multi octave jumps.
+        - **`MOD OFFSET - GRAIN Density (DENS)`:** Adjusts Grain Density from sparse to 8 layered grains
+
+#### 4.2.6 - Warble LFO
 - ([#2712]) The randomly varying wave at the center of the warbler, but made into an LFO
 
-#### 4.2.5 - Patchable Wavefolding Distortion
+#### 4.2.7 - Patchable Wavefolding Distortion
 
 - ([#349]) Adds a pre filter `WAVEFOLDE` distortion, and the depth is patchable/automatable. The depth is accessible in
   both the menu and on the un-labeled pad between `SATURATION` and `LPF FREQ`. The fold has no effect when set to 0 and
   removes itself from the signal path.
     - Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.6 - Quantized Stutter
+#### 4.2.8 - Quantized Stutter
 
 - ([#357]) Set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` rate before triggering it. Once
   you have pressed the `STUTTER`-related gold encoder, then the selected value will be the center value of the encoder
@@ -649,19 +663,9 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
 
     - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
-#### 4.2.7 - Grain FX
-
-- ([#363] and [#2815]) New `GRAIN` added to Mod FX.
-
-    - Parameters:
-        - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
-        - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
-        - **`MOD FEEDBACK - GRAIN RANDOMNESS (GRTY)`:** Selects the spread of Grain pitch. At minimum it only generates 
-      unison and octaves, higher values add 5ths and multi octave jumps.
-        - **`MOD OFFSET - GRAIN Density (DENS)`:** Adjusts Grain Density from sparse to 8 layered grains
 
 
-#### 4.2.8 - Reverb Improvements
+#### 4.2.9 - Reverb Improvements
 
 - ([#1065]) New reverb models are available for selection inside of the `FX > REVERB > MODEL` menu. These include:
     - Freeverb (the original Deluge reverb)
