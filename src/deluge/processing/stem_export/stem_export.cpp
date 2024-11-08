@@ -234,7 +234,7 @@ bool StemExport::checkForSilence() {
 	else {
 		// if we're here, then the track is not silent yet
 		// save last time we detected activity
-		timeThereWasLastSomeActivity = AudioEngine::audioSampleTimer;		
+		timeThereWasLastSomeActivity = AudioEngine::audioSampleTimer;
 	}
 	return false;
 }
