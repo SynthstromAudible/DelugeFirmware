@@ -6,7 +6,7 @@
   - [GUI Folder](#gui-folder)
     - [UI Folder](#ui-folder)
     - [Views Folder](#views-folder)
-    - [Model Folder](#model-folder)
+  - [Model Folder](#model-folder)
 
 # Main Folder
 `DelugeFirmware/`
@@ -68,15 +68,23 @@ Important folders:
 
 *User Interface. Many low-level and base methods of the user interface are defined here, and reused in higher level code*
 
+| Folder | Contents
+|-|-
+| browser | `Browser` is a `QwertyUI` which handles browsing files on the SD card. It has sub-classes for browsing DX7-presets (`DxSyxBrowser`,) audio samples (`SampleBrowser`,) and slots for instrument clips and songs (`SlotBrowser`)
+| keyboard | manages the keyboard overlay
+| load | `LoadUI` is a `SlotBrowser` with sub-classes `LoadInstrumentPresetUI`, `LoadMidiDeviceDefinitionUI` and `LoadSongUI`
+| rename | `RenameUI` is a `QwertyUI` with sub-classes `RenameClipUI`, `RenameDrumUI`, `RenameMidiCCUI` and `RenameOutputUI`
+| save | `SaveUI` is a `SlotBrowser` with sub-classes `SaveInstrumentPresetUI`, `SaveKitRowUI`, `SaveMidiDeviceDefinitionUI` and `SaveSongUI`
+
 | Class | Relevance
 |-|-
 | `AudioRecorder` | is a `UI`
 | menus | Handles the main menu system. There's no overarching class here
 | `QwertyUI` | is a `UI` that uses the grid pads as a qwerty keyboard
-| `RootUI` | is a `UI`
-| `SampleMarkerEditor` |
-| `Slicer` |
-| `SoundEditor` |
+| `RootUI` | is a `UI` that basically only implements a list of virtual methods for sub-classes
+| `SampleMarkerEditor` | is a `UI` for editing sample start/stop/loop points
+| `Slicer` | is a `UI` for slicing samples
+| `SoundEditor` | is a `UI` *(it looks like this UI opens when the Sound Menu is opened or a sound parameter is selected with shift+pad? I'm not exactly sure)*
 | `UI` | Absolute base class of all UIs
 
 ### Views Folder
@@ -103,5 +111,5 @@ This global variable is reused anytime that view is activated.
 | `TimelineView` | inherits from `RootUI` and `UI`, and is itself a base class for all other views
 | `View` | defines a global variable `view` which represents a layer of the user interface which is always available, regardless of what specific view we're in
 
-### Model Folder
+## Model Folder
 `DelugeFirmware/src/deluge/model`

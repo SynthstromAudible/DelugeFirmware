@@ -4,6 +4,7 @@
 - what functionality is in hid vs gui and why?
 - why is colour in gui
 - why is waveform not in ui or views?
+- why is there a SaveKitRowUI but not a LoadKitRowUI?
 
 ### Naming conventions
 #### General observations
@@ -21,7 +22,7 @@ Having a more descriptive, hierarchical naming convention for different kinds of
 3. **Editors:** clip and automation view operate fundamentally different from the more similar aforementioned views. To distinguish them from those views, they are labeled **Clip Editor**, **Clip Automation Editor** and **Arranger Automation Editor**.
 4. **Tools:** There is a selection of mostly autonomous tools/features that can be called in different places in the UI, but operate largely the same regardless of where they are called. Think of the browser, waveform editor and audio recorder. These currently aren't called views, but they are documented in the manual under the views they appear in. Instead they should be documented as what they are: a clearly delineated, autonomous tool. *There may be a better name for this.*
 
-The documentation structure would look something like this:
+**The documentation structure would look something like this:**
 - General UI
   - Browser
   - ...
@@ -33,9 +34,16 @@ The documentation structure would look something like this:
   - Grid View
   - Performance View
 - Clip Editor *(gets its own main header because of how much happens here, and has a dedicated ui button)*
-  - Sequencing
-  - Modulation
-  - ...
+  - Any clip type
+    - Sequencing
+    - Modulation
+    - ...
+  - Instrument clips
+    - ...
+  - Kit clips
+    - ...
+  - Audio clips
+    - ...
 - Tools
   - Automation Editor
   - Waveform Editor
@@ -67,7 +75,13 @@ The documentation structure would look something like this:
   - Rename `PerformanceSessionView` to `PerformanceView`
 - `AutomationView` is too large to manage
 - **Proposal:**
-  - Refactor `AutomationView` to a base-class which can be inherited from in different contexts, behavior can be organized in child-classes
+  - Create `AutomationEditor` which is just the editor itself. This class can be set up with different layouts (unipolar/bipolar/note velocity/etc) depending on the parameter being edited
+  - Create `AutomationEditorLaunchpad` which holds the current Automation Overview. This has three context-based varieties: arranger automation, clip automation note-row automation
 
 #### UI
-- There's a whole bunch of global stuff here. It would probably help legibility in other parts of the code if these were captured in a (static) class. UI mode defines could be in an enum : uint32_t for the same reason.
+- `UI.h` There's a whole bunch of global stuff here. It would probably help legibility in other parts of the code if these were captured in a (static) class. UI mode defines could be in an enum : uint32_t for the same reason.
+- In several files in `ui/` there are long lists of includes, namespaces and class calls. Each of these should be mapped out to find out what exactly is happening, and how we can simplify this
+##### RootUI
+It is unclear what the exact purpose of `RootUI` is. It basically just implements a list of virtual functions. The only way `RootUI` is used, is as the base-class of `TimelineView`, which we discussed above should be reworked into base-class `View`. This means these virtual function declarations should probably just move to `View` so we can lose `RootUI` altogether.
+
+`getRootUI()` is declared in a bunch of places, which should probably be refactored to `getView()`, but more investigation into the entire UI management is needed before committing to any changes. `ui.cpp` does hold a few methods dealing with `rootUI`.
