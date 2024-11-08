@@ -93,6 +93,11 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`. See documentation on [MIDI Device Definition Files](docs/features/midi_device_definition_files.md) for more info.
 - Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
 
+#### <ins>Keyboard View</ins>
+
+##### Kits
+- Added ability to change the pad size in the `KIT VELOCITY KEYBOARD VIEW` using the Zoom In/Out shortcut by `Pressing + Turning <>`
+
 ### MIDI
 
 #### <ins>Learn</ins>
