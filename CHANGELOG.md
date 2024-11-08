@@ -64,6 +64,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### Automation View
 - Added Vibrato and Sidechain patch cables to Automation View Overview and Grid Shortcuts
 - Added ability to automate all Monophonic (Channel) Expression parameters (X - Pitch Bend, Y - Mod Wheel, Z - Channel Pressure / Aftertouch) in Synth / Kit Row (with Affect Entire Off) / MIDI / CV
+- Added same shortcut that is used for copy / pasting notes in Instrument Clip View to Automation View to copy / paste automation. While in the Automation Editor, Copy with `Learn + <>`. Paste with `Shift + Learn + <>`.
 
 ##### Note / Note Row Probability, Iterance, Fill
 - Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
