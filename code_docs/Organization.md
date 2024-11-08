@@ -52,6 +52,21 @@ Having a more descriptive, hierarchical naming convention for different kinds of
 
 
 ### Code Cleanup
+#### Automation View Refactoring
+**Proposal:**
+When refactoring it would make sense to create a class `AutomationEditor` which just implements the editor itself. Ideally this class would implement a few different layouts for the editing interface, for example the velocity editing layout. When launching the editor, the layout can be set appropriately to the parameter edited.
+
+If necessary, subclasses could be created to implement different behavior. But as all the editors look extremely similar, I feel like having them all in one class would be most efficient.
+
+A separate class `AutomationEditorLaunchpad` would implement the launchpad.
+
+`AutomationEditorLaunchpad` presents different sets of parameters to edit depending on where/how it is launched. Instrument Clip View => [audition pad] + [song] could show Note Automation.
+
+Considerations:
+- Note automation like probability could be automated on clip *and* note level. (Which parameters should be automatable and how is a different discussion.)
+- Some parameters will probably need a new property to be saved in, which the `AutomationEditor` will translate to a note/synth parameter depending on its editing layout
+- The shortcut for calling the Launch Pad doesn't feel very consistent currently as it's either on the song or clip button. Ideally this would live on the same button wherever it can be called
+
 #### Views
 - The current general strategy is to create global variables for all the main views and reuse them when activated. Is it safer/easier to refactor them to static properties?
 - None of the views inherit from view.h, which could be assumed would be the case from how the files are named. Instead all views inherit from `TimelineView`
