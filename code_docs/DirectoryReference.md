@@ -66,6 +66,19 @@ Important folders:
 ### UI Folder
 `DelugeFirmware/src/deluge/gui/ui/`
 
+*User Interface. Many low-level and base methods of the user interface are defined here, and reused in higher level code*
+
+| Class | Relevance
+|-|-
+| `AudioRecorder` | is a `UI`
+| menus | Handles the main menu system. There's no overarching class here
+| `QwertyUI` | is a `UI` that uses the grid pads as a qwerty keyboard
+| `RootUI` | is a `UI`
+| `SampleMarkerEditor` |
+| `Slicer` |
+| `SoundEditor` |
+| `UI` | Absolute base class of all UIs
+
 ### Views Folder
 `DelugeFirmware/src/deluge/gui/views`
 
@@ -81,7 +94,7 @@ This global variable is reused anytime that view is activated.
 |-|-
 | `ArrangerView final` | is a `TimelineView` representing the arranger view
 | `AudioClipView final` | is a `ClipView` for audio clips
-| `AutomationView final` | is a `ClipView` that handles the automation layer of a clip
+| `AutomationView final` | is a `ClipView` that handles the automation view in different contexts
 | `ClipNavigationTimelineView` | is a `TimelineView`
 | `ClipView` | is a `ClipNavigationTimelineView` set up to handle a single clip
 | `InstrumentClipView final` | is a `ClipView` for instrument clips
