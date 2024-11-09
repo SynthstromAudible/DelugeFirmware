@@ -70,6 +70,7 @@ StemExport::StemExport() {
 	renderOffline = true;
 
 	timePlaybackStopped = 0xFFFFFFFF;
+	timeThereWasLastSomeActivity = 0xFFFFFFFF;
 
 	lastFolderNameForStemExport.clear();
 }
@@ -144,6 +145,7 @@ void StemExport::stopStemExportProcess() {
 /// Simulate pressing record and play in order to trigger resampling of out output that ends when loop ends
 void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 	timePlaybackStopped = 0xFFFFFFFF;
+	timeThereWasLastSomeActivity = 0xFFFFFFFF;
 	playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	if (playbackHandler.isEitherClockActive()) {
 		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, AudioInputChannel::MIX, writeLoopEndPos(),
@@ -202,20 +204,35 @@ bool StemExport::checkForLoopEnd() {
 	return false;
 }
 
-/// we want to check for silence so we can stop recording
+/// we want to check for 12 seconds of silence so we can stop recording
 /// if we don't find silence after 60 seconds, stop recording
 bool StemExport::checkForSilence() {
-	float approxRMSLevel = std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r);
-	if (approxRMSLevel < 9) {
-		return true;
-	}
 	// if this is the first time we are checking for silence, it means we just stopped playback
 	// so save this time so we can keep track of how long we've been checking for silence
 	if (timePlaybackStopped == 0xFFFFFFFF) {
 		timePlaybackStopped = AudioEngine::audioSampleTimer;
+		timeThereWasLastSomeActivity = AudioEngine::audioSampleTimer;
 	}
+
 	// have we been checking for silence for 60 seconds or longer? then stop recording
-	return ((uint32_t)(AudioEngine::audioSampleTimer - timePlaybackStopped) >= (kSampleRate * 60));
+	if ((uint32_t)(AudioEngine::audioSampleTimer - timePlaybackStopped) >= (kSampleRate * 60)) {
+		return true;
+	}
+
+	// get current level to check for silence
+	float approxRMSLevel = std::max(AudioEngine::approxRMSLevel.l, AudioEngine::approxRMSLevel.r);
+	if (approxRMSLevel < 9) {
+		// has 12 seconds of silence elapsed since we first detected silence? then stop recording
+		if ((uint32_t)(AudioEngine::audioSampleTimer - timeThereWasLastSomeActivity) >= (kSampleRate * 12)) {
+			return true;
+		}
+	}
+	else {
+		// if we're here, then the track is not silent yet
+		// save last time we detected activity
+		timeThereWasLastSomeActivity = AudioEngine::audioSampleTimer;
+	}
+	return false;
 }
 
 /// disarms and prepares all the instruments so that they can be exported
