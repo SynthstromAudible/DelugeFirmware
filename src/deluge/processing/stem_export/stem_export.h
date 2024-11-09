@@ -40,6 +40,7 @@ public:
 	bool stopRecording;
 	StemExportType currentStemExportType;
 	uint32_t timePlaybackStopped;
+	uint32_t timeThereWasLastSomeActivity;
 
 	// export config variables
 	bool allowNormalization;
