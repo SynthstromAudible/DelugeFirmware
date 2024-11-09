@@ -1273,17 +1273,21 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 
 			// Already pressing - length edit
 			else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
-
+				// press on different row than currently holding pad
 				if (y != yPressedEffective) {
 					if (!pressedClipInstanceIsInValidPosition) {
 						return;
 					}
+					// create new clip instance on new press
 					return createNewClipInstance(output, x, y, squareStart, squareEnd, xScroll);
 				}
-
+				// press on same row, to the right of currently holding pad
 				if (x > xPressed) {
-					adjustClipInstanceLength(output, xPressed, y, squareStart, squareEnd);
+					// change length of selected clip instance
+					return adjustClipInstanceLength(output, xPressed, y, squareStart, squareEnd);
 				}
+				// press on same row, to the left of the currently holding pad, do nothing
+				return;
 			}
 		}
 
@@ -1377,7 +1381,8 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 	// Look for a clip instance to the left of, or including press position
 	int32_t i = output->clipInstances.search(squareEnd, LESS);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
-
+	// default: not creating a clip instance
+	creatingNewClipInstance = false;
 	// If we did find a clip instance
 	if (clipInstance) {
 		Clip* clip = clipInstance->clip;
@@ -1392,7 +1397,9 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 				}
 				// To the right is allowed
 				else {
+					// create a new clip instance
 					clipInstance = createClipInstance(output, y, squareStart);
+					creatingNewClipInstance = true;
 				}
 			}
 		}
@@ -1401,7 +1408,9 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 		// ahead and make a new Instance here
 		int32_t instanceEnd = clipInstance->pos + clipInstance->length;
 		if (instanceEnd <= squareStart) {
+			// create a new clip instance
 			clipInstance = createClipInstance(output, y, squareStart);
+			creatingNewClipInstance = true;
 		}
 		else {
 			// If still here, the ClipInstance overlaps this square, so select it
@@ -1415,7 +1424,9 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
 
 	// Or, if no ClipInstance anywhere to the left, make a new one
 	else {
+		// create a new clip instance
 		clipInstance = createClipInstance(output, y, squareStart);
+		creatingNewClipInstance = true;
 	}
 
 	recordEditPadPress(output, clipInstance, x, y, xScroll);
@@ -1565,6 +1576,7 @@ Clip* ArrangerView::getClipFromSection(Output* output) {
 void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y, int32_t squareStart,
                                             int32_t squareEnd) {
 	actionOnDepress = false;
+	creatingNewClipInstance = false;
 
 	if (!pressedClipInstanceIsInValidPosition) {
 		return;
@@ -2496,6 +2508,22 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 		// log action
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
+		// When creating a new clip instance
+		if (creatingNewClipInstance) {
+			// The instance length adapts to the length of the selected clip
+			if (newClip) {
+				desiredLength = newClip->loopLength;
+			} // A white clip (!newClip) keeps the desiredLength from the last clip that was selected
+
+			// Make desiredLength not overlap the next clip instance
+			ClipInstance* nextClipInstance = output->clipInstances.getElement(pressedClipInstanceIndex + 1);
+			if (nextClipInstance) {
+				desiredLength = std::min(desiredLength, nextClipInstance->pos - clipInstance->pos);
+			}
+			// Make desiredLength fit within the sequence
+			desiredLength = std::min(desiredLength, kMaxSequenceLength - clipInstance->pos);
+		} // When editing an existing clip instance, instance length remains unchanged
+		// Set the new length and clip of the clip instance
 		clipInstance->change(action, output, clipInstance->pos, desiredLength, newClip);
 		// notify the arrangement that this clip instance will be added
 		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);

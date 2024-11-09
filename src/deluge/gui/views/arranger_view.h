@@ -113,6 +113,7 @@ public:
 	ClipInstance* lastInteractedClipInstance;
 
 	int32_t lastInteractedArrangementPos;
+	bool creatingNewClipInstance = false;
 
 	int32_t lastTickSquare{};
 
