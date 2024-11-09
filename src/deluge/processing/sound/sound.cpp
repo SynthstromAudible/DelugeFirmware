@@ -103,7 +103,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	modulatorCents[1] = 0;
 
 	transpose = 0;
-	modFXType = ModFXType::NONE;
+	modFXType_ = ModFXType::NONE;
 
 	oscillatorSync = false;
 
@@ -356,7 +356,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 }
 
 ModFXType Sound::getModFXType() {
-	return modFXType;
+	return modFXType_;
 }
 
 // Returns false if not enough ram
@@ -388,7 +388,7 @@ bool Sound::setModFXType(ModFXType newType) {
 		disableGrain();
 	}
 
-	modFXType = newType;
+	modFXType_ = newType;
 	clearModFXMemory();
 	return true;
 }
@@ -2020,7 +2020,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if ((modFXType != ModFXType::NONE) || compressor.getThreshold() > 0) {
+			if ((modFXType_ != ModFXType::NONE) || compressor.getThreshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -2033,7 +2033,7 @@ doCutModFXTail:
 					}
 
 					int32_t waitSamplesModfx = 0;
-					switch (modFXType) {
+					switch (modFXType_) {
 					case ModFXType::CHORUS:
 						[[fallthrough]];
 					case ModFXType::CHORUS_STEREO:
@@ -2422,7 +2422,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	int32_t modFXRate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
 	processSRRAndBitcrushing((StereoSample*)soundBuffer, numSamples, &postFXVolume, paramManager);
-	processFX((StereoSample*)soundBuffer, numSamples, modFXType, modFXRate, modFXDepth, delayWorkingState,
+	processFX((StereoSample*)soundBuffer, numSamples, modFXType_, modFXRate, modFXDepth, delayWorkingState,
 	          &postFXVolume, paramManager, numVoicesAssigned != 0, reverbSendAmount >> 1);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 

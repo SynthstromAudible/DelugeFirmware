@@ -41,7 +41,7 @@ GlobalEffectable::GlobalEffectable() {
 	lpfMode = FilterMode::TRANSISTOR_24DB;
 	filterSet.reset();
 
-	modFXType = ModFXType::NONE;
+	modFXType_ = ModFXType::NONE;
 	currentModFXParam = ModFXParam::FEEDBACK;
 	currentFilterType = FilterType::LPF;
 
@@ -202,17 +202,17 @@ void GlobalEffectable::displayModFXSettings(bool on) {
 char const* GlobalEffectable::getModFXTypeDisplayName() {
 	auto modTypeCount = kNumModFXTypes;
 
-	modFXType = static_cast<ModFXType>(util::to_underlying(modFXType) % modTypeCount);
-	if (modFXType == ModFXType::NONE) {
-		modFXType = static_cast<ModFXType>(1);
+	modFXType_ = static_cast<ModFXType>(util::to_underlying(modFXType_) % modTypeCount);
+	if (modFXType_ == ModFXType::NONE) {
+		modFXType_ = static_cast<ModFXType>(1);
 	}
-	return modfx::modFXToString(modFXType);
+	return modfx::modFXToString(modFXType_);
 }
 
 char const* GlobalEffectable::getModFXParamDisplayName() {
 	currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) % kNumModFXParams);
 
-	return modfx::getParamName(modFXType, currentModFXParam);
+	return modfx::getParamName(modFXType_, currentModFXParam);
 }
 
 // Returns whether Instrument changed
@@ -237,9 +237,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		if (whichModEncoder == 1) {
 			if (on) {
 				auto modTypeCount = kNumModFXTypes;
-				modFXType = static_cast<ModFXType>((util::to_underlying(modFXType) + 1) % modTypeCount);
-				if (modFXType == ModFXType::NONE) {
-					modFXType = static_cast<ModFXType>(1);
+				modFXType_ = static_cast<ModFXType>((util::to_underlying(modFXType_) + 1) % modTypeCount);
+				if (modFXType_ == ModFXType::NONE) {
+					modFXType_ = static_cast<ModFXType>(1);
 				}
 				ensureModFXParamIsValid();
 
@@ -714,24 +714,24 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichM
 }
 
 ModFXType GlobalEffectable::getModFXType() {
-	return modFXType;
+	return modFXType_;
 }
 
 void GlobalEffectable::ensureModFXParamIsValid() {
 	while (true) {
 		if (currentModFXParam == ModFXParam::DEPTH) {
-			if (modFXType == ModFXType::FLANGER) {
+			if (modFXType_ == ModFXType::FLANGER) {
 				goto ohNo;
 			}
 		}
 		else if (currentModFXParam == ModFXParam::OFFSET) {
-			if (modFXType != ModFXType::CHORUS && modFXType != ModFXType::CHORUS_STEREO
-			    && modFXType != ModFXType::GRAIN) {
+			if (modFXType_ != ModFXType::CHORUS && modFXType_ != ModFXType::CHORUS_STEREO
+			    && modFXType_ != ModFXType::GRAIN) {
 				goto ohNo;
 			}
 		}
 		else { // ModFXParam::FEEDBACK
-			if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
+			if (modFXType_ == ModFXType::CHORUS || modFXType_ == ModFXType::CHORUS_STEREO) {
 				goto ohNo;
 			}
 		}
@@ -1046,7 +1046,7 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 	}
 
 	else if (!strcmp(tagName, "modFXType")) {
-		modFXType = stringToFXType(reader.readTagOrAttributeValue());
+		modFXType_ = stringToFXType(reader.readTagOrAttributeValue());
 		reader.exitTag("modFXType");
 	}
 
@@ -1090,7 +1090,7 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
-	ModFXType modFXTypeNow = modFXType;
+	ModFXType modFXTypeNow = modFXType_;
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
