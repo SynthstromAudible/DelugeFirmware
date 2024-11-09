@@ -59,9 +59,9 @@ public:
 	void processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
 	                              ParamManager* paramManager);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                       int32_t* valuesForOverride = NULL);
+	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                 int32_t* valuesForOverride = NULL);
+	                                 int32_t* valuesForOverride = nullptr);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
@@ -84,15 +84,15 @@ public:
 	bool isSRREnabled(ParamManager* paramManager);
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
-	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
+	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) override;
 
 	// Phaser
 	StereoSample phaserMemory;
 	StereoSample allpassMemory[kNumAllpassFiltersPhaser];
 
 	// EQ
-	int32_t bassFreq; // These two should eventually not be variables like this
-	int32_t trebleFreq;
+	int32_t bassFreq{}; // These two should eventually not be variables like this
+	int32_t trebleFreq{};
 
 	int32_t withoutTrebleL;
 	int32_t bassOnlyL;
@@ -109,16 +109,17 @@ public:
 	FilterRoute filterRoute;
 
 	// Mod FX
-	ModFXType modFXType;
+	ModFXType modFXType_;
 	StereoSample* modFXBuffer;
 	uint16_t modFXBufferWriteIndex;
 	LFO modFXLFO;
+	LFO modFXLFOStereo; // for true stereo
 
 	RMSFeedbackCompressor compressor;
 	GranularProcessor* grainFX{nullptr};
 
-	uint32_t lowSampleRatePos;
-	uint32_t highSampleRatePos;
+	uint32_t lowSampleRatePos{};
+	uint32_t highSampleRatePos{};
 	StereoSample lastSample;
 	StereoSample grabbedSample;
 	StereoSample lastGrabbedSample;
@@ -126,7 +127,7 @@ public:
 	SideChain sidechain; // Song doesn't use this, despite extending this class
 
 	MidiKnobArray midiKnobArray;
-	int32_t postReverbVolumeLastTime;
+	int32_t postReverbVolumeLastTime{};
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
@@ -167,7 +168,6 @@ protected:
 	void disableGrain();
 
 private:
-	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);
@@ -177,13 +177,16 @@ private:
 	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd,
 	                  bool anySoundComingIn);
 	// not grain!
-	void processModFXBuffer(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
-	                        const StereoSample* bufferEnd, LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
-	                        int32_t thisModFXDelayDepth, int32_t feedback);
+	template <ModFXType modFXType>
+	void processModFXBuffer(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, const StereoSample* bufferEnd,
+	                        LFOType& modFXLFOWaveType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
+	                        int32_t feedback, bool stereo);
 
 	void processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
-	void processOneModFXSample(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
-	                           int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
+
+	template <ModFXType modFXType, bool stereo>
+	void processOneModFXSample(int32_t modFXDelayOffset, int32_t thisModFXDelayDepth, int32_t feedback,
+	                           StereoSample* currentSample, int32_t lfoOutput, int32_t lfo2Output);
 	/// flanger, phaser, warble - generally any modulated delay tap based effect with feedback
 	void setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
 	                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
@@ -191,8 +194,9 @@ private:
 	void setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
 	                 LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const;
 
+	template <bool stereo>
 	void processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
-	                   int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
+	                   int32_t feedback, StereoSample* currentSample, int32_t lfoOutput, int32_t lfo2output);
 	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
 	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd, bool anySoundComingIn,
 	                    q31_t verbAmount);
