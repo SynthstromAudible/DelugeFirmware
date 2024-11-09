@@ -2063,10 +2063,45 @@ void AutomationView::handleCVButtonAction(OutputType outputType, bool on) {
 		instrumentClipView.changeOutputType(OutputType::CV);
 	}
 }
-
 // called by button action if b == X_ENC
 bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioClip) {
-	if (onArrangerView) {
+	// copy / paste automation (same shortcut used for notes)
+	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
+		if (inAutomationEditor()) {
+			Clip* clip = getCurrentClip();
+			OutputType outputType = clip->output->type;
+
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
+			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
+			ModelStackWithAutoParam* modelStackWithParam = nullptr;
+
+			if (onArrangerView) {
+				modelStackWithThreeMainThings = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+				modelStackWithParam = currentSong->getModelStackWithParam(modelStackWithThreeMainThings,
+				                                                          currentSong->lastSelectedParamID);
+			}
+			else {
+				modelStackWithTimelineCounter = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+				modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip);
+			}
+			int32_t effectiveLength = getEffectiveLength(modelStackWithTimelineCounter);
+
+			int32_t xScroll = currentSong->xScroll[navSysId];
+			int32_t xZoom = currentSong->xZoom[navSysId];
+
+			if (Buttons::isShiftButtonPressed()) {
+				// paste within Automation Editor
+				pasteAutomation(modelStackWithParam, clip, effectiveLength, xScroll, xZoom);
+			}
+			else {
+				// copy within Automation Editor
+				copyAutomation(modelStackWithParam, clip, xScroll, xZoom);
+			}
+		}
+		return false;
+	}
+	else if (onArrangerView) {
 		return true;
 	}
 	else if (isAudioClip) {
@@ -4320,7 +4355,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 	// If they want to copy or paste automation...
 	if (Buttons::isButtonPressed(hid::button::LEARN)) {
-		if (on && outputType != OutputType::CV) {
+		if (on) {
 			if (Buttons::isShiftButtonPressed()) {
 				// paste within Automation Editor
 				if (inAutomationEditor()) {
