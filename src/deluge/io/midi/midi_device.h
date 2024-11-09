@@ -193,7 +193,7 @@ public:
 	// Gets called when transitioning to ClipView
 	virtual void hookOnTransitionToClipView(){};
 
-	// Gets called when transitioning to SessionView
+	// Gets called when transitioning to SongView
 	virtual void hookOnTransitionToSessionView(){};
 
 	// Gets called when hosted device info is saved to XML (usually after changing settings)

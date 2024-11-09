@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "model/song/song.h"
 #include "processing/audio_output.h"
 
@@ -150,8 +150,8 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 }
 // if they're in session view and press a clip's pad, record from that output
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
-	if (on && getUIUpOneLevel() == &sessionView) {
-		auto track = (&sessionView)->getOutputFromPad(x, y);
+	if (on && getUIUpOneLevel() == &songView) {
+		auto track = (&songView)->getOutputFromPad(x, y);
 		if (track && track->type != OutputType::MIDI_OUT && track->type != OutputType::CV) {
 			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 			audioOutput->setOutputRecordingFrom(track);

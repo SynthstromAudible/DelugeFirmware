@@ -40,7 +40,7 @@ extern int8_t defaultMagnitude;
 extern bool settingsBeenRead;
 extern uint8_t defaultBendRange[2];
 
-extern SessionLayoutType defaultSessionLayout;
+extern SongViewLayout defaultSongViewLayout;
 extern KeyboardLayoutType defaultKeyboardLayout;
 
 extern bool keyboardFunctionsVelocityGlide;
@@ -49,7 +49,7 @@ extern bool keyboardFunctionsModwheelGlide;
 extern bool gridEmptyPadsUnarm;
 extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;
-extern GridDefaultActiveMode defaultGridActiveMode;
+extern SongViewGridLayoutModeSelection defaultGridActiveMode;
 
 extern uint8_t defaultMetronomeVolume;
 

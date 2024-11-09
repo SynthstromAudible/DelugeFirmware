@@ -32,7 +32,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
@@ -111,7 +111,7 @@ void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas)
 		}
 		return;
 	}
-	sessionView.renderOLED(canvas);
+	songView.renderOLED(canvas);
 }
 
 void ArrangerView::moveClipToSession() {
@@ -162,17 +162,17 @@ void ArrangerView::moveClipToSession() {
 
 		goToSongView();
 
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+		if (currentSong->songViewLayout == SongViewLayout::Rows) {
 			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
-			sessionView.selectedClipYDisplay = yPressedEffective;
-			sessionView.selectedClipPressYDisplay = yPressedActual;
-			sessionView.selectedClipPressXDisplay = xPressed;
+			songView.selectedClipYDisplay = yPressedEffective;
+			songView.selectedClipPressYDisplay = yPressedActual;
+			songView.selectedClipPressXDisplay = xPressed;
 		}
 		else {
 			currentUIMode = UI_MODE_NONE;
 		}
 
-		sessionView.performActionOnPadRelease = false;
+		songView.performActionOnPadRelease = false;
 		view.setActiveModControllableTimelineCounter(clip);
 	}
 }
@@ -180,7 +180,7 @@ void ArrangerView::moveClipToSession() {
 void ArrangerView::goToSongView() {
 	currentSong->xScroll[NAVIGATION_CLIP] = currentSong->xScrollForReturnToSongView;
 	currentSong->xZoom[NAVIGATION_CLIP] = currentSong->xZoomForReturnToSongView;
-	changeRootUI(&sessionView);
+	changeRootUI(&songView);
 }
 
 ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -414,7 +414,7 @@ doActualSimpleChange:
 	else if (b == Y_ENC) {
 		if (on && !Buttons::isShiftButtonPressed()) {
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			bool isOLEDSessionView = display->haveOLED() && (currentUI == &songView || currentUI == &arrangerView);
 			// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
 			if (!isOLEDSessionView) {
 				currentSong->displayCurrentRootNoteAndScaleName();
@@ -1787,7 +1787,7 @@ void ArrangerView::renderDisplay() {
 		renderUIsForOled();
 	}
 	else {
-		sessionView.redrawNumericDisplay();
+		songView.redrawNumericDisplay();
 	}
 }
 
@@ -2539,7 +2539,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		if (playbackHandler.playbackState) {
 			if (currentPlaybackMode == &session) {
 				if (session.launchEventAtSwungTickCount && session.switchToArrangementAtLaunchEvent) {
-					sessionView.editNumRepeatsTilLaunch(offset);
+					songView.editNumRepeatsTilLaunch(offset);
 				}
 			}
 
@@ -3102,7 +3102,7 @@ void ArrangerView::graphicsRoutine() {
 	}
 
 	if (display->haveOLED()) {
-		sessionView.displayPotentialTempoChange(this);
+		songView.displayPotentialTempoChange(this);
 	}
 
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {

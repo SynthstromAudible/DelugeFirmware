@@ -34,7 +34,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -430,7 +430,7 @@ void setUIForLoadedSong(Song* song) {
 			newUI = &arrangerView;
 		}
 		else {
-			newUI = &sessionView;
+			newUI = &songView;
 		}
 	}
 

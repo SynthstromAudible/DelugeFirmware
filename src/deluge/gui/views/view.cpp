@@ -37,7 +37,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -1409,7 +1409,7 @@ void View::setModLedStates() {
 	// let's check if we're in any of the song UI's
 	if (!itsTheSong && !activeModControllableModelStack.timelineCounterIsSet()) {
 		switch (uiType) {
-		case UIType::SESSION:
+		case UIType::SONG_VIEW:
 			itsTheSong = true;
 			break;
 
@@ -1479,8 +1479,8 @@ void View::setModLedStates() {
 	// or simply illuminate the CLIP LED if we're not in automation view
 	else {
 		switch (uiType) {
-		case UIType::SESSION: {
-			Clip* clip = sessionView.getClipForLayout();
+		case UIType::SONG_VIEW: {
+			Clip* clip = songView.getClipForLayout();
 
 			if (clip) {
 				if (clip->onAutomationClipView) {
@@ -1541,7 +1541,7 @@ void View::setModLedStates() {
 					indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
 				}
 				break;
-			case UIType::SESSION:
+			case UIType::SONG_VIEW:
 				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
 				break;
 			}
@@ -1942,8 +1942,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			setLedState(LED::CV, false);
 		}
 
-		bool isGridView =
-		    (getCurrentUI() == &sessionView && currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid);
+		bool isGridView = (getCurrentUI() == &songView && currentSong->songViewLayout == SongViewLayout::Grid);
 
 		if (outputType != OutputType::AUDIO) {
 			blinkLed(led);
@@ -2596,7 +2595,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
 			RootUI* rootUI = getRootUI();
-			if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+			if ((rootUI == &songView) || (rootUI == &performanceSessionView)) {
 				uiNeedsRendering(rootUI, 0, 1 << yDisplayIfInSessionView);
 			}
 		}
@@ -2630,8 +2629,8 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		// yet...
 		if (on && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 			clip->armedForRecording = !clip->armedForRecording;
-			sessionView.timerCallback(); // Get into UI_MODE_VIEWING_RECORD_ARMING. TODO: this needs doing properly -
-			                             // what if we're in a Clip view?
+			songView.timerCallback(); // Get into UI_MODE_VIEWING_RECORD_ARMING. TODO: this needs doing properly -
+			                          // what if we're in a Clip view?
 			break;
 		}
 		// No break
@@ -2641,7 +2640,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		if (on) {
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
 			context_menu::clip_settings::clipSettings.clip = clip;
-			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
+			songView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		else {
@@ -2654,7 +2653,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		// without it the deluge becomes unresponsive if you try to launch a clip while stuttering
 		// this is because it gets stuck in the stuttering UI mode and can't get out
 		if (on) {
-			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
+			songView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
@@ -2665,7 +2664,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 	case UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON:
 #endif
 		if (on) {
-			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
+			songView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
 			session.soloClipAction(clip, kInternalButtonPressLatency);
 		}
 		break;
@@ -2677,8 +2676,8 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 void View::flashPlayRoutine() {
 	view.clipArmFlashOn = !view.clipArmFlashOn;
 	RootUI* rootUI = getRootUI();
-	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
-		sessionView.flashPlayRoutine();
+	if ((rootUI == &songView) || (rootUI == &performanceSessionView)) {
+		songView.flashPlayRoutine();
 	}
 	else {
 		// TODO: sidebar might not actually be visible, flash song button in that case?
@@ -2695,7 +2694,7 @@ void View::flashPlayDisable() {
 	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
 
 	RootUI* rootUI = getRootUI();
-	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+	if ((rootUI == &songView) || (rootUI == &performanceSessionView)) {
 		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 	}
 #ifdef currentClipStatusButtonX
@@ -2762,7 +2761,7 @@ void View::activateMacro(uint32_t y) {
 	case CLIP_LAUNCH:
 		if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {
 			if (getCurrentClip() != m.clip) {
-				sessionView.transitionToViewForClip(m.clip);
+				songView.transitionToViewForClip(m.clip);
 			}
 		}
 		else {

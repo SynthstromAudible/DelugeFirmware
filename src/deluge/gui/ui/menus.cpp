@@ -1017,10 +1017,10 @@ Submenu defaultSessionGridMenu{
     {&defaultGridDefaultActiveMode, &defaultGridAllowGreenSelection, &defaultEmptyPadMenu},
 };
 
-defaults::SessionLayout defaultSessionLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
+defaults::SongViewLayoutSelection defaultSongViewLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
 Submenu defaultUISession{
     STRING_FOR_DEFAULT_UI_SONG,
-    {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
+    {&defaultSongViewLayoutMenu, &defaultSessionGridMenu},
 };
 
 ToggleBool defaultAccessibilityShortcuts{STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,

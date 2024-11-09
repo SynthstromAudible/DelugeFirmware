@@ -23,7 +23,7 @@ static constexpr uint8_t ZmodButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 // clang-format off
 enum KnownButtons : Button {
 	AFFECT_ENTIRE     = fromCartesian(affectEntireButtonCoord),
-	SESSION_VIEW      = fromCartesian(sessionViewButtonCoord),
+	SESSION_VIEW      = fromCartesian(songViewButtonCoord),
 	CLIP_VIEW         = fromCartesian(clipViewButtonCoord),
 	SYNTH             = fromCartesian(synthButtonCoord),
 	KIT               = fromCartesian(kitButtonCoord),

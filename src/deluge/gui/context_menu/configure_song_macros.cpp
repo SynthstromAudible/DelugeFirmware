@@ -19,7 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "hid/display/display.h"
 #include "model/song/song.h"
 
@@ -56,12 +56,12 @@ Sized<char const**> ConfigureSongMacros::getOptions() {
 }
 
 bool ConfigureSongMacros::setupAndCheckAvailability() {
-	sessionView.enterMacrosConfigMode();
+	songView.enterMacrosConfigMode();
 	return true;
 }
 
 bool ConfigureSongMacros::acceptCurrentOption() {
-	sessionView.exitMacrosConfigMode();
+	songView.exitMacrosConfigMode();
 	return false; // return false so you exit out of the context menu
 }
 
@@ -73,7 +73,7 @@ ActionResult ConfigureSongMacros::buttonAction(deluge::hid::Button b, bool on, b
 	}
 
 	if (b == BACK) {
-		sessionView.exitMacrosConfigMode();
+		songView.exitMacrosConfigMode();
 	}
 
 	return ContextMenu::buttonAction(b, on, inCardRoutine);
@@ -85,11 +85,11 @@ ActionResult ConfigureSongMacros::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 	// don't allow user to switch modes
 	if (x <= kDisplayWidth) {
-		return sessionView.gridHandlePads(x, y, on);
+		return songView.gridHandlePads(x, y, on);
 	}
 	// exit menu with audition pad column
 	else {
-		sessionView.exitMacrosConfigMode();
+		songView.exitMacrosConfigMode();
 		return ContextMenu::padAction(x, y, on);
 	}
 }
@@ -98,9 +98,8 @@ ActionResult ConfigureSongMacros::padAction(int32_t x, int32_t y, int32_t on) {
 void ConfigureSongMacros::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	ContextMenu::renderOLED(canvas);
 
-	if (sessionView.selectedMacro != -1) {
-		const char* macroKind =
-		    sessionView.getMacroKindString(currentSong->sessionMacros[sessionView.selectedMacro].kind);
+	if (songView.selectedMacro != -1) {
+		const char* macroKind = songView.getMacroKindString(currentSong->sessionMacros[songView.selectedMacro].kind);
 		int32_t windowHeight = 40;
 		int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
 		int32_t textPixelY = windowMinY + 20 + kTextSpacingY;
@@ -112,14 +111,14 @@ ActionResult ConfigureSongMacros::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	return sessionView.gridHandleScroll(offset, 0);
+	return songView.gridHandleScroll(offset, 0);
 }
 
 ActionResult ConfigureSongMacros::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
-	return sessionView.gridHandleScroll(0, offset);
+	return songView.gridHandleScroll(0, offset);
 }
 
 } // namespace deluge::gui::context_menu

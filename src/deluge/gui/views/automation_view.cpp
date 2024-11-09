@@ -37,7 +37,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
@@ -1760,7 +1760,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 
 	// Song view button
 	else if (b == SESSION_VIEW) {
-		handleSessionButtonAction(clip, on);
+		handleSongViewButtonAction(clip, on);
 	}
 
 	// Keyboard button
@@ -1888,7 +1888,7 @@ passToOthers:
 }
 
 // called by button action if b == SESSION_VIEW
-void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
+void AutomationView::handleSongViewButtonAction(Clip* clip, bool on) {
 	// if shift is pressed, go back to automation overview
 	if (on && Buttons::isShiftButtonPressed()) {
 		initParameterSelection();
@@ -1912,7 +1912,7 @@ void AutomationView::handleSessionButtonAction(Clip* clip, bool on) {
 		}
 		else {
 doOther:
-			sessionView.transitionToSessionView();
+			songView.transitionToSongView();
 		}
 		resetShortcutBlinking();
 	}

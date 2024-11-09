@@ -22,7 +22,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_device.h"
@@ -148,9 +148,9 @@ Clip* MidiFollow::getSelectedClip() {
 	}
 
 	switch (uiType) {
-	case UIType::SESSION:
+	case UIType::SONG_VIEW:
 		// if you're in session view, check if you're pressing a clip to control that clip
-		clip = sessionView.getClipForLayout();
+		clip = songView.getClipForLayout();
 		break;
 	case UIType::ARRANGER:
 		clip = arrangerView.getClipForSelection();

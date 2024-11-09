@@ -21,7 +21,7 @@
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui_timer_manager.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -214,7 +214,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 						displayArmedPopup();
 					}
 					else {
-						sessionView.redrawNumericDisplay();
+						songView.redrawNumericDisplay();
 					}
 				}
 			}
@@ -446,7 +446,7 @@ gotErrorAfterCreatingSong:
 				displayArmedPopup();
 			}
 			else {
-				sessionView.redrawNumericDisplay();
+				songView.redrawNumericDisplay();
 			}
 		}
 
@@ -704,7 +704,7 @@ void LoadSongUI::selectEncoderAction(int8_t offset) {
 			displayLoopsRemainingPopup();
 		}
 		else {
-			sessionView.redrawNumericDisplay();
+			songView.redrawNumericDisplay();
 		}
 	}
 

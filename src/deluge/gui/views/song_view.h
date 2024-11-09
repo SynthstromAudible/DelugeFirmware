@@ -17,6 +17,8 @@
 
 #pragma once
 
+// === INCLUDES	=== //
+
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
@@ -30,133 +32,120 @@ class Clip;
 class ModelStack;
 class ModelStackWithTimelineCounter;
 
-enum SessionGridMode : uint8_t {
-	SessionGridModeEdit,
-	SessionGridModeLaunch,
-	SessionGridModeMacros,
-	SessionGridModeMaxElement // Keep as boundary
-};
-
-extern float getTransitionProgress();
-
+// === CONSTANTS === //
 constexpr uint32_t kGridHeight = kDisplayHeight;
 
-// Clip Group colours
+// === EXTERN STUFF === //
+extern float getTransitionProgress();
 extern const uint8_t numDefaultClipGroupColours;
 extern const uint8_t defaultClipGroupColours[];
 
-class SessionView final : public ClipNavigationTimelineView {
+// === THE CLASS === //
+class SongView final : public ClipNavigationTimelineView {
 public:
-	SessionView();
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
+	// Constructor
+	SongView();
+
+	// Pulicly used properties
+	int8_t selectedMacro = -1;
+	uint8_t selectedClipYDisplay;      // Where the clip is on screen
+	uint8_t selectedClipPressYDisplay; // Where the user's finger actually is on screen
+	uint8_t selectedClipPressXDisplay;
+	bool performActionOnPadRelease;
+	int16_t lastDisplayedRootNote = 0;
+	float lastDisplayedTempo = 0;
+
+	// Inherited from UI, general
 	bool opened();
 	void focusRegained();
+	const char* getName() { return "song_view"; }
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
+	UIType getUIType() { return UIType::SONG_VIEW; }
 
-	const char* getName() { return "session_view"; }
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult horizontalEncoderAction(int32_t offset);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	// Inherited from UI, rendering
+	void graphicsRoutine();
+	ActionResult timerCallback();
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void removeClip(Clip* clip);
-	void redrawClipsOnScreen(bool doRender = true);
-	uint32_t getMaxZoom();
-	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
-	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
-	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void graphicsRoutine();
-	int32_t displayLoopsRemainingPopup(bool ephemeral = false);
-	void potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining);
-	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
+	// Inherited from UI, physical interactions
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult horizontalEncoderAction(int32_t offset);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	void selectEncoderAction(int8_t offset);
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
+	void modButtonAction(uint8_t whichButton, bool on);
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+
+	// === UI INFO & STATE === //
+	uint32_t getMaxZoom();
 	int32_t getClipPlaceOnScreen(Clip* clip);
-	void drawStatusSquare(uint8_t yDisplay, RGB thisImage[]);
-	void drawSectionSquare(uint8_t yDisplay, RGB thisImage[]);
-	bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom);
 	uint32_t getMaxLength();
 	bool setupScroll(uint32_t oldScroll);
 	uint32_t getClipLocalScroll(Clip* loopable, uint32_t overviewScroll, uint32_t xZoom);
-	void flashPlayRoutine();
-
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-	void modButtonAction(uint8_t whichButton, bool on);
-	void selectEncoderAction(int8_t offset);
-	ActionResult timerCallback();
-	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
-	void setLedStates();
-	void editNumRepeatsTilLaunch(int32_t offset);
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output);
-	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
-	void midiLearnFlash();
-
-	void transitionToViewForClip(Clip* clip = NULL);
-	void transitionToSessionView();
 	void finishedTransitioningHere();
 	void playbackEnded();
 	void clipNeedsReRendering(Clip* clip);
 	void sampleNeedsReRendering(Sample* sample);
 	Clip* getClipOnScreen(int32_t yDisplay);
 	Output* getOutputFromPad(int32_t x, int32_t y);
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
+	Clip* getClipForLayout();
+	OutputType lastTypeCreated{OutputType::NONE};
+
+	// === UI INPUT === //
+	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
+
+	// === DO STUFF IN THE UI === //
+	void removeClip(Clip* clip);
+	void redrawClipsOnScreen(bool doRender = true);
+	bool renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
+	               uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	int32_t displayLoopsRemainingPopup(bool ephemeral = false);
+	void cloneClip(uint8_t yDisplayFrom, uint8_t yDisplayTo);
+	void transitionToViewForClip(Clip* clip = NULL);
+	void transitionToSongView();
 	ActionResult verticalScrollOneSquare(int32_t direction);
+	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
+	bool createClip{false};
+	void enterMidiLearnMode();
+	void exitMidiLearnMode();
+	void replaceInstrumentClipWithAudioClip(Clip* clip);
 
-	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
+	// === RENDERING === //
+	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
+	void drawStatusSquare(uint8_t yDisplay, RGB thisImage[]);
+	void drawSectionSquare(uint8_t yDisplay, RGB thisImage[]);
+	void midiLearnFlash();
+	void displayPotentialTempoChange(UI* ui);
+	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM, bool clearArea);
+	void displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
+	                                        StringBuf& rootNoteAndScaleName, bool clearArea);
+	void potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining);
+	void flashPlayRoutine();
 
-	// 7SEG only
+	// === NOT SURE === //
+	bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom);
+	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
+	void setLedStates();
+	void editNumRepeatsTilLaunch(int32_t offset);
+
+	// === 7SEG === //
 	void redrawNumericDisplay();
 	void clearNumericDisplay();
 	void displayRepeatsTilLaunch();
 
-	uint32_t selectedClipTimePressed;
-	uint8_t selectedClipYDisplay;      // Where the clip is on screen
-	uint8_t selectedClipPressYDisplay; // Where the user's finger actually is on screen
-	uint8_t selectedClipPressXDisplay;
-	bool clipWasSelectedWithShift; // Whether shift was held when clip pad started to be held
-	bool performActionOnPadRelease;
-	bool performActionOnSectionPadRelease; // Keep this separate from the above one because we don't want a mod encoder
-	                                       // action to set this to false
-	uint8_t sectionPressed;
-	uint8_t masterCompEditMode;
-	int8_t selectedMacro = -1;
-
-	Clip* getClipForLayout();
-
-	// Members for grid layout
-	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
-	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
-	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
-
-	// ui
-	UIType getUIType() { return UIType::SESSION; }
-
-	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
-	bool createClip{false};
-	OutputType lastTypeCreated{OutputType::NONE};
-
-	// Grid macros config mode
+	// === PUBLIC GRID STUFF === //
 	void enterMacrosConfigMode();
 	void exitMacrosConfigMode();
 	char const* getMacroKindString(SessionMacroKind kind);
-
-	// Midi learn mode
-	void enterMidiLearnMode();
-	void exitMidiLearnMode();
-
-	// display tempo
-	void displayPotentialTempoChange(UI* ui);
-	void displayTempoBPM(deluge::hid::display::oled_canvas::Canvas& canvas, StringBuf& tempoBPM, bool clearArea);
-	float lastDisplayedTempo = 0;
-
-	// display root note and scale name
-	void displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_canvas::Canvas& canvas,
-	                                        StringBuf& rootNoteAndScaleName, bool clearArea);
-	int16_t lastDisplayedRootNote = 0;
-
-	// convert instrument clip to audio clip
-	void replaceInstrumentClipWithAudioClip(Clip* clip);
+	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
+	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
+	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 private:
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
@@ -168,39 +157,47 @@ private:
 	void commandChangeCurrentSectionRepeats(int8_t offset);
 	void commandChangeLayout(int8_t offset);
 
-private:
-	void renderViewDisplay();
-	void sectionPadAction(uint8_t y, bool on);
-	void clipPressEnded();
+	// === PROPERTIES === //
+	uint32_t selectedClipTimePressed;
+
+	bool clipWasSelectedWithShift;         // Whether shift was held when clip pad started to be held
+	bool performActionOnSectionPadRelease; // Keep this separate from the above one because we don't want a mod encoder
+	                                       // action to set this to false
+	uint8_t sectionPressed;
+	uint8_t masterCompEditMode;
+	bool songViewButtonActive = false;
+	bool songViewButtonUsed = false;
+	bool horizontalEncoderPressed = false;
+	bool viewingRecordArmingActive = false;
+
+	// === UI RENDER === //
+	void renderViewDisplay(); // render oled
 	void drawSectionRepeatNumber();
-	void beginEditingSectionRepeatsNum();
-	void goToArrangementEditor();
 	void rowNeedsRenderingDependingOnSubMode(int32_t yDisplay);
 	void setCentralLEDStates();
 
+	// === UI === //
+	void sectionPadAction(uint8_t y, bool on); // input
+	void clipPressEnded();                     // state
+
+	// === DO STUFF IN THE UI === //
+	void goToArrangementEditor();
+	void beginEditingSectionRepeatsNum();
 	Clip* createNewAudioClip(int32_t yDisplay);
 	Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay);
-
 	bool createNewTrackForAudioClip(AudioClip* newClip);
 	bool createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip);
-
 	bool insertAndResyncNewClip(Clip* newClip, int32_t yDisplay);
 	void resyncNewClip(Clip* newClip, ModelStackWithTimelineCounter* modelStackWithTimelineCounter);
 
 	// Members regarding rendering different layouts
-private:
 	void selectLayout(int8_t offset);
 	void renderLayoutChange(bool displayPopup = true);
-	void selectSpecificLayout(SessionLayoutType layout);
-	SessionLayoutType previousLayout;
-	SessionGridMode previousGridModeActive;
+	void selectSpecificLayout(SongViewLayout layout);
+	SongViewLayout previousLayout;
+	SongViewGridLayoutMode previousGridModeActive;
 
-	bool sessionButtonActive = false;
-	bool sessionButtonUsed = false;
-	bool horizontalEncoderPressed = false;
-	bool viewingRecordArmingActive = false;
 	// Members for grid layout
-private:
 	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -221,8 +218,8 @@ private:
 	void gridTransitionToSessionView();
 	void gridTransitionToViewForClip(Clip* clip);
 
-	SessionGridMode gridModeSelected = SessionGridModeEdit;
-	SessionGridMode gridModeActive = SessionGridModeEdit;
+	SongViewGridLayoutMode gridModeSelected = SongViewGridLayoutMode::Edit;
+	SongViewGridLayoutMode gridModeActive = SongViewGridLayoutMode::Edit;
 	bool gridActiveModeUsed = false;
 
 	int32_t gridFirstPressedX = -1;
@@ -266,12 +263,12 @@ private:
 
 	inline void gridSetDefaultMode() {
 		switch (FlashStorage::defaultGridActiveMode) {
-		case GridDefaultActiveModeGreen: {
-			gridModeSelected = SessionGridModeLaunch;
+		case SongViewGridLayoutModeSelection::DefaultLaunch: {
+			gridModeSelected = SongViewGridLayoutMode::Launch;
 			break;
 		}
-		case GridDefaultActiveModeBlue: {
-			gridModeSelected = SessionGridModeEdit;
+		case SongViewGridLayoutModeSelection::DefaultEdit: {
+			gridModeSelected = SongViewGridLayoutMode::Edit;
 			break;
 		}
 		}
@@ -280,4 +277,5 @@ private:
 	void exitTrackCreation();
 };
 
-extern SessionView sessionView;
+// === GLOBAL VARIABLE === //
+extern SongView songView;

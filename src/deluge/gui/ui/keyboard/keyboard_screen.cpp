@@ -24,7 +24,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/oled.h"
@@ -506,7 +506,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 			}
 		}
 
-		sessionView.transitionToSessionView();
+		songView.transitionToSongView();
 	}
 
 	// toggle UI to go back to after you exit keyboard mode between automation instrument clip view and regular

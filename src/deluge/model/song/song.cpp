@@ -25,7 +25,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
@@ -1135,7 +1135,7 @@ weAreInArrangementEditorOrInClipInstance:
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("songGridScrollX", songGridScrollX);
 	writer.writeAttribute("songGridScrollY", songGridScrollY);
-	writer.writeAttribute("sessionLayout", sessionLayout);
+	writer.writeAttribute("songViewLayout", static_cast<uint8_t>(songViewLayout));
 
 	writer.writeOpeningTagEnd(); // -------------------------------------------------------------- Attributes end
 
@@ -1531,9 +1531,9 @@ unknownTag:
 				reader.tryReadingFirmwareTagFromFile(tagName, false);
 				reader.exitTag(tagName);
 			}
-			else if (!strcmp(tagName, "sessionLayout")) {
-				sessionLayout = (SessionLayoutType)reader.readTagOrAttributeValueInt();
-				reader.exitTag("sessionLayout");
+			else if (!strcmp(tagName, "songViewLayout")) {
+				songViewLayout = (SongViewLayout)reader.readTagOrAttributeValueInt();
+				reader.exitTag("songViewLayout");
 			}
 
 			else if (!strcmp(tagName, "songGridScrollX")) {
@@ -4626,7 +4626,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 bool Song::shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement) {
 	// If Clip has an "instance" within its Output in arranger, then we can only change the entire Output to a
 	// different Output If in session view, change the whole instrument
-	if (!clip || clip->output->clipHasInstance(clip) || getRootUI() == &sessionView) {
+	if (!clip || clip->output->clipHasInstance(clip) || getRootUI() == &songView) {
 		if (availabilityRequirement) {
 			*availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 		}
@@ -5392,7 +5392,7 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 		return NULL;
 	}
 	// if we're in rows or the clip can't support in place overdub then use the traditional deluge cloning looper
-	if (sessionLayout == SessionLayoutType::SessionLayoutTypeRows || clip->shouldCloneForOverdubs()) {
+	if (songViewLayout == SongViewLayout::Rows || clip->shouldCloneForOverdubs()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
@@ -5408,7 +5408,7 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 			}
 
 			// use root UI in case this is called from performance view
-			sessionView.requestRendering(getRootUI());
+			songView.requestRendering(getRootUI());
 		}
 	}
 	else {
@@ -5794,10 +5794,10 @@ void Song::displayCurrentRootNoteAndScaleName() {
 	getCurrentRootNoteAndScaleName(popupMsg);
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
-		bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
+		bool isSessionView = (currentUI == &songView || currentUI == &arrangerView);
 		// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
 		if (isSessionView && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
-			sessionView.displayCurrentRootNoteAndScaleName(deluge::hid::display::OLED::main, popupMsg, true);
+			songView.displayCurrentRootNoteAndScaleName(deluge::hid::display::OLED::main, popupMsg, true);
 			deluge::hid::display::OLED::markChanged();
 			return;
 		}

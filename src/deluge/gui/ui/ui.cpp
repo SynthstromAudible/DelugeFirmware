@@ -95,7 +95,7 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 	return success;
 }
 
-// Called when we navigate between "root" UIs, like sessionView, instrumentClipView, automationInstrumentClipView,
+// Called when we navigate between "root" UIs, like songView, instrumentClipView, automationInstrumentClipView,
 // performanceView, etc.
 void changeRootUI(UI* newUI) {
 	uiNavigationHierarchy[0] = newUI;

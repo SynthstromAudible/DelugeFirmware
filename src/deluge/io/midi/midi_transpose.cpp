@@ -4,7 +4,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "hid/display/display.h"
 #include "midi_device.h"
 #include "model/clip/instrument_clip.h"
@@ -67,11 +67,11 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 	}
 
 	UI* currentUI = getCurrentUI();
-	bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+	bool isOLEDSessionView = display->haveOLED() && (currentUI == &songView || currentUI == &arrangerView);
 	if (isOLEDSessionView) {
-		if (currentSong->key.rootNote != sessionView.lastDisplayedRootNote) {
+		if (currentSong->key.rootNote != songView.lastDisplayedRootNote) {
 			currentSong->displayCurrentRootNoteAndScaleName();
-			sessionView.lastDisplayedRootNote = currentSong->key.rootNote;
+			songView.lastDisplayedRootNote = currentSong->key.rootNote;
 		}
 	}
 }

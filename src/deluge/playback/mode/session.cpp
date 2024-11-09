@@ -22,7 +22,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
 #include "model/action/action.h"
@@ -114,7 +114,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 	if (numRepetitions == -1) {
 		numRepetitions = currentSong->sections[oldSection].numRepetitions;
 	}
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+	if (currentSong->songViewLayout == SongViewLayout::Rows) {
 		if (currentSong->sessionClips.getClipAtIndex(0)->section != oldSection) {
 
 			for (int32_t c = 1; c < currentSong->sessionClips.getNumElements(); c++) { // NOTE: starts at 1, not 0
@@ -131,7 +131,7 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 		}
 	}
 	// grid mode - just go to the next section, no need to worry about what order they're in
-	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+	else if (currentSong->songViewLayout == SongViewLayout::Grid) {
 		if (oldSection < kMaxNumSections) {
 			userWantsToArmClipsToStartOrSolo(oldSection + 1, NULL, true, false, false, numRepetitions, false);
 			lastSectionArmed = oldSection + 1;
@@ -163,8 +163,8 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 
 	if (begun) {
 
-		if (getRootUI() == &sessionView) {
-			sessionView.clipNeedsReRendering(clip); // Necessary for InstrumentClips
+		if (getRootUI() == &songView) {
+			songView.clipNeedsReRendering(clip); // Necessary for InstrumentClips
 		}
 
 		// if we're creating a new recording based on a previous clip on the same
@@ -756,13 +756,13 @@ void Session::launchSchedulingMightNeedCancelling() {
 			if (getCurrentUI() == &loadSongUI) {
 				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
 			}
-			else if ((rootUI == &sessionView || rootUI == &performanceSessionView)
+			else if ((rootUI == &songView || rootUI == &performanceSessionView)
 			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 				renderUIsForOled();
 			}
 		}
 		else {
-			sessionView.redrawNumericDisplay();
+			songView.redrawNumericDisplay();
 		}
 	}
 }
@@ -934,7 +934,7 @@ void Session::cancelArmingForClip(Clip* clip, int32_t* clipIndex) {
 		bool anyDeleted = currentSong->deletePendingOverdubs(clip->output, clipIndex);
 		if (anyDeleted) {
 			// use root UI in case this is called from performance view
-			sessionView.requestRendering(getRootUI());
+			songView.requestRendering(getRootUI());
 		}
 	}
 
@@ -1006,7 +1006,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 				if (playbackHandler.playbackState) {
 					playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 					RootUI* rootUI = getRootUI();
-					if (rootUI == &sessionView || rootUI == &performanceSessionView) {
+					if (rootUI == &songView || rootUI == &performanceSessionView) {
 						uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 					}
 					return;
@@ -1055,7 +1055,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 							                           false); // Tell it not to resync
 							armClipToStopAction(clip);
 
-							sessionView.clipNeedsReRendering(clip);
+							songView.clipNeedsReRendering(clip);
 							if (getCurrentClip()) {
 								if (getCurrentClip()->onAutomationClipView) {
 									uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
@@ -1140,7 +1140,7 @@ void Session::soloClipAction(Clip* clip, int32_t buttonPressLatency) {
 			if (playbackHandler.playbackState) {
 				playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 				// use root UI in case this is called from performance view
-				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+				songView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 				goto renderAndGetOut;
 			}
 		}
@@ -1155,7 +1155,7 @@ void Session::soloClipAction(Clip* clip, int32_t buttonPressLatency) {
 
 renderAndGetOut:
 	if (anyClipsDeleted) {
-		sessionView.requestRendering(getRootUI());
+		songView.requestRendering(getRootUI());
 	}
 }
 
@@ -1239,8 +1239,8 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 // Updates LEDs after arming changed
 void Session::armingChanged() {
 	RootUI* rootUI = getRootUI();
-	if (rootUI == &sessionView || rootUI == &performanceSessionView) {
-		sessionView.requestRendering(rootUI, 0, 0xFFFFFFFF);
+	if (rootUI == &songView || rootUI == &performanceSessionView) {
+		songView.requestRendering(rootUI, 0, 0xFFFFFFFF);
 
 		if (getCurrentUI()->canSeeViewUnderneath()) {
 			if (display->haveOLED()) {
@@ -1250,7 +1250,7 @@ void Session::armingChanged() {
 				}
 			}
 			else {
-				sessionView.redrawNumericDisplay();
+				songView.redrawNumericDisplay();
 			}
 probablyDoFlashPlayEnable:
 			if (hasPlaybackActive()) {
@@ -2043,7 +2043,7 @@ bool Session::endPlayback() {
 
 		// Re-render
 		// use root UI in case this is called from performance view
-		sessionView.requestRendering(getRootUI());
+		songView.requestRendering(getRootUI());
 
 		// And exit RECORD mode, as indicated on LED
 		if (playbackHandler.recording == RecordingMode::NORMAL) {
@@ -2282,13 +2282,13 @@ traverseClips:
 				if (getCurrentUI() == &loadSongUI) {
 					loadSongUI.displayLoopsRemainingPopup();
 				}
-				else if ((rootUI == &sessionView || rootUI == &performanceSessionView)
+				else if ((rootUI == &songView || rootUI == &performanceSessionView)
 				         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 					renderUIsForOled();
 				}
 			}
 			else {
-				sessionView.redrawNumericDisplay();
+				songView.redrawNumericDisplay();
 			}
 		}
 	}

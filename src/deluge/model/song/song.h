@@ -229,7 +229,7 @@ public:
 
 	bool affectEntire;
 
-	SessionLayoutType sessionLayout = FlashStorage::defaultSessionLayout;
+	SongViewLayout songViewLayout = FlashStorage::defaultSongViewLayout;
 	int32_t songGridScrollX = 0;
 	int32_t songGridScrollY = 0;
 	int32_t songViewYScroll;

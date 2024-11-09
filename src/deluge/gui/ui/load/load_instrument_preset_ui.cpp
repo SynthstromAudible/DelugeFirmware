@@ -457,7 +457,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 			newInstrument = currentSong->changeOutputType(instrumentToReplace, newOutputType);
 		}
 
-		// Or, in SessionView or a ClipMinder
+		// Or, in SongView or a ClipMinder
 		else {
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];

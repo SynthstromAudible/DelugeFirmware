@@ -28,7 +28,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
@@ -224,7 +224,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					renderUIsForOled();
 				}
 				else {
-					sessionView.redrawNumericDisplay();
+					songView.redrawNumericDisplay();
 				}
 				display->cancelPopup();
 			}
@@ -292,7 +292,7 @@ void PlaybackHandler::recordButtonPressed() {
 					bool anyClipsRemoved = currentSong->deletePendingOverdubs(NULL, NULL, true);
 					if (anyClipsRemoved) {
 						// use root UI in case this is called from performance view
-						sessionView.requestRendering(getRootUI());
+						songView.requestRendering(getRootUI());
 					}
 				}
 				else {
@@ -2116,7 +2116,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	else {
 		if (!isExternalClockActive()) {
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			bool isOLEDSessionView = display->haveOLED() && (currentUI == &songView || currentUI == &arrangerView);
 			if (display->hasPopupOfType(PopupType::TEMPO) || isOLEDSessionView) {
 				// Truth table for how we decide between adjusting coarse and fine tempo:
 				//
@@ -2293,11 +2293,11 @@ void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	if (display->haveOLED()) {
 		UI* currentUI = getCurrentUI();
 		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
-		if ((currentUI == &sessionView || currentUI == &arrangerView)
+		if ((currentUI == &songView || currentUI == &arrangerView)
 		    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
-			sessionView.lastDisplayedTempo = tempoBPM;
+			songView.lastDisplayedTempo = tempoBPM;
 			getTempoStringForOLED(tempoBPM, text);
-			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
+			songView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
 			deluge::hid::display::OLED::markChanged();
 		}
 		else {
@@ -2807,7 +2807,7 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, 
 				session.toggleClipStatus(clip, &c, false, kMIDIKeyInputLatency);
 
 				// use root UI in case this is called from performance view
-				sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+				songView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 			}
 			foundAnything = true;
 		}
@@ -2898,10 +2898,10 @@ void PlaybackHandler::switchToArrangement() {
 		}
 	}
 	else {
-		sessionView.redrawNumericDisplay();
+		songView.redrawNumericDisplay();
 	}
 
-	if (getCurrentUI() == &sessionView) {
+	if (getCurrentUI() == &songView) {
 		PadLEDs::reassessGreyout();
 	}
 }
@@ -2920,7 +2920,7 @@ void PlaybackHandler::switchToSession() {
 	session.setupPlayback();
 	stopOutputRecordingAtLoopEnd = false;
 
-	if (getCurrentUI() == &sessionView) {
+	if (getCurrentUI() == &songView) {
 		PadLEDs::reassessGreyout();
 	}
 }
@@ -3131,7 +3131,7 @@ probablyExitRecordMode:
 		// TODO: this traverses all Clips. So does further down. This could be combined
 		session.launchSchedulingMightNeedCancelling();
 		// use root UI in case this is called from performance view
-		sessionView.requestRendering(getRootUI());
+		songView.requestRendering(getRootUI());
 
 		goto probablyExitRecordMode;
 	}
@@ -3160,10 +3160,10 @@ doCreateNextOverdub:
 			int32_t clipIndexToCreateOverdubFrom;
 
 			// If we're holding down a Clip in Session View, prioritize that
-			if (getRootUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
-				clipToCreateOverdubFrom = sessionView.getClipOnScreen(sessionView.selectedClipPressYDisplay);
-				clipIndexToCreateOverdubFrom = sessionView.selectedClipPressYDisplay + currentSong->songViewYScroll;
-				sessionView.performActionOnPadRelease = false;
+			if (getRootUI() == &songView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+				clipToCreateOverdubFrom = songView.getClipOnScreen(songView.selectedClipPressYDisplay);
+				clipIndexToCreateOverdubFrom = songView.selectedClipPressYDisplay + currentSong->songViewYScroll;
+				songView.performActionOnPadRelease = false;
 			}
 
 			// Otherwise, prioritize the currentClip - so long as it's not arrangement-only

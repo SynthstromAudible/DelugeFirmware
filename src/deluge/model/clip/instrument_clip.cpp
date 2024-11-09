@@ -22,7 +22,7 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "io/midi/midi_device.h"
@@ -4401,7 +4401,7 @@ useAlternativeLength:
 }
 
 bool InstrumentClip::currentlyScrollableAndZoomable() {
-	return !onKeyboardScreen || (getRootUI() == &sessionView && containsAnyNotes()); // Cheating a bit!
+	return !onKeyboardScreen || (getRootUI() == &songView && containsAnyNotes()); // Cheating a bit!
 }
 
 // Call this after setInstrument() / setAudioInstrument(). I forget exactly where setupPatching() fits into this
@@ -4425,8 +4425,7 @@ void InstrumentClip::abortRecording() {
 // ----- PlayPositionCounter implementation -------
 
 void InstrumentClip::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
-	if (output->type == OutputType::KIT && !affectEntire && getRootUI() != &sessionView
-	    && getRootUI() != &arrangerView) {
+	if (output->type == OutputType::KIT && !affectEntire && getRootUI() != &songView && getRootUI() != &arrangerView) {
 		Kit* kit = (Kit*)output;
 
 		if (!kit->selectedDrum || kit->selectedDrum->type != DrumType::SOUND) {

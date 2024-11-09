@@ -17,7 +17,7 @@
 #pragma once
 #include "gui/context_menu/configure_song_macros.h"
 #include "gui/menu_item/menu_item.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 
 namespace deluge::gui::menu_item::song {
 class ConfigureMacros final : public MenuItem {
@@ -33,7 +33,7 @@ public:
 	bool shouldEnterSubmenu() override { return false; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return (getRootUI() == &sessionView);
+		return (getRootUI() == &songView);
 	}
 };
 } // namespace deluge::gui::menu_item::song

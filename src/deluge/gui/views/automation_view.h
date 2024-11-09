@@ -152,7 +152,7 @@ public:
 
 private:
 	// button action functions
-	void handleSessionButtonAction(Clip* clip, bool on);
+	void handleSongViewButtonAction(Clip* clip, bool on);
 	void handleKeyboardButtonAction(bool on);
 	void handleClipButtonAction(bool on, bool isAudioClip);
 	void handleCrossScreenButtonAction(bool on);

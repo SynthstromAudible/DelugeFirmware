@@ -140,7 +140,7 @@ enum Entries {
 120: gridAllowGreenSelection
 121: defaultGridActiveMode
 122: defaultMetronomeVolume
-123: defaultSessionLayout
+123: defaultSongViewLayout
 124: defaultKeyboardLayout
 125: gridEmptyPadsUnarm
 126: midiFollow set follow channel A
@@ -199,7 +199,7 @@ bool settingsBeenRead; // Whether the settings have been read from the flash chi
 uint8_t defaultBendRange[2] = {2, 48}; // The 48 isn't editable. And the 2 actually should only apply to non-MPE MIDI,
                                        // because it's editable, whereas for MPE it's meant to always stay at 2.
 
-SessionLayoutType defaultSessionLayout;
+SongViewLayout defaultSongViewLayout;
 KeyboardLayoutType defaultKeyboardLayout;
 
 bool keyboardFunctionsVelocityGlide;
@@ -208,7 +208,7 @@ bool keyboardFunctionsModwheelGlide;
 bool gridEmptyPadsUnarm;
 bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
-GridDefaultActiveMode defaultGridActiveMode;
+SongViewGridLayoutModeSelection defaultGridActiveMode;
 
 SampleRepeatMode defaultSliceMode;
 
@@ -315,13 +315,13 @@ void resetSettings() {
 
 	defaultBendRange[BEND_RANGE_MAIN] = 2;
 
-	defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+	defaultSongViewLayout = SongViewLayout::Rows;
 	defaultKeyboardLayout = KeyboardLayoutType::KeyboardLayoutTypeIsomorphic;
 
 	gridEmptyPadsUnarm = false;
 	gridEmptyPadsCreateRec = false;
 	gridAllowGreenSelection = true;
-	defaultGridActiveMode = GridDefaultActiveModeSelection;
+	defaultGridActiveMode = SongViewGridLayoutModeSelection::Select;
 
 	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 
@@ -567,11 +567,11 @@ void readSettings() {
 	// 114 and 115, and 116-119 used further up
 
 	gridAllowGreenSelection = buffer[120];
-	if (buffer[121] >= util::to_underlying(GridDefaultActiveModeMaxElement)) {
-		defaultGridActiveMode = GridDefaultActiveMode::GridDefaultActiveModeSelection;
+	if (buffer[121] >= util::to_underlying(SongViewGridLayoutModeSelection::MaxElement)) {
+		defaultGridActiveMode = SongViewGridLayoutModeSelection::Select;
 	}
 	else {
-		defaultGridActiveMode = static_cast<GridDefaultActiveMode>(buffer[121]);
+		defaultGridActiveMode = static_cast<SongViewGridLayoutModeSelection>(buffer[121]);
 	}
 
 	defaultMetronomeVolume = buffer[122];
@@ -581,11 +581,11 @@ void readSettings() {
 	}
 	AudioEngine::metronome.setVolume(defaultMetronomeVolume);
 
-	if (buffer[123] >= util::to_underlying(SessionLayoutTypeMaxElement)) {
-		defaultSessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+	if (buffer[123] >= util::to_underlying(SongViewLayout::MaxElement)) {
+		defaultSongViewLayout = SongViewLayout::Rows;
 	}
 	else {
-		defaultSessionLayout = static_cast<SessionLayoutType>(buffer[123]);
+		defaultSongViewLayout = static_cast<SongViewLayout>(buffer[123]);
 	}
 
 	if (buffer[124] >= util::to_underlying(KeyboardLayoutTypeMaxElement)) {
@@ -958,7 +958,7 @@ void writeSettings() {
 
 	buffer[122] = defaultMetronomeVolume;
 
-	buffer[123] = util::to_underlying(defaultSessionLayout);
+	buffer[123] = util::to_underlying(defaultSongViewLayout);
 	buffer[124] = util::to_underlying(defaultKeyboardLayout);
 
 	buffer[125] = gridEmptyPadsUnarm;

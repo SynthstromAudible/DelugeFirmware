@@ -35,7 +35,7 @@ constexpr uint8_t fromXY(int32_t x, int32_t y) {
 // clang-format off
 enum class LED : uint8_t {
 	AFFECT_ENTIRE     = fromCartesian(affectEntireButtonCoord),
-	SESSION_VIEW      = fromCartesian(sessionViewButtonCoord),
+	SESSION_VIEW      = fromCartesian(songViewButtonCoord),
 	CLIP_VIEW         = fromCartesian(clipViewButtonCoord),
 	SYNTH             = fromCartesian(synthButtonCoord),
 	KIT               = fromCartesian(kitButtonCoord),

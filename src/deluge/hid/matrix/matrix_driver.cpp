@@ -27,7 +27,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"

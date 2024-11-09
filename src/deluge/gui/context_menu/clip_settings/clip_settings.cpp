@@ -4,7 +4,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/rename/rename_clip_ui.h"
 #include "gui/ui/root_ui.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "hid/display/display.h"
 #include "model/clip/clip.h"
 #include <cstddef>
@@ -48,7 +48,7 @@ void ClipSettingsMenu::selectEncoderAction(int8_t offset) {
 
 bool ClipSettingsMenu::acceptCurrentOption() {
 	if (clip->type == ClipType::INSTRUMENT && this->currentOption == 0) {
-		sessionView.replaceInstrumentClipWithAudioClip(clip);
+		songView.replaceInstrumentClipWithAudioClip(clip);
 		return false; // exit UI
 	}
 	else {
@@ -74,8 +74,8 @@ ActionResult ClipSettingsMenu::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on) {
 		return ContextMenu::padAction(x, y, on);
 	}
-	else {                                      // this would happen if you release pad after entering the menu
-		return sessionView.padAction(x, y, on); // let the grid handle this
+	else {                                   // this would happen if you release pad after entering the menu
+		return songView.padAction(x, y, on); // let the grid handle this
 	}
 }
 

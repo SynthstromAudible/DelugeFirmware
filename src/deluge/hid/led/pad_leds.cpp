@@ -26,7 +26,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_render_data.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -842,8 +842,8 @@ void timerRoutine() {
 					if (nextUI == &arrangerView && arrangerView.doingAutoScrollNow) {
 						goto stopFade; // If we suddenly just started doing an auto-scroll, there's no time to fade
 					}
-					else if (nextUI == &sessionView) {
-						sessionView.finishedTransitioningHere();
+					else if (nextUI == &songView) {
+						songView.finishedTransitioningHere();
 					}
 				}
 
@@ -992,10 +992,10 @@ void renderAudioClipExpandOrCollapse() {
 			ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 			memset(imageStore, 0, sizeof(imageStore));
-			sessionView.renderRow(modelStack, waveformRenderer.collapseAnimationToWhichRow,
-			                      imageStore[waveformRenderer.collapseAnimationToWhichRow],
-			                      occupancyMaskStore[waveformRenderer.collapseAnimationToWhichRow], true);
-			sessionView.finishedTransitioningHere();
+			songView.renderRow(modelStack, waveformRenderer.collapseAnimationToWhichRow,
+			                   imageStore[waveformRenderer.collapseAnimationToWhichRow],
+			                   occupancyMaskStore[waveformRenderer.collapseAnimationToWhichRow], true);
+			songView.finishedTransitioningHere();
 			return;
 		}
 		progress = 65536 - progress;
@@ -1048,7 +1048,7 @@ void renderClipExpandOrCollapse() {
 		if (progress >= 65536) {
 			renderInstrumentClipCollapseAnimation(0, kDisplayWidth + kSideBarWidth, 0);
 			memcpy(imageStore, PadLEDs::image, sizeof(PadLEDs::image));
-			sessionView.finishedTransitioningHere();
+			songView.finishedTransitioningHere();
 			return;
 		}
 		progress = 65536 - progress;

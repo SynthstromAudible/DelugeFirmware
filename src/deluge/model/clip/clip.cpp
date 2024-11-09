@@ -18,7 +18,7 @@
 #include "model/clip/clip.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -821,7 +821,7 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 			loopLength += originalLength;
 
-			sessionView.clipNeedsReRendering(this);
+			songView.clipNeedsReRendering(this);
 
 			// For InstrumentClips only, we record and make undoable the length-change here. For AudioClips, on the
 			// other hand, it happens in one go at the end of the recording - because for those, if recording is aborted

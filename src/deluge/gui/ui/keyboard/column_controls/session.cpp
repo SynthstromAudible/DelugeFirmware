@@ -17,7 +17,7 @@
 
 #include "session.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "playback/mode/session.h"

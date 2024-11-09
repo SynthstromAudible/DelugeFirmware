@@ -20,7 +20,7 @@
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "model/song/song.h"
@@ -58,12 +58,12 @@ Sized<char const**> MidiLearnMode::getOptions() {
 }
 
 bool MidiLearnMode::setupAndCheckAvailability() {
-	sessionView.enterMidiLearnMode();
+	songView.enterMidiLearnMode();
 	return (currentUIMode == UI_MODE_MIDI_LEARN);
 }
 
 bool MidiLearnMode::acceptCurrentOption() {
-	sessionView.exitMidiLearnMode();
+	songView.exitMidiLearnMode();
 	return false; // return false so you exit out of the context menu
 }
 
@@ -75,7 +75,7 @@ ActionResult MidiLearnMode::buttonAction(deluge::hid::Button b, bool on, bool in
 	}
 
 	if (b == BACK) {
-		sessionView.exitMidiLearnMode();
+		songView.exitMidiLearnMode();
 	}
 
 	return ContextMenu::buttonAction(b, on, inCardRoutine);
@@ -87,11 +87,11 @@ ActionResult MidiLearnMode::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 	// don't allow user to switch modes
 	if (x <= kDisplayWidth) {
-		return sessionView.padAction(x, y, on);
+		return songView.padAction(x, y, on);
 	}
 	// exit menu with audition pad column
 	else {
-		sessionView.exitMidiLearnMode();
+		songView.exitMidiLearnMode();
 		return ContextMenu::padAction(x, y, on);
 	}
 }
@@ -102,11 +102,11 @@ void MidiLearnMode::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas
 }
 
 ActionResult MidiLearnMode::horizontalEncoderAction(int32_t offset) {
-	return sessionView.horizontalEncoderAction(offset);
+	return songView.horizontalEncoderAction(offset);
 }
 
 ActionResult MidiLearnMode::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	return sessionView.verticalEncoderAction(offset, inCardRoutine);
+	return songView.verticalEncoderAction(offset, inCardRoutine);
 }
 
 } // namespace deluge::gui::context_menu

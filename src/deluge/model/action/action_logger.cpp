@@ -23,7 +23,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
@@ -372,7 +372,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 		if (action->type == ActionType::ARRANGEMENT_RECORD) {
 
 			// If user is in song view or arranger view, just stay in that UI.
-			if (getCurrentUI() == &arrangerView || getCurrentUI() == &sessionView) {
+			if (getCurrentUI() == &arrangerView || getCurrentUI() == &songView) {
 				action->view = getCurrentUI();
 
 				// If in arranger view, don't go scrolling anywhere - that'd just visually confuse things
@@ -387,18 +387,18 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 		if (updateVisually) {
 
 			// Switching between session / arranger
-			if (action->view == &sessionView && getCurrentUI() == &arrangerView) {
+			if (action->view == &songView && getCurrentUI() == &arrangerView) {
 				whichAnimation = Animation::ARRANGEMENT_TO_SESSION;
 			}
-			else if (action->view == &arrangerView && getCurrentUI() == &sessionView) {
+			else if (action->view == &arrangerView && getCurrentUI() == &songView) {
 				whichAnimation = Animation::SESSION_TO_ARRANGEMENT;
 			}
 
 			// Switching between session and clip view
-			else if (action->view == &sessionView && getCurrentUI()->toClipMinder()) {
+			else if (action->view == &songView && getCurrentUI()->toClipMinder()) {
 				whichAnimation = Animation::CLIP_MINDER_TO_SESSION;
 			}
-			else if (action->view->toClipMinder() && getCurrentUI() == &sessionView) {
+			else if (action->view->toClipMinder() && getCurrentUI() == &songView) {
 				whichAnimation = Animation::SESSION_TO_CLIP_MINDER;
 			}
 
@@ -560,11 +560,11 @@ otherOption:
 		}
 
 		else if (whichAnimation == Animation::CLIP_MINDER_TO_SESSION) {
-			sessionView.transitionToSessionView();
+			songView.transitionToSongView();
 		}
 
 		else if (whichAnimation == Animation::SESSION_TO_CLIP_MINDER) {
-			sessionView.transitionToViewForClip(action->currentClip);
+			songView.transitionToViewForClip(action->currentClip);
 			goto currentClipSwitchedOver; // Skip the below - our call to transitionToViewForClip will switch it over
 			                              // for us
 		}
@@ -647,7 +647,7 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == Animation::ARRANGEMENT_TO_SESSION) {
-		changeRootUI(&sessionView);
+		changeRootUI(&songView);
 	}
 
 	if (updateVisually) {
@@ -686,8 +686,8 @@ currentClipSwitchedOver:
 		}
 		// Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have
 		// failed if the Clip wasn't long enough before we did the action->revert() ...
-		else if (getCurrentUI() == &sessionView) {
-			uiNeedsRendering(&sessionView, 0xFFFFFFFF, 0xFFFFFFFF);
+		else if (getCurrentUI() == &songView) {
+			uiNeedsRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
 		}
 		else if (getCurrentUI() == &arrangerView) {
 			arrangerView.repopulateOutputsOnScreen(whichAnimation == Animation::NONE);
@@ -720,8 +720,8 @@ currentClipSwitchedOver:
 					((InstrumentClipMinder*)clipMinder)->setLedStates();
 				}
 			}
-			else if (getCurrentUI() == &sessionView) {
-				sessionView.setLedStates();
+			else if (getCurrentUI() == &songView) {
+				songView.setLedStates();
 			}
 			if (auto* timelineView = getCurrentUI()->toTimelineView()) {
 				timelineView->setTripletsLEDState();

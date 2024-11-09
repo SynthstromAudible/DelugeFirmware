@@ -22,7 +22,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_session_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -1474,7 +1474,7 @@ doMIDIOrCV:
 			if ((currentUI == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
-			else if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
+			else if ((currentUI == &songView || currentUI == &arrangerView || currentUI == &automationView)
 			         && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuSongView;
 			}

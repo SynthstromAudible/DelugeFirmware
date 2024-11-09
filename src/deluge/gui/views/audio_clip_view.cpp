@@ -25,7 +25,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
@@ -323,7 +323,7 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 			}
 			else {
 doOther:
-				sessionView.transitionToSessionView();
+				songView.transitionToSongView();
 			}
 		}
 	}

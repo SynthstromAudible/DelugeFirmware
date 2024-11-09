@@ -202,8 +202,8 @@ private:
 
 	// Members regarding rendering different layouts
 private:
-	bool sessionButtonActive = false;
-	bool sessionButtonUsed = false;
+	bool songViewButtonActive = false;
+	bool songViewButtonUsed = false;
 };
 
 extern PerformanceSessionView performanceSessionView;

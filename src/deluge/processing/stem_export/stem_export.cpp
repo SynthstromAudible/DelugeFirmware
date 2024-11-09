@@ -23,7 +23,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
@@ -132,7 +132,7 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	}
 	else {
 		if (!rootUIIsClipMinderScreen()) {
-			sessionView.redrawNumericDisplay();
+			songView.redrawNumericDisplay();
 		}
 		// here is the right place to call InstrumentClipMinder::redrawNumericDisplay()
 	}
@@ -608,7 +608,7 @@ void StemExport::finishStemExportProcess(StemExportType stemExportType, int32_t 
 void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t indexNumber) {
 	if (stemExportType == StemExportType::CLIP) {
 		// if we're in song row view, we'll reset the y scroll so we're back at the top
-		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+		if (currentSong->songViewLayout == SongViewLayout::Rows) {
 			currentSong->songViewYScroll = indexNumber - kDisplayHeight;
 		}
 	}

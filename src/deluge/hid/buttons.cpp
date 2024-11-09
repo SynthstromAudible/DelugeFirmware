@@ -22,7 +22,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -265,8 +265,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			}
 			else {
 				UI* currentUI = getCurrentUI();
-				bool isOLEDSessionView =
-				    display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+				bool isOLEDSessionView = display->haveOLED() && (currentUI == &songView || currentUI == &arrangerView);
 				// only display tempo pop-up if we're using 7SEG or we're not currently in Song / Arranger View
 				if (currentUI != &loadSongUI && !isOLEDSessionView) {
 					playbackHandler.commandDisplayTempo();

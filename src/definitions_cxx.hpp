@@ -78,7 +78,7 @@ constexpr Cartesian shiftButtonCoord = {8, 0};
 constexpr Cartesian playButtonCoord = {8, 3};
 constexpr Cartesian recordButtonCoord = {8, 2};
 constexpr Cartesian clipViewButtonCoord = {3, 2};
-constexpr Cartesian sessionViewButtonCoord = {3, 1};
+constexpr Cartesian songViewButtonCoord = {3, 1};
 constexpr Cartesian synthButtonCoord = {5, 0};
 constexpr Cartesian kitButtonCoord = {5, 1};
 constexpr Cartesian midiButtonCoord = {5, 2};
@@ -210,7 +210,7 @@ enum class UIType : uint8_t {
 	RENAME_DRUM,
 	RENAME_OUTPUT,
 	SAMPLE_MARKER_EDITOR,
-	SESSION,
+	SONG_VIEW,
 	SLICER,
 	SOUND_EDITOR,
 	TIMELINE,
@@ -1010,30 +1010,41 @@ enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeMaxElement // Keep as boundary
 };
 
-enum SessionLayoutType : uint8_t {
-	SessionLayoutTypeRows,
-	SessionLayoutTypeGrid,
-	SessionLayoutTypeMaxElement // Keep as boundary
+// === SONG VIEW === //
+
+enum class SongViewLayout : uint8_t {
+	Rows,
+	Grid,
+	MaxElement // Keep as boundary
 };
 
-enum GridDefaultActiveMode : uint8_t {
-	GridDefaultActiveModeSelection,
-	GridDefaultActiveModeGreen,
-	GridDefaultActiveModeBlue,
-	GridDefaultActiveModeMaxElement // Keep as boundary
+enum class SongViewGridLayoutMode : uint8_t {
+	Launch,
+	Edit,
+	Macros,
+	MaxElement // Keep as boundary
 };
 
-// mapping of grid modes to y axis
-enum GridMode : uint8_t {
+enum class SongViewGridLayoutModeSelection : uint8_t {
+	Select,
+	DefaultLaunch,
+	DefaultEdit,
+	MaxElement // Keep as boundary
+};
+
+enum class SongViewGridLayoutModifierPad : uint8_t {
 	Unassigned0,
 	Unassigned1,
 	Unassigned2,
-	MAGENTA,
-	RED,
+	LayeringLoop,
+	Loop,
 	Unassigned5,
-	BLUE,
-	GREEN,
+	EditMode,
+	LaunchMode,
+	MaxElement // Keep as boundary
 };
+
+// === END SONG VIEW === //
 
 enum class ClipType {
 	INSTRUMENT,

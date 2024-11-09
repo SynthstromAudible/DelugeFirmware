@@ -19,7 +19,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "processing/stem_export/stem_export.h"
 
 namespace deluge::gui::menu_item::stem_export {
@@ -38,7 +38,7 @@ public:
 				stemExport.startStemExportProcess(StemExportType::TRACK);
 			}
 		}
-		else if (rootUI == &sessionView) {
+		else if (rootUI == &songView) {
 			stemExport.startStemExportProcess(StemExportType::CLIP);
 		}
 		return NO_NAVIGATION;

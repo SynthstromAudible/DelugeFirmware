@@ -21,7 +21,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/performance_session_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
@@ -95,13 +95,13 @@ bool Arrangement::endPlayback() {
 	// session view
 
 	// use root UI in case this is called from performance view
-	sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+	songView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 
 	// Work-around. Our caller, PlaybackHandler::endPlayback(), sets this next anyway, and can't do it earlier,
-	// but we need it before reassessing sessionView's greyout.
+	// but we need it before reassessing songView's greyout.
 	playbackHandler.playbackState = 0;
 
-	if (getCurrentUI() == &sessionView) {
+	if (getCurrentUI() == &songView) {
 		PadLEDs::reassessGreyout();
 	}
 
@@ -315,7 +315,7 @@ justDoArp:
 
 	if (anyChangeToSessionClipsPlaying) {
 		// use root UI in case this is called from performance view
-		sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+		songView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
 	}
 
 	// If nothing further in the arrangement, we usually just stop playing
@@ -559,7 +559,7 @@ void Arrangement::stopOutputRecordingAtLoopEnd() {
 		renderUIsForOled();
 	}
 	else {
-		sessionView.redrawNumericDisplay();
+		songView.redrawNumericDisplay();
 	}
 }
 

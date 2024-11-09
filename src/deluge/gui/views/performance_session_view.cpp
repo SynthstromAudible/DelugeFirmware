@@ -27,7 +27,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/session_view.h"
+#include "gui/views/song_view.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
@@ -335,17 +335,17 @@ void PerformanceSessionView::graphicsRoutine() {
 	int32_t sixteenthNotesRemaining = 0;
 
 	if (!reallyNoTickSquare) {
-		sixteenthNotesRemaining = sessionView.displayLoopsRemainingPopup();
+		sixteenthNotesRemaining = songView.displayLoopsRemainingPopup();
 	}
 
 	// potentially render a playhead that displays
 	// when the next clip launch event is expected occur (e.g. when clips will start or end)
-	sessionView.potentiallyRenderClipLaunchPlayhead(reallyNoTickSquare, sixteenthNotesRemaining);
+	songView.potentiallyRenderClipLaunchPlayhead(reallyNoTickSquare, sixteenthNotesRemaining);
 }
 
 ActionResult PerformanceSessionView::timerCallback() {
 	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
-		sessionView.timerCallback();
+		songView.timerCallback();
 	}
 	else {
 		arrangerView.timerCallback();
@@ -462,7 +462,7 @@ bool PerformanceSessionView::renderSidebar(uint32_t whichRows, RGB image[][kDisp
 	}
 
 	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
-		sessionView.renderSidebar(whichRows, image, occupancyMask);
+		songView.renderSidebar(whichRows, image, occupancyMask);
 	}
 	else {
 		arrangerView.renderSidebar(whichRows, image, occupancyMask);
@@ -676,11 +676,11 @@ bool PerformanceSessionView::possiblyRefreshPerformanceViewDisplay(params::Kind 
 
 void PerformanceSessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	renderViewDisplay();
-	sessionView.renderOLED(canvas);
+	songView.renderOLED(canvas);
 }
 
 void PerformanceSessionView::redrawNumericDisplay() {
-	sessionView.redrawNumericDisplay();
+	songView.redrawNumericDisplay();
 }
 
 void PerformanceSessionView::setLedStates() {
@@ -734,7 +734,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			releaseViewOnExit(modelStack);
-			sessionView.transitionToViewForClip(); // May fail if no currentClip
+			songView.transitionToViewForClip(); // May fail if no currentClip
 		}
 	}
 
@@ -749,12 +749,12 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		bool lastSessionButtonActiveState = sessionButtonActive;
-		sessionButtonActive = on;
+		bool lastSongViewButtonActiveState = songViewButtonActive;
+		songViewButtonActive = on;
 
 		// Press with special modes
 		if (on) {
-			sessionButtonUsed = false;
+			songViewButtonUsed = false;
 
 			// If holding record button...
 			if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
@@ -788,14 +788,14 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 
 					indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW, 255, 1);
-					sessionButtonUsed = true;
+					songViewButtonUsed = true;
 				}
 			}
 		}
 		// Release without special mode
 		else if (!on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))) {
-			if (lastSessionButtonActiveState && !sessionButtonActive && !sessionButtonUsed
-			    && !sessionView.gridFirstPadActive()) {
+			if (lastSongViewButtonActiveState && !songViewButtonActive && !songViewButtonUsed
+			    && !songView.gridFirstPadActive()) {
 
 				if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 					currentSong->endInstancesOfActiveClips(playbackHandler.getActualArrangementRecordPos());
@@ -806,7 +806,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					playbackHandler.setLedStates();
 				}
 
-				sessionButtonUsed = false;
+				songViewButtonUsed = false;
 			}
 		}
 	}
@@ -924,7 +924,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					changeRootUI(&arrangerView);
 				}
 				else {
-					changeRootUI(&sessionView);
+					changeRootUI(&songView);
 				}
 			}
 		}
@@ -937,7 +937,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 					changeRootUI(&arrangerView);
 				}
 				else {
-					changeRootUI(&sessionView);
+					changeRootUI(&songView);
 				}
 			}
 		}
@@ -1034,20 +1034,21 @@ ActionResult PerformanceSessionView::padAction(int32_t xDisplay, int32_t yDispla
 			// if in session view
 			else {
 				// if in row mode
-				if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-					sessionView.padAction(xDisplay, yDisplay, on);
+				if (currentSong->songViewLayout == SongViewLayout::Rows) {
+					songView.padAction(xDisplay, yDisplay, on);
 				}
 				// if in grid mode
 				else {
 					// if you're in grid song view and you pressed / release a pad in the section launcher column
 					if (xDisplay == kDisplayWidth) {
-						sessionView.gridHandlePads(xDisplay, yDisplay, on);
+						songView.gridHandlePads(xDisplay, yDisplay, on);
 					}
 					// if you pressed the green or blue mode pads, go back to grid view and change mode
-					else if ((yDisplay == GridMode::GREEN) || (yDisplay == GridMode::BLUE)) {
+					else if ((yDisplay == static_cast<uint8_t>(SongViewGridLayoutModifierPad::LaunchMode))
+					         || (yDisplay == static_cast<uint8_t>(SongViewGridLayoutModifierPad::EditMode))) {
 						releaseViewOnExit(modelStack);
-						changeRootUI(&sessionView);
-						sessionView.gridHandlePads(xDisplay, yDisplay, on);
+						changeRootUI(&songView);
+						songView.gridHandlePads(xDisplay, yDisplay, on);
 					}
 				}
 			}
@@ -1514,7 +1515,7 @@ void PerformanceSessionView::selectEncoderAction(int8_t offset) {
 		return;
 	}
 	else if (currentSong->lastClipInstanceEnteredStartPos == -1) {
-		sessionView.selectEncoderAction(offset);
+		songView.selectEncoderAction(offset);
 	}
 	else {
 		arrangerView.selectEncoderAction(offset);
@@ -1554,7 +1555,7 @@ ActionResult PerformanceSessionView::horizontalEncoderAction(int32_t offset) {
 
 ActionResult PerformanceSessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
-		return sessionView.verticalEncoderAction(offset, inCardRoutine);
+		return songView.verticalEncoderAction(offset, inCardRoutine);
 	}
 	else {
 		return arrangerView.verticalEncoderAction(offset, inCardRoutine);

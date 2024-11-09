@@ -41,7 +41,7 @@ public:
 	[[nodiscard]] virtual int32_t getNavSysId() const { return NAVIGATION_CLIP; }
 
 	virtual void tellMatrixDriverWhichRowsContainSomethingZoomable() {
-	} // SessionView doesn't have this because it does this a different way. Sorry, confusing I know
+	} // SongView doesn't have this because it does this a different way. Sorry, confusing I know
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void displayZoomLevel(bool justPopup = false);
