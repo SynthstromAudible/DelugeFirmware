@@ -47,6 +47,12 @@ public:
 	// === PUBLIC ORGANIZED STUFF === //
 	// ===============================//
 
+	// Handle Macros
+	bool configuringMacros = false;
+	void enterMacrosConfigMode();
+	void exitMacrosConfigMode();
+	char const* getMacroTypeString(SongMacroType type);
+
 	// =================================//
 	// === PUBLIC UNORGANIZED STUFF === //
 	// =================================//
@@ -157,12 +163,6 @@ private:
 	// ================================//
 	// === PRIVATE ORGANIZED STUFF === //
 	// ================================//
-
-	// Handle Macros
-	bool configuringMacros = false;
-	void enterMacrosConfigMode();
-	void exitMacrosConfigMode();
-	char const* getMacroTypeString(SongMacroType type);
 
 	// Handle Layouts
 	SongViewLayout savedLayout = SongViewLayout::NumLayouts;
