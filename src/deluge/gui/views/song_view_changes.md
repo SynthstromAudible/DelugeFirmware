@@ -15,18 +15,23 @@
 5. Refactor macros enums
    - With "kind" and "type" being mostly synonymous, I feel like type is much more consistently used in coding and other technical environments, so I renamed to type
    - Used TitleCase
+6. Cleanup Layout handling
+   - Big restructure of the code. Custom staging blocks in vscode on mac seem to be broken so the diff is a bit of a mess. The result is pretty simple:
+     - selectLayout() should be used wherever layout is changed
+     - selectTemporaryLayout() saves current layout state before selecting (used by macros config)
+     - closeTemporaryLayout() restores saved layout state
+     - cycleLayouts() iterates through layouts (used by song button + turn select)
+   - Some more descriptive renaming. Some names are getting pretty long, but that will probably resolve itself once rows & grid view are split into separate classes
 
 
 # To remember:
-1. Where do macro definitions belong? Privately in song?
-2. Look at the `previousLayout` implementation
-3. Change `gridHandlePads` switch statement
-4. Move grid layout enums to grid class (private), after splitting layouts into separate files
-5. Renamed `SongViewLayout` to `SongViewLayoutSelection` to make room for `enum class SongViewLayout`. Not sure what `SongViewLayoutSelection` actually represents? The value stored here in defaults also seems to be the wrong type
-6. Check the merit of `offset` in `selectLayout`. It comes from the song button + turn select. Should probably be a toggle method to toggle between launch and edit modes
-7. There are three 7SEG methods in `song_view` that should be abstracted to `view.h`
-8. Checking whether buttons are held or not should really happen in `UI` and not in any view
-9.  We need low-level and consistent handling of sidebar pads
+1. Change `gridHandlePads` switch statement
+2. Move grid layout enums to grid class (private), after splitting layouts into separate files
+3. Renamed `SongViewLayout` to `SongViewLayoutSelection` to make room for `enum class SongViewLayout`. Not sure what `SongViewLayoutSelection` actually represents? The value stored here in defaults also seems to be the wrong type
+4. Check the merit of `offset` in `selectLayout`. It comes from the song button + turn select. Should probably be a toggle method to toggle between launch and edit modes
+5. There are three 7SEG methods in `song_view` that should be abstracted to `view.h`
+6. Checking whether buttons are held or not should really happen in `UI` and not in any view
+7.  We need low-level and consistent handling of sidebar pads
 
 # To remember, outside the scope of this branch:
 1. Consistent naming for square/pad

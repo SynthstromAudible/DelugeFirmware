@@ -138,7 +138,7 @@ enum Entries {
 115: GlobalMIDICommand::FILL noteCode + 1
 116-119: GlobalMIDICommand::FILL product / vendor ids
 120: gridAllowGreenSelection
-121: defaultGridActiveMode
+121: songViewGridLayoutModeSelection
 122: defaultMetronomeVolume
 123: defaultSongViewLayout
 124: defaultKeyboardLayout
@@ -208,7 +208,7 @@ bool keyboardFunctionsModwheelGlide;
 bool gridEmptyPadsUnarm;
 bool gridEmptyPadsCreateRec;
 bool gridAllowGreenSelection;
-SongViewGridLayoutModeSelection defaultGridActiveMode;
+SongViewGridLayoutModeSelection songViewGridLayoutModeSelection;
 
 SampleRepeatMode defaultSliceMode;
 
@@ -321,7 +321,7 @@ void resetSettings() {
 	gridEmptyPadsUnarm = false;
 	gridEmptyPadsCreateRec = false;
 	gridAllowGreenSelection = true;
-	defaultGridActiveMode = SongViewGridLayoutModeSelection::Select;
+	songViewGridLayoutModeSelection = SongViewGridLayoutModeSelection::Select;
 
 	defaultMetronomeVolume = kMaxMenuMetronomeVolumeValue;
 
@@ -568,10 +568,10 @@ void readSettings() {
 
 	gridAllowGreenSelection = buffer[120];
 	if (buffer[121] >= util::to_underlying(SongViewGridLayoutModeSelection::MaxElement)) {
-		defaultGridActiveMode = SongViewGridLayoutModeSelection::Select;
+		songViewGridLayoutModeSelection = SongViewGridLayoutModeSelection::Select;
 	}
 	else {
-		defaultGridActiveMode = static_cast<SongViewGridLayoutModeSelection>(buffer[121]);
+		songViewGridLayoutModeSelection = static_cast<SongViewGridLayoutModeSelection>(buffer[121]);
 	}
 
 	defaultMetronomeVolume = buffer[122];
@@ -581,7 +581,7 @@ void readSettings() {
 	}
 	AudioEngine::metronome.setVolume(defaultMetronomeVolume);
 
-	if (buffer[123] >= util::to_underlying(SongViewLayout::MaxElement)) {
+	if (buffer[123] >= util::to_underlying(SongViewLayout::NumLayouts)) {
 		defaultSongViewLayout = SongViewLayout::Rows;
 	}
 	else {
@@ -954,7 +954,7 @@ void writeSettings() {
 	// 114, 115, and 116-119 used further up
 
 	buffer[120] = gridAllowGreenSelection;
-	buffer[121] = util::to_underlying(defaultGridActiveMode);
+	buffer[121] = util::to_underlying(songViewGridLayoutModeSelection);
 
 	buffer[122] = defaultMetronomeVolume;
 

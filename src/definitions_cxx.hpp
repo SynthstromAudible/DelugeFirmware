@@ -1015,13 +1015,13 @@ enum KeyboardLayoutType : uint8_t {
 enum class SongViewLayout : uint8_t {
 	Rows,
 	Grid,
-	MaxElement // Keep as boundary
+	NumLayouts // Keep as boundary
 };
 
 enum class SongViewGridLayoutMode : uint8_t {
 	Launch,
 	Edit,
-	MaxElement // Keep as boundary
+	NumModes // Keep as boundary
 };
 
 enum class SongViewGridLayoutModeSelection : uint8_t {

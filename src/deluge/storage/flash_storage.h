@@ -49,7 +49,7 @@ extern bool keyboardFunctionsModwheelGlide;
 extern bool gridEmptyPadsUnarm;
 extern bool gridEmptyPadsCreateRec;
 extern bool gridAllowGreenSelection;
-extern SongViewGridLayoutModeSelection defaultGridActiveMode;
+extern SongViewGridLayoutModeSelection songViewGridLayoutModeSelection;
 
 extern uint8_t defaultMetronomeVolume;
 

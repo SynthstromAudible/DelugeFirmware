@@ -146,9 +146,6 @@ public:
 	void displayRepeatsTilLaunch();
 
 	// === MACRO STUFF //
-	void enterMacrosConfigMode();
-	void exitMacrosConfigMode();
-	char const* getMacroTypeString(SongMacroType kind);
 	ActionResult gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip);
 
 	// === PUBLIC GRID STUFF === //
@@ -161,16 +158,19 @@ private:
 	// === PRIVATE ORGANIZED STUFF === //
 	// ================================//
 
-	// Macros
+	// Handle Macros
 	bool configuringMacros = false;
+	void enterMacrosConfigMode();
+	void exitMacrosConfigMode();
+	char const* getMacroTypeString(SongMacroType type);
 
 	// Handle Layouts
-	SongViewLayout previousLayout;
-	SongViewGridLayoutMode previousGridModeActive;
-	void commandChangeLayout(int8_t offset);
-	void selectLayout(int8_t offset);
-	void renderLayoutChange(bool displayPopup = true);
-	void selectSpecificLayout(SongViewLayout layout);
+	SongViewLayout savedLayout = SongViewLayout::NumLayouts;
+	SongViewGridLayoutMode savedGridLayoutMode = SongViewGridLayoutMode::NumModes;
+	void selectLayout(SongViewLayout newLayout, bool silent = false);
+	void selectTemporaryLayout(SongViewLayout tempLayout);
+	void closeTemporaryLayout();
+	void cycleLayouts(bool forward = true);
 
 	// ==================================//
 	// === PRIVATE UNORGANIZED STUFF === //
@@ -218,6 +218,9 @@ private:
 	void resyncNewClip(Clip* newClip, ModelStackWithTimelineCounter* modelStackWithTimelineCounter);
 
 	// Members for grid layout
+	SongViewGridLayoutMode defaultGridLayoutMode = SongViewGridLayoutMode::Edit;
+	SongViewGridLayoutMode activeGridLayoutMode = SongViewGridLayoutMode::Edit;
+	bool usingDefaultGridLayoutMode = false;
 	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                       uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -236,10 +239,6 @@ private:
 
 	void gridTransitionToSessionView();
 	void gridTransitionToViewForClip(Clip* clip);
-
-	SongViewGridLayoutMode gridModeSelected = SongViewGridLayoutMode::Edit;
-	SongViewGridLayoutMode gridModeActive = SongViewGridLayoutMode::Edit;
-	bool gridActiveModeUsed = false;
 
 	int32_t gridFirstPressedX = -1;
 	int32_t gridFirstPressedY = -1;
@@ -281,13 +280,13 @@ private:
 	Clip* gridClipFromCoords(uint32_t x, uint32_t y);
 
 	inline void gridSetDefaultMode() {
-		switch (FlashStorage::defaultGridActiveMode) {
+		switch (FlashStorage::songViewGridLayoutModeSelection) {
 		case SongViewGridLayoutModeSelection::DefaultLaunch: {
-			gridModeSelected = SongViewGridLayoutMode::Launch;
+			defaultGridLayoutMode = SongViewGridLayoutMode::Launch;
 			break;
 		}
 		case SongViewGridLayoutModeSelection::DefaultEdit: {
-			gridModeSelected = SongViewGridLayoutMode::Edit;
+			defaultGridLayoutMode = SongViewGridLayoutMode::Edit;
 			break;
 		}
 		}

@@ -25,9 +25,9 @@ namespace deluge::gui::menu_item::defaults {
 class DefaultGridDefaultActiveMode final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(FlashStorage::defaultGridActiveMode); }
+	void readCurrentValue() override { this->setValue(FlashStorage::songViewGridLayoutModeSelection); }
 	void writeCurrentValue() override {
-		FlashStorage::defaultGridActiveMode = this->getValue<SongViewGridLayoutModeSelection>();
+		FlashStorage::songViewGridLayoutModeSelection = this->getValue<SongViewGridLayoutModeSelection>();
 	}
 	deluge::vector<std::string_view> getOptions() override {
 		return {

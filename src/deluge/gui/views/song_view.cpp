@@ -94,75 +94,98 @@ using namespace gui;
 // === ORGANIZED STUFF === //
 // ========================//
 
+// Handle Macros
+
+void SongView::enterMacrosConfigMode() {
+	// Enable configuring macros
+	configuringMacros = true;
+	// Switch layout temporarily
+	selectTemporaryLayout(SongViewLayout::Grid);
+}
+
+void SongView::exitMacrosConfigMode() {
+	// Disable configuring macros
+	configuringMacros = false;
+	// Restore previously active layout
+	closeTemporaryLayout();
+}
+
+char const* SongView::getMacroTypeString(SongMacroType type) {
+	using deluge::l10n::String;
+	const char* macroTypeString;
+	switch (type) {
+	case SongMacroType::ClipLaunch:
+		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_CLIP);
+		break;
+	case SongMacroType::OutputCycle:
+		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_OUTPUT);
+		break;
+	case SongMacroType::SectionLaunch:
+		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_SECTION);
+		break;
+	default:
+		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_NONE);
+		break;
+	}
+	return macroTypeString;
+}
+
 // Handle Layouts
-void SongView::commandChangeLayout(int8_t offset) {
-	return selectLayout(offset);
-}
 
-void SongView::selectLayout(int8_t offset) {
-	gridSetDefaultMode();
-	// only reset first pad if it's not still held
-	bool keepFirst = matrixDriver.isPadPressed(gridFirstPressedX, gridFirstPressedY);
-	gridResetPresses(!keepFirst);
-	gridModeActive = gridModeSelected;
-	if (matrixDriver.isPadPressed(kDisplayWidth + 1, static_cast<uint8_t>(SongViewGridLayoutModifierPad::LaunchMode))) {
-		gridModeActive = SongViewGridLayoutMode::Launch;
-	}
-	else if (matrixDriver.isPadPressed(kDisplayWidth + 1,
-	                                   static_cast<uint8_t>(SongViewGridLayoutModifierPad::EditMode))) {
-		gridModeActive = SongViewGridLayoutMode::Edit;
-	}
-	// Layout change
-	if (offset != 0) {
-		switch (currentSong->songViewLayout) {
-		case SongViewLayout::Rows: {
-			currentSong->songViewLayout = SongViewLayout::Grid;
-			break;
+void SongView::selectLayout(SongViewLayout newLayout, bool silent) {
+	if (newLayout < SongViewLayout::NumLayouts) {
+		if (currentSong->songViewLayout != newLayout) {
+			currentSong->songViewLayout = newLayout;
+			switch (newLayout) {
+			case SongViewLayout::Rows:
+				selectedClipYDisplay = 255;
+				currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
+				if (!silent)
+					display->displayPopup("Rows");
+				break;
+			case SongViewLayout::Grid:
+				gridSetDefaultMode();
+				gridResetPresses();
+				activeGridLayoutMode = defaultGridLayoutMode;
+				currentSong->songGridScrollX = 0;
+				currentSong->songGridScrollY = 0;
+				if (!silent)
+					display->displayPopup("Grid");
+				break;
+			}
 		}
-		case SongViewLayout::Grid: {
-			currentSong->songViewLayout = SongViewLayout::Rows;
-			break;
-		}
-		}
-		renderLayoutChange();
-	}
-}
-
-void SongView::selectSpecificLayout(SongViewLayout layout) {
-	gridSetDefaultMode();
-	gridResetPresses();
-	gridModeActive = gridModeSelected;
-
-	if (currentSong->songViewLayout != layout) {
-		currentSong->songViewLayout = layout;
-		renderLayoutChange(false);
-	}
-	else {
 		requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
 		view.flashPlayEnable();
 	}
+	else {
+		// throw layout out of bounds error
+	}
 }
 
-void SongView::renderLayoutChange(bool displayPopup) {
-	// After change
-	switch (currentSong->songViewLayout) {
-	case SongViewLayout::Rows:
-		if (displayPopup) {
-			display->displayPopup("Rows");
-		}
-		selectedClipYDisplay = 255;
-		currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
-		break;
-	case SongViewLayout::Grid:
-		if (displayPopup) {
-			display->displayPopup("Grid");
-		}
-		currentSong->songGridScrollX = 0;
-		currentSong->songGridScrollY = 0;
-		break;
+void SongView::selectTemporaryLayout(SongViewLayout tempLayout) {
+	// save current layout
+	savedLayout = currentSong->songViewLayout;
+	savedGridLayoutMode = activeGridLayoutMode;
+	// silently select temporary layout
+	selectLayout(tempLayout, true);
+}
+
+void SongView::closeTemporaryLayout() {
+	if (savedLayout < SongViewLayout::NumLayouts && savedGridLayoutMode < SongViewGridLayoutMode::NumModes) {
+		// silently restore saved layout
+		selectLayout(savedLayout, true);
+		// restore grid layout mode
+		activeGridLayoutMode = savedGridLayoutMode;
+		// clear saved values
+		savedLayout = SongViewLayout::NumLayouts;
+		savedGridLayoutMode = SongViewGridLayoutMode::NumModes;
 	}
-	requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
-	view.flashPlayEnable();
+}
+
+void SongView::cycleLayouts(bool forward) {
+	selectLayout(static_cast<SongViewLayout>((static_cast<uint8_t>(currentSong->songViewLayout)
+	                                          + (forward ? 1 : static_cast<uint8_t>(SongViewLayout::NumLayouts) - 1))
+	                                         % static_cast<uint8_t>(SongViewLayout::NumLayouts)));
 }
 
 // ==========================//
@@ -199,7 +222,23 @@ bool SongView::opened() {
 void SongView::focusRegained() {
 	viewingRecordArmingActive = false;
 	horizontalEncoderPressed = false;
-	selectLayout(0); // Make sure we get a valid layout from the loaded file
+
+	// -- This block is taken from one of the refactored layout switching methods and still needs cleaning up. It seems
+	// to be exclusively dealing with a mode-pad still being held in grid layout, while returning to focus from an
+	// overlayed ui --
+	gridSetDefaultMode();
+	// only reset first pad if it's not still held
+	bool keepFirst = matrixDriver.isPadPressed(gridFirstPressedX, gridFirstPressedY);
+	gridResetPresses(!keepFirst);
+	activeGridLayoutMode = defaultGridLayoutMode;
+	if (matrixDriver.isPadPressed(kDisplayWidth + 1, static_cast<uint8_t>(SongViewGridLayoutModifierPad::LaunchMode))) {
+		activeGridLayoutMode = SongViewGridLayoutMode::Launch;
+	}
+	else if (matrixDriver.isPadPressed(kDisplayWidth + 1,
+	                                   static_cast<uint8_t>(SongViewGridLayoutModifierPad::EditMode))) {
+		activeGridLayoutMode = SongViewGridLayoutMode::Edit;
+	}
+	// -- End cleanup --
 
 	bool doingRender = (currentUIMode != UI_MODE_ANIMATION_FADE);
 	redrawClipsOnScreen(doingRender); // We want this here, not just in opened(), because after coming back from
@@ -451,7 +490,7 @@ ActionResult SongView::timerCallback() {
 		if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 			if (currentSong->songViewLayout != SongViewLayout::Grid
 			    || (currentSong->songViewLayout == SongViewLayout::Grid
-			        && gridModeActive == SongViewGridLayoutMode::Launch)) {
+			        && activeGridLayoutMode == SongViewGridLayoutMode::Launch)) {
 				enterUIMode(UI_MODE_VIEWING_RECORD_ARMING);
 				viewingRecordArmingActive = true;
 				PadLEDs::reassessGreyout(false);
@@ -1503,7 +1542,7 @@ void SongView::selectEncoderAction(int8_t offset) {
 			// to be abstracted somehow. Maybe something like Button::consumeButtonPress() which
 			// removes it from buttonState[] and causes the button-up not to trigger an action?
 			songViewButtonUsed = true;
-			return commandChangeLayout(offset);
+			return cycleLayouts(offset >= 0);
 		}
 		else {
 			return commandChangeCurrentSectionRepeats(offset);
@@ -3266,57 +3305,19 @@ void SongView::midiLearnFlash() {
 }
 
 void SongView::enterMidiLearnMode() {
-	previousGridModeActive = gridModeActive;
-	gridModeActive = SongViewGridLayoutMode::Launch;
+	savedGridLayoutMode = activeGridLayoutMode;
+	activeGridLayoutMode = SongViewGridLayoutMode::Launch;
 	requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
 	view.startMIDILearn();
 }
 
 void SongView::exitMidiLearnMode() {
 	view.endMIDILearn();
-	gridModeActive = previousGridModeActive;
+	activeGridLayoutMode = savedGridLayoutMode;
 	requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
 }
 
 // === MACRO STUFF === //
-void SongView::enterMacrosConfigMode() {
-	// Configuring macros happens in grid layout
-	previousLayout = currentSong->songViewLayout;
-	currentSong->songViewLayout = SongViewLayout::Grid;
-	// Enable configuring macros
-	configuringMacros = true;
-	// Render
-	requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
-	view.flashPlayEnable(); // rj: what does this do exactly? The name implies it flashes the play button, but in
-	                        // reality the back/undo button flashes.
-}
-
-void SongView::exitMacrosConfigMode() {
-	configuringMacros = false;
-	// Return to rows layout, if that's where configuring macros was entered
-	selectSpecificLayout(previousLayout);
-}
-
-char const* SongView::getMacroTypeString(SongMacroType type) {
-	const char* macroTypeString;
-	// display new macro type on the screen
-	switch (type) {
-		using deluge::l10n::String;
-	case SongMacroType::ClipLaunch:
-		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_CLIP);
-		break;
-	case SongMacroType::OutputCycle:
-		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_OUTPUT);
-		break;
-	case SongMacroType::SectionLaunch:
-		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_SECTION);
-		break;
-	default:
-		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_NONE);
-		break;
-	}
-	return macroTypeString;
-}
 
 ActionResult SongView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip) {
 	if (x < kDisplayWidth) {
@@ -3383,7 +3384,7 @@ bool SongView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
 			ptrSectionColour = RGB::fromHue(defaultClipGroupColours[gridSectionFromY(y)]);
 			ptrSectionColour = ptrSectionColour.adjust(255, 2);
 
-			if (view.midiLearnFlashOn && gridModeActive == SongViewGridLayoutMode::Launch) {
+			if (view.midiLearnFlashOn && activeGridLayoutMode == SongViewGridLayoutMode::Launch) {
 				// MIDI colour if necessary
 				if (currentSong->sections[section].launchMIDICommand.containsSomething()) {
 					ptrSectionColour = colours::midi_command;
@@ -3417,12 +3418,12 @@ void SongView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + kSid
 
 	switch (y) {
 	case static_cast<uint8_t>(SongViewGridLayoutModifierPad::LaunchMode): {
-		modeActive = (gridModeActive == SongViewGridLayoutMode::Launch);
+		modeActive = (activeGridLayoutMode == SongViewGridLayoutMode::Launch);
 		modeColour = colours::green; // Green
 		break;
 	}
 	case static_cast<uint8_t>(SongViewGridLayoutModifierPad::EditMode): {
-		modeActive = (gridModeActive == SongViewGridLayoutMode::Edit);
+		modeActive = (activeGridLayoutMode == SongViewGridLayoutMode::Edit);
 		modeColour = colours::blue; // Blue
 		break;
 	}
@@ -3903,16 +3904,16 @@ ActionResult SongView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
 				clipPressEnded();
 			}
-			gridActiveModeUsed = false;
+			usingDefaultGridLayoutMode = false;
 			bool enableLoopPads = runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGridViewLoopPads)
 			                      == RuntimeFeatureStateToggle::On;
 			switch (y) {
 			case static_cast<uint8_t>(SongViewGridLayoutModifierPad::LaunchMode): {
-				gridModeActive = SongViewGridLayoutMode::Launch;
+				activeGridLayoutMode = SongViewGridLayoutMode::Launch;
 				break;
 			}
 			case static_cast<uint8_t>(SongViewGridLayoutModifierPad::EditMode): {
-				gridModeActive = SongViewGridLayoutMode::Edit;
+				activeGridLayoutMode = SongViewGridLayoutMode::Edit;
 				break;
 			}
 			case static_cast<uint8_t>(SongViewGridLayoutModifierPad::Loop): {
@@ -3930,20 +3931,20 @@ ActionResult SongView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 		else {
-			if (FlashStorage::defaultGridActiveMode == SongViewGridLayoutModeSelection::Select) {
-				if (!gridActiveModeUsed) {
-					gridModeSelected = gridModeActive;
+			if (FlashStorage::songViewGridLayoutModeSelection == SongViewGridLayoutModeSelection::Select) {
+				if (!usingDefaultGridLayoutMode) {
+					defaultGridLayoutMode = activeGridLayoutMode;
 				}
 			}
 			else {
 				gridSetDefaultMode();
 			}
 
-			gridModeActive = gridModeSelected;
+			activeGridLayoutMode = defaultGridLayoutMode;
 		}
 	}
 	else {
-		gridActiveModeUsed = true;
+		usingDefaultGridLayoutMode = true;
 
 		Clip* clip = gridClipFromCoords(x, y);
 		ActionResult modeHandleResult = ActionResult::NOT_DEALT_WITH;
@@ -3952,7 +3953,7 @@ ActionResult SongView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			modeHandleResult = gridHandlePadsMacros(x, y, on, clip);
 		}
 		else
-			switch (gridModeActive) {
+			switch (activeGridLayoutMode) {
 			case SongViewGridLayoutMode::Edit: {
 				modeHandleResult = gridHandlePadsEdit(x, y, on, clip);
 				break;
