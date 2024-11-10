@@ -98,6 +98,11 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### Copy/Paste
 - Added same shortcut that is used for copy / pasting notes in Instrument Clip View to Automation View to copy / paste automation. While in the Automation Editor, Copy with `Learn + <>`. Paste with `Shift + Learn + <>`.
 
+#### <ins>Keyboard View</ins>
+
+##### Kits
+- Added ability to change the pad size in the `KIT VELOCITY KEYBOARD VIEW` using the Zoom In/Out shortcut by `Pressing + Turning <>`
+
 ### MIDI
 
 #### <ins>Learn</ins>
