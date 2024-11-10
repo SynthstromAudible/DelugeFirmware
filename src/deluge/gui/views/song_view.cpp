@@ -3269,7 +3269,7 @@ void SongView::exitMidiLearnMode() {
 	requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
 }
 
-// === GRID LAYOUT STUFF === //
+// === MACRO STUFF === //
 void SongView::enterMacrosConfigMode() {
 	previousLayout = currentSong->songViewLayout;
 	currentSong->songViewLayout = SongViewLayout::Grid;
@@ -3282,6 +3282,74 @@ void SongView::exitMacrosConfigMode() {
 	selectSpecificLayout(previousLayout);
 }
 
+char const* SongView::getMacroKindString(SessionMacroKind kind) {
+	const char* macroKind;
+	// display new macro type on the screen
+	switch (kind) {
+		using deluge::l10n::String;
+	case SessionMacroKind::CLIP_LAUNCH:
+		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_CLIP);
+		break;
+	case SessionMacroKind::OUTPUT_CYCLE:
+		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_OUTPUT);
+		break;
+	case SessionMacroKind::SECTION:
+		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_SECTION);
+		break;
+	default:
+		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_NONE);
+		break;
+	}
+	return macroKind;
+}
+
+ActionResult SongView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip) {
+	if (x < kDisplayWidth) {
+		if (selectedMacro == -1 || !on) {
+			return ActionResult::DEALT_WITH;
+		}
+		auto& macro = currentSong->sessionMacros[selectedMacro];
+		if (gridFirstPressedX != x || gridFirstPressedY != y) {
+			if (clip == nullptr) {
+				// TODO: be smart and assign output or section if can be determined
+				gridFirstPressedX = -1;
+				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+			}
+			gridFirstPressedX = x;
+			gridFirstPressedY = y;
+			macro.kind = SessionMacroKind::CLIP_LAUNCH;
+			macro.clip = clip;
+			macro.output = clip->output;
+			macro.section = clip->section;
+		}
+		else {
+			int kindIndex = (int32_t)macro.kind + 1;
+			if (kindIndex == SessionMacroKind::NUM_KINDS) {
+				kindIndex = 0;
+			}
+			macro.kind = (SessionMacroKind)kindIndex;
+		}
+
+		if (display->haveOLED()) {
+			renderUIsForOled();
+		}
+		else {
+			const char* macroKind = getMacroKindString(macro.kind);
+			display->displayPopup(macroKind);
+		}
+
+		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+	}
+	else {
+		if (on) {
+			selectedMacro = (selectedMacro == y) ? -1 : y;
+			gridFirstPressedX = -1;
+		}
+	}
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+}
+
+// === GRID RENDER === //
 bool SongView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 
@@ -3515,6 +3583,7 @@ RGB SongView::gridRenderClipColor(Clip* clip) {
 	return resultColour;
 }
 
+// === GRID STUFF === //
 Clip* SongView::gridCloneClip(Clip* sourceClip) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
@@ -4258,73 +4327,6 @@ void SongView::gridHandlePadsWithMidiLearnPressed(int32_t x, int32_t on, Clip* c
 			openUI(&gui::context_menu::audioInputSelector);
 		}
 	}
-}
-
-ActionResult SongView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip) {
-	if (x < kDisplayWidth) {
-		if (selectedMacro == -1 || !on) {
-			return ActionResult::DEALT_WITH;
-		}
-		auto& macro = currentSong->sessionMacros[selectedMacro];
-		if (gridFirstPressedX != x || gridFirstPressedY != y) {
-			if (clip == nullptr) {
-				// TODO: be smart and assign output or section if can be determined
-				gridFirstPressedX = -1;
-				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-			}
-			gridFirstPressedX = x;
-			gridFirstPressedY = y;
-			macro.kind = SessionMacroKind::CLIP_LAUNCH;
-			macro.clip = clip;
-			macro.output = clip->output;
-			macro.section = clip->section;
-		}
-		else {
-			int kindIndex = (int32_t)macro.kind + 1;
-			if (kindIndex == SessionMacroKind::NUM_KINDS) {
-				kindIndex = 0;
-			}
-			macro.kind = (SessionMacroKind)kindIndex;
-		}
-
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			const char* macroKind = getMacroKindString(macro.kind);
-			display->displayPopup(macroKind);
-		}
-
-		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-	}
-	else {
-		if (on) {
-			selectedMacro = (selectedMacro == y) ? -1 : y;
-			gridFirstPressedX = -1;
-		}
-	}
-	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-}
-
-char const* SongView::getMacroKindString(SessionMacroKind kind) {
-	const char* macroKind;
-	// display new macro type on the screen
-	switch (kind) {
-		using deluge::l10n::String;
-	case SessionMacroKind::CLIP_LAUNCH:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_CLIP);
-		break;
-	case SessionMacroKind::OUTPUT_CYCLE:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_OUTPUT);
-		break;
-	case SessionMacroKind::SECTION:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_SECTION);
-		break;
-	default:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_NONE);
-		break;
-	}
-	return macroKind;
 }
 
 ActionResult SongView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {

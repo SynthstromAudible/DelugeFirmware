@@ -13,10 +13,13 @@
 
 # To remember:
 1. Remove macros from gridlayoutmodes
-2. What is the scope of macros?
-3. Move grid layout enums to grid class (private), after splitting layouts into separate files
-4. Renamed SongViewLayout to SongViewLayoutSelection to make room for enum class SongViewLayout. Not sure what SongViewLayoutSelection actually represents?
-5. Check the merit of `offset` in `selectLayout`. It comes from the song button + turn select. Should probably be a toggle method to toggle between launch and edit modes
-6. There are three 7SEG methods in `song_view` that should be abstracted to `view.h`
-7. Checking whether buttons are held or not should really happen in UI and not in any view
-8. We need low-level and consistent handling of sidebar pads
+2. Move grid layout enums to grid class (private), after splitting layouts into separate files
+3. Renamed `SongViewLayout` to `SongViewLayoutSelection` to make room for `enum class SongViewLayout`. Not sure what `SongViewLayoutSelection` actually represents? The value stored here in defaults also seems to be the wrong type
+4. Check the merit of `offset` in `selectLayout`. It comes from the song button + turn select. Should probably be a toggle method to toggle between launch and edit modes
+5. There are three 7SEG methods in `song_view` that should be abstracted to `view.h`
+6. Checking whether buttons are held or not should really happen in `UI` and not in any view
+7. We need low-level and consistent handling of sidebar pads
+
+# To remember, outside the scope of this branch:
+1. Consistent naming for square/pad
+2. Custom class for pad coords

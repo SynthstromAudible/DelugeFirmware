@@ -96,6 +96,8 @@ public:
 	Output* getOutputFromPad(int32_t x, int32_t y);
 	Clip* getClipForLayout();
 	OutputType lastTypeCreated{OutputType::NONE};
+	bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom);
+	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
 
 	// === UI INPUT === //
 	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
@@ -115,6 +117,7 @@ public:
 	void enterMidiLearnMode();
 	void exitMidiLearnMode();
 	void replaceInstrumentClipWithAudioClip(Clip* clip);
+	void editNumRepeatsTilLaunch(int32_t offset);
 
 	// === RENDERING === //
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
@@ -127,22 +130,19 @@ public:
 	                                        StringBuf& rootNoteAndScaleName, bool clearArea);
 	void potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, int32_t sixteenthNotesRemaining);
 	void flashPlayRoutine();
-
-	// === NOT SURE === //
-	bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom, uint32_t oldZoom);
-	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow);
 	void setLedStates();
-	void editNumRepeatsTilLaunch(int32_t offset);
 
 	// === 7SEG === //
 	void redrawNumericDisplay();
 	void clearNumericDisplay();
 	void displayRepeatsTilLaunch();
 
-	// === PUBLIC GRID STUFF === //
+	// === MACRO STUFF //
 	void enterMacrosConfigMode();
 	void exitMacrosConfigMode();
 	char const* getMacroKindString(SessionMacroKind kind);
+
+	// === PUBLIC GRID STUFF === //
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
