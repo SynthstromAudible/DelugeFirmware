@@ -43,6 +43,14 @@ extern const uint8_t defaultClipGroupColours[];
 // === THE CLASS === //
 class SongView final : public ClipNavigationTimelineView {
 public:
+	// ===============================//
+	// === PUBLIC ORGANIZED STUFF === //
+	// ===============================//
+
+	// =================================//
+	// === PUBLIC UNORGANIZED STUFF === //
+	// =================================//
+
 	// Constructor
 	SongView();
 
@@ -149,10 +157,24 @@ public:
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 private:
-	// === ORGANIZED STUFF === //
+	// ================================//
+	// === PRIVATE ORGANIZED STUFF === //
+	// ================================//
 
 	// Macros
 	bool configuringMacros = false;
+
+	// Handle Layouts
+	SongViewLayout previousLayout;
+	SongViewGridLayoutMode previousGridModeActive;
+	void commandChangeLayout(int8_t offset);
+	void selectLayout(int8_t offset);
+	void renderLayoutChange(bool displayPopup = true);
+	void selectSpecificLayout(SongViewLayout layout);
+
+	// ==================================//
+	// === PRIVATE UNORGANIZED STUFF === //
+	// ==================================//
 
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
 	// no dispatch logic.
@@ -161,7 +183,6 @@ private:
 	void commandChangeSectionRepeats(int8_t offset);
 	void commandChangeClipPreset(int8_t offset);
 	void commandChangeCurrentSectionRepeats(int8_t offset);
-	void commandChangeLayout(int8_t offset);
 
 	// === PROPERTIES === //
 	uint32_t selectedClipTimePressed;
@@ -195,13 +216,6 @@ private:
 	bool createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip);
 	bool insertAndResyncNewClip(Clip* newClip, int32_t yDisplay);
 	void resyncNewClip(Clip* newClip, ModelStackWithTimelineCounter* modelStackWithTimelineCounter);
-
-	// Members regarding rendering different layouts
-	void selectLayout(int8_t offset);
-	void renderLayoutChange(bool displayPopup = true);
-	void selectSpecificLayout(SongViewLayout layout);
-	SongViewLayout previousLayout;
-	SongViewGridLayoutMode previousGridModeActive;
 
 	// Members for grid layout
 	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],

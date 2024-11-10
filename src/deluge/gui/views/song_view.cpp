@@ -90,6 +90,85 @@ extern "C" {
 using namespace deluge;
 using namespace gui;
 
+// ========================//
+// === ORGANIZED STUFF === //
+// ========================//
+
+// Handle Layouts
+void SongView::commandChangeLayout(int8_t offset) {
+	return selectLayout(offset);
+}
+
+void SongView::selectLayout(int8_t offset) {
+	gridSetDefaultMode();
+	// only reset first pad if it's not still held
+	bool keepFirst = matrixDriver.isPadPressed(gridFirstPressedX, gridFirstPressedY);
+	gridResetPresses(!keepFirst);
+	gridModeActive = gridModeSelected;
+	if (matrixDriver.isPadPressed(kDisplayWidth + 1, static_cast<uint8_t>(SongViewGridLayoutModifierPad::LaunchMode))) {
+		gridModeActive = SongViewGridLayoutMode::Launch;
+	}
+	else if (matrixDriver.isPadPressed(kDisplayWidth + 1,
+	                                   static_cast<uint8_t>(SongViewGridLayoutModifierPad::EditMode))) {
+		gridModeActive = SongViewGridLayoutMode::Edit;
+	}
+	// Layout change
+	if (offset != 0) {
+		switch (currentSong->songViewLayout) {
+		case SongViewLayout::Rows: {
+			currentSong->songViewLayout = SongViewLayout::Grid;
+			break;
+		}
+		case SongViewLayout::Grid: {
+			currentSong->songViewLayout = SongViewLayout::Rows;
+			break;
+		}
+		}
+		renderLayoutChange();
+	}
+}
+
+void SongView::selectSpecificLayout(SongViewLayout layout) {
+	gridSetDefaultMode();
+	gridResetPresses();
+	gridModeActive = gridModeSelected;
+
+	if (currentSong->songViewLayout != layout) {
+		currentSong->songViewLayout = layout;
+		renderLayoutChange(false);
+	}
+	else {
+		requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
+		view.flashPlayEnable();
+	}
+}
+
+void SongView::renderLayoutChange(bool displayPopup) {
+	// After change
+	switch (currentSong->songViewLayout) {
+	case SongViewLayout::Rows:
+		if (displayPopup) {
+			display->displayPopup("Rows");
+		}
+		selectedClipYDisplay = 255;
+		currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
+		break;
+	case SongViewLayout::Grid:
+		if (displayPopup) {
+			display->displayPopup("Grid");
+		}
+		currentSong->songGridScrollX = 0;
+		currentSong->songGridScrollY = 0;
+		break;
+	}
+	requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
+	view.flashPlayEnable();
+}
+
+// ==========================//
+// === UNORGANIZED STUFF === //
+// ==========================//
+
 // found between methods:
 constexpr float colourStep = 22.5882352941;
 static float lastColour = 192 - colourStep + 1;
@@ -1519,10 +1598,6 @@ void SongView::commandChangeCurrentSectionRepeats(int8_t offset) {
 			session.userWantsToArmNextSection(1);
 		}
 	}
-}
-
-void SongView::commandChangeLayout(int8_t offset) {
-	return selectLayout(offset);
 }
 
 // === UI INPUT === //
@@ -3149,72 +3224,6 @@ bool SongView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage
 	}
 
 	return true;
-}
-
-// === LAYOUT SELECT === //
-void SongView::selectLayout(int8_t offset) {
-	gridSetDefaultMode();
-	// only reset first pad if it's not still held
-	bool keepFirst = matrixDriver.isPadPressed(gridFirstPressedX, gridFirstPressedY);
-	gridResetPresses(!keepFirst);
-	gridModeActive = gridModeSelected;
-	if (matrixDriver.isPadPressed(kDisplayWidth + 1, static_cast<uint8_t>(SongViewGridLayoutModifierPad::LaunchMode))) {
-		gridModeActive = SongViewGridLayoutMode::Launch;
-	}
-	else if (matrixDriver.isPadPressed(kDisplayWidth + 1,
-	                                   static_cast<uint8_t>(SongViewGridLayoutModifierPad::EditMode))) {
-		gridModeActive = SongViewGridLayoutMode::Edit;
-	}
-	// Layout change
-	if (offset != 0) {
-		switch (currentSong->songViewLayout) {
-		case SongViewLayout::Rows: {
-			currentSong->songViewLayout = SongViewLayout::Grid;
-			break;
-		}
-		case SongViewLayout::Grid: {
-			currentSong->songViewLayout = SongViewLayout::Rows;
-			break;
-		}
-		}
-		renderLayoutChange();
-	}
-}
-
-void SongView::renderLayoutChange(bool displayPopup) {
-	// After change
-	if (currentSong->songViewLayout == SongViewLayout::Rows) {
-		if (displayPopup) {
-			display->displayPopup("Rows");
-		}
-		selectedClipYDisplay = 255;
-		currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
-	}
-	else if (currentSong->songViewLayout == SongViewLayout::Grid) {
-		if (displayPopup) {
-			display->displayPopup("Grid");
-		}
-		currentSong->songGridScrollX = 0;
-		currentSong->songGridScrollY = 0;
-	}
-
-	requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
-	view.flashPlayEnable();
-}
-
-void SongView::selectSpecificLayout(SongViewLayout layout) {
-	gridSetDefaultMode();
-	gridResetPresses();
-	gridModeActive = gridModeSelected;
-
-	if (currentSong->songViewLayout != layout) {
-		currentSong->songViewLayout = layout;
-		renderLayoutChange(false);
-	}
-	else {
-		requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
-		view.flashPlayEnable();
-	}
 }
 
 // === MIDI LEARN STUFF === //
