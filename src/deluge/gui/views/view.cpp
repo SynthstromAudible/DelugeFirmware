@@ -2716,9 +2716,9 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 
 	bool armed = view.clipArmFlashOn;
 
-	SessionMacro& m = currentSong->sessionMacros[y];
-	switch (m.kind) {
-	case CLIP_LAUNCH:
+	SongMacro& m = currentSong->songMacros[y];
+	switch (m.type) {
+	case SongMacroType::ClipLaunch:
 		if (m.clip->activeIfNoSolo) {
 			image[y][column] = {0, light, 0};
 		}
@@ -2733,13 +2733,13 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 		}
 
 		break;
-	case OUTPUT_CYCLE:
+	case SongMacroType::OutputCycle:
 		image[y][column] = {0, 64, light};
 		break;
-	case SECTION:
+	case SongMacroType::SectionLaunch:
 		image[y][column] = {light, 0, 128};
 		break;
-	case NO_MACRO:
+	case SongMacroType::None:
 		image[y][column] = {dark, dark, dark};
 		break;
 	}
@@ -2756,9 +2756,9 @@ void View::activateMacro(uint32_t y) {
 		return;
 	}
 
-	SessionMacro& m = currentSong->sessionMacros[y];
-	switch (m.kind) {
-	case CLIP_LAUNCH:
+	SongMacro& m = currentSong->songMacros[y];
+	switch (m.type) {
+	case SongMacroType::ClipLaunch:
 		if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {
 			if (getCurrentClip() != m.clip) {
 				songView.transitionToViewForClip(m.clip);
@@ -2769,7 +2769,7 @@ void View::activateMacro(uint32_t y) {
 		}
 		break;
 
-	case OUTPUT_CYCLE: {
+	case SongMacroType::OutputCycle: {
 		Clip* nextClip = findNextClipForOutput(m.output);
 		if (nextClip) {
 			session.toggleClipStatus(nextClip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
@@ -2777,7 +2777,7 @@ void View::activateMacro(uint32_t y) {
 		break;
 	}
 
-	case SECTION:
+	case SongMacroType::SectionLaunch:
 		session.armSection(m.section, kInternalButtonPressLatency);
 		break;
 

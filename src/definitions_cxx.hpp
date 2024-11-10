@@ -1021,7 +1021,6 @@ enum class SongViewLayout : uint8_t {
 enum class SongViewGridLayoutMode : uint8_t {
 	Launch,
 	Edit,
-	Macros,
 	MaxElement // Keep as boundary
 };
 

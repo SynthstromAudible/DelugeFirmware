@@ -99,11 +99,11 @@ void ConfigureSongMacros::renderOLED(deluge::hid::display::oled_canvas::Canvas& 
 	ContextMenu::renderOLED(canvas);
 
 	if (songView.selectedMacro != -1) {
-		const char* macroKind = songView.getMacroKindString(currentSong->sessionMacros[songView.selectedMacro].kind);
+		const char* macroType = songView.getMacroTypeString(currentSong->songMacros[songView.selectedMacro].type);
 		int32_t windowHeight = 40;
 		int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
 		int32_t textPixelY = windowMinY + 20 + kTextSpacingY;
-		canvas.drawString(macroKind, 22, textPixelY, kTextSpacingX, kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 26);
+		canvas.drawString(macroType, 22, textPixelY, kTextSpacingX, kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 26);
 	}
 }
 

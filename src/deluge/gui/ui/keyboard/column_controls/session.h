@@ -33,8 +33,8 @@ public:
 	void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
 	               KeyboardLayout* layout) override;
 
-	void handleOutput(SessionMacro& m, PressedPad pad);
-	Clip* findNextClipForOutput(SessionMacro& m, PressedPad pad);
+	void handleOutput(SongMacro& m, PressedPad pad);
+	Clip* findNextClipForOutput(SongMacro& m, PressedPad pad);
 
 private:
 };

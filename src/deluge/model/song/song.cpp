@@ -1265,7 +1265,7 @@ weAreInArrangementEditorOrInClipInstance:
 	// macros
 	int maxSessionMacroToSave = 0;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		if (sessionMacros[y].kind != SessionMacroKind::NO_MACRO) {
+		if (songMacros[y].type != SongMacroType::None) {
 			maxSessionMacroToSave = y + 1;
 		}
 	}
@@ -1273,10 +1273,10 @@ weAreInArrangementEditorOrInClipInstance:
 		// some macros to save
 		writer.writeArrayStart("sessionMacros");
 		for (int32_t y = 0; y < maxSessionMacroToSave; y++) {
-			auto& m = sessionMacros[y];
+			auto& m = songMacros[y];
 			writer.writeOpeningTagBeginning("macro", true);
-			switch (m.kind) {
-			case CLIP_LAUNCH: {
+			switch (m.type) {
+			case SongMacroType::ClipLaunch: {
 				int32_t index = sessionClips.getIndexForClip(m.clip);
 				if (index >= 0) {
 					writer.writeAttribute("kind", "clip_launch");
@@ -1284,7 +1284,7 @@ weAreInArrangementEditorOrInClipInstance:
 				}
 				break;
 			}
-			case OUTPUT_CYCLE: {
+			case SongMacroType::OutputCycle: {
 				int32_t i = 0;
 				Output* thisOutput;
 				for (thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -1299,11 +1299,11 @@ weAreInArrangementEditorOrInClipInstance:
 				}
 				break;
 			}
-			case SECTION:
+			case SongMacroType::SectionLaunch:
 				writer.writeAttribute("kind", "section");
 				writer.writeAttribute("section", m.section);
 				break;
-			case NO_MACRO:
+			case SongMacroType::None:
 				break;
 			}
 			writer.closeTag(true);
@@ -1334,7 +1334,7 @@ Error Song::readFromFile(Deserializer& reader) {
 		sections[s].numRepetitions = -1;
 	}
 	for (int32_t y = 0; y < 8; y++) {
-		sessionMacros[y].kind = NO_MACRO;
+		songMacros[y].type = SongMacroType::None;
 	}
 
 	uint64_t newTimePerTimerTick = (uint64_t)1 << 32; // TODO: make better!
@@ -1757,19 +1757,19 @@ unknownTag:
 							reader.exitTag("macro", true);
 							continue;
 						}
-						auto& m = sessionMacros[y];
+						auto& m = songMacros[y];
 						reader.match('{'); // enter value object
 						while (*(tagName = reader.readNextTagOrAttributeName())) {
 							if (!strcmp(tagName, "kind")) {
 								const char* kind = reader.readTagOrAttributeValue();
 								if (!strcmp(kind, "clip_launch")) {
-									m.kind = CLIP_LAUNCH;
+									m.type = SongMacroType::ClipLaunch;
 								}
 								else if (!strcmp(kind, "output_cycle")) {
-									m.kind = OUTPUT_CYCLE;
+									m.type = SongMacroType::OutputCycle;
 								}
 								else if (!strcmp(kind, "section")) {
-									m.kind = SECTION;
+									m.type = SongMacroType::SectionLaunch;
 								}
 							}
 							else if (!strcmp(tagName, "clip")) {
@@ -1794,9 +1794,9 @@ unknownTag:
 							}
 						}
 
-						if ((m.kind == CLIP_LAUNCH && m.clip == nullptr)
-						    || (m.kind == OUTPUT_CYCLE && m.output == nullptr)) {
-							m.kind = NO_MACRO;
+						if ((m.type == SongMacroType::ClipLaunch && m.clip == nullptr)
+						    || (m.type == SongMacroType::OutputCycle && m.output == nullptr)) {
+							m.type = SongMacroType::None;
 						}
 					}
 					else {
@@ -3459,9 +3459,9 @@ deleteIt:
 
 void Song::deleteOutput(Output* output) {
 	for (int y = 0; y < 8; y++) {
-		auto& m = sessionMacros[y];
-		if (m.kind == OUTPUT_CYCLE && m.output == output) {
-			m.kind = NO_MACRO;
+		auto& m = songMacros[y];
+		if (m.type == SongMacroType::OutputCycle && m.output == output) {
+			m.type = SongMacroType::None;
 		}
 	}
 
@@ -5295,9 +5295,9 @@ void Song::removeSessionClipLowLevel(Clip* clip, int32_t clipIndex) {
 	}
 
 	for (int y = 0; y < 8; y++) {
-		auto& m = sessionMacros[y];
-		if (m.kind == CLIP_LAUNCH && m.clip == clip) {
-			m.kind = NO_MACRO;
+		auto& m = songMacros[y];
+		if (m.type == SongMacroType::ClipLaunch && m.clip == clip) {
+			m.type = SongMacroType::None;
 		}
 	}
 

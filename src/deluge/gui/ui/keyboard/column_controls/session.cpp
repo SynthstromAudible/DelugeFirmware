@@ -37,30 +37,30 @@ void SessionColumn::renderColumn(RGB image[][kDisplayWidth + kSideBarWidth], int
 }
 
 bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
-	SessionMacro& m = currentSong->sessionMacros[pad];
-	int kindIndex = (int32_t)m.kind + offset;
-	if (kindIndex >= SessionMacroKind::NUM_KINDS) {
-		kindIndex = 0;
+	SongMacro& m = currentSong->songMacros[pad];
+	int typeIndex = (int32_t)m.type + offset;
+	if (typeIndex >= static_cast<uint8_t>(SongMacroType::NumTypes)) {
+		typeIndex = 0;
 	}
-	else if (kindIndex < 0) {
-		kindIndex = SessionMacroKind::NUM_KINDS - 1;
+	else if (typeIndex < 0) {
+		typeIndex = static_cast<uint8_t>(SongMacroType::NumTypes) - 1;
 	}
 
-	m.kind = (SessionMacroKind)kindIndex;
+	m.type = (SongMacroType)typeIndex;
 	m.clip = nullptr;
 	m.output = nullptr;
 	m.section = 0;
 
-	switch (m.kind) {
-	case CLIP_LAUNCH:
+	switch (m.type) {
+	case SongMacroType::ClipLaunch:
 		m.clip = getCurrentClip();
 		break;
 
-	case OUTPUT_CYCLE:
+	case SongMacroType::OutputCycle:
 		m.output = getCurrentOutput();
 		break;
 
-	case SECTION:
+	case SongMacroType::SectionLaunch:
 		m.section = getCurrentClip()->section;
 
 	default:

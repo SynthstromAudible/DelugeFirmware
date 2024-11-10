@@ -85,16 +85,17 @@ struct BackedUpParamManager {
 
 #define MAX_NOTES_CHORD_MEM 10
 
-enum SessionMacroKind : int8_t {
-	NO_MACRO = 0,
-	CLIP_LAUNCH,
-	OUTPUT_CYCLE,
-	SECTION,
-	NUM_KINDS,
+// Macros
+enum class SongMacroType : uint8_t {
+	None = 0,
+	ClipLaunch,
+	OutputCycle,
+	SectionLaunch,
+	NumTypes,
 };
 
-struct SessionMacro {
-	SessionMacroKind kind;
+struct SongMacro {
+	SongMacroType type;
 	Clip* clip;
 	Output* output;
 	uint8_t section;
@@ -256,7 +257,7 @@ public:
 
 	String dirPath;
 
-	SessionMacro sessionMacros[8];
+	SongMacro songMacros[8];
 
 	bool getAnyClipsSoloing() const;
 	Clip* getCurrentClip();

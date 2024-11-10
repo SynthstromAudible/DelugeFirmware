@@ -3271,36 +3271,42 @@ void SongView::exitMidiLearnMode() {
 
 // === MACRO STUFF === //
 void SongView::enterMacrosConfigMode() {
+	// Configuring macros happens in grid layout
 	previousLayout = currentSong->songViewLayout;
 	currentSong->songViewLayout = SongViewLayout::Grid;
-	gridModeActive = SongViewGridLayoutMode::Macros;
+	// Enable configuring macros
+	configuringMacros = true;
+	// Render
 	requestRendering(&songView, 0xFFFFFFFF, 0xFFFFFFFF);
-	view.flashPlayEnable();
+	view.flashPlayEnable(); // rj: what does this do exactly? The name implies it flashes the play button, but in
+	                        // reality the back/undo button flashes.
 }
 
 void SongView::exitMacrosConfigMode() {
+	configuringMacros = false;
+	// Return to rows layout, if that's where configuring macros was entered
 	selectSpecificLayout(previousLayout);
 }
 
-char const* SongView::getMacroKindString(SessionMacroKind kind) {
-	const char* macroKind;
+char const* SongView::getMacroTypeString(SongMacroType type) {
+	const char* macroTypeString;
 	// display new macro type on the screen
-	switch (kind) {
+	switch (type) {
 		using deluge::l10n::String;
-	case SessionMacroKind::CLIP_LAUNCH:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_CLIP);
+	case SongMacroType::ClipLaunch:
+		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_CLIP);
 		break;
-	case SessionMacroKind::OUTPUT_CYCLE:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_OUTPUT);
+	case SongMacroType::OutputCycle:
+		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_OUTPUT);
 		break;
-	case SessionMacroKind::SECTION:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_SECTION);
+	case SongMacroType::SectionLaunch:
+		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_SECTION);
 		break;
 	default:
-		macroKind = get(String::STRING_FOR_SONG_MACRO_KIND_NONE);
+		macroTypeString = get(String::STRING_FOR_SONG_MACRO_TYPE_NONE);
 		break;
 	}
-	return macroKind;
+	return macroTypeString;
 }
 
 ActionResult SongView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip) {
@@ -3308,7 +3314,7 @@ ActionResult SongView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Cl
 		if (selectedMacro == -1 || !on) {
 			return ActionResult::DEALT_WITH;
 		}
-		auto& macro = currentSong->sessionMacros[selectedMacro];
+		auto& macro = currentSong->songMacros[selectedMacro];
 		if (gridFirstPressedX != x || gridFirstPressedY != y) {
 			if (clip == nullptr) {
 				// TODO: be smart and assign output or section if can be determined
@@ -3317,25 +3323,25 @@ ActionResult SongView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Cl
 			}
 			gridFirstPressedX = x;
 			gridFirstPressedY = y;
-			macro.kind = SessionMacroKind::CLIP_LAUNCH;
+			macro.type = SongMacroType::ClipLaunch;
 			macro.clip = clip;
 			macro.output = clip->output;
 			macro.section = clip->section;
 		}
 		else {
-			int kindIndex = (int32_t)macro.kind + 1;
-			if (kindIndex == SessionMacroKind::NUM_KINDS) {
-				kindIndex = 0;
+			int typeIndex = (int32_t)macro.type + 1;
+			if (typeIndex == static_cast<uint8_t>(SongMacroType::NumTypes)) {
+				typeIndex = 0;
 			}
-			macro.kind = (SessionMacroKind)kindIndex;
+			macro.type = (SongMacroType)typeIndex;
 		}
 
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
 		else {
-			const char* macroKind = getMacroKindString(macro.kind);
-			display->displayPopup(macroKind);
+			const char* macroType = getMacroTypeString(macro.type);
+			display->displayPopup(macroType);
 		}
 
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
@@ -3356,7 +3362,7 @@ bool SongView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
 	// Section column
 	uint32_t sectionColumnIndex = kDisplayWidth;
 	for (int32_t y = (kGridHeight - 1); y >= 0; --y) {
-		if (gridModeActive == SongViewGridLayoutMode::Macros) {
+		if (configuringMacros) {
 			view.renderMacros(sectionColumnIndex, y, selectedMacro, image, occupancyMask);
 		}
 		else {
@@ -3545,15 +3551,15 @@ RGB SongView::gridRenderClipColor(Clip* clip) {
 
 	RGB resultColour = RGB::fromHue(clip->output->colour);
 	bool macroActive = false;
-	if (gridModeActive == SongViewGridLayoutMode::Macros && selectedMacro >= 0) {
-		auto& macro = currentSong->sessionMacros[selectedMacro];
-		if (macro.kind == SessionMacroKind::CLIP_LAUNCH) {
+	if (configuringMacros && selectedMacro >= 0) {
+		auto& macro = currentSong->songMacros[selectedMacro];
+		if (macro.type == SongMacroType::ClipLaunch) {
 			macroActive = (macro.clip == clip);
 		}
-		else if (macro.kind == SessionMacroKind::OUTPUT_CYCLE) {
+		else if (macro.type == SongMacroType::OutputCycle) {
 			macroActive = (macro.output == clip->output);
 		}
-		else if (macro.kind == SessionMacroKind::SECTION) {
+		else if (macro.type == SongMacroType::SectionLaunch) {
 			macroActive = (macro.section == clip->section);
 		}
 
@@ -3932,20 +3938,21 @@ ActionResult SongView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 
 		Clip* clip = gridClipFromCoords(x, y);
 		ActionResult modeHandleResult = ActionResult::NOT_DEALT_WITH;
-		switch (gridModeActive) {
-		case SongViewGridLayoutMode::Edit: {
-			modeHandleResult = gridHandlePadsEdit(x, y, on, clip);
-			break;
-		}
-		case SongViewGridLayoutMode::Launch: {
-			modeHandleResult = gridHandlePadsLaunch(x, y, on, clip);
-			break;
-		}
-		case SongViewGridLayoutMode::Macros: {
+		// Macros are placed here purely as a preparation for further cleaning up
+		if (configuringMacros) {
 			modeHandleResult = gridHandlePadsMacros(x, y, on, clip);
-			break;
 		}
-		}
+		else
+			switch (gridModeActive) {
+			case SongViewGridLayoutMode::Edit: {
+				modeHandleResult = gridHandlePadsEdit(x, y, on, clip);
+				break;
+			}
+			case SongViewGridLayoutMode::Launch: {
+				modeHandleResult = gridHandlePadsLaunch(x, y, on, clip);
+				break;
+			}
+			}
 
 		if (modeHandleResult == ActionResult::DEALT_WITH) {
 			return ActionResult::DEALT_WITH;

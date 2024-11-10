@@ -140,7 +140,8 @@ public:
 	// === MACRO STUFF //
 	void enterMacrosConfigMode();
 	void exitMacrosConfigMode();
-	char const* getMacroKindString(SessionMacroKind kind);
+	char const* getMacroTypeString(SongMacroType kind);
+	ActionResult gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip);
 
 	// === PUBLIC GRID STUFF === //
 	inline bool gridFirstPadActive() { return (gridFirstPressedX != -1 && gridFirstPressedY != -1); }
@@ -148,6 +149,11 @@ public:
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 private:
+	// === ORGANIZED STUFF === //
+
+	// Macros
+	bool configuringMacros = false;
+
 	// These and other (future) commandXXX methods perform actions triggered by HID, but contain
 	// no dispatch logic.
 	//
@@ -212,7 +218,6 @@ private:
 	ActionResult gridHandlePadsLaunchImmediate(int32_t x, int32_t y, int32_t on, Clip* clip);
 	ActionResult gridHandlePadsLaunchWithSelection(int32_t x, int32_t y, int32_t on, Clip* clip);
 	void gridHandlePadsWithMidiLearnPressed(int32_t x, int32_t on, Clip* clip);
-	ActionResult gridHandlePadsMacros(int32_t x, int32_t y, int32_t on, Clip* clip);
 	void gridHandlePadsLaunchToggleArming(Clip* clip, bool immediate);
 
 	void gridTransitionToSessionView();

@@ -867,10 +867,10 @@
         "STRING_FOR_CONFIGURE_SONG_MACROS": "Configure Macros",
         "STRING_FOR_CONFIGURE_SONG_MACROS_SHORT": "Config Macros",
         "STRING_FOR_CONFIGURE_SONG_MACROS_EXIT": "OK",
-        "STRING_FOR_SONG_MACRO_KIND_CLIP": "Kind: Clip",
-        "STRING_FOR_SONG_MACRO_KIND_OUTPUT": "Kind: Output",
-        "STRING_FOR_SONG_MACRO_KIND_SECTION": "Kind: Section",
-        "STRING_FOR_SONG_MACRO_KIND_NONE": "Kind: None",
+        "STRING_FOR_SONG_MACRO_TYPE_CLIP": "Type: Clip",
+        "STRING_FOR_SONG_MACRO_TYPE_OUTPUT": "Type: Output",
+        "STRING_FOR_SONG_MACRO_TYPE_SECTION": "Type: Section",
+        "STRING_FOR_SONG_MACRO_TYPE_NONE": "Type: None",
 
         "STRING_FOR_MIDI_LEARN": "Midi Learn",
 
