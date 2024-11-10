@@ -333,19 +333,9 @@ void ModControllableAudio::processModFXBuffer(StereoSample* buffer, int32_t modF
 	}
 	else if (stereo) {
 		do {
-			// anymore and they get audibly out of sync, this just sounds wobblier
-			constexpr q31_t width = 0.97 * ONE_Q31;
-			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+			int32_t lfoOutput;
 			int32_t lfo2Output;
-			if constexpr (modFXType == ModFXType::WARBLE) {
-				// this needs a second lfo because it's a random process - we can't flip it to make a second sample but
-				// these will always be different anyway
-
-				lfo2Output = modFXLFOStereo.render(1, modFXLFOWaveType, multiply_32x32_rshift32(modFXRate, width) << 1);
-			}
-			else {
-				lfo2Output = -lfoOutput;
-			}
+			processModLFOs<modFXType>(modFXRate, modFXLFOWaveType, lfoOutput, lfo2Output);
 
 			processOneModFXSample<modFXType, true>(modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample,
 			                                       lfoOutput, lfo2Output);
@@ -354,11 +344,29 @@ void ModControllableAudio::processModFXBuffer(StereoSample* buffer, int32_t modF
 	}
 	else {
 		do {
-			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+			int32_t lfoOutput;
+			int32_t lfo2Output;
+			processModLFOs<modFXType>(modFXRate, modFXLFOWaveType, lfoOutput, lfo2Output);
 			processOneModFXSample<modFXType, false>(modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample,
 			                                        lfoOutput, -lfoOutput);
 
 		} while (++currentSample != bufferEnd);
+	}
+}
+template <ModFXType modFXType>
+void ModControllableAudio::processModLFOs(int32_t modFXRate, LFOType& modFXLFOWaveType, int32_t& lfoOutput,
+                                          int32_t& lfo2Output) {
+	lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
+	// anymore and they get audibly out of sync, this just sounds wobblier
+	constexpr q31_t width = 0.97 * ONE_Q31;
+	if constexpr (modFXType == ModFXType::WARBLE) {
+		// this needs a second lfo because it's a random process - we can't flip it to make a second sample but
+		// these will always be different anyway
+
+		lfo2Output = modFXLFOStereo.render(1, modFXLFOWaveType, multiply_32x32_rshift32(modFXRate, width) << 1);
+	}
+	else {
+		lfo2Output = -lfoOutput;
 	}
 }
 template <ModFXType modFXType, bool stereo>
@@ -377,7 +385,7 @@ void ModControllableAudio::processOneModFXSample(int32_t modFXDelayOffset, int32
 	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
 	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
 
-	if constexpr (stereo || modFXType == ModFXType::DIMENSION) {
+	if constexpr (stereo || modFXType == ModFXType::DIMENSION || modFXType == ModFXType::WARBLE) {
 		delayTime = multiply_32x32_rshift32(lfo2Output, thisModFXDelayDepth) + modFXDelayOffset;
 		strength2 = (delayTime & 65535) << 15;
 		strength1 = (65535 << 15) - strength2;
@@ -413,7 +421,7 @@ void ModControllableAudio::processOneModFXSample(int32_t modFXDelayOffset, int32
 		modFXBuffer[modFXBufferWriteIndex].r = currentSample->r; // Feedback
 	}
 
-	if constexpr (modFXType == ModFXType::DIMENSION) {
+	if constexpr (modFXType == ModFXType::DIMENSION || modFXType == ModFXType::WARBLE) {
 		currentSample->l = modFXOutputL << 1;
 		currentSample->r = modFXOutputR << 1;
 	}
@@ -424,47 +432,7 @@ void ModControllableAudio::processOneModFXSample(int32_t modFXDelayOffset, int32
 
 	modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
 }
-template <bool stereo>
-void ModControllableAudio::processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset,
-                                         int32_t thisModFXDelayDepth, int32_t feedback, StereoSample* currentSample,
-                                         int32_t lfoOutput, int32_t lfo2output) {
-	int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
 
-	int32_t strength2 = (delayTime & 65535) << 15;
-	int32_t strength1 = (65535 << 15) - strength2;
-	int32_t sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
-
-	int32_t scaledValue1L =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].l, strength1);
-	int32_t scaledValue2L =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
-	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
-
-	if constexpr (stereo) {
-		delayTime = multiply_32x32_rshift32(lfo2output, thisModFXDelayDepth) + modFXDelayOffset;
-		strength2 = (delayTime & 65535) << 15;
-		strength1 = (65535 << 15) - strength2;
-		sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
-	}
-
-	int32_t scaledValue1R =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].r, strength1);
-	int32_t scaledValue2R =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].r, strength2);
-	int32_t modFXOutputR = scaledValue1R + scaledValue2R;
-
-	auto fback = multiply_32x32_rshift32_rounded(modFXOutputL, feedback);
-	modFXBuffer[modFXBufferWriteIndex].l = fback + currentSample->l; // Feedback
-	fback = multiply_32x32_rshift32_rounded(modFXOutputR, feedback);
-	modFXBuffer[modFXBufferWriteIndex].r = fback + currentSample->r; // Feedback
-
-	modFXOutputL <<= 2;
-	modFXOutputR <<= 2;
-
-	currentSample->l = modFXOutputL;
-	currentSample->r = modFXOutputR;
-	modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
-}
 void ModControllableAudio::processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample,
                                                   int32_t lfoOutput) { // "1" is sorta represented by 1073741824 here
 	int32_t _a1 =
