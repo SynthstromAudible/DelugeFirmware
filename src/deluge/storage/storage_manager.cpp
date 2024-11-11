@@ -886,6 +886,8 @@ void FileWriter::writeBlock(uint8_t* block, uint32_t size) {
 	}
 }
 
+extern "C" void routineForSD(void);
+
 void FileWriter::writeByte(int8_t b) {
 
 	if (fileWriteBufferCurrentPos == bufferSize) {
@@ -908,12 +910,7 @@ void FileWriter::writeByte(int8_t b) {
 
 	// Ensure we do some of the audio routine once in a while
 	if (callRoutines && !(fileWriteBufferCurrentPos & 0b11111111)) {
-		AudioEngine::logAction("writeCharsJson");
-		uiTimerManager.routine();
-		if (display->haveOLED()) {
-			oledRoutine();
-		}
-		PIC::flush();
+		routineForSD();
 	}
 }
 void FileWriter::writeChars(char const* output) {

@@ -472,7 +472,7 @@ void TaskManager::resetStats() {
 }
 
 void TaskManager::printStats() {
-	// D_PRINTLN("Dumping task manager stats: (min/ average/ max)");
+	D_PRINTLN("Dumping task manager stats: (min/ average/ max)");
 	for (auto task : list) {
 		if (task.handle) {
 			constexpr const double latencyScale = 1000.0;
