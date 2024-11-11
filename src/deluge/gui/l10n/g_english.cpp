@@ -212,6 +212,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CHORUS, "Chorus"},
         {STRING_FOR_PHASER, "Phaser"},
         {STRING_FOR_STEREO_CHORUS, "Stereo Chorus"},
+        {STRING_FOR_DIMENSION, "Dimension"},
         {STRING_FOR_CARRIERS, "Carriers"},
         {STRING_FOR_MODULATOR_1, "Modulator 1"},
         {STRING_FOR_MODULATOR_2, "Modulator 2"},

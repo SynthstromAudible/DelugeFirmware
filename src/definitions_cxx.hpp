@@ -419,6 +419,7 @@ enum class ModFXType : uint8_t {
 	PHASER,
 	CHORUS_STEREO,
 	WARBLE,
+	DIMENSION,
 	GRAIN, // Look below if you want to add another one
 };
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
