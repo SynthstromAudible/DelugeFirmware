@@ -191,13 +191,13 @@ private:
 	void setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
 	                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
 	                         int32_t& thisModFXDelayDepth, int32_t& feedback) const;
-	void setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-	                 LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const;
+	void setupChorus(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
+	                 UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
+	                 int32_t& thisModFXDelayDepth) const;
 
-	template <bool stereo>
-	void processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
-	                   int32_t feedback, StereoSample* currentSample, int32_t lfoOutput, int32_t lfo2output);
 	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
 	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd, bool anySoundComingIn,
 	                    q31_t verbAmount);
+	template <ModFXType modFXType>
+	void processModLFOs(int32_t modFXRate, LFOType& modFXLFOWaveType, int32_t& lfoOutput, int32_t& lfo2Output);
 };
