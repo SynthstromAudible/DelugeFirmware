@@ -52,6 +52,8 @@ enum SysexCommands : uint8_t {
 	Popup,      // display info in popup
 	HID,        // HID access
 	Debug,      // Debugging
+	Json,       // Json Request
+	JsonReply,  // Json Response
 	Pong = 0x7F // Pong reply
 };
 

@@ -243,6 +243,33 @@ void RTimer::stop(const char* stopLabel) {
 #endif
 }
 
+void RTimer::stop(int number) {
+#if ENABLE_TEXT_OUTPUT
+	uint32_t endTime = 0;
+	readCycleCounter(endTime);
+	uint32_t deltaT = endTime - startTime;
+	stopped = true;
+	char buffer[128];
+	lutHexString(startTime, buffer);
+	buffer[8] = ',';
+	lutHexString(deltaT, buffer + 9);
+	buffer[17] = ' ';
+	strcpy(buffer + 18, m_label);
+	char* stopplace = buffer + 18 + strlen(m_label);
+	char ibuffer[12];
+	ibuffer[0] = ' ';
+	intToString(number, ibuffer + 1);
+	strcpy(stopplace, ibuffer);
+	if (midiDebugDevice) {
+		sysexDebugPrint(midiDebugDevice, buffer, true);
+	}
+	else {
+		uartPrintln(buffer);
+	}
+	startTime = endTime;
+#endif
+}
+
 Averager::Averager(const char* label, uint32_t repeats) : m_label(label), accumulator(0), N(repeats), c(0) {
 }
 

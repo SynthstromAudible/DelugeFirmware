@@ -29,6 +29,7 @@
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/smsysex.h"
 #include "version.h"
 
 extern "C" {
@@ -827,6 +828,10 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 		Debug::sysexReceived(device, payloadStart, payloadLength);
 		break;
 
+	case SysEx::SysexCommands::Json:
+		smSysex::sysexReceived(device, payloadStart, payloadLength);
+		break;
+
 	case SysEx::SysexCommands::Pong: // PONG, reserved
 		D_PRINTLN("Pong");
 	default:
@@ -834,9 +839,18 @@ void MidiEngine::midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t le
 	}
 }
 
+extern "C" {
+
+extern uint8_t currentlyAccessingCard;
+}
+
 void MidiEngine::checkIncomingUsbMidi() {
 
-	if (!usbCurrentlyInitialized) {
+	if (!usbCurrentlyInitialized
+	    || currentlyAccessingCard != 0) { // hack to avoid SysEx handlers clashing with other sd-card activity.
+		if (currentlyAccessingCard != 0) {
+			// D_PRINTLN("checkIncomingUsbMidi seeing currentlyAccessingCard non-zero");
+		}
 		return;
 	}
 
