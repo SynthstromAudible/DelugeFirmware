@@ -491,17 +491,19 @@ void TaskManager::printStats() {
 			          latencyScale * task.latency.max,            //<
 			          task.timesCalled, task.name);
 #else
+#ifdef NEVER
 			D_PRINTLN("Load: %5.2f "                  //<
 			          "Average Duration: %9.3f "      //<
 			          "Times Called: %10d, Task: %s", //<
 			          100.0 * task.totalTime / cpuTime, durationScale * task.durationStats.average, task.timesCalled,
 			          task.name);
 #endif
+#endif
 		}
 	}
 	auto totalTime = cpuTime + overhead;
-	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds", 100 * cpuTime / totalTime,
-	          100 * overhead / totalTime, runningTime);
+	// D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds", 100 * cpuTime / totalTime,
+	//          100 * overhead / totalTime, runningTime);
 	resetStats();
 }
 /// return a monotonic timer value in seconds from when the task manager started

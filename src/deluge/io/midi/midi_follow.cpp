@@ -897,7 +897,7 @@ void MidiFollow::readDefaultsFromFile() {
 		}
 		reader.exitTag();
 	}
-	activeDeserializer->closeFIL();
+	activeDeserializer->closeWriter();
 	successfullyReadDefaultsFromFile = true;
 }
 

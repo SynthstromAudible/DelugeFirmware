@@ -9,4 +9,5 @@ void sendOLEDData(MIDIDevice* device, bool rle);
 void sendOLEDDataDelta(MIDIDevice* device, bool force);
 void send7SegData(MIDIDevice* device);
 void sendDisplayIfChanged();
+void readBlock(MIDIDevice* device);
 } // namespace HIDSysex

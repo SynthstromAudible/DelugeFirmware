@@ -62,6 +62,7 @@
 #include "processing/engines/cv_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
+#include "storage/smsysex.h"
 #include "storage/storage_manager.h"
 #include "task_scheduler.h"
 #include "util/misc.h"
@@ -591,6 +592,9 @@ void registerTasks() {
 	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI");
 	// this one actually actions them
 	addRepeatingTask([]() { encoders::interpretEncoders(false); }, p++, 0.005, 0.005, 0.01, "interpret encoders slow");
+
+	// Check for and handle queued SysEx traffic
+	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.");
 
 	// 21-29: Low priority (30 for dyn tasks)
 	p = 21;

@@ -548,7 +548,7 @@ void readDevicesFromFile() {
 		reader.exitTag();
 	}
 
-	activeDeserializer->closeFIL();
+	activeDeserializer->closeWriter();
 
 	recountSmallestMPEZones();
 

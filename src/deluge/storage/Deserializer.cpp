@@ -859,7 +859,7 @@ Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTa
 		exitTag(tagName);
 	}
 
-	closeFIL();
+	closeWriter();
 	return Error::FILE_CORRUPTED;
 }
 
@@ -875,7 +875,7 @@ Error XMLDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool i
 		char const* firmware_version_string = readTagOrAttributeValue();
 		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
 		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
-			closeFIL();
+			closeWriter();
 			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
 		}
 	}

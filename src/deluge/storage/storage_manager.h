@@ -52,6 +52,7 @@ class SMSharedData {};
 class FileReader {
 public:
 	FileReader();
+	FileReader(char* memBuffer, uint32_t bufLen);
 	virtual ~FileReader();
 
 	FIL readFIL;
@@ -59,15 +60,21 @@ public:
 	UINT currentReadBufferEndPos;
 	int32_t fileReadBufferCurrentPos;
 
-	FRESULT closeFIL();
+	FRESULT closeWriter();
 
-protected:
-	bool readFileCluster();
-	bool readFileClusterIfNecessary();
 	bool peekChar(char* thisChar);
 	bool readChar(char* thisChar);
+	uint32_t bytesRemainingInBuffer() { return currentReadBufferEndPos - fileReadBufferCurrentPos; }
+	char* GetCurrentAddressInBuffer() { return fileClusterBuffer + fileReadBufferCurrentPos; }
+
+protected:
+	bool callRoutines = true;
+	bool readFileCluster();
+	bool readFileClusterIfNecessary();
+
 	void readDone();
 
+	bool memoryBased = false;
 	int32_t readCount; // Used for multitask interleaving.
 	bool reachedBufferEnd;
 	void resetReader();
@@ -77,18 +84,32 @@ class FileWriter {
 public:
 	FIL writeFIL;
 	FileWriter();
+	FileWriter(bool inMem);
+
 	virtual ~FileWriter();
 
 	Error closeAfterWriting(char const* path, char const* beginningString, char const* endString);
+
+	void writeByte(int8_t b);
+	void writeBlock(uint8_t* block, uint32_t size);
 	void writeChars(char const* output);
-	FRESULT closeFIL();
+	FRESULT closeWriter();
+
+	char* getBufferPtr() { return writeClusterBuffer; }
+	int32_t bytesWritten();
+	void setMemoryBased() {
+		memoryBased = true;
+		callRoutines = false;
+	}
 
 protected:
 	void resetWriter();
 	Error writeBufferToFile();
-
-	char* writeClusterBuffer;
+	bool memoryBased = false;
+	bool callRoutines = true;
 	uint8_t indentAmount;
+	char* writeClusterBuffer;
+	uint32_t bufferSize;
 	int32_t fileWriteBufferCurrentPos;
 	int32_t fileTotalBytesWritten;
 	bool fileAccessFailedDuringWrite;
@@ -181,7 +202,11 @@ public:
 	virtual void reset() = 0;
 };
 
-class FileDeserializer : public Deserializer, public FileReader {};
+class FileDeserializer : public Deserializer, public FileReader {
+public:
+	FileDeserializer() : FileReader() {}
+	FileDeserializer(uint8_t* inbuf, size_t buflen) : FileReader((char*)inbuf, buflen) {}
+};
 
 class XMLDeserializer : public FileDeserializer {
 public:
@@ -260,6 +285,7 @@ public:
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
 	                            char const* endString = nullptr) override;
 	void reset() override;
+	// Begin Json-only API
 
 private:
 	uint8_t indentAmount;
@@ -269,6 +295,7 @@ private:
 class JsonDeserializer : public FileDeserializer {
 public:
 	JsonDeserializer();
+	JsonDeserializer(uint8_t* inbuf, size_t buflen);
 	~JsonDeserializer() = default;
 
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
@@ -291,8 +318,11 @@ public:
 	                   bool ignoreIncorrectFirmware = false);
 	void reset() override;
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) override;
+	void setReplySeqNum(uint8_t msgNum) { replySeqNum = msgNum; }
+	uint8_t getReplySeqNum() { return replySeqNum; }
 
 private:
+	uint8_t replySeqNum = 0;
 	int32_t objectDepth;
 	int32_t arrayDepth;
 
