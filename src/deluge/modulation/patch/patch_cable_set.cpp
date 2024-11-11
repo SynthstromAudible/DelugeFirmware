@@ -829,7 +829,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 				else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
 					rangeAdjustable = reader.readTagOrAttributeValueInt();
 				}
-				else if (!strcmp(tagName, "depthControlledBy")) { // *** JFF still need to do this one.
+				else if (!strcmp(tagName, "depthControlledBy")) {
 					reader.match('[');
 					while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())
 					       && numPatchCables < kMaxNumPatchCables - 1) {

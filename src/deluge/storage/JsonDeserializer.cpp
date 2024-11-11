@@ -60,12 +60,17 @@ JsonDeserializer::JsonDeserializer() {
 	reset();
 }
 
+JsonDeserializer::JsonDeserializer(uint8_t* inbuf, size_t buflen) : FileDeserializer(inbuf, buflen) {
+	reset();
+}
+
 void JsonDeserializer::reset() {
 	resetReader();
-	// Prep to read first Cluster shortly
-	fileReadBufferCurrentPos = audioFileManager.clusterSize;
-	currentReadBufferEndPos = audioFileManager.clusterSize;
-
+	if (!memoryBased) {
+		// Prep to read first Cluster shortly
+		fileReadBufferCurrentPos = audioFileManager.clusterSize;
+		currentReadBufferEndPos = audioFileManager.clusterSize;
+	}
 	song_firmware_version = FirmwareVersion{FirmwareVersion::Type::OFFICIAL, {}};
 
 	objectDepth = 0;
@@ -591,7 +596,7 @@ Error JsonDeserializer::openJsonFile(FilePointer* filePointer, char const* first
 		exitTag(tagName);
 	}
 
-	closeFIL();
+	closeWriter();
 	return Error::FILE_CORRUPTED;
 }
 
@@ -607,7 +612,7 @@ Error JsonDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool 
 		char const* firmware_version_string = readTagOrAttributeValue();
 		auto earliestFirmware = FirmwareVersion::parse(firmware_version_string);
 		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
-			closeFIL();
+			closeWriter();
 			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
 		}
 	}

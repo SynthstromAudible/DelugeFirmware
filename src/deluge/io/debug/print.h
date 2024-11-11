@@ -53,6 +53,7 @@ public:
 	virtual void reset();
 	virtual void stop();
 	virtual void stop(const char* stopLabel);
+	virtual void stop(int number);
 
 	uint32_t startTime;
 	const char* m_label;
