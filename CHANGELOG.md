@@ -163,6 +163,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>General</ins>
 - The maximum zoom level for timelines has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
+- Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
+  - With playback off, pressing `PLAY` will start playback from the current grid scroll position
+  - With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
 
 #### <ins>Menu UI Improvements</ins>
 - For toggle (ON/OFF) menus, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.

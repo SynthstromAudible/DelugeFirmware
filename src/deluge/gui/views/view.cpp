@@ -168,7 +168,7 @@ doEndMidiLearnPressSession:
 				// Otherwise, normal - tap tempo, but not during record count in
 				else if (currentUIMode == UI_MODE_NONE) {
 					bool useNormalTapTempoBehaviour =
-					    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour)
+					    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour)
 					     == RuntimeFeatureStateToggle::Off);
 					playbackHandler.tapTempoButtonPress(useNormalTapTempoBehaviour);
 				}
