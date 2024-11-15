@@ -23,7 +23,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
@@ -1266,7 +1266,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				// performance view if so, you will need to refresh the automation editor grid or the
 				// performance view
 				RootUI* rootUI = getRootUI();
-				if (rootUI == &automationView || rootUI == &performanceSessionView) {
+				if (rootUI == &automationView || rootUI == &performanceView) {
 					int32_t id = modelStackWithParam->paramId;
 					params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
@@ -1274,7 +1274,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 						automationView.possiblyRefreshAutomationEditorGrid(nullptr, kind, id);
 					}
 					else {
-						performanceSessionView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+						performanceView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
 					}
 				}
 			}

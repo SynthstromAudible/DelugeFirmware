@@ -21,7 +21,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
@@ -756,7 +756,7 @@ void Session::launchSchedulingMightNeedCancelling() {
 			if (getCurrentUI() == &loadSongUI) {
 				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
 			}
-			else if ((rootUI == &sessionView || rootUI == &performanceSessionView)
+			else if ((rootUI == &sessionView || rootUI == &performanceView)
 			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 				renderUIsForOled();
 			}
@@ -1006,7 +1006,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 				if (playbackHandler.playbackState) {
 					playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 					RootUI* rootUI = getRootUI();
-					if (rootUI == &sessionView || rootUI == &performanceSessionView) {
+					if (rootUI == &sessionView || rootUI == &performanceView) {
 						uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 					}
 					return;
@@ -1239,7 +1239,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 // Updates LEDs after arming changed
 void Session::armingChanged() {
 	RootUI* rootUI = getRootUI();
-	if (rootUI == &sessionView || rootUI == &performanceSessionView) {
+	if (rootUI == &sessionView || rootUI == &performanceView) {
 		sessionView.requestRendering(rootUI, 0, 0xFFFFFFFF);
 
 		if (getCurrentUI()->canSeeViewUnderneath()) {
@@ -2282,7 +2282,7 @@ traverseClips:
 				if (getCurrentUI() == &loadSongUI) {
 					loadSongUI.displayLoopsRemainingPopup();
 				}
-				else if ((rootUI == &sessionView || rootUI == &performanceSessionView)
+				else if ((rootUI == &sessionView || rootUI == &performanceView)
 				         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 					renderUIsForOled();
 				}
