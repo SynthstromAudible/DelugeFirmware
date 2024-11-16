@@ -364,33 +364,19 @@ bool Sound::setModFXType(ModFXType newType) {
 
 	if (util::one_of(newType, {ModFXType::FLANGER, ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::WARBLE,
 	                           ModFXType::DIMENSION})) {
-		if (!modFXBuffer) {
-			// TODO: should give an error here if no free ram
-			modFXBuffer =
-			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
-			if (!modFXBuffer) {
-				return false;
-			}
-		}
+		modfx.setupBuffer();
 		disableGrain();
 	}
 	else if (newType == ModFXType::GRAIN) {
 		enableGrain();
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-			modFXBuffer = NULL;
-		}
+		modfx.disableBuffer();
 	}
 	else {
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-			modFXBuffer = NULL;
-		}
+		modfx.disableBuffer();
 		disableGrain();
 	}
 
 	modFXType_ = newType;
-	clearModFXMemory();
 	return true;
 }
 
@@ -2496,7 +2482,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			               getGlobalLFOPhaseIncrement());
 
 			// Do Mod FX
-			modFXLFO.tick(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
+			modfx.tickLFO(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
 
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
@@ -3482,7 +3468,7 @@ gotError:
 					memcpy(destinationRange, tempRange, source->ranges.elementSize);
 					reader.match('}');          // exit value object
 					reader.exitTag(NULL, true); // exit box.
-				}                               // was a sampleRange or wavetableRange
+				} // was a sampleRange or wavetableRange
 				else {
 					reader.exitTag();
 				}
