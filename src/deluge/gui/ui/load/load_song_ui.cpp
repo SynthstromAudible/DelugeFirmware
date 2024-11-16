@@ -234,34 +234,18 @@ bool LoadSongUI::isLoadingSong() {
 	return getCurrentUI() == this || loadingSongInProgress;
 }
 
-void LoadSongUI::doLoadNextSongIfAvailable(int8_t offset) {
+void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
+	if (!playbackHandler.isEitherClockActive()) {
+		// This method is intended just for queueing while playing
+		return;
+	}
 	if (loadingSongInProgress) {
 		return;
 	}
-
 	loadingSongInProgress = true;
 
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
-
-	String searchFilename;
-	searchFilename.set(&currentSong->name);
-
-	if (!searchFilename.isEmpty() && !searchFilename.contains(".XML")) {
-		Error error = searchFilename.concatenate(".XML");
-		if (error != Error::NONE) {
-			return;
-		}
-	}
-
-	enteredText.clear();
-
-	// emptyFileItems();
-
-	// Error error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
-	// if (error != Error::NONE) {
-	// 	return;
-	// }
 
 	if (fileIndexSelected == -1) {
 		return;

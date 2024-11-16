@@ -31,7 +31,7 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	bool opened();
 	void selectEncoderAction(int8_t offset);
-	void doLoadNextSongIfAvailable(int8_t offset);
+	void queueLoadNextSongIfAvailable(int8_t offset);
 	void performLoad();
 	void displayLoopsRemainingPopup();
 	bool isLoadingSong();
