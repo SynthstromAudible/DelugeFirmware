@@ -595,7 +595,7 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 }
 
 /// called when updating the context,
-/// e.g. switching from song to clip, changing instruments presets, peeking a clip in song view
+/// e.g. switching from session to clip, changing instruments presets, peeking a clip in session view
 /// this function:
 /// 1) checks the active context
 /// 2) sets up the model stack for that context

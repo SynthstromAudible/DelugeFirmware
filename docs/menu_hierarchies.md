@@ -80,9 +80,6 @@ The Settings menu contains the following menu hierarchy:
 		- Display Param (DISP)
 			- Disabled (OFF)
 			- Enabled (ON)
-		- Control Song Param (SONG)
-			- Disabled (OFF)
-			- Enabled (ON)
 	- Select Kit Row (KROW)
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -137,7 +134,7 @@ The Settings menu contains the following menu hierarchy:
 <details><summary>Defaults (DEFA)</summary>
 
 	- UI
-		- Song
+		- Session (SESH)
 			- Layout (LAYT)
 				- Rows
 				- Grid
@@ -425,11 +422,11 @@ Firmware Version (FIRM)
 </details>
 
 <details>
-<summary>Song Clip Settings Menu</summary>
+<summary>Session Clip Settings Menu</summary>
 
-The Clip Settings menu is accessible from `Song Grid View` by pressing and holding a `CLIP` and pressing the `SELECT ENCODER`.
+The Clip Settings menu is accessible from `Session Grid View` by pressing and holding a `CLIP` and pressing the `SELECT ENCODER`.
 
-The Clip Settings menu is accessible from `Song Row View` by pressing and holding the `CLIP MUTE` pad in the first column of the sidebar and pressing the `SELECT ENCODER`.
+The Clip Settings menu is accessible from `Session Row View` by pressing and holding the `CLIP MUTE` pad in the first column of the sidebar and pressing the `SELECT ENCODER`.
 
 The Clip settings menu contains the following menu hierarchy:
 
@@ -447,7 +444,7 @@ The Clip settings menu contains the following menu hierarchy:
 <details>
 <summary>Song Menu</summary>
 
-The Song menu is accessible from `Arranger View` and `Song View` by pressing on the `SELECT ENCODER`
+The Song menu is accessible from `Arranger View` and `Session View` by pressing on the `SELECT ENCODER`
 
 The Song menu contains the following menu hierarchy:
 

@@ -579,7 +579,7 @@ doNormalLaunch:
 					// cos this call clears any recorded-early notes
 					bool activeClipChanged = output->setActiveClip(modelStackWithTimelineCounter);
 					if (activeClipChanged) {
-						// a new clip has been launched in song view for the current output selected
+						// a new clip has been launched in session view for the current output selected
 						// that new clip is now the active clip for that output
 						// send updated feedback so that midi controller has the latest values for
 						// the current clip selected for midi follow control
@@ -2309,7 +2309,7 @@ traverseClips:
 }
 
 void Session::doTickForward(int32_t posIncrement) {
-	// if we're exporting clip stems in song view (e.g. not arrangement tracks)
+	// if we're exporting clip stems in session view (e.g. not arrangement tracks)
 	// we want to export up to length of the longest sequence in the clip (clip or note row loop length)
 	// when we reach longest loop length, we stop playback and allow recording to continue until silence
 	if (stemExport.checkForLoopEnd()) [[unlikely]] {

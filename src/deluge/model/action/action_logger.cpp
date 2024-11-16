@@ -174,7 +174,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		firstAction[BEFORE] = newAction;
 
 		// And fill out all the snapshot stuff that the Action captures at a song-wide level
-		newAction->yScrollSongView[BEFORE] = currentSong->getYScrollSongViewWithoutPendingOverdubs();
+		newAction->yScrollSessionView[BEFORE] = currentSong->getYScrollSessionViewWithoutPendingOverdubs();
 		newAction->xScrollClip[BEFORE] = currentSong->xScroll[NAVIGATION_CLIP];
 		newAction->xZoomClip[BEFORE] = currentSong->xZoom[NAVIGATION_CLIP];
 
@@ -186,8 +186,8 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 
 		newAction->tripletsOn = currentSong->tripletsOn;
 		newAction->tripletsLevel = currentSong->tripletsLevel;
-		// newAction->modKnobModeSongView = currentSong->modKnobMode;
-		newAction->affectEntireSongView = currentSong->affectEntire;
+		// newAction->modKnobModeSong = currentSong->modKnobMode;
+		newAction->affectEntireSong = currentSong->affectEntire;
 
 		newAction->view = getCurrentUI();
 		newAction->currentClip = getCurrentClip();
@@ -223,7 +223,7 @@ void ActionLogger::updateAction(Action* newAction) {
 		}
 	}
 
-	newAction->yScrollSongView[AFTER] = currentSong->getYScrollSongViewWithoutPendingOverdubs();
+	newAction->yScrollSessionView[AFTER] = currentSong->getYScrollSessionViewWithoutPendingOverdubs();
 	newAction->xScrollClip[AFTER] = currentSong->xScroll[NAVIGATION_CLIP];
 	newAction->xZoomClip[AFTER] = currentSong->xZoom[NAVIGATION_CLIP];
 
@@ -371,7 +371,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 		// If it's an arrangement record action...
 		if (action->type == ActionType::ARRANGEMENT_RECORD) {
 
-			// If user is in song view or arranger view, just stay in that UI.
+			// If user is in session view or arranger view, just stay in that UI.
 			if (getCurrentUI() == &arrangerView || getCurrentUI() == &sessionView) {
 				action->view = getCurrentUI();
 
@@ -507,15 +507,15 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 		}
 
 		// Vertical scroll
-		currentSong->songViewYScroll = action->yScrollSongView[time];
+		currentSong->sessionViewYScroll = action->yScrollSessionView[time];
 		currentSong->arrangementYScroll = action->yScrollArranger[time];
 
 		// Musical Scale
 		currentSong->key.modeNotes = action->modeNotes[time];
 
 		// Other stuff
-		// currentSong->modKnobMode = action->modKnobModeSongView;
-		currentSong->affectEntire = action->affectEntireSongView;
+		// currentSong->modKnobMode = action->modKnobModeSong;
+		currentSong->affectEntire = action->affectEntireSong;
 		currentSong->tripletsOn = action->tripletsOn;
 		currentSong->tripletsLevel = action->tripletsLevel;
 

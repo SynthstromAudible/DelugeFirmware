@@ -68,7 +68,7 @@ You can also unlearn a channel using the Select encoder by scrolling between MPE
 ### **Notes:**
 Notes and note associated performance data received (e.g. CC1, MPE CC74) on the master MIDI channel will play the instrument in the active clip (e.g. a synth, MIDI clip, cv clip, or all kit rows).
 
-- Note 1: You can play a synth, kit, MIDI or cv clip without entering the clip from arranger or song view. Simply press and hold the clip in arranger or song view to preview the clip (as you would to change the parameters of that clip with the gold encoders) and then send notes from your MIDI controller.
+- Note 1: You can play a synth, kit, MIDI or cv clip without entering the clip from arranger or session view. Simply press and hold the clip in arranger or session view to preview the clip (as you would to change the parameters of that clip with the gold encoders) and then send notes from your MIDI controller.
 
 - Note 2: For Kit's, the bottom Kit row is mapped by default to the root note C1 (note # 36). All kit rows above are mapped to note's incrementally (e.g. 36, 37, 38, etc.). This kit root note # is configurable (from 0 to 127) through the Kit Root Note submenu.
 
@@ -80,8 +80,8 @@ CC's received on the master MIDI channel that have been mapped to a parameter wi
 The parameters are controlled only in the current context.
 
 - So if you enter a specific synth clip, it will only control that synths filter. If you are in a kit clip it will either control the entire kit or a specific row in that clip (depending on whether you have affect entire enabled or not)
-- If you are in song view or arranger view and holding down a clip (selecting it), it will only control the parameters for that selected clip.
-- If you are in song view and haven't selected a clip, it will control the parameters of the active instrument of the last clip selected.
+- If you are in session view or arranger view and holding down a clip (selecting it), it will only control the parameters for that selected clip.
+- If you are in session view and haven't selected a clip, it will control the parameters of the active instrument of the last clip selected.
 - In other words it checks what context you’re in and controls the parameters of that context.
 
 #### Default MIDI CC Mappings
@@ -184,7 +184,7 @@ For users of Loopy Pro, you will find a MIDI Follow template in this folder: [MI
   look for the "Deluge Port 1" section and tap on "TRANSFER" to copy or move all the midi bindings to the real
   port name of your Deluge.
 - As a bonus, this project also contains a page "B" with controls for the Song's global parameters, which must be learned
-  individually (not part of MIDI Follow). To do that, go to Deluge Song view, click Select button to enter the
+  individually (not part of MIDI Follow). To do that, go to Deluge Session view, click Select button to enter the
   Song menu, go to each parameter (Volume, Pan, LPF Freq, etc), hold Learn button and then move the knobs and
   faders within page "B" of Loopy's project.
 - Pages "C" and "D" are the controls that are doing the heavy lifting of sending/receiving midi so they can't be deleted.

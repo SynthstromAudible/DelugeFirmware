@@ -612,7 +612,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 
 		// Global song parameters (this check seems very sketchy...)
 		if (!rootUIIsClipMinderScreen()) {
-			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForSongView);
+			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForSong);
 		}
 		// For Kit Instrument Clip with Affect Entire Enabled
 		else if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)
@@ -878,10 +878,10 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 		const MenuItem* item = nullptr;
 
-		// session views (arranger, song, performance)
+		// song views (arranger, arranger automation, session, performance)
 		if (!rootUIIsClipMinderScreen()) {
 			if (x <= (kDisplayWidth - 2)) {
-				item = paramShortcutsForSongView[x][y];
+				item = paramShortcutsForSong[x][y];
 			}
 
 			goto doSetup;
@@ -1476,7 +1476,7 @@ doMIDIOrCV:
 			}
 			else if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
 			         && !Buttons::isShiftButtonPressed()) {
-				newItem = &soundEditorRootMenuSongView;
+				newItem = &soundEditorRootMenuSong;
 			}
 			else {
 				newItem = &settingsRootMenu;

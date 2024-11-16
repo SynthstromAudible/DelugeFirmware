@@ -36,16 +36,16 @@
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
-#### <ins>Song Grid View</ins>
+#### <ins>Session Grid View</ins>
 
 ##### Entering Clips
-- Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
+- Added ability to enter clips in `Session Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SESSION > GRID` menu.
 
 ##### Creating New Clips
-- Updated mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and `SONG ROW VIEW`.
+- Updated mechanism for creating New Clips in New Tracks in `SESSION GRID VIEW` and `SESSION ROW VIEW`.
   - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
     - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
-    - NOTE for `SONG ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
+    - NOTE for `SESSION ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Session Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
 
 #### <ins>Audio Clips</ins>
 - Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on 
@@ -107,9 +107,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ### MIDI
 
 #### <ins>Learn</ins>
-- Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
+- Added new `MIDI LEARN` menu to the `SONG` menu. In `SESSION GRID VIEW` this menu enables you to learn `Clip/Section Launch`. In `SESSION ROW VIEW` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
-- Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Song Grid View Green Mode` by moving `Midi Learn Clip/Section Launch` actions to the `MIDI LEARN` menu mentioned above.
+- Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Session Grid View Green Mode` by moving `Midi Learn Clip/Section Launch` actions to the `MIDI LEARN` menu mentioned above.
 - `Midi Learned Note Input for the Whole Kit` now persists between Kit preset changes.
 - Fixed unexpected behaviour for `Synth` and `Kit` clips that would cause `MIDI LEARNED PARAMS` to get lost when changing presets for Synth / Kits. 
   - Note: for `Kit` clips it will migrate midi learn for `Kit Affect Entire` params only.
@@ -175,10 +175,10 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Updated Fonts and Character Spacing on OLED to provide a more refined and polished user experience.
 
 #### <ins>OLED Display Improvements</ins>
-- Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
+- Updated OLED display for `SESSION VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
 
 #### <ins>Stem Export</ins>
-- Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
+- Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SESSION VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
   - You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
 #### <ins>Recording</ins>
@@ -188,7 +188,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 #### <ins>Clip/Section Launching</ins>
 - A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
-- The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
+- The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Session views (Grid, Row, Performance).
 
 #### <ins>Audio Clips</ins>
 
@@ -222,25 +222,25 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
   - `SONG > ACTIVE SCALES` toggles scales on and off from the `SHIFT + SCALE` rotation for the current song. Active scales are saved as part of the song. On 7-segment display dot indicates that the named scale is active, lack of dot indicates it has been disabled.
   - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
 
-#### <ins>Song View</ins>
+#### <ins>Session View</ins>
 
-##### Song Macros
-- Added ability to create song macros to quickly switch playing clips from inside clip view without needing to go into song view.
-- From song view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros
+##### Session Macros
+- Added ability to create session macros to quickly switch playing clips from inside clip view without needing to go into session view.
+- From session view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros
 
 ##### Clip Settings Menu
-- Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu.
+- Holding a clip in `SESSION GRID VIEW` or the status pad for a clip in `SESSION ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu.
 - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
   1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
-    - Note: for `SONG ROW VIEW`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.
+    - Note: for `SESSION ROW VIEW`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.
   2) `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
   3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
 - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
 
-#### <ins>Song Grid View</ins>
+#### <ins>Session Grid View</ins>
 
 ##### Creating New Clips
-- Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`.
+- Added new mechanism for creating New Clips in New Tracks in `SESSION GRID VIEW`.
   - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
     - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
     - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
@@ -250,7 +250,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
       - by pressing one of the clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV`). 
       - If you let go of the pad without selecting a different type, it will create the clip using the last create type (or the last selected type if you changed selection using select encoder).
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.  
-    - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
+    - These changes only apply to `SESSION GRID VIEW` and NOT `SESSION ROW VIEW`
 
 ##### Converting Empty Instrument Clips to Audio Clips
 - To convert an empty Instrument Clip to an Audio Clip, you will now use the `CLIP SETTINGS` menu described above. 
@@ -259,7 +259,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added community feature toggle `Grid View Loop Pads (LOOP)` to illuminate two pads (Red and Magenta) in the `GRID VIEW` sidebar for triggering the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
 
 ##### Entering Performance View
-- Changed the shortcut to enter Performance View in `SONG GRID VIEW` from the `PINK GRID MODE` to the `KEYBOARD` button for consistency with `SONG ROW VIEW` and `ARRANGER VIEW`.
+- Changed the shortcut to enter Performance View in `SESSION GRID VIEW` from the `PINK GRID MODE` to the `KEYBOARD` button for consistency with `SESSION ROW VIEW` and `ARRANGER VIEW`.
 - Removed `PINK GRID MODE`
 
 #### <ins>Performance View</ins>
@@ -305,8 +305,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Fixed a couple bugs around `VU METER` rendering.
 - Fixed a `MIDI FOLLOW` bug where the Deluge could crash if sending a note while loading a new song.
 - Fixed `KIT CLIP` bug where having a note row without a drum blocked creating a drum in that row
-- Fixed `SONG GRID VIEW` bug where `SECTIONS` would playback in the order of `SONG ROW VIEW`
-- Fixed an `ARRANGER VIEW` bug where you could not move a `WHITE` clip to `SONG GRID VIEW` without the Deluge freezing.
+- Fixed `SESSION GRID VIEW` bug where `SECTIONS` would playback in the order of `SESSION ROW VIEW`
+- Fixed an `ARRANGER VIEW` bug where you could not move a `WHITE` clip to `SESSION GRID VIEW` without the Deluge freezing.
 
 ## c1.1.0 Beethoven
 
@@ -324,7 +324,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>Compressors</ins>      
 - Added compressors to synths, kits, audio clips, and kit rows. The compressor can be enabled and edited from their respective menus.
-- Compressor behavior has been changed to reduce clipping. Songs made with community release 1.0.x may need to have their volume manually adjusted to compensate. This is done via affect entire in song/arranger mode, or by entering the `SONG MENU` by pressing `SELECT` in Song View and navigating to  `MASTER > VOLUME`
+- Compressor behavior has been changed to reduce clipping. Songs made with community release 1.0.x may need to have their volume manually adjusted to compensate. This is done via affect entire in song/arranger mode, or by entering the `SONG MENU` by pressing `SELECT` in Session View and navigating to  `MASTER > VOLUME`
 
 #### <ins>Polyphony / Voice Count </ins>
 - Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument
@@ -350,7 +350,6 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>OLED Display Improvements</ins>
 - Added parameter names (including mod matrix / patch cable mappings) to Mod (Gold) Encoder popups.
-- `ARRANGER VIEW` and `SONG VIEW` now display the name of the current view on the screen.
 - The 12TET note name is now displayed along with the MIDI note number.
 - Added a new community setting which allows emulating the 7SEG style on the OLED display. When set to `TOGGLE` press `SHIFT`+`LEARN/INPUT`+`AFFECT ENTIRE` to switch to the emulated 7SEG display. 
 - Fixed several cases where popups could get stuck open.
@@ -368,7 +367,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
     - Failsafe mode introduced using canary file to deactivate feature in case of crash at startup.
 
 #### <ins>Performance View</ins>
-- Added `PERFORMANCE VIEW`, accessible in Song View by pressing the Keyboard button. Allows quick control of Song Global FX.
+- Added `PERFORMANCE VIEW`, accessible in Session View by pressing the Keyboard button. Allows quick control of Song Global FX.
 
 #### <ins>Automation View</ins>  
 - Added `AUTOMATION VIEW` for Audio Clips and Arranger View.
@@ -386,17 +385,17 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added configuration of the number of `COUNT-IN BARS` from 1 to 4. Found under `SETTINGS > RECORDING > COUNT-IN BARS`.
 
 #### <ins>Song Menu</ins>
-- Added a menu for Song-level parameters, accessible in `SONG VIEW` and `ARRANGER VIEW` by pressing `SELECT`.
+- Added a menu for Song-level parameters, accessible in `SESSION VIEW` and `ARRANGER VIEW` by pressing `SELECT`.
 
-#### <ins>Song Grid View</ins>
+#### <ins>Session Grid View</ins>
 - Streamlined recording new clips in `GRID VIEW` while the Deluge is playing. Short-press empty clip pads in Grid View's `GREEN MODE` while recording is armed to automatically create a new clip and queue it to record at the start of the next bar.
 - Fixed a bug preventing clip selection while `SHIFT` was held.
 
 #### <ins>Master Transpose</ins>
-- Added Master Chromatic Transpose of All Scale Mode Instrument Clips from any SONG View (`SONG VIEW`, `ARRANGER VIEW`, `ARRANGER AUTOMATION VIEW` and `PERFORMANCE VIEW`). Uses the same shortcut as in a Synth/Midi/CV clip (Press and turn `▼︎▲︎` to transpose all clips by +/- 1 semitone). The number of semitones transposed is customizable (Press `SHIFT` and press and turn `▼︎▲︎`). After transposing, the display shows the new Root Note (and Scale Name on OLED displays).
+- Added Master Chromatic Transpose of All Scale Mode Instrument Clips from any Song View (`SESSION VIEW`, `ARRANGER VIEW`, `ARRANGER AUTOMATION VIEW` and `PERFORMANCE VIEW`). Uses the same shortcut as in a Synth/Midi/CV clip (Press and turn `▼︎▲︎` to transpose all clips by +/- 1 semitone). The number of semitones transposed is customizable (Press `SHIFT` and press and turn `▼︎▲︎`). After transposing, the display shows the new Root Note (and Scale Name on OLED displays).
 
 #### <ins>VU Meter</ins>
-- Added a `VU METER` toggle that displays the VU Meter on the sidebar in `SONG`, `ARRANGER`, & `PERFORMANCE VIEW`. To activate it, on a song view ensure `AFFECT-ENTIRE` is enabled, then select the `LEVEL/PAN` mod button and press it again to activate the meter.
+- Added a `VU METER` toggle that displays the VU Meter on the sidebar in `SESSION`, `ARRANGER`, & `PERFORMANCE VIEW`. To activate it, on a song view ensure `AFFECT-ENTIRE` is enabled, then select the `LEVEL/PAN` mod button and press it again to activate the meter.
 
 #### <ins>Clip Type Conversion</ins>
 - Removed ability to convert an Audio Clip to an Instrument Clip (Synth/Kit/MIDI/CV) as this conversion process is currently error/bug prone.
@@ -438,7 +437,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Fixed numerous crash bugs around parameter automation when entering and leaving clip view.
 
 #### <ins>Presets</ins>
-- When changing instrument presets in `SONG VIEW` or `ARRANGER VIEW`, all pertaining clips of that instrument switch as well. Individual clips can still have only their preset changed by doing so in `CLIP VIEW`.
+- When changing instrument presets in `SESSION VIEW` or `ARRANGER VIEW`, all pertaining clips of that instrument switch as well. Individual clips can still have only their preset changed by doing so in `CLIP VIEW`.
 
 #### <ins>Arpeggiator</ins>
 - The arpeggiator has been completely redesigned to have advanced features for the user like independent `OCTAVE MODE` and `NOTE MODE`, `RHYTHM`, `SEQUENCE LENGTH` and `RATCHETS` notes. It also enables MPE keyboards to give more expression to the arpeggiated notes by updating live the velocity of the notes based on Aftertouch or MPE Y data coming from the keyboard.
@@ -522,7 +521,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Effects
 
-- A `MASTER COMPRESSOR` has been added and is accessible in Song View.
+- A `MASTER COMPRESSOR` has been added and is accessible in any Song View (`SESSION VIEW`, `ARRANGER VIEW`, `ARRANGER AUTOMATION VIEW` and `PERFORMANCE VIEW`).
 - `STEREO CHORUS` has been added to `MOD FX TYPES`. Adjust stereo depth via `MOD FX DEPTH`.
 - `GRAIN` has been added to `MOD FX TYPES`. Choose from 5 Grain Presets via `MOD FX FEEDBACK`. †
 - `WAVEFOLD` distortion has been added and occurs pre-filter. The parameter pad shortcut is between `SATURATION`
@@ -585,7 +584,7 @@ and MIDI clips on a per step basis at any zoom level. (Excludes MPE automations)
 
 ### User Interface Improvements
 
-- `GRID VIEW` is an alternate `SONG VIEW` layout similar to Ableton's 'Session View'. It displays unique clips across
+- `GRID VIEW` is an alternate `SESSION VIEW` layout similar to Ableton's 'Session View'. It displays unique clips across
   pad rows and the clip variations across pad columns. Effectively allows you to view and launch 128 clips and
   variations without the need of scrolling to reveal more clips in comparison to `ROW VIEW`'s 8 clips at a time.
 - Manual Slicing aka 'Lazy Chopping' is now possible by pressing the `◀︎▶︎` encoder when in the Slice Menu. Allows you
@@ -599,7 +598,7 @@ and MIDI clips on a per step basis at any zoom level. (Excludes MPE automations)
   itself to play the fill at such a time that it _finishes_ by the start of the next loop and then mutes itself.
 - You can now scroll through parameter values and menus faster by +/- 5 by holding `SHIFT` while turning the `SELECT`
   encoder.
-- You can now shift a clip's row color from Song View without having to enter the given clip to do so.
+- You can now shift a clip's row color from Session View without having to enter the given clip to do so.
 - You can now set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` notes before engaging it. †
 - Increased the resolution of modulation between sources and their destinations by including two decimal places to the
   modulation amount. *

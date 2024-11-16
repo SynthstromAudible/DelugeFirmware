@@ -159,7 +159,7 @@ void SessionView::focusRegained() {
 	ClipNavigationTimelineView::focusRegained();
 	view.focusRegained();
 	// this could happen if you've just converted an instrument clip to an audio clip
-	// using the clip settings menu in grid view and it sent you back to song view
+	// using the clip settings menu in grid view and it sent you back to Session view
 	// and the mod controllable was set to the newly converted audio clip
 	// if you're still holding that clip, don't change the active mod controllable
 	if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
@@ -211,9 +211,9 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		}
 	}
 
-// Song-view button without shift
+// Session-view button without shift
 
-// Arranger view button, or if there isn't one then song view button
+// Arranger view button, or if there isn't one then Session view button
 #ifdef arrangerViewButtonX
 	else if (b == arrangerView) {
 #else
@@ -659,8 +659,8 @@ notDealtWith:
 }
 
 void SessionView::goToArrangementEditor() {
-	currentSong->xZoomForReturnToSongView = currentSong->xZoom[NAVIGATION_CLIP];
-	currentSong->xScrollForReturnToSongView = currentSong->xScroll[NAVIGATION_CLIP];
+	currentSong->xZoomForReturnToSessionView = currentSong->xZoom[NAVIGATION_CLIP];
+	currentSong->xScrollForReturnToSessionView = currentSong->xScroll[NAVIGATION_CLIP];
 	changeRootUI(&arrangerView);
 }
 
@@ -682,7 +682,7 @@ ActionResult SessionView::padAction(int32_t xDisplay, int32_t yDisplay, int32_t 
 	}
 
 	Clip* clip = getClipOnScreen(yDisplay);
-	int32_t clipIndex = yDisplay + currentSong->songViewYScroll;
+	int32_t clipIndex = yDisplay + currentSong->sessionViewYScroll;
 
 	// If we tapped on a Clip's main pads...
 	if (xDisplay < kDisplayWidth) {
@@ -728,7 +728,7 @@ holdingRecord:
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
 
-						int32_t clipIndex = yDisplay + currentSong->songViewYScroll + 1;
+						int32_t clipIndex = yDisplay + currentSong->sessionViewYScroll + 1;
 
 						// If source clip currently recording, arm it to stop (but not if tempoless recording)
 						if (playbackHandler.isEitherClockActive() && sourceClip->getCurrentlyRecordingLinearly()
@@ -852,7 +852,7 @@ startHoldingDown:
 
 					// This is only interresting for changing colour
 					clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
-					selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
+					selectedClipYDisplay = clipIndex - currentSong->sessionViewYScroll;
 					requestRendering(this, 0, 1 << selectedClipYDisplay);
 
 					if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
@@ -1439,12 +1439,12 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 
 	if (direction == 1) {
-		if (currentSong->songViewYScroll >= currentSong->sessionClips.getNumElements() - 1) {
+		if (currentSong->sessionViewYScroll >= currentSong->sessionClips.getNumElements() - 1) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
 	else {
-		if (currentSong->songViewYScroll <= 1 - kDisplayHeight) {
+		if (currentSong->sessionViewYScroll <= 1 - kDisplayHeight) {
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -1460,7 +1460,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		int32_t oldIndex = selectedClipYDisplay + currentSong->songViewYScroll;
+		int32_t oldIndex = selectedClipYDisplay + currentSong->sessionViewYScroll;
 
 		if (direction == 1) {
 			if (oldIndex >= currentSong->sessionClips.getNumElements() - 1) {
@@ -1483,7 +1483,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		currentSong->sessionClips.swapElements(newIndex, oldIndex);
 	}
 
-	currentSong->songViewYScroll += direction;
+	currentSong->sessionViewYScroll += direction;
 	redrawClipsOnScreen();
 
 	if (isUIModeActive(UI_MODE_VIEWING_RECORD_ARMING)) {
@@ -1736,11 +1736,11 @@ Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDispl
 
 bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	// insert clip at index
-	int32_t index = yDisplay + currentSong->songViewYScroll;
+	int32_t index = yDisplay + currentSong->sessionViewYScroll;
 	if (index <= 0) {
 		index = 0;
 		newClip->section = currentSong->sessionClips.getClipAtIndex(0)->section;
-		currentSong->songViewYScroll++;
+		currentSong->sessionViewYScroll++;
 	}
 	else if (index >= currentSong->sessionClips.getNumElements()) {
 		index = currentSong->sessionClips.getNumElements();
@@ -1850,7 +1850,7 @@ Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
 		return nullptr;
 	}
 
-	int32_t index = yDisplay + currentSong->songViewYScroll;
+	int32_t index = yDisplay + currentSong->sessionViewYScroll;
 
 	if (index < 0 || index >= currentSong->sessionClips.getNumElements()) {
 		return NULL;
@@ -2142,10 +2142,10 @@ ramError:
 
 	newClip->section = (uint8_t)(newClip->section + 1) % kMaxNumSections;
 
-	int32_t newIndex = yDisplayTo + currentSong->songViewYScroll;
+	int32_t newIndex = yDisplayTo + currentSong->sessionViewYScroll;
 
 	if (yDisplayTo < yDisplayFrom) {
-		currentSong->songViewYScroll++;
+		currentSong->sessionViewYScroll++;
 		newIndex++;
 	}
 
@@ -2474,7 +2474,7 @@ bool SessionView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll
 }
 
 int32_t SessionView::getClipPlaceOnScreen(Clip* clip) {
-	return currentSong->sessionClips.getIndexForClip(clip) - currentSong->songViewYScroll;
+	return currentSong->sessionClips.getIndexForClip(clip) - currentSong->sessionViewYScroll;
 }
 
 uint32_t SessionView::getMaxLength() {
@@ -2945,7 +2945,7 @@ void SessionView::clipNeedsReRendering(Clip* clip) {
 		return;
 	}
 
-	int32_t bottomIndex = currentSong->songViewYScroll;
+	int32_t bottomIndex = currentSong->sessionViewYScroll;
 	int32_t topIndex = bottomIndex + kDisplayHeight;
 
 	bottomIndex = std::max(bottomIndex, 0_i32);
@@ -2954,7 +2954,7 @@ void SessionView::clipNeedsReRendering(Clip* clip) {
 	for (int32_t c = bottomIndex; c < topIndex; c++) {
 		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 		if (thisClip == clip) {
-			int32_t yDisplay = c - currentSong->songViewYScroll;
+			int32_t yDisplay = c - currentSong->sessionViewYScroll;
 			requestRendering(this, (1 << yDisplay), 0);
 			break;
 		}
@@ -2967,7 +2967,7 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 		return;
 	}
 
-	int32_t bottomIndex = currentSong->songViewYScroll;
+	int32_t bottomIndex = currentSong->sessionViewYScroll;
 	int32_t topIndex = bottomIndex + kDisplayHeight;
 
 	bottomIndex = std::max(bottomIndex, 0_i32);
@@ -2976,7 +2976,7 @@ void SessionView::sampleNeedsReRendering(Sample* sample) {
 	for (int32_t c = bottomIndex; c < topIndex; c++) {
 		Clip* thisClip = currentSong->sessionClips.getClipAtIndex(c);
 		if (thisClip->type == ClipType::AUDIO && ((AudioClip*)thisClip)->sampleHolder.audioFile == sample) {
-			int32_t yDisplay = c - currentSong->songViewYScroll;
+			int32_t yDisplay = c - currentSong->sessionViewYScroll;
 			requestRendering(this, (1 << yDisplay), 0);
 		}
 	}
@@ -3076,7 +3076,7 @@ void SessionView::renderLayoutChange(bool displayPopup) {
 			display->displayPopup("Rows");
 		}
 		selectedClipYDisplay = 255;
-		currentSong->songViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
+		currentSong->sessionViewYScroll = (currentSong->sessionClips.getNumElements() - kDisplayHeight);
 	}
 	else if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		if (displayPopup) {

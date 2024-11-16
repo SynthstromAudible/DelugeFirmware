@@ -202,13 +202,13 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 
 		bool isArrangementPadPressed = isArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
 		// placeholders:
-		// isSongPadPressed = restart playhead in song view
+		// isSongPadPressed = restart playhead in session view
 		// isClipPadPressed = restart playhead in clip view
 
 		bool isSequencerPadPressed = isArrangementPadPressed; // add isSongPadPressed and isClipPadPressed here
 
 		// If holding restart shortcut down...
-		// or holding pad in arranger view (and eventually song and clip views)
+		// or holding pad in arranger view (and eventually session and clip views)
 		if (isRestartShortcutPressed || isSequencerPadPressed) {
 			// If wanting to switch into arranger...
 			if (currentPlaybackMode == &session && isArrangerView) {
@@ -3192,7 +3192,7 @@ doCreateNextOverdub:
 			// If we're holding down a Clip in Session View, prioritize that
 			if (getRootUI() == &sessionView && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 				clipToCreateOverdubFrom = sessionView.getClipOnScreen(sessionView.selectedClipPressYDisplay);
-				clipIndexToCreateOverdubFrom = sessionView.selectedClipPressYDisplay + currentSong->songViewYScroll;
+				clipIndexToCreateOverdubFrom = sessionView.selectedClipPressYDisplay + currentSong->sessionViewYScroll;
 				sessionView.performActionOnPadRelease = false;
 			}
 

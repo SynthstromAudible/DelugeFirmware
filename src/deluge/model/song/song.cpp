@@ -137,11 +137,11 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	xScroll[NAVIGATION_CLIP] = 0;
 	xScroll[NAVIGATION_ARRANGEMENT] = 0;
-	xScrollForReturnToSongView = 0;
+	xScrollForReturnToSessionView = 0;
 
 	xZoom[NAVIGATION_CLIP] = increaseMagnitude(kDefaultClipLength, insideWorldTickMagnitude - kDisplayWidthMagnitude);
 	xZoom[NAVIGATION_ARRANGEMENT] = kDefaultArrangerZoom << insideWorldTickMagnitude;
-	xZoomForReturnToSongView = xZoom[NAVIGATION_CLIP];
+	xZoomForReturnToSessionView = xZoom[NAVIGATION_CLIP];
 
 	tripletsOn = false;
 
@@ -156,7 +156,7 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 
 	swingInterval = FlashStorage::defaultSwingInterval;
 
-	songViewYScroll = 1 - kDisplayHeight;
+	sessionViewYScroll = 1 - kDisplayHeight;
 	arrangementYScroll = -kDisplayHeight;
 
 	anyClipsSoloing = false;
@@ -1096,15 +1096,15 @@ void Song::writeToFile() {
 		writer.writeAttribute("currentTrackInstanceArrangementPos", lastClipInstanceEnteredStartPos);
 
 weAreInArrangementEditorOrInClipInstance:
-		writer.writeAttribute("xScrollSongView", xScrollForReturnToSongView);
-		writer.writeAttribute("xZoomSongView", xZoomForReturnToSongView);
+		writer.writeAttribute("xScrollSessionView", xScrollForReturnToSessionView);
+		writer.writeAttribute("xZoomSessionView", xZoomForReturnToSessionView);
 	}
 
 	writer.writeAttribute("arrangementAutoScrollOn", arrangerAutoScrollModeActive);
 
 	writer.writeAttribute("xScroll", xScroll[NAVIGATION_CLIP]);
 	writer.writeAttribute("xZoom", xZoom[NAVIGATION_CLIP]);
-	writer.writeAttribute("yScrollSongView", songViewYScroll);
+	writer.writeAttribute("yScrollSessionView", sessionViewYScroll);
 	writer.writeAttribute("yScrollArrangementView", arrangementYScroll);
 	writer.writeAttribute("xScrollArrangementView", xScroll[NAVIGATION_ARRANGEMENT]);
 	writer.writeAttribute("xZoomArrangementView", xZoom[NAVIGATION_ARRANGEMENT]);
@@ -1439,11 +1439,11 @@ Error Song::readFromFile(Deserializer& reader) {
 				xScroll[NAVIGATION_CLIP] = std::max((int32_t)0, xScroll[NAVIGATION_CLIP]);
 				break;
 
-			// "ollS" -> xScrollSongView
+			// "ollS" -> xScrollSongView / xScrollSessionView
 			case 0x536c6c6f:
-				if (!strcmp(tagName, "xScrollSongView")) {
-					xScrollForReturnToSongView = reader.readTagOrAttributeValueInt();
-					xScrollForReturnToSongView = std::max((int32_t)0, xScrollForReturnToSongView);
+				if ((!strcmp(tagName, "xScrollSongView")) || (!strcmp(tagName, "xScrollSessionView"))) {
+					xScrollForReturnToSessionView = reader.readTagOrAttributeValueInt();
+					xScrollForReturnToSessionView = std::max((int32_t)0, xScrollForReturnToSessionView);
 					break;
 				}
 				else {
@@ -1470,10 +1470,10 @@ Error Song::readFromFile(Deserializer& reader) {
 		// "xZoo..."
 		case 0x6f6f5a78:
 
-			// "xZoomSongView"
-			if (!strcmp(tagName, "xZoomSongView")) {
-				xZoomForReturnToSongView = reader.readTagOrAttributeValueInt();
-				xZoomForReturnToSongView = std::max((int32_t)1, xZoomForReturnToSongView);
+			// "xZoomSongView" or "xZoomSessionView"
+			if ((!strcmp(tagName, "xZoomSongView")) || (!strcmp(tagName, "xZoomSessionView"))) {
+				xZoomForReturnToSessionView = reader.readTagOrAttributeValueInt();
+				xZoomForReturnToSessionView = std::max((int32_t)1, xZoomForReturnToSessionView);
 			}
 
 			// "xZoom"
@@ -1493,11 +1493,11 @@ Error Song::readFromFile(Deserializer& reader) {
 
 			switch (*(((uint32_t*)tagName) + 1)) {
 
-			// "ollS" -> yScrollSongView"
+			// "ollS" -> yScrollSongView or yScrollSessionView"
 			case 0x536c6c6f:
-				if (!strcmp(tagName, "yScrollSongView")) {
-					songViewYScroll = reader.readTagOrAttributeValueInt();
-					songViewYScroll = std::max(1 - kDisplayHeight, songViewYScroll);
+				if ((!strcmp(tagName, "yScrollSongView")) || (!strcmp(tagName, "yScrollSessionView"))) {
+					sessionViewYScroll = reader.readTagOrAttributeValueInt();
+					sessionViewYScroll = std::max(1 - kDisplayHeight, sessionViewYScroll);
 					break;
 				}
 				else {
@@ -5255,8 +5255,8 @@ lookAtNextOne:
 		}
 	}
 
-	int32_t clipYDisplay = clipIndex - songViewYScroll;
-	int32_t bottomYDisplay = -songViewYScroll;
+	int32_t clipYDisplay = clipIndex - sessionViewYScroll;
+	int32_t bottomYDisplay = -sessionViewYScroll;
 	int32_t topYDisplay = bottomYDisplay + sessionClips.getNumElements() - 1;
 	bottomYDisplay = std::max(bottomYDisplay, 0_i32);
 	topYDisplay = std::min(topYDisplay, kDisplayHeight - 1);
@@ -5279,7 +5279,7 @@ lookAtNextOne:
 	}
 
 	if (forceClipsAboveToMoveVertically || amountOfStuffAbove > amountOfStuffBelow) {
-		songViewYScroll--;
+		sessionViewYScroll--;
 	}
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender =
@@ -5341,10 +5341,10 @@ bool Song::deletePendingOverdubs(Output* onlyWithOutput, int32_t* originalClipIn
 	return anyDeleted;
 }
 
-int32_t Song::getYScrollSongViewWithoutPendingOverdubs() {
-	int32_t numToSearch = std::min(sessionClips.getNumElements(), songViewYScroll + kDisplayHeight);
+int32_t Song::getYScrollSessionViewWithoutPendingOverdubs() {
+	int32_t numToSearch = std::min(sessionClips.getNumElements(), sessionViewYScroll + kDisplayHeight);
 
-	int32_t outputValue = songViewYScroll;
+	int32_t outputValue = sessionViewYScroll;
 
 	for (int32_t i = 0; i < numToSearch; i++) {
 		Clip* clip = sessionClips.getClipAtIndex(i);
@@ -5403,8 +5403,8 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 		if (newClip && newClip != clip) {
 			newClip->overdubNature = newOverdubNature;
 			sessionClips.insertClipAtIndex(newClip, clipIndex);
-			if (clipIndex != songViewYScroll) {
-				songViewYScroll++;
+			if (clipIndex != sessionViewYScroll) {
+				sessionViewYScroll++;
 			}
 
 			// use root UI in case this is called from performance view

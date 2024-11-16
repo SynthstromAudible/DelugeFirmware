@@ -129,20 +129,20 @@ void ArrangerView::moveClipToSession() {
 		// Clip already exists in session - just go to it
 		if (!clip->isArrangementOnlyClip()) {
 			int32_t index = currentSong->sessionClips.getIndexForClip(clip);
-			currentSong->songViewYScroll = index - yPressedEffective;
+			currentSong->sessionViewYScroll = index - yPressedEffective;
 		}
 
 		// Or, arrangement-only Clip needs moving to session
 		else {
-			int32_t intendedIndex = currentSong->songViewYScroll + yPressedEffective;
+			int32_t intendedIndex = currentSong->sessionViewYScroll + yPressedEffective;
 
 			if (intendedIndex < 0) {
-				currentSong->songViewYScroll -= intendedIndex;
+				currentSong->sessionViewYScroll -= intendedIndex;
 				intendedIndex = 0;
 			}
 
 			else if (intendedIndex > currentSong->sessionClips.getNumElements()) {
-				currentSong->songViewYScroll -= intendedIndex - currentSong->sessionClips.getNumElements();
+				currentSong->sessionViewYScroll -= intendedIndex - currentSong->sessionClips.getNumElements();
 				intendedIndex = currentSong->sessionClips.getNumElements();
 			}
 
@@ -160,7 +160,7 @@ void ArrangerView::moveClipToSession() {
 			}
 		}
 
-		goToSongView();
+		goToSessionView();
 
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
 			currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
@@ -177,9 +177,9 @@ void ArrangerView::moveClipToSession() {
 	}
 }
 
-void ArrangerView::goToSongView() {
-	currentSong->xScroll[NAVIGATION_CLIP] = currentSong->xScrollForReturnToSongView;
-	currentSong->xZoom[NAVIGATION_CLIP] = currentSong->xZoomForReturnToSongView;
+void ArrangerView::goToSessionView() {
+	currentSong->xScroll[NAVIGATION_CLIP] = currentSong->xScrollForReturnToSessionView;
+	currentSong->xZoom[NAVIGATION_CLIP] = currentSong->xZoomForReturnToSessionView;
 	changeRootUI(&sessionView);
 }
 
@@ -206,7 +206,7 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 					changeRootUI(&automationView);
 				}
 				else {
-					goToSongView();
+					goToSessionView();
 				}
 			}
 			else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {

@@ -4,7 +4,7 @@ https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/044efe71-ac
 
 ## Description
 
-Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems.
+Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SESSION VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems.
 
 Now with one quick action you can start a stem export job, walk away from your Deluge and come back with a bunch of stems for all your clips and arranger instruments.
 

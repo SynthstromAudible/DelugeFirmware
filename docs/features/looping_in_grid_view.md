@@ -18,7 +18,7 @@ https://github.com/user-attachments/assets/be1862c0-ef45-45fa-911b-8ec588246280
 To use the technique shown in the video above, you must follow these steps:
 
 - Enable Create + Record:
-  - Enter `SETTINGS > DEFAULTS > UI > SONG > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
+  - Enter `SETTINGS > DEFAULTS > UI > SESSION > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
   - Exit Settings menu to save settings
 
 - The following steps enable you to quickly create and arm new clips for recording:

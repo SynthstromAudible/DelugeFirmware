@@ -1013,13 +1013,13 @@ ToggleBool defaultGridAllowGreenSelection{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALL
                                           STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
                                           FlashStorage::gridAllowGreenSelection};
 Submenu defaultSessionGridMenu{
-    STRING_FOR_DEFAULT_UI_GRID,
+    STRING_FOR_DEFAULT_UI_SESSION_LAYOUT_GRID,
     {&defaultGridDefaultActiveMode, &defaultGridAllowGreenSelection, &defaultEmptyPadMenu},
 };
 
 defaults::SessionLayout defaultSessionLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
 Submenu defaultUISession{
-    STRING_FOR_DEFAULT_UI_SONG,
+    STRING_FOR_DEFAULT_UI_SESSION,
     {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
 };
 
@@ -1405,8 +1405,8 @@ Submenu songThresholdRecordingSubmenu{
 song::ConfigureMacros configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
 song::MidiLearn midiLearnMenu{STRING_FOR_MIDI_LEARN};
 
-// Root menu for Song View
-menu_item::Submenu soundEditorRootMenuSongView{
+// Root menu for Song Views (Arranger and Session)
+menu_item::Submenu soundEditorRootMenuSong{
     STRING_FOR_SONG,
     {
         &songMasterMenu,
@@ -1491,7 +1491,7 @@ MenuItem* paramShortcutsForAudioClips[][8] = {
     {&globalDelayRateMenu, 	  &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
 };
 
-MenuItem* paramShortcutsForSongView[][8] = {
+MenuItem* paramShortcutsForSong[][8] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        nullptr,              nullptr,                nullptr,                  nullptr                            },

@@ -289,7 +289,7 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 
 	ActionResult result;
 
-	// Song view button
+	// Session view button
 	if (b == SESSION_VIEW) {
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE) {

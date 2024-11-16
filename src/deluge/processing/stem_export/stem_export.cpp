@@ -538,7 +538,7 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 		muteState = false; // output->mutedInArrangementMode
 	}
 
-	// re-render song view since we scrolled and updated mutes
+	// re-render session view since we scrolled and updated mutes
 	uiNeedsRendering(getCurrentUI());
 
 	// set wav file name for stem to be exported
@@ -609,7 +609,7 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 	if (stemExportType == StemExportType::CLIP) {
 		// if we're in song row view, we'll reset the y scroll so we're back at the top
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-			currentSong->songViewYScroll = indexNumber - kDisplayHeight;
+			currentSong->sessionViewYScroll = indexNumber - kDisplayHeight;
 		}
 	}
 	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::MASTER_ARRANGEMENT) {

@@ -540,7 +540,7 @@ void AutomationView::openedInBackground() {
 	Clip* clip = getCurrentClip();
 
 	if (!onArrangerView) {
-		// used when you're in song view / arranger view / keyboard view
+		// used when you're in session view / arranger view / keyboard view
 		//(so it knows to come back to automation view)
 		clip->onAutomationClipView = true;
 
@@ -1758,7 +1758,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 		return instrumentClipView.handleScaleButtonAction(on, inCardRoutine);
 	}
 
-	// Song view button
+	// Session view button
 	else if (b == SESSION_VIEW) {
 		handleSessionButtonAction(clip, on);
 	}

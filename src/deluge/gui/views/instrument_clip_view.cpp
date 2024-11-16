@@ -261,7 +261,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 		return handleScaleButtonAction(on, inCardRoutine);
 	}
 
-	// Song view button
+	// Session view button
 	else if (b == SESSION_VIEW) {
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE) {

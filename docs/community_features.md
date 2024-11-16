@@ -132,7 +132,7 @@ as the micromonsta and the dreadbox nymphes.
           look for the "Deluge Port 1" section and tap on "TRANSFER" to copy or move all the midi bindings to the real
           port name of your Deluge.
         - As a bonus, this project also contains a page "B" with controls for the Song's global parameters, which must be learned
-          individually (not part of MIDI Follow). To do that, go to Deluge Song view, click Select button to enter the
+          individually (not part of MIDI Follow). To do that, go to Deluge Session view, click Select button to enter the
           Song menu, go to each parameter (Volume, Pan, LPF Freq, etc), hold Learn button and then move the knobs and
           faders within page "B" of Loopy's project.
         - Pages "C" and "D" are the controls that are doing the heavy lifting of sending/receiving midi so they can't be deleted.
@@ -308,16 +308,16 @@ which track to record from. The source can also be selected by pressing a clip's
 #### 3.24 Automated Stem Exporting
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Stem Export Documentation]
-- ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
+- ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SESSION VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
 - ([#2327]) You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 - ([#2330]) You can configure settings for the stem export via the `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT STEMS\CONFIGURE EXPORT\` to configure various stem export settings.
 
-#### 3.25 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
-- ([#2315]) A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
+#### 3.25 Render Clip / Section Launch Event Playhead in Session Grid and Performance Views
+- ([#2315]) A white playhead is now rendered in Session Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 
 #### 3.26 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
-- ([#2315]) The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
+- ([#2315]) The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Session views (Grid, Row, Performance).
 
 #### 3.27 Updated UI for Interacting with Toggle Menu's and Sub Menu's
 - ([#2345]) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
@@ -325,8 +325,8 @@ which track to record from. The source can also be selected by pressing a clip's
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
  - Submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
-#### 3.28 Updated UI for Creating New Clips in New Tracks in Song Grid View
-- ([#2429]) Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`
+#### 3.28 Updated UI for Creating New Clips in New Tracks in Session Grid View
+- ([#2429]) Added new mechanism for creating New Clips in New Tracks in `SESSION GRID VIEW`
   - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
     - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
     - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
@@ -336,13 +336,13 @@ which track to record from. The source can also be selected by pressing a clip's
       - by pressing one of the clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV`). 
       - If you let go of the pad without selecting a different type, it will create the clip using the last create type (or the last selected type if you changed selection using select encoder).
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.
-- These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
+- These changes only apply to `SESSION GRID VIEW` and NOT `SESSION ROW VIEW`
 
-#### 3.29 Add Clip Settings Menu in Song View to set Clip Mode and Clip Name and convert Instrument Clips to Audio Clips
-- ([#2299]) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu.
+#### 3.29 Add Clip Settings Menu in Session View to set Clip Mode and Clip Name and convert Instrument Clips to Audio Clips
+- ([#2299]) Holding a clip in `SESSION GRID VIEW` or the status pad for a clip in `SESSION ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu.
 - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
   1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
-    - Note: for `SONG ROW VIEW`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.  
+    - Note: for `SESSION ROW VIEW`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.  
   2) `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
   3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
 - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
@@ -358,13 +358,13 @@ which track to record from. The source can also be selected by pressing a clip's
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
   
 #### 3.32 Added Song New Midi Learn Menu
-- ([#2645]) Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
+- ([#2645]) Added new `MIDI LEARN` menu to the `SONG` menu. In `SESSION GRID VIEW` this menu enables you to learn `Clip/Section Launch`. In `SESSION ROW VIEW` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
 
-#### 3.33 Updated UI for Creating New Clips in Song Row View
+#### 3.33 Updated UI for Creating New Clips in Session Row View
 - ([#2716]) The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
     - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
-    - NOTE: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
+    - NOTE: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Session Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default. 
         - This is because Audio Clips cannot currently be converted to other clip types and thus you will be stuck with only being able to create Audio Clips (unless you change the default and/or disable use of last clip type). The same applies to CV clips, which after two CV clips created, would prevent you from creating other clips (unless you change the default and/or disable use of last clip type).
 
 #### 3.34 Threshold Recording
@@ -387,11 +387,11 @@ which track to record from. The source can also be selected by pressing a clip's
 
 Here is a list of features that have been added to the firmware as a list, grouped by category:
 
-### 4.1 - Song View Features
+### 4.1 - Session View Features
 
 #### 4.1.1 - Compressors
 
-- ([#630]) In Song view, select `AFFECT ENTIRE` and the `SIDECHAIN`-related parameter button. Adjust the `UPPER` gold
+- ([#630]) In Session view, select `AFFECT ENTIRE` and the `SIDECHAIN`-related parameter button. Adjust the `UPPER` gold
   encoder for a single knob compressor with auto makeup gain (`ONE` mode). For detailed editing, press the `SIDECHAIN`
   -related gold encoder (`FULL` mode). The top LED will become a compression meter. Clicking the `REVERB`-related lower
   gold encoder will cycle through additional params: `RATIO` (displays ratio), `ATTACK` & `RELEASE` (shown in
@@ -416,12 +416,12 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.2 - Change Row Colour
 
-- ([#163]) In Song View, pressing a clip row pad + `SHIFT` + turning `▼︎▲︎` changes the selected row color. This is
+- ([#163]) In Session View, pressing a clip row pad + `SHIFT` + turning `▼︎▲︎` changes the selected row color. This is
   similar to the shortcut when setting the color while in a clip view.
 
 #### 4.1.3 - Fill Clips and Once Clips
 
-- ([#196] and [#1018]) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu. In this menu, you will find a submenu for `CLIP MODE`.
+- ([#196] and [#1018]) Holding a clip in `SESSION GRID VIEW` or the status pad for a clip in `SESSION ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu. In this menu, you will find a submenu for `CLIP MODE`.
   
   The `CLIP MODE` menu enables you the set the following launch style options for a clip:
     - **`INFINITE (INF)`** - the default Deluge launch style.
@@ -450,18 +450,18 @@ Here is a list of features that have been added to the firmware as a list, group
 
 #### 4.1.5 - Grid View
 
-- ([#251]) Add new grid session layout to song view. All functionality from (classic) row layout applies except for the
+- ([#251]) Add new grid session layout to session view. All functionality from (classic) row layout applies except for the
   following:
     - The data model of rows and grid mode are compatible, you can switch between them freely
     - In grid mode you will not be able to see multiple clips that are in the same section, only the first one. To make
       them visible move the clips to other sections
     - The colored column on the right are all available sections, the columns are automatically filled with the tracks
       in the same order as in arrangement mode
-    - In song view hold `SONG` and turn `SELECT` knob to switch between row layout and grid layout
+    - In session view hold `SONG` and turn `SELECT` knob to switch between row layout and grid layout
     - Compared to rows layout overdub recording and copying clips to arranger is currently not supported
     - Every track (column) has a random generated color that can be changed in edit mode (see below)
     - Launched clips are full color, unlaunched dimmed and during soloing all non soloed clips are greyed out
-    - New default settings that can be reached pressing both `SHIFT` + `SELECT`: `MENU > DEFAULTS > UI > SONG`
+    - New default settings that can be reached pressing both `SHIFT` + `SELECT`: `MENU > DEFAULTS > UI > SESSION`
         - `Layout:` Select the default layout for all new songs
         - `Grid`
             - `Default active mode:` "Selection" allows changing the mode as described below, all other settings will
@@ -491,7 +491,7 @@ Here is a list of features that have been added to the firmware as a list, group
 - ([#970]) Streamline recording new clips while Deluge is playing
     - This assumes the Deluge is in Grid mode, you are in Green mode, the Deluge is Playing, and Recording is enabled.
     - To use this feature you will need to enable it in the menu:
-        1. Enter `SETTINGS > DEFAULTS > UI > SONG > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
+        1. Enter `SETTINGS > DEFAULTS > UI > SESSION > GRID > EMPTY PADS > CREATE + RECORD` and select `ENABLED`
         2. Exit Settings menu to save settings
     - The following steps enable you to quickly create and arm new clips for recording:
         1. In Grid view, make sure you are in Green mode.
@@ -541,7 +541,7 @@ Here is a list of features that have been added to the firmware as a list, group
       display will show the number of semitones.
     - After transposing the display show the new Root Note (and Scale Name if you have an OLED display).
     - Does not affect audio clips or kit clips.
-    - Works in Song Row/Grid View, Arranger View, Arranger Automation View and Performance View.
+    - Works in Session Row/Grid View, Arranger View, Arranger Automation View and Performance View.
 
 ### 4.1.8 - Added VU Meter rendering to Song / Arranger View
 
@@ -567,10 +567,10 @@ Here is a list of features that have been added to the firmware as a list, group
             - y1 = -26.4 to -22.1
             - y0 = -30.8 to -26.5
 
-### 4.1.9 - Song macros
+### 4.1.9 - Session macros
 
-Macros are a way to quickly switch playing clips without needing to go into song view.
-From song view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros. 
+Macros are a way to quickly switch playing clips without needing to go into session view.
+From session view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros. 
 
 There are 8 macro slots shown in the left sidebar. 
 
@@ -579,7 +579,7 @@ To assign a macro, first select a macro slot and then press a clip in the grid.
 Pressing the same clip multiple time cycles though different modes:
 
 - `Clip macro`: Launch or mute the clip
-  - Individual clips are green/red, so you see if they get deactivated, just like in song row view
+  - Individual clips are green/red, so you see if they get deactivated, just like in session row view
 - `Output macro`: cycle though all clips for this particular output
 - `Section macro`: Launch all clips for this section
 
@@ -589,7 +589,7 @@ Inside a `CLIP TIMELINE VIEW`, hold `SONG` button and press the `LEFT SIDEBAR` t
 
 In `KEYBOARD VIEW`, macros are available as a sidebar control. 
 
-`SHIFT` makes the launch immediate just like in song view. 
+`SHIFT` makes the launch immediate just like in session view. 
 
 `AFFECT ENTIRE` + `CLIP MACRO` can be used to jump to edit the clip.
 
@@ -1316,7 +1316,7 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
 * `KB View Sidebar Menu Exit (EXIT)`
     * When On, while in the `SETTINGS` or `SOUND` menu of `KEYBOARD VIEW`, pressing the top left sidebar pad will immediately exit the menu.
 * `Launch Event Playhead (PLAY)`
-    * When On, a red and white playhead will be rendered in Song Grid and Performance Views that let's you know that a maximum of one bar (16 notes) is remaining before a clip or section launch event is scheduled to occur.
+    * When On, a red and white playhead will be rendered in Session Grid and Performance Views that let's you know that a maximum of one bar (16 notes) is remaining before a clip or section launch event is scheduled to occur.
 * `Chord Keyboards (CHRD)`
     * When On, enables the `CHORD` keyboard, which allows playing in-scale chords in a column or accross pads in a row as well as enables the `CHORD LIBRARY` keyboard layout which allows playing a library of chords on the pads. See [Chord Keyboard Layout](#4416---display-chord-keyboard-layout) and [Chord Library Keyboard Layout](#4417---display-chord-library-keyboard-layout) for more information.
 * `Alternative Playback Start Behaviour (STAR)`

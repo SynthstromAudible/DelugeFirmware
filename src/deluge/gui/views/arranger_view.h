@@ -146,7 +146,7 @@ private:
 	void rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance);
 	void deleteOutput();
 	void auditionEnded();
-	void goToSongView();
+	void goToSessionView();
 	void changeOutputToAudio();
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,
 	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);

@@ -737,9 +737,9 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 		}
 	}
 
-	// Song-view button without shift
+	// Session-view button without shift
 
-	// Arranger view button, or if there isn't one then song view button
+	// Arranger view button, or if there isn't one then session view button
 #ifdef arrangerViewButtonX
 	else if (b == arrangerView) {
 #else
@@ -1038,7 +1038,7 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 				}
 				// if in grid mode
 				else {
-					// if you're in grid song view and you pressed / release a pad in the section launcher column
+					// if you're in grid session view and you pressed / release a pad in the section launcher column
 					if (xDisplay == kDisplayWidth) {
 						sessionView.gridHandlePads(xDisplay, yDisplay, on);
 					}

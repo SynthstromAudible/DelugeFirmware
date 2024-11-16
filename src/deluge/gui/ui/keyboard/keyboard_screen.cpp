@@ -497,7 +497,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		}
 	}
 
-	// Song view button
+	// Session view button
 	else if (b == SESSION_VIEW && on && currentUIMode == UI_MODE_NONE) {
 		// Transition back to arranger
 		if (currentSong->lastClipInstanceEnteredStartPos != -1 || getCurrentClip()->section == 255) {

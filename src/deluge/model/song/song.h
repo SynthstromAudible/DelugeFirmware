@@ -196,8 +196,8 @@ public:
 
 	uint32_t xZoom[2];  // Set default zoom at max zoom-out;
 	int32_t xScroll[2]; // Leave this as signed
-	int32_t xScrollForReturnToSongView;
-	int32_t xZoomForReturnToSongView;
+	int32_t xScrollForReturnToSessionView;
+	int32_t xZoomForReturnToSessionView;
 	bool tripletsOn;
 	uint32_t tripletsLevel; // The number of ticks in one of the three triplets
 
@@ -232,7 +232,7 @@ public:
 	SessionLayoutType sessionLayout = FlashStorage::defaultSessionLayout;
 	int32_t songGridScrollX = 0;
 	int32_t songGridScrollY = 0;
-	int32_t songViewYScroll;
+	int32_t sessionViewYScroll;
 	int32_t arrangementYScroll;
 
 	uint8_t sectionToReturnToAfterSongEnd;
@@ -364,7 +364,7 @@ public:
 	Output* getNextAudioOutput(int32_t offset, Output* oldOutput, Availability availabilityRequirement);
 	void deleteOutput(Output* output);
 	void cullAudioClipVoice();
-	int32_t getYScrollSongViewWithoutPendingOverdubs();
+	int32_t getYScrollSessionViewWithoutPendingOverdubs();
 	int32_t removeOutputFromMainList(Output* output, bool stopAnyAuditioningFirst = true);
 	void swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex);
 	Clip* replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex);

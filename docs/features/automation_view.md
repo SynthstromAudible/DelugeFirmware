@@ -172,7 +172,7 @@ You can select the Parameter that you want to edit in four ways:
 3. From the menu by selecting a parameter for editing and then pressing song (if you're in arranger) or clip (if you're in a clip)
 4. By pressing shift + the shortcut pad corresponding to the parameter you want to edit
 
-Once you select a Parameter in the Automation Clip View, it will be remembered and stored on a per clip basis unless you go back to the Automation Overview. This means that if you are editing a Parameter and go back to the regular Clip View, Song View or Arranger View, when you transition back to the Automation Clip View it will open the last Parameter that you were editing in the Automation Editor. Similarly if you were last on the Automation Overview it will remember that. 
+Once you select a Parameter in the Automation Clip View, it will be remembered and stored on a per clip basis unless you go back to the Automation Overview. This means that if you are editing a Parameter and go back to the regular Clip View, Session View or Arranger View, when you transition back to the Automation Clip View it will open the last Parameter that you were editing in the Automation Editor. Similarly if you were last on the Automation Overview it will remember that. 
 
 > **Note:** This information is saved with the song.
 

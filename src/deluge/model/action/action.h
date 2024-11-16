@@ -101,7 +101,7 @@ public:
 	// A bunch of snapshot-things here store their state both before or after the action - because the action could have
 	// changed these
 	int32_t xScrollClip[2];
-	int32_t yScrollSongView[2];
+	int32_t yScrollSessionView[2];
 	int32_t xZoomClip[2];
 
 	int32_t xScrollArranger[2];
@@ -112,8 +112,8 @@ public:
 
 	// And a few more snapshot-things here only store one state - at the time of the action, because the action could
 	// not change these things
-	uint8_t modKnobModeSongView;
-	bool affectEntireSongView;
+	uint8_t modKnobModeSong;
+	bool affectEntireSong;
 
 	bool tripletsOn;
 	uint32_t tripletsLevel;
