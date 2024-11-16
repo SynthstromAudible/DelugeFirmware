@@ -453,7 +453,7 @@ constexpr int32_t kNumericDisplayLength = 4;
 constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
 constexpr int32_t kMaxGoldKnobIndicatorLEDValue = kMaxKnobPos / 4;
 
-constexpr int32_t kMaxNumSections = 12;
+constexpr int32_t kMaxNumSections = 24;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 
