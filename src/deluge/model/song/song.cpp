@@ -1020,22 +1020,28 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 
 	int32_t oldIndex = -1;
 	if (prevClip) {
+		// retrieve clip index
 		oldIndex = sessionClips.getIndexForClip(prevClip);
 	}
-
+	// if we didn't retrieve a clip index, this is an arranger-only clip
 	if (oldIndex == -1) {
+		// turning select knob left
 		if (offset < 0) {
+			// use the highest available index
+			// NOTE: resulting index is one-based
 			oldIndex = sessionClips.getNumElements();
 		}
 	}
 
 	int32_t newIndex = oldIndex;
 	while (true) {
+		// iterate index according to select knob direction
 		newIndex += offset;
+		// index out of bounds on either side returns NULL
 		if (newIndex == -1 || newIndex == sessionClips.getNumElements()) {
 			return NULL;
 		}
-
+		// retrieve clip and return
 		Clip* clip = sessionClips.getClipAtIndex(newIndex);
 		if (clip->output == output) {
 			return clip;
@@ -2432,16 +2438,16 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
-	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
-	// don't need to
-	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
-	                                              delayWorkingState, true);
-
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
 	    getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_REVERB_AMOUNT],
 	                                 cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
 	                                     params::UNPATCHED_REVERB_SEND_AMOUNT)));
+
+	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
+	// don't need to
+	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
+	                                              delayWorkingState, true, reverbSendAmount >> 3);
 
 	globalEffectable.processReverbSendAndVolume(outputBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
 	                                            reverbSendAmount >> 1);
@@ -3555,12 +3561,25 @@ void Song::markAllInstrumentsAsEdited() {
 	}
 }
 
+// used with the renameOutputUI class to check if you're trying to rename an output to the same
+// name as another output
 AudioOutput* Song::getAudioOutputFromName(String* name) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->type == OutputType::AUDIO) {
 			if (thisOutput->name.equalsCaseIrrespective(name)) {
 				return (AudioOutput*)thisOutput;
 			}
+		}
+	}
+	return NULL;
+}
+
+// used with the renameClipUI class to check if you're trying to rename a clip to the same name
+// as another clip
+Clip* Song::getClipFromName(String* name) {
+	for (Clip* clip : AllClips::everywhere(this)) {
+		if (clip->name.equalsCaseIrrespective(name)) {
+			return clip;
 		}
 	}
 	return NULL;

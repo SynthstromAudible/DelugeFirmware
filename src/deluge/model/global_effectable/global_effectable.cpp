@@ -41,7 +41,7 @@ GlobalEffectable::GlobalEffectable() {
 	lpfMode = FilterMode::TRANSISTOR_24DB;
 	filterSet.reset();
 
-	modFXType = ModFXType::NONE;
+	modFXType_ = ModFXType::NONE;
 	currentModFXParam = ModFXParam::FEEDBACK;
 	currentFilterType = FilterType::LPF;
 
@@ -202,17 +202,17 @@ void GlobalEffectable::displayModFXSettings(bool on) {
 char const* GlobalEffectable::getModFXTypeDisplayName() {
 	auto modTypeCount = kNumModFXTypes;
 
-	modFXType = static_cast<ModFXType>(util::to_underlying(modFXType) % modTypeCount);
-	if (modFXType == ModFXType::NONE) {
-		modFXType = static_cast<ModFXType>(1);
+	modFXType_ = static_cast<ModFXType>(util::to_underlying(modFXType_) % modTypeCount);
+	if (modFXType_ == ModFXType::NONE) {
+		modFXType_ = static_cast<ModFXType>(1);
 	}
-	return modfx::modFXToString(modFXType);
+	return modfx::modFXToString(modFXType_);
 }
 
 char const* GlobalEffectable::getModFXParamDisplayName() {
 	currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) % kNumModFXParams);
 
-	return modfx::getParamName(modFXType, currentModFXParam);
+	return modfx::getParamName(modFXType_, currentModFXParam);
 }
 
 // Returns whether Instrument changed
@@ -237,9 +237,9 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		if (whichModEncoder == 1) {
 			if (on) {
 				auto modTypeCount = kNumModFXTypes;
-				modFXType = static_cast<ModFXType>((util::to_underlying(modFXType) + 1) % modTypeCount);
-				if (modFXType == ModFXType::NONE) {
-					modFXType = static_cast<ModFXType>(1);
+				modFXType_ = static_cast<ModFXType>((util::to_underlying(modFXType_) + 1) % modTypeCount);
+				if (modFXType_ == ModFXType::NONE) {
+					modFXType_ = static_cast<ModFXType>(1);
 				}
 				ensureModFXParamIsValid();
 
@@ -714,24 +714,24 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichM
 }
 
 ModFXType GlobalEffectable::getModFXType() {
-	return modFXType;
+	return modFXType_;
 }
 
 void GlobalEffectable::ensureModFXParamIsValid() {
 	while (true) {
 		if (currentModFXParam == ModFXParam::DEPTH) {
-			if (modFXType == ModFXType::FLANGER) {
+			if (modFXType_ == ModFXType::FLANGER) {
 				goto ohNo;
 			}
 		}
 		else if (currentModFXParam == ModFXParam::OFFSET) {
-			if (modFXType != ModFXType::CHORUS && modFXType != ModFXType::CHORUS_STEREO
-			    && modFXType != ModFXType::GRAIN) {
+			if (modFXType_ != ModFXType::CHORUS && modFXType_ != ModFXType::CHORUS_STEREO
+			    && modFXType_ != ModFXType::GRAIN) {
 				goto ohNo;
 			}
 		}
 		else { // ModFXParam::FEEDBACK
-			if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
+			if (modFXType_ == ModFXType::CHORUS || modFXType_ == ModFXType::CHORUS_STEREO) {
 				goto ohNo;
 			}
 		}
@@ -1046,7 +1046,7 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 	}
 
 	else if (!strcmp(tagName, "modFXType")) {
-		modFXType = stringToFXType(reader.readTagOrAttributeValue());
+		modFXType_ = stringToFXType(reader.readTagOrAttributeValue());
 		reader.exitTag("modFXType");
 	}
 
@@ -1090,7 +1090,7 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
-	ModFXType modFXTypeNow = modFXType;
+	ModFXType modFXTypeNow = modFXType_;
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
@@ -1129,7 +1129,8 @@ Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManage
 
 void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, int32_t numSamples,
                                                     int32_t* postFXVolume, ParamManager* paramManager,
-                                                    const Delay::State& delayWorkingState, bool anySoundComingIn) {
+                                                    const Delay::State& delayWorkingState, bool anySoundComingIn,
+                                                    q31_t verbAmount) {
 
 	StereoSample* inputBufferEnd = inputBuffer + numSamples;
 
@@ -1147,8 +1148,10 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	// For GlobalEffectables, mod FX buffer memory is allocated here in the rendering routine - this might seem
 	// strange, but it's because unlike for Sounds, the effect can be switched on and off by changing a parameter
 	// like "depth".
-	if (util::one_of(modFXTypeNow,
-	                 {ModFXType::CHORUS_STEREO, ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::WARBLE})) {
+	// TODO: this saves a tiny amount of memory at the cost of needing allocations during the audio render cycle...
+	// seems kinda dumb
+	if (util::one_of(modFXTypeNow, {ModFXType::CHORUS_STEREO, ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::WARBLE,
+	                                ModFXType::DIMENSION})) {
 		if (!modFXBuffer) {
 			modFXBuffer =
 			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
@@ -1175,11 +1178,11 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	}
 
 	processFX(inputBuffer, numSamples, modFXTypeNow, modFXRate, modFXDepth, delayWorkingState, postFXVolume,
-	          paramManager, anySoundComingIn);
+	          paramManager, anySoundComingIn, verbAmount);
 }
 
 namespace modfx {
-
+// note this is dumb but it needs to match the enum order currently
 deluge::vector<std::string_view> getModNames() {
 	using enum deluge::l10n::String;
 	using namespace deluge;
@@ -1190,7 +1193,8 @@ deluge::vector<std::string_view> getModNames() {
 	    l10n::getView(STRING_FOR_PHASER),        //<
 	    l10n::getView(STRING_FOR_STEREO_CHORUS), //<
 	    l10n::getView(STRING_FOR_WARBLE),
-	    l10n::getView(STRING_FOR_GRAIN), //<
+	    l10n::getView(STRING_FOR_DIMENSION), //<
+	    l10n::getView(STRING_FOR_GRAIN),     //<
 	};
 }
 
@@ -1204,9 +1208,9 @@ const char* getParamName(ModFXType type, ModFXParam param) {
 		case ModFXParam::DEPTH:
 			return l10n::get(STRING_FOR_GRAIN_AMOUNT);
 		case ModFXParam::FEEDBACK:
-			return l10n::get(STRING_FOR_GRAIN_TYPE);
+			return l10n::get(STRING_FOR_GRAIN_RANDOMNESS);
 		case ModFXParam::OFFSET:
-			return l10n::get(STRING_FOR_GRAIN_SIZE);
+			return l10n::get(STRING_FOR_GRAIN_DENSITY);
 		default:
 			return l10n::get(STRING_FOR_NONE);
 		}

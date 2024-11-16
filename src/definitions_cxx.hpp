@@ -214,7 +214,9 @@ enum class UIType : uint8_t {
 	SLICER,
 	SOUND_EDITOR,
 	TIMELINE,
-	RENAME_CLIPNAME,
+	RENAME_CLIP,
+	RENAME_MIDI_CC,
+	LOAD_MIDI_DEVICE_DEFINITION,
 	NONE = 255,
 };
 
@@ -417,6 +419,7 @@ enum class ModFXType : uint8_t {
 	PHASER,
 	CHORUS_STEREO,
 	WARBLE,
+	DIMENSION,
 	GRAIN, // Look below if you want to add another one
 };
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;

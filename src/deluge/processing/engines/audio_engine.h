@@ -210,4 +210,6 @@ extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;
 extern AbsValueFollower envelopeFollower;
+void feedReverbBackdoorForGrain(int index, q31_t value);
+
 } // namespace AudioEngine

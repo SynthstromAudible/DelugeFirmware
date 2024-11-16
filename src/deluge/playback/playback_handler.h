@@ -59,7 +59,7 @@ public:
 	void playButtonPressed(int32_t buttonPressLatency);
 	void recordButtonPressed();
 	void setupPlaybackUsingInternalClock(int32_t buttonPressLatencyForTempolessRecord = 0, bool allowCountIn = true,
-	                                     bool restartingPlayback = false);
+	                                     bool restartingPlayback = false, bool restartingPlaybackAtBeginning = false);
 	void setupPlaybackUsingExternalClock(bool switchingFromInternalClock = false, bool fromContinueCommand = false);
 	void setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false,
 	                   bool shouldShiftAccordingToClipInstance = true,
@@ -74,7 +74,7 @@ public:
 	bool isCurrentlyRecording();
 	void positionPointerReceived(uint8_t data1, uint8_t data2);
 	void doSongSwap(bool preservePlayPosition = false);
-	void forceResetPlayPos(Song* song, bool restartingPlayback = false);
+	void forceResetPlayPos(Song* song, bool restartingPlaybackAtBeginning = false);
 	void expectEvent();
 	void setMidiInClockEnabled(bool newValue);
 	int32_t getActualArrangementRecordPos();

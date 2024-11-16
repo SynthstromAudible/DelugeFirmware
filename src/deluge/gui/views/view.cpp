@@ -168,7 +168,7 @@ doEndMidiLearnPressSession:
 				// Otherwise, normal - tap tempo, but not during record count in
 				else if (currentUIMode == UI_MODE_NONE) {
 					bool useNormalTapTempoBehaviour =
-					    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour)
+					    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour)
 					     == RuntimeFeatureStateToggle::Off);
 					playbackHandler.tapTempoButtonPress(useNormalTapTempoBehaviour);
 				}
@@ -1048,6 +1048,7 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
                                        PatchSource source2) {
 	DEF_STACK_STRING_BUF(popupMsg, 40);
+	bool appendedName = true;
 
 	// On OLED, display the name of the parameter on the first line of the popup
 	if (display->haveOLED()) {
@@ -1061,14 +1062,46 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 				popupMsg.append("-> ");
 			}
 			popupMsg.append(modulation::params::getPatchedParamShortName(paramID));
-			popupMsg.append(": ");
+		}
+		else if (getCurrentOutputType() == OutputType::MIDI_OUT) {
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
+			if (kind == params::Kind::EXPRESSION) {
+				if (paramID == X_PITCH_BEND) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+				}
+				else if (paramID == Z_PRESSURE) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+				}
+				else if (paramID == Y_SLIDE_TIMBRE) {
+					// in mono expression this is mod wheel, and y-axis is not directly controllable
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+				}
+			}
+			else if (paramID >= 0 && paramID < kNumRealCCNumbers) {
+				String* name = midiInstrument->getNameFromCC(paramID);
+				if (name && !name->isEmpty()) {
+					popupMsg.append(name->get());
+				}
+				else {
+					popupMsg.append("CC ");
+					popupMsg.appendInt(paramID);
+				}
+			}
+			else {
+				appendedName = false;
+			}
 		}
 		else {
 			const char* name = getParamDisplayName(kind, paramID);
 			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 				popupMsg.append(name);
-				popupMsg.append(": ");
 			}
+			else {
+				appendedName = false;
+			}
+		}
+		if (appendedName) {
+			popupMsg.append(": ");
 		}
 	}
 
@@ -1978,12 +2011,12 @@ oledDrawString:
 			}
 
 			if (clip) {
-				if (!clip->clipName.isEmpty()) {
+				if (!clip->name.isEmpty()) {
 					yPos = yPos + 14;
-					canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
-					deluge::hid::display::OLED::setupSideScroller(1, clip->clipName.get(), 0, OLED_MAIN_WIDTH_PIXELS,
-					                                              yPos, yPos + kTextSpacingY, kTextSpacingX,
-					                                              kTextSpacingY, false);
+					canvas.drawStringCentred(clip->name.get(), yPos, kTextSpacingX, kTextSpacingY);
+					deluge::hid::display::OLED::setupSideScroller(1, clip->name.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+					                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
+					                                              false);
 				}
 			}
 		}
