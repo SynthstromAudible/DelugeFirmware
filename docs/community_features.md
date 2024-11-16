@@ -154,7 +154,7 @@ as the micromonsta and the dreadbox nymphes.
   as synths. The note sent for the learn will be treated as the first row for the kit, and increasing notes get mapped
   to the next rows
 
-- ([#2810]) Added new learnable global command `LOAD NEXT SONG` (which can be quickly learned holding `LEARN` and `LOAD` and sending a MIDI note or CC message). When the Deluge receives this command, it will load the next song within the folder of the current song (wraps around when reaching the end of the folder).
+- ([#2810]) Added new learnable global command `LOAD NEXT SONG` (which can be quickly learned holding `LEARN` and `LOAD` and sending a MIDI note or CC message). When the Deluge receives this command while it is playing, it will queue to load the next song within the folder of the current song (wraps around when reaching the end of the folder).
 
 #### 3.4 - Tempo & Swing
 

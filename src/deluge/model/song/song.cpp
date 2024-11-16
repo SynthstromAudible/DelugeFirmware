@@ -53,6 +53,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -871,7 +872,9 @@ void Song::changeFillMode(bool on) {
 }
 
 void Song::loadNextSong() {
-	loadSongUI.loadNextSongIfAvailable();
+	if (playbackHandler.isEitherClockActive()) {
+		loadSongUI.doLoadSongIfAvailable(1);
+	}
 }
 
 // If action is NULL, that means this is being called as part of an undo, so don't do any extra stuff.
