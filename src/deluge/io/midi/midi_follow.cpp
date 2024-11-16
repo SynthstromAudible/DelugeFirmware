@@ -21,7 +21,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -155,7 +155,7 @@ Clip* MidiFollow::getSelectedClip() {
 	case UIType::ARRANGER:
 		clip = arrangerView.getClipForSelection();
 		break;
-	case UIType::PERFORMANCE_SESSION:
+	case UIType::PERFORMANCE:
 		// if you're in the arranger performance view, check if you're holding audition pad
 		if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 			clip = arrangerView.getClipForSelection();
@@ -564,7 +564,7 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 						// performance view
 						bool editingParamInAutomationOrPerformanceView = false;
 						RootUI* rootUI = getRootUI();
-						if (rootUI == &automationView || rootUI == &performanceSessionView) {
+						if (rootUI == &automationView || rootUI == &performanceView) {
 							int32_t id = modelStackWithParam->paramId;
 							params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
@@ -576,7 +576,7 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 							}
 							else {
 								editingParamInAutomationOrPerformanceView =
-								    performanceSessionView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+								    performanceView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
 							}
 						}
 

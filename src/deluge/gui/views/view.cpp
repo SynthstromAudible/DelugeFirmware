@@ -36,7 +36,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -228,7 +228,7 @@ doEndMidiLearnPressSession:
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
 		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
-		    && !((getRootUI() == &performanceSessionView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
+		    && !((getRootUI() == &performanceView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
@@ -273,7 +273,7 @@ doEndMidiLearnPressSession:
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
 		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
-		    && !((getRootUI() == &performanceSessionView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
+		    && !((getRootUI() == &performanceView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
@@ -840,8 +840,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			// this checks that the param displayed on the screen in performance view
 			// is the same param currently being edited with mod encoder
 			bool editingParamInPerformanceView = false;
-			if (getRootUI() == &performanceSessionView) {
-				editingParamInPerformanceView = performanceSessionView.possiblyRefreshPerformanceViewDisplay(
+			if (getRootUI() == &performanceView) {
+				editingParamInPerformanceView = performanceView.possiblyRefreshPerformanceViewDisplay(
 				    kind, modelStackWithParam->paramId, newKnobPos);
 			}
 
@@ -1355,7 +1355,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
-			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performanceSessionView)) {
+			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performanceView)) {
 				// only displaying VU meter in session view, arranger view, performance view and arranger automation
 				// view
 				if (!rootUIIsClipMinderScreen()) {
@@ -1417,7 +1417,7 @@ void View::setModLedStates() {
 			itsTheSong = true;
 			break;
 
-		case UIType::PERFORMANCE_SESSION:
+		case UIType::PERFORMANCE:
 			itsTheSong = true;
 			break;
 
@@ -1532,8 +1532,8 @@ void View::setModLedStates() {
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				}
 				break;
-			case UIType::PERFORMANCE_SESSION:
-				// if performanceSessionView was entered from arranger
+			case UIType::PERFORMANCE:
+				// if performanceView was entered from arranger
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				}
@@ -2596,7 +2596,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
 			RootUI* rootUI = getRootUI();
-			if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+			if ((rootUI == &sessionView) || (rootUI == &performanceView)) {
 				uiNeedsRendering(rootUI, 0, 1 << yDisplayIfInSessionView);
 			}
 		}
@@ -2677,7 +2677,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 void View::flashPlayRoutine() {
 	view.clipArmFlashOn = !view.clipArmFlashOn;
 	RootUI* rootUI = getRootUI();
-	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+	if ((rootUI == &sessionView) || (rootUI == &performanceView)) {
 		sessionView.flashPlayRoutine();
 	}
 	else {
@@ -2695,7 +2695,7 @@ void View::flashPlayDisable() {
 	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
 
 	RootUI* rootUI = getRootUI();
-	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+	if ((rootUI == &sessionView) || (rootUI == &performanceView)) {
 		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 	}
 #ifdef currentClipStatusButtonX
