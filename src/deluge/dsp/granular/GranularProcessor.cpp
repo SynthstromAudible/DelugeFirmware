@@ -297,6 +297,7 @@ GranularProcessor::GranularProcessor() {
 	_pitchRandomness = 0;
 	grainLastTickCountIsZero = true;
 	grainInitialized = false;
+	grainBuffer = nullptr;
 	getBuffer();
 }
 void GranularProcessor::getBuffer() {
