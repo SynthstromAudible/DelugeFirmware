@@ -27,7 +27,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
@@ -192,10 +192,9 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 
 		RootUI* rootUI = getRootUI();
 
-		bool isArrangerView =
-		    rootUI == &arrangerView
-		    || (rootUI == &performanceSessionView && currentSong->lastClipInstanceEnteredStartPos != -1)
-		    || (rootUI == &automationView && automationView.onArrangerView);
+		bool isArrangerView = rootUI == &arrangerView
+		                      || (rootUI == &performanceView && currentSong->lastClipInstanceEnteredStartPos != -1)
+		                      || (rootUI == &automationView && automationView.onArrangerView);
 
 		bool isRestartShortcutPressed =
 		    (accessibility && Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT))
@@ -328,10 +327,9 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	// if we're restarting playback from beginning, do that
 	if (!restartingPlaybackAtBeginning) {
-		bool isArrangerView =
-		    (rootUI == &arrangerView)
-		    || (rootUI == &performanceSessionView && currentSong->lastClipInstanceEnteredStartPos != -1)
-		    || (rootUI == &automationView && automationView.onArrangerView);
+		bool isArrangerView = (rootUI == &arrangerView)
+		                      || (rootUI == &performanceView && currentSong->lastClipInstanceEnteredStartPos != -1)
+		                      || (rootUI == &automationView && automationView.onArrangerView);
 
 		// second priority - if we're holding pad in arranger, play from that pad
 		isArrangementPadPressed = isArrangerView && isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW);
