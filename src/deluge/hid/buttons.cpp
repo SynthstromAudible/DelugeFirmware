@@ -268,7 +268,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 				bool isOLEDSessionView =
 				    display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
 				// only display tempo pop-up if we're using 7SEG or we're not currently in Song / Arranger View
-				if (currentUI != &loadSongUI && !isOLEDSessionView) {
+				if (!loadSongUI.isLoadingSong() && !isOLEDSessionView) {
 					playbackHandler.commandDisplayTempo();
 				}
 			}

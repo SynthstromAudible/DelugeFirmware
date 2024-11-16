@@ -62,6 +62,7 @@ LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
 	title = "Load song";
+	loadingSongInProgress = false;
 }
 
 bool LoadSongUI::opened() {
@@ -229,7 +230,11 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	return ActionResult::DEALT_WITH;
 }
 
-void LoadSongUI::doLoadSongIfAvailable(int8_t offset) {
+bool LoadSongUI::isLoadingSong() {
+	return getCurrentUI() == this || loadingSongInProgress;
+}
+
+void LoadSongUI::doLoadNextSongIfAvailable(int8_t offset) {
 	if (loadingSongInProgress) {
 		return;
 	}
@@ -251,10 +256,12 @@ void LoadSongUI::doLoadSongIfAvailable(int8_t offset) {
 
 	enteredText.clear();
 
-	Error error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
-	if (error != Error::NONE) {
-		return;
-	}
+	// emptyFileItems();
+
+	// Error error = arrivedInNewFolder(0, searchFilename.get(), "SONGS");
+	// if (error != Error::NONE) {
+	// 	return;
+	// }
 
 	if (fileIndexSelected == -1) {
 		return;
@@ -295,6 +302,8 @@ void LoadSongUI::doLoadSongIfAvailable(int8_t offset) {
 	} while (currentFileIndexSelected != fileIndexSelected && !songFound);
 	// in case we wrapped around the whole list of files and didn't find a song,
 	// we just exit without doing anything else
+
+	currentUIMode = UI_MODE_NONE;
 
 	loadingSongInProgress = false;
 }
