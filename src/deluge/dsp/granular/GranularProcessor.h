@@ -18,6 +18,7 @@
 #pragma once
 
 #include "GranularProcessor.h"
+#include "OSLikeStuff/task_scheduler.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
 #include "dsp/stereo_sample.h"
@@ -82,23 +83,22 @@ private:
 	Grain grains[8];
 
 	int32_t wrapsToShutdown;
-	GrainBuffer* grainBuffer{nullptr};
+	GrainBuffer* grainBuffer;
 	int32_t _densityKnobPos{0};
 	int32_t _rateKnobPos{0};
 	int32_t _mixKnobPos{0};
 	deluge::dsp::filter::BasicFilterComponent lpf_l{};
 	deluge::dsp::filter::BasicFilterComponent lpf_r{};
 	bool tempoSync{true};
+	bool bufferFull{false};
 };
 
 class GrainBuffer : public Stealable {
 public:
-	friend class GranularProcessor;
 	GrainBuffer() = delete;
 	GrainBuffer(GrainBuffer& other) = delete;
 	GrainBuffer(const GrainBuffer& other) = delete;
 	explicit GrainBuffer(GranularProcessor* grainFX) { owner = grainFX; }
-	void clearBuffer() { memset(sampleBuffer, 0, kModFXGrainBufferSize * sizeof(StereoSample)); }
 	bool mayBeStolen(void* thingNotToStealFrom) override {
 		if (thingNotToStealFrom != this) {
 			return !inUse;
@@ -111,9 +111,9 @@ public:
 	StealableQueue getAppropriateQueue() override { return StealableQueue::CURRENT_SONG_SAMPLE_DATA_REPITCHED_CACHE; };
 	StereoSample& operator[](int32_t i) { return sampleBuffer[i]; }
 	StereoSample operator[](int32_t i) const { return sampleBuffer[i]; }
+	bool inUse{true};
 
 private:
-	bool inUse{true};
 	GranularProcessor* owner;
 	StereoSample sampleBuffer[kModFXGrainBufferSize * sizeof(StereoSample)];
 };

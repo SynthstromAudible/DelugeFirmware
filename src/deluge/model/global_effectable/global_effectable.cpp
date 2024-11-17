@@ -24,6 +24,7 @@
 #include "hid/led/indicator_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/mod_controllable/ModFXProcessor.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_collection.h"
@@ -45,8 +46,6 @@ GlobalEffectable::GlobalEffectable() {
 	currentModFXParam = ModFXParam::FEEDBACK;
 	currentFilterType = FilterType::LPF;
 
-	memset(allpassMemory, 0, sizeof(allpassMemory));
-	memset(&phaserMemory, 0, sizeof(phaserMemory));
 	editingComp = false;
 	currentCompParam = CompParam::RATIO;
 }
@@ -1152,16 +1151,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 	// seems kinda dumb
 	if (util::one_of(modFXTypeNow, {ModFXType::CHORUS_STEREO, ModFXType::CHORUS, ModFXType::FLANGER, ModFXType::WARBLE,
 	                                ModFXType::DIMENSION})) {
-		if (!modFXBuffer) {
-			modFXBuffer =
-			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
-			if (!modFXBuffer) {
-				modFXTypeNow = ModFXType::NONE;
-			}
-			else {
-				memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
-			}
-		}
+		modfx.setupBuffer();
 		disableGrain();
 	}
 	else if (modFXTypeNow == ModFXType::GRAIN) {
@@ -1170,10 +1160,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 		}
 	}
 	else {
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-			modFXBuffer = NULL;
-		}
+		modfx.disableBuffer();
 		disableGrain();
 	}
 
