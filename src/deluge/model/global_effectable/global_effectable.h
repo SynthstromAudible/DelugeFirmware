@@ -28,14 +28,14 @@ class Serializer;
 class GlobalEffectable : public ModControllableAudio {
 public:
 	GlobalEffectable();
-	void cloneFrom(ModControllableAudio* other);
+	void cloneFrom(ModControllableAudio* other) override;
 
 	static void initParams(ParamManager* paramManager);
 	static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);
-	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager);
-	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
+	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) override;
+	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) override;
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation = true);
+	                                                bool allowCreation = true) override;
 	void setupFilterSetConfig(int32_t* postFXVolume, ParamManager* paramManager);
 	void processFilters(StereoSample* buffer, int32_t numSamples);
 	void compensateVolumeForResonance(ParamManagerForTimeline* paramManager);
@@ -46,7 +46,7 @@ public:
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);
 	void writeTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeToFile);
 	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                      int32_t readAutomationUpToPos, Song* song);
+	                      int32_t readAutomationUpToPos, Song* song) override;
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
 	                                       int32_t* valuesForOverride = NULL);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -67,7 +67,7 @@ public:
 	bool editingComp;
 	CompParam currentCompParam;
 
-	ModFXType getModFXType();
+	ModFXType getModFXType() override;
 
 protected:
 	int maxCompParam = 0;
@@ -83,11 +83,3 @@ private:
 	char const* getModFXTypeDisplayName();
 	char const* getModFXParamDisplayName();
 };
-// helper functions for the mod fx types
-namespace modfx {
-deluge::vector<std::string_view> getModNames();
-
-const char* getParamName(ModFXType type, ModFXParam param);
-
-const char* modFXToString(ModFXType type);
-} // namespace modfx
