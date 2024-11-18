@@ -18,11 +18,10 @@
 #pragma once
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
+#include "io/midi/devices/din.h"
+#include "io/midi/devices/usb_common.h"
+#include "io/midi/devices/usb_device_cable.h"
 #include "util/container/vector/named_thing_vector.h"
-class MIDIDevice;
-class MIDIDeviceUSBUpstream;
-class MIDIDeviceDINPorts;
-class MIDIDeviceUSB;
 class Serializer;
 class Deserializer;
 

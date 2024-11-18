@@ -18,7 +18,7 @@
 #pragma once
 
 #include "gui/colour/colour.h"
-#include "io/midi/midi_device.h"
+#include "io/midi/devices/usb_hosted.h"
 #include "model/scale/note_set.h"
 
 #define MIDI_DEVICE_LUMI_KEYS_VP_COUNT 1
