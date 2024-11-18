@@ -113,11 +113,6 @@ startRenderingASyncLabel:                                                       
 		} while (writePos < bufferEndThisSyncRender);                                                                  \
 	}
 
-#define SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS()                                                                    \
-	int32x4_t amplitudeVector{0};                                                                                      \
-	setupAmplitudeVector(0) setupAmplitudeVector(1) setupAmplitudeVector(2) setupAmplitudeVector(3)                    \
-	    int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
-
 /* Before calling, you must:
     amplitude <<= 1;
     amplitudeIncrement <<= 1;
@@ -131,7 +126,16 @@ startRenderingASyncLabel:                                                       
                                                                                                                        \
 		int16x4_t const32767 = vdup_n_s16(32767);                                                                      \
 		int32_t* __restrict__ outputBufferPos = outputBuffer;                                                          \
-		SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS();                                                                   \
+                                                                                                                       \
+		/* BEGIN SETUP_FOR_APPLYING_APPLITUDE_WITH_VECTORS */                                                          \
+		int32x4_t amplitudeVector{0};                                                                                  \
+		setupAmplitudeVector(0);                                                                                       \
+		setupAmplitudeVector(1);                                                                                       \
+		setupAmplitudeVector(2);                                                                                       \
+		setupAmplitudeVector(3);                                                                                       \
+		int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);                                     \
+		/* END SETUP_FOR_APPLYING_APPLITUDE_WITH_VECTORS*/                                                             \
+                                                                                                                       \
 		uint32_t phaseTemp = phase;                                                                                    \
                                                                                                                        \
 		do {                                                                                                           \

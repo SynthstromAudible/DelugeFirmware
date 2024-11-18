@@ -3207,7 +3207,15 @@ doNeedToApplyAmplitude:
 	if (applyAmplitude) {
 		int32_t* __restrict__ outputBufferPos = bufferStart;
 		int32_t const* const bufferEnd = outputBufferPos + numSamples;
-		SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS();
+
+		// BEGIN SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS;
+		int32x4_t amplitudeVector{0};
+		setupAmplitudeVector(0);
+		setupAmplitudeVector(1);
+		setupAmplitudeVector(2);
+		setupAmplitudeVector(3);
+		int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
+		// END SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS;
 
 		int32_t* __restrict__ inputBuferPos = oscSyncRenderingBuffer;
 
