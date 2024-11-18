@@ -100,6 +100,25 @@ struct MIDIMessage {
 	}
 
 	/// @}
+
+	/// Convert this USB message to the USB MIDI 1.0 packet format
+	[[nodiscard]] uint32_t asUSBPacket(uint8_t port) const {
+		// format message per USB midi spec on virtual cable 0
+		uint8_t cin = 0;
+		uint8_t first_byte = (channel & 15) | (statusType << 4);
+
+		switch (first_byte) {
+		case 0xF2: // Position pointer
+			cin = 0x03;
+			break;
+
+		default:
+			cin = statusType; // Good for voice commands
+			break;
+		}
+
+		return ((uint32_t)data2 << 24) | ((uint32_t)data1 << 16) | ((uint32_t)first_byte << 8) | (port << 4) | cin;
+	}
 };
 
 static_assert(sizeof(MIDIMessage) == 4);

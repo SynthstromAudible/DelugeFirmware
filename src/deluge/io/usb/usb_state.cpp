@@ -19,8 +19,11 @@
 #include "RZA1/system/iodefines/dmac_iodefine.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/root_complex/usb_hosted.h"
+#include "tusb.h"
 
 extern "C" {
+#include "RZA1/system/iobitmasks/usb_iobitmask.h"
+#include "RZA1/system/iodefine.h"
 #include "drivers/uart/uart.h"
 
 // XXX: manually declared here instead of including r_usb_extern.h becuse that header doesn't compile as C++ code.
@@ -32,6 +35,17 @@ usb_utr_t g_usb_midi_recv_utr[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 uint8_t currentDeviceNumWithSendPipe[2] = {MAX_NUM_USB_MIDI_DEVICES, MAX_NUM_USB_MIDI_DEVICES};
 
 uint32_t timeLastBRDY[USB_NUM_USBIP];
+
+// TODO: Move this to somewhere better
+void deluge_usb_int_handler(uint32_t sense) {
+	uint16_t is0 = USB200.INTSTS0;
+	if (is0 & USB_INTSTS0_BRDY) {
+		// Record the timestamp of the event, but do not clear the interrupt
+		// flag. tusb will clear the flag for us.
+		timeLastBRDY[0] = DMACnNonVolatile(SSI_TX_DMA_CHANNEL).CRSA_n;
+	}
+	tud_int_handler(0);
+}
 
 void usbReceiveComplete(int32_t ip, int32_t deviceNum, int32_t tranlen) {
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][deviceNum];
@@ -103,8 +117,6 @@ uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
 uint8_t anyUSBSendingStillHappening[USB_NUM_USBIP];
 
 void usbSetup() {
-	g_usb_peri_connected = 0; // Needs initializing with A2 driver
-
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
 
 		// This might not be used due to the change in r_usb_hlibusbip (deluge is host) to call usbSendCompleteAsHost()

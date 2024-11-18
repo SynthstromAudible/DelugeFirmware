@@ -16,9 +16,11 @@
  */
 
 #include "usb_device_cable.h"
+#include "class/midi/midi_device.h"
 #include "gui/l10n/l10n.h"
 #include "io/debug/log.h"
 #include "storage/storage_manager.h"
+#include <array>
 
 void MIDICableUSBUpstream::writeReferenceAttributesToFile(Serializer& writer) {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set for their computer.
@@ -41,4 +43,23 @@ char const* MIDICableUSBUpstream::getDisplayName() const {
 	default:
 		return "";
 	}
+}
+
+size_t MIDICableUSBUpstream::sendBufferSpace() const {
+	return tud_midi_n_available(0, portNumber);
+}
+
+
+Error MIDICableUSBUpstream::sendMessage(MIDIMessage message) {
+	if (connectionFlags == 0u) {
+		return Error::NONE;
+	}
+
+	uint32_t packet = message.asUSBPacket(portNumber);
+
+	if (tud_midi_n_packet_write(0, reinterpret_cast<uint8_t*>(&packet))) {
+		return Error::NONE;
+	}
+
+	return Error::OUT_OF_BUFFER_SPACE;
 }

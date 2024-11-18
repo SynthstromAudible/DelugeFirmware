@@ -295,7 +295,8 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 }
 
 // called by USB setup
-extern "C" void configuredAsPeripheral(int32_t ip) {
+extern "C" void tud_mount_cb() {
+	constexpr size_t ip = 0;
 	// Leave this - we'll use this device for all upstream ports
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 
@@ -318,7 +319,8 @@ extern "C" void configuredAsPeripheral(int32_t ip) {
 	recountSmallestMPEZones();
 }
 
-extern "C" void detachedAsPeripheral(int32_t ip) {
+extern "C" void tud_unmount_cb() {
+	constexpr size_t ip = 0;
 	// will need to reset all devices if more are added
 	int32_t ports = connectedUSBMIDIDevices[ip][0].maxPortConnected;
 	for (int32_t i = 0; i <= ports; i++) {

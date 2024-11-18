@@ -20,6 +20,10 @@
 #error CFG_TUSB_MCU must be defined
 #endif
 
+// Port 0 is used as both device and host, in full speed.
+// TODO: support high speed.
+#define CFG_TUSB_RHPORT0_MODE     (OPT_MODE_DEVICE | OPT_MODE_FULL_SPEED)
+
 // Use UCKsel 0, the 48MHz oscillator
 #define RUSB1_CLOCK_SOURCE 0
 // 5 wait cycles due to USB:sysclk ratio
@@ -35,12 +39,6 @@
 
 #define CFG_TUSB_DEBUG_PRINTF deluge_tusb_print
 extern int deluge_tusb_print(char const * fmt, ...);
-
-// Enable Device stack
-#define CFG_TUD_ENABLED       1
-
-// Set max speed to full for now. In theory the HW supports HS, but that will be enabled in followup work.
-#define CFG_TUD_MAX_SPEED     OPT_MODE_FULL_SPEED
 
 /* USB DMA on some MCUs can only access a specific SRAM region with restriction on alignment.
  * Tinyusb use follows macros to declare transferring memory so that they can be put

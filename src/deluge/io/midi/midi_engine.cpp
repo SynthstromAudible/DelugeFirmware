@@ -16,6 +16,7 @@
  */
 
 #include "io/midi/midi_engine.h"
+#include "class/midi/midi_device.h"
 #include "definitions_cxx.hpp"
 #include "deluge/io/usb/usb_state.h"
 #include "gui/l10n/l10n.h"
@@ -26,6 +27,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/sysex.h"
+#include "io/usb/usb_descriptors.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
@@ -37,8 +39,6 @@ using namespace deluge::io::usb;
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
-
-extern void usb_cstd_usb_task();
 }
 
 PLACE_SDRAM_BSS MidiEngine midiEngine{};
@@ -196,7 +196,6 @@ void MidiEngine::checkIncomingMidi() {
 	if (!usbLock) {
 		// Have to call this regularly, to do "callbacks" that will grab out the received data
 		USBAutoLock lock;
-		usb_cstd_usb_task();
 	}
 
 	// Check incoming USB MIDI

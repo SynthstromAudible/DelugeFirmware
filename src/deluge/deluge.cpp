@@ -129,11 +129,6 @@ uint8_t batteryCurrentRegion = 2;
 uint16_t batteryMV;
 bool batteryLEDState = false;
 
-// TODO: Move this to somewhere better
-extern "C" void usb_int(uint32_t sense) {
-	tud_int_handler(0);
-}
-
 extern "C" void osal_task_delay(uint32_t msec) {
 	uint16_t startTime = *TCNT[TIMER_SYSTEM_SLOW];
 	uint16_t stopTime = startTime + msToSlowTimerCount(msec);
@@ -614,7 +609,7 @@ void registerTasks() {
 	                 "playback routine", RESOURCE_SD | RESOURCE_USB);
 	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.00001, 0.00001, 0.00002,
 	                 "load clusters", RESOURCE_NONE);
-	addRepeatingTask([]() { tud_task(); }, p++, 0.002, 0.002, 0.002, "read USB");
+	addRepeatingTask([]() { tud_task(); }, p++, 0.002, 0.002, 0.002, "read USB", RESOURCE_USB);
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
 	addRepeatingTask(&AudioEngine::slowRoutine, p++, 0.001, 0.005, 0.05, "audio slow", RESOURCE_NONE);
@@ -885,7 +880,7 @@ extern "C" int32_t deluge_main(void) {
 		deluge::io::usb::USBAutoLock lock;
 
 		// XXX: need to test for host mode here
-		R_INTC_RegistIntFunc(INTC_ID_USBI0, usb_int);
+		R_INTC_RegistIntFunc(INTC_ID_USBI0, deluge_usb_int_handler);
 		R_INTC_SetPriority(INTC_ID_USBI0, 9);
 
 		tusb_init();

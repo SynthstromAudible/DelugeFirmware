@@ -17,4 +17,7 @@
 
 #pragma once
 
-extern void usbd_configure_pipes();
+#include <cstdint>
+
+constexpr uint8_t kMidiInPipe = 2;
+constexpr uint8_t kMidiOutPipe = 3;

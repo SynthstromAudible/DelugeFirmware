@@ -1387,8 +1387,9 @@ gotFifoError:
         USB_PRINTF0("### FIFO access error \n");
         if (ptr)
             usb_hstd_forced_termination(ptr, pipe, (uint16_t)USB_DATA_ERR);
-        else
-            usb_pstd_forced_termination(pipe, (uint16_t)USB_DATA_ERR);
+		// XXX
+        // else
+        //     usb_pstd_forced_termination(pipe, (uint16_t)USB_DATA_ERR);
     }
 
     // usb_cstd_set_buf(ptr, pipe);            /* Set BUF */

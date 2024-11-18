@@ -29,6 +29,8 @@ public:
 	[[nodiscard]] Error sendSysex(const uint8_t* data, int32_t len) override;
 	[[nodiscard]] size_t sendBufferSpace() const override;
 
+	/// Poll the underlying TinyUSB cable.
+	void checkIncoming();
 	void checkIncomingSysex(uint8_t const* msg, int32_t ip, int32_t d);
 	void connectedNow(int32_t midiDeviceNum);
 	void sendMCMsNowIfNeeded();

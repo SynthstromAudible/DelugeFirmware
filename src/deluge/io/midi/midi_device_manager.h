@@ -17,6 +17,7 @@
 
 #pragma once
 #ifdef __cplusplus
+#include <gsl/gsl>
 #include "definitions_cxx.hpp"
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"

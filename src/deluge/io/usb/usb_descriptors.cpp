@@ -26,6 +26,8 @@
 #define USB_VENDORID (0x16D0)  /* Vendor ID */
 #define USB_PRODUCTID (0x0CE2) /* Product ID */
 
+static void usbdConfigurePipes();
+
 //--------------------------------------------------------------------+
 // String Descriptors
 //--------------------------------------------------------------------+
@@ -168,7 +170,7 @@ uint8_t const desc_hs_configuration[] = {
 uint8_t const* tud_descriptor_configuration_cb(uint8_t index) {
 	(void)index; // for multiple configurations
 
-	usbd_configure_pipes();
+	usbdConfigurePipes();
 
 #if TUD_OPT_HIGH_SPEED
 	// Although we are highspeed, host may be fullspeed.
@@ -207,7 +209,7 @@ uint8_t const* tud_descriptor_device_cb(void) {
 	return (uint8_t const*)&desc_device;
 }
 
-void usbd_configure_pipes() {
+static void usbdConfigurePipes() {
 	rusb1_pipe_config_t midi_in_pipe = {
 	    .buffer_offset = 8,
 	    .buffer_size = 4,
@@ -227,8 +229,8 @@ void usbd_configure_pipes() {
 	        },
 	};
 
-	rusb1_configure_pipe(0, EPNUM_MIDI_IN, TUSB_DIR_IN, 2, &midi_in_pipe);
-	rusb1_configure_pipe(0, EPNUM_MIDI_OUT, TUSB_DIR_OUT, 3, &midi_out_pipe);
+	rusb1_configure_pipe(0, EPNUM_MIDI_IN, TUSB_DIR_IN, kMidiInPipe, &midi_in_pipe);
+	rusb1_configure_pipe(0, EPNUM_MIDI_OUT, TUSB_DIR_OUT, kMidiOutPipe, &midi_out_pipe);
 
 	D_PRINTLN("Pipes configured");
 }

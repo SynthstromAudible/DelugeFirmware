@@ -19,6 +19,14 @@
 #include "definitions.h"
 
 #ifdef __cplusplus
+extern "C" {
+#endif
+void deluge_usb_int_handler(uint32_t sense);
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
 
 namespace deluge::io::usb {
 
