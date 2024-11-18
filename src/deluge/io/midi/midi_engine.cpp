@@ -215,7 +215,6 @@ bool anythingInUSBOutputBuffer = false;
 
 MidiEngine::MidiEngine() {
 	numSerialMidiInput = 0;
-	lastStatusByteSent = 0;
 	currentlyReceivingSysExSerial = false;
 	midiThru = false;
 	for (auto& midiChannelType : midiFollowChannelType) {
@@ -583,18 +582,7 @@ void MidiEngine::sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t dat
 
 	uint8_t statusByte = channel | (statusType << 4);
 	int32_t messageLength = getMidiMessageLength(statusByte);
-	// If only 1 byte, we have to send it, and keep no record of last status byte sent since we couldn't do running
-	// status anyway
-	if (false && messageLength == 1) {
-		bufferMIDIUart(statusByte);
-		lastStatusByteSent = 0;
-	}
-
-	// Or, if message is longer, only send if status byte is different from last time
-	else if (true || statusByte != lastStatusByteSent) { // Temporarily disabled
-		bufferMIDIUart(statusByte);
-		lastStatusByteSent = statusByte;
-	}
+	bufferMIDIUart(statusByte);
 
 	if (messageLength >= 2) {
 		bufferMIDIUart(data1);

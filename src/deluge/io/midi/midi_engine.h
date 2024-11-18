@@ -112,7 +112,6 @@ public:
 private:
 	uint8_t serialMidiInput[3];
 	uint8_t numSerialMidiInput;
-	uint8_t lastStatusByteSent;
 
 	bool currentlyReceivingSysExSerial;
 
