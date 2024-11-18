@@ -3096,8 +3096,9 @@ doSaw:
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 						int32_t numSamplesThisOscSyncSession = numSamples;
 						int16x4_t const32767 = vdup_n_s16(32767); // The pulse rendering function needs this.
-						RENDER_OSC_SYNC(STORE_VECTOR_WAVE_FOR_ONE_SYNC, waveRenderingFunctionPulse, 0,
-						                startRenderingASyncForPulseWave);
+						RENDER_OSC_SYNC(
+						    STORE_VECTOR_WAVE_FOR_ONE_SYNC, waveRenderingFunctionPulse, [] {},
+						    startRenderingASyncForPulseWave);
 						phase <<= 1;
 						goto doNeedToApplyAmplitude;
 					}
@@ -3129,8 +3130,8 @@ callRenderWave:
 		if (doOscSync) {
 			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 			int32_t numSamplesThisOscSyncSession = numSamples;
-			RENDER_OSC_SYNC(STORE_VECTOR_WAVE_FOR_ONE_SYNC, waveRenderingFunctionGeneral, 0,
-			                startRenderingASyncForWave);
+			RENDER_OSC_SYNC(
+			    STORE_VECTOR_WAVE_FOR_ONE_SYNC, waveRenderingFunctionGeneral, [] {}, startRenderingASyncForWave);
 			goto doNeedToApplyAmplitude;
 		}
 		else {

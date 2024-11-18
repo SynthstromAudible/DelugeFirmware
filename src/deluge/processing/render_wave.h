@@ -57,7 +57,7 @@ startRenderingASyncLabel:                                                       
 		bufferStartThisSync += samplesIncludingNextCrossoverSample - 1;                                                \
 		crossoverSampleBeforeSync = *bufferStartThisSync;                                                              \
 		numSamplesThisOscSyncSession -= samplesIncludingNextCrossoverSample - 1;                                       \
-		extraInstructionsForCrossoverSampleRedo;                                                                       \
+		extraInstructionsForCrossoverSampleRedo();                                                                     \
                                                                                                                        \
 		resetterPhase += resetterPhaseIncrement                                                                        \
 		                 * (samplesIncludingNextCrossoverSample                                                        \
@@ -94,9 +94,6 @@ startRenderingASyncLabel:                                                       
 		doRenderingLoopSingleCycle(bufferStartThisSync, bufferEndThisSyncRender, bandHere, phaseTemp, phaseIncrement,  \
 		                           kernel);                                                                            \
 	}
-
-#define WAVETABLE_EXTRA_INSTRUCTIONS_FOR_CROSSOVER_SAMPLE_REDO                                                         \
-	{ crossCycleStrength2 += crossCycleStrength2Increment * (samplesIncludingNextCrossoverSample - 1); }
 
 #define STORE_VECTOR_WAVE_FOR_ONE_SYNC(vectorValueFunctionName)                                                        \
 	{                                                                                                                  \
