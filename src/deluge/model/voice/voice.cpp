@@ -3208,18 +3208,8 @@ doNeedToApplyAmplitude:
 		int32_t* __restrict__ outputBufferPos = bufferStart;
 		int32_t const* const bufferEnd = outputBufferPos + numSamples;
 
-		// BEGIN SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS;
-		int32x4_t amplitudeVector{0};
-		amplitude += amplitudeIncrement;
-		amplitudeVector = vsetq_lane_s32(amplitude >> 1, amplitudeVector, 0);
-		amplitude += amplitudeIncrement;
-		amplitudeVector = vsetq_lane_s32(amplitude >> 1, amplitudeVector, 1);
-		amplitude += amplitudeIncrement;
-		amplitudeVector = vsetq_lane_s32(amplitude >> 1, amplitudeVector, 2);
-		amplitude += amplitudeIncrement;
-		amplitudeVector = vsetq_lane_s32(amplitude >> 1, amplitudeVector, 3);
+		int32x4_t amplitudeVector = createAmplitudeVector(amplitude, amplitudeIncrement);
 		int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
-		// END SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS;
 
 		int32_t* __restrict__ inputBuferPos = oscSyncRenderingBuffer;
 
