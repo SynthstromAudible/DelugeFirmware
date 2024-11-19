@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "deluge/io/midi/devices/usb_common.h"
+#include "deluge/io/midi/cable_types/usb_common.h"
 
 class MIDIDeviceUSBHosted : public MIDICableUSB {
 public:

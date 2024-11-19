@@ -18,9 +18,9 @@
 #pragma once
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
-#include "io/midi/devices/din.h"
-#include "io/midi/devices/usb_common.h"
-#include "io/midi/devices/usb_device_cable.h"
+#include "io/midi/cable_types/din.h"
+#include "io/midi/cable_types/usb_common.h"
+#include "io/midi/cable_types/usb_device_cable.h"
 #include "util/container/vector/named_thing_vector.h"
 class Serializer;
 class Deserializer;
