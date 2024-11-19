@@ -16,6 +16,7 @@
  */
 #include "util/misc.h"
 #include <argon.hpp>
+#include <limits>
 
 // Renders 4 wave values (a "vector") together in one go.
 [[gnu::always_inline]] static inline Argon<int32_t> //<
@@ -34,13 +35,13 @@ waveRenderingFunctionGeneral(uint32_t& phaseTemp, int32_t phaseIncrement, uint32
 		readValue[i].Load(readAddress);
 	});
 
-	strength2 = vshr_n_u16(strength2, 1);
-	ArgonHalf<int16_t> value1 = vreinterpret_s16_u16(vmovn_u32(readValue));
-	ArgonHalf<int16_t> value2 = vreinterpret_s16_u16(vshrn_n_u32(readValue, 16));
-	Argon<int32_t> value1Big = vshll_n_s16(value1, 16);
+	strength2 = strength2 >> 1;
+	ArgonHalf<int16_t> value1 = readValue.Narrow().As<int16_t>();
+	ArgonHalf<int16_t> value2 = readValue.ShiftRightNarrow<16>().As<int16_t>();
+	Argon<int32_t> value1Big = value1.ShiftLeftLong<16>();
 
-	ArgonHalf<int16_t> difference = vsub_s16(value2, value1);
-	return vqdmlal_s16(value1Big, difference, vreinterpret_s16_u16(strength2));
+	ArgonHalf<int16_t> difference = value2 - value1;
+	return value1Big.MultiplyDoubleAddSaturateLong(difference, strength2.As<int16_t>());
 }
 
 // Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
@@ -74,27 +75,25 @@ waveRenderingFunctionPulse(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t
 		}
 	});
 
-	ArgonHalf<int16_t> valueA1 = vreinterpret_s16_u16(vmovn_u32(readValueA));
-	ArgonHalf<int16_t> valueA2 = vreinterpret_s16_u16(vshrn_n_u32(readValueA, 16));
+	ArgonHalf<int16_t> valueA1 = readValueA.Narrow().As<int16_t>();
+	ArgonHalf<int16_t> valueA2 = readValueA.ShiftRightNarrow<16>().As<int16_t>();
 
-	ArgonHalf<int16_t> valueB1 = vreinterpret_s16_u16(vmovn_u32(readValueB));
-	ArgonHalf<int16_t> valueB2 = vreinterpret_s16_u16(vshrn_n_u32(readValueB, 16));
+	ArgonHalf<int16_t> valueB1 = readValueB.Narrow().As<int16_t>();
+	ArgonHalf<int16_t> valueB2 = readValueB.ShiftRightNarrow<16>().As<int16_t>();
 
 	/* Sneakily do this backwards to flip the polarity of the output, which we need to do anyway */
-	ArgonHalf<int16_t> const32768 = vdup_n_s16(-32768);
-	ArgonHalf<int16_t> const32767 = vdup_n_s16(32767);
-	ArgonHalf<int16_t> strengthA1 = vorr_s16(rshiftedA, const32768);
-	ArgonHalf<int16_t> strengthA2 = vsub_s16(const32768, strengthA1);
+	ArgonHalf<int16_t> strengthA1 = rshiftedA | std::numeric_limits<int16_t>::min();
+	ArgonHalf<int16_t> strengthA2 = std::numeric_limits<int16_t>::min() - strengthA1;
 
-	Argon<int32_t> multipliedValueA2 = vqdmull_s16(strengthA2, valueA2);
-	Argon<int32_t> outputA = vqdmlal_s16(multipliedValueA2, strengthA1, valueA1);
+	Argon<int32_t> multipliedValueA2 = strengthA2.MultiplyDoubleSaturateLong(valueA2);
+	Argon<int32_t> outputA = multipliedValueA2.MultiplyDoubleAddSaturateLong(strengthA1, valueA1);
 
-	ArgonHalf<int16_t> strengthB2 = vand_s16(rshiftedB, const32767);
-	ArgonHalf<int16_t> strengthB1 = vsub_s16(const32767, strengthB2);
+	ArgonHalf<int16_t> strengthB2 = rshiftedB & std::numeric_limits<int16_t>::max();
+	ArgonHalf<int16_t> strengthB1 = std::numeric_limits<int16_t>::max() - strengthB2;
 
-	Argon<int32_t> multipliedValueB2 = vqdmull_s16(strengthB2, valueB2);
-	Argon<int32_t> outputB = vqdmlal_s16(multipliedValueB2, strengthB1, valueB1);
+	Argon<int32_t> multipliedValueB2 = strengthB2.MultiplyDoubleSaturateLong(valueB2);
+	Argon<int32_t> outputB = multipliedValueB2.MultiplyDoubleAddSaturateLong(strengthB1, valueB1);
 
-	Argon<int32_t> output = vqrdmulhq_s32(outputA, outputB);
-	return vshlq_n_s32(output, 1);
+	Argon<int32_t> output = outputA.MultiplyRoundFixedPoint(outputB);
+	return output << 1;
 }
