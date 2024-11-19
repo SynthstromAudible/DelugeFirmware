@@ -18,11 +18,11 @@
 #include <argon.hpp>
 
 // Renders 4 wave values (a "vector") together in one go.
-[[gnu::always_inline]] static inline int32x4_t //<
+[[gnu::always_inline]] static inline Argon<int32_t> //<
 waveRenderingFunctionGeneral(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t _phaseToAdd, const int16_t* table,
                              int32_t tableSizeMagnitude) {
-	uint32x4_t readValue{0};
-	uint16x4_t strength2{0};
+	Argon<uint32_t> readValue = 0U;
+	ArgonHalf<uint16_t> strength2 = 0U;
 
 	util::constexpr_for<0, 4, 1>([&]<int i>() {
 		phaseTemp += phaseIncrement;
@@ -36,20 +36,22 @@ waveRenderingFunctionGeneral(uint32_t& phaseTemp, int32_t phaseIncrement, uint32
 	});
 
 	strength2 = vshr_n_u16(strength2, 1);
-	int16x4_t value1 = vreinterpret_s16_u16(vmovn_u32(readValue));
-	int16x4_t value2 = vreinterpret_s16_u16(vshrn_n_u32(readValue, 16));
-	int32x4_t value1Big = vshll_n_s16(value1, 16);
+	ArgonHalf<int16_t> value1 = vreinterpret_s16_u16(vmovn_u32(readValue));
+	ArgonHalf<int16_t> value2 = vreinterpret_s16_u16(vshrn_n_u32(readValue, 16));
+	Argon<int32_t> value1Big = vshll_n_s16(value1, 16);
 
-	int16x4_t difference = vsub_s16(value2, value1);
+	ArgonHalf<int16_t> difference = vsub_s16(value2, value1);
 	return vqdmlal_s16(value1Big, difference, vreinterpret_s16_u16(strength2));
 }
 
 // Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
-[[gnu::always_inline]] static inline int32x4_t //<
+[[gnu::always_inline]] static inline Argon<int32_t> //<
 waveRenderingFunctionPulse(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t phaseToAdd, const int16_t* table,
                            int32_t tableSizeMagnitude) {
-	int16x4_t rshiftedA{0}, rshiftedB{0};
-	uint32x4_t readValueA{0}, readValueB{0};
+	ArgonHalf<int16_t> rshiftedA = 0;
+	ArgonHalf<int16_t> rshiftedB = 0;
+	Argon<uint32_t> readValueA = 0U;
+	Argon<uint32_t> readValueB = 0U;
 
 	int32_t rshiftAmount = (32 - tableSizeMagnitude - 16);
 
@@ -73,27 +75,27 @@ waveRenderingFunctionPulse(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t
 		}
 	});
 
-	int16x4_t valueA1 = vreinterpret_s16_u16(vmovn_u32(readValueA));
-	int16x4_t valueA2 = vreinterpret_s16_u16(vshrn_n_u32(readValueA, 16));
+	ArgonHalf<int16_t> valueA1 = vreinterpret_s16_u16(vmovn_u32(readValueA));
+	ArgonHalf<int16_t> valueA2 = vreinterpret_s16_u16(vshrn_n_u32(readValueA, 16));
 
-	int16x4_t valueB1 = vreinterpret_s16_u16(vmovn_u32(readValueB));
-	int16x4_t valueB2 = vreinterpret_s16_u16(vshrn_n_u32(readValueB, 16));
+	ArgonHalf<int16_t> valueB1 = vreinterpret_s16_u16(vmovn_u32(readValueB));
+	ArgonHalf<int16_t> valueB2 = vreinterpret_s16_u16(vshrn_n_u32(readValueB, 16));
 
 	/* Sneakily do this backwards to flip the polarity of the output, which we need to do anyway */
-	int16x4_t const32768 = vdup_n_s16(-32768);
-	int16x4_t const32767 = vdup_n_s16(32767);
-	int16x4_t strengthA1 = vorr_s16(rshiftedA, const32768);
-	int16x4_t strengthA2 = vsub_s16(const32768, strengthA1);
+	ArgonHalf<int16_t> const32768 = vdup_n_s16(-32768);
+	ArgonHalf<int16_t> const32767 = vdup_n_s16(32767);
+	ArgonHalf<int16_t> strengthA1 = vorr_s16(rshiftedA, const32768);
+	ArgonHalf<int16_t> strengthA2 = vsub_s16(const32768, strengthA1);
 
-	int32x4_t multipliedValueA2 = vqdmull_s16(strengthA2, valueA2);
-	int32x4_t outputA = vqdmlal_s16(multipliedValueA2, strengthA1, valueA1);
+	Argon<int32_t> multipliedValueA2 = vqdmull_s16(strengthA2, valueA2);
+	Argon<int32_t> outputA = vqdmlal_s16(multipliedValueA2, strengthA1, valueA1);
 
-	int16x4_t strengthB2 = vand_s16(rshiftedB, const32767);
-	int16x4_t strengthB1 = vsub_s16(const32767, strengthB2);
+	ArgonHalf<int16_t> strengthB2 = vand_s16(rshiftedB, const32767);
+	ArgonHalf<int16_t> strengthB1 = vsub_s16(const32767, strengthB2);
 
-	int32x4_t multipliedValueB2 = vqdmull_s16(strengthB2, valueB2);
-	int32x4_t outputB = vqdmlal_s16(multipliedValueB2, strengthB1, valueB1);
+	Argon<int32_t> multipliedValueB2 = vqdmull_s16(strengthB2, valueB2);
+	Argon<int32_t> outputB = vqdmlal_s16(multipliedValueB2, strengthB1, valueB1);
 
-	int32x4_t output = vqrdmulhq_s32(outputA, outputB);
+	Argon<int32_t> output = vqrdmulhq_s32(outputA, outputB);
 	return vshlq_n_s32(output, 1);
 }
