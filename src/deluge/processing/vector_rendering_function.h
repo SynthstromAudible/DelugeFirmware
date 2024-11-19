@@ -14,19 +14,7 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
-// Hard-coded "for-loop" for the below function.
-#define waveRenderingFunctionGeneralForLoop(i)                                                                         \
-	{                                                                                                                  \
-		phaseTemp += phaseIncrement;                                                                                   \
-		uint32_t rshifted = phaseTemp >> (32 - 16 - tableSizeMagnitude);                                               \
-		strength2 = vset_lane_u16(rshifted, strength2, i);                                                             \
-                                                                                                                       \
-		uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);                                                  \
-		uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));                                      \
-                                                                                                                       \
-		readValue = vld1q_lane_u32(readAddress, readValue, i);                                                         \
-	}
+#include "util/misc.h"
 
 // Renders 4 wave values (a "vector") together in one go.
 #define waveRenderingFunctionGeneral()                                                                                 \
@@ -34,11 +22,18 @@
 		uint32x4_t readValue{0};                                                                                       \
 		uint16x4_t strength2{0};                                                                                       \
                                                                                                                        \
-		/* Need to use a macro rather than a for loop here, otherwise won't compile with less than O2. */              \
-		waveRenderingFunctionGeneralForLoop(0) waveRenderingFunctionGeneralForLoop(1)                                  \
-		    waveRenderingFunctionGeneralForLoop(2) waveRenderingFunctionGeneralForLoop(3)                              \
+		util::constexpr_for<0, 4, 1>([&]<int i>() {                                                                    \
+			phaseTemp += phaseIncrement;                                                                               \
+			uint32_t rshifted = phaseTemp >> (32 - 16 - tableSizeMagnitude);                                           \
+			strength2 = vset_lane_u16(rshifted, strength2, i);                                                         \
                                                                                                                        \
-		        strength2 = vshr_n_u16(strength2, 1);                                                                  \
+			uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);                                              \
+			uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));                                  \
+                                                                                                                       \
+			readValue = vld1q_lane_u32(readAddress, readValue, i);                                                     \
+		});                                                                                                            \
+                                                                                                                       \
+		strength2 = vshr_n_u16(strength2, 1);                                                                          \
 		int16x4_t value1 = vreinterpret_s16_u16(vmovn_u32(readValue));                                                 \
 		int16x4_t value2 = vreinterpret_s16_u16(vshrn_n_u32(readValue, 16));                                           \
 		int32x4_t value1Big = vshll_n_s16(value1, 16);                                                                 \
