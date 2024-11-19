@@ -27,12 +27,11 @@ waveRenderingFunctionGeneral(uint32_t& phaseTemp, int32_t phaseIncrement, uint32
 	util::constexpr_for<0, 4, 1>([&]<int i>() {
 		phaseTemp += phaseIncrement;
 		uint32_t rshifted = phaseTemp >> (32 - 16 - tableSizeMagnitude);
-		strength2 = vset_lane_u16(rshifted, strength2, i);
+		strength2[i] = rshifted;
 
 		uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);
 		uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));
-
-		readValue = vld1q_lane_u32(readAddress, readValue, i);
+		readValue[i].Load(readAddress);
 	});
 
 	strength2 = vshr_n_u16(strength2, 1);
@@ -58,20 +57,20 @@ waveRenderingFunctionPulse(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t
 	util::constexpr_for<0, 4, 1>([&]<int i>() {
 		{
 			phaseTemp += phaseIncrement;
-			rshiftedA = vset_lane_s16(phaseTemp >> rshiftAmount, rshiftedA, i);
+			rshiftedA[i] = phaseTemp >> rshiftAmount;
 
 			uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);
 			uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));
-			readValueA = vld1q_lane_u32(readAddress, readValueA, i);
+			readValueA[i].Load(readAddress);
 		}
 
 		{
 			uint32_t phaseLater = phaseTemp + phaseToAdd;
-			rshiftedB = vset_lane_s16(phaseLater >> rshiftAmount, rshiftedB, i);
+			rshiftedB[i] = phaseLater >> rshiftAmount;
 
 			uint32_t whichValue = phaseLater >> (32 - tableSizeMagnitude);
 			uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));
-			readValueB = vld1q_lane_u32(readAddress, readValueB, i);
+			readValueB[i].Load(readAddress);
 		}
 	});
 
