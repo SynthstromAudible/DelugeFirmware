@@ -100,7 +100,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 		return;
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::MPE_MEMBER:
-		mpeValues = mpeValuesOrNull = cable.defaultInputMPEValuesPerMIDIChannel[midiChannel];
+		mpeValues = mpeValuesOrNull = cable.inputChannels[midiChannel].defaultInputMPEValues.data();
 		// no break
 	case MIDIMatchType::CHANNEL:
 		// -1 means no change

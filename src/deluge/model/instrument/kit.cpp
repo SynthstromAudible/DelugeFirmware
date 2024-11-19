@@ -1125,7 +1125,7 @@ goingToRecordNoteOnEarly:
 		if (cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
 			for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 				thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] =
-				    cable.defaultInputMPEValuesPerMIDIChannel[channel][i] >> 8;
+				    cable.inputChannels[channel].defaultInputMPEValues[i] >> 8;
 			}
 		}
 

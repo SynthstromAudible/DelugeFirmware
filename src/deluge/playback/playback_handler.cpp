@@ -2963,7 +2963,7 @@ void PlaybackHandler::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8
 	bool isMPE = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
 
 	if (isMPE) {
-		cable.defaultInputMPEValuesPerMIDIChannel[channel][0] = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192)
+		cable.inputChannels[channel].defaultInputMPEValues[0] = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192)
 		                                                        << 2;
 	}
 	else {
@@ -3014,7 +3014,7 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 	bool isMPE = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
 
 	if (isMPE) {
-		cable.defaultInputMPEValuesPerMIDIChannel[channel][1] = (value - 64) << 9;
+		cable.inputChannels[channel].defaultInputMPEValues[1] = (value - 64) << 9;
 	}
 	else {
 		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
@@ -3084,7 +3084,7 @@ void PlaybackHandler::aftertouchReceived(MIDICable& cable, int32_t channel, int3
 	bool isMPE = (noteCode == -1 && cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel));
 
 	if (isMPE) {
-		cable.defaultInputMPEValuesPerMIDIChannel[channel][2] = value << 8;
+		cable.inputChannels[channel].defaultInputMPEValues[2] = value << 8;
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];

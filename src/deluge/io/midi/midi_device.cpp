@@ -34,7 +34,6 @@ MIDICable::MIDICable() {
 	connectionFlags = 0;
 	sendClock = true;
 	defaultVelocityToLevel = 0; // Means none set.
-	memset(defaultInputMPEValuesPerMIDIChannel, 0, sizeof(defaultInputMPEValuesPerMIDIChannel));
 
 	// These defaults for MPE are prescribed in the MPE standard. Wish we had the same for regular MIDI
 	mpeZoneBendRanges[MPE_ZONE_LOWER_NUMBERED_FROM_0][BEND_RANGE_MAIN] = 2;
