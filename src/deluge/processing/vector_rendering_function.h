@@ -17,20 +17,21 @@
 #include "util/misc.h"
 #include <argon.hpp>
 #include <limits>
+#include <utility>
 
 // Renders 4 wave values (a "vector") together in one go.
-[[gnu::always_inline]] static inline Argon<int32_t> //<
-waveRenderingFunctionGeneral(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t _phaseToAdd, const int16_t* table,
+[[gnu::always_inline]] static inline std::pair<Argon<int32_t>, uint32_t> //<
+waveRenderingFunctionGeneral(uint32_t phase, int32_t phaseIncrement, uint32_t _phaseToAdd, const int16_t* table,
                              int32_t tableSizeMagnitude) {
 	Argon<uint32_t> readValue = 0U;
 	ArgonHalf<uint16_t> strength2 = 0U;
 
 	util::constexpr_for<0, 4, 1>([&]<int i>() {
-		phaseTemp += phaseIncrement;
-		uint32_t rshifted = phaseTemp >> (32 - 16 - tableSizeMagnitude);
+		phase += phaseIncrement;
+		uint32_t rshifted = phase >> (32 - 16 - tableSizeMagnitude);
 		strength2[i] = rshifted;
 
-		uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);
+		uint32_t whichValue = phase >> (32 - tableSizeMagnitude);
 		uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));
 		readValue[i].Load(readAddress);
 	});
@@ -41,12 +42,13 @@ waveRenderingFunctionGeneral(uint32_t& phaseTemp, int32_t phaseIncrement, uint32
 	Argon<int32_t> value1Big = value1.ShiftLeftLong<16>();
 
 	ArgonHalf<int16_t> difference = value2 - value1;
-	return value1Big.MultiplyDoubleAddSaturateLong(difference, strength2.As<int16_t>());
+	auto output = value1Big.MultiplyDoubleAddSaturateLong(difference, strength2.As<int16_t>());
+	return {output, phase};
 }
 
 // Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
-[[gnu::always_inline]] static inline Argon<int32_t> //<
-waveRenderingFunctionPulse(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t phaseToAdd, const int16_t* table,
+[[gnu::always_inline]] static inline std::pair<Argon<int32_t>, uint32_t> //<
+waveRenderingFunctionPulse(uint32_t phase, int32_t phaseIncrement, uint32_t phaseToAdd, const int16_t* table,
                            int32_t tableSizeMagnitude) {
 	ArgonHalf<int16_t> rshiftedA = 0;
 	ArgonHalf<int16_t> rshiftedB = 0;
@@ -57,16 +59,16 @@ waveRenderingFunctionPulse(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t
 
 	util::constexpr_for<0, 4, 1>([&]<int i>() {
 		{
-			phaseTemp += phaseIncrement;
-			rshiftedA[i] = phaseTemp >> rshiftAmount;
+			phase += phaseIncrement;
+			rshiftedA[i] = phase >> rshiftAmount;
 
-			uint32_t whichValue = phaseTemp >> (32 - tableSizeMagnitude);
+			uint32_t whichValue = phase >> (32 - tableSizeMagnitude);
 			uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));
 			readValueA[i].Load(readAddress);
 		}
 
 		{
-			uint32_t phaseLater = phaseTemp + phaseToAdd;
+			uint32_t phaseLater = phase + phaseToAdd;
 			rshiftedB[i] = phaseLater >> rshiftAmount;
 
 			uint32_t whichValue = phaseLater >> (32 - tableSizeMagnitude);
@@ -85,15 +87,15 @@ waveRenderingFunctionPulse(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t
 	ArgonHalf<int16_t> strengthA1 = rshiftedA | std::numeric_limits<int16_t>::min();
 	ArgonHalf<int16_t> strengthA2 = std::numeric_limits<int16_t>::min() - strengthA1;
 
-	Argon<int32_t> multipliedValueA2 = strengthA2.MultiplyDoubleSaturateLong(valueA2);
-	Argon<int32_t> outputA = multipliedValueA2.MultiplyDoubleAddSaturateLong(strengthA1, valueA1);
+	Argon<int32_t> outputA = strengthA2.MultiplyDoubleSaturateLong(valueA2);
+	outputA = outputA.MultiplyDoubleAddSaturateLong(strengthA1, valueA1);
 
 	ArgonHalf<int16_t> strengthB2 = rshiftedB & std::numeric_limits<int16_t>::max();
 	ArgonHalf<int16_t> strengthB1 = std::numeric_limits<int16_t>::max() - strengthB2;
 
-	Argon<int32_t> multipliedValueB2 = strengthB2.MultiplyDoubleSaturateLong(valueB2);
-	Argon<int32_t> outputB = multipliedValueB2.MultiplyDoubleAddSaturateLong(strengthB1, valueB1);
+	Argon<int32_t> outputB = strengthB2.MultiplyDoubleSaturateLong(valueB2);
+	outputB = outputB.MultiplyDoubleAddSaturateLong(strengthB1, valueB1);
 
-	Argon<int32_t> output = outputA.MultiplyRoundFixedPoint(outputB);
-	return output << 1;
+	auto output = outputA.MultiplyRoundFixedPoint(outputB) << 1; // (a *. b) << 1
+	return {output, phase};
 }
