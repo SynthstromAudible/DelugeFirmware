@@ -3106,8 +3106,10 @@ doSaw:
 								writePos += 4;
 							} while (writePos < bufferEndThisSyncRender);
 						};
-						RENDER_OSC_SYNC(
-						    storeVectorWaveForOneSync, [] {}, startRenderingASyncForPulseWave);
+						renderOscSync(
+						    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
+						    resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase,
+						    numSamplesThisOscSyncSession, bufferStartThisSync);
 						phase <<= 1;
 						goto doNeedToApplyAmplitude;
 					}
@@ -3149,8 +3151,10 @@ callRenderWave:
 					    writePos += 4;
 				    } while (writePos < bufferEndThisSyncRender);
 			    };
-			RENDER_OSC_SYNC(
-			    storeVectorWaveForOneSync, [] {}, startRenderingASyncForWave);
+			renderOscSync(
+			    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
+			    resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession,
+			    bufferStartThisSync);
 			goto doNeedToApplyAmplitude;
 		}
 		else {

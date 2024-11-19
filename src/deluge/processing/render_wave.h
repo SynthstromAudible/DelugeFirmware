@@ -15,72 +15,76 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "processing/vector_rendering_function.h"
+#include "util/fixedpoint.h"
+#include "util/waves.h"
 #include <argon.hpp>
 #include <arm_neon.h>
 
-#define RENDER_OSC_SYNC(storageFunction, extraInstructionsForCrossoverSampleRedo, startRenderingASyncLabel)            \
-                                                                                                                       \
-	bool renderedASyncFromItsStartYet = false;                                                                         \
-	int32_t crossoverSampleBeforeSync;                                                                                 \
-	int32_t fadeBetweenSyncs;                                                                                          \
-                                                                                                                       \
-	/* Do a bunch of samples until we get to the next crossover sample */                                              \
-	uint32_t samplesIncludingNextCrossoverSample =                                                                     \
-	    1; /* A starting value that'll be added to. It's 1 because we want to include the 1 extra sample at the end -  \
-	          the crossover sample. */                                                                                 \
-startRenderingASyncLabel:                                                                                              \
-	uint32_t distanceTilNextCrossoverSample = -resetterPhase - (resetterPhaseIncrement >> 1);                          \
-	samplesIncludingNextCrossoverSample += (uint32_t)(distanceTilNextCrossoverSample - 1) / resetterPhaseIncrement;    \
-	bool shouldBeginNextSyncAfter = (numSamplesThisOscSyncSession >= samplesIncludingNextCrossoverSample);             \
-	int32_t numSamplesThisSyncRender = shouldBeginNextSyncAfter                                                        \
-	                                       ? samplesIncludingNextCrossoverSample                                       \
-	                                       : numSamplesThisOscSyncSession; /* Just limit it, basically. */             \
-                                                                                                                       \
-	int32_t const* const bufferEndThisSyncRender = bufferStartThisSync + numSamplesThisSyncRender;                     \
-	uint32_t phaseTemp = phase;                                                                                        \
-	int32_t* __restrict__ writePos = bufferStartThisSync;                                                              \
-                                                                                                                       \
-	storageFunction(bufferEndThisSyncRender, phaseTemp, writePos);                                                     \
-                                                                                                                       \
-	/* Sort out the crossover sample at the *start* of that window we just did, if there was one. */                   \
-	if (renderedASyncFromItsStartYet) {                                                                                \
-		int32_t average = (*bufferStartThisSync >> 1) + (crossoverSampleBeforeSync >> 1);                              \
-		int32_t halfDifference = (*bufferStartThisSync >> 1) - (crossoverSampleBeforeSync >> 1);                       \
-		int32_t sineValue = getSine(fadeBetweenSyncs >> 1);                                                            \
-		*bufferStartThisSync = average + (multiply_32x32_rshift32(halfDifference, sineValue) << 1);                    \
-	}                                                                                                                  \
-                                                                                                                       \
-	if (shouldBeginNextSyncAfter) {                                                                                    \
-		/* We've just done a crossover (i.e. hit a sync point) at the end of that window, so start thinking about that \
-		 * and planning the next window. */                                                                            \
-		bufferStartThisSync += samplesIncludingNextCrossoverSample - 1;                                                \
-		crossoverSampleBeforeSync = *bufferStartThisSync;                                                              \
-		numSamplesThisOscSyncSession -= samplesIncludingNextCrossoverSample - 1;                                       \
-		extraInstructionsForCrossoverSampleRedo();                                                                     \
-                                                                                                                       \
-		resetterPhase += resetterPhaseIncrement                                                                        \
-		                 * (samplesIncludingNextCrossoverSample                                                        \
-		                    - renderedASyncFromItsStartYet); /* We want this to always show one sample late at this    \
-		                                                        point (why again?). */                                 \
-		/* The first time we get here, it won't yet be, so make it so. */                                              \
-                                                                                                                       \
-		fadeBetweenSyncs =                                                                                             \
-		    multiply_32x32_rshift32((int32_t)resetterPhase,                                                            \
-		                            resetterDivideByPhaseIncrement) /* The result of that comes out as between "-0.5   \
-		                                                               and 0.5", represented as +-(1<<14) */           \
-		    << 17; /* And this makes it "full-scale", so "1" is 1<<32. */                                              \
-		phase = multiply_32x32_rshift32(fadeBetweenSyncs, phaseIncrement) + retriggerPhase;                            \
-                                                                                                                       \
-		phase -= phaseIncrement; /* Because we're going back and redoing the last sample. */                           \
-		renderedASyncFromItsStartYet = true;                                                                           \
-		samplesIncludingNextCrossoverSample = 2; /* Make this 1 higher now, because resetterPhase's value is 1 sample  \
-		                                            later than what it "is in reality". */                             \
-		goto startRenderingASyncLabel;                                                                                 \
-	}                                                                                                                  \
-                                                                                                                       \
-	/* We're not beginning a next sync, so are not going to reset phase, so need to update (increment) it to keep it   \
-	 * valid. */                                                                                                       \
+[[gnu::always_inline]] static inline void //<
+renderOscSync(auto storageFunction, auto extraInstructionsForCrossoverSampleRedo,
+              // Params
+              uint32_t phase, uint32_t phaseIncrement, uint32_t& resetterPhase, uint32_t resetterPhaseIncrement,
+              uint32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t numSamplesThisOscSyncSession,
+              int32_t*& bufferStartThisSync) {
+
+	bool renderedASyncFromItsStartYet = false;
+	int32_t crossoverSampleBeforeSync;
+	int32_t fadeBetweenSyncs;
+
+	/* Do a bunch of samples until we get to the next crossover sample */
+	/* A starting value that'll be added to. It's 1 because we want to include the 1 extra sample at the end - the
+	 * crossover sample. */
+	uint32_t samplesIncludingNextCrossoverSample = 1;
+startRenderingASync:
+	uint32_t distanceTilNextCrossoverSample = -resetterPhase - (resetterPhaseIncrement >> 1);
+	samplesIncludingNextCrossoverSample += (uint32_t)(distanceTilNextCrossoverSample - 1) / resetterPhaseIncrement;
+	bool shouldBeginNextSyncAfter = (numSamplesThisOscSyncSession >= samplesIncludingNextCrossoverSample);
+	int32_t numSamplesThisSyncRender = shouldBeginNextSyncAfter
+	                                       ? samplesIncludingNextCrossoverSample
+	                                       : numSamplesThisOscSyncSession; /* Just limit it, basically. */
+
+	int32_t const* const bufferEndThisSyncRender = bufferStartThisSync + numSamplesThisSyncRender;
+	uint32_t phaseTemp = phase;
+	int32_t* __restrict__ writePos = bufferStartThisSync;
+
+	storageFunction(bufferEndThisSyncRender, phaseTemp, writePos);
+
+	/* Sort out the crossover sample at the *start* of that window we just did, if there was one. */
+	if (renderedASyncFromItsStartYet) {
+		int32_t average = (*bufferStartThisSync >> 1) + (crossoverSampleBeforeSync >> 1);
+		int32_t halfDifference = (*bufferStartThisSync >> 1) - (crossoverSampleBeforeSync >> 1);
+		int32_t sineValue = getSine(fadeBetweenSyncs >> 1);
+		*bufferStartThisSync = average + (multiply_32x32_rshift32(halfDifference, sineValue) << 1);
+	}
+
+	if (shouldBeginNextSyncAfter) {
+		/* We've just done a crossover (i.e. hit a sync point) at the end of that window, so start thinking about that
+		 * and planning the next window. */
+		bufferStartThisSync += samplesIncludingNextCrossoverSample - 1;
+		crossoverSampleBeforeSync = *bufferStartThisSync;
+		numSamplesThisOscSyncSession -= samplesIncludingNextCrossoverSample - 1;
+		extraInstructionsForCrossoverSampleRedo(samplesIncludingNextCrossoverSample);
+
+		/* We want this to always show one sample late at this point (why again?). */
+		resetterPhase += resetterPhaseIncrement * (samplesIncludingNextCrossoverSample - renderedASyncFromItsStartYet);
+		/* The first time we get here, it won't yet be, so make it so. */
+
+		/* The result of that comes out as between "-0.5 and 0.5", represented as +-(1<<14) */
+		fadeBetweenSyncs = multiply_32x32_rshift32((int32_t)resetterPhase, resetterDivideByPhaseIncrement)
+		                   << 17; /* And this makes it "full-scale", so "1" is 1<<32. */
+		phase = multiply_32x32_rshift32(fadeBetweenSyncs, phaseIncrement) + retriggerPhase;
+
+		phase -= phaseIncrement; /* Because we're going back and redoing the last sample. */
+		renderedASyncFromItsStartYet = true;
+		samplesIncludingNextCrossoverSample = 2; /* Make this 1 higher now, because resetterPhase's value is 1 sample
+		                                            later than what it "is in reality". */
+		goto startRenderingASync;
+	}
+
+	/* We're not beginning a next sync, so are not going to reset phase, so need to update (increment) it to keep it
+	 * valid. */
 	phase += phaseIncrement * numSamplesThisSyncRender;
+}
 
 auto renderWavetableLoop(auto bufferStartThisSync, auto firstCycleNumber, auto bandHere, auto phaseIncrement,
                          auto crossCycleStrength2, auto crossCycleStrength2Increment, auto kernel) {
