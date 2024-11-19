@@ -98,7 +98,7 @@ startRenderingASyncLabel:                                                       
 	{                                                                                                                  \
 		do {                                                                                                           \
 			int32x4_t valueVector;                                                                                     \
-			vectorValueFunctionName();                                                                                 \
+			vectorValueFunctionName(valueVector, phaseTemp, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);    \
 			vst1q_s32(writePos, valueVector);                                                                          \
 			writePos += 4;                                                                                             \
 		} while (writePos < bufferEndThisSyncRender);                                                                  \
@@ -138,7 +138,7 @@ inline int32x4_t createAmplitudeVector(int32_t amplitude, int32_t amplitudeIncre
 		do {                                                                                                           \
 			int32x4_t valueVector;                                                                                     \
                                                                                                                        \
-			vectorValueFunctionName();                                                                                 \
+			vectorValueFunctionName(valueVector, phaseTemp, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);    \
                                                                                                                        \
 			if (applyAmplitude) {                                                                                      \
 				int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);                                           \
