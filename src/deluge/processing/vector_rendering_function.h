@@ -18,9 +18,9 @@
 #include <argon.hpp>
 
 // Renders 4 wave values (a "vector") together in one go.
-[[gnu::always_inline]] static inline void //<
-waveRenderingFunctionGeneral(int32x4_t& valueVector, uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t _phaseToAdd,
-                             const int16_t* table, int32_t tableSizeMagnitude) {
+[[gnu::always_inline]] static inline int32x4_t //<
+waveRenderingFunctionGeneral(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t _phaseToAdd, const int16_t* table,
+                             int32_t tableSizeMagnitude) {
 	uint32x4_t readValue{0};
 	uint16x4_t strength2{0};
 
@@ -41,13 +41,13 @@ waveRenderingFunctionGeneral(int32x4_t& valueVector, uint32_t& phaseTemp, int32_
 	int32x4_t value1Big = vshll_n_s16(value1, 16);
 
 	int16x4_t difference = vsub_s16(value2, value1);
-	valueVector = vqdmlal_s16(value1Big, difference, vreinterpret_s16_u16(strength2));
+	return vqdmlal_s16(value1Big, difference, vreinterpret_s16_u16(strength2));
 }
 
 // Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
-[[gnu::always_inline]] static inline void //<
-waveRenderingFunctionPulse(int32x4_t& valueVector, uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t phaseToAdd,
-                           const int16_t* table, int32_t tableSizeMagnitude) {
+[[gnu::always_inline]] static inline int32x4_t //<
+waveRenderingFunctionPulse(uint32_t& phaseTemp, int32_t phaseIncrement, uint32_t phaseToAdd, const int16_t* table,
+                           int32_t tableSizeMagnitude) {
 	int16x4_t rshiftedA{0}, rshiftedB{0};
 	uint32x4_t readValueA{0}, readValueB{0};
 
@@ -95,5 +95,5 @@ waveRenderingFunctionPulse(int32x4_t& valueVector, uint32_t& phaseTemp, int32_t 
 	int32x4_t outputB = vqdmlal_s16(multipliedValueB2, strengthB1, valueB1);
 
 	int32x4_t output = vqrdmulhq_s32(outputA, outputB);
-	valueVector = vshlq_n_s32(output, 1);
+	return vshlq_n_s32(output, 1);
 }
