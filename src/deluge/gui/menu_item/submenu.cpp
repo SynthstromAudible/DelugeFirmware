@@ -209,20 +209,20 @@ bool Submenu::allowsLearnMode() {
 	return false;
 }
 
-void Submenu::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
+void Submenu::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+		(*current_item_)->learnKnob(cable, whichKnob, modKnobMode, midiChannel);
 	}
 }
-void Submenu::learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) {
+void Submenu::learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		(*current_item_)->learnProgramChange(fromDevice, channel, programNumber);
+		(*current_item_)->learnProgramChange(cable, channel, programNumber);
 	}
 }
 
-bool Submenu::learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) {
+bool Submenu::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 	if (soundEditor.getCurrentMenuItem() == this) {
-		return (*current_item_)->learnNoteOn(fromDevice, channel, noteCode);
+		return (*current_item_)->learnNoteOn(cable, channel, noteCode);
 	}
 	return false;
 }

@@ -24,9 +24,9 @@ namespace deluge::gui::menu_item::midi {
 class SendClock final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentMIDIDevice->sendClock); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->sendClock); }
 	void writeCurrentValue() override {
-		soundEditor.currentMIDIDevice->sendClock = this->getValue();
+		soundEditor.currentMIDICable->sendClock = this->getValue();
 		MIDIDeviceManager::anyChangesToSave = true;
 	}
 };

@@ -23,11 +23,11 @@
 #include "io/midi/learned_midi.h"
 #include "playback/playback_handler.h"
 
-class MIDIDevice;
+class MIDICable;
+class MIDIDrum;
 class MIDIInstrument;
 class MidiFollow;
 class PlaybackHandler;
-class MIDIDrum;
 
 /// The source of a MIDI event. Can be one of a few different things, though we only keep track of the memory address of
 /// the source and use that to distinguish between separate sources.
@@ -37,13 +37,13 @@ struct MIDISource {
 	MIDISource() = default;
 	~MIDISource() = default;
 
-	MIDISource(MIDIDevice const* device) : source_(device){};
+	MIDISource(MIDICable const* cable) : source_(cable){};
 	MIDISource(MIDIInstrument const* instrument) : source_(instrument){};
 	MIDISource(PlaybackHandler const* handler) : source_(handler){};
 	MIDISource(MidiFollow const* follow) : source_(follow){};
 	MIDISource(MIDIDrum const* drum) : source_(drum){};
 
-	MIDISource(MIDIDevice const& device) : source_(&device){};
+	MIDISource(MIDICable const& cable) : source_(&cable){};
 	MIDISource(MIDIInstrument const& instrument) : source_(&instrument){};
 	MIDISource(MIDIDrum const& drum) : source_(&drum){};
 	MIDISource(MidiFollow const& follow) : source_(&follow){};
@@ -123,10 +123,10 @@ private:
 	EventStackStorage::iterator eventStackTop_;
 
 	int32_t getMidiMessageLength(uint8_t statusuint8_t);
-	void midiMessageReceived(MIDIDevice* fromDevice, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
+	void midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
 	                         uint32_t* timer = NULL);
 
-	void midiSysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
+	void midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len);
 	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
 };
 

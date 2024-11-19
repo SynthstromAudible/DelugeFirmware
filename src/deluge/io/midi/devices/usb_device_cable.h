@@ -19,9 +19,9 @@
 
 #include "deluge/io/midi/devices/usb_common.h"
 
-class MIDIDeviceUSBUpstream final : public MIDIDeviceUSB {
+class MIDIDeviceUSBUpstream final : public MIDICableUSB {
 public:
-	MIDIDeviceUSBUpstream(uint8_t portNum = 0) : MIDIDeviceUSB(portNum) {}
+	MIDIDeviceUSBUpstream(uint8_t portNum = 0) : MIDICableUSB(portNum) {}
 	void writeReferenceAttributesToFile(Serializer& writer) override;
 	void writeToFlash(uint8_t* memory) override;
 	char const* getDisplayName() override;

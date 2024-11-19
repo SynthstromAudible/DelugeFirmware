@@ -41,7 +41,6 @@ class Output;
 class AudioClip;
 class ModelStackWithThreeMainThings;
 class ParamManagerForTimeline;
-class MIDIDevice;
 class LearnedMIDI;
 class Kit;
 
@@ -61,9 +60,9 @@ public:
 	void clipStatusMidiLearnPadPressed(bool on, Clip* whichLoopable);
 	void noteRowMuteMidiLearnPadPressed(bool on, NoteRow* whichNoteRow);
 	void endMidiLearnPressSession(MidiLearn newThingPressed = MidiLearn::NONE);
-	void noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);
-	void pcReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t pc) {}
-	void ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value);
+	void noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity);
+	void pcReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t pc) {}
+	void ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc, int32_t value);
 	void drumMidiLearnPadPressed(bool on, Drum* drum, Kit* kit);
 	void instrumentMidiLearnPadPressed(bool on, Instrument* instrument);
 	void sectionMidiLearnPadPressed(bool on, uint8_t section);

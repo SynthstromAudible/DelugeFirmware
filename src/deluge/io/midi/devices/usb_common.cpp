@@ -18,12 +18,12 @@
 #include "usb_common.h"
 #include "io/midi/midi_engine.h"
 
-void MIDIDeviceUSB::connectedNow(int32_t midiDeviceNum) {
+void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
 	connectionFlags |= (1 << midiDeviceNum);
 	needsToSendMCMs = 2;
 }
 
-void MIDIDeviceUSB::sendMCMsNowIfNeeded() {
+void MIDICableUSB::sendMCMsNowIfNeeded() {
 	if (needsToSendMCMs) {
 		needsToSendMCMs--;
 		if (!needsToSendMCMs) {
@@ -32,7 +32,7 @@ void MIDIDeviceUSB::sendMCMsNowIfNeeded() {
 	}
 }
 
-void MIDIDeviceUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
+void MIDICableUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
 	if (!connectionFlags) {
 		return;
 	}
@@ -49,7 +49,7 @@ void MIDIDeviceUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t dat
 	}
 }
 
-int32_t MIDIDeviceUSB::sendBufferSpace() {
+int32_t MIDICableUSB::sendBufferSpace() {
 	int32_t ip = 0;
 	ConnectedUSBMIDIDevice* connectedDevice = NULL;
 
@@ -71,7 +71,7 @@ int32_t MIDIDeviceUSB::sendBufferSpace() {
 
 extern bool developerSysexCodeReceived;
 
-void MIDIDeviceUSB::sendSysex(const uint8_t* data, int32_t len) {
+void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 6 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
 	}

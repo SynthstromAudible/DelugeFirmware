@@ -19,7 +19,7 @@
 
 #include "deluge/io/midi/devices/usb_common.h"
 
-class MIDIDeviceUSBHosted : public MIDIDeviceUSB {
+class MIDIDeviceUSBHosted : public MIDICableUSB {
 public:
 	virtual ~MIDIDeviceUSBHosted() = default;
 	MIDIDeviceUSBHosted() = default;

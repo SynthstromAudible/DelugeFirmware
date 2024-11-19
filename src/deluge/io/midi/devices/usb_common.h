@@ -19,9 +19,9 @@
 
 #include "deluge/io/midi//midi_device.h"
 
-class MIDIDeviceUSB : public MIDIDevice {
+class MIDICableUSB : public MIDICable {
 public:
-	MIDIDeviceUSB(uint8_t portNum = 0) {
+	MIDICableUSB(uint8_t portNum = 0) {
 		portNumber = portNum;
 		needsToSendMCMs = 0;
 	}
@@ -35,4 +35,3 @@ public:
 	uint8_t needsToSendMCMs;
 	uint8_t portNumber;
 };
-

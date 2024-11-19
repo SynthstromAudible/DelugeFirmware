@@ -12,20 +12,20 @@ int32_t findEmptyFIL();
 
 void startDirect(JsonSerializer& writer);
 void startReply(JsonSerializer& writer, JsonDeserializer& reader);
-void sendMsg(MIDIDevice* device, JsonSerializer& writer);
+void sendMsg(MIDICable& device, JsonSerializer& writer);
 
-void sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
+void sysexReceived(MIDICable& cable, uint8_t* data, int32_t len);
 void handleNextSysEx();
-void openFile(MIDIDevice* device, JsonDeserializer& reader);
-void closeFile(MIDIDevice* device, JsonDeserializer& reader);
-void readBlock(MIDIDevice* device, JsonDeserializer& reader);
-void writeBlock(MIDIDevice* device, JsonDeserializer& reader);
-void getDirEntries(MIDIDevice* device, JsonDeserializer& reader);
-void deleteFile(MIDIDevice* device, JsonDeserializer& reader);
-void createDirectory(MIDIDevice* device, JsonDeserializer& reader);
+void openFile(MIDICable& cable, JsonDeserializer& reader);
+void closeFile(MIDICable& cable, JsonDeserializer& reader);
+void readBlock(MIDICable& cable, JsonDeserializer& reader);
+void writeBlock(MIDICable& cable, JsonDeserializer& reader);
+void getDirEntries(MIDICable& cable, JsonDeserializer& reader);
+void deleteFile(MIDICable& cable, JsonDeserializer& reader);
+void createDirectory(MIDICable& cable, JsonDeserializer& reader);
 FRESULT createPathDirectories(String& path, uint32_t date, uint32_t time);
-void rename(MIDIDevice* device, JsonDeserializer& reader);
-void updateTime(MIDIDevice* device, JsonDeserializer& reader);
-void doPing(MIDIDevice* device, JsonDeserializer& reader);
+void rename(MIDICable& cable, JsonDeserializer& reader);
+void updateTime(MIDICable& cable, JsonDeserializer& reader);
+void doPing(MIDICable& cable, JsonDeserializer& reader);
 uint32_t decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax);
 } // namespace smSysex

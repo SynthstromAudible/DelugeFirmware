@@ -589,7 +589,7 @@ void View::endMidiLearnPressSession(MidiLearn newThingPressed) {
 	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_MIDI_LEARN);
 }
 
-void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZone, int32_t note, int32_t velocity) {
+void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity) {
 	if (thingPressedForMidiLearn != MidiLearn::NONE) {
 		deleteMidiCommandOnRelease = false;
 
@@ -603,10 +603,10 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 			int32_t newBendRange;
 			int32_t zone = channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
 			if (zone >= 0) { // MPE input
-				newBendRange = fromDevice->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
+				newBendRange = cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 			}
 			else { // Regular MIDI input
-				newBendRange = fromDevice->inputChannels[channelOrZone].bendRange;
+				newBendRange = cable.inputChannels[channelOrZone].bendRange;
 			}
 
 			if (newBendRange) {
@@ -622,8 +622,8 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 			}
 
 			if (drumPressedForMIDILearn->type == DrumType::SOUND) {
-				currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(
-				    fromDevice, (SoundDrum*)drumPressedForMIDILearn, kitPressedForMIDILearn);
+				currentSong->grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForDrum(
+				    cable, (SoundDrum*)drumPressedForMIDILearn, kitPressedForMIDILearn);
 			}
 
 			goto recordDetailsOfLearnedThing;
@@ -638,7 +638,7 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 		default:
 recordDetailsOfLearnedThing:
 
-			learnedThing->device = fromDevice;
+			learnedThing->cable = &cable;
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->noteOrCC = note;
 			break;
@@ -657,8 +657,8 @@ isMPEZone:
 				// and no automation in activeClip. Same logic can be found in InstrumentClip::changeInstrument().
 				int32_t zone = channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
 
-				newBendRanges[BEND_RANGE_MAIN] = fromDevice->mpeZoneBendRanges[zone][BEND_RANGE_MAIN];
-				newBendRanges[BEND_RANGE_FINGER_LEVEL] = fromDevice->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
+				newBendRanges[BEND_RANGE_MAIN] = cable.mpeZoneBendRanges[zone][BEND_RANGE_MAIN];
+				newBendRanges[BEND_RANGE_FINGER_LEVEL] = cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 
 				if (newBendRanges[BEND_RANGE_FINGER_LEVEL]) {
 					InstrumentClip* clip = (InstrumentClip*)instrumentPressedForMIDILearn->getActiveClip();
@@ -678,7 +678,7 @@ isMPEZone:
 			else {
 				// If still here, it's not MPE. Now that we know that, see if we want to apply a stored bend range for
 				// the input MIDI channel of the device
-				newBendRanges[BEND_RANGE_MAIN] = fromDevice->inputChannels[channelOrZone].bendRange;
+				newBendRanges[BEND_RANGE_MAIN] = cable.inputChannels[channelOrZone].bendRange;
 			}
 
 			if (newBendRanges[BEND_RANGE_MAIN]) {
@@ -697,13 +697,13 @@ isMPEZone:
 			clearMelodicInstrumentMonoExpressionIfPossible();
 
 			learnedThing->channelOrZone = channelOrZone;
-			learnedThing->device = fromDevice;
+			learnedThing->cable = &cable;
 			learnedThing->noteOrCC = note;                    // used for low note in kits
 			instrumentPressedForMIDILearn->beenEdited(false); // Why again?
 
 			if (instrumentPressedForMIDILearn->type == OutputType::SYNTH) {
-				currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(
-				    fromDevice, (SoundInstrument*)instrumentPressedForMIDILearn);
+				currentSong->grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForInstrument(
+				    cable, (SoundInstrument*)instrumentPressedForMIDILearn);
 			}
 
 			break;
@@ -733,7 +733,7 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 	}
 }
 
-void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value) {
+void View::ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
 	if (thingPressedForMidiLearn != MidiLearn::NONE) {
 		deleteMidiCommandOnRelease = false;
 
@@ -745,7 +745,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
 				if (learnedThing->channelOrZone == MIDI_CHANNEL_NONE) {
-					learnedThing->device = fromDevice;
+					learnedThing->cable = &cable;
 					learnedThing->channelOrZone = channel;
 					getCurrentInstrument()->beenEdited(false);
 				}
@@ -756,7 +756,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 		else {
 			// So long as the value wasn't 0, pretend it was a note-on for command-learn purposes
 			if (value) {
-				noteOnReceivedForMidiLearn(fromDevice, channel + IS_A_CC, cc, 127);
+				noteOnReceivedForMidiLearn(cable, channel + IS_A_CC, cc, 127);
 			}
 		}
 	}

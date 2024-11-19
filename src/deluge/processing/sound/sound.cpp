@@ -2697,7 +2697,7 @@ void Sound::resyncGlobalLFO() {
 // whichKnob is either which physical mod knob, or which MIDI CC code.
 // For mod knobs, supply midiChannel as 255
 // Returns false if fail due to insufficient RAM.
-bool Sound::learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
+bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
                       uint8_t midiChannel, Song* song) {
 
 	// If a mod knob
@@ -2717,7 +2717,7 @@ bool Sound::learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, u
 
 	// If a MIDI knob
 	else {
-		return ModControllableAudio::learnKnob(fromDevice, paramDescriptor, whichKnob, modKnobMode, midiChannel, song);
+		return ModControllableAudio::learnKnob(cable, paramDescriptor, whichKnob, modKnobMode, midiChannel, song);
 	}
 }
 

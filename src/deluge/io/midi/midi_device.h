@@ -34,7 +34,7 @@
 #define MPE_ZONE_LOWER_NUMBERED_FROM_0 0
 #define MPE_ZONE_UPPER_NUMBERED_FROM_0 1
 
-class MIDIDevice;
+class MIDICable;
 class Serializer;
 class Deserializer;
 
@@ -47,7 +47,7 @@ public:
 	int32_t channelToZone(int32_t inputChannel);
 	void writeToFile(Serializer& writer, char const* tagName);
 	bool worthWritingToFile();
-	void readFromFile(Deserializer& reader, MIDIDevice* deviceToSendMCMsOn);
+	void readFromFile(Deserializer& reader, MIDICable* deviceToSendMCMsOn);
 	void moveUpperZoneOutOfWayOfLowerZone();
 	void moveLowerZoneOutOfWayOfUpperZone();
 	bool isMasterChannel(int32_t inputChannel);
@@ -80,10 +80,10 @@ public:
  * See MIDIDeviceManager or midiengine.cpp for details
  */
 
-// These never get destructed. So we're safe having various Instruments etc holding pointers to them.
-class MIDIDevice {
+/// A MIDI cable connection. Stores all state specific to a given cable and its contained ports and channels.
+class MIDICable {
 public:
-	MIDIDevice();
+	MIDICable();
 	void writeReferenceToFile(Serializer& writer, char const* tagName = "device");
 	virtual void writeToFlash(uint8_t* memory) = 0;
 	virtual char const* getDisplayName() = 0;

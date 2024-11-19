@@ -59,8 +59,8 @@ void MelodicInstrument::writeMelodicInstrumentTagsToFile(Serializer& writer, Cli
 		// Annoyingly, I used one-off tag names here, rather than it conforming to what the LearnedMIDI class now uses.
 		if (midiInput.containsSomething()) {
 			// Device gets written here as a tag. Channel got written above, as an attribute.
-			if (midiInput.device) {
-				midiInput.device->writeReferenceToFile(writer, "inputMidiDevice");
+			if (midiInput.cable) {
+				midiInput.cable->writeReferenceToFile(writer, "inputMidiDevice");
 			}
 		}
 	}
@@ -78,7 +78,7 @@ bool MelodicInstrument::readTagFromFile(Deserializer& reader, char const* tagNam
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "inputMidiDevice")) {
-		midiInput.device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+		midiInput.cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 		reader.exitTag();
 	}
 	else if (Instrument::readTagFromFile(reader, tagName)) {}
@@ -89,7 +89,7 @@ bool MelodicInstrument::readTagFromFile(Deserializer& reader, char const* tagNam
 	return true;
 }
 
-void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on,
                                      int32_t midiChannel, MIDIMatchType match, int32_t note, int32_t velocity,
                                      bool shouldRecordNotes, bool* doingMidiThru) {
 	int16_t const* mpeValues = zeroMPEValues;
@@ -100,7 +100,7 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 		return;
 	case MIDIMatchType::MPE_MASTER:
 	case MIDIMatchType::MPE_MEMBER:
-		mpeValues = mpeValuesOrNull = fromDevice->defaultInputMPEValuesPerMIDIChannel[midiChannel];
+		mpeValues = mpeValuesOrNull = cable.defaultInputMPEValuesPerMIDIChannel[midiChannel];
 		// no break
 	case MIDIMatchType::CHANNEL:
 		// -1 means no change
@@ -279,14 +279,14 @@ justAuditionNote:
 	}
 }
 
-void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
+void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on,
                                           int32_t midiChannel, int32_t note, int32_t velocity, bool shouldRecordNotes,
                                           bool* doingMidiThru) {
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, midiChannel);
+	MIDIMatchType match = midiInput.checkMatch(&cable, midiChannel);
 	auto* instrumentClip = static_cast<InstrumentClip*>(activeClip);
 
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedNote(modelStack, fromDevice, on, midiChannel, match, note, velocity, shouldRecordNotes, doingMidiThru);
+		receivedNote(modelStack, cable, on, midiChannel, match, note, velocity, shouldRecordNotes, doingMidiThru);
 	}
 	// In case Norns layout is active show
 	// this ignores input differentiation, but since midi learn doesn't work for norns grid
@@ -302,16 +302,16 @@ void MelodicInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelSt
 }
 
 void MelodicInstrument::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                               MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+                                               MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
                                                bool* doingMidiThru) {
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedPitchBend(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2, doingMidiThru);
+		receivedPitchBend(modelStackWithTimelineCounter, cable, match, channel, data1, data2, doingMidiThru);
 	}
 }
 
 void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                          MIDIDevice* fromDevice, MIDIMatchType match, uint8_t channel, uint8_t data1,
+                                          MIDICable& cable, MIDIMatchType match, uint8_t channel, uint8_t data1,
                                           uint8_t data2, bool* doingMidiThru) {
 	int32_t newValue;
 	switch (match) {
@@ -344,16 +344,15 @@ void MelodicInstrument::receivedPitchBend(ModelStackWithTimelineCounter* modelSt
 		break;
 	}
 }
-void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                        MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-                                        bool* doingMidiThru) {
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+void MelodicInstrument::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
+                                        uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value, doingMidiThru);
+		receivedCC(modelStackWithTimelineCounter, cable, match, channel, ccNumber, value, doingMidiThru);
 	}
 }
 // match external mod wheel to mono expression y, mpe cc74 to poly expression y
-void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+void MelodicInstrument::receivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                    MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                    bool* doingMidiThru) {
 	int32_t value32 = 0;
@@ -412,18 +411,18 @@ void MelodicInstrument::possiblyRefreshAutomationEditorGrid(int32_t ccNumber) {
 }
 
 void MelodicInstrument::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                                MIDIDevice* fromDevice, int32_t channel, int32_t value,
-                                                int32_t noteCode, bool* doingMidiThru) {
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+                                                MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
+                                                bool* doingMidiThru) {
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedAftertouch(modelStackWithTimelineCounter, fromDevice, match, channel, value, noteCode, doingMidiThru);
+		receivedAftertouch(modelStackWithTimelineCounter, cable, match, channel, value, noteCode, doingMidiThru);
 	}
 }
 
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to
 // one note).
 void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                           MIDIDevice* fromDevice, MIDIMatchType match, int32_t channel, int32_t value,
+                                           MIDICable& cable, MIDIMatchType match, int32_t channel, int32_t value,
                                            int32_t noteCode, bool* doingMidiThru) {
 	int32_t valueBig = (int32_t)value << 24;
 	switch (match) {
@@ -461,10 +460,10 @@ void MelodicInstrument::receivedAftertouch(ModelStackWithTimelineCounter* modelS
 	}
 }
 
-void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
                                              int32_t whichBendRange, int32_t bendSemitones) {
 
-	if (midiInput.equalsChannelOrZone(device, channelOrZone)) {
+	if (midiInput.equalsChannelOrZone(&cable, channelOrZone)) {
 
 		ParamManager* paramManager = getParamManager(modelStack->song);
 		if (paramManager) { // It could be NULL! - for a CVInstrument.

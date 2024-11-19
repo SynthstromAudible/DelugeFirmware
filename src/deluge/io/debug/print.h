@@ -19,7 +19,7 @@
 
 #include <cstdint>
 
-class MIDIDevice;
+class MIDICable;
 
 namespace Debug {
 const uint32_t sec = 400000000;
@@ -145,5 +145,5 @@ class AverageVOT {
 	uint32_t t0;
 };
 
-extern MIDIDevice* midiDebugDevice;
+extern MIDICable* midiDebugCable;
 } // namespace Debug

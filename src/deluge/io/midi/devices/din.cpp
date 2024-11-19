@@ -25,28 +25,28 @@ extern "C" {
 #include "io/midi/midi_engine.h"
 #include "storage/storage_manager.h"
 
-void MIDIDeviceDINPorts::writeReferenceAttributesToFile(Serializer& writer) {
+void MIDICableDINPorts::writeReferenceAttributesToFile(Serializer& writer) {
 	// Same line. Usually the user wouldn't have default velocity sensitivity set
 	writer.writeAttribute("port", "din", false);
 }
 
-void MIDIDeviceDINPorts::writeToFlash(uint8_t* memory) {
+void MIDICableDINPorts::writeToFlash(uint8_t* memory) {
 	*(uint16_t*)memory = VENDOR_ID_DIN;
 }
 
-char const* MIDIDeviceDINPorts::getDisplayName() {
+char const* MIDICableDINPorts::getDisplayName() {
 	return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DIN_PORTS);
 }
 
-void MIDIDeviceDINPorts::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
+void MIDICableDINPorts::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
 	midiEngine.sendSerialMidi(statusType, channel, data1, data2);
 }
 
-int32_t MIDIDeviceDINPorts::sendBufferSpace() {
+int32_t MIDICableDINPorts::sendBufferSpace() {
 	return uartGetTxBufferSpace(UART_ITEM_MIDI);
 }
 
-void MIDIDeviceDINPorts::sendSysex(const uint8_t* data, int32_t len) {
+void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
 	}

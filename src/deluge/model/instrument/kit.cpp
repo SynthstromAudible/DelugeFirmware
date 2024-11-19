@@ -665,17 +665,17 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 }
 
 // offer the CC to kit gold knobs without also offering to all drums
-void Kit::offerReceivedCCToModControllable(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+void Kit::offerReceivedCCToModControllable(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                            ModelStackWithTimelineCounter* modelStack) {
 	// NOTE: this call may change modelStack->timelineCounter etc!
-	ModControllableAudio::offerReceivedCCToLearnedParamsForClip(fromDevice, channel, ccNumber, value, modelStack);
+	ModControllableAudio::offerReceivedCCToLearnedParamsForClip(cable, channel, ccNumber, value, modelStack);
 }
-void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+void Kit::offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                          ModelStackWithTimelineCounter* modelStack) {
 
 	// Do it for this whole Kit
 	// NOTE: this call may change modelStack->timelineCounter etc!
-	offerReceivedCCToModControllable(fromDevice, channel, ccNumber, value, modelStack);
+	offerReceivedCCToModControllable(cable, channel, ccNumber, value, modelStack);
 
 	// Now do it for each NoteRow / Drum
 	// This is always actually true currently for calls to this function, but let's make this safe and future proof.
@@ -687,7 +687,7 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 			Drum* thisDrum = thisNoteRow->drum;
 			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				((SoundDrum*)thisDrum)
-				    ->offerReceivedCCToLearnedParamsForClip(fromDevice, channel, ccNumber, value, modelStack, i);
+				    ->offerReceivedCCToLearnedParamsForClip(cable, channel, ccNumber, value, modelStack, i);
 			}
 		}
 	}
@@ -695,14 +695,14 @@ void Kit::offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel
 
 // not updated for midi follow, this seems dumb and is just left for backwards compatibility
 /// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
-bool Kit::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
                                                 ModelStackWithTimelineCounter* modelStack) {
 
 	bool messageUsed;
 
 	// Do it for this whole Kit
 	messageUsed = ModControllableAudio::offerReceivedPitchBendToLearnedParams(
-	    fromDevice, channel, data1, data2, modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
+	    cable, channel, data1, data2, modelStack); // NOTE: this call may change modelStack->timelineCounter etc!
 
 	if (modelStack->timelineCounterIsSet()) { // This is always actually true currently for calls to this function, but
 		                                      // let's make this safe and future proof.
@@ -713,7 +713,7 @@ bool Kit::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t 
 			Drum* thisDrum = thisNoteRow->drum;
 			if (thisDrum && thisDrum->type == DrumType::SOUND) {
 				if (((SoundDrum*)thisDrum)
-				        ->offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack)) {
+				        ->offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, modelStack)) {
 					messageUsed = true;
 				}
 			}
@@ -1037,9 +1037,9 @@ void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** par
 	}
 }
 
-void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-                              int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-                              bool* doingMidiThru, Drum* thisDrum) {
+void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
+                              int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
+                              Drum* thisDrum) {
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
 
 	// do we need to update the selectedDrum?
@@ -1122,10 +1122,10 @@ goingToRecordNoteOnEarly:
 		// If input is MPE, we need to give the Drum the most recent MPE expression values received on the channel on
 		// the Device. It doesn't keep track of these when a note isn't on, and even if it did this new note might be on
 		// a different channel (just same notecode).
-		if (fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+		if (cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
 			for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 				thisDrum->lastExpressionInputsReceived[BEND_RANGE_FINGER_LEVEL][i] =
-				    fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][i] >> 8;
+				    cable.defaultInputMPEValuesPerMIDIChannel[channel][i] >> 8;
 			}
 		}
 
@@ -1150,7 +1150,7 @@ goingToRecordNoteOnEarly:
 
 				int16_t const* mpeValuesOrNull = NULL;
 
-				if (fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+				if (cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
 					mpeValuesOrNull = mpeValues;
 				}
 
@@ -1208,14 +1208,14 @@ void Kit::possiblySetSelectedDrumAndRefreshUI(Drum* thisDrum) {
 	}
 }
 
-void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
+void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
                             int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
 	InstrumentClip* instrumentClip = (InstrumentClip*)modelStack->getTimelineCounterAllowNull(); // Yup it might be NULL
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		auto rootNote = midiInput.noteOrCC == 255 ? 0 : midiInput.noteOrCC;
-		receivedNoteForKit(modelStack, fromDevice, on, channel, note - rootNote, velocity, shouldRecordNotes,
-		                   doingMidiThru, instrumentClip);
+		receivedNoteForKit(modelStack, cable, on, channel, note - rootNote, velocity, shouldRecordNotes, doingMidiThru,
+		                   instrumentClip);
 		return;
 	}
 
@@ -1224,14 +1224,14 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDIDevic
 		// If this is the "input" command, to sound / audition the Drum...
 		// Returns true if midi channel and note match the learned midi note
 		// We don't need the MPE match because all types of matches should sound the drum
-		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(fromDevice, channel, note)) {
-			receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
+		if (thisDrum->midiInput.equalsNoteOrCCAllowMPE(&cable, channel, note)) {
+			receivedNoteForDrum(modelStack, cable, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
 			                    thisDrum);
 		}
 		// Or if this is the Drum's mute command...
 		// changed to else if dec 2023 because the same note should never be both mute and sound, this will save
 		// potential confusion if someone accidentally learns a note to mute as well as audition
-		else if (instrumentClip && on && thisDrum->muteMIDICommand.equalsNoteOrCC(fromDevice, channel, note)) {
+		else if (instrumentClip && on && thisDrum->muteMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = instrumentClip->getNoteRowForDrum(modelStack, thisDrum);
 
@@ -1275,18 +1275,18 @@ void Kit::receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWith
 	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, X_PITCH_BEND, level);
 }
 
-void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+void Kit::offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                  uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {
 	InstrumentClip* instrumentClip =
 	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedPitchBendForKit(modelStackWithTimelineCounter, fromDevice, match, channel, data1, data2, doingMidiThru);
+		receivedPitchBendForKit(modelStackWithTimelineCounter, cable, match, channel, data1, data2, doingMidiThru);
 		return;
 	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
+		MIDIMatchType match = thisDrum->midiInput.checkMatch(&cable, channel);
 		receivedPitchBendForDrum(modelStackWithTimelineCounter, thisDrum, data1, data2, match, channel, doingMidiThru);
 	}
 }
@@ -1317,25 +1317,25 @@ void Kit::receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimel
 	int16_t value16 = (value - 64) << 9;
 	thisDrum->expressionEventPossiblyToRecord(modelStackWithTimelineCounter, value16, Y_SLIDE_TIMBRE, level);
 }
-void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+void Kit::offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                           uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {
 	InstrumentClip* instrumentClip =
 	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedCCForKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value, doingMidiThru,
+		receivedCCForKit(modelStackWithTimelineCounter, cable, match, channel, ccNumber, value, doingMidiThru,
 		                 instrumentClip);
 		return;
 	}
 	if (ccNumber != 74) {
 		return;
 	}
-	if (!fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+	if (!cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
 		return;
 	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
+		MIDIMatchType match = thisDrum->midiInput.checkMatch(&cable, channel);
 		if (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::MPE_MEMBER) {
 			// this will make sure that the channel matches the drums last received one
 			receivedMPEYForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
@@ -1362,7 +1362,7 @@ Drum* Kit::getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode) {
 }
 
 /// for pitch bend received on a channel learnt to a whole clip
-void Kit::receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+void Kit::receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                   MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2,
                                   bool* doingMidiThru) {
 
@@ -1372,20 +1372,20 @@ void Kit::receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithT
 }
 
 /// maps a note received on kit input channel to a drum. Note is zero indexed to first drum
-void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-                             int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-                             bool* doingMidiThru, InstrumentClip* clip) {
+void Kit::receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
+                             int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
+                             InstrumentClip* clip) {
 	Kit* kit = (Kit*)clip->output;
 	Drum* thisDrum = getDrumFromNoteCode(clip, note);
 
 	if (thisDrum) {
-		kit->receivedNoteForDrum(modelStack, fromDevice, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
+		kit->receivedNoteForDrum(modelStack, cable, on, channel, note, velocity, shouldRecordNotes, doingMidiThru,
 		                         thisDrum);
 	}
 }
 
 /// for learning a whole kit to a single channel, offer cc to all drums
-void Kit::receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+void Kit::receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                            MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
                            Clip* clip) {
 	if (match != MIDIMatchType::MPE_MASTER && match != MIDIMatchType::MPE_MEMBER) {
@@ -1394,7 +1394,7 @@ void Kit::receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimeline
 	if (ccNumber != 74) {
 		return;
 	}
-	if (!fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+	if (!cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
 		return;
 	}
 
@@ -1406,7 +1406,7 @@ void Kit::receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimeline
 	}
 }
 
-void Kit::receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+void Kit::receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                    MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
                                    bool* doingMidiThru) {
 	// Channel pressure message...
@@ -1450,22 +1450,21 @@ void Kit::receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWit
 
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one
 // note). This function could be optimized a bit better, there are lots of calls to similar functions.
-void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
                                   int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {
 
 	InstrumentClip* instrumentClip =
 	    (InstrumentClip*)modelStackWithTimelineCounter->getTimelineCounterAllowNull(); // Yup it might be NULL
-	MIDIMatchType match = midiInput.checkMatch(fromDevice, channel);
+	MIDIMatchType match = midiInput.checkMatch(&cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
-		receivedAftertouchForKit(modelStackWithTimelineCounter, fromDevice, match, channel, value, noteCode,
-		                         doingMidiThru);
+		receivedAftertouchForKit(modelStackWithTimelineCounter, cable, match, channel, value, noteCode, doingMidiThru);
 		return;
 	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		int32_t level = BEND_RANGE_FINGER_LEVEL;
 		if (noteCode == -1) { // Channel pressure message...
-			MIDIMatchType match = thisDrum->midiInput.checkMatch(fromDevice, channel);
+			MIDIMatchType match = thisDrum->midiInput.checkMatch(&cable, channel);
 			if (match != MIDIMatchType::NO_MATCH) {
 				receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, match, channel, value);
 			}
@@ -1473,7 +1472,7 @@ void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithT
 
 		// Or a polyphonic aftertouch message - these aren't allowed for MPE except on the "master" channel.
 		else {
-			if (thisDrum->midiInput.equalsNoteOrCCAllowMPEMasterChannels(fromDevice, channel, noteCode)
+			if (thisDrum->midiInput.equalsNoteOrCCAllowMPEMasterChannels(&cable, channel, noteCode)
 			    && channel == thisDrum->lastMIDIChannelAuditioned) {
 				receivedAftertouchForDrum(modelStackWithTimelineCounter, thisDrum, MIDIMatchType::CHANNEL, channel,
 				                          value);
@@ -1482,8 +1481,8 @@ void Kit::offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithT
 	}
 }
 
-void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-                               int32_t whichBendRange, int32_t bendSemitones) {
+void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone, int32_t whichBendRange,
+                               int32_t bendSemitones) {
 
 	if (whichBendRange == BEND_RANGE_MAIN) {
 		return; // This is not used in Kits for Drums. Drums use their BEND_RANGE_FINGER_LEVEL for both kinds of bend.
@@ -1492,7 +1491,7 @@ void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32
 	// BEND_RANGE_FINGER_LEVEL though...
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (thisDrum->midiInput.equalsChannelOrZone(device, channelOrZone)) {
+		if (thisDrum->midiInput.equalsChannelOrZone(&cable, channelOrZone)) {
 
 			if (activeClip) {
 				NoteRow* noteRow = ((InstrumentClip*)activeClip)->getNoteRowForDrum(thisDrum);

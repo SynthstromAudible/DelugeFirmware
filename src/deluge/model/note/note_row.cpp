@@ -3762,14 +3762,14 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 		// Copy bend range, if appropriate. This logic is duplicated in View::noteOnReceivedForMidiLearn()
 		LearnedMIDI* midiInput = &drum->midiInput;
-		if (midiInput->containsSomething() && midiInput->device) {
+		if (midiInput->containsSomething() && midiInput->cable) {
 			int32_t newBendRange;
 			int32_t zone = midiInput->channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
 			if (zone >= 0) { // MPE input
-				newBendRange = midiInput->device->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
+				newBendRange = midiInput->cable->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 			}
 			else { // Regular MIDI input
-				newBendRange = midiInput->device->inputChannels[midiInput->channelOrZone].bendRange;
+				newBendRange = midiInput->cable->inputChannels[midiInput->channelOrZone].bendRange;
 			}
 
 			if (newBendRange) {

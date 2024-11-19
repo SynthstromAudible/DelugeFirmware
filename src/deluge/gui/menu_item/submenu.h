@@ -44,9 +44,9 @@ public:
 	void readValueAgain() final { updateDisplay(); }
 	void unlearnAction() final;
 	bool allowsLearnMode() final;
-	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
-	void learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber);
-	bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) final;
+	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) final;
+	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
+	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) final;
 	void drawPixelsForOled() override;
 	void drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_t selectedOption);
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.

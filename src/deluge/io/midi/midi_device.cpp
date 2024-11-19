@@ -30,7 +30,7 @@ extern "C" {
 #include "RZA1/uart/sio_char.h"
 }
 
-MIDIDevice::MIDIDevice() {
+MIDICable::MIDICable() {
 	connectionFlags = 0;
 	sendClock = true;
 	defaultVelocityToLevel = 0; // Means none set.
@@ -43,13 +43,13 @@ MIDIDevice::MIDIDevice() {
 	mpeZoneBendRanges[MPE_ZONE_UPPER_NUMBERED_FROM_0][BEND_RANGE_FINGER_LEVEL] = 48;
 }
 
-void MIDIDevice::writeReferenceToFile(Serializer& writer, char const* tagName) {
+void MIDICable::writeReferenceToFile(Serializer& writer, char const* tagName) {
 	writer.writeOpeningTagBeginning(tagName);
 	writeReferenceAttributesToFile(writer);
 	writer.closeTag();
 }
 
-void MIDIDevice::dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb) {
+void MIDICable::dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb) {
 
 	// If it's pitch bend range...
 	if (!inputChannels[channel].rpnMSB && !inputChannels[channel].rpnLSB) {
@@ -80,7 +80,7 @@ setMPEBendRange:
 		}
 
 		// Inform the Song
-		modelStack->song->midiDeviceBendRangeUpdatedViaMessage(modelStack, this, channelOrZone, whichBendRange, msb);
+		modelStack->song->midiCableBendRangeUpdatedViaMessage(modelStack, *this, channelOrZone, whichBendRange, msb);
 	}
 
 	// Or if it's an MCM (MPE Configuration Message) to set up an MPE zone...
@@ -105,8 +105,8 @@ resetBendRanges: // Have to reset pitch bend range for zone, according to MPE sp
 					// Inform the Song about the changed bend ranges
 					int32_t channelOrZone = zone + MIDI_CHANNEL_MPE_LOWER_ZONE;
 					for (int32_t r = 0; r < 2; r++) {
-						modelStack->song->midiDeviceBendRangeUpdatedViaMessage(modelStack, this, channelOrZone, r,
-						                                                       mpeZoneBendRanges[zone][r]);
+						modelStack->song->midiCableBendRangeUpdatedViaMessage(modelStack, *this, channelOrZone, r,
+						                                                      mpeZoneBendRanges[zone][r]);
 					}
 				}
 
@@ -132,7 +132,7 @@ resetBendRanges: // Have to reset pitch bend range for zone, according to MPE sp
 	}
 }
 
-bool MIDIDevice::wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter) {
+bool MIDICable::wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter) {
 	switch (filter) {
 	case MIDI_CHANNEL_MPE_LOWER_ZONE:
 		return (ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].mpeLowerZoneLastMemberChannel != 0);
@@ -148,7 +148,7 @@ bool MIDIDevice::wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter) {
 	}
 }
 
-void MIDIDevice::sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t valueMSB) {
+void MIDICable::sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t valueMSB) {
 
 	// Set the RPN number
 	sendCC(channel, 0x64, rpnLSB);
@@ -162,7 +162,7 @@ void MIDIDevice::sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_
 	sendCC(channel, 0x65, 0x7F);
 }
 
-void MIDIDevice::sendAllMCMs() {
+void MIDICable::sendAllMCMs() {
 	MIDIPort* port = &ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE];
 
 	if (port->mpeLowerZoneLastMemberChannel != 0) {
@@ -174,20 +174,20 @@ void MIDIDevice::sendAllMCMs() {
 	}
 }
 
-bool MIDIDevice::worthWritingToFile() {
+bool MIDICable::worthWritingToFile() {
 	return (ports[MIDI_DIRECTION_INPUT_TO_DELUGE].worthWritingToFile()
 	        || ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].worthWritingToFile() || hasDefaultVelocityToLevelSet()
 	        || !sendClock);
 }
 
-void MIDIDevice::writePorts(Serializer& writer) {
+void MIDICable::writePorts(Serializer& writer) {
 	ports[MIDI_DIRECTION_INPUT_TO_DELUGE].writeToFile(writer, "input");
 	ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].writeToFile(writer, "output");
 }
 
-// Not to be called for MIDIDeviceUSBHosted. readAHostedDeviceFromFile() handles that and needs to read the name and
+// Not to be called for MIDICableUSBHosted. readAHostedDeviceFromFile() handles that and needs to read the name and
 // ids.
-void MIDIDevice::readFromFile(Deserializer& reader) {
+void MIDICable::readFromFile(Deserializer& reader) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 
@@ -208,15 +208,15 @@ void MIDIDevice::readFromFile(Deserializer& reader) {
 	}
 }
 
-// These only go into SETTINGS/MIDIDevices.XML
-void MIDIDevice::writeDefinitionAttributesToFile(Serializer& writer) {
+// These only go into SETTINGS/MIDICables.XML
+void MIDICable::writeDefinitionAttributesToFile(Serializer& writer) {
 	if (hasDefaultVelocityToLevelSet()) {
 		writer.writeAttribute("defaultVolumeVelocitySensitivity", defaultVelocityToLevel);
 	}
 	writer.writeAttribute("sendClock", sendClock);
 }
 
-void MIDIDevice::writeToFile(Serializer& writer, char const* tagName) {
+void MIDICable::writeToFile(Serializer& writer, char const* tagName) {
 	writer.writeOpeningTagBeginning(tagName);
 	writeReferenceAttributesToFile(writer);
 	writeDefinitionAttributesToFile(writer);
@@ -289,7 +289,7 @@ void MIDIPort::writeToFile(Serializer& writer, char const* tagName) {
 	}
 }
 
-void MIDIPort::readFromFile(Deserializer& reader, MIDIDevice* deviceToSendMCMsOn) {
+void MIDIPort::readFromFile(Deserializer& reader, MIDICable* deviceToSendMCMsOn) {
 	char const* tagName;
 	bool sentMPEConfig = false;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -351,4 +351,3 @@ void MIDIPort::readFromFile(Deserializer& reader, MIDIDevice* deviceToSendMCMsOn
 bool MIDIPort::worthWritingToFile() {
 	return (mpeLowerZoneLastMemberChannel || mpeUpperZoneLastMemberChannel != 15);
 }
-

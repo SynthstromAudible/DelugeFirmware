@@ -40,13 +40,13 @@ public:
 	                  bool shouldLimitDelayFeedback, bool isClipActive);
 
 	// A timelineCounter is required
-	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
-	                                    ModelStackWithTimelineCounter* modelStack) {
-		Sound::offerReceivedCCToLearnedParamsForClip(fromDevice, channel, ccNumber, value, modelStack);
+	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	                                    ModelStackWithTimelineCounter* modelStack) override {
+		Sound::offerReceivedCCToLearnedParamsForClip(cable, channel, ccNumber, value, modelStack);
 	}
-	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                           ModelStackWithTimelineCounter* modelStack) {
-		return Sound::offerReceivedPitchBendToLearnedParams(fromDevice, channel, data1, data2, modelStack);
+	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
+	                                           ModelStackWithTimelineCounter* modelStack) override {
+		return Sound::offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, modelStack);
 	}
 
 	Error loadAllAudioFiles(bool mayActuallyReadFiles);

@@ -795,9 +795,9 @@ traverseClips2:
 	return newCC;
 }
 
-void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-                                       MIDIDevice* fromDevice, bool on, int32_t receivedChannel, int32_t note,
-                                       int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru) {
+void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
+                                       bool on, int32_t receivedChannel, int32_t note, int32_t velocity,
+                                       bool shouldRecordNotes, bool* doingMidiThru) {
 
 	if (midiInput.channelOrZone == receivedChannel) {
 
@@ -810,8 +810,8 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 		}
 	}
 
-	NonAudioInstrument::offerReceivedNote(modelStackWithTimelineCounter, fromDevice, on, receivedChannel, note,
-	                                      velocity, shouldRecordNotes, doingMidiThru);
+	NonAudioInstrument::offerReceivedNote(modelStackWithTimelineCounter, cable, on, receivedChannel, note, velocity,
+	                                      shouldRecordNotes, doingMidiThru);
 }
 
 void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {

@@ -20,7 +20,7 @@
 #include "hid/display/oled.h"
 #include "io/midi/midi_engine.h"
 
-class MIDIDevice;
+class MIDICable;
 
 namespace deluge::gui::menu_item::midi {
 class FollowChannel final : public Integer {
@@ -53,8 +53,8 @@ public:
 		yPixel += kTextSpacingY;
 
 		char const* deviceString = l10n::get(l10n::String::STRING_FOR_FOLLOW_DEVICE_UNASSIGNED);
-		if (midiInput.device) {
-			deviceString = midiInput.device->getDisplayName();
+		if (midiInput.cable) {
+			deviceString = midiInput.cable->getDisplayName();
 		}
 		canvas.drawString(deviceString, 0, yPixel, kTextSpacingX, kTextSizeYUpdated);
 		deluge::hid::display::OLED::setupSideScroller(0, deviceString, kTextSpacingX, OLED_MAIN_WIDTH_PIXELS, yPixel,
@@ -129,9 +129,9 @@ public:
 		}
 	}
 
-	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {
+	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 		this->setValue(channel);
-		midiInput.device = device;
+		midiInput.cable = &cable;
 		midiInput.channelOrZone = channel;
 
 		if (soundEditor.getCurrentMenuItem() == this) {
@@ -144,9 +144,9 @@ public:
 		return true;
 	}
 
-	void learnCC(MIDIDevice* device, int32_t channel, int32_t ccNumber, int32_t value) {
+	void learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value) {
 		this->setValue(channel);
-		midiInput.device = device;
+		midiInput.cable = &cable;
 		midiInput.channelOrZone = channel;
 
 		if (soundEditor.getCurrentMenuItem() == this) {

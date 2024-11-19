@@ -19,9 +19,9 @@
 
 #include "deluge/io/midi/midi_device.h"
 
-class MIDIDeviceDINPorts final : public MIDIDevice {
+class MIDICableDINPorts final : public MIDICable {
 public:
-	MIDIDeviceDINPorts() {
+	MIDICableDINPorts() {
 		connectionFlags = 1; // DIN ports are always connected
 	}
 
