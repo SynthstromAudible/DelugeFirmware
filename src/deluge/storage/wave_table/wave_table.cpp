@@ -1124,7 +1124,12 @@ startRenderingACycle:
 				uint32_t resetterPhase = resetterPhaseThisCycle;
 				int32_t numSamplesThisOscSyncSession = numSamplesThisCycle;
 				RENDER_OSC_SYNC(
-				    RENDER_WAVETABLE_LOOP(),
+				    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phaseTemp,
+				        int32_t* __restrict__ writePos) {
+					    doRenderingLoop(bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, bandHere,
+					                    phaseTemp, phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment,
+					                    kernel);
+				    },
 				    [&]() {
 					    crossCycleStrength2 += crossCycleStrength2Increment * (samplesIncludingNextCrossoverSample - 1);
 				    },
@@ -1156,7 +1161,11 @@ doneRenderingACycle:
 			uint32_t resetterPhase = resetterPhaseThisCycle;
 			int32_t numSamplesThisOscSyncSession = numSamples;
 			RENDER_OSC_SYNC(
-			    RENDER_SINGLE_CYCLE_WAVEFORM_LOOP(), [] {}, startRenderingASyncForSingleCycleWaveform);
+			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phaseTemp, int32_t* __restrict__ writePos) {
+				    doRenderingLoopSingleCycle(bufferStartThisSync, bufferEndThisSyncRender, bandHere, phaseTemp,
+				                               phaseIncrement, kernel);
+			    },
+			    [] {}, startRenderingASyncForSingleCycleWaveform);
 		}
 		else {
 			int32_t const* bufferEnd = outputBuffer + numSamples;

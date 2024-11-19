@@ -18,7 +18,7 @@
 #include <argon.hpp>
 #include <arm_neon.h>
 
-#define RENDER_OSC_SYNC(storageFunctionCall, extraInstructionsForCrossoverSampleRedo, startRenderingASyncLabel)        \
+#define RENDER_OSC_SYNC(storageFunction, extraInstructionsForCrossoverSampleRedo, startRenderingASyncLabel)            \
                                                                                                                        \
 	bool renderedASyncFromItsStartYet = false;                                                                         \
 	int32_t crossoverSampleBeforeSync;                                                                                 \
@@ -40,7 +40,7 @@ startRenderingASyncLabel:                                                       
 	uint32_t phaseTemp = phase;                                                                                        \
 	int32_t* __restrict__ writePos = bufferStartThisSync;                                                              \
                                                                                                                        \
-	storageFunctionCall;                                                                                               \
+	storageFunction(bufferEndThisSyncRender, phaseTemp, writePos);                                                     \
                                                                                                                        \
 	/* Sort out the crossover sample at the *start* of that window we just did, if there was one. */                   \
 	if (renderedASyncFromItsStartYet) {                                                                                \
@@ -82,27 +82,24 @@ startRenderingASyncLabel:                                                       
 	 * valid. */                                                                                                       \
 	phase += phaseIncrement * numSamplesThisSyncRender;
 
-#define RENDER_WAVETABLE_LOOP(dontCare)                                                                                \
-	{                                                                                                                  \
-		doRenderingLoop(bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, bandHere, phaseTemp,           \
-		                phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);                    \
-	}
+auto renderWavetableLoop(auto bufferStartThisSync, auto firstCycleNumber, auto bandHere, auto phaseIncrement,
+                         auto crossCycleStrength2, auto crossCycleStrength2Increment, auto kernel) {
+	return [&](int32_t const* const bufferEndThisSyncRender, uint32_t phaseTemp, int32_t* __restrict__ writePos) {
+		doRenderingLoop(bufferStartThisSync, bufferEndThisSyncRender, firstCycleNumber, bandHere, phaseTemp,
+		                phaseIncrement, crossCycleStrength2, crossCycleStrength2Increment, kernel);
+	};
+}
 
-#define RENDER_SINGLE_CYCLE_WAVEFORM_LOOP(dontCare)                                                                    \
-	{                                                                                                                  \
-		doRenderingLoopSingleCycle(bufferStartThisSync, bufferEndThisSyncRender, bandHere, phaseTemp, phaseIncrement,  \
-		                           kernel);                                                                            \
-	}
-
-#define STORE_VECTOR_WAVE_FOR_ONE_SYNC(vectorValueFunctionName)                                                        \
-	{                                                                                                                  \
-		do {                                                                                                           \
-			int32x4_t valueVector;                                                                                     \
-			vectorValueFunctionName(valueVector, phaseTemp, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);    \
-			vst1q_s32(writePos, valueVector);                                                                          \
-			writePos += 4;                                                                                             \
-		} while (writePos < bufferEndThisSyncRender);                                                                  \
-	}
+auto storeVectorWaveForOneSync(auto vectorValueFunction) {
+	return [&](int32_t const* const bufferEndThisSyncRender, uint32_t phaseTemp, int32_t* __restrict__ writePos) {
+		do {
+			int32x4_t valueVector;
+			vectorValueFunction();
+			vst1q_s32(writePos, valueVector);
+			writePos += 4;
+		} while (writePos < bufferEndThisSyncRender);
+	};
+}
 
 /// @note amplitude and amplitudeIncrement multiplied by two before being passed to this function
 inline int32x4_t createAmplitudeVector(int32_t amplitude, int32_t amplitudeIncrement) {
