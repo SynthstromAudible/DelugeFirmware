@@ -18,8 +18,7 @@
 #include <argon.hpp>
 #include <arm_neon.h>
 
-#define RENDER_OSC_SYNC(storageFunctionName, valueFunctionName, extraInstructionsForCrossoverSampleRedo,               \
-                        startRenderingASyncLabel)                                                                      \
+#define RENDER_OSC_SYNC(storageFunctionCall, extraInstructionsForCrossoverSampleRedo, startRenderingASyncLabel)        \
                                                                                                                        \
 	bool renderedASyncFromItsStartYet = false;                                                                         \
 	int32_t crossoverSampleBeforeSync;                                                                                 \
@@ -41,7 +40,7 @@ startRenderingASyncLabel:                                                       
 	uint32_t phaseTemp = phase;                                                                                        \
 	int32_t* __restrict__ writePos = bufferStartThisSync;                                                              \
                                                                                                                        \
-	storageFunctionName(valueFunctionName);                                                                            \
+	storageFunctionCall;                                                                                               \
                                                                                                                        \
 	/* Sort out the crossover sample at the *start* of that window we just did, if there was one. */                   \
 	if (renderedASyncFromItsStartYet) {                                                                                \
