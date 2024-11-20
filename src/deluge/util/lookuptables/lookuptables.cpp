@@ -667,9 +667,6 @@ const int16_t windowedSincKernelBasicForWavetableBetweenCycles[] = {
 const uint8_t noteCodeToNoteLetter[12] = {67, 67, 68, 68, 69, 70, 70, 71, 71, 65, 65, 66};
 const bool noteCodeIsSharp[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
 
-
-const uint8_t defaultClipGroupColours[] = {102, 168, 24, 84, 186, 36, 126, 12, 147, 48, 72, 157};
-
 /**
  * @brief How iterance is encoded:
  *
