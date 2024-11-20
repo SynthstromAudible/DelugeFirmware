@@ -1274,7 +1274,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 			// Already pressing - length edit
 			else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 				// Only when pressing on the same row, and to the right of the currently held pad
-				if (y != yPressedEffective && x > xPressed) {
+				if (y == yPressedEffective && x > xPressed) {
 					adjustClipInstanceLength(output, xPressed, y, squareStart, squareEnd);
 				}
 			}
