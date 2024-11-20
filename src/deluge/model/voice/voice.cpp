@@ -528,8 +528,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 	if (sound.getSynthMode() == SynthMode::FM) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
 
-			if (sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, paramManager)
-			    == -2147483648) {
+			if (sound.getSmoothedPatchedParamValue(params::LOCAL_MODULATOR_0_VOLUME + m, paramManager) == -2147483648) {
 				continue; // Only if modulator active
 			}
 
@@ -1313,8 +1312,8 @@ cantBeDoingOscSyncForFirstOsc:
 
 					renderOsc(s, oscType, 0, spareRenderingBuffer[s + 2], spareRenderingBuffer[s + 2] + numSamples,
 					          numSamples, phaseIncrements[s], pulseWidth, &unisonParts[u].sources[s].oscPos, false, 0,
-					          doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0],
-					          sound.oscRetriggerPhase[s], sourceWaveIndexIncrements[s]);
+					          doingOscSyncThisOscillator, oscSyncPos[u], phaseIncrements[0], sound.oscRetriggerPhase[s],
+					          sourceWaveIndexIncrements[s]);
 
 					// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so
 					// we need to compensate
@@ -2021,8 +2020,8 @@ pitchTooHigh:
 			uint32_t timeStretchRatio;
 			uint32_t noteLengthInSamples;
 
-			bool stillOk = voiceUnisonPartSource->getPitchAndSpeedParams(
-			    &sound.sources[s], &guides[s], &phaseIncrement, &timeStretchRatio, &noteLengthInSamples);
+			bool stillOk = voiceUnisonPartSource->getPitchAndSpeedParams(&sound.sources[s], &guides[s], &phaseIncrement,
+			                                                             &timeStretchRatio, &noteLengthInSamples);
 			if (!stillOk) {
 				goto instantUnassign;
 			}

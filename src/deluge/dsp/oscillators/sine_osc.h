@@ -1,8 +1,8 @@
 #pragma once
 
+#include "deluge/util/misc.h"
 #include <array>
 #include <cstdint>
-#include "deluge/util/misc.h"
 
 namespace deluge::dsp {
 class SineOsc {
