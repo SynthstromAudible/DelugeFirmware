@@ -121,7 +121,7 @@ void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 			thisVoice->expressionEventSmooth(newValue, s);
 		}
 		else {
-			thisVoice->expressionEventImmediate(this, newValue, s);
+			thisVoice->expressionEventImmediate(*this, newValue, s);
 		}
 	}
 

@@ -32,10 +32,10 @@ public:
 	bool shouldObeyLoopEndPointNow();
 	int32_t getBytePosToStartPlayback(bool justLooped);
 	int32_t getBytePosToEndOrLoopPlayback();
-	LoopType getLoopingType(Source* source);
+	LoopType getLoopingType(const Source& source) const;
 
-	uint32_t getLoopStartPlaybackAtByte() { return loopStartPlaybackAtByte; }
-	uint32_t getLoopEndPlaybackAtByte() { return loopEndPlaybackAtByte ? loopEndPlaybackAtByte : endPlaybackAtByte; }
+	uint32_t getLoopStartPlaybackAtByte() const { return loopStartPlaybackAtByte; }
+	uint32_t getLoopEndPlaybackAtByte() const { return loopEndPlaybackAtByte ? loopEndPlaybackAtByte : endPlaybackAtByte; }
 
 	uint32_t loopStartPlaybackAtByte; // If no loop-start point defined, this will be the same as startPlaybackAtByte,
 	                                  // so it can just be referred to when looping happens

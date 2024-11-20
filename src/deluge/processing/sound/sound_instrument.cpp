@@ -341,7 +341,7 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue,
 				thisVoice->expressionEventSmooth(newValue, s);
 			}
 			else {
-				thisVoice->expressionEventImmediate(this, newValue, s);
+				thisVoice->expressionEventImmediate(*this, newValue, s);
 			}
 		}
 	}
