@@ -41,10 +41,6 @@ extern float getTransitionProgress();
 
 constexpr uint32_t kGridHeight = kDisplayHeight;
 
-// Clip Group colours
-extern const uint8_t numDefaultClipGroupColours;
-extern const uint8_t defaultClipGroupColours[];
-
 class SessionView final : public ClipNavigationTimelineView {
 public:
 	SessionView();

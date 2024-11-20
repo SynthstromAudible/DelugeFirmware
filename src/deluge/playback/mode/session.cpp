@@ -21,7 +21,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
@@ -57,6 +57,32 @@ enum class LaunchStatus {
 	LAUNCH_USING_QUANTIZATION,
 	LAUNCH_ALONG_WITH_EXISTING_LAUNCHING,
 };
+
+using namespace deluge::gui::colours;
+const Colour defaultClipSectionColours[] = {RGB::fromHue(102), // bright light blue
+                                            RGB::fromHue(168), // bright dark pink
+                                            RGB::fromHue(24),  // bright light orange
+                                            RGB::fromHue(84),  // bright turquoise
+                                            red,
+                                            lime,
+                                            blue,
+                                            RGB::fromHue(12),  // bright dark orange
+                                            RGB::fromHue(147), // bright purple
+                                            yellow,
+                                            green,
+                                            RGB::fromHue(157), // bright magenta
+                                            pastel::blue,
+                                            pink_full,
+                                            pastel::orange,
+                                            pastel::green,
+                                            pink.forTail(),
+                                            lime.forTail(),
+                                            cyan.forTail(),
+                                            orange.forTail(),
+                                            purple.forTail(),
+                                            pastel::yellow.forTail(),
+                                            green.forTail(),
+                                            magenta.forTail()};
 
 Session::Session() {
 	cancelAllLaunchScheduling();
@@ -756,7 +782,7 @@ void Session::launchSchedulingMightNeedCancelling() {
 			if (loadSongUI.isLoadingSong()) {
 				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
 			}
-			else if ((rootUI == &sessionView || rootUI == &performanceSessionView)
+			else if ((rootUI == &sessionView || rootUI == &performanceView)
 			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 				renderUIsForOled();
 			}
@@ -1006,7 +1032,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 				if (playbackHandler.playbackState) {
 					playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 					RootUI* rootUI = getRootUI();
-					if (rootUI == &sessionView || rootUI == &performanceSessionView) {
+					if (rootUI == &sessionView || rootUI == &performanceView) {
 						uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 					}
 					return;
@@ -1239,7 +1265,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 // Updates LEDs after arming changed
 void Session::armingChanged() {
 	RootUI* rootUI = getRootUI();
-	if (rootUI == &sessionView || rootUI == &performanceSessionView) {
+	if (rootUI == &sessionView || rootUI == &performanceView) {
 		sessionView.requestRendering(rootUI, 0, 0xFFFFFFFF);
 
 		if (getCurrentUI()->canSeeViewUnderneath()) {
@@ -2282,7 +2308,7 @@ traverseClips:
 				if (loadSongUI.isLoadingSong()) {
 					loadSongUI.displayLoopsRemainingPopup();
 				}
-				else if ((rootUI == &sessionView || rootUI == &performanceSessionView)
+				else if ((rootUI == &sessionView || rootUI == &performanceView)
 				         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 					renderUIsForOled();
 				}

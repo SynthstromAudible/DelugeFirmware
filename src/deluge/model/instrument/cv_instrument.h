@@ -35,10 +35,10 @@ public:
 	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
 	void noteOffPostArp(int32_t noteCode, int32_t oldMIDIChannel, int32_t velocity);
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                              int32_t whichExpressionDmiension, ArpNote* arpNote);
+	                                              int32_t expressionDmiension, ArpNote* arpNote);
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
 	bool readTagFromFile(Deserializer& reader, const char* tagName) override;
-	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDmiension);
+	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDmiension);
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
 	void setupWithoutActiveClip(ModelStack* modelStack);
 	static int32_t navigateChannels(int oldChannel, int offset) {

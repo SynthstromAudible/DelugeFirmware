@@ -25,6 +25,7 @@
 #include "modulation/lfo.h"
 #include "modulation/params/param.h"
 #include "modulation/patch/patcher.h"
+#include <bitset>
 
 class StereoSample;
 class ModelStackWithVoice;
@@ -53,6 +54,8 @@ public:
 	// choose where the Patcher looks for them
 	int32_t sourceValues[kNumPatchSources];
 
+	std::bitset<kNumExpressionDimensions> expressionSourcesCurrentlySmoothing;
+	std::bitset<kNumExpressionDimensions> expressionSourcesFinalValueChanged;
 	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];
 
 	Envelope envelopes[kNumEnvelopes];
@@ -76,8 +79,6 @@ public:
 
 	bool doneFirstRender;
 	bool previouslyIgnoredNoteOff;
-	uint8_t whichExpressionSourcesCurrentlySmoothing;
-	uint8_t whichExpressionSourcesFinalValueChanged;
 
 	uint32_t orderSounded;
 
@@ -141,5 +142,5 @@ private:
 	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
 	bool areAllUnisonPartsInactive(ModelStackWithVoice* modelStackWithVoice);
 	void setupPorta(Sound* sound);
-	int32_t combineExpressionValues(Sound* sound, int32_t whichExpressionDimension);
+	int32_t combineExpressionValues(Sound* sound, int32_t expressionDimension);
 };

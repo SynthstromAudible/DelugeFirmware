@@ -406,8 +406,8 @@ doActualSimpleChange:
 
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			performanceSessionView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
-			changeRootUI(&performanceSessionView);
+			performanceView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
+			changeRootUI(&performanceView);
 		}
 	}
 
@@ -1274,7 +1274,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 			// Already pressing - length edit
 			else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 				// Only when pressing on the same row, and to the right of the currently held pad
-				if (y != yPressedEffective && x > xPressed) {
+				if (y == yPressedEffective && x > xPressed) {
 					adjustClipInstanceLength(output, xPressed, y, squareStart, squareEnd);
 				}
 			}
@@ -3376,7 +3376,7 @@ Clip* ArrangerView::getClipForSelection() {
 }
 
 void ArrangerView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
-	if (ui == &performanceSessionView) {
+	if (ui == &performanceView) {
 		// don't re-render main pads in performance view
 		uiNeedsRendering(ui, 0, whichSideRows);
 	}

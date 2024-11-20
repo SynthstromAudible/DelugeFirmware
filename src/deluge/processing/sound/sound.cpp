@@ -146,7 +146,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	                                                  + params::UNPATCHED_SAMPLE_RATE_REDUCTION);
 	modKnobs[7][0].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING);
 	voicePriority = VoicePriority::MEDIUM;
-	whichExpressionSourcesChangedAtSynthLevel = 0;
+	expressionSourcesChangedAtSynthLevel.reset();
 
 	skippingRendering = true;
 	startSkippingRenderingAtTime = 0;
@@ -364,33 +364,19 @@ bool Sound::setModFXType(ModFXType newType) {
 
 	if (util::one_of(newType, {ModFXType::FLANGER, ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::WARBLE,
 	                           ModFXType::DIMENSION})) {
-		if (!modFXBuffer) {
-			// TODO: should give an error here if no free ram
-			modFXBuffer =
-			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
-			if (!modFXBuffer) {
-				return false;
-			}
-		}
+		modfx.setupBuffer();
 		disableGrain();
 	}
 	else if (newType == ModFXType::GRAIN) {
 		enableGrain();
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-			modFXBuffer = NULL;
-		}
+		modfx.disableBuffer();
 	}
 	else {
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-			modFXBuffer = NULL;
-		}
+		modfx.disableBuffer();
 		disableGrain();
 	}
 
 	modFXType_ = newType;
-	clearModFXMemory();
 	return true;
 }
 
@@ -2448,7 +2434,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	postReverbVolumeLastTime = postReverbVolume;
 
 	sourcesChanged = 0;
-	whichExpressionSourcesChangedAtSynthLevel = 0;
+	expressionSourcesChangedAtSynthLevel.reset();
 	for (int i = 0; i < kNumSources; i++) {
 		sources[i].dxPatchChanged = false;
 	}
@@ -2496,7 +2482,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			               getGlobalLFOPhaseIncrement());
 
 			// Do Mod FX
-			modFXLFO.tick(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
+			modfx.tickLFO(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
 
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);

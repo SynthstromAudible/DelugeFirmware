@@ -39,7 +39,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/button.h"
@@ -636,8 +636,8 @@ doActualSimpleChange:
 	}
 	else if (b == KEYBOARD) {
 		if (on && (currentUIMode == UI_MODE_NONE)) {
-			performanceSessionView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
-			changeRootUI(&performanceSessionView);
+			performanceView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
+			changeRootUI(&performanceView);
 		}
 	}
 	else if (b == Y_ENC) {
@@ -1546,7 +1546,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 		}
 
 		else {
-			thisColour = RGB::fromHue(defaultClipGroupColours[clip->section]);
+			thisColour = defaultClipSectionColours[clip->section];
 
 			// If user assigning MIDI controls and has this section selected, flash to half brightness
 			if (view.midiLearnFlashOn && currentSong
@@ -1890,7 +1890,7 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		view.displayOutputName(getCurrentClip()->output, true, getCurrentClip());
 	}
-	else if (currentUI != &performanceSessionView) {
+	else if (currentUI != &performanceView) {
 		renderViewDisplay();
 	}
 
@@ -1920,7 +1920,7 @@ void SessionView::redrawNumericDisplay() {
 
 	UI* currentUI = getCurrentUI();
 
-	bool isPerformanceView = (currentUI == &performanceSessionView);
+	bool isPerformanceView = (currentUI == &performanceView);
 
 	bool isSessionView =
 	    ((currentUI == &sessionView) || (isPerformanceView && currentSong->lastClipInstanceEnteredStartPos == -1));
@@ -1997,8 +1997,8 @@ nothingToDisplay:
 }
 
 void SessionView::clearNumericDisplay() {
-	if (getCurrentUI() == &performanceSessionView) {
-		performanceSessionView.renderViewDisplay();
+	if (getCurrentUI() == &performanceView) {
+		performanceView.renderViewDisplay();
 	}
 	else {
 		display->setText("");
@@ -2415,7 +2415,7 @@ void SessionView::potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, i
 }
 
 void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
-	if (ui == &performanceSessionView) {
+	if (ui == &performanceView) {
 		// don't re-render main pads in performance view
 		uiNeedsRendering(ui, 0, whichSideRows);
 	}
@@ -3145,8 +3145,7 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 			auto section = gridSectionFromY(y);
 			RGB& ptrSectionColour = image[y][sectionColumnIndex];
 
-			ptrSectionColour = RGB::fromHue(defaultClipGroupColours[gridSectionFromY(y)]);
-			ptrSectionColour = ptrSectionColour.adjust(255, 2);
+			ptrSectionColour = defaultClipSectionColours[gridSectionFromY(y)];
 
 			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
 				// MIDI colour if necessary

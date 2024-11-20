@@ -22,13 +22,13 @@ void OnProjectLoad (void) {
   //
   // Dialog-generated settings
   //
+  Project.SetDevice ("R7S721020");
+  Project.SetHostIF ("USB", "933001354");
+  Project.SetTargetIF ("SWD");
+  Project.SetTIFSpeed ("4 MHz");
   Project.AddPathSubstitute ("C:/Data/Downloads", "$(ProjectDir)");
   Project.AddPathSubstitute ("c:/data/downloads", "$(ProjectDir)");
   Project.SetTraceSource ("Trace Buffer");
-  Project.SetDevice ("R7S721020");
-  Project.SetHostIF ("USB", "600000832");
-  Project.SetTargetIF ("SWD");
-  Project.SetTIFSpeed ("4 MHz");
   Project.AddSvdFile ("$(InstallDir)/Config/CPU/Cortex-A9.svd");
   //
   // User settings
