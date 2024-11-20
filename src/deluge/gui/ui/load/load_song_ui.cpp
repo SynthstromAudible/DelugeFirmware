@@ -62,7 +62,7 @@ LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
 	title = "Load song";
-	loadingSongInProgress = false;
+	loadingNextSongInProgress = false;
 }
 
 bool LoadSongUI::opened() {
@@ -231,7 +231,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 }
 
 bool LoadSongUI::isLoadingSong() {
-	return getCurrentUI() == this || loadingSongInProgress;
+	return getCurrentUI() == this || loadingNextSongInProgress;
 }
 
 // This is the public method exposed to allow for queue loading next song while playing
@@ -639,7 +639,7 @@ ActionResult LoadSongUI::timerCallback() {
 			// *2 caused glitches occasionally
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4);
 		}
-getOut : {}
+getOut: {}
 		return ActionResult::DEALT_WITH;
 	}
 
