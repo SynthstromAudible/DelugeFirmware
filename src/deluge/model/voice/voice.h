@@ -140,7 +140,7 @@ private:
 	void renderFMWithFeedbackAdd(int32_t* thisSample, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
 	                             int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
 	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
-	bool areAllUnisonPartsInactive(ModelStackWithVoice* modelStackWithVoice);
+	bool areAllUnisonPartsInactive(ModelStackWithVoice& modelStackWithVoice) const;
 	void setupPorta(const Sound& sound);
-	int32_t combineExpressionValues(const Sound& sound, int32_t whichExpressionDimension);
+	int32_t combineExpressionValues(const Sound& sound, int32_t whichExpressionDimension) const;
 };

@@ -79,7 +79,7 @@ const PatchableInfo patchableInfoForVoice = {
     .globality = GLOBALITY_LOCAL,
 };
 
-int32_t Voice::combineExpressionValues(const Sound& sound, int32_t expressionDimension) {
+int32_t Voice::combineExpressionValues(const Sound& sound, int32_t expressionDimension) const {
 	int32_t synthLevelValue = sound.monophonicExpressionValues[expressionDimension];
 	int32_t voiceLevelValue = this->localExpressionSourceValuesBeforeSmoothing[expressionDimension];
 	int32_t combinedValue = (synthLevelValue >> 1) + (voiceLevelValue >> 1);
@@ -1221,7 +1221,7 @@ skipAutoRelease: {}
 
 		// If any unison part became inactive (for either source), and no noise-source, then it might be time to
 		// unassign the voice...
-		if (unisonPartBecameInactive && areAllUnisonPartsInactive(modelStack)) {
+		if (unisonPartBecameInactive && areAllUnisonPartsInactive(*modelStack)) {
 
 			// If no filters, we can just unassign
 			if (!filterSet.isOn()) {
@@ -1640,17 +1640,17 @@ renderingDone:
 	return !unassignVoiceAfter;
 }
 
-bool Voice::areAllUnisonPartsInactive(ModelStackWithVoice* modelStack) {
+bool Voice::areAllUnisonPartsInactive(ModelStackWithVoice& modelStack) const {
 	// If no noise-source, then it might be time to unassign the voice...
-	if (!modelStack->paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
+	if (!modelStack.paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
 	        -2147483648)) {
 
 		// See if all unison parts are now inactive
 		for (int32_t s = 0; s < kNumSources; s++) {
-			if (!modelStack->checkSourceEverActive(s)) {
+			if (!modelStack.checkSourceEverActive(s)) {
 				continue;
 			}
-			for (int32_t u = 0; u < ((Sound*)modelStack->modControllable)->numUnison; u++) {
+			for (int32_t u = 0; u < ((Sound*)modelStack.modControllable)->numUnison; u++) {
 				if (unisonParts[u].sources[s].active) {
 					return false;
 				}
