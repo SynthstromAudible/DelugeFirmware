@@ -30,6 +30,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "processing/source.h"
 #include "util/misc.h"
+#include <bitset>
 
 struct CableGroup;
 class StereoSample;
@@ -119,7 +120,7 @@ public:
 
 	bool skippingRendering;
 
-	uint8_t whichExpressionSourcesChangedAtSynthLevel;
+	std::bitset<kNumExpressionDimensions> whichExpressionSourcesChangedAtSynthLevel;
 
 	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always
 	// 0 for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the

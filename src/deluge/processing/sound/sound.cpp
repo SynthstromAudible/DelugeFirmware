@@ -146,7 +146,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	                                                  + params::UNPATCHED_SAMPLE_RATE_REDUCTION);
 	modKnobs[7][0].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING);
 	voicePriority = VoicePriority::MEDIUM;
-	whichExpressionSourcesChangedAtSynthLevel = 0;
+	whichExpressionSourcesChangedAtSynthLevel.reset();
 
 	skippingRendering = true;
 	startSkippingRenderingAtTime = 0;
@@ -2434,7 +2434,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	postReverbVolumeLastTime = postReverbVolume;
 
 	sourcesChanged = 0;
-	whichExpressionSourcesChangedAtSynthLevel = 0;
+	whichExpressionSourcesChangedAtSynthLevel.reset();
 	for (int i = 0; i < kNumSources; i++) {
 		sources[i].dxPatchChanged = false;
 	}

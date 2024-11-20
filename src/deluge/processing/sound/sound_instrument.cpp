@@ -274,7 +274,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 					monophonicExpressionValues[i] = 0;
 				}
 			}
-			whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
+			whichExpressionSourcesChangedAtSynthLevel.set();
 		}
 	}
 	return clipChanged;
@@ -297,7 +297,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 		monophonicExpressionValues[i] = 0;
 	}
-	whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
+	whichExpressionSourcesChangedAtSynthLevel.set();
 
 	Instrument::setupWithoutActiveClip(modelStack);
 }
@@ -317,7 +317,7 @@ void SoundInstrument::deleteBackedUpParamManagers(Song* song) {
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
-	whichExpressionSourcesChangedAtSynthLevel |= 1 << whichExpressionDimension;
+	whichExpressionSourcesChangedAtSynthLevel[whichExpressionDimension] = true;
 	monophonicExpressionValues[whichExpressionDimension] = newValue;
 }
 

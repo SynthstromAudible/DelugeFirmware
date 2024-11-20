@@ -333,7 +333,7 @@ activenessDetermined:
 	}
 
 	previouslyIgnoredNoteOff = false;
-	whichExpressionSourcesCurrentlySmoothing = 0;
+	whichExpressionSourcesCurrentlySmoothing.reset();
 	filterGainLastTime = 0;
 
 	return true;
@@ -342,7 +342,7 @@ activenessDetermined:
 void Voice::expressionEventImmediate(Sound* sound, int32_t voiceLevelValue, int32_t s) {
 	int32_t whichExpressionDimension = s - util::to_underlying(PatchSource::X);
 	localExpressionSourceValuesBeforeSmoothing[whichExpressionDimension] = voiceLevelValue;
-	whichExpressionSourcesFinalValueChanged |= (1 << whichExpressionDimension);
+	whichExpressionSourcesFinalValueChanged[whichExpressionDimension] = true;
 
 	sourceValues[s] = combineExpressionValues(sound, whichExpressionDimension);
 }
@@ -350,7 +350,7 @@ void Voice::expressionEventImmediate(Sound* sound, int32_t voiceLevelValue, int3
 void Voice::expressionEventSmooth(int32_t newValue, int32_t s) {
 	int32_t whichExpressionDimension = s - util::to_underlying(PatchSource::X);
 	localExpressionSourceValuesBeforeSmoothing[whichExpressionDimension] = newValue;
-	whichExpressionSourcesCurrentlySmoothing |= (1 << whichExpressionDimension);
+	whichExpressionSourcesCurrentlySmoothing[whichExpressionDimension] = true;
 }
 
 void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
@@ -763,14 +763,14 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 		whichExpressionSourcesFinalValueChanged |= whichExpressionSourcesCurrentlySmoothing;
 
 		for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-			if ((whichExpressionSourcesCurrentlySmoothing >> i) & 1) {
+			if (whichExpressionSourcesCurrentlySmoothing[i]) {
 
 				int32_t targetValue = combineExpressionValues(sound, i);
 
 				int32_t diff = (targetValue >> 8) - (sourceValues[i + util::to_underlying(PatchSource::X)] >> 8);
 
 				if (diff == 0) {
-					whichExpressionSourcesCurrentlySmoothing &= ~(1 << i);
+					whichExpressionSourcesCurrentlySmoothing[i] = false;
 				}
 				else {
 					int32_t amountToAdd = diff * numSamples;
@@ -782,7 +782,7 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 
 	sourcesChanged |= whichExpressionSourcesFinalValueChanged << util::to_underlying(PatchSource::X);
 
-	whichExpressionSourcesFinalValueChanged = 0;
+	whichExpressionSourcesFinalValueChanged.reset();
 
 	// Patch all the sources to their parameters
 	if (sourcesChanged) {
