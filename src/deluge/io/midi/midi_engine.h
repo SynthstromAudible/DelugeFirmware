@@ -69,8 +69,7 @@ public:
 
 	void checkIncomingUsbSysex(uint8_t const* message, int32_t ip, int32_t d, int32_t cable);
 
-	void sendMidi(MIDISource source, uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0,
-	              int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
+	void sendMidi(MIDISource source, MIDIMessage message, int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
 	void sendClock(MIDISource source, bool sendUSB = true, int32_t howMany = 1);
 	void sendStart(MIDISource source);
 	void sendStop(MIDISource source);
@@ -78,14 +77,17 @@ public:
 	void sendContinue(MIDISource source);
 
 	void flushMIDI();
-	void sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter);
-	void sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
+	void sendUsbMidi(MIDIMessage message, int32_t filter);
+	void sendSerialMidi(MIDIMessage message);
 
 	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter);
 	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter);
 	void sendBank(MIDISource source, int32_t channel, int32_t num, int32_t filter);
 	void sendSubBank(MIDISource source, int32_t channel, int32_t num, int32_t filter);
-	void sendPitchBend(MIDISource source, int32_t channel, uint8_t lsbs, uint8_t msbs, int32_t filter);
+	/// Send pitch bend
+	///
+	/// @param bend Bend amount. Only the lower 14 bits are used
+	void sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter);
 	void sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter);
 	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
@@ -141,11 +143,10 @@ private:
 	/// Top of the event stack. If this is equal to eventStack_.begin(), the stack is empty.
 	EventStackStorage::iterator eventStackTop_;
 
-	int32_t getMidiMessageLength(uint8_t statusuint8_t);
 	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
 };
 
-uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
+uint32_t setupUSBMessage(MIDIMessage message);
 
 extern MidiEngine midiEngine;
 extern bool anythingInUSBOutputBuffer;

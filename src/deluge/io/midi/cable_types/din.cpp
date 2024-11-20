@@ -38,8 +38,8 @@ char const* MIDICableDINPorts::getDisplayName() {
 	return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DIN_PORTS);
 }
 
-void MIDICableDINPorts::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
-	midiEngine.sendSerialMidi(statusType, channel, data1, data2);
+void MIDICableDINPorts::sendMessage(MIDIMessage message) {
+	midiEngine.sendSerialMidi(message);
 }
 
 size_t MIDICableDINPorts::sendBufferSpace() {

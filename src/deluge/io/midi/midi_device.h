@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/midi/message.h"
 #include "model/model_stack.h"
 #include "util/d_string.h"
 #include <array>
@@ -112,7 +113,7 @@ public:
 	/// @{
 
 	/// Send a MIDI message
-	virtual void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) = 0;
+	virtual void sendMessage(MIDIMessage message) = 0;
 
 	/// Send a chunk of SYSEX data.
 	///
@@ -130,7 +131,7 @@ public:
 	/// Send MPE control messages
 	void sendAllMCMs();
 
-	inline void sendCC(int32_t channel, int32_t cc, int32_t value) { sendMessage(0x0B, channel, cc, value); }
+	inline void sendCC(int32_t channel, int32_t cc, int32_t value) { sendMessage(MIDIMessage::cc(channel, cc, value)); }
 	void sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t valueMSB);
 	// @}
 
