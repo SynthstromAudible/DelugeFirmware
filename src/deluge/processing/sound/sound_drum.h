@@ -57,8 +57,8 @@ public:
 	void drumWontBeRenderedForAWhile();
 	ModControllable* toModControllable() { return this; }
 
-	void expressionEvent(int32_t newValue, int32_t whichExpressionDimension);
-	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	void expressionEvent(int32_t newValue, int32_t expressionDimension);
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
 
 	ArpeggiatorBase* getArp();

@@ -45,28 +45,28 @@ void CVInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChanne
 }
 
 void CVInstrument::polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-                                                            int32_t whichExpressionDimension, ArpNote* arpNote) {
+                                                            int32_t expressionDimension, ArpNote* arpNote) {
 	if (cvEngine.isNoteOn(getPitchChannel(), noteCodeAfterArpeggiation)) {
-		if (!whichExpressionDimension) { // Pitch bend only, handles different polyphonic vs mpe pitch scales
+		if (!expressionDimension) { // Pitch bend only, handles different polyphonic vs mpe pitch scales
 			polyPitchBendValue = newValue;
 			updatePitchBendOutput();
 		}
 		else {
 			// send the combined mono and poly expression
-			lastCombinedPolyExpression[whichExpressionDimension] = newValue;
-			sendMonophonicExpressionEvent(whichExpressionDimension);
+			lastCombinedPolyExpression[expressionDimension] = newValue;
+			sendMonophonicExpressionEvent(expressionDimension);
 		}
 	}
 }
 
-void CVInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
-	if (!whichExpressionDimension) { // Pitch bend only
+void CVInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {
+	if (!expressionDimension) { // Pitch bend only
 		monophonicPitchBendValue = newValue;
 		updatePitchBendOutput();
 	}
 	else {
-		lastMonoExpression[whichExpressionDimension] = newValue;
-		sendMonophonicExpressionEvent(whichExpressionDimension);
+		lastMonoExpression[expressionDimension] = newValue;
+		sendMonophonicExpressionEvent(expressionDimension);
 	}
 }
 
