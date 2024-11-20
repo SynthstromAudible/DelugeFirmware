@@ -231,6 +231,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 }
 
 bool LoadSongUI::isLoadingSong() {
+	// The current open UI is this one, or there is an automatic "load next" command in progress
 	return getCurrentUI() == this || loadingNextSongInProgress;
 }
 
@@ -240,17 +241,14 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 		// This method is intended just for queueing while playing
 		return;
 	}
-	if (getCurrentUI() == this) {
+	if (isLoadingSong()) {
 		// If this UI is open, the users might be loading a song manually themselves
 		// so we should not respond to queuing requests by midi commands
+		// Also if a previous "load next" command is in progress
 		return;
 	}
 	if (fileIndexSelected == -1) {
 		// If no song is loaded/selected yet, we have nothing to do
-		return;
-	}
-	if (loadingNextSongInProgress) {
-		// If another loading is in progress, don't do anything
 		return;
 	}
 	loadingNextSongInProgress = true;
@@ -639,7 +637,7 @@ ActionResult LoadSongUI::timerCallback() {
 			// *2 caused glitches occasionally
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4);
 		}
-getOut: {}
+getOut : {}
 		return ActionResult::DEALT_WITH;
 	}
 
