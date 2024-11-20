@@ -49,7 +49,7 @@ void MIDICableUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data
 	}
 }
 
-int32_t MIDICableUSB::sendBufferSpace() {
+size_t MIDICableUSB::sendBufferSpace() {
 	int32_t ip = 0;
 	ConnectedUSBMIDIDevice* connectedDevice = NULL;
 

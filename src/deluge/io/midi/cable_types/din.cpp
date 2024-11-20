@@ -42,7 +42,7 @@ void MIDICableDINPorts::sendMessage(uint8_t statusType, uint8_t channel, uint8_t
 	midiEngine.sendSerialMidi(statusType, channel, data1, data2);
 }
 
-int32_t MIDICableDINPorts::sendBufferSpace() {
+size_t MIDICableDINPorts::sendBufferSpace() {
 	return uartGetTxBufferSpace(UART_ITEM_MIDI);
 }
 

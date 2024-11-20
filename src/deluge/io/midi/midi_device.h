@@ -93,27 +93,46 @@ public:
 class MIDICable {
 public:
 	MIDICable();
-	void writeReferenceToFile(Serializer& writer, char const* tagName = "device");
 	virtual void writeToFlash(uint8_t* memory) = 0;
 	virtual char const* getDisplayName() = 0;
-	void writeToFile(Serializer& writer, char const* tagName);
-	void readFromFile(Deserializer& reader);
+
 	void dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb);
 	bool wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter);
-	void sendAllMCMs();
+
+	/// @name File IO functions
+	/// @{
+	void writeReferenceToFile(Serializer& writer, char const* tagName = "device");
+	void writeToFile(Serializer& writer, char const* tagName);
+	void readFromFile(Deserializer& reader);
 	bool worthWritingToFile();
 	void writePorts(Serializer& writer);
+	/// @}
 
+	/// @name Low-level Device I/O
+	/// @{
+
+	/// Send a MIDI message
 	virtual void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) = 0;
 
-	inline void sendCC(int32_t channel, int32_t cc, int32_t value) { sendMessage(0x0B, channel, cc, value); }
-
-	// data should be a complete message with data[0] = 0xf0, data[len-1] = 0xf7
+	/// Send a chunk of SYSEX data.
+	///
+	/// @param data Data to send. Should include the 0xf0 and 0xf7 start/stop bytes.
+	/// @param len Number of bytes in data, including the start/stop bytes.
 	virtual void sendSysex(const uint8_t* data, int32_t len) = 0;
 
-	virtual int32_t sendBufferSpace() = 0;
+	/// Get the number of bytes available in the send buffer.
+	virtual size_t sendBufferSpace() = 0;
 
+	/// @}
+	/// @name High-level IO functions
+	/// @{
+
+	/// Send MPE control messages
+	void sendAllMCMs();
+
+	inline void sendCC(int32_t channel, int32_t cc, int32_t value) { sendMessage(0x0B, channel, cc, value); }
 	void sendRPN(int32_t channel, int32_t rpnMSB, int32_t rpnLSB, int32_t valueMSB);
+	// @}
 
 	inline bool hasDefaultVelocityToLevelSet() { return defaultVelocityToLevel; }
 

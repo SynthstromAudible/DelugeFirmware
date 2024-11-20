@@ -29,7 +29,8 @@ public:
 	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) override;
 
 	void sendSysex(const uint8_t* data, int32_t len) override;
-	int32_t sendBufferSpace() override;
+	size_t sendBufferSpace() override;
+
 	void connectedNow(int32_t midiDeviceNum);
 	void sendMCMsNowIfNeeded();
 	uint8_t needsToSendMCMs;

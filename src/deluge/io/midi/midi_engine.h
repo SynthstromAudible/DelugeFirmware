@@ -109,6 +109,25 @@ public:
 	// Not safe for use in interrupts.
 	uint8_t sysex_fmt_buffer[1024];
 
+	/// Inject a MIDI message for processing into the event stream
+	///
+	/// @param cable Source cable for MIDI message
+	/// @param statusType MIDI status byte
+	/// @param channel source MIDI channel
+	/// @param data1 Optional data byte. Validity depends on statusType
+	/// @param data2 Optional data byte. Validity depends on statusType
+	/// @param timer Timestamp corresponding to this byte reception. Null if the source device doesn't provide timing
+	/// data.
+	void midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
+	                         uint32_t* timer = nullptr);
+
+	/// Notify reception of a MIDI sysex block.
+	///
+	/// @param cable Source cable for the sysex data
+	/// @param data sysex data block, not including the start and stop bytes
+	/// @param len number of bytes in data
+	void midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len);
+
 private:
 	uint8_t serialMidiInput[3];
 	uint8_t numSerialMidiInput;
@@ -123,10 +142,6 @@ private:
 	EventStackStorage::iterator eventStackTop_;
 
 	int32_t getMidiMessageLength(uint8_t statusuint8_t);
-	void midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
-	                         uint32_t* timer = NULL);
-
-	void midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len);
 	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
 };
 
