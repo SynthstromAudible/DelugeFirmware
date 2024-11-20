@@ -101,7 +101,7 @@ void NonAudioInstrument::sendNote(ModelStackWithThreeMainThings* modelStack, boo
 }
 
 // Inherit / overrides from both MelodicInstrument and ModControllable
-void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+void NonAudioInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                   int32_t channelOrNoteNumber,
                                                                   MIDICharacteristic whichCharacteristic) {
 	ArpeggiatorSettings* settings = getArpSettings();
@@ -130,7 +130,7 @@ lookAtArpNote:
 			// note-on-post-arp. I realise this is potentially frequent writing when it's only going to be read
 			// occasionally, but since we're already this far (the Instrument being notified), it's hardly any extra
 			// work.
-			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
+			arpNote->mpeValues[expressionDimension] = newValue >> 16;
 
 			int32_t noteCodeBeforeArpeggiation =
 			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
@@ -152,7 +152,7 @@ lookAtArpNote:
 			}
 
 			// Send this even if arp is on and this note isn't currently sounding: its release might still be
-			polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, whichExpressionDimension,
+			polyphonicExpressionEventPostArpeggiator(newValue, noteCodeAfterArpeggiation, expressionDimension,
 			                                         arpNote);
 		}
 	}
@@ -165,7 +165,7 @@ lookAtArpNote:
 			// note-on-post-arp. I realise this is potentially frequent writing when it's only going to be read
 			// occasionally, but since we're already this far (the Instrument being notified), it's hardly any extra
 			// work.
-			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
+			arpNote->mpeValues[expressionDimension] = newValue >> 16;
 
 			int32_t noteCodeBeforeArpeggiation =
 			    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];

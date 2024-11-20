@@ -77,11 +77,11 @@ const PatchableInfo patchableInfoForVoice = {offsetof(Voice, paramFinalValues) -
                                              params::FIRST_GLOBAL,
                                              GLOBALITY_LOCAL};
 
-int32_t Voice::combineExpressionValues(Sound* sound, int32_t whichExpressionDimension) {
+int32_t Voice::combineExpressionValues(Sound* sound, int32_t expressionDimension) {
 
-	int32_t synthLevelValue = sound->monophonicExpressionValues[whichExpressionDimension];
+	int32_t synthLevelValue = sound->monophonicExpressionValues[expressionDimension];
 
-	int32_t voiceLevelValue = localExpressionSourceValuesBeforeSmoothing[whichExpressionDimension];
+	int32_t voiceLevelValue = localExpressionSourceValuesBeforeSmoothing[expressionDimension];
 
 	int32_t combinedValue = (synthLevelValue >> 1) + (voiceLevelValue >> 1);
 	return lshiftAndSaturate<1>(combinedValue);
@@ -333,24 +333,24 @@ activenessDetermined:
 	}
 
 	previouslyIgnoredNoteOff = false;
-	whichExpressionSourcesCurrentlySmoothing.reset();
+	expressionSourcesCurrentlySmoothing.reset();
 	filterGainLastTime = 0;
 
 	return true;
 }
 
 void Voice::expressionEventImmediate(Sound* sound, int32_t voiceLevelValue, int32_t s) {
-	int32_t whichExpressionDimension = s - util::to_underlying(PatchSource::X);
-	localExpressionSourceValuesBeforeSmoothing[whichExpressionDimension] = voiceLevelValue;
-	whichExpressionSourcesFinalValueChanged[whichExpressionDimension] = true;
+	int32_t expressionDimension = s - util::to_underlying(PatchSource::X);
+	localExpressionSourceValuesBeforeSmoothing[expressionDimension] = voiceLevelValue;
+	expressionSourcesFinalValueChanged[expressionDimension] = true;
 
-	sourceValues[s] = combineExpressionValues(sound, whichExpressionDimension);
+	sourceValues[s] = combineExpressionValues(sound, expressionDimension);
 }
 
 void Voice::expressionEventSmooth(int32_t newValue, int32_t s) {
-	int32_t whichExpressionDimension = s - util::to_underlying(PatchSource::X);
-	localExpressionSourceValuesBeforeSmoothing[whichExpressionDimension] = newValue;
-	whichExpressionSourcesCurrentlySmoothing[whichExpressionDimension] = true;
+	int32_t expressionDimension = s - util::to_underlying(PatchSource::X);
+	localExpressionSourceValuesBeforeSmoothing[expressionDimension] = newValue;
+	expressionSourcesCurrentlySmoothing[expressionDimension] = true;
 }
 
 void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArpeggiation,
@@ -366,7 +366,7 @@ void Voice::changeNoteCode(ModelStackWithVoice* modelStack, int32_t newNoteCodeB
 		localExpressionSourceValuesBeforeSmoothing[m] = newMPEValues[m] << 16;
 		// TODO: what if there's just channel aftertouch, and it's still held down...
 	}
-	whichExpressionSourcesCurrentlySmoothing = 0b111;
+	expressionSourcesCurrentlySmoothing = 0b111;
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound* sound = (Sound*)modelStack->modControllable;
@@ -757,20 +757,20 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 
 	// MPE params
 
-	whichExpressionSourcesCurrentlySmoothing |= sound->whichExpressionSourcesChangedAtSynthLevel;
+	expressionSourcesCurrentlySmoothing |= sound->expressionSourcesChangedAtSynthLevel;
 
-	if (whichExpressionSourcesCurrentlySmoothing) {
-		whichExpressionSourcesFinalValueChanged |= whichExpressionSourcesCurrentlySmoothing;
+	if (expressionSourcesCurrentlySmoothing.any()) {
+		expressionSourcesFinalValueChanged |= expressionSourcesCurrentlySmoothing;
 
 		for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-			if (whichExpressionSourcesCurrentlySmoothing[i]) {
+			if (expressionSourcesCurrentlySmoothing[i]) {
 
 				int32_t targetValue = combineExpressionValues(sound, i);
 
 				int32_t diff = (targetValue >> 8) - (sourceValues[i + util::to_underlying(PatchSource::X)] >> 8);
 
 				if (diff == 0) {
-					whichExpressionSourcesCurrentlySmoothing[i] = false;
+					expressionSourcesCurrentlySmoothing[i] = false;
 				}
 				else {
 					int32_t amountToAdd = diff * numSamples;
@@ -780,9 +780,9 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 		}
 	}
 
-	sourcesChanged |= whichExpressionSourcesFinalValueChanged << util::to_underlying(PatchSource::X);
+	sourcesChanged |= expressionSourcesFinalValueChanged.to_ulong() << util::to_underlying(PatchSource::X);
 
-	whichExpressionSourcesFinalValueChanged.reset();
+	expressionSourcesFinalValueChanged.reset();
 
 	// Patch all the sources to their parameters
 	if (sourcesChanged) {

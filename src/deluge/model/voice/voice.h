@@ -55,8 +55,8 @@ public:
 	int32_t sourceValues[kNumPatchSources];
 
 
-	std::bitset<kNumExpressionDimensions> whichExpressionSourcesCurrentlySmoothing;
-	std::bitset<kNumExpressionDimensions> whichExpressionSourcesFinalValueChanged;
+	std::bitset<kNumExpressionDimensions> expressionSourcesCurrentlySmoothing;
+	std::bitset<kNumExpressionDimensions> expressionSourcesFinalValueChanged;
 	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];
 
 	Envelope envelopes[kNumEnvelopes];
@@ -143,5 +143,5 @@ private:
 	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
 	bool areAllUnisonPartsInactive(ModelStackWithVoice* modelStackWithVoice);
 	void setupPorta(Sound* sound);
-	int32_t combineExpressionValues(Sound* sound, int32_t whichExpressionDimension);
+	int32_t combineExpressionValues(Sound* sound, int32_t expressionDimension);
 };

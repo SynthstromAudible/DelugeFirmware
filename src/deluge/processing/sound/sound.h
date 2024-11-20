@@ -120,7 +120,7 @@ public:
 
 	bool skippingRendering;
 
-	std::bitset<kNumExpressionDimensions> whichExpressionSourcesChangedAtSynthLevel;
+	std::bitset<kNumExpressionDimensions> expressionSourcesChangedAtSynthLevel;
 
 	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always
 	// 0 for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the

@@ -75,11 +75,11 @@ public:
 	                                      ModelStackWithTimelineCounter* modelStack) override;
 
 	void polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int32_t newValue,
-	                                               int32_t whichExpressionDimension, int32_t channelOrNoteNumber,
+	                                               int32_t expressionDimension, int32_t channelOrNoteNumber,
 	                                               MIDICharacteristic whichCharacteristic);
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr);
 
-	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) = 0;
 

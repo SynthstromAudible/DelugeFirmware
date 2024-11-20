@@ -7119,15 +7119,15 @@ void InstrumentClipView::reportMPEInitialValuesForNoteEditing(ModelStackWithNote
 			    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams,
 			                                                                                 mpeParamsSummary);
 
-			for (int32_t whichExpressionDimension = 0; whichExpressionDimension < kNumExpressionDimensions;
-			     whichExpressionDimension++) {
-				mpeValuesAtHighestPressure[0][whichExpressionDimension] = mpeValues[whichExpressionDimension];
+			for (int32_t expressionDimension = 0; expressionDimension < kNumExpressionDimensions;
+			     expressionDimension++) {
+				mpeValuesAtHighestPressure[0][expressionDimension] = mpeValues[expressionDimension];
 			}
 		}
 	}
 }
 
-void InstrumentClipView::reportMPEValueForNoteEditing(int32_t whichExpressionimension, int32_t value) {
+void InstrumentClipView::reportMPEValueForNoteEditing(int32_t expressionDimension, int32_t value) {
 
 	// If time to move record along...
 	uint32_t timeSince = AudioEngine::audioSampleTimer - mpeRecordLastUpdateTime;
@@ -7140,13 +7140,13 @@ void InstrumentClipView::reportMPEValueForNoteEditing(int32_t whichExpressionime
 	}
 
 	// Always keep track of the "current" pressure value, so we can decide whether to be recording the other values.
-	if (whichExpressionimension == 2) {
+	if (expressionDimension == 2) {
 		mpeMostRecentPressure = value >> 16;
 	}
 
 	// And if we're still at max pressure, then yeah, record those other values.
 	if (mpeMostRecentPressure >= mpeValuesAtHighestPressure[0][2]) {
-		mpeValuesAtHighestPressure[0][whichExpressionimension] = value >> 16;
+		mpeValuesAtHighestPressure[0][expressionDimension] = value >> 16;
 	}
 
 	dontDeleteNotesOnDepress(); // We know the caller is also manually editing the AutoParam now too - this counts
@@ -7179,14 +7179,14 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 		ModelStackWithParamCollection* modelStackWithParamCollection =
 		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
-		for (int32_t whichExpressionDimension = 0; whichExpressionDimension < kNumExpressionDimensions;
-		     whichExpressionDimension++) {
-			AutoParam* param = &mpeParams->params[whichExpressionDimension];
+		for (int32_t expressionDimension = 0; expressionDimension < kNumExpressionDimensions;
+		     expressionDimension++) {
+			AutoParam* param = &mpeParams->params[expressionDimension];
 
 			ModelStackWithAutoParam* modelStackWithAutoParam =
-			    modelStackWithParamCollection->addAutoParam(whichExpressionDimension, param);
+			    modelStackWithParamCollection->addAutoParam(expressionDimension, param);
 
-			int32_t newValue = (int32_t)mpeValuesAtHighestPressure[t][whichExpressionDimension] << 16;
+			int32_t newValue = (int32_t)mpeValuesAtHighestPressure[t][expressionDimension] << 16;
 
 			param->setValueForRegion(view.modPos, view.modLength, newValue, modelStackWithAutoParam);
 		}

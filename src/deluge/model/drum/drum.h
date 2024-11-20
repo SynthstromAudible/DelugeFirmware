@@ -85,8 +85,8 @@ public:
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
-	                                     int32_t whichExpressionimension, int32_t level);
-	virtual void expressionEvent(int32_t newValue, int32_t whichExpressionimension) {}
+	                                     int32_t expressionDimension, int32_t level);
+	virtual void expressionEvent(int32_t newValue, int32_t expressionDimension) {}
 	void getCombinedExpressionInputs(int16_t* combined);
 
 	virtual ModControllable* toModControllable() { return NULL; }

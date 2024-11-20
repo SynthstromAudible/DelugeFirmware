@@ -204,19 +204,19 @@ int32_t MIDIInstrument::getOutputMasterChannel() {
 	}
 }
 
-void MIDIInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
-	lastMonoExpression[whichExpressionDimension] = newValue;
-	sendMonophonicExpressionEvent(whichExpressionDimension);
+void MIDIInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {
+	lastMonoExpression[expressionDimension] = newValue;
+	sendMonophonicExpressionEvent(expressionDimension);
 }
 
-void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimension) {
+void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) {
 
 	int32_t masterChannel = getOutputMasterChannel();
 
-	switch (whichExpressionDimension) {
+	switch (expressionDimension) {
 	case X_PITCH_BEND: {
-		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
-		                                  lastMonoExpression[whichExpressionDimension]);
+		int32_t newValue = add_saturation(lastCombinedPolyExpression[expressionDimension],
+		                                  lastMonoExpression[expressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
 		midiEngine.sendPitchBend(this, masterChannel, valueSmall & 127, valueSmall >> 7, getChannel());
 		break;
@@ -227,8 +227,8 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		// this means that without sending CC1 on the master channel poly expression below 64 will
 		// send as mod wheel 0. However this is better than the alternative of sending erroneous values
 		// because the sound engine initializes MPE-Y as 0 (e.g. a CC value of 64)
-		int32_t polyPart = (lastCombinedPolyExpression[whichExpressionDimension] >> 24);
-		int32_t monoPart = lastMonoExpression[whichExpressionDimension] >> 24;
+		int32_t polyPart = (lastCombinedPolyExpression[expressionDimension] >> 24);
+		int32_t monoPart = lastMonoExpression[expressionDimension] >> 24;
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
 
@@ -236,8 +236,8 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t whichExpressionDimens
 		break;
 	}
 	case Z_PRESSURE: {
-		int32_t newValue = add_saturation(lastCombinedPolyExpression[whichExpressionDimension],
-		                                  lastMonoExpression[whichExpressionDimension])
+		int32_t newValue = add_saturation(lastCombinedPolyExpression[expressionDimension],
+		                                  lastMonoExpression[expressionDimension])
 		                   >> 24;
 		midiEngine.sendChannelAftertouch(this, masterChannel, newValue, getChannel());
 		break;
@@ -1064,14 +1064,14 @@ uint8_t const shiftAmountsFrom16Bit[] = {2, 9, 8};
 // well use the 32-bit version here. Although, could it have even got more than 14 bits of meaningful value in the first
 // place?
 void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, int32_t noteCodeAfterArpeggiation,
-                                                              int32_t whichExpressionDimension, ArpNote* arpNote) {
+                                                              int32_t expressionDimension, ArpNote* arpNote) {
 	int32_t channel = getChannel();
 	if (sendsToInternal()) {
 		// Do nothing
 	}
 	// If we don't have MPE output...
 	else if (!sendsToMPE()) {
-		if (whichExpressionDimension == 2) {
+		if (expressionDimension == 2) {
 			if (!collapseAftertouch) {
 				// We can only send Z - and that's as polyphonic aftertouch
 				midiEngine.sendPolyphonicAftertouch(this, channel, value32 >> 24, noteCodeAfterArpeggiation,
@@ -1079,11 +1079,11 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 				return;
 			}
 			else {
-				combineMPEtoMono(value32, whichExpressionDimension);
+				combineMPEtoMono(value32, expressionDimension);
 			}
 		}
 		else if (collapseMPE) {
-			combineMPEtoMono(value32, whichExpressionDimension);
+			combineMPEtoMono(value32, expressionDimension);
 		}
 	}
 
@@ -1102,7 +1102,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 				ArpNote* lookingAtArpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
 				if (lookingAtArpNote->outputMemberChannel == memberChannel) {
 					numNotesFound++;
-					mpeValuesSum += lookingAtArpNote->mpeValues[whichExpressionDimension];
+					mpeValuesSum += lookingAtArpNote->mpeValues[expressionDimension];
 				}
 			}
 
@@ -1110,10 +1110,10 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			if (numNotesFound > 1) {
 				int32_t averageValue16 = mpeValuesSum / numNotesFound;
 
-				int32_t averageValue7Or14 = averageValue16 >> shiftAmountsFrom16Bit[whichExpressionDimension];
+				int32_t averageValue7Or14 = averageValue16 >> shiftAmountsFrom16Bit[expressionDimension];
 				int32_t lastValue7Or14 =
-				    whichExpressionDimension
-				        ? mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[whichExpressionDimension - 1]
+				    expressionDimension
+				        ? mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[expressionDimension - 1]
 				        : mpeOutputMemberChannels[memberChannel].lastXValueSent;
 
 				// If there's been no actual change, don't send anything
@@ -1126,7 +1126,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			}
 		}
 
-		switch (whichExpressionDimension) {
+		switch (expressionDimension) {
 		case 0: { // X
 			int32_t value14 = (value32 >> 18);
 			mpeOutputMemberChannels[memberChannel].lastXValueSent = value14;
@@ -1154,7 +1154,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 	}
 }
 
-void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension) {
+void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t expressionDimension) {
 
 	ParamManager* paramManager = getParamManager(NULL);
 	if (paramManager) {
@@ -1178,7 +1178,7 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 
 			numNotesFound++;
 
-			int32_t value = lookingAtArpNote->mpeValues[whichExpressionDimension];
+			int32_t value = lookingAtArpNote->mpeValues[expressionDimension];
 			mpeValuesSum += value;
 			mpeValuesMax = std::max(mpeValuesMax, value);
 		}
@@ -1186,7 +1186,7 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 		// If there in fact are multiple notes sharing the channel, to combine...
 		if (numNotesFound >= 1) {
 			int32_t averageValue16;
-			if (whichExpressionDimension == 0) {
+			if (expressionDimension == 0) {
 				averageValue16 = mpeValuesSum / numNotesFound;
 			}
 			else {
@@ -1195,16 +1195,16 @@ void MIDIInstrument::combineMPEtoMono(int32_t value32, int32_t whichExpressionDi
 
 			value32 = averageValue16 << 16;
 		}
-		if (whichExpressionDimension == 0) {
+		if (expressionDimension == 0) {
 			// this can be bigger than 2^31
 			float fbend = value32 * ratio;
 			// casting down will truncate
 			value32 = (int32_t)fbend;
 		}
 		// if it's changed, we need to update the outputs
-		if (value32 != lastCombinedPolyExpression[whichExpressionDimension]) {
-			lastCombinedPolyExpression[whichExpressionDimension] = value32;
-			sendMonophonicExpressionEvent(whichExpressionDimension);
+		if (value32 != lastCombinedPolyExpression[expressionDimension]) {
+			lastCombinedPolyExpression[expressionDimension] = value32;
+			sendMonophonicExpressionEvent(expressionDimension);
 		}
 	}
 }
