@@ -234,22 +234,34 @@ bool LoadSongUI::isLoadingSong() {
 	return getCurrentUI() == this || loadingSongInProgress;
 }
 
+// This is the public method exposed to allow for queue loading next song while playing
 void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 	if (!playbackHandler.isEitherClockActive()) {
 		// This method is intended just for queueing while playing
 		return;
 	}
-	if (loadingSongInProgress) {
+	if (getCurrentUI() == this) {
+		// If this UI is open, the users might be loading a song manually themselves
+		// so we should not respond to queuing requests by midi commands
 		return;
 	}
-	loadingSongInProgress = true;
+	if (fileIndexSelected == -1) {
+		// If no song is loaded/selected yet, we have nothing to do
+		return;
+	}
+	if (loadingNextSongInProgress) {
+		// If another loading is in progress, don't do anything
+		return;
+	}
+	loadingNextSongInProgress = true;
+	doQueueLoadNextSongIfAvailable(offset);
+	loadingNextSongInProgress = false;
+}
 
+// This method actually executes the loading of next song (by offset)
+void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	outputTypeToLoad = OutputType::NONE;
 	currentDir.set(&currentSong->dirPath);
-
-	if (fileIndexSelected == -1) {
-		return;
-	}
 
 	int32_t currentFileIndexSelected = fileIndexSelected;
 
@@ -288,8 +300,6 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 	// we just exit without doing anything else
 
 	currentUIMode = UI_MODE_NONE;
-
-	loadingSongInProgress = false;
 }
 
 // Before calling this, you must set loadButtonReleased.
@@ -629,7 +639,7 @@ ActionResult LoadSongUI::timerCallback() {
 			// *2 caused glitches occasionally
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, UI_MS_PER_REFRESH_SCROLLING * 4);
 		}
-getOut: {}
+getOut : {}
 		return ActionResult::DEALT_WITH;
 	}
 

@@ -53,8 +53,9 @@ private:
 	void drawSongPreview(bool toStore = true);
 	void displayArmedPopup();
 
-	bool loadingSongInProgress;
+	bool loadingNextSongInProgress;
 	bool scrollingIntoSlot;
+	void doQueueLoadNextSongIfAvailable(int8_t offset);
 	// int32_t findNextFile(int32_t offset);
 	void exitThisUI();
 	void exitActionWithError();
