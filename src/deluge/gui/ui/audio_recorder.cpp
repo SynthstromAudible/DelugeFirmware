@@ -261,6 +261,10 @@ ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool in
 	using namespace deluge::hid::button;
 
 	if (!on) {
+		// allow turning off fill mode if it was active while entering audio recorder
+		if (b == SYNC_SCALING && currentSong->isFillModeActive()) {
+			return getRootUI()->buttonAction(b, on, inCardRoutine);
+		}
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
