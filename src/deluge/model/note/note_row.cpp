@@ -4370,7 +4370,7 @@ needToDoIt:
 
 // Returns whether success.
 bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack, int32_t newValueBig,
-                                              int32_t whichExpressionDimension, bool forDrum) {
+                                              int32_t expressionDimension, bool forDrum) {
 
 	uint32_t livePos = modelStack->getLivePos();
 	if (livePos < ignoreNoteOnsBefore_) {
@@ -4384,11 +4384,11 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 		return false;
 	}
 
-	AutoParam* param = &mpeParams->params[whichExpressionDimension];
+	AutoParam* param = &mpeParams->params[expressionDimension];
 
 	ModelStackWithAutoParam* modelStackWithAutoParam =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParam(mpeParams, mpeParamsSummary,
-	                                                                       whichExpressionDimension, param);
+	                                                                       expressionDimension, param);
 
 	// Only if this exact TimelineCounter and NoteRow is having automation step-edited, we can set the value for
 	// just a region.
@@ -4398,7 +4398,7 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 
 		// As well as just setting values now, InstrumentClipView keeps a record, for in case the user then
 		// releases the note, in which case we'll want the values from when they pressed hardest etc.
-		instrumentClipView.reportMPEValueForNoteEditing(whichExpressionDimension, newValueBig);
+		instrumentClipView.reportMPEValueForNoteEditing(expressionDimension, newValueBig);
 
 		// And also, set the values now, for in case they're instead gonna stop editing the note before
 		// releasing this MIDI note.

@@ -673,7 +673,7 @@ bool expressionValueChangesMustBeDoneSmoothly = false; // Wee bit of a workaroun
 // no NoteRow for the note
 // - but we still want to cause a sound change in response to the message.
 void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack,
-                                                                  int32_t newValue, int32_t whichExpressionDimension,
+                                                                  int32_t newValue, int32_t expressionDimension,
                                                                   int32_t channelOrNoteNumber,
                                                                   MIDICharacteristic whichCharacteristic) {
 	expressionValueChangesMustBeDoneSmoothly = true;
@@ -699,7 +699,7 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
 					bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, newValue,
-					                                                        whichExpressionDimension, false);
+					                                                        expressionDimension, false);
 					if (success) {
 						continue;
 					}
@@ -707,7 +707,7 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 
 				// If still here, that didn't work, so just send it without recording.
 				polyphonicExpressionEventOnChannelOrNote(
-				    newValue, whichExpressionDimension,
+				    newValue, expressionDimension,
 				    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
 				    MIDICharacteristic::NOTE);
 			}
@@ -716,7 +716,7 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 
 	// Or if not recording, just sound the change ourselves here (as opposed to the AutoParam doing it).
 	else {
-		polyphonicExpressionEventOnChannelOrNote(newValue, whichExpressionDimension, channelOrNoteNumber,
+		polyphonicExpressionEventOnChannelOrNote(newValue, expressionDimension, channelOrNoteNumber,
 		                                         whichCharacteristic);
 	}
 

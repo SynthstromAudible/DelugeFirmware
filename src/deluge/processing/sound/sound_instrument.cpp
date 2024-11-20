@@ -274,7 +274,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 					monophonicExpressionValues[i] = 0;
 				}
 			}
-			whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
+			expressionSourcesChangedAtSynthLevel.set();
 		}
 	}
 	return clipChanged;
@@ -297,7 +297,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 		monophonicExpressionValues[i] = 0;
 	}
-	whichExpressionSourcesChangedAtSynthLevel = (1 << kNumExpressionDimensions) - 1;
+	expressionSourcesChangedAtSynthLevel.set();
 
 	Instrument::setupWithoutActiveClip(modelStack);
 }
@@ -316,19 +316,19 @@ void SoundInstrument::deleteBackedUpParamManagers(Song* song) {
 
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
-void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
-	whichExpressionSourcesChangedAtSynthLevel |= 1 << whichExpressionDimension;
-	monophonicExpressionValues[whichExpressionDimension] = newValue;
+void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {
+	expressionSourcesChangedAtSynthLevel[expressionDimension] = true;
+	monophonicExpressionValues[expressionDimension] = newValue;
 }
 
 // Alternative to what's in the NonAudioInstrument:: implementation, which would almost work here, but we cut corner for
 // Sound by avoiding going through the Arp and just talk directly to the Voices. (Despite my having made it now actually
 // need to talk to the Arp too, as below...) Note, this virtual function actually overrides/implements from two base
 // classes - MelodicInstrument and ModControllable.
-void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                int32_t channelOrNoteNumber,
                                                                MIDICharacteristic whichCharacteristic) {
-	int32_t s = whichExpressionDimension + util::to_underlying(PatchSource::X);
+	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 
 	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
@@ -363,14 +363,14 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue,
 lookAtArpNote:
 		ArpNote* arpNote = (ArpNote*)arpeggiator.notes.getElementAddress(n);
 		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
-			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
+			arpNote->mpeValues[expressionDimension] = newValue >> 16;
 		}
 	}
 	// Traverse also notesAsPlayed so those get updated mpeValues too, in case noteMode is changed to AsPlayed
 	for (n = 0; n < arpeggiator.notesAsPlayed.getNumElements(); n++) {
 		ArpNote* arpNote = (ArpNote*)arpeggiator.notesAsPlayed.getElementAddress(n);
 		if (arpNote->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
-			arpNote->mpeValues[whichExpressionDimension] = newValue >> 16;
+			arpNote->mpeValues[expressionDimension] = newValue >> 16;
 		}
 	}
 }

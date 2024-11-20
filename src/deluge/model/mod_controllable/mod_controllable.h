@@ -61,10 +61,10 @@ public:
 		return ActionResult::NOT_DEALT_WITH;
 	}
 	virtual bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) { return true; }
-	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	virtual void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) {}
-	virtual void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension) {}
+	virtual void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {}
 
 protected:
 	/// What kind of unpatched parameters this ModControllable uses.

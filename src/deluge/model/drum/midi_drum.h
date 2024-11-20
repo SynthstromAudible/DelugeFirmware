@@ -35,9 +35,9 @@ public:
 
 	int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder);
 
-	void expressionEvent(int32_t newValue, int32_t whichExpressionDimension);
+	void expressionEvent(int32_t newValue, int32_t expressionDimension);
 
-	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
 
 	uint8_t note;
