@@ -40,8 +40,8 @@ public:
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) final;
 	ParamManager* getParamManager(Song* song) final;
 
-	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-	                                              int32_t channelOrNote, MIDICharacteristic whichCharacteristic) final;
+	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension, int32_t channelOrNote,
+	                                              MIDICharacteristic whichCharacteristic) final;
 
 	void beenEdited(bool shouldMoveToEmptySlot) {} // Probably don't need this anymore...
 

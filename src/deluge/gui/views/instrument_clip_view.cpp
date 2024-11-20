@@ -7179,8 +7179,7 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 		ModelStackWithParamCollection* modelStackWithParamCollection =
 		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
-		for (int32_t expressionDimension = 0; expressionDimension < kNumExpressionDimensions;
-		     expressionDimension++) {
+		for (int32_t expressionDimension = 0; expressionDimension < kNumExpressionDimensions; expressionDimension++) {
 			AutoParam* param = &mpeParams->params[expressionDimension];
 
 			ModelStackWithAutoParam* modelStackWithAutoParam =

@@ -111,8 +111,8 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 			goto justSend;
 		}
 
-		bool success = noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, combinedValue,
-		                                                        expressionDimension, true);
+		bool success =
+		    noteRow->recordPolyphonicExpressionEvent(modelStackWithNoteRow, combinedValue, expressionDimension, true);
 		if (!success) {
 			goto justSend;
 		}

@@ -54,7 +54,6 @@ public:
 	// choose where the Patcher looks for them
 	int32_t sourceValues[kNumPatchSources];
 
-
 	std::bitset<kNumExpressionDimensions> expressionSourcesCurrentlySmoothing;
 	std::bitset<kNumExpressionDimensions> expressionSourcesFinalValueChanged;
 	int32_t localExpressionSourceValuesBeforeSmoothing[kNumExpressionDimensions];

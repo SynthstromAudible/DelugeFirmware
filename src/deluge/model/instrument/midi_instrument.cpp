@@ -215,8 +215,8 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 
 	switch (expressionDimension) {
 	case X_PITCH_BEND: {
-		int32_t newValue = add_saturation(lastCombinedPolyExpression[expressionDimension],
-		                                  lastMonoExpression[expressionDimension]);
+		int32_t newValue =
+		    add_saturation(lastCombinedPolyExpression[expressionDimension], lastMonoExpression[expressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
 		midiEngine.sendPitchBend(this, masterChannel, valueSmall & 127, valueSmall >> 7, getChannel());
 		break;
@@ -236,9 +236,9 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 		break;
 	}
 	case Z_PRESSURE: {
-		int32_t newValue = add_saturation(lastCombinedPolyExpression[expressionDimension],
-		                                  lastMonoExpression[expressionDimension])
-		                   >> 24;
+		int32_t newValue =
+		    add_saturation(lastCombinedPolyExpression[expressionDimension], lastMonoExpression[expressionDimension])
+		    >> 24;
 		midiEngine.sendChannelAftertouch(this, masterChannel, newValue, getChannel());
 		break;
 	}
