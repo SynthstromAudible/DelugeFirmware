@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/dx/engine.h"
 #include "dsp/filter/filter_set.h"
+#include "dsp/oscillators/sine_osc.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
 #include "gui/waveform/waveform_renderer.h"
@@ -56,6 +57,7 @@ extern "C" {
 #include "drivers/ssi/ssi.h"
 }
 
+using namespace deluge;
 namespace params = deluge::modulation::params;
 
 #pragma GCC diagnostic push
@@ -1676,67 +1678,6 @@ bool Voice::adjustPitch(uint32_t* phaseIncrement, int32_t adjustment) {
 	return true;
 }
 
-int32_t doFMNew(uint32_t carrierPhase, uint32_t phaseShift) {
-	// return getSineNew((((*carrierPhase += carrierPhaseIncrement) >> 8) + phaseShift) & 16777215, 24);
-
-	uint32_t phaseSmall = (carrierPhase >> 8) + phaseShift;
-	int32_t strength2 = phaseSmall & 65535;
-
-	uint32_t readOffset = (phaseSmall >> (24 - 8 - 2)) & 0b1111111100;
-
-	uint32_t readValue = *(uint32_t*)((uint32_t)sineWaveDiff + readOffset);
-	int32_t value = readValue << 16;
-	int32_t diff = (int32_t)readValue >> 16;
-	return value + diff * strength2;
-}
-
-inline int32x4_t getSineVector(uint32_t* thisPhase, uint32_t phaseIncrement) {
-
-	int16x4_t strength2;
-	uint32x4_t readValue;
-
-	for (int32_t i = 0; i < 4; i++) {
-		*thisPhase += phaseIncrement;
-		int32_t whichValue = *thisPhase >> (32 - SINE_TABLE_SIZE_MAGNITUDE);
-		strength2[i] = (*thisPhase >> (32 - 16 - SINE_TABLE_SIZE_MAGNITUDE + 1)) & 32767;
-
-		uint32_t readOffset = whichValue << 2;
-
-		readValue[i] = *(uint32_t*)((uint32_t)sineWaveDiff + readOffset);
-	}
-
-	int32x4_t enlargedValue1 = vreinterpretq_s32_u32(vshlq_n_u32(readValue, 16));
-	int16x4_t diffValue = vshrn_n_s32(vreinterpretq_s32_u32(readValue), 16);
-
-	return vqdmlal_s16(enlargedValue1, strength2, diffValue);
-}
-
-inline int32x4_t doFMVector(uint32x4_t phaseVector, uint32x4_t phaseShift) {
-
-	uint32x4_t finalPhase = vaddq_u32(phaseVector, vshlq_n_u32(phaseShift, 8));
-
-	uint32x4_t readValue{0};
-#define fmVectorLoopComponent(i)                                                                                       \
-	{                                                                                                                  \
-		uint32_t readOffsetNow = (vgetq_lane_u32(finalPhase, i) >> (32 - SINE_TABLE_SIZE_MAGNITUDE)) << 2;             \
-		uint32_t* thisReadAddress = (uint32_t*)((uint32_t)sineWaveDiff + readOffsetNow);                               \
-		readValue = vld1q_lane_u32(thisReadAddress, readValue, i);                                                     \
-	}
-
-	fmVectorLoopComponent(0);
-	fmVectorLoopComponent(1);
-	fmVectorLoopComponent(2);
-	fmVectorLoopComponent(3);
-
-	int16x4_t strength2 =
-	    vreinterpret_s16_u16(vshr_n_u16(vshrn_n_u32(finalPhase, (32 - 16 - SINE_TABLE_SIZE_MAGNITUDE)), 1));
-
-	int32x4_t enlargedValue1 = vreinterpretq_s32_u32(vshlq_n_u32(readValue, 16));
-	int16x4_t diffValue = vshrn_n_s32(vreinterpretq_s32_u32(readValue), 16);
-
-	return vqdmlal_s16(enlargedValue1, strength2, diffValue);
-}
-
 void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples, uint32_t* phase, int32_t amplitude,
                                        uint32_t phaseIncrement, int32_t feedbackAmount, int32_t* lastFeedbackValue,
                                        bool add, int32_t amplitudeIncrement) {
@@ -1757,7 +1698,7 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples,
 			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
-			feedbackValue = doFMNew(phaseNow += phaseIncrement, feedback);
+			feedbackValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, feedback);
 
 			if (add) {
 				*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);
@@ -1776,7 +1717,7 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples,
 
 		if (amplitudeIncrement) {
 			do {
-				int32x4_t sineValueVector = getSineVector(&phaseNow, phaseIncrement);
+				int32x4_t sineValueVector = dsp::SineOsc::getSineVector(&phaseNow, phaseIncrement);
 
 				int32x4_t amplitudeVector;
 				for (int32_t i = 0; i < 4; i++) {
@@ -1801,7 +1742,7 @@ void Voice::renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples,
 
 		else {
 			do {
-				int32x4_t sineValueVector = getSineVector(&phaseNow, phaseIncrement);
+				int32x4_t sineValueVector = dsp::SineOsc::getSineVector(&phaseNow, phaseIncrement);
 				int32x4_t resultValueVector = vqrdmulhq_n_s32(sineValueVector, amplitudeNow >> 1);
 
 				if (add) {
@@ -1843,7 +1784,7 @@ void Voice::renderFMWithFeedback(int32_t* bufferStart, int32_t numSamples, int32
 
 			uint32_t sum = (uint32_t)*thisSample + (uint32_t)feedback;
 
-			feedbackValue = doFMNew(phaseNow += phaseIncrement, sum);
+			feedbackValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, sum);
 			*thisSample = multiply_32x32_rshift32(feedbackValue, amplitudeNow);
 		} while (++thisSample != bufferEnd);
 
@@ -1855,7 +1796,7 @@ void Voice::renderFMWithFeedback(int32_t* bufferStart, int32_t numSamples, int32
 		int32_t* bufferEnd = bufferStart + numSamples;
 		do {
 			amplitudeNow += amplitudeIncrement;
-			int32_t fmValue = doFMNew(phaseNow += phaseIncrement, *thisSample);
+			int32_t fmValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, *thisSample);
 			*thisSample = multiply_32x32_rshift32(fmValue, amplitudeNow);
 		} while (++thisSample != bufferEnd);
 	}
@@ -1886,7 +1827,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 
 			uint32_t sum = (uint32_t) * (fmSample++) + (uint32_t)feedback;
 
-			feedbackValue = doFMNew(phaseNow += phaseIncrement, sum);
+			feedbackValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, sum);
 			*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);
 		} while (++thisSample != bufferEnd);
 
@@ -1910,7 +1851,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 		if (amplitudeIncrement) {
 			while (true) {
 				uint32x4_t phaseShift = vld1q_u32(fmSample);
-				int32x4_t sineValueVector = doFMVector(phaseVector, phaseShift);
+				int32x4_t sineValueVector = dsp::SineOsc::doFMVector(phaseVector, phaseShift);
 
 				int32x4_t amplitudeVector;
 				for (int32_t i = 0; i < 4; i++) {
@@ -1937,7 +1878,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 		else {
 			while (true) {
 				uint32x4_t phaseShift = vld1q_u32(fmSample);
-				int32x4_t sineValueVector = doFMVector(phaseVector, phaseShift);
+				int32x4_t sineValueVector = dsp::SineOsc::doFMVector(phaseVector, phaseShift);
 
 				int32x4_t resultValueVector = vqrdmulhq_n_s32(sineValueVector, amplitudeNow >> 1);
 
