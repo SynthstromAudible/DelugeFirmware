@@ -17,7 +17,7 @@ public:
 		uint32_t phaseSmall = (carrierPhase >> 8) + phaseShift;
 		int32_t strength2 = phaseSmall & 65535;
 
-		uint32_t readOffset = (phaseSmall >> (24 - 8 - 2)) & 0b1111111100;
+		uint32_t readOffset = (phaseSmall >> (24 - 8 - 1)) & 0b1111111110;
 
 		uint32_t readValue = *(uint32_t*)&sineWaveDiff[readOffset];
 		int32_t value = readValue << 16;
@@ -35,7 +35,7 @@ public:
 			int32_t whichValue = *thisPhase >> (32 - kSineTableSizeMagnitude);
 			strength2[i] = (*thisPhase >> (32 - 16 - kSineTableSizeMagnitude + 1)) & 32767;
 
-			uint32_t readOffset = whichValue << 2;
+			uint32_t readOffset = whichValue << 1;
 
 			readValue[i] = *(uint32_t*)&sineWaveDiff[readOffset];
 		}
@@ -52,7 +52,7 @@ public:
 
 		uint32x4_t readValue{0};
 		util::constexpr_for<0, 4, 1>([&]<int i>() {
-			uint32_t readOffsetNow = (vgetq_lane_u32(finalPhase, i) >> (32 - kSineTableSizeMagnitude)) << 2;
+			uint32_t readOffsetNow = (vgetq_lane_u32(finalPhase, i) >> (32 - kSineTableSizeMagnitude)) << 1;
 			uint32_t* thisReadAddress = (uint32_t*)&sineWaveDiff[readOffsetNow];
 			readValue = vld1q_lane_u32(thisReadAddress, readValue, i);
 		});
