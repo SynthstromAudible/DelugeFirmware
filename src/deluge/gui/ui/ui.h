@@ -23,7 +23,7 @@
 #include "hid/display/oled_canvas/canvas.h"
 
 class ClipMinder;
-class MIDIDevice;
+class MIDICable;
 class RootUI;
 class TimelineView;
 
@@ -127,9 +127,9 @@ public:
 
 	virtual void scrollFinished() {}
 	virtual const char* getName() { return "UI"; }
-	virtual bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) { return false; }
+	virtual bool pcReceivedForMidiLearn(MIDICable& fromCable, int32_t channel, int32_t program) { return false; }
 
-	virtual bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
+	virtual bool noteOnReceivedForMidiLearn(MIDICable& fromCable, int32_t channel, int32_t note, int32_t velocity) {
 		return false;
 	} // Returns whether it was used, I think?
 

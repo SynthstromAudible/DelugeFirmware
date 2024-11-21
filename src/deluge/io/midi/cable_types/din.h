@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2024 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,20 +14,22 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#pragma once
-#include "gui/menu_item/toggle.h"
-#include "gui/ui/sound_editor.h"
-#include "io/midi/midi_device.h"
-#include "io/midi/midi_device_manager.h"
 
-namespace deluge::gui::menu_item::midi {
-class SendClock final : public Toggle {
+#pragma once
+
+#include "deluge/io/midi/midi_device.h"
+
+class MIDICableDINPorts final : public MIDICable {
 public:
-	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->sendClock); }
-	void writeCurrentValue() override {
-		soundEditor.currentMIDICable->sendClock = this->getValue();
-		MIDIDeviceManager::anyChangesToSave = true;
+	MIDICableDINPorts() {
+		connectionFlags = 1; // DIN ports are always connected
 	}
+
+	void writeReferenceAttributesToFile(Serializer& writer) override;
+	void writeToFlash(uint8_t* memory) override;
+	char const* getDisplayName() override;
+	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) override;
+
+	void sendSysex(const uint8_t* data, int32_t len) override;
+	int32_t sendBufferSpace() override;
 };
-} // namespace deluge::gui::menu_item::midi

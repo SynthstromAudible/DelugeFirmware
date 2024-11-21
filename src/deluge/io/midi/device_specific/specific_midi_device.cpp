@@ -47,18 +47,18 @@ MIDIDeviceUSBHosted* recastSpecificMidiDevice(MIDIDeviceUSBHosted* sourceDevice)
 /// @brief When a MIDIDevice is known, this locates the matching MIDIDeviceUSBHosted based on connectionFlags
 /// @param sourceDevice The known MIDIDevice
 /// @return A MIDIDeviceUSBHosted pointer, cast from Specific MIDI devices if found.
-MIDIDeviceUSBHosted* getSpecificDeviceFromMIDIDevice(MIDIDevice* sourceDevice) {
+MIDIDeviceUSBHosted* getSpecificDeviceFromMIDICable(MIDICable& cable) {
 	using namespace MIDIDeviceManager;
 	// This depends on the MIDIDevice having been originally cast as something with a name
-	const char* sourceName = sourceDevice->getDisplayName();
+	const char* sourceName = cable.getDisplayName();
 
-	if (sourceDevice->connectionFlags && sourceName) {
+	if (cable.connectionFlags && sourceName) {
 		for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
 			MIDIDeviceUSBHosted* candidate = recastSpecificMidiDevice(hostedMIDIDevices.getElement(i));
 
 			const char* candidateName = candidate->getDisplayName();
 
-			if (sourceName == candidateName && candidate->connectionFlags == sourceDevice->connectionFlags) {
+			if (sourceName == candidateName && candidate->connectionFlags == cable.connectionFlags) {
 				return candidate;
 			}
 		}

@@ -1815,8 +1815,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 		// If the MelodicInstrument has an input MIDIDevice with bend range(s), we'll often want to grab those. The same
 		// logic can be found in View::noteOnReceivedForMidiLearn().
 		LearnedMIDI* midiInput = &((MelodicInstrument*)newInstrument)->midiInput;
-		if (midiInput->containsSomething() && midiInput->device) {
-			MIDIDevice* device = midiInput->device;
+		if (midiInput->containsSomething() && midiInput->cable) {
+			MIDICable& cable = *midiInput->cable;
 
 			int32_t zone = midiInput->channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
 
@@ -1824,8 +1824,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 
 			// MPE input
 			if (zone >= 0) {
-				newBendRanges[BEND_RANGE_MAIN] = device->mpeZoneBendRanges[zone][BEND_RANGE_MAIN];
-				newBendRanges[BEND_RANGE_FINGER_LEVEL] = device->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
+				newBendRanges[BEND_RANGE_MAIN] = cable.mpeZoneBendRanges[zone][BEND_RANGE_MAIN];
+				newBendRanges[BEND_RANGE_FINGER_LEVEL] = cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 
 				if (newBendRanges[BEND_RANGE_FINGER_LEVEL]) {
 					if (!hasAnyPitchExpressionAutomationOnNoteRows()) {
@@ -1842,7 +1842,7 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 
 			// Normal single-channel MIDI input
 			else {
-				newBendRanges[BEND_RANGE_MAIN] = device->inputChannels[midiInput->channelOrZone].bendRange;
+				newBendRanges[BEND_RANGE_MAIN] = cable.inputChannels[midiInput->channelOrZone].bendRange;
 probablyApplyBendRangeMain:
 				// If we actually have a bend range to apply...
 				if (newBendRanges[BEND_RANGE_MAIN]) {

@@ -20,6 +20,9 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
+#include "io/midi/cable_types/din.h"
+#include "io/midi/cable_types/usb_device_cable.h"
+#include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "util/container/static_vector.hpp"
@@ -35,7 +38,7 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	bool found = false;
 	if (navigatedBackwardFrom != nullptr) {
 		for (int32_t idx = lowestDeviceNum; idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); idx++) {
-			if (getDevice(idx) == soundEditor.currentMIDIDevice) {
+			if (getCable(idx) == soundEditor.currentMIDICable) {
 				found = true;
 				this->setValue(idx);
 				break;
@@ -47,7 +50,7 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 		this->setValue(lowestDeviceNum); // Start on "DIN". That's the only one that'll always be there.
 	}
 
-	soundEditor.currentMIDIDevice = getDevice(this->getValue());
+	soundEditor.currentMIDICable = getCable(this->getValue());
 	if (display->haveOLED()) {
 		currentScroll = this->getValue();
 	}
@@ -77,9 +80,9 @@ void Devices::selectEncoderAction(int32_t offset) {
 
 		this->setValue(newValue);
 
-		soundEditor.currentMIDIDevice = getDevice(this->getValue());
+		soundEditor.currentMIDICable = getCable(this->getValue());
 
-	} while (!soundEditor.currentMIDIDevice->connectionFlags);
+	} while (!soundEditor.currentMIDICable->connectionFlags);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
 	if (display->haveOLED()) {
@@ -95,7 +98,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 				if (d == currentScroll) {
 					break;
 				}
-				auto device = getDevice(d);
+				auto device = getCable(d);
 				if (!(device && device->connectionFlags)) {
 					continue;
 				}
@@ -111,7 +114,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 	drawValue();
 }
 
-MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
+MIDICable* Devices::getCable(int32_t deviceIndex) {
 	if (deviceIndex < -3 || deviceIndex >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		D_PRINTLN("impossible device request");
 		return nullptr;
@@ -121,13 +124,13 @@ MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
 		return &MIDIDeviceManager::dinMIDIPorts;
 	}
 	case -2: {
-		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port1;
+		return &MIDIDeviceManager::upstreamUSBMIDICable1;
 	}
 	case -1: {
-		return &MIDIDeviceManager::upstreamUSBMIDIDevice_port2;
+		return &MIDIDeviceManager::upstreamUSBMIDICable2;
 	}
 	default: {
-		return static_cast<MIDIDevice*>(MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex));
+		return static_cast<MIDICable*>(MIDIDeviceManager::hostedMIDIDevices.getElement(deviceIndex));
 	}
 	}
 }
@@ -137,7 +140,7 @@ void Devices::drawValue() {
 		renderUIsForOled();
 	}
 	else {
-		char const* displayName = soundEditor.currentMIDIDevice->getDisplayName();
+		char const* displayName = soundEditor.currentMIDICable->getDisplayName();
 		display->setScrollingText(displayName);
 	}
 }
@@ -154,9 +157,9 @@ void Devices::drawPixelsForOled() {
 	int32_t device_idx = currentScroll;
 	size_t row = 0;
 	while (row < kOLEDMenuNumOptionsVisible && device_idx < MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
-		MIDIDevice* device = getDevice(device_idx);
-		if (device && device->connectionFlags != 0u) {
-			itemNames.push_back(device->getDisplayName());
+		MIDICable* cable = getCable(device_idx);
+		if (cable && cable->connectionFlags != 0u) {
+			itemNames.push_back(cable->getDisplayName());
 			if (device_idx == this->getValue()) {
 				selectedRow = static_cast<int32_t>(row);
 			}

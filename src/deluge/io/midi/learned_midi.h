@@ -25,37 +25,37 @@
 #define MIDI_MESSAGE_NOTE 1
 #define MIDI_MESSAGE_CC 2
 
-class MIDIDevice;
+class MIDICable;
 enum class MIDIMatchType { NO_MATCH, CHANNEL, MPE_MEMBER, MPE_MASTER };
 class LearnedMIDI {
 public:
 	LearnedMIDI();
 	void clear();
 
-	inline bool equalsDevice(MIDIDevice* newDevice) {
-		return (!MIDIDeviceManager::differentiatingInputsByDevice || !device || newDevice == device);
+	inline bool equalsCable(MIDICable* newCable) {
+		return (!MIDIDeviceManager::differentiatingInputsByDevice || !cable || newCable == cable);
 	}
 
-	inline bool equalsChannelOrZone(MIDIDevice* newDevice, int32_t newChannelOrZone) {
-		return (newChannelOrZone == channelOrZone && equalsDevice(newDevice));
+	inline bool equalsChannelOrZone(MIDICable* newCable, int32_t newChannelOrZone) {
+		return (newChannelOrZone == channelOrZone && equalsCable(newCable));
 	}
 
-	inline bool equalsNoteOrCC(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC) {
-		return (newNoteOrCC == noteOrCC && equalsChannelOrZone(newDevice, newChannel));
+	inline bool equalsNoteOrCC(MIDICable* newCable, int32_t newChannel, int32_t newNoteOrCC) {
+		return (newNoteOrCC == noteOrCC && equalsChannelOrZone(newCable, newChannel));
 	}
 
-	bool equalsChannelAllowMPE(MIDIDevice* newDevice, int32_t newChannel);
-	bool equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int32_t newChannel);
+	bool equalsChannelAllowMPE(MIDICable* newCable, int32_t newChannel);
+	bool equalsChannelAllowMPEMasterChannels(MIDICable* newCable, int32_t newChannel);
 
 	// Check that note or CC and channel match, does not check if channel in MPE zone
-	inline bool equalsNoteOrCCAllowMPE(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC) {
-		return (newNoteOrCC == noteOrCC && equalsChannelAllowMPE(newDevice, newChannel));
+	inline bool equalsNoteOrCCAllowMPE(MIDICable* newCable, int32_t newChannel, int32_t newNoteOrCC) {
+		return (newNoteOrCC == noteOrCC && equalsChannelAllowMPE(newCable, newChannel));
 	}
 
-	inline bool equalsNoteOrCCAllowMPEMasterChannels(MIDIDevice* newDevice, int32_t newChannel, int32_t newNoteOrCC) {
-		return (newNoteOrCC == noteOrCC && equalsChannelAllowMPEMasterChannels(newDevice, newChannel));
+	inline bool equalsNoteOrCCAllowMPEMasterChannels(MIDICable* newCable, int32_t newChannel, int32_t newNoteOrCC) {
+		return (newNoteOrCC == noteOrCC && equalsChannelAllowMPEMasterChannels(newCable, newChannel));
 	}
-	MIDIMatchType checkMatch(MIDIDevice* fromDevice, int32_t channel);
+	MIDIMatchType checkMatch(MIDICable* fromCable, int32_t channel);
 	inline bool containsSomething() { return (channelOrZone != MIDI_CHANNEL_NONE); }
 
 	// You must have determined that containsSomething() == true before calling this.
@@ -85,7 +85,7 @@ public:
 
 	void readMPEZone(Deserializer& reader);
 
-	MIDIDevice* device;
+	MIDICable* cable;
 	// In addition to being set to channel 0 to 15, can also be MIDI_CHANNEL_MPE_LOWER_ZONE or
 	// MIDI_CHANNEL_MPE_UPPER_ZONE. Channels 18-36 signify CCs on channels 1-16+MPE respectively. Check with the
 	// constant IS_A_CC

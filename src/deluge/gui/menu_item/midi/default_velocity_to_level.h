@@ -26,12 +26,12 @@ public:
 	using IntegerWithOff::IntegerWithOff;
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	void readCurrentValue() override {
-		this->setValue(((int64_t)soundEditor.currentMIDIDevice->defaultVelocityToLevel * kMaxMenuValue + 536870912)
+		this->setValue(((int64_t)soundEditor.currentMIDICable->defaultVelocityToLevel * kMaxMenuValue + 536870912)
 		               >> 30);
 	}
 	void writeCurrentValue() override {
-		soundEditor.currentMIDIDevice->defaultVelocityToLevel = this->getValue() * (2147483648 / (kMaxMenuValue * 2));
-		currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(soundEditor.currentMIDIDevice);
+		soundEditor.currentMIDICable->defaultVelocityToLevel = this->getValue() * (2147483648 / (kMaxMenuValue * 2));
+		currentSong->grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(*soundEditor.currentMIDICable);
 		MIDIDeviceManager::anyChangesToSave = true;
 	}
 };

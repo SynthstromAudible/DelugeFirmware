@@ -12,27 +12,27 @@
 #include "util/pack.h"
 #include <cstring>
 
-MIDIDevice* midiDisplayDevice = nullptr;
+MIDICable* midiDisplayCable = nullptr;
 int32_t midiDisplayUntil = 0;
 uint8_t* oledDeltaImage = nullptr;
 bool oledDeltaForce = true;
 
-void HIDSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
+void HIDSysex::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	if (len < 3) {
 		return;
 	}
 	// first three bytes are already used, next is command
 	switch (data[1]) {
 	case 0:
-		requestOLEDDisplay(device, data, len);
+		requestOLEDDisplay(cable, data, len);
 		break;
 
 	case 1:
-		request7SegDisplay(device, data, len);
+		request7SegDisplay(cable, data, len);
 		break;
 
 	case 2:
-		readBlock(device);
+		readBlock(cable);
 		break;
 
 	default:
@@ -40,17 +40,17 @@ void HIDSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	}
 }
 
-void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int32_t len) {
+void HIDSysex::requestOLEDDisplay(MIDICable& cable, uint8_t* data, int32_t len) {
 	//	if (data[4] == 0 or data[4] == 1) {
 	if (data[2] == 0 or data[2] == 1) {
 		// sendOLEDData(device, (data[4] == 1)); // Adjustting by -2 to correct for payload offset.
-		sendOLEDData(device, (data[2] == 1));
+		sendOLEDData(cable, (data[2] == 1));
 	}
 	// else if (data[4] == 2 || data[4] == 3) {
 	else if (data[2] == 2 || data[2] == 3) {
 		// bool force = (data[4] == 3);
 		bool force = (data[2] == 3);
-		midiDisplayDevice = device;
+		midiDisplayCable = &cable;
 		// two seconds
 		midiDisplayUntil = AudioEngine::audioSampleTimer + 2 * kSampleRate;
 		if (display->haveOLED()) {
@@ -65,7 +65,7 @@ void HIDSysex::requestOLEDDisplay(MIDIDevice* device, uint8_t* data, int32_t len
 		}
 		sendDisplayIfChanged();
 		if (force && display->have7SEG()) {
-			send7SegData(device);
+			send7SegData(cable);
 		}
 	}
 	// else if (data[4] == 4) { // SWAP
@@ -79,25 +79,25 @@ void HIDSysex::sendDisplayIfChanged() {
 	// NB: timer is only used for throttling, under good conditions sending
 	// is driven by the display subsystem only
 	uiTimerManager.unsetTimer(TimerName::SYSEX_DISPLAY);
-	if (midiDisplayDevice == nullptr || AudioEngine::audioSampleTimer > midiDisplayUntil) {
+	if (midiDisplayCable == nullptr || AudioEngine::audioSampleTimer > midiDisplayUntil) {
 		return;
 	}
 	// not exact, but if more than half than the serial buffer is still full,
 	// we need to slow down a little. (USB buffer is larger and should be consumed much quicker)
-	if (midiDisplayDevice->sendBufferSpace() < 512) {
+	if (midiDisplayCable->sendBufferSpace() < 512) {
 		uiTimerManager.setTimer(TimerName::SYSEX_DISPLAY, 100);
 		return;
 	}
 
 	if (display->haveOLED()) {
-		sendOLEDDataDelta(midiDisplayDevice, false);
+		sendOLEDDataDelta(*midiDisplayCable, false);
 	}
 	if (display->have7SEG()) {
-		send7SegData(midiDisplayDevice);
+		send7SegData(*midiDisplayCable);
 	}
 }
 
-void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
+void HIDSysex::sendOLEDData(MIDICable& cable, bool rle) {
 	if (display->haveOLED()) {
 		const int32_t data_size = 768;
 		const int32_t max_packed_size = 922;
@@ -126,19 +126,19 @@ void HIDSysex::sendOLEDData(MIDIDevice* device, bool rle) {
 			display->popupTextTemporary("error: fail");
 		}
 		//		reply[6 + packed] = 0xf7; // end of transmission
-		reply[9 + packed] = 0xf7;              // end of transmission
-		                                       // 		device->sendSysex(reply, packed + 7); //
-		device->sendSysex(reply, packed + 10); //
+		reply[9 + packed] = 0xf7;            // end of transmission
+		                                     // 		device->sendSysex(reply, packed + 7); //
+		cable.sendSysex(reply, packed + 10); //
 	}
 }
 
-void HIDSysex::request7SegDisplay(MIDIDevice* device, uint8_t* data, int32_t len) {
+void HIDSysex::request7SegDisplay(MIDICable& cable, uint8_t* data, int32_t len) {
 	if (data[2] == 0) { // was 4
-		send7SegData(device);
+		send7SegData(cable);
 	}
 }
 
-void HIDSysex::send7SegData(MIDIDevice* device) {
+void HIDSysex::send7SegData(MIDICable& cable) {
 	if (display->have7SEG()) {
 		// aschually 8 segments if you count the dot
 		auto data = display->getLast();
@@ -151,11 +151,11 @@ void HIDSysex::send7SegData(MIDIDevice* device) {
 		//		reply[6 + packed_data_size] = 0xf7; // end of transmission
 		reply[9 + packed_data_size] = 0xf7; // end of transmission
 		                                    //		device->sendSysex(reply, packed_data_size + 7);
-		device->sendSysex(reply, packed_data_size + 10);
+		cable.sendSysex(reply, packed_data_size + 10);
 	}
 }
 
-void HIDSysex::sendOLEDDataDelta(MIDIDevice* device, bool force) {
+void HIDSysex::sendOLEDDataDelta(MIDICable& cable, bool force) {
 	const int32_t data_size = 768;
 	const int32_t max_packed_size = 922;
 
@@ -207,10 +207,10 @@ void HIDSysex::sendOLEDDataDelta(MIDIDevice* device, bool force) {
 	// reply[7 + packed] = 0xf7; // end of transmission
 	reply[10 + packed] = 0xf7; // end of transmission //
 	// device->sendSysex(reply, packed + 8);
-	device->sendSysex(reply, packed + 11);
+	cable.sendSysex(reply, packed + 11);
 }
 
-void HIDSysex::readBlock(MIDIDevice* device) {
+void HIDSysex::readBlock(MIDICable& cable) {
 	const int32_t data_size = 768;
 	const int32_t max_packed_size = 922;
 	uint8_t reply_hdr[8] = {0xF0, 0x00, 0x21, 0x7B, 0x01, 0x02, 0x40, 0x00};
@@ -232,7 +232,7 @@ void HIDSysex::readBlock(MIDIDevice* device) {
 		display->popupTextTemporary("error: fail");
 	}
 	//		reply[6 + packed] = 0xf7; // end of transmission
-	reply[9 + packed] = 0xf7;              // end of transmission
-	                                       // 		device->sendSysex(reply, packed + 7); //
-	device->sendSysex(reply, packed + 10); //
+	reply[9 + packed] = 0xf7;            // end of transmission
+	                                     // 		device->sendSysex(reply, packed + 7); //
+	cable.sendSysex(reply, packed + 10); //
 }

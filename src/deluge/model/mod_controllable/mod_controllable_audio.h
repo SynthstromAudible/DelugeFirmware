@@ -35,7 +35,7 @@
 
 class Clip;
 class Knob;
-class MIDIDevice;
+class MIDICable;
 class ModelStack;
 class ModelStackWithTimelineCounter;
 class ParamManager;
@@ -71,14 +71,17 @@ public:
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual ModFXType getModFXType() = 0;
 	virtual bool setModFXType(ModFXType newType);
-	bool offerReceivedCCToLearnedParamsForClip(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
-	bool offerReceivedCCToLearnedParamsForSong(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithThreeMainThings* modelStackWithThreeMainThings);
-	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
-	virtual bool learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob,
-	                       uint8_t modKnobMode, uint8_t midiChannel, Song* song);
+	/// Learna knob to a particular parameter.
+	///
+	/// @param cable The source MIDI cable, or null if learning a mod knob
+	virtual bool learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
+	                       uint8_t midiChannel, Song* song);
 	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
 	bool isBitcrushingEnabled(ParamManager* paramManager);

@@ -4,7 +4,7 @@ using namespace std;
 
 namespace Debug {
 
-MIDIDevice* midiDebugDevice = nullptr;
+MIDICable* midiDebugDevice = nullptr;
 
 void println(char const* output) {
 	cout << output << endl;
