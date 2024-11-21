@@ -27,5 +27,5 @@ public:
 	virtual ParamDescriptor getLearningThing() = 0;
 	void unlearnAction();
 	[[nodiscard]] bool allowsLearnMode() const { return true; }
-	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel);
+	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel);
 };

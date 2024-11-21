@@ -21,16 +21,15 @@
 #include "io/midi/learned_midi.h"
 #include <cstdint>
 
+class Clip;
 class Kit;
+class ModControllable;
+class ModelStackWithSoundFlags;
+class ModelStackWithThreeMainThings;
+class ModelStackWithTimelineCounter;
+class ParamManager;
 class ParamManagerForTimeline;
 class Song;
-class ModControllable;
-class Clip;
-class ModelStackWithThreeMainThings;
-class ModelStackWithSoundFlags;
-class ModelStackWithTimelineCounter;
-class MIDIDevice;
-class ParamManager;
 
 /*
  * Kits are made up of multiple Drums. Even when they are not drum sounds, the class is called Drum, for better or

@@ -73,9 +73,9 @@ public:
 	Error moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
 	int32_t moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
 	                                    ModelStackWithThreeMainThings* modelStack);
-	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                       bool* doingMidiThru);
+	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, bool on,
+	                       int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	                       bool* doingMidiThru) override;
 
 	// ModControllable implementation
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);

@@ -49,48 +49,48 @@ public:
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
 
-	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                     uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) override;
-	void receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void receivedCCForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                      MIDIMatchType match, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru,
 	                      Clip* clip);
-	void offerReceivedCCToModControllable(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	void offerReceivedCCToModControllable(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                      ModelStackWithTimelineCounter* modelStack);
-	void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                    ModelStackWithTimelineCounter* modelStack) override;
 
-	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                            uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) override;
 	void receivedPitchBendForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                              uint8_t data1, uint8_t data2, MIDIMatchType match, uint8_t channel,
 	                              bool* doingMidiThru);
-	void receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void receivedPitchBendForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                             MIDIMatchType match, uint8_t channel, uint8_t data1, uint8_t data2,
 	                             bool* doingMidiThru);
-	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack) override;
 
 	// drums don't receive other CCs
 	void receivedMPEYForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                         MIDIMatchType match, uint8_t channel, uint8_t value);
 
-	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                             int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) override;
 
 	void receivedAftertouchForDrum(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Drum* thisDrum,
 	                               MIDIMatchType match, uint8_t channel, uint8_t value);
 
-	void receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	void receivedAftertouchForKit(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                              MIDIMatchType match, int32_t channel, int32_t value, int32_t noteCode,
 	                              bool* doingMidiThru);
 
-	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, bool on,
+	                       int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                       bool* doingMidiThru) override;
-	void receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on,
-	                         int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                         bool* doingMidiThru, Drum* thisDrum);
-	void receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDIDevice* fromDevice, bool on, int32_t channel,
+	void receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
+	                         int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
+	                         Drum* thisDrum);
+	void receivedNoteForKit(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
 	                        int32_t note, int32_t velocity, bool shouldRecordNotes, bool* doingMidiThru,
 	                        InstrumentClip* clip);
 
@@ -126,8 +126,8 @@ public:
 	void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
 	                             int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
 	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
-	void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone, int32_t whichBendRange,
-	                          int32_t bendSemitones);
+	void offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone, int32_t whichBendRange,
+	                          int32_t bendSemitones) override;
 
 	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
 	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,

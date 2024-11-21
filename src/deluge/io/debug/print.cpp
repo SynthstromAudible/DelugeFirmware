@@ -97,7 +97,7 @@ void init() {
 	initFlag = true;
 }
 
-MIDIDevice* midiDebugDevice = nullptr;
+MIDICable* midiDebugCable = nullptr;
 
 void prependTimeStamp(bool isNewLine) {
 #if JFTRACE
@@ -124,8 +124,8 @@ void prependTimeStamp(bool isNewLine) {
 void println(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(true);
-	if (midiDebugDevice) {
-		sysexDebugPrint(midiDebugDevice, output, true);
+	if (midiDebugCable) {
+		sysexDebugPrint(*midiDebugCable, output, true);
 	}
 	else {
 		uartPrintln(output);
@@ -144,8 +144,8 @@ void println(int32_t number) {
 void print(char const* output) {
 #if ENABLE_TEXT_OUTPUT
 	prependTimeStamp(false);
-	if (midiDebugDevice) {
-		sysexDebugPrint(midiDebugDevice, output, false);
+	if (midiDebugCable) {
+		sysexDebugPrint(*midiDebugCable, output, false);
 	}
 	else {
 		uartPrint(output);
@@ -208,8 +208,8 @@ void RTimer::stop() {
 	lutHexString(deltaT, buffer + 9);
 	buffer[17] = ' ';
 	strcpy(buffer + 18, m_label);
-	if (midiDebugDevice) {
-		sysexDebugPrint(midiDebugDevice, buffer, true);
+	if (midiDebugCable) {
+		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
 		uartPrintln(buffer);
@@ -233,8 +233,8 @@ void RTimer::stop(const char* stopLabel) {
 	strcpy(buffer + 18, m_label);
 	char* stopplace = buffer + 18 + strlen(m_label);
 	strcpy(stopplace, stopLabel);
-	if (midiDebugDevice) {
-		sysexDebugPrint(midiDebugDevice, buffer, true);
+	if (midiDebugCable) {
+		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
 		uartPrintln(buffer);
@@ -260,8 +260,8 @@ void RTimer::stop(int number) {
 	ibuffer[0] = ' ';
 	intToString(number, ibuffer + 1);
 	strcpy(stopplace, ibuffer);
-	if (midiDebugDevice) {
-		sysexDebugPrint(midiDebugDevice, buffer, true);
+	if (midiDebugCable) {
+		sysexDebugPrint(*midiDebugCable, buffer, true);
 	}
 	else {
 		uartPrintln(buffer);

@@ -49,8 +49,8 @@ public:
 
 	void unlearnAction() override { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() override { return MenuItemWithCCLearning::allowsLearnMode(); }
-	void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) override {
-		MenuItemWithCCLearning::learnKnob(fromDevice, whichKnob, modKnobMode, midiChannel);
+	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) override {
+		MenuItemWithCCLearning::learnKnob(cable, whichKnob, modKnobMode, midiChannel);
 	};
 
 	[[nodiscard]] int32_t getMinValue() const override { return -96; }

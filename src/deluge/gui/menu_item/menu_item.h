@@ -33,7 +33,7 @@ enum class MenuPermission {
 
 class Sound;
 class MultiRange;
-class MIDIDevice;
+class MIDICable;
 
 /// Base class for all menu items.
 class MenuItem {
@@ -159,7 +159,9 @@ public:
 	/// @{
 
 	/// Learn a mod knob to the parameter edited by this menu.
-	virtual void learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {}
+	///
+	/// @param cable The MIDI cable to learn from, or null if a mod knob is to be learned.
+	virtual void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {}
 
 	/// Used by SoundEditor to determine if the current menu item can accept MIDI learning.
 	virtual bool allowsLearnMode() { return false; }
@@ -167,10 +169,10 @@ public:
 	///
 	/// @return True if the learn succeeded and the feature controlled by this menu item will now be bound to a MIDI
 	/// note, false otherwise.
-	virtual bool learnNoteOn(MIDIDevice* fromDevice, int32_t channel, int32_t noteCode) { return false; }
+	virtual bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) { return false; }
 
-	virtual void learnProgramChange(MIDIDevice* fromDevice, int32_t channel, int32_t programNumber) {}
-	virtual void learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value);
+	virtual void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) {}
+	virtual void learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value);
 
 	/// Return true if the Learn LED should blink while this menu is active (otherwise, it blinks only while LEARN is
 	/// held).

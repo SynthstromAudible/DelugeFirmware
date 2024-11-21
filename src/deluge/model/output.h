@@ -38,7 +38,7 @@ class GlobalEffectableForClip;
 class ModelStack;
 class ModelStackWithTimelineCounter;
 class ModelStackWithAutoParam;
-class MIDIDevice;
+class MIDICable;
 class LearnedMIDI;
 class ParamManager;
 class Serializer;
@@ -138,12 +138,12 @@ public:
 	                                    int32_t* highestReverbAmountFound) {}
 
 	/// Pitch bend is available in the mod matrix as X and shouldn't be learned to params anymore (post 4.0)
-	virtual bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1,
-	                                                   uint8_t data2, ModelStackWithTimelineCounter* modelStack) {
+	virtual bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
+	                                                   ModelStackWithTimelineCounter* modelStack) {
 		return false;
 	} // A TimelineCounter is required
-	virtual void offerReceivedCCToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber,
-	                                            uint8_t value, ModelStackWithTimelineCounter* modelStack) {
+	virtual void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	                                            ModelStackWithTimelineCounter* modelStack) {
 	} // A TimelineCounter is required
 	virtual int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) { return 2147483647; }
 	void endAnyArrangementRecording(Song* song, int32_t actualEndPos, uint32_t timeRemainder);
@@ -172,20 +172,18 @@ public:
 
 	virtual char const* getNameXMLTag() { return "name"; }
 
-	virtual void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	virtual void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                               bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
 	                               bool* doingMidiThru) {}
-	virtual void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                    MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
-	                                    bool* doingMidiThru) {}
-	virtual void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
+	virtual void offerReceivedPitchBend(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
+	                                    uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru) {}
+	virtual void offerReceivedCC(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
 	                             uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru) {}
-	virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                     MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
-	                                     bool* doingMidiThru) {}
+	virtual void offerReceivedAftertouch(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable,
+	                                     int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru) {}
 
 	virtual void stopAnyAuditioning(ModelStack* modelStack) {}
-	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
+	virtual void offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
 	                                  int32_t whichBendRange, int32_t bendSemitones) {}
 
 	// Arrangement stuff
