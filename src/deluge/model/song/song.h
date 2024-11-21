@@ -271,6 +271,7 @@ public:
 	void setInputTickScaleClip(Clip* clip);
 	inline bool isFillModeActive() { return fillModeActive; }
 	void changeFillMode(bool on);
+	void loadNextSong();
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = NULL);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);

@@ -31,8 +31,10 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
 	bool opened();
 	void selectEncoderAction(int8_t offset);
+	void queueLoadNextSongIfAvailable(int8_t offset);
 	void performLoad();
 	void displayLoopsRemainingPopup();
+	bool isLoadingSong();
 
 	bool deletedPartsOfOldSong;
 
@@ -51,7 +53,9 @@ private:
 	void drawSongPreview(bool toStore = true);
 	void displayArmedPopup();
 
+	bool performingLoad;
 	bool scrollingIntoSlot;
+	void doQueueLoadNextSongIfAvailable(int8_t offset);
 	// int32_t findNextFile(int32_t offset);
 	void exitThisUI();
 	void exitActionWithError();
