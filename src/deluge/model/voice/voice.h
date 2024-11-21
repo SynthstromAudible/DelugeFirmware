@@ -142,5 +142,5 @@ private:
 	                             int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
 	bool areAllUnisonPartsInactive(ModelStackWithVoice& modelStackWithVoice) const;
 	void setupPorta(const Sound& sound);
-	int32_t combineExpressionValues(const Sound& sound, int32_t whichExpressionDimension) const;
+	int32_t combineExpressionValues(const Sound& sound, int32_t expressionDimension) const;
 };
