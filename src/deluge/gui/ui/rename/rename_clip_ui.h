@@ -23,9 +23,9 @@
 class Output;
 class Clip;
 
-class RenameClipNameUI final : public RenameUI {
+class RenameClipUI final : public RenameUI {
 public:
-	RenameClipNameUI();
+	RenameClipUI();
 	bool opened();
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
@@ -36,12 +36,12 @@ public:
 	Clip* clip;
 
 	// ui
-	UIType getUIType() { return UIType::RENAME_CLIPNAME; }
-	const char* getName() { return "rename_clipname_ui"; }
+	UIType getUIType() { return UIType::RENAME_CLIP; }
+	const char* getName() { return "rename_clip_ui"; }
 	bool exitUI() override;
 
 protected:
 	void enterKeyPress();
 };
 
-extern RenameClipNameUI renameClipNameUI;
+extern RenameClipUI renameClipUI;

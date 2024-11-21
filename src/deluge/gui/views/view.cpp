@@ -36,7 +36,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -167,7 +167,10 @@ doEndMidiLearnPressSession:
 				}
 				// Otherwise, normal - tap tempo, but not during record count in
 				else if (currentUIMode == UI_MODE_NONE) {
-					playbackHandler.tapTempoButtonPress();
+					bool useNormalTapTempoBehaviour =
+					    (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour)
+					     == RuntimeFeatureStateToggle::Off);
+					playbackHandler.tapTempoButtonPress(useNormalTapTempoBehaviour);
 				}
 			}
 		}
@@ -225,7 +228,7 @@ doEndMidiLearnPressSession:
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
 		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
-		    && !((getRootUI() == &performanceSessionView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
+		    && !((getRootUI() == &performanceView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE && !Buttons::isShiftButtonPressed()) {
@@ -270,7 +273,7 @@ doEndMidiLearnPressSession:
 		if (!Buttons::isButtonPressed(deluge::hid::button::SYNTH) && !Buttons::isButtonPressed(deluge::hid::button::KIT)
 		    && !Buttons::isButtonPressed(deluge::hid::button::MIDI)
 		    && !Buttons::isButtonPressed(deluge::hid::button::CV)
-		    && !((getRootUI() == &performanceSessionView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
+		    && !((getRootUI() == &performanceView) && Buttons::isButtonPressed(deluge::hid::button::KEYBOARD))) {
 			// Press down
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
@@ -586,7 +589,7 @@ void View::endMidiLearnPressSession(MidiLearn newThingPressed) {
 	iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook::HOOK_ON_MIDI_LEARN);
 }
 
-void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZone, int32_t note, int32_t velocity) {
+void View::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channelOrZone, int32_t note, int32_t velocity) {
 	if (thingPressedForMidiLearn != MidiLearn::NONE) {
 		deleteMidiCommandOnRelease = false;
 
@@ -600,10 +603,10 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 			int32_t newBendRange;
 			int32_t zone = channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
 			if (zone >= 0) { // MPE input
-				newBendRange = fromDevice->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
+				newBendRange = cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 			}
 			else { // Regular MIDI input
-				newBendRange = fromDevice->inputChannels[channelOrZone].bendRange;
+				newBendRange = cable.inputChannels[channelOrZone].bendRange;
 			}
 
 			if (newBendRange) {
@@ -619,8 +622,8 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 			}
 
 			if (drumPressedForMIDILearn->type == DrumType::SOUND) {
-				currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(
-				    fromDevice, (SoundDrum*)drumPressedForMIDILearn, kitPressedForMIDILearn);
+				currentSong->grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForDrum(
+				    cable, (SoundDrum*)drumPressedForMIDILearn, kitPressedForMIDILearn);
 			}
 
 			goto recordDetailsOfLearnedThing;
@@ -635,7 +638,7 @@ void View::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channelOrZ
 		default:
 recordDetailsOfLearnedThing:
 
-			learnedThing->device = fromDevice;
+			learnedThing->cable = &cable;
 			learnedThing->channelOrZone = channelOrZone;
 			learnedThing->noteOrCC = note;
 			break;
@@ -654,8 +657,8 @@ isMPEZone:
 				// and no automation in activeClip. Same logic can be found in InstrumentClip::changeInstrument().
 				int32_t zone = channelOrZone - MIDI_CHANNEL_MPE_LOWER_ZONE;
 
-				newBendRanges[BEND_RANGE_MAIN] = fromDevice->mpeZoneBendRanges[zone][BEND_RANGE_MAIN];
-				newBendRanges[BEND_RANGE_FINGER_LEVEL] = fromDevice->mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
+				newBendRanges[BEND_RANGE_MAIN] = cable.mpeZoneBendRanges[zone][BEND_RANGE_MAIN];
+				newBendRanges[BEND_RANGE_FINGER_LEVEL] = cable.mpeZoneBendRanges[zone][BEND_RANGE_FINGER_LEVEL];
 
 				if (newBendRanges[BEND_RANGE_FINGER_LEVEL]) {
 					InstrumentClip* clip = (InstrumentClip*)instrumentPressedForMIDILearn->getActiveClip();
@@ -675,7 +678,7 @@ isMPEZone:
 			else {
 				// If still here, it's not MPE. Now that we know that, see if we want to apply a stored bend range for
 				// the input MIDI channel of the device
-				newBendRanges[BEND_RANGE_MAIN] = fromDevice->inputChannels[channelOrZone].bendRange;
+				newBendRanges[BEND_RANGE_MAIN] = cable.inputChannels[channelOrZone].bendRange;
 			}
 
 			if (newBendRanges[BEND_RANGE_MAIN]) {
@@ -694,13 +697,13 @@ isMPEZone:
 			clearMelodicInstrumentMonoExpressionIfPossible();
 
 			learnedThing->channelOrZone = channelOrZone;
-			learnedThing->device = fromDevice;
+			learnedThing->cable = &cable;
 			learnedThing->noteOrCC = note;                    // used for low note in kits
 			instrumentPressedForMIDILearn->beenEdited(false); // Why again?
 
 			if (instrumentPressedForMIDILearn->type == OutputType::SYNTH) {
-				currentSong->grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(
-				    fromDevice, (SoundInstrument*)instrumentPressedForMIDILearn);
+				currentSong->grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForInstrument(
+				    cable, (SoundInstrument*)instrumentPressedForMIDILearn);
 			}
 
 			break;
@@ -730,7 +733,7 @@ void View::clearMelodicInstrumentMonoExpressionIfPossible() {
 	}
 }
 
-void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32_t cc, int32_t value) {
+void View::ccReceivedForMIDILearn(MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
 	if (thingPressedForMidiLearn != MidiLearn::NONE) {
 		deleteMidiCommandOnRelease = false;
 
@@ -742,7 +745,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 
 				// But only if user hasn't already started learning MPE stuff... Or regular note-ons...
 				if (learnedThing->channelOrZone == MIDI_CHANNEL_NONE) {
-					learnedThing->device = fromDevice;
+					learnedThing->cable = &cable;
 					learnedThing->channelOrZone = channel;
 					getCurrentInstrument()->beenEdited(false);
 				}
@@ -753,7 +756,7 @@ void View::ccReceivedForMIDILearn(MIDIDevice* fromDevice, int32_t channel, int32
 		else {
 			// So long as the value wasn't 0, pretend it was a note-on for command-learn purposes
 			if (value) {
-				noteOnReceivedForMidiLearn(fromDevice, channel + IS_A_CC, cc, 127);
+				noteOnReceivedForMidiLearn(cable, channel + IS_A_CC, cc, 127);
 			}
 		}
 	}
@@ -837,8 +840,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			// this checks that the param displayed on the screen in performance view
 			// is the same param currently being edited with mod encoder
 			bool editingParamInPerformanceView = false;
-			if (getRootUI() == &performanceSessionView) {
-				editingParamInPerformanceView = performanceSessionView.possiblyRefreshPerformanceViewDisplay(
+			if (getRootUI() == &performanceView) {
+				editingParamInPerformanceView = performanceView.possiblyRefreshPerformanceViewDisplay(
 				    kind, modelStackWithParam->paramId, newKnobPos);
 			}
 
@@ -1045,6 +1048,7 @@ void View::potentiallyMakeItHarderToTurnKnob(int32_t whichModEncoder, ModelStack
 void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32_t newKnobPos, PatchSource source1,
                                        PatchSource source2) {
 	DEF_STACK_STRING_BUF(popupMsg, 40);
+	bool appendedName = true;
 
 	// On OLED, display the name of the parameter on the first line of the popup
 	if (display->haveOLED()) {
@@ -1058,14 +1062,46 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 				popupMsg.append("-> ");
 			}
 			popupMsg.append(modulation::params::getPatchedParamShortName(paramID));
-			popupMsg.append(": ");
+		}
+		else if (getCurrentOutputType() == OutputType::MIDI_OUT) {
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
+			if (kind == params::Kind::EXPRESSION) {
+				if (paramID == X_PITCH_BEND) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+				}
+				else if (paramID == Z_PRESSURE) {
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+				}
+				else if (paramID == Y_SLIDE_TIMBRE) {
+					// in mono expression this is mod wheel, and y-axis is not directly controllable
+					popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+				}
+			}
+			else if (paramID >= 0 && paramID < kNumRealCCNumbers) {
+				String* name = midiInstrument->getNameFromCC(paramID);
+				if (name && !name->isEmpty()) {
+					popupMsg.append(name->get());
+				}
+				else {
+					popupMsg.append("CC ");
+					popupMsg.appendInt(paramID);
+				}
+			}
+			else {
+				appendedName = false;
+			}
 		}
 		else {
 			const char* name = getParamDisplayName(kind, paramID);
 			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 				popupMsg.append(name);
-				popupMsg.append(": ");
 			}
+			else {
+				appendedName = false;
+			}
+		}
+		if (appendedName) {
+			popupMsg.append(": ");
 		}
 	}
 
@@ -1319,7 +1355,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 	if (activeModControllableModelStack.modControllable) {
 		if (on) {
-			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performanceSessionView)) {
+			if (isUIModeWithinRange(modButtonUIModes) || (rootUI == &performanceView)) {
 				// only displaying VU meter in session view, arranger view, performance view and arranger automation
 				// view
 				if (!rootUIIsClipMinderScreen()) {
@@ -1381,7 +1417,7 @@ void View::setModLedStates() {
 			itsTheSong = true;
 			break;
 
-		case UIType::PERFORMANCE_SESSION:
+		case UIType::PERFORMANCE:
 			itsTheSong = true;
 			break;
 
@@ -1496,8 +1532,8 @@ void View::setModLedStates() {
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				}
 				break;
-			case UIType::PERFORMANCE_SESSION:
-				// if performanceSessionView was entered from arranger
+			case UIType::PERFORMANCE:
+				// if performanceView was entered from arranger
 				if (currentSong->lastClipInstanceEnteredStartPos != -1) {
 					indicator_leds::blinkLed(IndicatorLED::SESSION_VIEW);
 				}
@@ -1975,12 +2011,12 @@ oledDrawString:
 			}
 
 			if (clip) {
-				if (!clip->clipName.isEmpty()) {
+				if (!clip->name.isEmpty()) {
 					yPos = yPos + 14;
-					canvas.drawStringCentred(clip->clipName.get(), yPos, kTextSpacingX, kTextSpacingY);
-					deluge::hid::display::OLED::setupSideScroller(1, clip->clipName.get(), 0, OLED_MAIN_WIDTH_PIXELS,
-					                                              yPos, yPos + kTextSpacingY, kTextSpacingX,
-					                                              kTextSpacingY, false);
+					canvas.drawStringCentred(clip->name.get(), yPos, kTextSpacingX, kTextSpacingY);
+					deluge::hid::display::OLED::setupSideScroller(1, clip->name.get(), 0, OLED_MAIN_WIDTH_PIXELS, yPos,
+					                                              yPos + kTextSpacingY, kTextSpacingX, kTextSpacingY,
+					                                              false);
 				}
 			}
 		}
@@ -2560,7 +2596,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
 			RootUI* rootUI = getRootUI();
-			if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+			if ((rootUI == &sessionView) || (rootUI == &performanceView)) {
 				uiNeedsRendering(rootUI, 0, 1 << yDisplayIfInSessionView);
 			}
 		}
@@ -2641,7 +2677,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 void View::flashPlayRoutine() {
 	view.clipArmFlashOn = !view.clipArmFlashOn;
 	RootUI* rootUI = getRootUI();
-	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+	if ((rootUI == &sessionView) || (rootUI == &performanceView)) {
 		sessionView.flashPlayRoutine();
 	}
 	else {
@@ -2659,7 +2695,7 @@ void View::flashPlayDisable() {
 	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
 
 	RootUI* rootUI = getRootUI();
-	if ((rootUI == &sessionView) || (rootUI == &performanceSessionView)) {
+	if ((rootUI == &sessionView) || (rootUI == &performanceView)) {
 		uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
 	}
 #ifdef currentClipStatusButtonX

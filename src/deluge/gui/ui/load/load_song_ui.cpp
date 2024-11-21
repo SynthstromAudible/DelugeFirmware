@@ -31,6 +31,7 @@
 #include "hid/led/pad_leds.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -281,7 +282,7 @@ ramError:
 
 someError:
 		display->displayError(error);
-		activeDeserializer->closeFIL();
+		activeDeserializer->closeWriter();
 fail:
 		// If we already deleted the old song, make a new blank one. This will take us back to InstrumentClipView.
 		if (!currentSong) {
@@ -317,7 +318,7 @@ fail:
 		}
 		AudioEngine::logAction("d");
 
-		FRESULT success = activeDeserializer->closeFIL();
+		FRESULT success = activeDeserializer->closeWriter();
 		if (success != FR_OK) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 			goto fail;
@@ -379,7 +380,7 @@ gotErrorAfterCreatingSong:
 	}
 	AudioEngine::logAction("read new song from file");
 
-	FRESULT success = activeDeserializer->closeFIL();
+	FRESULT success = activeDeserializer->closeWriter();
 	if (success != FR_OK) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
@@ -517,6 +518,21 @@ swapDone:
 	currentUIMode = UI_MODE_NONE;
 
 	display->removeWorkingAnimation();
+
+	// for the song we just loaded, let's check if there's any midi labels we should load
+	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
+		if (thisOutput && thisOutput->type == OutputType::MIDI_OUT) {
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)thisOutput;
+			if (midiInstrument->loadDeviceDefinitionFile) {
+				FilePointer tempfp;
+				bool fileExists = StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.get(), &tempfp);
+				if (fileExists) {
+					StorageManager::loadMidiDeviceDefinitionFile(midiInstrument, &tempfp,
+					                                             &midiInstrument->deviceDefinitionFileName, false);
+				}
+			}
+		}
+	}
 }
 
 ActionResult LoadSongUI::timerCallback() {
@@ -840,7 +856,7 @@ void LoadSongUI::drawSongPreview(bool toStore) {
 		}
 	}
 stopLoadingPreview:
-	activeDeserializer->closeFIL();
+	activeDeserializer->closeWriter();
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {

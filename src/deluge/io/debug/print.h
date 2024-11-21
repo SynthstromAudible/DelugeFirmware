@@ -19,7 +19,7 @@
 
 #include <cstdint>
 
-class MIDIDevice;
+class MIDICable;
 
 namespace Debug {
 const uint32_t sec = 400000000;
@@ -53,6 +53,7 @@ public:
 	virtual void reset();
 	virtual void stop();
 	virtual void stop(const char* stopLabel);
+	virtual void stop(int number);
 
 	uint32_t startTime;
 	const char* m_label;
@@ -144,5 +145,5 @@ class AverageVOT {
 	uint32_t t0;
 };
 
-extern MIDIDevice* midiDebugDevice;
+extern MIDICable* midiDebugCable;
 } // namespace Debug

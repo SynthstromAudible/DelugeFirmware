@@ -66,6 +66,7 @@ add_link_options(${ARCH_FLAGS})
 
 add_compile_options(
   -fmessage-length=0
+  -funsafe-math-optimizations # required to use NEON instead of VFPv3 for floating point
 )
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)

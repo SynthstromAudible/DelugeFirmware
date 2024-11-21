@@ -30,6 +30,7 @@
 #include "modulation/sidechain/sidechain.h"
 #include "processing/source.h"
 #include "util/misc.h"
+#include <bitset>
 
 struct CableGroup;
 class StereoSample;
@@ -119,7 +120,7 @@ public:
 
 	bool skippingRendering;
 
-	uint8_t whichExpressionSourcesChangedAtSynthLevel;
+	std::bitset<kNumExpressionDimensions> expressionSourcesChangedAtSynthLevel;
 
 	// I really didn't want to store these here, since they're stored in the ParamManager, but.... complications! Always
 	// 0 for Drums - that was part of the problem - a Drum's main ParamManager's expression data has been sent to the
@@ -162,7 +163,7 @@ public:
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
-	bool learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
+	bool learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
 	               uint8_t midiChannel, Song* song) final;
 
 	bool hasFilters();

@@ -16,6 +16,7 @@
  */
 
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "ModFXProcessor.h"
 #include "definitions_cxx.hpp"
 #include "deluge/dsp/granular/GranularProcessor.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
@@ -23,7 +24,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
@@ -45,10 +46,6 @@ namespace params = deluge::modulation::params;
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 ModControllableAudio::ModControllableAudio() {
-
-	// Mod FX
-	modFXBuffer = nullptr;
-	modFXBufferWriteIndex = 0;
 
 	// Grain
 
@@ -85,11 +82,6 @@ ModControllableAudio::ModControllableAudio() {
 
 ModControllableAudio::~ModControllableAudio() {
 	// delay.discardBuffers(); // No! The DelayBuffers will themselves destruct and do this
-
-	// Free the mod fx memory
-	if (modFXBuffer) {
-		delugeDealloc(modFXBuffer);
-	}
 	delete grainFX;
 }
 
@@ -97,7 +89,7 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	lpfMode = other->lpfMode;
 	hpfMode = other->hpfMode;
 	clippingAmount = other->clippingAmount;
-	modFXType = other->modFXType;
+	modFXType_ = other->modFXType_;
 	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
 	trebleFreq = other->trebleFreq;
 	filterRoute = other->filterRoute;
@@ -139,14 +131,21 @@ bool ModControllableAudio::hasTrebleAdjusted(ParamManager* paramManager) {
 
 void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate,
                                      int32_t modFXDepth, const Delay::State& delayWorkingState, int32_t* postFXVolume,
-                                     ParamManager* paramManager, bool anySoundComingIn) {
+                                     ParamManager* paramManager, bool anySoundComingIn, q31_t reverbSendAmount) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
 	StereoSample* bufferEnd = buffer + numSamples;
 
 	// Mod FX -----------------------------------------------------------------------------------
-	processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd, anySoundComingIn);
+	if (modFXType == ModFXType::GRAIN) {
+		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd, anySoundComingIn,
+		               reverbSendAmount);
+	}
+	else {
+		modfx.processModFX(buffer, modFXType, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd,
+		                   anySoundComingIn);
+	}
 
 	// EQ -------------------------------------------------------------------------------------
 	bool thisDoBass = hasBassAdjusted(paramManager);
@@ -179,224 +178,21 @@ void ModControllableAudio::processFX(StereoSample* buffer, int32_t numSamples, M
 	// Delay ----------------------------------------------------------------------------------
 	delay.process({buffer, static_cast<size_t>(numSamples)}, delayWorkingState);
 }
-void ModControllableAudio::processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate,
-                                        int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                        const StereoSample* bufferEnd, bool anySoundComingIn) {
-	if (modFXType == ModFXType::GRAIN) {
-		processGrainFX(buffer, modFXRate, modFXDepth, postFXVolume, unpatchedParams, bufferEnd, anySoundComingIn);
-	}
-	else if (modFXType != ModFXType::NONE) {
-
-		LFOType modFXLFOWaveType{};
-		int32_t modFXDelayOffset{};
-		int32_t thisModFXDelayDepth{};
-		int32_t feedback{};
-
-		if (modFXType == ModFXType::FLANGER || modFXType == ModFXType::PHASER || modFXType == ModFXType::WARBLE) {
-
-			setupModFXWFeedback(modFXType, modFXDepth, postFXVolume, unpatchedParams, modFXLFOWaveType,
-			                    modFXDelayOffset, thisModFXDelayDepth, feedback);
-		}
-		else if (modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
-			setupChorus(modFXDepth, postFXVolume, unpatchedParams, modFXLFOWaveType, modFXDelayOffset,
-			            thisModFXDelayDepth);
-		}
-
-		processModFXBuffer(buffer, modFXType, modFXRate, modFXDepth, bufferEnd, modFXLFOWaveType, modFXDelayOffset,
-		                   thisModFXDelayDepth, feedback);
-	}
-}
 void ModControllableAudio::processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth,
                                           int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                          const StereoSample* bufferEnd, bool anySoundComingIn) {
+                                          const StereoSample* bufferEnd, bool anySoundComingIn, q31_t verbAmount) {
 	// this shouldn't be possible but just in case
 	if (anySoundComingIn && !grainFX) [[unlikely]] {
 		enableGrain();
 	}
+
 	if (grainFX) {
+		int32_t reverbSendAmountAndPostFXVolume = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5;
 		grainFX->processGrainFX(buffer, modFXRate, modFXDepth,
 		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET),
 		                        unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK), postFXVolume, bufferEnd,
-		                        anySoundComingIn, currentSong->calculateBPM());
+		                        anySoundComingIn, currentSong->calculateBPM(), reverbSendAmountAndPostFXVolume);
 	}
-}
-void ModControllableAudio::setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-                                       LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
-                                       int32_t& thisModFXDelayDepth) const {
-	modFXDelayOffset = multiply_32x32_rshift32(
-	    kModFXMaxDelay, (unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) >> 1) + 1073741824);
-	thisModFXDelayDepth = multiply_32x32_rshift32(modFXDelayOffset, modFXDepth) << 2;
-	modFXLFOWaveType = LFOType::SINE;
-	*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 1518500250) << 1; // Divide by sqrt(2)
-}
-void ModControllableAudio::setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
-                                               UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType,
-                                               int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth,
-                                               int32_t& feedback) const {
-	int32_t a = unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK) >> 1;
-	int32_t b = 2147483647 - ((a + 1073741824) >> 2) * 3;
-	int32_t c = multiply_32x32_rshift32(b, b);
-	int32_t d = multiply_32x32_rshift32(b, c);
-
-	feedback = 2147483648 - (d << 2);
-
-	// Adjust volume for flanger feedback
-	int32_t squared = multiply_32x32_rshift32(feedback, feedback) << 1;
-	int32_t squared2 = multiply_32x32_rshift32(squared, squared) << 1;
-	squared2 = multiply_32x32_rshift32(squared2, squared) << 1;
-	squared2 = (multiply_32x32_rshift32(squared2, squared2) >> 4)
-	           * 23; // 22 // Make bigger to have more of a volume cut happen at high resonance
-	//*postFXVolume = (multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2) >> 1) * 3;
-	*postFXVolume = multiply_32x32_rshift32(*postFXVolume, 2147483647 - squared2);
-
-	if (modFXType == ModFXType::FLANGER) {
-		*postFXVolume <<= 1;
-		modFXDelayOffset = kFlangerOffset;
-		thisModFXDelayDepth = kFlangerAmplitude;
-		modFXLFOWaveType = LFOType::TRIANGLE;
-	}
-	else if (modFXType == ModFXType::WARBLE) {
-		*postFXVolume <<= 1;
-		modFXDelayOffset = kFlangerOffset;
-		modFXDelayOffset +=
-		    multiply_32x32_rshift32(kFlangerOffset, (unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET)));
-		thisModFXDelayDepth = multiply_32x32_rshift32(kFlangerOffset, modFXDepth) << 1;
-		modFXLFOWaveType = LFOType::WARBLER;
-	}
-	else { // Phaser
-		modFXLFOWaveType = LFOType::SINE;
-	}
-}
-void ModControllableAudio::processModFXBuffer(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate,
-                                              int32_t modFXDepth, const StereoSample* bufferEnd,
-                                              LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
-                                              int32_t thisModFXDelayDepth, int32_t feedback) {
-	StereoSample* currentSample = buffer;
-	if (modFXType == ModFXType::PHASER) {
-		do {
-			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
-			processOnePhaserSample(modFXDepth, feedback, currentSample, lfoOutput);
-
-		} while (++currentSample != bufferEnd);
-	}
-	else if (modFXType == ModFXType::WARBLE) {
-		do {
-			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
-			processWarble(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput);
-
-		} while (++currentSample != bufferEnd);
-	}
-	else {
-		do {
-			int32_t lfoOutput = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
-			processOneModFXSample(modFXType, modFXDelayOffset, thisModFXDelayDepth, feedback, currentSample, lfoOutput);
-
-		} while (++currentSample != bufferEnd);
-	}
-}
-void ModControllableAudio::processOneModFXSample(const ModFXType& modFXType, int32_t modFXDelayOffset,
-                                                 int32_t thisModFXDelayDepth, int32_t feedback,
-                                                 StereoSample* currentSample, int32_t lfoOutput) {
-	int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
-
-	int32_t strength2 = (delayTime & 65535) << 15;
-	int32_t strength1 = (65535 << 15) - strength2;
-	int32_t sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
-
-	int32_t scaledValue1L =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].l, strength1);
-	int32_t scaledValue2L =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
-	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
-
-	// todo - this should probably just be a seperate flag, we could do flanger and warble in stereo too (stereo warble
-	// sounds great)
-	if (modFXType == ModFXType::CHORUS_STEREO) {
-		delayTime = multiply_32x32_rshift32(lfoOutput, -thisModFXDelayDepth) + modFXDelayOffset;
-		strength2 = (delayTime & 65535) << 15;
-		strength1 = (65535 << 15) - strength2;
-		sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
-	}
-
-	int32_t scaledValue1R =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].r, strength1);
-	int32_t scaledValue2R =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].r, strength2);
-	int32_t modFXOutputR = scaledValue1R + scaledValue2R;
-
-	// feedback also controls the mix? Weird but ok, I guess it makes it work on one knob
-	if (modFXType == ModFXType::FLANGER) {
-		modFXOutputL = multiply_32x32_rshift32_rounded(modFXOutputL, feedback) << 2;
-		modFXBuffer[modFXBufferWriteIndex].l = modFXOutputL + currentSample->l; // Feedback
-		modFXOutputR = multiply_32x32_rshift32_rounded(modFXOutputR, feedback) << 2;
-		modFXBuffer[modFXBufferWriteIndex].r = modFXOutputR + currentSample->r; // Feedback
-	}
-	else { // Chorus
-		modFXOutputL <<= 1;
-		modFXBuffer[modFXBufferWriteIndex].l = currentSample->l; // Feedback
-		modFXOutputR <<= 1;
-		modFXBuffer[modFXBufferWriteIndex].r = currentSample->r; // Feedback
-	}
-
-	currentSample->l += modFXOutputL;
-	currentSample->r += modFXOutputR;
-	modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
-}
-
-void ModControllableAudio::processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset,
-                                         int32_t thisModFXDelayDepth, int32_t feedback, StereoSample* currentSample,
-                                         int32_t lfoOutput) {
-	int32_t delayTime = multiply_32x32_rshift32(lfoOutput, thisModFXDelayDepth) + modFXDelayOffset;
-
-	int32_t strength2 = (delayTime & 65535) << 15;
-	int32_t strength1 = (65535 << 15) - strength2;
-	int32_t sample1Pos = modFXBufferWriteIndex - ((delayTime) >> 16);
-
-	int32_t scaledValue1L =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].l, strength1);
-	int32_t scaledValue2L =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].l, strength2);
-	int32_t modFXOutputL = scaledValue1L + scaledValue2L;
-
-	int32_t scaledValue1R =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[sample1Pos & kModFXBufferIndexMask].r, strength1);
-	int32_t scaledValue2R =
-	    multiply_32x32_rshift32_rounded(modFXBuffer[(sample1Pos - 1) & kModFXBufferIndexMask].r, strength2);
-	int32_t modFXOutputR = scaledValue1R + scaledValue2R;
-
-	auto fback = multiply_32x32_rshift32_rounded(modFXOutputL, feedback);
-	modFXBuffer[modFXBufferWriteIndex].l = fback + currentSample->l; // Feedback
-	fback = multiply_32x32_rshift32_rounded(modFXOutputR, feedback);
-	modFXBuffer[modFXBufferWriteIndex].r = fback + currentSample->r; // Feedback
-
-	modFXOutputL <<= 2;
-	modFXOutputR <<= 2;
-
-	currentSample->l = modFXOutputL;
-	currentSample->r = modFXOutputR;
-	modFXBufferWriteIndex = (modFXBufferWriteIndex + 1) & kModFXBufferIndexMask;
-}
-void ModControllableAudio::processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample,
-                                                  int32_t lfoOutput) { // "1" is sorta represented by 1073741824 here
-	int32_t _a1 =
-	    1073741824 - multiply_32x32_rshift32_rounded((((uint32_t)lfoOutput + (uint32_t)2147483648) >> 1), modFXDepth);
-
-	phaserMemory.l = currentSample->l + (multiply_32x32_rshift32_rounded(phaserMemory.l, feedback) << 1);
-	phaserMemory.r = currentSample->r + (multiply_32x32_rshift32_rounded(phaserMemory.r, feedback) << 1);
-
-	// Do the allpass filters
-	for (auto& sample : allpassMemory) {
-		StereoSample whatWasInput = phaserMemory;
-
-		phaserMemory.l = (multiply_32x32_rshift32_rounded(phaserMemory.l, -_a1) << 2) + sample.l;
-		sample.l = (multiply_32x32_rshift32_rounded(phaserMemory.l, _a1) << 2) + whatWasInput.l;
-
-		phaserMemory.r = (multiply_32x32_rshift32_rounded(phaserMemory.r, -_a1) << 2) + sample.r;
-		sample.r = (multiply_32x32_rshift32_rounded(phaserMemory.r, _a1) << 2) + whatWasInput.r;
-	}
-
-	currentSample->l += phaserMemory.l;
-	currentSample->r += phaserMemory.r;
 }
 
 void ModControllableAudio::processReverbSendAndVolume(StereoSample* buffer, int32_t numSamples, int32_t* reverbBuffer,
@@ -606,7 +402,7 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
-	writer.writeAttribute("modFXType", (char*)fxTypeToString(modFXType));
+	writer.writeAttribute("modFXType", (char*)fxTypeToString(modFXType_));
 	writer.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 	writer.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
@@ -650,9 +446,9 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 
 			// Because we manually called LearnedMIDI::writeAttributesToFile() above, we have to give the MIDIDevice its
 			// own tag, cos that can't be written as just an attribute.
-			if (knob->midiInput.device) {
+			if (knob->midiInput.cable) {
 				writer.writeOpeningTagEnd();
-				knob->midiInput.device->writeReferenceToFile(writer);
+				knob->midiInput.cable->writeReferenceToFile(writer);
 				writer.writeClosingTag("midiKnob", true, true);
 			}
 			else {
@@ -949,7 +745,7 @@ doReadPatchedParam:
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
 
-				MIDIDevice* device = nullptr;
+				MIDICable* cable = nullptr;
 				uint8_t channel;
 				uint8_t ccNumber;
 				bool relative;
@@ -959,7 +755,7 @@ doReadPatchedParam:
 
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "device")) {
-						device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+						cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 					}
 					else if (!strcmp(tagName, "channel")) {
 						channel = reader.readTagOrAttributeValueInt();
@@ -992,7 +788,7 @@ doReadPatchedParam:
 				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
 					MIDIKnob* newKnob = midiKnobArray.insertKnobAtEnd();
 					if (newKnob) {
-						newKnob->midiInput.device = device;
+						newKnob->midiInput.cable = cable;
 						newKnob->midiInput.channelOrZone = channel;
 						newKnob->midiInput.noteOrCC = ccNumber;
 						newKnob->relative = relative;
@@ -1072,8 +868,8 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 	return modelStackWithThreeMainThings;
 }
 
-bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDIDevice* fromDevice, uint8_t channel,
-                                                                 uint8_t ccNumber, uint8_t value,
+bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber,
+                                                                 uint8_t value,
                                                                  ModelStackWithTimelineCounter* modelStack,
                                                                  int32_t noteRowIndex) {
 	bool messageUsed = false;
@@ -1083,7 +879,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDIDevice* fro
 		MIDIKnob* knob = midiKnobArray.getElement(k);
 
 		// If this is the knob...
-		if (knob->midiInput.equalsNoteOrCC(fromDevice, channel, ccNumber)) {
+		if (knob->midiInput.equalsNoteOrCC(&cable, channel, ccNumber)) {
 
 			messageUsed = true;
 
@@ -1158,7 +954,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDIDevice* fro
 }
 
 bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
-    MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+    MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
     ModelStackWithThreeMainThings* modelStackWithThreeMainThings) {
 	bool messageUsed = false;
 
@@ -1167,7 +963,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 		MIDIKnob* knob = midiKnobArray.getElement(k);
 
 		// If this is the knob...
-		if (knob->midiInput.equalsNoteOrCC(fromDevice, channel, ccNumber)) {
+		if (knob->midiInput.equalsNoteOrCC(&cable, channel, ccNumber)) {
 
 			messageUsed = true;
 
@@ -1209,7 +1005,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				// performance view if so, you will need to refresh the automation editor grid or the
 				// performance view
 				RootUI* rootUI = getRootUI();
-				if (rootUI == &automationView || rootUI == &performanceSessionView) {
+				if (rootUI == &automationView || rootUI == &performanceView) {
 					int32_t id = modelStackWithParam->paramId;
 					params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
 
@@ -1217,7 +1013,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 						automationView.possiblyRefreshAutomationEditorGrid(nullptr, kind, id);
 					}
 					else {
-						performanceSessionView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
+						performanceView.possiblyRefreshPerformanceViewDisplay(kind, id, newKnobPos);
 					}
 				}
 			}
@@ -1227,7 +1023,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 }
 
 // Returns true if the message was used by something
-bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1,
+bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1,
                                                                  uint8_t data2,
                                                                  ModelStackWithTimelineCounter* modelStack,
                                                                  int32_t noteRowIndex) {
@@ -1239,7 +1035,7 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDIDevice* fro
 		MIDIKnob* knob = midiKnobArray.getElement(k);
 
 		// If this is the knob...
-		if (knob->midiInput.equalsNoteOrCC(fromDevice, channel,
+		if (knob->midiInput.equalsNoteOrCC(&cable, channel,
 		                                   128)) { // I've got 128 representing pitch bend here... why again?
 
 			messageUsed = true;
@@ -1473,31 +1269,25 @@ void ModControllableAudio::wontBeRenderedForAWhile() {
 }
 
 void ModControllableAudio::clearModFXMemory() {
-	if (modFXType == ModFXType::FLANGER || modFXType == ModFXType::CHORUS || modFXType == ModFXType::CHORUS_STEREO) {
-		if (modFXBuffer) {
-			memset(modFXBuffer, 0, kModFXBufferSize * sizeof(StereoSample));
-		}
-	}
-	else if (modFXType == ModFXType::GRAIN) {
+	if (modFXType_ == ModFXType::GRAIN) {
 		grainFX->clearGrainFXBuffer();
 	}
-	else if (modFXType == ModFXType::PHASER) {
-		memset(allpassMemory, 0, sizeof(allpassMemory));
-		memset(&phaserMemory, 0, sizeof(phaserMemory));
+	else if (modFXType_ != ModFXType::NONE) {
+		modfx.resetMemory();
 	}
 }
 
 bool ModControllableAudio::setModFXType(ModFXType newType) {
 	// For us ModControllableAudios, this is really simple. Memory gets allocated in
 	// GlobalEffectable::processFXForGlobalEffectable(). This function is overridden in Sound
-	modFXType = newType;
+	modFXType_ = newType;
 	return true;
 }
 
 // whichKnob is either which physical mod knob, or which MIDI CC code.
 // For mod knobs, supply midiChannel as 255
 // Returns false if fail due to insufficient RAM.
-bool ModControllableAudio::learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob,
+bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob,
                                      uint8_t modKnobMode, uint8_t midiChannel, Song* song) {
 
 	bool overwroteExistingKnob = false;
@@ -1525,7 +1315,7 @@ bool ModControllableAudio::learnKnob(MIDIDevice* fromDevice, ParamDescriptor par
 		// Was this MIDI knob already set to control this thing?
 		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			knob = midiKnobArray.getElement(k);
-			if (knob->midiInput.equalsNoteOrCC(fromDevice, midiChannel, whichKnob)
+			if (knob->midiInput.equalsNoteOrCC(cable, midiChannel, whichKnob)
 			    && paramDescriptor == knob->paramDescriptor) {
 				// overwroteExistingKnob = (midiKnobs[k].s != s || midiKnobs[k].p != p);
 				goto midiKnobFound;
@@ -1541,7 +1331,7 @@ bool ModControllableAudio::learnKnob(MIDIDevice* fromDevice, ParamDescriptor par
 midiKnobFound:
 		knob->midiInput.noteOrCC = whichKnob;
 		knob->midiInput.channelOrZone = midiChannel;
-		knob->midiInput.device = fromDevice;
+		knob->midiInput.cable = cable;
 		knob->paramDescriptor = paramDescriptor;
 		knob->relative = (whichKnob != 128); // Guess that it's relative, unless this is a pitch-bend "knob"
 	}
@@ -1772,14 +1562,20 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	}
 }
 bool ModControllableAudio::enableGrain() {
+
 	if (grainFX == nullptr) {
-		grainFX = new GranularProcessor;
+		void* grainMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GranularProcessor));
+		if (grainMemory) {
+			grainFX = new (grainMemory) GranularProcessor;
+			return true;
+		}
+	}
+	else {
+		grainFX->clearGrainFXBuffer();
+		return false;
 	}
 	return false;
 }
 void ModControllableAudio::disableGrain() {
-
-	delete grainFX;
-
-	grainFX = nullptr;
+	grainFX->startSkippingRendering();
 }

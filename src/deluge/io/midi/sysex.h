@@ -19,13 +19,13 @@
 
 #include <cstdint>
 
-class MIDIDevice;
+class MIDICable;
 #include "definitions_cxx.hpp"
 
 namespace Debug {
 
-void sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len);
-void sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl);
+void sysexReceived(MIDICable& cable, uint8_t* data, int32_t len);
+void sysexDebugPrint(MIDICable& cable, const char* msg, bool nl);
 #ifdef ENABLE_SYSEX_LOAD
 void loadPacketReceived(uint8_t* data, int32_t len);
 void loadCheckAndRun(uint8_t* data, int32_t len);
@@ -52,6 +52,8 @@ enum SysexCommands : uint8_t {
 	Popup,      // display info in popup
 	HID,        // HID access
 	Debug,      // Debugging
+	Json,       // Json Request
+	JsonReply,  // Json Response
 	Pong = 0x7F // Pong reply
 };
 

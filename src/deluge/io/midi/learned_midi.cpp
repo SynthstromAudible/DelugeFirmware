@@ -24,14 +24,14 @@
 LearnedMIDI::LearnedMIDI() {
 	clear();
 }
-MIDIMatchType LearnedMIDI::checkMatch(MIDIDevice* fromDevice, int32_t midiChannel) {
-	uint8_t corz = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(midiChannel);
+MIDIMatchType LearnedMIDI::checkMatch(MIDICable* newCable, int32_t midiChannel) {
+	uint8_t corz = newCable->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(midiChannel);
 
-	if (equalsDevice(fromDevice) && channelOrZone == corz) {
+	if (equalsCable(newCable) && channelOrZone == corz) {
 		if (channelOrZone == midiChannel) {
 			return MIDIMatchType::CHANNEL;
 		}
-		bool master = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(midiChannel);
+		bool master = newCable->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isMasterChannel(midiChannel);
 		if (master) {
 			return MIDIMatchType::MPE_MASTER;
 		}
@@ -43,7 +43,7 @@ MIDIMatchType LearnedMIDI::checkMatch(MIDIDevice* fromDevice, int32_t midiChanne
 }
 
 void LearnedMIDI::clear() {
-	device = NULL;
+	cable = NULL;
 	channelOrZone = MIDI_CHANNEL_NONE;
 	noteOrCC = 255;
 }
@@ -90,9 +90,9 @@ void LearnedMIDI::writeToFile(Serializer& writer, char const* commandName, int32
 	writer.writeOpeningTagBeginning(commandName);
 	writeAttributesToFile(writer, midiMessageType);
 
-	if (device) {
+	if (cable) {
 		writer.writeOpeningTagEnd();
-		device->writeReferenceToFile(writer);
+		cable->writeReferenceToFile(writer);
 		writer.writeClosingTag(commandName);
 	}
 	else {
@@ -111,7 +111,7 @@ void LearnedMIDI::readFromFile(Deserializer& reader, int32_t midiMessageType) {
 			readMPEZone(reader);
 		}
 		else if (!strcmp(tagName, "device")) {
-			device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+			cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 		}
 		else if (midiMessageType != MIDI_MESSAGE_NONE
 		         && !strcmp(tagName, getTagNameFromMIDIMessageType(midiMessageType))) {
@@ -132,26 +132,26 @@ void LearnedMIDI::readMPEZone(Deserializer& reader) {
 	}
 }
 
-bool LearnedMIDI::equalsChannelAllowMPE(MIDIDevice* newDevice, int32_t newChannel) {
+bool LearnedMIDI::equalsChannelAllowMPE(MIDICable* newCable, int32_t newChannel) {
 	if (channelOrZone == MIDI_CHANNEL_NONE) {
 		return false; // 99% of the time, we'll get out here, because input isn't activated/learned.
 	}
-	if (!equalsDevice(newDevice)) {
+	if (!equalsCable(newCable)) {
 		return false;
 	}
-	if (!device) {
+	if (!cable) {
 		return false; // Could we actually be set to MPE but have no device? Maybe if loaded from weird song file?
 	}
-	int32_t newCorZ = newDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(newChannel);
+	int32_t newCorZ = newCable->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(newChannel);
 
 	return (channelOrZone == newCorZ);
 }
 
-bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int32_t newChannel) {
+bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDICable* newCable, int32_t newChannel) {
 	if (channelOrZone == MIDI_CHANNEL_NONE) {
 		return false; // 99% of the time, we'll get out here, because input isn't activated/learned.
 	}
-	if (!equalsDevice(newDevice)) {
+	if (!equalsCable(newCable)) {
 		return false;
 	}
 	if (channelOrZone < 16) {
@@ -162,12 +162,12 @@ bool LearnedMIDI::equalsChannelAllowMPEMasterChannels(MIDIDevice* newDevice, int
 	}
 
 	if (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-		if (newChannel <= newDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
+		if (newChannel <= newCable->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeLowerZoneLastMemberChannel) {
 			return (newChannel == getMasterChannel());
 		}
 	}
 	if (channelOrZone == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-		if (newChannel >= newDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
+		if (newChannel >= newCable->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].mpeUpperZoneLastMemberChannel) {
 			return (newChannel == getMasterChannel());
 		}
 	}

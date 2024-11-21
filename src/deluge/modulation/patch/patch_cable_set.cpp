@@ -829,7 +829,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 				else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
 					rangeAdjustable = reader.readTagOrAttributeValueInt();
 				}
-				else if (!strcmp(tagName, "depthControlledBy")) { // *** JFF still need to do this one.
+				else if (!strcmp(tagName, "depthControlledBy")) {
 					reader.match('[');
 					while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())
 					       && numPatchCables < kMaxNumPatchCables - 1) {
@@ -1158,23 +1158,23 @@ void PatchCableSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelS
 }
 
 void PatchCableSet::grabVelocityToLevelFromMIDIInput(LearnedMIDI* midiInput) {
-	if (midiInput->containsSomething() && midiInput->device) {
-		MIDIDevice* device = midiInput->device;
-		if (device->hasDefaultVelocityToLevelSet()) {
+	if (midiInput->containsSomething() && midiInput->cable) {
+		MIDICable* cable = midiInput->cable;
+		if (cable->hasDefaultVelocityToLevelSet()) {
 
-			grabVelocityToLevelFromMIDIDeviceDefinitely(device);
+			grabVelocityToLevelFromMIDICable(*cable);
 		}
 	}
 }
 
-void PatchCableSet::grabVelocityToLevelFromMIDIDeviceDefinitely(MIDIDevice* device) {
+void PatchCableSet::grabVelocityToLevelFromMIDICable(MIDICable& cable) {
 
 	PatchCable* patchCable = getPatchCableFromVelocityToLevel();
 	if (!patchCable) {
 		return;
 	}
 
-	patchCable->param.setCurrentValueBasicForSetup(device->defaultVelocityToLevel);
+	patchCable->param.setCurrentValueBasicForSetup(cable.defaultVelocityToLevel);
 }
 
 PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {

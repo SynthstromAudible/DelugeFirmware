@@ -406,7 +406,8 @@ doActualSimpleChange:
 
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			changeRootUI(&performanceSessionView);
+			performanceView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
+			changeRootUI(&performanceView);
 		}
 	}
 
@@ -1215,6 +1216,7 @@ void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, Cl
 	Clip* clip = clipInstance->clip;
 
 	if (clip) {
+		// it looks like this variable isn't used anywhere
 		originallyPressedClipActualLength = clipInstance->clip->loopLength;
 
 		// we've changed the clip selected, so set clip to current
@@ -1253,7 +1255,7 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 	}
 
 	else {
-
+		// Press
 		if (on) {
 
 			int32_t squareStart = getPosFromSquare(x, xScroll);
@@ -1271,15 +1273,8 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 
 			// Already pressing - length edit
 			else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
-
-				if (y != yPressedEffective) {
-					if (!pressedClipInstanceIsInValidPosition) {
-						return;
-					}
-					return createNewClipInstance(output, x, y, squareStart, squareEnd, xScroll);
-				}
-
-				if (x > xPressed) {
+				// Only when pressing on the same row, and to the right of the currently held pad
+				if (y == yPressedEffective && x > xPressed) {
 					adjustClipInstanceLength(output, xPressed, y, squareStart, squareEnd);
 				}
 			}
@@ -1297,6 +1292,12 @@ void ArrangerView::editPadAction(int32_t x, int32_t y, bool on) {
 				}
 
 				if (x == xPressed && y == yPressedEffective) {
+					// if a section clip instance was changed to an arrangement only clip instance,
+					// the clip itself is created on pad release
+					if (lastInteractedSection == 255 && !lastInteractedClipInstance->clip) {
+						createNewClipForClipInstance(output, lastInteractedClipInstance);
+					}
+
 					// If no action to perform...
 					if (!actionOnDepress || (int32_t)(AudioEngine::audioSampleTimer - pressTime) >= kShortPressTime) {
 						return exitSubModeWithoutAction();
@@ -1366,26 +1367,23 @@ void ArrangerView::createNewClipInstance(Output* output, int32_t x, int32_t y, i
                                          int32_t xScroll) {
 	output->clipInstances.testSequentiality("E117");
 
+	// Look for a clip instance to the left of, or including press position
 	int32_t i = output->clipInstances.search(squareEnd, LESS);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
 
-	// If there was at least a ClipInstance somewhere to the left...
+	// If we did find a clip instance
 	if (clipInstance) {
-
 		Clip* clip = clipInstance->clip;
 
-		// If it's being recorded to, some special instructions
 		if (clip) {
-
-			// If recording to Clip...
+			// If it's being recorded to, some special instructions
 			if (playbackHandler.playbackState && output->recordingInArrangement
 			    && clip->getCurrentlyRecordingLinearly()) {
+				// Can't press here to the left of the play/record cursor!
 				if (squareStart < arrangement.getLivePos()) {
-					// Can't press here to the left of the play/record cursor!
 					return;
 				}
-
-				// Or, if pressed to the right
+				// To the right is allowed
 				else {
 					clipInstance = createClipInstance(output, y, squareStart);
 				}
@@ -1930,7 +1928,6 @@ bool ArrangerView::transitionToArrangementEditor() {
 	int32_t i = output->clipInstances.search(currentSong->lastClipInstanceEnteredStartPos, GREATER_OR_EQUAL);
 	ClipInstance* clipInstance = output->clipInstances.getElement(i);
 	if (!clipInstance || clipInstance->clip != getCurrentClip()) {
-		D_PRINTLN("no go");
 		return false;
 	}
 
@@ -2290,6 +2287,7 @@ bool ArrangerView::renderRowForOutput(ModelStack* modelStack, Output* output, in
 	RGB* imageNow = image;
 	RGB* const imageEnd = image + renderWidth;
 
+	// this is constant and zero - so does nothing?
 	int32_t firstXDisplayNotLeftOf0 = 0;
 
 	if (!output->clipInstances.getNumElements()) {
@@ -2299,6 +2297,8 @@ bool ArrangerView::renderRowForOutput(ModelStack* modelStack, Output* output, in
 		return true;
 	}
 
+	// the valies in searchTerms are always identical to the values in squareEndPos
+	// how many of squareEndPos' values searchTerms holds is restricted by renderWidth
 	int32_t squareEndPos[kMaxImageStoreWidth];
 	int32_t searchTerms[kMaxImageStoreWidth];
 
@@ -2334,21 +2334,22 @@ squareStartPosSet:
 			// If Instance starts exactly on square or somewhere within square, draw "head".
 			// We don't do the "blur" colour in arranger - it looks too white and would be confused with white/unique
 			// instances
+
+			// first square, draw head
 			if (clipInstance->pos >= squareStartPos) {
 				image[xDisplay] = colour;
 			}
-
-			// Otherwise...
+			// following squares
 			else {
-
+				// get the end of the clip instance
 				int32_t instanceEnd = clipInstance->pos + clipInstance->length;
-
+				// for currently recording clips, get the playhead
 				if (output->recordingInArrangement && clipInstance->clip
 				    && clipInstance->clip->getCurrentlyRecordingLinearly()) {
 					instanceEnd = arrangement.getLivePos();
 				}
 
-				// See if we want to do a "tail" - which might be several squares long from here
+				// if this clip goes beyond just the first square
 				if (instanceEnd > squareStartPos) {
 
 					// See how many squares long
@@ -2363,8 +2364,8 @@ squareStartPosSet:
 					// Or the real Clip - for all squares in the Instance
 					for (auto* it = &image[xDisplay]; it != &image[xDisplay] + (squareEnd - xDisplay); it++) {
 						if (!clipInstance->clip) {
-							// this shouldn't be possible, but it happens when you create a brand new white clip
-							// which doesn't have a timeline counter yet (until you enter the clip)
+							// Arranger only clip instances created from a section clip (hold clip + turn Select) don't
+							// have a clip until the pad is released. Their "clip preview" gets drawn here
 							image[xDisplay] = colour.dim(4);
 						}
 						else {
@@ -2397,19 +2398,19 @@ squareStartPosSet:
 									*it = image[xDisplay] = colour.forBlur().dim(3);
 								}
 							}
-
-							xDisplay++;
 						}
+						xDisplay++;
 					}
 
 					xDisplay = squareEnd - 1;
 				}
+				// we haven't reached the next clipInstance yet
 				else {
 					image[xDisplay] = colours::black;
 				}
 			}
 		}
-
+		// no clipInstance
 		else {
 			image[xDisplay] = colours::black;
 		}
@@ -2470,13 +2471,17 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
+		// Picks next clip, scroll direction is passed by "offset"
+		// Returns NULL at either end of the list of clips, which indicates the need for a white clip
 		Clip* newClip = currentSong->getNextSessionClipWithOutput(offset, output, clipInstance->clip);
 
 		// If no other Clips to switch to...
 		if (newClip == clipInstance->clip) {
 			return;
+			// Looks like this never happens?
 		}
 
+		// Notify the arrangement that the existing clip will be removed
 		if (clipInstance->clip) {
 			arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length,
 			                      clipInstance->clip, NULL);
@@ -2484,11 +2489,14 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 		int32_t newLength;
 
+		// No newClip means this will become a white clip
 		if (!newClip) {
+			// which will have the same length as the original clip instance
 			newLength = desiredLength;
 		}
 
 		else {
+			// choosing a section clip will reset the clip instance length to the length of that section clip
 			newLength = newClip->loopLength;
 		}
 
@@ -2504,10 +2512,10 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		if (newLength > kMaxSequenceLength - clipInstance->pos) {
 			newLength = kMaxSequenceLength - clipInstance->pos;
 		}
-
+		// log action
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 		clipInstance->change(action, output, clipInstance->pos, newLength, newClip);
-
+		// notify the arrangement that this clip instance will be added
 		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, NULL, clipInstance);
 
 		interactWithClipInstance(output, yPressedEffective, clipInstance);
@@ -3368,7 +3376,7 @@ Clip* ArrangerView::getClipForSelection() {
 }
 
 void ArrangerView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
-	if (ui == &performanceSessionView) {
+	if (ui == &performanceView) {
 		// don't re-render main pads in performance view
 		uiNeedsRendering(ui, 0, whichSideRows);
 	}

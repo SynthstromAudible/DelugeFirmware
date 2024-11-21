@@ -90,6 +90,9 @@ void RenameOutputUI::enterKeyPress() {
 
 	// If actually changing it...
 	if (!output->name.equalsCaseIrrespective(&enteredText)) {
+		// if this is an audio output
+		// don't let user set a name that is a duplicate of another name that has been set for another audio output
+		// Sean: do we only want to do this for audio output's?
 		if (currentSong->getAudioOutputFromName(&enteredText)) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
@@ -125,8 +128,5 @@ ActionResult RenameOutputUI::padAction(int32_t x, int32_t y, int32_t on) {
 }
 
 ActionResult RenameOutputUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
-		return ActionResult::DEALT_WITH;
-	}
-	return arrangerView.verticalEncoderAction(offset, inCardRoutine);
+	return ActionResult::DEALT_WITH;
 }

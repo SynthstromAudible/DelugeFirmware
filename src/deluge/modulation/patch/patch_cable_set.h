@@ -24,7 +24,7 @@ class Song;
 class ModelStackWithParamCollection;
 class ModelStackWithThreeMainThings;
 class LearnedMIDI;
-class MIDIDevice;
+class MIDICable;
 
 struct CableGroup {
 	uint8_t first;
@@ -96,7 +96,7 @@ public:
 	                                                            ParamDescriptor destinationParamDescriptor);
 	bool isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor destinationParamDescriptor);
 	void grabVelocityToLevelFromMIDIInput(LearnedMIDI* midiInput);
-	void grabVelocityToLevelFromMIDIDeviceDefinitely(MIDIDevice* device);
+	void grabVelocityToLevelFromMIDICable(MIDICable& cable);
 	PatchCable* getPatchCableFromVelocityToLevel();
 
 	Destination* getDestinationForParam(int32_t p);

@@ -24,7 +24,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/oled.h"
@@ -41,6 +41,7 @@
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
@@ -56,6 +57,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
@@ -195,6 +197,8 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	masterTransposeInterval = 0;
 
 	dirPath.set("SONGS");
+
+	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
 Song::~Song() {
@@ -277,6 +281,8 @@ void Song::setupDefault() {
 	disabledPresetScales[whichScale] = false;
 
 	key.modeNotes = presetScaleNotes[whichScale];
+
+	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
 void Song::deleteAllOutputs(Output** prevPointer) {
@@ -1009,22 +1015,28 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 
 	int32_t oldIndex = -1;
 	if (prevClip) {
+		// retrieve clip index
 		oldIndex = sessionClips.getIndexForClip(prevClip);
 	}
-
+	// if we didn't retrieve a clip index, this is an arranger-only clip
 	if (oldIndex == -1) {
+		// turning select knob left
 		if (offset < 0) {
+			// use the highest available index
+			// NOTE: resulting index is one-based
 			oldIndex = sessionClips.getNumElements();
 		}
 	}
 
 	int32_t newIndex = oldIndex;
 	while (true) {
+		// iterate index according to select knob direction
 		newIndex += offset;
+		// index out of bounds on either side returns NULL
 		if (newIndex == -1 || newIndex == sessionClips.getNumElements()) {
 			return NULL;
 		}
-
+		// retrieve clip and return
 		Clip* clip = sessionClips.getClipAtIndex(newIndex);
 		if (clip->output == output) {
 			return clip;
@@ -1194,9 +1206,9 @@ weAreInArrangementEditorOrInClipInstance:
 				// class now uses.
 				writer.writeAttribute("midiCommandChannel", sections[s].launchMIDICommand.channelOrZone, false);
 				writer.writeAttribute("midiCommandNote", sections[s].launchMIDICommand.noteOrCC, false);
-				if (sections[s].launchMIDICommand.device) {
+				if (sections[s].launchMIDICommand.cable) {
 					writer.writeOpeningTagEnd();
-					sections[s].launchMIDICommand.device->writeReferenceToFile(writer, "midiCommandDevice");
+					sections[s].launchMIDICommand.cable->writeReferenceToFile(writer, "midiCommandDevice");
 					writer.writeClosingTag("section", true, true);
 					continue; // We now don't need to close the tag.
 				}
@@ -1818,7 +1830,7 @@ unknownTag:
 					if (!strcmp(tagName, "section")) {
 
 						uint8_t id = 255;
-						MIDIDevice* device = NULL;
+						MIDICable* cable = nullptr;
 						uint8_t channel = 255;
 						uint8_t note = 255;
 						int16_t numRepeats = 0;
@@ -1838,7 +1850,7 @@ unknownTag:
 							// Annoyingly, I used one-off tag names here, rather than it conforming to what the
 							// LearnedMIDI class now uses.
 							else if (!strcmp(tagName, "midiCommandDevice")) {
-								device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+								cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 							}
 
 							else if (!strcmp(tagName, "midiCommandChannel")) {
@@ -1854,7 +1866,7 @@ unknownTag:
 
 						if (id < kMaxNumSections) {
 							if (channel < 16 && note < 128) {
-								sections[id].launchMIDICommand.device = device;
+								sections[id].launchMIDICommand.cable = cable;
 								sections[id].launchMIDICommand.channelOrZone = channel;
 								sections[id].launchMIDICommand.noteOrCC = note;
 							}
@@ -2421,16 +2433,16 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 
 	Delay::State delayWorkingState = globalEffectable.createDelayWorkingState(paramManager);
 
-	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
-	// don't need to
-	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
-	                                              delayWorkingState, true);
-
 	int32_t postReverbVolume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND];
 	int32_t reverbSendAmount =
 	    getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_REVERB_AMOUNT],
 	                                 cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
 	                                     params::UNPATCHED_REVERB_SEND_AMOUNT)));
+
+	// don't bother checking if sound is coming in - its just to save resources and if nothing is being rendered we
+	// don't need to
+	globalEffectable.processFXForGlobalEffectable(outputBuffer, numSamples, &volumePostFX, &paramManager,
+	                                              delayWorkingState, true, reverbSendAmount >> 3);
 
 	globalEffectable.processReverbSendAndVolume(outputBuffer, numSamples, reverbBuffer, volumePostFX, postReverbVolume,
 	                                            reverbSendAmount >> 1);
@@ -2708,10 +2720,10 @@ traverseClips:
 	}
 }
 
-void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(
-    MIDIDevice* device, SoundInstrument* instrument) {
+void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForInstrument(
+    MIDICable& cable, SoundInstrument* instrument) {
 
-	if (!device->hasDefaultVelocityToLevelSet()) {
+	if (!cable.hasDefaultVelocityToLevelSet()) {
 		return;
 	}
 
@@ -2756,7 +2768,7 @@ traverseClips:
 
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
-		patchCableSet->grabVelocityToLevelFromMIDIDeviceDefinitely(device);
+		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 		patchCableSet->setupPatching(modelStackWithParamCollection);
 	}
 	if (!doingArrangementClips) {
@@ -2767,10 +2779,10 @@ traverseClips:
 }
 
 // kit is required, fortunately. Unlike some of the other "for drum" functions here.
-void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(MIDIDevice* device,
-                                                                                       SoundDrum* drum, Kit* kit) {
+void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForDrum(MIDICable& cable, SoundDrum* drum,
+                                                                                      Kit* kit) {
 
-	if (!device->hasDefaultVelocityToLevelSet()) {
+	if (!cable.hasDefaultVelocityToLevelSet()) {
 		return;
 	}
 
@@ -2823,7 +2835,7 @@ traverseClips:
 
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
-		patchCableSet->grabVelocityToLevelFromMIDIDeviceDefinitely(device);
+		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 		patchCableSet->setupPatching(modelStackWithParamCollection);
 	}
 	if (!doingArrangementClips) {
@@ -2833,7 +2845,7 @@ traverseClips:
 	}
 }
 
-void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device) {
+void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICable& cable) {
 	// if (!device->hasDefaultVelocityToLevelSet()) return; // In this case, we'll take 0 to actually mean zero.
 
 	// TODO: backed up ParamManagers?
@@ -2851,7 +2863,7 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDe
 
 		if (output->type == OutputType::SYNTH) {
 			SoundInstrument* synth = (SoundInstrument*)output;
-			if (synth->midiInput.containsSomething() && synth->midiInput.device == device) {
+			if (synth->midiInput.containsSomething() && synth->midiInput.cable == &cable) {
 
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStackWithTimelineCounter->addModControllableButNoNoteRow(synth)->addParamManager(
@@ -2861,7 +2873,7 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDe
 				    clip->paramManager.getPatchCableSet(modelStackWithThreeMainThings);
 
 				PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
-				patchCableSet->grabVelocityToLevelFromMIDIDeviceDefinitely(device);
+				patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 
 				patchCableSet->setupPatching(modelStackWithParamCollection);
 			}
@@ -2872,7 +2884,7 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDe
 
 			for (Drum* drum = kit->firstDrum; drum; drum = drum->next) {
 				if (drum->type == DrumType::SOUND && drum->midiInput.containsSomething()
-				    && drum->midiInput.device == device) {
+				    && drum->midiInput.cable == &cable) {
 
 					ModelStackWithNoteRow* modelStackWithNoteRow =
 					    ((InstrumentClip*)clip)->getNoteRowForDrum(modelStackWithTimelineCounter, drum);
@@ -2890,7 +2902,7 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDe
 
 					PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
-					patchCableSet->grabVelocityToLevelFromMIDIDeviceDefinitely(device);
+					patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 					patchCableSet->setupPatching(modelStackWithParamCollection);
 				}
 			}
@@ -3299,28 +3311,31 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// Migrate input MIDI channel / device. Putting this up here before any calls to changeInstrument() is good,
 	// because then if a default velocity is set, for the MIDIDevice, that gets grabbed by the Clip's ParamManager
 	// during that call.
-	if (newOutput->type != OutputType::KIT && oldOutput->type != OutputType::KIT) {
-		((MelodicInstrument*)newOutput)->midiInput = ((MelodicInstrument*)oldOutput)->midiInput;
-		((MelodicInstrument*)oldOutput)->midiInput.clear();
-	}
+	((Instrument*)newOutput)->midiInput = ((Instrument*)oldOutput)->midiInput;
+	((Instrument*)oldOutput)->midiInput.clear();
 
 	// if we're replacing the same output type
 	if (newOutput->type == oldOutput->type) {
-		// Migrate any midi learned params for synth and kit clip preset changes
-		// For kit clips it will migrate only kit affect entire midi learned params
-		// Scenario:
-		// - you create a clip
-		// - you midi learn a controller to that clip's params
-		// - you then go to change the preset for that clip
-		// - you expect that you can continue controlling the same params for the new preset
-		Sound* oldSound = (Sound*)oldOutput->toModControllable();
-		if (oldSound) {
-			int32_t numKnobs = oldSound->midiKnobArray.getNumElements();
-			if (numKnobs) {
-				Sound* newSound = (Sound*)newOutput->toModControllable();
-				newSound->midiKnobArray.cloneFrom(&oldSound->midiKnobArray);
-				oldSound->midiKnobArray.deleteAtIndex(0, numKnobs);
-				oldSound->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+		// exclude MIDI and CV instruments from this
+		// only audio instruments have a midi knob array
+		if (newOutput->type == OutputType::SYNTH || newOutput->type == OutputType::KIT) {
+			// Migrate any midi learned params for synth and kit clip preset changes
+			// For kit clips it will migrate only kit affect entire midi learned params
+			// Scenario:
+			// - you create a clip
+			// - you midi learn a controller to that clip's params
+			// - you then go to change the preset for that clip
+			// - you expect that you can continue controlling the same params for the new preset
+			ModControllableAudio* oldModControllableAudio = (ModControllableAudio*)oldOutput->toModControllable();
+			if (oldModControllableAudio) {
+				int32_t numKnobs = oldModControllableAudio->midiKnobArray.getNumElements();
+				if (numKnobs) {
+					ModControllableAudio* newModControllableAudio =
+					    (ModControllableAudio*)newOutput->toModControllable();
+					newModControllableAudio->midiKnobArray.cloneFrom(&oldModControllableAudio->midiKnobArray);
+					oldModControllableAudio->midiKnobArray.deleteAtIndex(0, numKnobs);
+					oldModControllableAudio->ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(this);
+				}
 			}
 		}
 	}
@@ -3541,12 +3556,25 @@ void Song::markAllInstrumentsAsEdited() {
 	}
 }
 
+// used with the renameOutputUI class to check if you're trying to rename an output to the same
+// name as another output
 AudioOutput* Song::getAudioOutputFromName(String* name) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->type == OutputType::AUDIO) {
 			if (thisOutput->name.equalsCaseIrrespective(name)) {
 				return (AudioOutput*)thisOutput;
 			}
+		}
+	}
+	return NULL;
+}
+
+// used with the renameClipUI class to check if you're trying to rename a clip to the same name
+// as another clip
+Clip* Song::getClipFromName(String* name) {
+	for (Clip* clip : AllClips::everywhere(this)) {
+		if (clip->name.equalsCaseIrrespective(name)) {
+			return clip;
 		}
 	}
 	return NULL;
@@ -5693,12 +5721,12 @@ void Song::setSongFullPath(const char* fullPath) {
 	}
 }
 
-void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-                                                int32_t whichBendRange, int32_t bendSemitones) {
+void Song::midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
+                                               int32_t whichBendRange, int32_t bendSemitones) {
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->offerBendRangeUpdate(modelStack, device, channelOrZone, whichBendRange, bendSemitones);
+		thisOutput->offerBendRangeUpdate(modelStack, cable, channelOrZone, whichBendRange, bendSemitones);
 	}
 }
 
@@ -5843,6 +5871,7 @@ ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThi
 
 	return modelStackWithParam;
 }
+
 void Song::updateBPMFromAutomation() {
 	// There seems to be a param manager bug where it occasionally reports unautomated params as 0 so just ignore
 	// that
@@ -5851,6 +5880,56 @@ void Song::updateBPMFromAutomation() {
 		setBPMInner((float)currentTempo / 100, false);
 		intBPM = currentTempo;
 	}
+}
+
+void Song::changeThresholdRecordingMode(int8_t offset) {
+	// have we displayed the current threshold recording mode?
+	// if yes, allow user to edit threshold recording mode
+	if (display->hasPopupOfType(PopupType::THRESHOLD_RECORDING_MODE)) {
+		int8_t newThresholdRecordingMode = util::to_underlying(currentSong->thresholdRecordingMode);
+		if (offset < 0) {
+			newThresholdRecordingMode = std::clamp(int8_t(newThresholdRecordingMode + offset),
+			                                       kFirstThresholdRecordingMode, newThresholdRecordingMode);
+		}
+		else if (offset > 0) {
+			newThresholdRecordingMode = std::clamp(int8_t(newThresholdRecordingMode + offset),
+			                                       newThresholdRecordingMode, kLastThresholdRecordingMode);
+		}
+
+		currentSong->thresholdRecordingMode = static_cast<ThresholdRecordingMode>(newThresholdRecordingMode);
+	}
+
+	displayThresholdRecordingMode();
+}
+
+void Song::displayThresholdRecordingMode() {
+	DEF_STACK_STRING_BUF(popupMsg, 40);
+	if (display->haveOLED()) {
+		popupMsg.append("Threshold: ");
+	}
+
+	switch (currentSong->thresholdRecordingMode) {
+	case ThresholdRecordingMode::OFF:
+		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DISABLED));
+		break;
+
+	case ThresholdRecordingMode::LOW:
+		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_LOW));
+		break;
+
+	case ThresholdRecordingMode::MEDIUM:
+		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MEDIUM));
+		break;
+
+	case ThresholdRecordingMode::HIGH:
+		popupMsg.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HIGH));
+		break;
+
+	default:
+		break;
+	}
+
+	display->popupText(popupMsg.c_str(), PopupType::THRESHOLD_RECORDING_MODE);
 }
 
 /*

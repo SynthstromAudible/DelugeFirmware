@@ -24,6 +24,7 @@
 #include "dsp/stereo_sample.h"
 #include "hid/button.h"
 #include "model/fx/stutterer.h"
+#include "model/mod_controllable/ModFXProcessor.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "modulation/lfo.h"
@@ -34,7 +35,7 @@
 
 class Clip;
 class Knob;
-class MIDIDevice;
+class MIDICable;
 class ModelStack;
 class ModelStackWithTimelineCounter;
 class ParamManager;
@@ -54,14 +55,14 @@ public:
 	                                int32_t pan = 0, bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
-	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                      int32_t readAutomationUpToPos, Song* song);
+	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
+	                              int32_t readAutomationUpToPos, Song* song);
 	void processSRRAndBitcrushing(StereoSample* buffer, int32_t numSamples, int32_t* postFXVolume,
 	                              ParamManager* paramManager);
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                       int32_t* valuesForOverride = NULL);
+	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                 int32_t* valuesForOverride = NULL);
+	                                 int32_t* valuesForOverride = nullptr);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
@@ -70,29 +71,28 @@ public:
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual ModFXType getModFXType() = 0;
 	virtual bool setModFXType(ModFXType newType);
-	bool offerReceivedCCToLearnedParamsForClip(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
-	bool offerReceivedCCToLearnedParamsForSong(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithThreeMainThings* modelStackWithThreeMainThings);
-	bool offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+	bool offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
-	virtual bool learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob,
-	                       uint8_t modKnobMode, uint8_t midiChannel, Song* song);
+	/// Learna knob to a particular parameter.
+	///
+	/// @param cable The source MIDI cable, or null if learning a mod knob
+	virtual bool learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
+	                       uint8_t midiChannel, Song* song);
 	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
 	bool isBitcrushingEnabled(ParamManager* paramManager);
 	bool isSRREnabled(ParamManager* paramManager);
 	bool hasBassAdjusted(ParamManager* paramManager);
 	bool hasTrebleAdjusted(ParamManager* paramManager);
-	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack);
-
-	// Phaser
-	StereoSample phaserMemory;
-	StereoSample allpassMemory[kNumAllpassFiltersPhaser];
+	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) override;
 
 	// EQ
-	int32_t bassFreq; // These two should eventually not be variables like this
-	int32_t trebleFreq;
+	int32_t bassFreq{}; // These two should eventually not be variables like this
+	int32_t trebleFreq{};
 
 	int32_t withoutTrebleL;
 	int32_t bassOnlyL;
@@ -109,16 +109,13 @@ public:
 	FilterRoute filterRoute;
 
 	// Mod FX
-	ModFXType modFXType;
-	StereoSample* modFXBuffer;
-	uint16_t modFXBufferWriteIndex;
-	LFO modFXLFO;
-
+	ModFXType modFXType_;
+	ModFXProcessor modfx{};
 	RMSFeedbackCompressor compressor;
 	GranularProcessor* grainFX{nullptr};
 
-	uint32_t lowSampleRatePos;
-	uint32_t highSampleRatePos;
+	uint32_t lowSampleRatePos{};
+	uint32_t highSampleRatePos{};
 	StereoSample lastSample;
 	StereoSample grabbedSample;
 	StereoSample lastGrabbedSample;
@@ -126,12 +123,12 @@ public:
 	SideChain sidechain; // Song doesn't use this, despite extending this class
 
 	MidiKnobArray midiKnobArray;
-	int32_t postReverbVolumeLastTime;
+	int32_t postReverbVolumeLastTime{};
 
 protected:
 	void processFX(StereoSample* buffer, int32_t numSamples, ModFXType modFXType, int32_t modFXRate, int32_t modFXDepth,
 	               const Delay::State& delayWorkingState, int32_t* postFXVolume, ParamManager* paramManager,
-	               bool anySoundComingIn);
+	               bool anySoundComingIn, q31_t reverbSendAmount);
 	void switchDelayPingPong();
 	void switchDelayAnalog();
 	void switchDelaySyncType();
@@ -167,32 +164,13 @@ protected:
 	void disableGrain();
 
 private:
-	void initializeSecondaryDelayBuffer(int32_t newNativeRate, bool makeNativeRatePreciseRelativeToOtherBuffer);
 	void doEQ(bool doBass, bool doTreble, int32_t* inputL, int32_t* inputR, int32_t bassAmount, int32_t trebleAmount);
 	ModelStackWithThreeMainThings* addNoteRowIndexAndStuff(ModelStackWithTimelineCounter* modelStack,
 	                                                       int32_t noteRowIndex);
 	void switchHPFModeWithOff();
 	void switchLPFModeWithOff();
-	void processModFX(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
-	                  int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd,
-	                  bool anySoundComingIn);
-	// not grain!
-	void processModFXBuffer(StereoSample* buffer, const ModFXType& modFXType, int32_t modFXRate, int32_t modFXDepth,
-	                        const StereoSample* bufferEnd, LFOType& modFXLFOWaveType, int32_t modFXDelayOffset,
-	                        int32_t thisModFXDelayDepth, int32_t feedback);
 
-	void processOnePhaserSample(int32_t modFXDepth, int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
-	void processOneModFXSample(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
-	                           int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
-	/// flanger, phaser, warble - generally any modulated delay tap based effect with feedback
-	void setupModFXWFeedback(const ModFXType& modFXType, int32_t modFXDepth, int32_t* postFXVolume,
-	                         UnpatchedParamSet* unpatchedParams, LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset,
-	                         int32_t& thisModFXDelayDepth, int32_t& feedback) const;
-	void setupChorus(int32_t modFXDepth, int32_t* postFXVolume, UnpatchedParamSet* unpatchedParams,
-	                 LFOType& modFXLFOWaveType, int32_t& modFXDelayOffset, int32_t& thisModFXDelayDepth) const;
-
-	void processWarble(const ModFXType& modFXType, int32_t modFXDelayOffset, int32_t thisModFXDelayDepth,
-	                   int32_t feedback, StereoSample* currentSample, int32_t lfoOutput);
 	void processGrainFX(StereoSample* buffer, int32_t modFXRate, int32_t modFXDepth, int32_t* postFXVolume,
-	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd, bool anySoundComingIn);
+	                    UnpatchedParamSet* unpatchedParams, const StereoSample* bufferEnd, bool anySoundComingIn,
+	                    q31_t verbAmount);
 };

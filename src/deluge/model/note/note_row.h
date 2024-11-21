@@ -234,7 +234,7 @@ public:
 	                             bool shouldJustDeleteNodes = false);
 	SequenceDirection getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack);
 	bool recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStackWithNoteRow, int32_t newValueBig,
-	                                     int32_t whichExpressionDimension, bool forDrum);
+	                                     int32_t expressionDimension, bool forDrum);
 	void setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, SequenceDirection newMode);
 	bool isAuditioning(ModelStackWithNoteRow* modelStack);
 

@@ -14,7 +14,9 @@ To edit fill, you need to access the new note and note row editor menu's.
 
 Hold a note and press the select encoder to enter the note editor menu. 
 
-The note you were holding will be the note selected when you enter the note editor. If playback is off, you will hear what that note sounds like.
+The note you were holding will be the note selected when you enter the note editor. 
+
+If playback is off, you will hear what that note sounds like. You can toggle whether you want to hear / not hear the note by pressing the note again.
 
 ### Selecting a Note
 
@@ -24,7 +26,15 @@ You can select another note by pressing the note on the grid.
 
 You can vertical scroll, horizontal scroll, and zoom in / out to find a note you want to edit.
 
-Note: if you scroll, the note you previously selected will get de-selected. If you were in a note parameter menu, it will kick you back out to the main note editor menu. If you then try to enter one of those note parameter menu's, it will tell you to select a note first.
+Note: if you scroll, the note you previously selected will get de-selected and it will stop auditioning. If you were in a note parameter menu, it will kick you back out to the main note editor menu. If you then try to enter one of those note parameter menu's, it will tell you to select a note first.
+
+### Selected Note Auditioning
+
+By default when you select a note, the note will begin auditioning (so you can hear it) and it will continue auditioning until you either:
+ - exit the note editor menu
+ - press the note again
+ - de-select the note by scrolling
+ - select another note
 
 ### Note Actions
 

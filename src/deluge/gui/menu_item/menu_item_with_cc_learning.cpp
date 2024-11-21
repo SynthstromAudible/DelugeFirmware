@@ -37,11 +37,10 @@ void MenuItemWithCCLearning::unlearnAction() {
 	}
 }
 
-void MenuItemWithCCLearning::learnKnob(MIDIDevice* fromDevice, int32_t whichKnob, int32_t modKnobMode,
-                                       int32_t midiChannel) {
+void MenuItemWithCCLearning::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
 	ParamDescriptor paramDescriptor = getLearningThing();
 
-	bool success = soundEditor.currentModControllable->learnKnob(fromDevice, paramDescriptor, whichKnob, modKnobMode,
+	bool success = soundEditor.currentModControllable->learnKnob(cable, paramDescriptor, whichKnob, modKnobMode,
 	                                                             midiChannel, currentSong);
 
 	if (success) {

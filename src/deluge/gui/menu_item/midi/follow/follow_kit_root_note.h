@@ -30,7 +30,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMIDIValue; }
 	bool allowsLearnMode() override { return true; }
 
-	bool learnNoteOn(MIDIDevice* device, int32_t channel, int32_t noteCode) {
+	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) override {
 		this->setValue(noteCode);
 		midiEngine.midiFollowKitRootNote = noteCode;
 

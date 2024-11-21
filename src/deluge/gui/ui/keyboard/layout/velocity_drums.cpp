@@ -80,7 +80,7 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
                                                           bool encoderPressed) {
 	KeyboardStateDrums& state = getState().drums;
 
-	if (shiftEnabled) {
+	if (shiftEnabled || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		state.edgeSize += offset;
 		state.edgeSize = std::clamp(state.edgeSize, kMinDrumPadEdgeSize, kMaxDrumPadEdgeSize);
 
