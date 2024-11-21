@@ -1635,7 +1635,7 @@ justUnassign:
 			reassessRenderSkippingStatus(
 			    modelStack); // Since we potentially just changed numVoicesAssigned from 0 to 1.
 
-			newVoice->randomizeOscPhases(this);
+			newVoice->randomizeOscPhases(*this);
 		}
 
 		if (sideChainSendLevel != 0) [[unlikely]] {
@@ -3046,7 +3046,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 									newVoiceSample->stopUsingCache(
 									    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
 									    thisVoice->getPriorityRating(),
-									    thisVoice->guides[s].getLoopingType(&sources[s]) == LoopType::LOW_LEVEL);
+									    thisVoice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
 									// TODO: should really check success of that...
 								}
 							}
