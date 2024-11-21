@@ -31,8 +31,6 @@ extern const int16_t tanH2d[][129];
 extern const int16_t hanningWindow[];
 
 extern const int16_t sineWaveSmall[];
-extern const int16_t sineWaveDiff[];
-#define SINE_TABLE_SIZE_MAGNITUDE 8
 
 extern const int16_t triangleWaveAntiAliasing1[];
 extern const int16_t triangleWaveAntiAliasing3[];
