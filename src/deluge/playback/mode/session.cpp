@@ -779,7 +779,7 @@ void Session::launchSchedulingMightNeedCancelling() {
 		cancelAllLaunchScheduling();
 		if (display->haveOLED()) {
 			RootUI* rootUI = getRootUI();
-			if (getCurrentUI() == &loadSongUI) {
+			if (loadSongUI.isLoadingSong()) {
 				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
 			}
 			else if ((rootUI == &sessionView || rootUI == &performanceView)
@@ -2305,7 +2305,7 @@ traverseClips:
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
 			if (display->haveOLED()) {
 				RootUI* rootUI = getRootUI();
-				if (getCurrentUI() == &loadSongUI) {
+				if (loadSongUI.isLoadingSong()) {
 					loadSongUI.displayLoopsRemainingPopup();
 				}
 				else if ((rootUI == &sessionView || rootUI == &performanceView)

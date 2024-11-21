@@ -154,6 +154,8 @@ as the micromonsta and the dreadbox nymphes.
   as synths. The note sent for the learn will be treated as the first row for the kit, and increasing notes get mapped
   to the next rows
 
+- ([#2810]) Added new learnable global command `LOAD NEXT SONG` (which can be quickly learned holding `LEARN` and `LOAD` and sending a MIDI note or CC message). When the Deluge receives this command while it is playing, it will queue to load the next song within the folder of the current song (wraps around when reaching the end of the folder).
+
 #### 3.4 - Tempo & Swing
 
 - ([#178]) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
@@ -1622,6 +1624,8 @@ different firmware
 [#2751]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2751
 
 [#2808]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2808
+
+[#2810]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2810
 
 [#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
 
