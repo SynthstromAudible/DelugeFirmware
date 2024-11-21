@@ -446,9 +446,9 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 
 			// Because we manually called LearnedMIDI::writeAttributesToFile() above, we have to give the MIDIDevice its
 			// own tag, cos that can't be written as just an attribute.
-			if (knob->midiInput.device) {
+			if (knob->midiInput.cable) {
 				writer.writeOpeningTagEnd();
-				knob->midiInput.device->writeReferenceToFile(writer);
+				knob->midiInput.cable->writeReferenceToFile(writer);
 				writer.writeClosingTag("midiKnob", true, true);
 			}
 			else {
@@ -745,7 +745,7 @@ doReadPatchedParam:
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
 
-				MIDIDevice* device = nullptr;
+				MIDICable* cable = nullptr;
 				uint8_t channel;
 				uint8_t ccNumber;
 				bool relative;
@@ -755,7 +755,7 @@ doReadPatchedParam:
 
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "device")) {
-						device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+						cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 					}
 					else if (!strcmp(tagName, "channel")) {
 						channel = reader.readTagOrAttributeValueInt();
@@ -788,7 +788,7 @@ doReadPatchedParam:
 				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
 					MIDIKnob* newKnob = midiKnobArray.insertKnobAtEnd();
 					if (newKnob) {
-						newKnob->midiInput.device = device;
+						newKnob->midiInput.cable = cable;
 						newKnob->midiInput.channelOrZone = channel;
 						newKnob->midiInput.noteOrCC = ccNumber;
 						newKnob->relative = relative;
@@ -868,8 +868,8 @@ ModelStackWithThreeMainThings* ModControllableAudio::addNoteRowIndexAndStuff(Mod
 	return modelStackWithThreeMainThings;
 }
 
-bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDIDevice* fromDevice, uint8_t channel,
-                                                                 uint8_t ccNumber, uint8_t value,
+bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber,
+                                                                 uint8_t value,
                                                                  ModelStackWithTimelineCounter* modelStack,
                                                                  int32_t noteRowIndex) {
 	bool messageUsed = false;
@@ -879,7 +879,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDIDevice* fro
 		MIDIKnob* knob = midiKnobArray.getElement(k);
 
 		// If this is the knob...
-		if (knob->midiInput.equalsNoteOrCC(fromDevice, channel, ccNumber)) {
+		if (knob->midiInput.equalsNoteOrCC(&cable, channel, ccNumber)) {
 
 			messageUsed = true;
 
@@ -954,7 +954,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDIDevice* fro
 }
 
 bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
-    MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+    MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
     ModelStackWithThreeMainThings* modelStackWithThreeMainThings) {
 	bool messageUsed = false;
 
@@ -963,7 +963,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 		MIDIKnob* knob = midiKnobArray.getElement(k);
 
 		// If this is the knob...
-		if (knob->midiInput.equalsNoteOrCC(fromDevice, channel, ccNumber)) {
+		if (knob->midiInput.equalsNoteOrCC(&cable, channel, ccNumber)) {
 
 			messageUsed = true;
 
@@ -1023,7 +1023,7 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 }
 
 // Returns true if the message was used by something
-bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1,
+bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t data1,
                                                                  uint8_t data2,
                                                                  ModelStackWithTimelineCounter* modelStack,
                                                                  int32_t noteRowIndex) {
@@ -1035,7 +1035,7 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDIDevice* fro
 		MIDIKnob* knob = midiKnobArray.getElement(k);
 
 		// If this is the knob...
-		if (knob->midiInput.equalsNoteOrCC(fromDevice, channel,
+		if (knob->midiInput.equalsNoteOrCC(&cable, channel,
 		                                   128)) { // I've got 128 representing pitch bend here... why again?
 
 			messageUsed = true;
@@ -1287,7 +1287,7 @@ bool ModControllableAudio::setModFXType(ModFXType newType) {
 // whichKnob is either which physical mod knob, or which MIDI CC code.
 // For mod knobs, supply midiChannel as 255
 // Returns false if fail due to insufficient RAM.
-bool ModControllableAudio::learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob,
+bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob,
                                      uint8_t modKnobMode, uint8_t midiChannel, Song* song) {
 
 	bool overwroteExistingKnob = false;
@@ -1315,7 +1315,7 @@ bool ModControllableAudio::learnKnob(MIDIDevice* fromDevice, ParamDescriptor par
 		// Was this MIDI knob already set to control this thing?
 		for (int32_t k = 0; k < midiKnobArray.getNumElements(); k++) {
 			knob = midiKnobArray.getElement(k);
-			if (knob->midiInput.equalsNoteOrCC(fromDevice, midiChannel, whichKnob)
+			if (knob->midiInput.equalsNoteOrCC(cable, midiChannel, whichKnob)
 			    && paramDescriptor == knob->paramDescriptor) {
 				// overwroteExistingKnob = (midiKnobs[k].s != s || midiKnobs[k].p != p);
 				goto midiKnobFound;
@@ -1331,7 +1331,7 @@ bool ModControllableAudio::learnKnob(MIDIDevice* fromDevice, ParamDescriptor par
 midiKnobFound:
 		knob->midiInput.noteOrCC = whichKnob;
 		knob->midiInput.channelOrZone = midiChannel;
-		knob->midiInput.device = fromDevice;
+		knob->midiInput.cable = cable;
 		knob->paramDescriptor = paramDescriptor;
 		knob->relative = (whichKnob != 128); // Guess that it's relative, unless this is a pitch-bend "knob"
 	}

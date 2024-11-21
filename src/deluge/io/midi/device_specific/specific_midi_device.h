@@ -27,6 +27,6 @@ SpecificMidiDeviceType getSpecificMidiDeviceType(uint16_t vendorId, uint16_t pro
 MIDIDeviceUSBHosted* recastSpecificMidiDevice(void* sourceDevice);
 MIDIDeviceUSBHosted* recastSpecificMidiDevice(MIDIDeviceUSBHosted* sourceDevice);
 
-MIDIDeviceUSBHosted* getSpecificDeviceFromMIDIDevice(MIDIDevice* sourceDevice);
+MIDIDeviceUSBHosted* getSpecificDeviceFromMIDICable(MIDICable& sourceDevice);
 
 void iterateAndCallSpecificDeviceHook(MIDIDeviceUSBHosted::Hook hook);

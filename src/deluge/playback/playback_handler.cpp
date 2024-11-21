@@ -2682,20 +2682,20 @@ void PlaybackHandler::tapTempoButtonPress(bool useNormalTapTempoBehaviour) {
 }
 
 // Returns whether the message has been used up by a command
-bool PlaybackHandler::tryGlobalMIDICommands(MIDIDevice* device, int32_t channel, int32_t note) {
+bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, int32_t note) {
 
 	bool foundAnything = false;
 
 	for (int32_t c = 0; c < kNumGlobalMIDICommands; c++) {
 		GlobalMIDICommand command = static_cast<GlobalMIDICommand>(c);
 
-		if (midiEngine.globalMIDICommands[c].equalsChannelOrZone(device, channel)
+		if (midiEngine.globalMIDICommands[c].equalsChannelOrZone(&cable, channel)
 		    && command == GlobalMIDICommand::TRANSPOSE) {
 			foundAnything = true;
 			MIDITranspose::doTranspose(true, note);
 		}
 
-		else if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(device, channel, note)) {
+		else if (midiEngine.globalMIDICommands[c].equalsNoteOrCC(&cable, channel, note)) {
 			switch (command) {
 			case GlobalMIDICommand::PLAYBACK_RESTART:
 				if (recording != RecordingMode::ARRANGEMENT) {
@@ -2760,18 +2760,18 @@ void PlaybackHandler::tryLoopCommand(GlobalMIDICommand command) {
 }
 
 // Returns whether the message has been used up by a note-off command
-bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t channel, int32_t note) {
+bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDICable& cable, int32_t channel, int32_t note) {
 
 	bool foundAnything = false;
 
-	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].equalsChannelOrZone(device,
+	if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::TRANSPOSE)].equalsChannelOrZone(&cable,
 	                                                                                                         channel)) {
 		foundAnything = true;
 		MIDITranspose::doTranspose(false, note);
 	}
 	else {
 		// Check for FILL command at index [8]
-		if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(device, channel,
+		if (midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::FILL)].equalsNoteOrCC(&cable, channel,
 		                                                                                               note)) {
 			currentSong->changeFillMode(false);
 			foundAnything = true;
@@ -2781,20 +2781,20 @@ bool PlaybackHandler::tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t chann
 	return foundAnything;
 }
 
-void PlaybackHandler::programChangeReceived(MIDIDevice* fromDevice, int32_t channel, int32_t program) {
+void PlaybackHandler::programChangeReceived(MIDICable& cable, int32_t channel, int32_t program) {
 	// If user assigning MIDI commands, do that
 	if (currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (getCurrentUI()->pcReceivedForMidiLearn(fromDevice, channel, program)) {}
+		if (getCurrentUI()->pcReceivedForMidiLearn(cable, channel, program)) {}
 		else {
-			view.pcReceivedForMIDILearn(fromDevice, channel, program);
+			view.pcReceivedForMIDILearn(cable, channel, program);
 		}
 	}
 	else {
 		// we build ontop of the CC hack
-		offerNoteToLearnedThings(fromDevice, true, channel + IS_A_PC, program);
+		offerNoteToLearnedThings(cable, true, channel + IS_A_PC, program);
 	}
 }
-bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note) {
+bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_t channel, int32_t note) {
 
 	// Otherwise, enact the relevant MIDI command, if it can be found
 
@@ -2802,15 +2802,15 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, 
 
 	// Check global function commands - Off variant checks note off for momentary commands
 	if (on) {
-		foundAnything = tryGlobalMIDICommands(fromDevice, channel, note);
+		foundAnything = tryGlobalMIDICommands(cable, channel, note);
 	}
 	else {
-		foundAnything = tryGlobalMIDICommandsOff(fromDevice, channel, note);
+		foundAnything = tryGlobalMIDICommandsOff(cable, channel, note);
 	}
 
 	// Go through all sections
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		if (currentSong->sections[s].launchMIDICommand.equalsNoteOrCC(fromDevice, channel, note)) {
+		if (currentSong->sections[s].launchMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
 			if (on) {
 				if (arrangement.hasPlaybackActive()) {
 					switchToSession();
@@ -2826,7 +2826,7 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, 
 		Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
 
 		// Mute action on Clip?
-		if (clip->muteMIDICommand.equalsNoteOrCC(fromDevice, channel, note)) {
+		if (clip->muteMIDICommand.equalsNoteOrCC(&cable, channel, note)) {
 			if (on) {
 
 				if (arrangement.hasPlaybackActive()) {
@@ -2846,24 +2846,24 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, 
 	return foundAnything;
 }
 
-void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note,
-                                          int32_t velocity, bool* doingMidiThru) {
+void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
+                                          bool* doingMidiThru) {
 	// If user assigning/learning MIDI commands, do that
 	if (currentUIMode == UI_MODE_MIDI_LEARN && on) {
 		// Checks velocity to let note-offs pass through,
 		// so no risk of stuck note if they pressed learn while holding a note
-		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 
-		if (getCurrentUI()->noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity)) {}
+		if (getCurrentUI()->noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity)) {}
 		else {
-			view.noteOnReceivedForMidiLearn(fromDevice, channelOrZone, note, velocity);
+			view.noteOnReceivedForMidiLearn(cable, channelOrZone, note, velocity);
 		}
 		return;
 	}
 
 	// Otherwise, enact the relevant MIDI command, if it can be found
 
-	if (offerNoteToLearnedThings(fromDevice, on, channel, note)) {
+	if (offerNoteToLearnedThings(cable, on, channel, note)) {
 		return;
 	}
 
@@ -2873,7 +2873,7 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if note message received should be processed by midi follow mode
-	midiFollow.noteMessageReceived(fromDevice, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
+	midiFollow.noteMessageReceived(cable, on, channel, note, velocity, doingMidiThru, shouldRecordNotesNowNow,
 	                               modelStack);
 
 	// Go through all Instruments...
@@ -2886,7 +2886,7 @@ void PlaybackHandler::noteMessageReceived(MIDIDevice* fromDevice, bool on, int32
 			    modelStack->addTimelineCounter(thisOutput->getActiveClip());
 			// Output is a MIDI instrument, kit, or melodic instrument
 			// Midi instruments will hand control to NonAudioInstrument which inherits from melodic
-			thisOutput->offerReceivedNote(modelStackWithTimelineCounter, fromDevice, on, channel, note, velocity,
+			thisOutput->offerReceivedNote(modelStackWithTimelineCounter, cable, on, channel, note, velocity,
 			                              shouldRecordNotesNowNow
 			                                  && currentSong->isOutputActiveInArrangement(
 			                                      thisOutput), // Definitely don't record if muted in arrangement
@@ -2957,19 +2957,19 @@ void PlaybackHandler::switchToSession() {
 
 bool dealingWithReceivedMIDIPitchBendRightNow = false;
 
-void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2,
+void PlaybackHandler::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2,
                                         bool* doingMidiThru) {
 
-	bool isMPE = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
+	bool isMPE = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
 
 	if (isMPE) {
-		fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][0] =
-		    (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192) << 2;
+		cable.inputChannels[channel].defaultInputMPEValues[0] = (((uint32_t)data1 | ((uint32_t)data2 << 7)) - 8192)
+		                                                        << 2;
 	}
 	else {
 		// If the SoundEditor is the active UI, give it first dibs on the message
 		if (getCurrentUI() == &soundEditor) {
-			if (soundEditor.pitchBendReceived(fromDevice, channel, data1, data2)) {
+			if (soundEditor.pitchBendReceived(cable, channel, data1, data2)) {
 				return;
 			}
 		}
@@ -2981,7 +2981,7 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 	dealingWithReceivedMIDIPitchBendRightNow = true;
 
 	// See if pitch bend received should be processed by midi follow mod
-	midiFollow.pitchBendReceived(fromDevice, channel, data1, data2, doingMidiThru, modelStack);
+	midiFollow.pitchBendReceived(cable, channel, data1, data2, doingMidiThru, modelStack);
 
 	// Go through all Outputs...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -2994,13 +2994,13 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 		if (!isMPE && modelStackWithTimelineCounter->timelineCounterIsSet()) { // Do we still need to check this?
 			// See if it's learned to a parameter
 			usedForParam = thisOutput->offerReceivedPitchBendToLearnedParams(
-			    fromDevice, channel, data1, data2,
+			    cable, channel, data1, data2,
 			    modelStackWithTimelineCounter); // NOTE: this call may change
 			                                    // modelStackWithTimelineCounter->timelineCounter etc!
 		}
 
 		if (!usedForParam) {
-			thisOutput->offerReceivedPitchBend(modelStackWithTimelineCounter, fromDevice, channel, data1, data2,
+			thisOutput->offerReceivedPitchBend(modelStackWithTimelineCounter, cable, channel, data1, data2,
 			                                   doingMidiThru);
 		}
 	}
@@ -3008,30 +3008,30 @@ void PlaybackHandler::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel,
 	dealingWithReceivedMIDIPitchBendRightNow = false;
 }
 
-void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
                                      bool* doingMidiThru) {
 	// true only if it's an MPE member channel, and therefore only used for per note expression
-	bool isMPE = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
+	bool isMPE = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel);
 
 	if (isMPE) {
-		fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][1] = (value - 64) << 9;
+		cable.inputChannels[channel].defaultInputMPEValues[1] = (value - 64) << 9;
 	}
 	else {
-		int32_t channelOrZone = fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
+		int32_t channelOrZone = cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel);
 		// If the SoundEditor is the active UI, give it first dibs on the message
 		if (getCurrentUI() == &soundEditor) {
-			if (soundEditor.midiCCReceived(fromDevice, channelOrZone, ccNumber, value)) {
+			if (soundEditor.midiCCReceived(cable, channelOrZone, ccNumber, value)) {
 				return;
 			}
 		}
 		// then midi learn is second priority
 		else if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			view.ccReceivedForMIDILearn(fromDevice, channelOrZone, ccNumber, value);
+			view.ccReceivedForMIDILearn(cable, channelOrZone, ccNumber, value);
 			// we don't want this learn to immediately trigger the thing it was learnt to so just return
 			return;
 		}
 		// check if it was learned to on/off commands (loop, drums, section launch etc.)
-		else if (offerNoteToLearnedThings(fromDevice, value > 0, channelOrZone + IS_A_CC, ccNumber)) {
+		else if (offerNoteToLearnedThings(cable, value > 0, channelOrZone + IS_A_CC, ccNumber)) {
 			return;
 		}
 	}
@@ -3040,7 +3040,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if midi cc received should be processed by midi follow mode
-	midiFollow.midiCCReceived(fromDevice, channel, ccNumber, value, doingMidiThru, modelStack);
+	midiFollow.midiCCReceived(cable, channel, ccNumber, value, doingMidiThru, modelStack);
 
 	// See if midi cc received has been learned to a song param
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -3048,7 +3048,7 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 	if (modelStackWithThreeMainThings) {
 		ModControllableAudio* modControllable = (ModControllableAudio*)modelStackWithThreeMainThings->modControllable;
 		if (modControllable) {
-			modControllable->offerReceivedCCToLearnedParamsForSong(fromDevice, channel, ccNumber, value,
+			modControllable->offerReceivedCCToLearnedParamsForSong(cable, channel, ccNumber, value,
 			                                                       modelStackWithThreeMainThings);
 		}
 	}
@@ -3067,33 +3067,31 @@ void PlaybackHandler::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, ui
 			if (!isMPE) {
 				// See if it's learned to a parameter
 				// NOTE: this call may change modelStackWithTimelineCounter->timelineCounter etc!
-				thisOutput->offerReceivedCCToLearnedParams(fromDevice, channel, ccNumber, value,
+				thisOutput->offerReceivedCCToLearnedParams(cable, channel, ccNumber, value,
 				                                           modelStackWithTimelineCounter);
 			}
 
-			thisOutput->offerReceivedCC(modelStackWithTimelineCounter, fromDevice, channel, ccNumber, value,
-			                            doingMidiThru);
+			thisOutput->offerReceivedCC(modelStackWithTimelineCounter, cable, channel, ccNumber, value, doingMidiThru);
 		}
 	}
 }
 
 // noteCode -1 means channel-wide, including for MPE input (which then means it could still then just apply to one
 // note).
-void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
+void PlaybackHandler::aftertouchReceived(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
                                          bool* doingMidiThru) {
 
-	bool isMPE =
-	    (noteCode == -1 && fromDevice->ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel));
+	bool isMPE = (noteCode == -1 && cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel));
 
 	if (isMPE) {
-		fromDevice->defaultInputMPEValuesPerMIDIChannel[channel][2] = value << 8;
+		cable.inputChannels[channel].defaultInputMPEValues[2] = value << 8;
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	// See if aftertouch received should be processed by midi follow mode
-	midiFollow.aftertouchReceived(fromDevice, channel, value, noteCode, doingMidiThru, modelStack);
+	midiFollow.aftertouchReceived(cable, channel, value, noteCode, doingMidiThru, modelStack);
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
@@ -3101,7 +3099,7 @@ void PlaybackHandler::aftertouchReceived(MIDIDevice* fromDevice, int32_t channel
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 		    modelStack->addTimelineCounter(thisOutput->getActiveClip());
 
-		thisOutput->offerReceivedAftertouch(modelStackWithTimelineCounter, fromDevice, channel, value, noteCode,
+		thisOutput->offerReceivedAftertouch(modelStackWithTimelineCounter, cable, channel, value, noteCode,
 		                                    doingMidiThru);
 	}
 }

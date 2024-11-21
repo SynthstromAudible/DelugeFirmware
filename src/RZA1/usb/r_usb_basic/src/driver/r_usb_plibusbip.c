@@ -1124,15 +1124,6 @@ void usb_pstd_nrdy_pipe_process(uint16_t bitsts)
     }
 } /* End of function usb_pstd_nrdy_pipe_process() */
 
-struct MIDIDevice;
-
-struct USBPortStats
-{
-    uint8_t connected;
-    uint8_t currentlySending;
-    struct MIDIDevice* device;
-};
-
 extern uint8_t anyUSBSendingStillHappening[];
 
 // Heavily chopped down function by Rohan, from the one below it. We already know the only pipe it could be is
