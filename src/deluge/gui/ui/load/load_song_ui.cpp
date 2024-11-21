@@ -241,10 +241,12 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 		// This method is intended just for queueing while playing
 		return;
 	}
-	if (isLoadingSong()) {
-		// If this UI is open, the users might be loading a song manually themselves
-		// so we should not respond to queuing requests by midi commands
-		// Also if a previous "load next" command is in progress
+	if (currentUIMode != UI_MODE_NONE) {
+		// If we're in the middle of something, ignore this request
+		return;
+	}
+	if (loadingNextSongInProgress) {
+		// If another queueLoadNextSong is in progress, ignore this request
 		return;
 	}
 	if (fileIndexSelected == -1) {
