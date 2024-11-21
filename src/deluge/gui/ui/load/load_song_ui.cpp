@@ -62,7 +62,7 @@ LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
 	title = "Load song";
-	loadingNextSongInProgress = false;
+	performingLoad = false;
 }
 
 bool LoadSongUI::opened() {
@@ -232,7 +232,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 
 bool LoadSongUI::isLoadingSong() {
 	// The current open UI is this one, or there is an automatic "load next" command in progress
-	return getCurrentUI() == this || loadingNextSongInProgress;
+	return getCurrentUI() == this || performingLoad;
 }
 
 // This is the public method exposed to allow for queue loading next song while playing
@@ -241,21 +241,15 @@ void LoadSongUI::queueLoadNextSongIfAvailable(int8_t offset) {
 		// This method is intended just for queueing while playing
 		return;
 	}
-	if (currentUIMode != UI_MODE_NONE) {
-		// If we're in the middle of something, ignore this request
-		return;
-	}
-	if (loadingNextSongInProgress) {
-		// If another queueLoadNextSong is in progress, ignore this request
+	if (performingLoad) {
+		// If another load is in progress, ignore this request
 		return;
 	}
 	if (fileIndexSelected == -1) {
 		// If no song is loaded/selected yet, we have nothing to do
 		return;
 	}
-	loadingNextSongInProgress = true;
 	doQueueLoadNextSongIfAvailable(offset);
-	loadingNextSongInProgress = false;
 }
 
 // This method actually executes the loading of next song (by offset)
@@ -304,6 +298,7 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 
 // Before calling this, you must set loadButtonReleased.
 void LoadSongUI::performLoad() {
+	performingLoad = true;
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
@@ -311,6 +306,7 @@ void LoadSongUI::performLoad() {
 		                          ? Error::FILE_NOT_FOUND
 		                          : Error::NO_FURTHER_FILES_THIS_DIRECTION); // Make it say "NONE" on numeric Deluge,
 		                                                                     // for consistency with old times.
+		performingLoad = false;
 		return;
 	}
 
@@ -427,6 +423,7 @@ fail:
 		}
 		currentUIMode = UI_MODE_NONE;
 		display->removeWorkingAnimation();
+		performingLoad = false;
 		return;
 	}
 
@@ -606,6 +603,8 @@ swapDone:
 			}
 		}
 	}
+
+	performingLoad = false;
 }
 
 ActionResult LoadSongUI::timerCallback() {
