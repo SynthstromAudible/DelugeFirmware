@@ -108,92 +108,69 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 
 void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamManager* paramManager, int32_t magnitude,
                                uint32_t timePerTickInverse) {
-	StereoSample* audioEnd = audio + numSamples;
+    StereoSample* audioEnd = audio + numSamples;
+    StereoSample* thisSample = audio;
 
-	StereoSample* thisSample = audio;
+    int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
 
-	int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
+    buffer.setupForRender(rate);
 
-	buffer.setupForRender(rate);
+    if (status == Status::RECORDING) {
+        do {
+            int32_t strength1;
+            int32_t strength2;
 
-	if (status == Status::RECORDING) {
+            if (buffer.isNative()) {
+                buffer.clearAndMoveOn();
+                sizeLeftUntilRecordFinished--;
+            } else {
+                strength2 = buffer.advance([&] {
+                    buffer.clearAndMoveOn();
+                    sizeLeftUntilRecordFinished--;
+                });
+                strength1 = 65536 - strength2;
+            }
 
-		do {
+            buffer.write(*thisSample, strength1, strength2);
+        } while (++thisSample != audioEnd);
 
-			int32_t strength1;
-			int32_t strength2;
+        if (sizeLeftUntilRecordFinished < 0) {
+            status = Status::PLAYING;
+        }
+    } else { // PLAYING in reverse
+        do {
+            int32_t strength1;
+            int32_t strength2;
 
-			// First, tick it along, as if we were reading from it
+            if (buffer.isNative()) {
+                buffer.moveBack(); // Move backward in the buffer
+                thisSample->l = buffer.current().l;
+                thisSample->r = buffer.current().r;
+            } else {
+                // Move backward
+                strength2 = buffer.retreat([&] {
+                    buffer.moveBack();
+                });
+                strength1 = 65536 - strength2;
 
-			// Non-resampling tick-along
-			if (buffer.isNative()) {
-				buffer.clearAndMoveOn();
-				sizeLeftUntilRecordFinished--;
+                StereoSample* prevPos = &buffer.current() - 1;
+                if (prevPos < buffer.begin()) {
+                    prevPos = buffer.end() - 1; // Wrap around to the end of the buffer
+                }
+                StereoSample& fromDelay1 = buffer.current();
+                StereoSample& fromDelay2 = *prevPos;
 
-				// buffer.writeNative(thisSample->l, thisSample->r);
-			}
-
-			// Or, resampling tick-along
-			else {
-				// Move forward, and clear buffer as we go
-				strength2 = buffer.advance([&] {
-					buffer.clearAndMoveOn(); //<
-					sizeLeftUntilRecordFinished--;
-				});
-				strength1 = 65536 - strength2;
-
-				// buffer.writeResampled(thisSample->l, thisSample->r, strength1, strength2,
-				// &delayBufferSetup);
-			}
-
-			buffer.write(*thisSample, strength1, strength2);
-
-		} while (++thisSample != audioEnd);
-
-		// If we've finished recording, remember to play next time instead
-		if (sizeLeftUntilRecordFinished < 0) {
-			status = Status::PLAYING;
-		}
-	}
-
-	else { // PLAYING
-
-		do {
-			int32_t strength1;
-			int32_t strength2;
-
-			// Non-resampling read
-			if (buffer.isNative()) {
-				buffer.moveOn();
-				thisSample->l = buffer.current().l;
-				thisSample->r = buffer.current().r;
-			}
-
-			// Or, resampling read
-			else {
-				// Move forward
-				strength2 = buffer.advance([&] {
-					buffer.moveOn(); //<
-				});
-				strength1 = 65536 - strength2;
-
-				StereoSample* nextPos = &buffer.current() + 1;
-				if (nextPos == buffer.end()) {
-					nextPos = buffer.begin();
-				}
-				StereoSample& fromDelay1 = buffer.current();
-				StereoSample& fromDelay2 = *nextPos;
-
-				thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
-				                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
-				                << 2;
-				thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-				                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
-				                << 2;
-			}
-		} while (++thisSample != audioEnd);
-	}
+                thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+                                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
+                                << 2;
+                thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+                                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+                                << 2;
+            }
+        } while (++thisSample != audioEnd);
+    }
 }
+
 
 // paramManager is optional - if you don't send it, it won't change the stutter rate
 void Stutterer::endStutter(ParamManagerForTimeline* paramManager) {
