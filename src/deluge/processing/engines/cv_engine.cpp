@@ -104,7 +104,7 @@ void CVEngine::updateGateOutputs() {
 	// situation where the cv is delayed for an oled refresh and the gate gets sent first, causing an audible pitch
 	// correction
 	if (!cvOutPending && gateOutputPending) {
-		for (int32_t g = 0; g < NUM_CV_CHANNELS; g++) {
+		for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
 			physicallySwitchGate(g);
 		}
 		gateOutputPending = false;
