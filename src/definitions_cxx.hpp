@@ -810,6 +810,7 @@ enum class AudioInputChannel {
 	MIX,
 	OUTPUT,
 	SPECIFIC_OUTPUT,
+	OFFLINE_OUTPUT,
 };
 
 constexpr AudioInputChannel AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION = AudioInputChannel::MIX;
