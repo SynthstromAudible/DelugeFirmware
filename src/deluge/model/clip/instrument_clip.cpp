@@ -2423,10 +2423,8 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		if (expressionParams) {
 			expressionParams->writeToFile(writer);
 
-			if (output->type != OutputType::MIDI_OUT) {
-				writer.writeTag("bendRange", expressionParams->bendRanges[BEND_RANGE_MAIN]);
-				writer.writeTag("bendRangeMPE", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
-			}
+			writer.writeTag("bendRange", expressionParams->bendRanges[BEND_RANGE_MAIN]);
+			writer.writeTag("bendRangeMPE", expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL]);
 		}
 	}
 
