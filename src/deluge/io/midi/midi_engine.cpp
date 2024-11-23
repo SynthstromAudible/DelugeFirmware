@@ -423,44 +423,47 @@ void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velo
 	velocity = std::max((uint8_t)1, velocity);
 	velocity = std::min((uint8_t)127, velocity);
 
-	sendMidi(source, on ? 0x09 : 0x08, channel, note, velocity, filter);
+	if (on) {
+		sendMidi(source, MIDIMessage::noteOn(channel, note, velocity), filter);
+	}
+	else {
+		sendMidi(source, MIDIMessage::noteOff(channel, note, velocity), filter);
+	}
 }
 
 void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter) {
-	sendCC(source, channel, 123, 0, filter);
+	sendMidi(source, MIDIMessage::cc(channel, 123, 0), filter);
 }
 
 void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter) {
 	if (value > 127) {
 		value = 127;
 	}
-	sendMidi(source, 0x0B, channel, cc, value, filter);
+	sendMidi(source, MIDIMessage::cc(channel, cc, value), filter);
 }
 
 void MidiEngine::sendClock(MIDISource source, bool sendUSB, int32_t howMany) {
 	while (howMany--) {
-		sendMidi(source, 0x0F, 0x08, 0, 0, kMIDIOutputFilterNoMPE, sendUSB);
+		sendMidi(source, MIDIMessage::realtimeClock(), kMIDIOutputFilterNoMPE, sendUSB);
 	}
 }
 
 void MidiEngine::sendStart(MIDISource source) {
 	playbackHandler.timeLastMIDIStartOrContinueMessageSent = AudioEngine::audioSampleTimer;
-	sendMidi(source, 0x0F, 0x0A);
+	sendMidi(source, MIDIMessage::realtimeStart());
 }
 
 void MidiEngine::sendContinue(MIDISource source) {
 	playbackHandler.timeLastMIDIStartOrContinueMessageSent = AudioEngine::audioSampleTimer;
-	sendMidi(source, 0x0F, 0x0B);
+	sendMidi(source, MIDIMessage::realtimeContinue());
 }
 
 void MidiEngine::sendStop(MIDISource source) {
-	sendMidi(source, 0x0F, 0x0C);
+	sendMidi(source, MIDIMessage::realtimeStop());
 }
 
 void MidiEngine::sendPositionPointer(MIDISource source, uint16_t positionPointer) {
-	uint8_t positionPointerLSB = positionPointer & (uint32_t)0x7F;
-	uint8_t positionPointerMSB = (positionPointer >> 7) & (uint32_t)0x7F;
-	sendMidi(source, 0x0F, 0x02, positionPointerLSB, positionPointerMSB);
+	sendMidi(source, MIDIMessage::systemPositionPointer(positionPointer));
 }
 
 void MidiEngine::sendBank(MIDISource source, int32_t channel, int32_t num, int32_t filter) {
@@ -472,24 +475,23 @@ void MidiEngine::sendSubBank(MIDISource source, int32_t channel, int32_t num, in
 }
 
 void MidiEngine::sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter) {
-	sendMidi(source, 0x0C, channel, pgm, 0, filter);
+	sendMidi(source, MIDIMessage::programChange(channel, pgm), filter);
 }
 
-void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint8_t lsbs, uint8_t msbs, int32_t filter) {
-	sendMidi(source, 0x0E, channel, lsbs, msbs, filter);
+void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter) {
+	sendMidi(source, MIDIMessage::pitchBend(channel, bend), filter);
 }
 
 void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter) {
-	sendMidi(source, 0x0D, channel, value, 0, filter);
+	sendMidi(source, MIDIMessage::channelAftertouch(channel, value), filter);
 }
 
 void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode,
                                           int32_t filter) {
-	sendMidi(source, 0x0A, channel, noteCode, value, filter);
+	sendMidi(source, MIDIMessage::polyphonicAftertouch(channel, noteCode, value), filter);
 }
 
-void MidiEngine::sendMidi(MIDISource source, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
-                          int32_t filter, bool sendUSB) {
+void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter, bool sendUSB) {
 	if (eventStackTop_ == eventStack_.end()) {
 		// We're somehow 16 messages deep, reject this message.
 		return;
@@ -508,21 +510,22 @@ void MidiEngine::sendMidi(MIDISource source, uint8_t statusType, uint8_t channel
 
 	// Send USB MIDI
 	if (sendUSB) {
-		sendUsbMidi(statusType, channel, data1, data2, filter);
+		sendUsbMidi(message, filter);
 	}
 
 	// Send serial MIDI
-	if (statusType == 0x0F || MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(channel, filter)) {
-		sendSerialMidi(statusType, channel, data1, data2);
+	if (message.isSystemMessage()
+	    || MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message.channel, filter)) {
+		sendSerialMidi(message);
 	}
 
 	--eventStackTop_;
 }
 
-uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
+uint32_t setupUSBMessage(MIDIMessage message) {
 	// format message per USB midi spec on virtual cable 0
 	uint8_t cin;
-	uint8_t firstByte = (channel & 15) | (statusType << 4);
+	uint8_t firstByte = (message.channel & 15) | (message.statusType << 4);
 
 	switch (firstByte) {
 	case 0xF2: // Position pointer
@@ -530,18 +533,19 @@ uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uin
 		break;
 
 	default:
-		cin = statusType; // Good for voice commands
+		cin = message.statusType; // Good for voice commands
 		break;
 	}
 
-	return ((uint32_t)data2 << 24) | ((uint32_t)data1 << 16) | ((uint32_t)firstByte << 8) | cin;
+	return ((uint32_t)message.data2 << 24) | ((uint32_t)message.data1 << 16) | ((uint32_t)firstByte << 8) | cin;
 }
 
-void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter) {
+void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 	// TODO: Differentiate between ports on usb midi
+	bool isSystemMessage = message.isSystemMessage();
 
 	// formats message per USB midi spec on virtual cable 0
-	uint32_t fullMessage = setupUSBMessage(statusType, channel, data1, data2);
+	uint32_t fullMessage = setupUSBMessage(message);
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
 		int32_t potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
 
@@ -557,9 +561,9 @@ void MidiEngine::sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1,
 				    && connectedDevice->cable[p] != &MIDIDeviceManager::upstreamUSBMIDICable3) {
 					// if it's a clock (or sysex technically but we don't send that to this function)
 					// or if it's a message that this channel wants
-					if ((statusType == 0x0F && connectedDevice->cable[p]->sendClock)
-					    || (statusType != 0x0F
-					        && connectedDevice->cable[p]->wantsToOutputMIDIOnChannel(channel, filter))) {
+					if ((isSystemMessage && connectedDevice->cable[p]->sendClock)
+					    || (!isSystemMessage
+					        && connectedDevice->cable[p]->wantsToOutputMIDIOnChannel(message.channel, filter))) {
 
 						// Or with the port to add the cable number to the full message. This
 						// is a bit hacky but it works
@@ -578,17 +582,17 @@ void MidiEngine::flushMIDI() {
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
 
-void MidiEngine::sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
+void MidiEngine::sendSerialMidi(MIDIMessage message) {
 
-	uint8_t statusByte = channel | (statusType << 4);
-	int32_t messageLength = getMidiMessageLength(statusByte);
+	uint8_t statusByte = message.channel | (message.statusType << 4);
+	int32_t messageLength = bytesPerStatusMessage(statusByte);
 	bufferMIDIUart(statusByte);
 
 	if (messageLength >= 2) {
-		bufferMIDIUart(data1);
+		bufferMIDIUart(message.data1);
 
 		if (messageLength == 3) {
-			bufferMIDIUart(data2);
+			bufferMIDIUart(message.data2);
 		}
 	}
 }
@@ -664,7 +668,7 @@ bool MidiEngine::checkIncomingSerialMidi() {
 		numSerialMidiInput++;
 
 		// If we've received the whole MIDI message, deal with it
-		if (getMidiMessageLength(serialMidiInput[0]) == numSerialMidiInput) {
+		if (bytesPerStatusMessage(serialMidiInput[0]) == numSerialMidiInput) {
 			uint8_t channel = serialMidiInput[0] & 0x0F;
 
 			midiMessageReceived(MIDIDeviceManager::dinMIDIPorts, serialMidiInput[0] >> 4, channel, serialMidiInput[1],
@@ -933,35 +937,6 @@ void MidiEngine::checkIncomingUsbMidi() {
 	}
 }
 
-int32_t MidiEngine::getMidiMessageLength(uint8_t statusByte) {
-	if (statusByte == 0xF0    // System exclusive - dynamic length
-	    || statusByte == 0xF4 // Undefined
-	    || statusByte == 0xF5 // Undefined
-	    || statusByte == 0xF6 // Tune request
-	    || statusByte == 0xF7 // End of exclusive
-	    || statusByte == 0xF8 // Timing clock
-	    || statusByte == 0xF9 // Undefined
-	    || statusByte == 0xFA // Start
-	    || statusByte == 0xFB // Continue
-	    || statusByte == 0xFC // Stop
-	    || statusByte == 0xFD // Undefined
-	    || statusByte == 0xFE // Active sensing
-	    || statusByte == 0xFF // Reset
-	) {
-		return 1;
-	}
-	else if (statusByte == 0xF1         // Timecode
-	         || statusByte == 0xF3      // Song select
-	         || statusByte >> 4 == 0x0C // Program change
-	         || statusByte >> 4 == 0x0D // Channel aftertouch
-	) {
-		return 2;
-	}
-	else {
-		return 3;
-	}
-}
-
 #define MISSING_MESSAGE_CHECK 0
 
 #if MISSING_MESSAGE_CHECK
@@ -1092,6 +1067,13 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 		// Only send out on USB if it didn't originate from USB
 		bool shouldSendUSB = (&cable == &MIDIDeviceManager::dinMIDIPorts);
 		// TODO: reconsider interaction with MPE?
-		sendMidi(cable, originalStatusType, channel, data1, originalData2, kMIDIOutputFilterNoMPE, shouldSendUSB);
+		sendMidi(cable,
+		         MIDIMessage{
+		             .statusType = originalStatusType,
+		             .channel = channel,
+		             .data1 = data1,
+		             .data2 = originalData2,
+		         },
+		         kMIDIOutputFilterNoMPE, shouldSendUSB);
 	}
 }

@@ -218,7 +218,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 		int32_t newValue =
 		    add_saturation(lastCombinedPolyExpression[expressionDimension], lastMonoExpression[expressionDimension]);
 		int32_t valueSmall = (newValue >> 18) + 8192;
-		midiEngine.sendPitchBend(this, masterChannel, valueSmall & 127, valueSmall >> 7, getChannel());
+		midiEngine.sendPitchBend(this, masterChannel, valueSmall, getChannel());
 		break;
 	}
 
@@ -956,8 +956,7 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 		int32_t outputValue14 = mpeValuesToUse[0] >> 2;
 		mpeOutputMemberChannels[outputMemberChannel].lastXValueSent = outputValue14;
 		int32_t outputValue14Unsigned = outputValue14 + 8192;
-		midiEngine.sendPitchBend(this, outputMemberChannel, outputValue14Unsigned & 127, outputValue14Unsigned >> 7,
-		                         channel);
+		midiEngine.sendPitchBend(this, outputMemberChannel, outputValue14Unsigned, channel);
 	}
 
 	{ // Y
@@ -1131,7 +1130,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			int32_t value14 = (value32 >> 18);
 			mpeOutputMemberChannels[memberChannel].lastXValueSent = value14;
 			int32_t value14Unsigned = value14 + 8192;
-			midiEngine.sendPitchBend(this, memberChannel, value14Unsigned & 127, value14Unsigned >> 7, channel);
+			midiEngine.sendPitchBend(this, memberChannel, value14Unsigned, channel);
 			break;
 		}
 
