@@ -14,14 +14,9 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #include "processing/vector_rendering_function.h"
-
-#define setupAmplitudeVector(i)                                                                                        \
-	{                                                                                                                  \
-		amplitude += amplitudeIncrement;                                                                               \
-		amplitudeVector = vsetq_lane_s32(amplitude >> 1, amplitudeVector, i);                                          \
-	}
+#include <argon.hpp>
+#include <arm_neon.h>
 
 #define RENDER_OSC_SYNC(storageFunctionName, valueFunctionName, extraInstructionsForCrossoverSampleRedo,               \
                         startRenderingASyncLabel)                                                                      \
@@ -113,10 +108,17 @@ startRenderingASyncLabel:                                                       
 		} while (writePos < bufferEndThisSyncRender);                                                                  \
 	}
 
-#define SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS()                                                                    \
-	int32x4_t amplitudeVector{0};                                                                                      \
-	setupAmplitudeVector(0) setupAmplitudeVector(1) setupAmplitudeVector(2) setupAmplitudeVector(3)                    \
-	    int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
+/// @note amplitude and amplitudeIncrement multiplied by two before being passed to this function
+inline int32x4_t createAmplitudeVector(int32_t amplitude, int32_t amplitudeIncrement) {
+	int32x4_t amplitudeVector = vld1q_dup_s32(&amplitude);
+	int32x4_t incrementVector = vld1q_dup_s32(&amplitudeIncrement);
+
+	// amplitude + amplitudeIncrement * lane_n
+	amplitudeVector = vmlaq_s32(amplitudeVector, incrementVector, int32x4_t{1, 2, 3, 4});
+
+	// TODO(@stellar-aria): investigate where the doubling comes from (likely an unshifted smmul)
+	return vshrq_n_s32(amplitudeVector, 1); // halve amplitude
+}
 
 /* Before calling, you must:
     amplitude <<= 1;
@@ -131,7 +133,10 @@ startRenderingASyncLabel:                                                       
                                                                                                                        \
 		int16x4_t const32767 = vdup_n_s16(32767);                                                                      \
 		int32_t* __restrict__ outputBufferPos = outputBuffer;                                                          \
-		SETUP_FOR_APPLYING_AMPLITUDE_WITH_VECTORS();                                                                   \
+                                                                                                                       \
+		int32x4_t amplitudeVector = createAmplitudeVector(amplitude, amplitudeIncrement);                              \
+		int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);                                     \
+                                                                                                                       \
 		uint32_t phaseTemp = phase;                                                                                    \
                                                                                                                        \
 		do {                                                                                                           \
