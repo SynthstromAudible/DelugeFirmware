@@ -107,7 +107,7 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 }
 
 void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamManager* paramManager, int32_t magnitude,
-                               uint32_t timePerTickInverse) {
+                               uint32_t timePerTickInverse, bool reverse) {
     StereoSample* audioEnd = audio + numSamples;
     StereoSample* thisSample = audio;
 
@@ -137,35 +137,59 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
         if (sizeLeftUntilRecordFinished < 0) {
             status = Status::PLAYING;
         }
-    } else { // PLAYING in reverse
+    } else { // PLAYING
         do {
             int32_t strength1;
             int32_t strength2;
 
             if (buffer.isNative()) {
-                buffer.moveBack(); // Move backward in the buffer
+				if (reverse == false) {
+					buffer.moveOn(); // move forward in the buffer
+				} else {
+					buffer.moveBack(); // move backward in the buffer
+				}
                 thisSample->l = buffer.current().l;
                 thisSample->r = buffer.current().r;
             } else {
-                // Move backward
-                strength2 = buffer.retreat([&] {
-                    buffer.moveBack();
-                });
+				if (reverse == false) {
+					strength2 = buffer.advance([&] {
+						buffer.moveOn();
+					});
+				} else {
+					strength2 = buffer.retreat([&] {
+						buffer.moveBack();
+					});
+				}
+
                 strength1 = 65536 - strength2;
-
-                StereoSample* prevPos = &buffer.current() - 1;
-                if (prevPos < buffer.begin()) {
-                    prevPos = buffer.end() - 1; // Wrap around to the end of the buffer
-                }
-                StereoSample& fromDelay1 = buffer.current();
-                StereoSample& fromDelay2 = *prevPos;
-
-                thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+				if (reverse == false) {
+					StereoSample* nextPos = &buffer.current() + 1;
+					if (nextPos == buffer.end()) {
+						nextPos = buffer.begin();
+					}
+					StereoSample& fromDelay1 = buffer.current();
+					StereoSample& fromDelay2 = *nextPos;
+					thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
                                  + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
                                 << 2;
-                thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-                                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+					thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+									+ multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+									<< 2;
+				} else {
+					StereoSample* prevPos = &buffer.current() - 1;
+					if (prevPos < buffer.begin()) {
+						prevPos = buffer.end() - 1; // Wrap around to the end of the buffer
+					}
+					StereoSample& fromDelay1 = buffer.current();
+					StereoSample& fromDelay2 = *prevPos;
+					thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+                                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
                                 << 2;
+					thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+									+ multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+									<< 2;
+				}
+
             }
         } while (++thisSample != audioEnd);
     }
