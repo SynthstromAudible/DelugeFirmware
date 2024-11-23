@@ -58,7 +58,6 @@ struct StatBlock {
 
 // currently 14 are in use
 constexpr int kMaxTasks = 25;
-constexpr double rollTime = ((double)(UINT32_MAX) / DELUGE_CLOCKS_PERf);
 struct Task {
 	Task() = default;
 
@@ -505,6 +504,10 @@ void TaskManager::printStats() {
 	// D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds", 100 * cpuTime / totalTime,
 	//          100 * overhead / totalTime, runningTime);
 	resetStats();
+}
+double getTimerValueSeconds(int timerNo) {
+	double seconds = getTimerValue(timerNo) * ONE_OVER_CLOCK;
+	return seconds;
 }
 /// return a monotonic timer value in seconds from when the task manager started
 double TaskManager::getSecondsFromStart() {

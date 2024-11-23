@@ -16,7 +16,7 @@
  */
 #ifndef DELUGE_TASK_SCHEDULER_H
 #define DELUGE_TASK_SCHEDULER_H
-
+#include "timers_interrupts/clock_type.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

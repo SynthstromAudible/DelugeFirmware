@@ -17,6 +17,7 @@
 #include <chrono>
 #include <time.h>
 extern "C" {
+#include "OSLikeStuff/timers_interrupts/clock_type.h"
 #include "RZA1/ostm/ostm.h"
 /* clock_t, clock, CLOCKS_PER_SEC */
 #define clockConversion DELUGE_CLOCKS_PER / CLOCKS_PER_SEC;
