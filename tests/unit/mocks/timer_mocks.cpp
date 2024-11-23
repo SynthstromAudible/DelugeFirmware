@@ -65,9 +65,4 @@ uint32_t getTimerValue(int timerNo) {
 	}
 	return DELUGE_CLOCKS_PER * ((std::chrono::duration<double>(now - timers[0]).count()));
 }
-
-double getTimerValueSeconds(int timerNo) {
-	double seconds = ((double)getTimerValue(timerNo) / DELUGE_CLOCKS_PERf);
-	return seconds;
-}
 }

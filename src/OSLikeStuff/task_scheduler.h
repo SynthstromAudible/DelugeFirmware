@@ -16,11 +16,11 @@
  */
 #ifndef DELUGE_TASK_SCHEDULER_H
 #define DELUGE_TASK_SCHEDULER_H
-#include "timers_interrupts/clock_type.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 #include "stdint.h"
+#include "timers_interrupts/clock_type.h"
 
 /// void function with no arguments
 typedef void (*TaskHandle)();
@@ -30,11 +30,11 @@ struct TaskSchedule {
 	// 0 is highest priority
 	uint8_t priority;
 	// time to wait between return and calling the function again
-	double backOffPeriod;
+	dClock backOffPeriod;
 	// target time between function calls
-	double targetInterval;
+	dClock targetInterval;
 	// maximum time between function calls
-	double maxInterval;
+	dClock maxInterval;
 };
 /// Schedule a task that will be called at a regular interval.
 ///
@@ -60,13 +60,13 @@ uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const 
 /// interfere with scheduling
 uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
 void ignoreForStats();
-double getLastRunTimeforCurrentTask();
-double getSystemTime();
-void setNextRunTimeforCurrentTask(double seconds);
+dTime getLastRunTimeforCurrentTask();
+dTime getSystemTime();
+void setNextRunTimeforCurrentTask(dClock seconds);
 void removeTask(TaskID id);
 void yield(RunCondition until);
 /// timeout in seconds, returns whether the condition was met
-bool yieldWithTimeout(RunCondition until, double timeout);
+bool yieldWithTimeout(RunCondition until, dClock timeout);
 /// start the task scheduler
 void startTaskManager();
 #ifdef __cplusplus

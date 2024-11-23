@@ -34,13 +34,13 @@ extern "C" {
 
 struct StatBlock {
 #if SCHEDULER_DETAILED_STATS
-	double min{std::numeric_limits<double>::infinity()};
-	double max{-std::numeric_limits<double>::infinity()};
+	dClock min{std::numeric_limits<dClock>::infinity()};
+	dClock max{-std::numeric_limits<dClock>::infinity()};
 #endif
 	/// Running average, computed as (last + avg) / 2
-	double average{0};
+	dClock average{0};
 
-	[[gnu::hot]] void update(double v) {
+	[[gnu::hot]] void update(dClock v) {
 #if SCHEDULER_DETAILED_STATS
 		min = std::min(v, min);
 		max = std::max(v, max);
@@ -49,8 +49,8 @@ struct StatBlock {
 	}
 	void reset() {
 #if SCHEDULER_DETAILED_STATS
-		min = std::numeric_limits<double>::infinity();
-		max = -std::numeric_limits<double>::infinity();
+		min = std::numeric_limits<dClock>::infinity();
+		max = -std::numeric_limits<dClock>::infinity();
 #endif
 		average = 0;
 	}
@@ -62,7 +62,7 @@ struct Task {
 	Task() = default;
 
 	// constructor for making a "once" task
-	Task(TaskHandle _handle, uint8_t _priority, double timeNow, double _timeToWait, const char* _name) {
+	Task(TaskHandle _handle, uint8_t _priority, dClock timeNow, dClock _timeToWait, const char* _name) {
 		handle = _handle;
 		lastCallTime = timeNow;
 		schedule = TaskSchedule{_priority, _timeToWait, _timeToWait, _timeToWait * 2};
@@ -88,8 +88,8 @@ struct Task {
 	}
 	TaskHandle handle{nullptr};
 	TaskSchedule schedule{0, 0, 0, 0};
-	double lastCallTime{0};
-	double lastFinishTime{0};
+	dClock lastCallTime{0};
+	dClock lastFinishTime{0};
 
 	StatBlock durationStats;
 #if SCHEDULER_DETAILED_STATS
@@ -100,9 +100,9 @@ struct Task {
 	bool removeAfterUse{false};
 	const char* name{nullptr};
 
-	double totalTime{0};
+	dClock totalTime{0};
 	int32_t timesCalled{0};
-	double lastRunTime;
+	dClock lastRunTime;
 };
 
 struct SortedTask {
@@ -121,38 +121,38 @@ struct TaskManager {
 	std::array<SortedTask, kMaxTasks> sortedList;
 	uint8_t numActiveTasks = 0;
 	uint8_t numRegisteredTasks = 0;
-	double mustEndBefore = -1; // use for testing or I guess if you want a second temporary task manager?
+	dClock mustEndBefore = -1; // use for testing or I guess if you want a second temporary task manager?
 	bool running{false};
-	double cpuTime{0};
-	double overhead{0};
-	double lastFinishTime{0};
-	double lastPrintedStats{0};
-	void start(double duration = 0);
+	dClock cpuTime{0};
+	dClock overhead{0};
+	dClock lastFinishTime{0};
+	dClock lastPrintedStats{0};
+	void start(dClock duration = 0);
 	void removeTask(TaskID id);
 	void runTask(TaskID id);
-	TaskID chooseBestTask(double deadline);
+	TaskID chooseBestTask(dClock deadline);
 	TaskID addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name);
 
-	TaskID addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name);
+	TaskID addOnceTask(TaskHandle task, uint8_t priority, dClock timeToWait, const char* name);
 	TaskID addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
 
 	void createSortedList();
 	TaskID insertTaskToList(Task task);
 	void printStats();
 	bool checkConditionalTasks();
-	bool yield(RunCondition until, double timeout = 0);
-	double getSecondsFromStart();
+	bool yield(RunCondition until, dClock timeout = 0);
+	dClock getSecondsFromStart();
 
 	void ignoreForStats();
-	void setNextRunTimeforCurrentTask(double seconds);
+	void setNextRunTimeforCurrentTask(dClock seconds);
 
-	double getLastRunTimeforCurrentTask();
+	dClock getLastRunTimeforCurrentTask();
 
 private:
 	TaskID currentID{0};
 	// for time tracking with rollover
-	double lastTime{0};
-	double runningTime{0};
+	dClock lastTime{0};
+	dClock runningTime{0};
 	void resetStats();
 	// needs to be volatile, GCC misses that the handle call can call ignoreForStats and optimizes the check away
 	volatile bool countThisTask{true};
@@ -179,9 +179,9 @@ void TaskManager::createSortedList() {
 }
 
 // deadline < 0 means no deadline
-TaskID TaskManager::chooseBestTask(double deadline) {
-	double currentTime = getSecondsFromStart();
-	double nextFinishTime = currentTime;
+TaskID TaskManager::chooseBestTask(dClock deadline) {
+	dClock currentTime = getSecondsFromStart();
+	dClock nextFinishTime = currentTime;
 	TaskID bestTask = -1;
 	uint8_t bestPriority = INT8_MAX;
 	/// Go through all tasks. If a task needs to be called before the current best task finishes, and has a higher
@@ -190,9 +190,9 @@ TaskID TaskManager::chooseBestTask(double deadline) {
 	for (int i = 0; i < numActiveTasks; i++) {
 		struct Task* t = &list[sortedList[i].task];
 		struct TaskSchedule* s = &t->schedule;
-		double timeToCall = t->lastCallTime + s->targetInterval - t->durationStats.average;
-		double maxTimeToCall = t->lastCallTime + s->maxInterval - t->durationStats.average;
-		double timeSinceFinish = currentTime - t->lastFinishTime;
+		dClock timeToCall = t->lastCallTime + s->targetInterval - t->durationStats.average;
+		dClock maxTimeToCall = t->lastCallTime + s->maxInterval - t->durationStats.average;
+		dClock timeSinceFinish = currentTime - t->lastFinishTime;
 		// ensure every routine is within its target
 		if (currentTime - t->lastCallTime > s->maxInterval) {
 			return sortedList[i].task;
@@ -265,11 +265,11 @@ TaskID TaskManager::addRepeatingTask(TaskHandle task, TaskSchedule schedule, con
 	return index;
 }
 
-TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name) {
+TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, dClock timeToWait, const char* name) {
 	if (numRegisteredTasks >= (kMaxTasks)) {
 		return -1;
 	}
-	double timeToStart = running ? getSecondsFromStart() : 0;
+	dClock timeToStart = running ? getSecondsFromStart() : dClock(0);
 	TaskID index = insertTaskToList(Task{task, priority, timeToStart, timeToWait, name});
 
 	createSortedList();
@@ -295,12 +295,12 @@ void TaskManager::ignoreForStats() {
 	countThisTask = false;
 }
 
-double TaskManager::getLastRunTimeforCurrentTask() {
+dClock TaskManager::getLastRunTimeforCurrentTask() {
 	auto currentTask = &list[currentID];
 	return currentTask->durationStats.average;
 }
 
-void TaskManager::setNextRunTimeforCurrentTask(double seconds) {
+void TaskManager::setNextRunTimeforCurrentTask(dClock seconds) {
 	auto currentTask = &list[currentID];
 	currentTask->schedule.maxInterval = seconds;
 }
@@ -308,7 +308,7 @@ void TaskManager::setNextRunTimeforCurrentTask(double seconds) {
 void TaskManager::runTask(TaskID id) {
 	countThisTask = true;
 	auto timeNow = getSecondsFromStart();
-	double startTime = timeNow;
+	dClock startTime = timeNow;
 	// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
 	overhead += timeNow - lastFinishTime;
 	currentID = id;
@@ -316,7 +316,7 @@ void TaskManager::runTask(TaskID id) {
 
 	currentTask->handle();
 	timeNow = getSecondsFromStart();
-	double runtime = (timeNow - startTime);
+	dClock runtime = (timeNow - startTime);
 	cpuTime += runtime;
 	if (currentTask->removeAfterUse) {
 		removeTask(id);
@@ -342,7 +342,7 @@ void TaskManager::runTask(TaskID id) {
 /// pause current task, continue to run scheduler loop until a condition is met, then return to it
 /// current task can be called again if it's repeating - this is to match behaviour of busy waiting with routineForSD
 /// returns whether the condition was met
-bool TaskManager::yield(RunCondition until, double timeout) {
+bool TaskManager::yield(RunCondition until, dClock timeout) {
 	if (!running) [[unlikely]] {
 		startClock();
 	}
@@ -353,7 +353,7 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 	auto yieldingID = currentID;
 	bool taskRemoved = false;
 	auto timeNow = getSecondsFromStart();
-	double runtime = (timeNow - yieldingTask->lastCallTime);
+	dClock runtime = (timeNow - yieldingTask->lastCallTime);
 	bool skipTimeout = timeout < 1 / 10000.;
 
 	// for now we first end this as if the task finished - might be advantageous to replace with a context switch later
@@ -372,7 +372,7 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 	}
 	// continue the main loop. The yielding task is still on the stack but that should be fine
 	// run at least once so this can be used for yielding a single call as well
-	double newTime = getSecondsFromStart();
+	dClock newTime = getSecondsFromStart();
 	do {
 		TaskID task = chooseBestTask(mustEndBefore);
 		if (task >= 0) {
@@ -381,7 +381,7 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 		else {
 			bool addedTask = checkConditionalTasks();
 			// if we sorted our list then we should get back to running things and not print stats
-			if (!addedTask && newTime > lastPrintedStats + 10) {
+			if (!addedTask && newTime > lastPrintedStats + 10.0) {
 				lastPrintedStats = newTime;
 				// couldn't find anything so here we go
 				printStats();
@@ -397,12 +397,12 @@ bool TaskManager::yield(RunCondition until, double timeout) {
 }
 
 /// default duration of 0 signifies infinite loop, intended to be specified only for testing
-void TaskManager::start(double duration) {
+void TaskManager::start(dClock duration) {
 	// set up os timer 0 as a free running timer
 
 	startClock();
-	double startTime = getSecondsFromStart();
-	double lastLoop = startTime;
+	dClock startTime = getSecondsFromStart();
+	dClock lastLoop = startTime;
 	if (duration != 0) {
 		mustEndBefore = startTime + duration;
 	}
@@ -411,7 +411,7 @@ void TaskManager::start(double duration) {
 	}
 
 	while (duration == 0 || getSecondsFromStart() < startTime + duration) {
-		double newTime = getSecondsFromStart();
+		dClock newTime = getSecondsFromStart();
 		lastLoop = newTime;
 		TaskID task = chooseBestTask(mustEndBefore);
 		if (task >= 0) {
@@ -420,7 +420,7 @@ void TaskManager::start(double duration) {
 		else {
 			bool addedTask = checkConditionalTasks();
 			// if we sorted our list then we should get back to running things and not print stats
-			if (!addedTask && newTime > lastPrintedStats + 10) {
+			if (!addedTask && newTime > lastPrintedStats + 10.0) {
 				lastPrintedStats = newTime;
 				// couldn't find anything so here we go
 				printStats();
@@ -474,8 +474,8 @@ void TaskManager::printStats() {
 	D_PRINTLN("Dumping task manager stats: (min/ average/ max)");
 	for (auto task : list) {
 		if (task.handle) {
-			constexpr const double latencyScale = 1000.0;
-			constexpr const double durationScale = 1000000.0;
+			constexpr const dClock latencyScale = 1000.0;
+			constexpr const dClock durationScale = 1000000.0;
 #if SCHEDULER_DETAILED_STATS
 			D_PRINTLN("Load: %5.2f, "                             //<
 			          "Dur: %8.3f/%8.3f/%9.3f us "                //<
@@ -501,16 +501,16 @@ void TaskManager::printStats() {
 		}
 	}
 	auto totalTime = cpuTime + overhead;
-	// D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds", 100 * cpuTime / totalTime,
-	//          100 * overhead / totalTime, runningTime);
+	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds", 100 * cpuTime / totalTime,
+	          100 * overhead / totalTime, runningTime);
 	resetStats();
 }
-double getTimerValueSeconds(int timerNo) {
-	double seconds = getTimerValue(timerNo) * ONE_OVER_CLOCK;
+dClock getTimerValueSeconds(int timerNo) {
+	dClock seconds = getTimerValue(timerNo) * ONE_OVER_CLOCK;
 	return seconds;
 }
 /// return a monotonic timer value in seconds from when the task manager started
-double TaskManager::getSecondsFromStart() {
+dClock TaskManager::getSecondsFromStart() {
 	auto timeNow = getTimerValueSeconds(0);
 	if (timeNow < lastTime) {
 		runningTime += rollTime;
@@ -528,11 +528,11 @@ void ignoreForStats() {
 	taskManager.ignoreForStats();
 }
 
-double getLastRunTimeforCurrentTask() {
+dTime getLastRunTimeforCurrentTask() {
 	return taskManager.getLastRunTimeforCurrentTask();
 }
 
-void setNextRunTimeforCurrentTask(double seconds) {
+void setNextRunTimeforCurrentTask(dClock seconds) {
 	taskManager.setNextRunTimeforCurrentTask(seconds);
 }
 
@@ -553,13 +553,13 @@ void yield(RunCondition until) {
 	taskManager.yield(until);
 }
 
-bool yieldWithTimeout(RunCondition until, double timeout) {
+bool yieldWithTimeout(RunCondition until, dClock timeout) {
 	return taskManager.yield(until, timeout);
 }
 
 void removeTask(TaskID id) {
 	return taskManager.removeTask(id);
 }
-double getSystemTime() {
+dTime getSystemTime() {
 	return taskManager.getSecondsFromStart();
 }
