@@ -17,7 +17,7 @@ public:
 		uint32_t phaseSmall = (carrierPhase >> 8) + phaseShift;
 		int32_t strength2 = phaseSmall & 65535;
 
-		uint32_t readOffset = (phaseSmall >> (24 - 8 - 1)) & 0b1111111110;
+		uint32_t readOffset = (phaseSmall >> (24 - 8 - 1)) & 0b0111111110;
 
 		uint32_t readValue = *(uint32_t*)&sineWaveDiff[readOffset];
 		int32_t value = readValue << 16;
