@@ -108,6 +108,7 @@ startRenderingASyncLabel:                                                       
 		} while (writePos < bufferEndThisSyncRender);                                                                  \
 	}
 
+/// @note amplitude and amplitudeIncrement multiplied by two before being passed to this function
 inline int32x4_t createAmplitudeVector(int32_t amplitude, int32_t amplitudeIncrement) {
 	int32x4_t amplitudeVector = vld1q_dup_s32(&amplitude);
 	int32x4_t incrementVector = vld1q_dup_s32(&amplitudeIncrement);
