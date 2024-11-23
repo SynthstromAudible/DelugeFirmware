@@ -28,7 +28,7 @@ enum LFOIndex { LFO_1, LFO_2 };
 
 class FxEngine {
 public:
-	FxEngine(std::span<float> signal, std::initializer_list<float> lfo_freqs)
+	FxEngine(std::span<float> signal, std::array<float, 2> lfo_freqs)
 	    : buffer_(signal), mask(buffer_.size() - 1), lfo_{lfo_freqs} {};
 	~FxEngine() = default;
 
