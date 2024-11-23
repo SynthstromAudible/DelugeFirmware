@@ -26,16 +26,7 @@ extern "C" {
 typedef void (*TaskHandle)();
 typedef bool (*RunCondition)();
 typedef int8_t TaskID;
-struct TaskSchedule {
-	// 0 is highest priority
-	uint8_t priority;
-	// time to wait between return and calling the function again
-	dClock backOffPeriod;
-	// target time between function calls
-	dClock targetInterval;
-	// maximum time between function calls
-	dClock maxInterval;
-};
+
 /// Schedule a task that will be called at a regular interval.
 ///
 /// The scheduler will try to run the task at a regular cadence such that the time between start of calls to the
@@ -60,13 +51,13 @@ uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const 
 /// interfere with scheduling
 uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
 void ignoreForStats();
-dTime getLastRunTimeforCurrentTask();
-dTime getSystemTime();
-void setNextRunTimeforCurrentTask(dClock seconds);
+double getLastRunTimeforCurrentTask();
+double getSystemTime();
+void setNextRunTimeforCurrentTask(double seconds);
 void removeTask(TaskID id);
 void yield(RunCondition until);
 /// timeout in seconds, returns whether the condition was met
-bool yieldWithTimeout(RunCondition until, dClock timeout);
+bool yieldWithTimeout(RunCondition until, double timeout);
 /// start the task scheduler
 void startTaskManager();
 #ifdef __cplusplus

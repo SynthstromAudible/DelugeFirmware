@@ -45,7 +45,8 @@ struct StatBlock {
 		min = std::min(v, min);
 		max = std::max(v, max);
 #endif
-		average = (average + v) / 2;
+		average = average.average(v);
+		average = std::max(dClock(1), average);
 	}
 	void reset() {
 #if SCHEDULER_DETAILED_STATS
@@ -54,6 +55,17 @@ struct StatBlock {
 #endif
 		average = 0;
 	}
+};
+
+struct TaskSchedule {
+	// 0 is highest priority
+	uint8_t priority;
+	// time to wait between return and calling the function again
+	dClock backOffPeriod;
+	// target time between function calls
+	dClock targetInterval;
+	// maximum time between function calls
+	dClock maxInterval;
 };
 
 // currently 14 are in use
@@ -198,7 +210,7 @@ TaskID TaskManager::chooseBestTask(dClock deadline) {
 			return sortedList[i].task;
 		}
 		if (timeToCall < currentTime || maxTimeToCall < nextFinishTime) {
-			if (deadline < 0 || currentTime + t->durationStats.average < deadline) {
+			if (deadline < dClock(0) || currentTime + t->durationStats.average < deadline) {
 
 				if (s->priority < bestPriority && t->handle) {
 					if (timeSinceFinish > s->backOffPeriod) {
@@ -354,7 +366,7 @@ bool TaskManager::yield(RunCondition until, dClock timeout) {
 	bool taskRemoved = false;
 	auto timeNow = getSecondsFromStart();
 	dClock runtime = (timeNow - yieldingTask->lastCallTime);
-	bool skipTimeout = timeout < 1 / 10000.;
+	bool skipTimeout = timeout < dClock(1 / 10000.);
 
 	// for now we first end this as if the task finished - might be advantageous to replace with a context switch later
 	if (yieldingTask->removeAfterUse) {
@@ -381,7 +393,7 @@ bool TaskManager::yield(RunCondition until, dClock timeout) {
 		else {
 			bool addedTask = checkConditionalTasks();
 			// if we sorted our list then we should get back to running things and not print stats
-			if (!addedTask && newTime > lastPrintedStats + 10.0) {
+			if (!addedTask && newTime > lastPrintedStats + dClock(10.0)) {
 				lastPrintedStats = newTime;
 				// couldn't find anything so here we go
 				printStats();
@@ -403,14 +415,14 @@ void TaskManager::start(dClock duration) {
 	startClock();
 	dClock startTime = getSecondsFromStart();
 	dClock lastLoop = startTime;
-	if (duration != 0) {
+	if (duration != dClock(0)) {
 		mustEndBefore = startTime + duration;
 	}
 	else {
 		mustEndBefore = -1;
 	}
 
-	while (duration == 0 || getSecondsFromStart() < startTime + duration) {
+	while (duration == dClock(0) || getSecondsFromStart() < startTime + duration) {
 		dClock newTime = getSecondsFromStart();
 		lastLoop = newTime;
 		TaskID task = chooseBestTask(mustEndBefore);
@@ -420,7 +432,7 @@ void TaskManager::start(dClock duration) {
 		else {
 			bool addedTask = checkConditionalTasks();
 			// if we sorted our list then we should get back to running things and not print stats
-			if (!addedTask && newTime > lastPrintedStats + 10.0) {
+			if (!addedTask && newTime > lastPrintedStats + dClock(10.0)) {
 				lastPrintedStats = newTime;
 				// couldn't find anything so here we go
 				printStats();
@@ -501,8 +513,8 @@ void TaskManager::printStats() {
 		}
 	}
 	auto totalTime = cpuTime + overhead;
-	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds", 100 * cpuTime / totalTime,
-	          100 * overhead / totalTime, runningTime);
+	D_PRINTLN("Working time: %5.2f, Overhead: %5.2f. Total running time: %5.2f seconds",
+	          double(cpuTime * 100) / double(totalTime), double(overhead * 100) / double(totalTime), runningTime);
 	resetStats();
 }
 dClock getTimerValueSeconds(int timerNo) {
@@ -528,11 +540,11 @@ void ignoreForStats() {
 	taskManager.ignoreForStats();
 }
 
-dTime getLastRunTimeforCurrentTask() {
+double getLastRunTimeforCurrentTask() {
 	return taskManager.getLastRunTimeforCurrentTask();
 }
 
-void setNextRunTimeforCurrentTask(dClock seconds) {
+void setNextRunTimeforCurrentTask(double seconds) {
 	taskManager.setNextRunTimeforCurrentTask(seconds);
 }
 
@@ -553,13 +565,13 @@ void yield(RunCondition until) {
 	taskManager.yield(until);
 }
 
-bool yieldWithTimeout(RunCondition until, dClock timeout) {
+bool yieldWithTimeout(RunCondition until, double timeout) {
 	return taskManager.yield(until, timeout);
 }
 
 void removeTask(TaskID id) {
 	return taskManager.removeTask(id);
 }
-dTime getSystemTime() {
+double getSystemTime() {
 	return taskManager.getSecondsFromStart();
 }
