@@ -48,9 +48,11 @@ FILdata openFiles[MAX_OPEN_FILES];
 const int MaxSysExLength = 1024;
 
 struct SysExDataEntry {
-	MIDIDevice* device;
+	MIDICable& cable;
 	int32_t len;
 	uint8_t data[sysexBufferMax];
+
+	SysExDataEntry(MIDICable& forCable, int32_t newLen) : cable{forCable}, len{newLen} {}
 };
 
 deluge::deque<SysExDataEntry> SysExQ;
@@ -77,12 +79,12 @@ void smSysex::startReply(JsonSerializer& writer, JsonDeserializer& reader) {
 	writer.writeBlock(reply_hdr, sizeof(reply_hdr));
 }
 
-void smSysex::sendMsg(MIDIDevice* device, JsonSerializer& writer) {
+void smSysex::sendMsg(MIDICable& cable, JsonSerializer& writer) {
 	writer.writeByte(0xF7);
 
 	char* bitz = writer.getBufferPtr();
 	int32_t bw = writer.bytesWritten();
-	device->sendSysex((const uint8_t*)bitz, bw);
+	cable.sendSysex((const uint8_t*)bitz, bw);
 }
 
 int smSysex::openFIL(const char* fPath, bool forWrite, uint32_t* fsize, FRESULT* eCode) {
@@ -171,7 +173,7 @@ FRESULT smSysex::createPathDirectories(String& path, uint32_t date, uint32_t tim
 	return errCode;
 }
 
-void smSysex::openFile(MIDIDevice* device, JsonDeserializer& reader) {
+void smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
 	bool forWrite = false;
 	String path;
 	int32_t rn = 0;
@@ -225,10 +227,10 @@ retry:
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
 
-	sendMsg(device, jWriter);
+	sendMsg(cable, jWriter);
 }
 
-void smSysex::closeFile(MIDIDevice* device, JsonDeserializer& reader) {
+void smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
 	int32_t fd = 0;
 	char const* tagName;
 	reader.match('{');
@@ -250,10 +252,10 @@ void smSysex::closeFile(MIDIDevice* device, JsonDeserializer& reader) {
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
 
-	sendMsg(device, jWriter);
+	sendMsg(cable, jWriter);
 }
 
-void smSysex::deleteFile(MIDIDevice* device, JsonDeserializer& reader) {
+void smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
 	FRESULT errCode = FRESULT::FR_OK;
 
 	char const* tagName;
@@ -279,11 +281,11 @@ void smSysex::deleteFile(MIDIDevice* device, JsonDeserializer& reader) {
 		jWriter.writeOpeningTag("^delete", false, true);
 		jWriter.writeAttribute("err", errCode);
 		jWriter.closeTag(true);
-		sendMsg(device, jWriter);
+		sendMsg(cable, jWriter);
 	}
 }
 
-void smSysex::createDirectory(MIDIDevice* device, JsonDeserializer& reader) {
+void smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	FRESULT errCode = FRESULT::FR_OK;
 
 	char const* tagName;
@@ -324,11 +326,11 @@ void smSysex::createDirectory(MIDIDevice* device, JsonDeserializer& reader) {
 		jWriter.writeAttribute("path", pathVal);
 		jWriter.writeAttribute("err", errCode);
 		jWriter.closeTag(true);
-		sendMsg(device, jWriter);
+		sendMsg(cable, jWriter);
 	}
 }
 
-void smSysex::rename(MIDIDevice* device, JsonDeserializer& reader) {
+void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 	FRESULT errCode = FRESULT::FR_OK;
 
 	char const* tagName;
@@ -362,12 +364,12 @@ void smSysex::rename(MIDIDevice* device, JsonDeserializer& reader) {
 		jWriter.writeAttribute("path", toName.get());
 		jWriter.writeAttribute("err", errCode);
 		jWriter.closeTag(true);
-		sendMsg(device, jWriter);
+		sendMsg(cable, jWriter);
 	}
 }
 
 // Returns a block of directory entries as a Json array.
-void smSysex::getDirEntries(MIDIDevice* device, JsonDeserializer& reader) {
+void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 	String path;
 	path.set("/");
 	uint32_t lineOffset = 0;
@@ -450,10 +452,10 @@ errorFound:;
 	jWriter.writeArrayEnding("list", true, false);
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
-	sendMsg(device, jWriter);
+	sendMsg(cable, jWriter);
 }
 
-void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
+void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t addr = 0;
 	uint32_t size = blockBufferMax;
@@ -541,10 +543,10 @@ void smSysex::readBlock(MIDIDevice* device, JsonDeserializer& reader) {
 		working[0] = hiBits;
 		jWriter.writeBlock(working, pktSize + 1);
 	}
-	sendMsg(device, jWriter);
+	sendMsg(cable, jWriter);
 }
 
-void smSysex::writeBlock(MIDIDevice* device, JsonDeserializer& reader) {
+void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t fileId = 0;
 	uint32_t addr = 0;
@@ -606,10 +608,10 @@ void smSysex::writeBlock(MIDIDevice* device, JsonDeserializer& reader) {
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
 
-	sendMsg(device, jWriter);
+	sendMsg(cable, jWriter);
 }
 
-void smSysex::updateTime(MIDIDevice* device, JsonDeserializer& reader) {
+void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 
 	FRESULT errCode;
 	char const* tagName;
@@ -649,14 +651,14 @@ void smSysex::updateTime(MIDIDevice* device, JsonDeserializer& reader) {
 	jWriter.writeOpeningTag("^utime", false, true);
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
-	sendMsg(device, jWriter);
+	sendMsg(cable, jWriter);
 }
 
-void smSysex::doPing(MIDIDevice* device, JsonDeserializer& reader) {
+void smSysex::doPing(MIDICable& cable, JsonDeserializer& reader) {
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^ping", false, true);
 	jWriter.closeTag(true);
-	sendMsg(device, jWriter);
+	sendMsg(cable, jWriter);
 }
 
 uint32_t smSysex::decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax) {
@@ -668,14 +670,12 @@ uint32_t smSysex::decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, 
 	return amount;
 }
 
-void smSysex::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
+void smSysex::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	if (len < 3) {
 		return;
 	}
 
-	SysExDataEntry& de = SysExQ.emplace_back();
-	de.device = device;
-	de.len = len;
+	SysExDataEntry& de = SysExQ.emplace_back(cable, len);
 	memcpy(de.data, data, len);
 }
 
@@ -696,43 +696,43 @@ void smSysex::handleNextSysEx() {
 	parser.match('{');
 	while (*(tagName = parser.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "open")) {
-			openFile(de.device, parser);
+			openFile(de.cable, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "close")) {
-			closeFile(de.device, parser);
+			closeFile(de.cable, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "dir")) {
-			getDirEntries(de.device, parser);
+			getDirEntries(de.cable, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "read")) {
-			readBlock(de.device, parser);
+			readBlock(de.cable, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "write")) {
-			writeBlock(de.device, parser);
+			writeBlock(de.cable, parser);
 			goto done; // Already skipped end.
 		}
 		else if (!strcmp(tagName, "delete")) {
-			deleteFile(de.device, parser);
+			deleteFile(de.cable, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "mkdir")) {
-			createDirectory(de.device, parser);
+			createDirectory(de.cable, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "rename")) {
-			rename(de.device, parser);
+			rename(de.cable, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "utime")) {
-			updateTime(de.device, parser);
+			updateTime(de.cable, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "ping")) {
-			doPing(de.device, parser);
+			doPing(de.cable, parser);
 			goto done;
 		}
 		parser.exitTag();

@@ -21,6 +21,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -52,6 +53,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -869,6 +871,10 @@ void Song::changeFillMode(bool on) {
 	}
 }
 
+void Song::loadNextSong() {
+	loadSongUI.queueLoadNextSongIfAvailable(1);
+}
+
 // If action is NULL, that means this is being called as part of an undo, so don't do any extra stuff.
 // Currently mayReSyncClip is only set to false in a call that happens when we've just finished recording that Clip.
 void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip) {
@@ -1206,9 +1212,9 @@ weAreInArrangementEditorOrInClipInstance:
 				// class now uses.
 				writer.writeAttribute("midiCommandChannel", sections[s].launchMIDICommand.channelOrZone, false);
 				writer.writeAttribute("midiCommandNote", sections[s].launchMIDICommand.noteOrCC, false);
-				if (sections[s].launchMIDICommand.device) {
+				if (sections[s].launchMIDICommand.cable) {
 					writer.writeOpeningTagEnd();
-					sections[s].launchMIDICommand.device->writeReferenceToFile(writer, "midiCommandDevice");
+					sections[s].launchMIDICommand.cable->writeReferenceToFile(writer, "midiCommandDevice");
 					writer.writeClosingTag("section", true, true);
 					continue; // We now don't need to close the tag.
 				}
@@ -1830,7 +1836,7 @@ unknownTag:
 					if (!strcmp(tagName, "section")) {
 
 						uint8_t id = 255;
-						MIDIDevice* device = NULL;
+						MIDICable* cable = nullptr;
 						uint8_t channel = 255;
 						uint8_t note = 255;
 						int16_t numRepeats = 0;
@@ -1850,7 +1856,7 @@ unknownTag:
 							// Annoyingly, I used one-off tag names here, rather than it conforming to what the
 							// LearnedMIDI class now uses.
 							else if (!strcmp(tagName, "midiCommandDevice")) {
-								device = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+								cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 							}
 
 							else if (!strcmp(tagName, "midiCommandChannel")) {
@@ -1866,7 +1872,7 @@ unknownTag:
 
 						if (id < kMaxNumSections) {
 							if (channel < 16 && note < 128) {
-								sections[id].launchMIDICommand.device = device;
+								sections[id].launchMIDICommand.cable = cable;
 								sections[id].launchMIDICommand.channelOrZone = channel;
 								sections[id].launchMIDICommand.noteOrCC = note;
 							}
@@ -2720,10 +2726,10 @@ traverseClips:
 	}
 }
 
-void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(
-    MIDIDevice* device, SoundInstrument* instrument) {
+void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForInstrument(
+    MIDICable& cable, SoundInstrument* instrument) {
 
-	if (!device->hasDefaultVelocityToLevelSet()) {
+	if (!cable.hasDefaultVelocityToLevelSet()) {
 		return;
 	}
 
@@ -2768,7 +2774,7 @@ traverseClips:
 
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
-		patchCableSet->grabVelocityToLevelFromMIDIDeviceDefinitely(device);
+		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 		patchCableSet->setupPatching(modelStackWithParamCollection);
 	}
 	if (!doingArrangementClips) {
@@ -2779,10 +2785,10 @@ traverseClips:
 }
 
 // kit is required, fortunately. Unlike some of the other "for drum" functions here.
-void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(MIDIDevice* device,
-                                                                                       SoundDrum* drum, Kit* kit) {
+void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForDrum(MIDICable& cable, SoundDrum* drum,
+                                                                                      Kit* kit) {
 
-	if (!device->hasDefaultVelocityToLevelSet()) {
+	if (!cable.hasDefaultVelocityToLevelSet()) {
 		return;
 	}
 
@@ -2835,7 +2841,7 @@ traverseClips:
 
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
-		patchCableSet->grabVelocityToLevelFromMIDIDeviceDefinitely(device);
+		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 		patchCableSet->setupPatching(modelStackWithParamCollection);
 	}
 	if (!doingArrangementClips) {
@@ -2845,7 +2851,7 @@ traverseClips:
 	}
 }
 
-void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device) {
+void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICable& cable) {
 	// if (!device->hasDefaultVelocityToLevelSet()) return; // In this case, we'll take 0 to actually mean zero.
 
 	// TODO: backed up ParamManagers?
@@ -2863,7 +2869,7 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDe
 
 		if (output->type == OutputType::SYNTH) {
 			SoundInstrument* synth = (SoundInstrument*)output;
-			if (synth->midiInput.containsSomething() && synth->midiInput.device == device) {
+			if (synth->midiInput.containsSomething() && synth->midiInput.cable == &cable) {
 
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStackWithTimelineCounter->addModControllableButNoNoteRow(synth)->addParamManager(
@@ -2873,7 +2879,7 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDe
 				    clip->paramManager.getPatchCableSet(modelStackWithThreeMainThings);
 
 				PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
-				patchCableSet->grabVelocityToLevelFromMIDIDeviceDefinitely(device);
+				patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 
 				patchCableSet->setupPatching(modelStackWithParamCollection);
 			}
@@ -2884,7 +2890,7 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDe
 
 			for (Drum* drum = kit->firstDrum; drum; drum = drum->next) {
 				if (drum->type == DrumType::SOUND && drum->midiInput.containsSomething()
-				    && drum->midiInput.device == device) {
+				    && drum->midiInput.cable == &cable) {
 
 					ModelStackWithNoteRow* modelStackWithNoteRow =
 					    ((InstrumentClip*)clip)->getNoteRowForDrum(modelStackWithTimelineCounter, drum);
@@ -2902,7 +2908,7 @@ void Song::grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDe
 
 					PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
-					patchCableSet->grabVelocityToLevelFromMIDIDeviceDefinitely(device);
+					patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 					patchCableSet->setupPatching(modelStackWithParamCollection);
 				}
 			}
@@ -5721,12 +5727,12 @@ void Song::setSongFullPath(const char* fullPath) {
 	}
 }
 
-void Song::midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-                                                int32_t whichBendRange, int32_t bendSemitones) {
+void Song::midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
+                                               int32_t whichBendRange, int32_t bendSemitones) {
 
 	// Go through all Instruments...
 	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->offerBendRangeUpdate(modelStack, device, channelOrZone, whichBendRange, bendSemitones);
+		thisOutput->offerBendRangeUpdate(modelStack, cable, channelOrZone, whichBendRange, bendSemitones);
 	}
 }
 

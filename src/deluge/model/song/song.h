@@ -120,11 +120,11 @@ public:
 	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
 	void setupPatchingForAllParamManagersForDrum(SoundDrum* drum);
 	void setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound);
-	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForInstrument(MIDIDevice* device,
-	                                                                                       SoundInstrument* instrument);
-	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForAllParamManagersForDrum(MIDIDevice* device,
-	                                                                                 SoundDrum* drum, Kit* kit);
-	void grabVelocityToLevelFromMIDIDeviceAndSetupPatchingForEverything(MIDIDevice* device);
+	void grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForInstrument(MIDICable& cable,
+	                                                                                      SoundInstrument* instrument);
+	void grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForDrum(MIDICable& cable, SoundDrum* drum,
+	                                                                                Kit* kit);
+	void grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICable& cable);
 	void getCurrentRootNoteAndScaleName(StringBuf& buffer);
 	void displayCurrentRootNoteAndScaleName();
 
@@ -271,6 +271,7 @@ public:
 	void setInputTickScaleClip(Clip* clip);
 	inline bool isFillModeActive() { return fillModeActive; }
 	void changeFillMode(bool on);
+	void loadNextSong();
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = NULL);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);
@@ -369,8 +370,8 @@ public:
 	void swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex);
 	Clip* replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex);
 	void setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity);
-	void midiDeviceBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDIDevice* device, int32_t channelOrZone,
-	                                          int32_t whichBendRange, int32_t bendSemitones);
+	void midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
+	                                         int32_t whichBendRange, int32_t bendSemitones);
 	Error addInstrumentsToFileItems(OutputType outputType);
 
 	uint32_t getQuarterNoteLength();

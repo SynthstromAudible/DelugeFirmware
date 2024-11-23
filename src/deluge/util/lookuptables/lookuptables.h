@@ -31,8 +31,6 @@ extern const int16_t tanH2d[][129];
 extern const int16_t hanningWindow[];
 
 extern const int16_t sineWaveSmall[];
-extern const int16_t sineWaveDiff[];
-#define SINE_TABLE_SIZE_MAGNITUDE 8
 
 extern const int16_t triangleWaveAntiAliasing1[];
 extern const int16_t triangleWaveAntiAliasing3[];
@@ -134,8 +132,6 @@ extern const int16_t windowedSincKernelBasicForWavetableBetweenCycles[];
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
 const uint8_t presetReverbDamping[NUM_PRESET_REVERBS] = {29, 36, 45};
 extern deluge::l10n::String presetReverbNames[NUM_PRESET_REVERBS];
-
-extern const uint8_t defaultClipGroupColours[];
 
 extern const uint8_t noteCodeToNoteLetter[];
 extern const bool noteCodeIsSharp[];

@@ -25,7 +25,7 @@
 
 #include "util/pack.h"
 
-void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
+void Debug::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	if (len < 3) {
 		return;
 	}
@@ -34,10 +34,10 @@ void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	switch (data[1]) {
 	case 0:
 		if (data[2] == 1) {
-			midiDebugDevice = device;
+			midiDebugCable = &cable;
 		}
 		else if (data[2] == 0) {
-			midiDebugDevice = nullptr;
+			midiDebugCable = nullptr;
 		}
 		break;
 
@@ -58,7 +58,7 @@ void Debug::sysexReceived(MIDIDevice* device, uint8_t* data, int32_t len) {
 	}
 }
 
-void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
+void Debug::sysexDebugPrint(MIDICable& cable, const char* msg, bool nl) {
 	if (!msg) {
 		return; // Do not do that
 	}
@@ -86,7 +86,7 @@ void Debug::sysexDebugPrint(MIDIDevice* device, const char* msg, bool nl) {
 	//	reply[5 + len] = 0xf7;
 	reply[sizeof(reply_hdr) + len] = 0xf7;
 	//	device->sendSysex(reply, len + 6);
-	device->sendSysex(reply, len + sizeof(reply_hdr) + 1);
+	cable.sendSysex(reply, len + sizeof(reply_hdr) + 1);
 }
 #ifdef ENABLE_SYSEX_LOAD
 #include "gui/l10n/l10n.h"

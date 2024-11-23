@@ -36,6 +36,9 @@
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
 
+#### <ins>Session Mode</ins>
+- Doubled the number of Session Mode sections from 12 to 24.
+
 #### <ins>Song Grid View</ins>
 
 ##### Entering Clips
@@ -113,6 +116,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - `Midi Learned Note Input for the Whole Kit` now persists between Kit preset changes.
 - Fixed unexpected behaviour for `Synth` and `Kit` clips that would cause `MIDI LEARNED PARAMS` to get lost when changing presets for Synth / Kits. 
   - Note: for `Kit` clips it will migrate midi learn for `Kit Affect Entire` params only.
+- Added new learnable global command `LOAD NEXT SONG`, which when received while playing, it will queue to load the next song within the folder of the current song.
 
 ### SD CARD
 

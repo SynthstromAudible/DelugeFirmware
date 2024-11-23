@@ -44,7 +44,7 @@ class SampleControls;
 class ModControllableAudio;
 class ModelStackWithThreeMainThings;
 class AudioFileHolder;
-class MIDIDevice;
+class MIDICable;
 namespace deluge::gui::menu_item {
 enum class RangeEdit : uint8_t;
 }
@@ -67,7 +67,7 @@ public:
 	SampleControls* currentSampleControls;
 	VoicePriority* currentPriority;
 	int16_t currentMultiRangeIndex;
-	MIDIDevice* currentMIDIDevice;
+	MIDICable* currentMIDICable;
 	deluge::gui::menu_item::RangeEdit editingRangeEdge;
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
@@ -105,9 +105,9 @@ public:
 
 	bool shouldGoUpOneLevelOnBegin;
 
-	bool programChangeReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t program) { return false; }
-	bool midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value);
-	bool pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2);
+	bool programChangeReceived(MIDICable& cable, uint8_t channel, uint8_t program) { return false; }
+	bool midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value);
+	bool pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2);
 	void selectEncoderAction(int8_t offset);
 	bool canSeeViewUnderneath() { return true; }
 	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int32_t sourceIndex = 0);
@@ -125,8 +125,8 @@ public:
 	void exitCompletely();
 	void goUpOneLevel();
 	void enterSubmenu(MenuItem* newItem);
-	bool pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program);
-	bool noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity);
+	bool pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) override;
+	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) override;
 	void markInstrumentAsEdited();
 	bool editingCVOrMIDIClip();
 	bool isUntransposedNoteWithinRange(int32_t noteCode);

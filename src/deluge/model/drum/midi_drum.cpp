@@ -123,19 +123,19 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 	return -64;
 }
 
-void MIDIDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
+void MIDIDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 
 	// Aftertouch only
-	if (whichExpressionDimension == 2) {
+	if (expressionDimension == 2) {
 		int32_t value7 = newValue >> 24;
 		midiEngine.sendPolyphonicAftertouch(this, channel, value7, note, kMIDIOutputFilterNoMPE);
 	}
 }
 
-void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+void MIDIDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                         int32_t channelOrNoteNumber,
                                                         MIDICharacteristic whichCharacteristic) {
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but
 	// yeah, that's all irrelevant.
-	expressionEvent(newValue, whichExpressionDimension);
+	expressionEvent(newValue, expressionDimension);
 }

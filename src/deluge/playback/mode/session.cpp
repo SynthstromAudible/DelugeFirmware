@@ -58,6 +58,32 @@ enum class LaunchStatus {
 	LAUNCH_ALONG_WITH_EXISTING_LAUNCHING,
 };
 
+using namespace deluge::gui::colours;
+const Colour defaultClipSectionColours[] = {RGB::fromHue(102), // bright light blue
+                                            RGB::fromHue(168), // bright dark pink
+                                            RGB::fromHue(24),  // bright light orange
+                                            RGB::fromHue(84),  // bright turquoise
+                                            red,
+                                            lime,
+                                            blue,
+                                            RGB::fromHue(12),  // bright dark orange
+                                            RGB::fromHue(147), // bright purple
+                                            yellow,
+                                            green,
+                                            RGB::fromHue(157), // bright magenta
+                                            pastel::blue,
+                                            pink_full,
+                                            pastel::orange,
+                                            pastel::green,
+                                            pink.forTail(),
+                                            lime.forTail(),
+                                            cyan.forTail(),
+                                            orange.forTail(),
+                                            purple.forTail(),
+                                            pastel::yellow.forTail(),
+                                            green.forTail(),
+                                            magenta.forTail()};
+
 Session::Session() {
 	cancelAllLaunchScheduling();
 	lastSectionArmed = 255;
@@ -753,7 +779,7 @@ void Session::launchSchedulingMightNeedCancelling() {
 		cancelAllLaunchScheduling();
 		if (display->haveOLED()) {
 			RootUI* rootUI = getRootUI();
-			if (getCurrentUI() == &loadSongUI) {
+			if (loadSongUI.isLoadingSong()) {
 				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
 			}
 			else if ((rootUI == &sessionView || rootUI == &performanceView)
@@ -2279,7 +2305,7 @@ traverseClips:
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
 			if (display->haveOLED()) {
 				RootUI* rootUI = getRootUI();
-				if (getCurrentUI() == &loadSongUI) {
+				if (loadSongUI.isLoadingSong()) {
 					loadSongUI.displayLoopsRemainingPopup();
 				}
 				else if ((rootUI == &sessionView || rootUI == &performanceView)

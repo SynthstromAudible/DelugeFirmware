@@ -117,9 +117,9 @@ void MIDIDeviceLumiKeys::hookOnRecalculateColour() {
 	if (clip) {
 		// Determine if learned device on the current clip is the same as this one
 		LearnedMIDI* midiInput = &(((MelodicInstrument*)clip->output)->midiInput);
-		if (midiInput->containsSomething() && midiInput->device) {
-			if (midiInput->device->getDisplayName() == getDisplayName()
-			    && midiInput->device->connectionFlags == connectionFlags) {
+		if (midiInput->containsSomething() && midiInput->cable) {
+			if (midiInput->cable->getDisplayName() == getDisplayName()
+			    && midiInput->cable->connectionFlags == connectionFlags) {
 				learnedToCurrentClip = true;
 			}
 		}

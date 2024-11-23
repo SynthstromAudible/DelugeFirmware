@@ -146,7 +146,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	                                                  + params::UNPATCHED_SAMPLE_RATE_REDUCTION);
 	modKnobs[7][0].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING);
 	voicePriority = VoicePriority::MEDIUM;
-	whichExpressionSourcesChangedAtSynthLevel = 0;
+	expressionSourcesChangedAtSynthLevel.reset();
 
 	skippingRendering = true;
 	startSkippingRenderingAtTime = 0;
@@ -1635,7 +1635,7 @@ justUnassign:
 			reassessRenderSkippingStatus(
 			    modelStack); // Since we potentially just changed numVoicesAssigned from 0 to 1.
 
-			newVoice->randomizeOscPhases(this);
+			newVoice->randomizeOscPhases(*this);
 		}
 
 		if (sideChainSendLevel != 0) [[unlikely]] {
@@ -2434,7 +2434,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	postReverbVolumeLastTime = postReverbVolume;
 
 	sourcesChanged = 0;
-	whichExpressionSourcesChangedAtSynthLevel = 0;
+	expressionSourcesChangedAtSynthLevel.reset();
 	for (int i = 0; i < kNumSources; i++) {
 		sources[i].dxPatchChanged = false;
 	}
@@ -2697,7 +2697,7 @@ void Sound::resyncGlobalLFO() {
 // whichKnob is either which physical mod knob, or which MIDI CC code.
 // For mod knobs, supply midiChannel as 255
 // Returns false if fail due to insufficient RAM.
-bool Sound::learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
+bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
                       uint8_t midiChannel, Song* song) {
 
 	// If a mod knob
@@ -2717,7 +2717,7 @@ bool Sound::learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, u
 
 	// If a MIDI knob
 	else {
-		return ModControllableAudio::learnKnob(fromDevice, paramDescriptor, whichKnob, modKnobMode, midiChannel, song);
+		return ModControllableAudio::learnKnob(cable, paramDescriptor, whichKnob, modKnobMode, midiChannel, song);
 	}
 }
 
@@ -3046,7 +3046,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 									newVoiceSample->stopUsingCache(
 									    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
 									    thisVoice->getPriorityRating(),
-									    thisVoice->guides[s].getLoopingType(&sources[s]) == LoopType::LOW_LEVEL);
+									    thisVoice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
 									// TODO: should really check success of that...
 								}
 							}

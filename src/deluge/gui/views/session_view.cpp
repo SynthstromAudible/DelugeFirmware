@@ -1546,7 +1546,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 		}
 
 		else {
-			thisColour = RGB::fromHue(defaultClipGroupColours[clip->section]);
+			thisColour = defaultClipSectionColours[clip->section];
 
 			// If user assigning MIDI controls and has this section selected, flash to half brightness
 			if (view.midiLearnFlashOn && currentSong
@@ -1937,7 +1937,7 @@ void SessionView::redrawNumericDisplay() {
 				goto nothingToDisplay;
 			}
 
-			if (currentUI == &loadSongUI) {
+			if (loadSongUI.isLoadingSong()) {
 				if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 					displayRepeatsTilLaunch();
 				}
@@ -3145,8 +3145,7 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 			auto section = gridSectionFromY(y);
 			RGB& ptrSectionColour = image[y][sectionColumnIndex];
 
-			ptrSectionColour = RGB::fromHue(defaultClipGroupColours[gridSectionFromY(y)]);
-			ptrSectionColour = ptrSectionColour.adjust(255, 2);
+			ptrSectionColour = defaultClipSectionColours[gridSectionFromY(y)];
 
 			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
 				// MIDI colour if necessary
@@ -3757,7 +3756,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION) {
+	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION
+	    || loadSongUI.isLoadingSong()) {
 		return ActionResult::DEALT_WITH;
 	}
 

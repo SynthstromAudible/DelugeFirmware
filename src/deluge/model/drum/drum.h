@@ -21,16 +21,15 @@
 #include "io/midi/learned_midi.h"
 #include <cstdint>
 
+class Clip;
 class Kit;
+class ModControllable;
+class ModelStackWithSoundFlags;
+class ModelStackWithThreeMainThings;
+class ModelStackWithTimelineCounter;
+class ParamManager;
 class ParamManagerForTimeline;
 class Song;
-class ModControllable;
-class Clip;
-class ModelStackWithThreeMainThings;
-class ModelStackWithSoundFlags;
-class ModelStackWithTimelineCounter;
-class MIDIDevice;
-class ParamManager;
 
 /*
  * Kits are made up of multiple Drums. Even when they are not drum sounds, the class is called Drum, for better or
@@ -85,8 +84,8 @@ public:
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
-	                                     int32_t whichExpressionimension, int32_t level);
-	virtual void expressionEvent(int32_t newValue, int32_t whichExpressionimension) {}
+	                                     int32_t expressionDimension, int32_t level);
+	virtual void expressionEvent(int32_t newValue, int32_t expressionDimension) {}
 	void getCombinedExpressionInputs(int16_t* combined);
 
 	virtual ModControllable* toModControllable() { return NULL; }

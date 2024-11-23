@@ -73,9 +73,9 @@ public:
 	Error moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
 	int32_t moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
 	                                    ModelStackWithThreeMainThings* modelStack);
-	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                       bool* doingMidiThru);
+	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, bool on,
+	                       int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	                       bool* doingMidiThru) override;
 
 	// ModControllable implementation
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
@@ -124,14 +124,14 @@ public:
 
 protected:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                              int32_t whichExpressionDimension, ArpNote* arpNote);
+	                                              int32_t expressionDimension, ArpNote* arpNote);
 	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
 	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity);
-	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension);
+	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension);
 
 private:
-	void sendMonophonicExpressionEvent(int32_t whichExpressionDimension);
-	void combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension);
+	void sendMonophonicExpressionEvent(int32_t expressionDimension);
+	void combineMPEtoMono(int32_t value32, int32_t expressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = NULL);

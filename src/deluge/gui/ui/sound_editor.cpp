@@ -1264,22 +1264,22 @@ ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRouti
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
 
-bool SoundEditor::pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) {
+bool SoundEditor::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
-		getCurrentMenuItem()->learnProgramChange(fromDevice, channel, program);
+		getCurrentMenuItem()->learnProgramChange(cable, channel, program);
 		return true;
 	}
 	return false;
 }
-bool SoundEditor::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
-	return getCurrentMenuItem()->learnNoteOn(fromDevice, channel, note);
+bool SoundEditor::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) {
+	return getCurrentMenuItem()->learnNoteOn(cable, channel, note);
 }
 
 // Returns true if some use was made of the message here
-bool SoundEditor::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value) {
+bool SoundEditor::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value) {
 
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
-		getCurrentMenuItem()->learnCC(fromDevice, channel, ccNumber, value);
+		getCurrentMenuItem()->learnCC(cable, channel, ccNumber, value);
 		return true;
 	}
 
@@ -1287,10 +1287,10 @@ bool SoundEditor::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_
 }
 
 // Returns true if some use was made of the message here
-bool SoundEditor::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2) {
+bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2) {
 
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
-		getCurrentMenuItem()->learnKnob(fromDevice, 128, 0, channel);
+		getCurrentMenuItem()->learnKnob(&cable, 128, 0, channel);
 		return true;
 	}
 
