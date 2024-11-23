@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
+#include "modulation/midi/label/midi_label_collection.h"
 #include <array>
 
 class ModelStack;
@@ -45,6 +46,23 @@ public:
 	bool readTagFromFile(Deserializer& reader, char const* tagName);
 	Error readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
+
+	// midi device definition file
+	/// reading
+	Error readDeviceDefinitionFile(Deserializer& reader, bool readFromPresetOrSong);
+	void readDeviceDefinitionFileNameFromPresetOrSong(Deserializer& reader);
+	Error readCCLabelsFromFile(Deserializer& reader);
+	/// writing
+	void writeDeviceDefinitionFile(Serializer& writer, bool writeFileNameToPresetOrSong);
+	void writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer);
+	void writeCCLabelsToFile(Serializer& writer);
+	/// getting / updating cc labels
+	String* getNameFromCC(int32_t cc);
+	void setNameForCC(int32_t cc, String* name);
+	/// definition file
+	String deviceDefinitionFileName;
+	bool loadDeviceDefinitionFile = false;
+
 	void sendMIDIPGM();
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
@@ -55,9 +73,9 @@ public:
 	Error moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC, ModelStackWithThreeMainThings* modelStack);
 	int32_t moveAutomationToDifferentCC(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode,
 	                                    ModelStackWithThreeMainThings* modelStack);
-	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDIDevice* fromDevice,
-	                       bool on, int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
-	                       bool* doingMidiThru);
+	void offerReceivedNote(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, MIDICable& cable, bool on,
+	                       int32_t channel, int32_t note, int32_t velocity, bool shouldRecordNotes,
+	                       bool* doingMidiThru) override;
 
 	// ModControllable implementation
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
@@ -106,15 +124,16 @@ public:
 
 protected:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                              int32_t whichExpressionDimension, ArpNote* arpNote);
+	                                              int32_t expressionDimension, ArpNote* arpNote);
 	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
 	void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity);
-	void monophonicExpressionEvent(int32_t newValue, int32_t whichExpressionDimension);
+	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension);
 
 private:
-	void sendMonophonicExpressionEvent(int32_t whichExpressionDimension);
-	void combineMPEtoMono(int32_t value32, int32_t whichExpressionDimension);
+	void sendMonophonicExpressionEvent(int32_t expressionDimension);
+	void combineMPEtoMono(int32_t value32, int32_t expressionDimension);
 	void outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel);
 	Error readMIDIParamFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                            MIDIParamCollection* midiParamCollection, int8_t* getCC = NULL);
+	MIDILabelCollection midiLabelCollection;
 };

@@ -55,9 +55,9 @@ struct ParamsForPerformance {
 	RGB rowTailColour = deluge::gui::colours::black;
 };
 
-class PerformanceSessionView final : public ClipNavigationTimelineView {
+class PerformanceView final : public ClipNavigationTimelineView {
 public:
-	PerformanceSessionView();
+	PerformanceView();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
 	bool opened() override;
 	void focusRegained() override;
@@ -66,8 +66,8 @@ public:
 	ActionResult timerCallback() override;
 
 	// ui
-	UIType getUIType() { return UIType::PERFORMANCE_SESSION; }
-	const char* getName() { return "performance_session_view"; }
+	UIType getUIType() { return UIType::PERFORMANCE; }
+	const char* getName() { return "performance_view"; }
 	[[nodiscard]] int32_t getNavSysId() const override;
 
 	// rendering
@@ -206,4 +206,4 @@ private:
 	bool sessionButtonUsed = false;
 };
 
-extern PerformanceSessionView performanceSessionView;
+extern PerformanceView performanceView;

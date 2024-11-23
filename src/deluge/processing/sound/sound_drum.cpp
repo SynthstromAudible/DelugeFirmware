@@ -107,9 +107,9 @@ void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloc
 
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
-void SoundDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimension) {
+void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 
-	int32_t s = whichExpressionDimension + util::to_underlying(PatchSource::X);
+	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 
 	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 
@@ -121,22 +121,22 @@ void SoundDrum::expressionEvent(int32_t newValue, int32_t whichExpressionDimensi
 			thisVoice->expressionEventSmooth(newValue, s);
 		}
 		else {
-			thisVoice->expressionEventImmediate(this, newValue, s);
+			thisVoice->expressionEventImmediate(*this, newValue, s);
 		}
 	}
 
 	// Must update MPE values in Arp too - useful either if it's on, or if we're in true monophonic mode - in either
 	// case, we could need to suddenly do a note-on for a different note that the Arp knows about, and need these MPE
 	// values.
-	arpeggiator.arpNote.mpeValues[whichExpressionDimension] = newValue >> 16;
+	arpeggiator.arpNote.mpeValues[expressionDimension] = newValue >> 16;
 }
 
-void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t whichExpressionDimension,
+void SoundDrum::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                          int32_t channelOrNoteNumber,
                                                          MIDICharacteristic whichCharacteristic) {
 	// Because this is a Drum, we disregard the noteCode (which is what channelOrNoteNumber always is in our case - but
 	// yeah, that's all irrelevant.
-	expressionEvent(newValue, whichExpressionDimension);
+	expressionEvent(newValue, expressionDimension);
 }
 
 void SoundDrum::unassignAllVoices() {

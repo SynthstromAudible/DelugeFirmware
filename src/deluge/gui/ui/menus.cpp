@@ -81,6 +81,8 @@
 #include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/midi/default_velocity_to_level.h"
 #include "gui/menu_item/midi/device.h"
+#include "gui/menu_item/midi/device_definition/linked.h"
+#include "gui/menu_item/midi/device_definition/submenu.h"
 #include "gui/menu_item/midi/device_send_clock.h"
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/midi/follow/follow_channel.h"
@@ -450,6 +452,15 @@ Submenu soundDistortionMenu{
 };
 
 // MIDIInstrument menu ----------------------------------------------------------------------
+midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
+                                                     STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED};
+
+midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu{
+    STRING_FOR_MIDI_DEVICE_DEFINITION,
+    {
+        &midiDeviceLinkedMenu,
+    },
+};
 
 midi::Bank midiBankMenu{STRING_FOR_BANK, STRING_FOR_MIDI_BANK};
 midi::Sub midiSubMenu{STRING_FOR_SUB_BANK, STRING_FOR_MIDI_SUB_BANK};
@@ -869,12 +880,14 @@ midi::Command loopMidiCommand{STRING_FOR_LOOP, GlobalMIDICommand::LOOP};
 midi::Command loopContinuousLayeringMidiCommand{STRING_FOR_LAYERING_LOOP, GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
 midi::Command fillMidiCommand{STRING_FOR_FILL, GlobalMIDICommand::FILL};
 midi::Command transposeMidiCommand{STRING_FOR_TRANSPOSE, GlobalMIDICommand::TRANSPOSE};
+midi::Command nextSongMidiCommand{STRING_FOR_SONG_LOAD_NEXT, GlobalMIDICommand::NEXT_SONG};
 
 Submenu midiCommandsMenu{
     STRING_FOR_COMMANDS,
     STRING_FOR_MIDI_COMMANDS,
     {&playMidiCommand, &playbackRestartMidiCommand, &recordMidiCommand, &tapMidiCommand, &undoMidiCommand,
-     &redoMidiCommand, &loopMidiCommand, &loopContinuousLayeringMidiCommand, &fillMidiCommand, &transposeMidiCommand},
+     &redoMidiCommand, &loopMidiCommand, &loopContinuousLayeringMidiCommand, &fillMidiCommand, &transposeMidiCommand,
+     &nextSongMidiCommand},
 };
 
 // MIDI device submenu - for after we've selected which device we want it for
@@ -1306,6 +1319,7 @@ menu_item::Submenu noteRowEditorRootMenu{
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
+        &midiDeviceDefinitionMenu,
         &midiPGMMenu,
         &midiBankMenu,
         &midiSubMenu,

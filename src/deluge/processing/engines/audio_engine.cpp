@@ -1223,7 +1223,7 @@ void updateReverbParams() {
 	if (reverbSidechainVolume < 0) {
 
 		// Just leave everything as is if parts deleted cos loading new song
-		if (getCurrentUI() == &loadSongUI && loadSongUI.deletedPartsOfOldSong) {
+		if (loadSongUI.isLoadingSong() && loadSongUI.deletedPartsOfOldSong) {
 			return;
 		}
 

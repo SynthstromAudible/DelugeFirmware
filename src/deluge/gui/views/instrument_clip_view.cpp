@@ -28,7 +28,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/menus.h"
-#include "gui/ui/rename/rename_clipname_ui.h"
+#include "gui/ui/rename/rename_clip_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_kit_row_ui.h"
@@ -3082,7 +3082,7 @@ void InstrumentClipView::exitNoteEditor() {
 void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on) {
 	if (on) {
 		// did you press a different pad?
-		// if no, ignore press
+		// if no, we'll toggle auditioning the note on / off
 		if (x != lastSelectedNoteXDisplay || y != lastSelectedNoteYDisplay) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
@@ -3112,6 +3112,29 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 					soundEditor.getCurrentMenuItem()->readValueAgain();
 					blinkSelectedNote();
 				}
+			}
+		}
+		// pressing the same pad as the note selected toggles auditioning on / off
+		else {
+			// Switch note off if it was on
+			if (lastAuditionedVelocityOnScreen[y] != 255) {
+				sendAuditionNote(false, y, 127, 0);
+				lastAuditionedVelocityOnScreen[y] = 255;
+				// set the intendedVelocity to 255 as well so that if reassessAuditionStatus gets called elsewhere
+				// it won't send another note on
+				editPadPresses[0].intendedVelocity = 255;
+			}
+			// Switch note on if it was off
+			else {
+				// intendedVelocity is used by reassessAuditionStatus so if we turned the note off previously
+				// then we need to reset intendedVelocity to the velocity of the left most note in the pad we selected
+				if (editPadPresses[0].intendedVelocity == 255) {
+					Note* leftMostNotePressed = getLeftMostNotePressed();
+					if (leftMostNotePressed) {
+						editPadPresses[0].intendedVelocity = leftMostNotePressed->getVelocity();
+					}
+				}
+				reassessAuditionStatus(y);
 			}
 		}
 	}
@@ -7096,15 +7119,15 @@ void InstrumentClipView::reportMPEInitialValuesForNoteEditing(ModelStackWithNote
 			    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams,
 			                                                                                 mpeParamsSummary);
 
-			for (int32_t whichExpressionDimension = 0; whichExpressionDimension < kNumExpressionDimensions;
-			     whichExpressionDimension++) {
-				mpeValuesAtHighestPressure[0][whichExpressionDimension] = mpeValues[whichExpressionDimension];
+			for (int32_t expressionDimension = 0; expressionDimension < kNumExpressionDimensions;
+			     expressionDimension++) {
+				mpeValuesAtHighestPressure[0][expressionDimension] = mpeValues[expressionDimension];
 			}
 		}
 	}
 }
 
-void InstrumentClipView::reportMPEValueForNoteEditing(int32_t whichExpressionimension, int32_t value) {
+void InstrumentClipView::reportMPEValueForNoteEditing(int32_t expressionDimension, int32_t value) {
 
 	// If time to move record along...
 	uint32_t timeSince = AudioEngine::audioSampleTimer - mpeRecordLastUpdateTime;
@@ -7117,13 +7140,13 @@ void InstrumentClipView::reportMPEValueForNoteEditing(int32_t whichExpressionime
 	}
 
 	// Always keep track of the "current" pressure value, so we can decide whether to be recording the other values.
-	if (whichExpressionimension == 2) {
+	if (expressionDimension == 2) {
 		mpeMostRecentPressure = value >> 16;
 	}
 
 	// And if we're still at max pressure, then yeah, record those other values.
 	if (mpeMostRecentPressure >= mpeValuesAtHighestPressure[0][2]) {
-		mpeValuesAtHighestPressure[0][whichExpressionimension] = value >> 16;
+		mpeValuesAtHighestPressure[0][expressionDimension] = value >> 16;
 	}
 
 	dontDeleteNotesOnDepress(); // We know the caller is also manually editing the AutoParam now too - this counts
@@ -7156,14 +7179,13 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 		ModelStackWithParamCollection* modelStackWithParamCollection =
 		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(mpeParams, mpeParamsSummary);
 
-		for (int32_t whichExpressionDimension = 0; whichExpressionDimension < kNumExpressionDimensions;
-		     whichExpressionDimension++) {
-			AutoParam* param = &mpeParams->params[whichExpressionDimension];
+		for (int32_t expressionDimension = 0; expressionDimension < kNumExpressionDimensions; expressionDimension++) {
+			AutoParam* param = &mpeParams->params[expressionDimension];
 
 			ModelStackWithAutoParam* modelStackWithAutoParam =
-			    modelStackWithParamCollection->addAutoParam(whichExpressionDimension, param);
+			    modelStackWithParamCollection->addAutoParam(expressionDimension, param);
 
-			int32_t newValue = (int32_t)mpeValuesAtHighestPressure[t][whichExpressionDimension] << 16;
+			int32_t newValue = (int32_t)mpeValuesAtHighestPressure[t][expressionDimension] << 16;
 
 			param->setValueForRegion(view.modPos, view.modLength, newValue, modelStackWithAutoParam);
 		}

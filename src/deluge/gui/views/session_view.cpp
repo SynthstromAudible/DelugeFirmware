@@ -39,7 +39,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/button.h"
@@ -636,8 +636,8 @@ doActualSimpleChange:
 	}
 	else if (b == KEYBOARD) {
 		if (on && (currentUIMode == UI_MODE_NONE)) {
-			performanceSessionView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
-			changeRootUI(&performanceSessionView);
+			performanceView.timeKeyboardShortcutPress = AudioEngine::audioSampleTimer;
+			changeRootUI(&performanceView);
 		}
 	}
 	else if (b == Y_ENC) {
@@ -1079,6 +1079,10 @@ void SessionView::clipPressEnded() {
 	// the right model stack with param (otherwise midi follow mode will think you're still in a clip)
 	selectedClipYDisplay = 255;
 	clipWasSelectedWithShift = false;
+	// Cancel copying clip
+	if (gridFirstPressedX != -1 && gridFirstPressedY != -1 && gridSecondPressedX != -1 && gridSecondPressedY != -1) {
+		display->popupTextTemporary("COPY CANCELED");
+	}
 	gridResetPresses();
 
 	currentUIMode = UI_MODE_NONE;
@@ -1542,7 +1546,7 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 		}
 
 		else {
-			thisColour = RGB::fromHue(defaultClipGroupColours[clip->section]);
+			thisColour = defaultClipSectionColours[clip->section];
 
 			// If user assigning MIDI controls and has this section selected, flash to half brightness
 			if (view.midiLearnFlashOn && currentSong
@@ -1886,7 +1890,7 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 		view.displayOutputName(getCurrentClip()->output, true, getCurrentClip());
 	}
-	else if (currentUI != &performanceSessionView) {
+	else if (currentUI != &performanceView) {
 		renderViewDisplay();
 	}
 
@@ -1916,7 +1920,7 @@ void SessionView::redrawNumericDisplay() {
 
 	UI* currentUI = getCurrentUI();
 
-	bool isPerformanceView = (currentUI == &performanceSessionView);
+	bool isPerformanceView = (currentUI == &performanceView);
 
 	bool isSessionView =
 	    ((currentUI == &sessionView) || (isPerformanceView && currentSong->lastClipInstanceEnteredStartPos == -1));
@@ -1933,7 +1937,7 @@ void SessionView::redrawNumericDisplay() {
 				goto nothingToDisplay;
 			}
 
-			if (currentUI == &loadSongUI) {
+			if (loadSongUI.isLoadingSong()) {
 				if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
 					displayRepeatsTilLaunch();
 				}
@@ -1993,8 +1997,8 @@ nothingToDisplay:
 }
 
 void SessionView::clearNumericDisplay() {
-	if (getCurrentUI() == &performanceSessionView) {
-		performanceSessionView.renderViewDisplay();
+	if (getCurrentUI() == &performanceView) {
+		performanceView.renderViewDisplay();
 	}
 	else {
 		display->setText("");
@@ -2411,7 +2415,7 @@ void SessionView::potentiallyRenderClipLaunchPlayhead(bool reallyNoTickSquare, i
 }
 
 void SessionView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
-	if (ui == &performanceSessionView) {
+	if (ui == &performanceView) {
 		// don't re-render main pads in performance view
 		uiNeedsRendering(ui, 0, whichSideRows);
 	}
@@ -3141,8 +3145,7 @@ bool SessionView::gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidt
 			auto section = gridSectionFromY(y);
 			RGB& ptrSectionColour = image[y][sectionColumnIndex];
 
-			ptrSectionColour = RGB::fromHue(defaultClipGroupColours[gridSectionFromY(y)]);
-			ptrSectionColour = ptrSectionColour.adjust(255, 2);
+			ptrSectionColour = defaultClipSectionColours[gridSectionFromY(y)];
 
 			if (view.midiLearnFlashOn && gridModeActive == SessionGridModeLaunch) {
 				// MIDI colour if necessary
@@ -3753,7 +3756,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION) {
+	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION
+	    || loadSongUI.isLoadingSong()) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -3896,6 +3900,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 					// don't update clip selection if we didn't create a clip
 					if (clip != nullptr && (x != gridFirstPressedX || y != gridFirstPressedY)) {
 						currentSong->setCurrentClip(clip);
+						transitionToViewForClip(clip);
 						return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 					}
 				}
@@ -3925,6 +3930,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			performActionOnPadRelease = false;
 			gridSecondPressedX = x;
 			gridSecondPressedY = y;
+			display->popupText("COPY CLIPS");
 		}
 	}
 	// Release

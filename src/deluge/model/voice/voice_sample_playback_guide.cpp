@@ -93,9 +93,9 @@ int32_t VoiceSamplePlaybackGuide::getBytePosToEndOrLoopPlayback() {
 	}
 }
 
-LoopType VoiceSamplePlaybackGuide::getLoopingType(Source* source) {
+LoopType VoiceSamplePlaybackGuide::getLoopingType(const Source& source) const {
 	if (loopEndPlaybackAtByte) {
 		return noteOffReceived ? LoopType::NONE : LoopType::LOW_LEVEL;
 	}
-	return (source->repeatMode == SampleRepeatMode::LOOP) ? LoopType::LOW_LEVEL : LoopType::NONE;
+	return (source.repeatMode == SampleRepeatMode::LOOP) ? LoopType::LOW_LEVEL : LoopType::NONE;
 }

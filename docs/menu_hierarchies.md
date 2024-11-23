@@ -104,6 +104,8 @@ The Settings menu contains the following menu hierarchy:
 		- Loop
 		- Layering Loop (LAYE)
 		- Fill
+		- Transpose (TRAN)
+		- Load Next Song (SONG)
 	- Differentiate Inputs (DIFF)
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -1234,6 +1236,15 @@ The MIDI Instrument menu is accessible from MIDI clips by pressing on the `SELEC
 The MIDI menu contains the following menu hierarchy:
 
 <blockquote>
+<details><summary>Device Definition (DEVI)</summary></details>
+
+	This submenu will indicate whether the current MIDI Instrument in the Song is linked to a MIDI Device Definition file.
+
+	- File Linked (LINK)
+		- Unlinked
+		- Linked
+	- File Name of Linked File
+
 <details><summary>PGM</summary></details>
 <details><summary>Bank</summary></details>
 <details><summary>Sub-Bank (SUB)</summary></details>

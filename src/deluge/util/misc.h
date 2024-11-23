@@ -5,6 +5,14 @@
 #include <type_traits>
 
 namespace util {
+template <auto Start, auto End, auto Inc, class F>
+constexpr void constexpr_for(F&& f) {
+	if constexpr (Start < End) {
+		f.template operator()<Start>();
+		constexpr_for<Start + Inc, End, Inc>(f);
+	}
+}
+
 template <class Enum>
 concept enumeration = std::is_enum_v<Enum>;
 

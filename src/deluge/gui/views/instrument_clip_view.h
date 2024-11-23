@@ -161,7 +161,7 @@ public:
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	ClipMinder* toClipMinder() override { return this; }
 	void reportMPEInitialValuesForNoteEditing(ModelStackWithNoteRow* modelStack, int16_t const* mpeValues);
-	void reportMPEValueForNoteEditing(int32_t whichExpressionDimension, int32_t value);
+	void reportMPEValueForNoteEditing(int32_t expressionDimension, int32_t value);
 	void reportNoteOffForMPEEditing(ModelStackWithNoteRow* modelStack);
 	void dontDeleteNotesOnDepress();
 

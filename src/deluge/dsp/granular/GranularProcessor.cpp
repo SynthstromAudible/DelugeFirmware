@@ -16,7 +16,9 @@
  */
 
 #include "GranularProcessor.h"
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "definitions_cxx.hpp"
+#include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/fx/stutterer.h"
 #include "model/mod_controllable/mod_controllable.h"
@@ -50,6 +52,9 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, 
 		}
 		if (grainBuffer == nullptr) {
 			getBuffer(); // in case it was stolen
+			if (grainBuffer == nullptr) {
+				return;
+			}
 		}
 		setupGrainFX(grainRate, grainMix, grainDensity, pitchRandomness, postFXVolume, tempoBPM);
 		StereoSample* currentSample = buffer;
@@ -73,6 +78,9 @@ void GranularProcessor::processGrainFX(StereoSample* buffer, int32_t grainRate, 
 		if (wrapsToShutdown < 0) {
 			grainBuffer->inUse = false;
 		}
+	}
+	if (bufferWriteIndex > kModFXGrainBufferSize / 2) {
+		bufferFull = true; // we now know we have enough written to start generating grains
 	}
 }
 void GranularProcessor::setupGrainFX(int32_t grainRate, int32_t grainMix, int32_t grainDensity, int32_t pitchRandomness,
@@ -121,7 +129,7 @@ StereoSample GranularProcessor::processOneGrainSample(StereoSample* currentSampl
 		wrapsToShutdown -= 1;
 	}
 	int32_t writeIndex = bufferWriteIndex; // % kModFXGrainBufferSize
-	if (bufferWriteIndex % _grainRate == 0) [[unlikely]] {
+	if (bufferFull && bufferWriteIndex % _grainRate == 0) [[unlikely]] {
 		setupGrainsIfNeeded(writeIndex);
 	}
 
@@ -266,12 +274,13 @@ void GranularProcessor::setupGrainsIfNeeded(int32_t writeIndex) {
 	}
 }
 void GranularProcessor::clearGrainFXBuffer() {
+
 	for (int i = 0; i < 8; i++) {
 		grains[i].length = 0;
 	}
 	grainInitialized = false;
 	bufferWriteIndex = 0;
-	grainBuffer->clearBuffer();
+	getBuffer();
 }
 GranularProcessor::GranularProcessor() {
 	wrapsToShutdown = 0;
@@ -280,19 +289,31 @@ GranularProcessor::GranularProcessor() {
 	_grainSize = 13230;  // 300ms
 	_grainRate = 1260;   // 35hz
 	_grainFeedbackVol = 161061273;
-	for (int i = 0; i < 8; i++) {
-		GranularProcessor::grains[i].length = 0;
+	for (auto& grain : grains) {
+		grain.length = 0;
 	}
 	_grainVol = 0;
 	_grainDryVol = 2147483647;
 	_pitchRandomness = 0;
 	grainLastTickCountIsZero = true;
 	grainInitialized = false;
+	grainBuffer = nullptr;
 	getBuffer();
 }
 void GranularProcessor::getBuffer() {
-	void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GrainBuffer));
-	grainBuffer = new (grainBufferMemory) GrainBuffer(this);
+	if (grainBuffer == nullptr) {
+		void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GrainBuffer));
+		if (grainBufferMemory) {
+			grainBuffer = new (grainBufferMemory) GrainBuffer(this);
+		}
+		else {}
+	}
+	else {
+		grainBuffer->inUse = true;
+	}
+	bufferFull =
+	    false; // "clear" the buffer by stopping grains from being generated until it's refilled with fresh data
+	bufferWriteIndex = 0;
 }
 GranularProcessor::~GranularProcessor() {
 	delete grainBuffer;
@@ -312,8 +333,7 @@ GranularProcessor::GranularProcessor(const GranularProcessor& other) {
 	_pitchRandomness = other._pitchRandomness;
 	grainLastTickCountIsZero = true;
 	grainInitialized = false;
-	void* grainBufferMemory = GeneralMemoryAllocator::get().allocStealable(sizeof(GrainBuffer));
-	grainBuffer = new (grainBufferMemory) GrainBuffer(this);
+	getBuffer();
 }
 void GranularProcessor::startSkippingRendering() {
 	if (grainBuffer) {

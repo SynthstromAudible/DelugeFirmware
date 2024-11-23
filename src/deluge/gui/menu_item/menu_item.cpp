@@ -29,8 +29,8 @@ MenuPermission MenuItem::checkPermissionToBeginSession(ModControllableAudio* mod
 	return toReturn ? MenuPermission::YES : MenuPermission::NO;
 }
 
-void MenuItem::learnCC(MIDIDevice* fromDevice, int32_t channel, int32_t ccNumber, int32_t value) {
-	learnKnob(fromDevice, ccNumber, 0, channel);
+void MenuItem::learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value) {
+	learnKnob(&cable, ccNumber, 0, channel);
 }
 
 void MenuItem::renderOLED() {

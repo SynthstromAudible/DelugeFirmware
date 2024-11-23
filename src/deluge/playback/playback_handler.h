@@ -35,13 +35,13 @@ constexpr int32_t kNumInputTicksForMovingAverage = 24;
 
 #define PLAYBACK_CLOCK_EITHER_ACTIVE (PLAYBACK_CLOCK_INTERNAL_ACTIVE | PLAYBACK_CLOCK_EXTERNAL_ACTIVE)
 
-class Song;
-class InstrumentClip;
-class NoteRow;
-class Kit;
-class Clip;
 class Action;
-class MIDIDevice;
+class Clip;
+class InstrumentClip;
+class Kit;
+class MIDICable;
+class NoteRow;
+class Song;
 
 constexpr uint16_t metronomeValuesBPM[16] = {
     60, 63, 66, 69, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116,
@@ -59,7 +59,7 @@ public:
 	void playButtonPressed(int32_t buttonPressLatency);
 	void recordButtonPressed();
 	void setupPlaybackUsingInternalClock(int32_t buttonPressLatencyForTempolessRecord = 0, bool allowCountIn = true,
-	                                     bool restartingPlayback = false);
+	                                     bool restartingPlayback = false, bool restartingPlaybackAtBeginning = false);
 	void setupPlaybackUsingExternalClock(bool switchingFromInternalClock = false, bool fromContinueCommand = false);
 	void setupPlayback(int32_t newPlaybackState, int32_t playFromPos, bool doOneLastAudioRoutineCall = false,
 	                   bool shouldShiftAccordingToClipInstance = true,
@@ -74,7 +74,7 @@ public:
 	bool isCurrentlyRecording();
 	void positionPointerReceived(uint8_t data1, uint8_t data2);
 	void doSongSwap(bool preservePlayPosition = false);
-	void forceResetPlayPos(Song* song, bool restartingPlayback = false);
+	void forceResetPlayPos(Song* song, bool restartingPlaybackAtBeginning = false);
 	void expectEvent();
 	void setMidiInClockEnabled(bool newValue);
 	int32_t getActualArrangementRecordPos();
@@ -180,16 +180,16 @@ public:
 	void toggleMetronomeStatus();
 	void commandDisplayTempo();
 	void setMidiOutClockMode(bool newValue);
-	void pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
-	void midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
-	void programChangeReceived(MIDIDevice* device, int32_t channel, int32_t program);
-	void aftertouchReceived(MIDIDevice* fromDevice, int32_t channel, int32_t value, int32_t noteCode,
+	void pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
+	void midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
+	void programChangeReceived(MIDICable& cable, int32_t channel, int32_t program);
+	void aftertouchReceived(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode,
 	                        bool* doingMidiThru); // noteCode -1 means channel-wide
 	void loopCommand(OverDubType overdubNature);
 	void grabTempoFromClip(Clip* clip);
 	int32_t getTimeLeftInCountIn();
 
-	void noteMessageReceived(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note, int32_t velocity,
+	void noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
 	                         bool* doingMidiThru);
 	bool subModeAllowsRecording();
 
@@ -261,9 +261,9 @@ private:
 	// void scheduleNextTimerTick();
 	bool startIgnoringMidiClockInputIfNecessary();
 	uint32_t setTempoFromAudioClipLength(uint64_t loopLengthSamples, Action* action);
-	bool offerNoteToLearnedThings(MIDIDevice* fromDevice, bool on, int32_t channel, int32_t note);
-	bool tryGlobalMIDICommands(MIDIDevice* device, int32_t channel, int32_t note);
-	bool tryGlobalMIDICommandsOff(MIDIDevice* device, int32_t channel, int32_t note);
+	bool offerNoteToLearnedThings(MIDICable& cable, bool on, int32_t channel, int32_t note);
+	bool tryGlobalMIDICommands(MIDICable& cable, int32_t channel, int32_t note);
+	bool tryGlobalMIDICommandsOff(MIDICable& cable, int32_t channel, int32_t note);
 	void decideOnCurrentPlaybackMode();
 	float getCurrentInternalTickFloatFollowingExternalClock();
 	void scheduleTriggerClockOutTickParamsKnown(uint32_t analogOutTicksPer, uint64_t fractionLastTimerTick,

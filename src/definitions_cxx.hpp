@@ -206,7 +206,7 @@ enum class UIType : uint8_t {
 	KEYBOARD_SCREEN,
 	LOAD_INSTRUMENT_PRESET,
 	LOAD_SONG,
-	PERFORMANCE_SESSION,
+	PERFORMANCE,
 	RENAME_DRUM,
 	RENAME_OUTPUT,
 	SAMPLE_MARKER_EDITOR,
@@ -214,7 +214,9 @@ enum class UIType : uint8_t {
 	SLICER,
 	SOUND_EDITOR,
 	TIMELINE,
-	RENAME_CLIPNAME,
+	RENAME_CLIP,
+	RENAME_MIDI_CC,
+	LOAD_MIDI_DEVICE_DEFINITION,
 	NONE = 255,
 };
 
@@ -417,6 +419,7 @@ enum class ModFXType : uint8_t {
 	PHASER,
 	CHORUS_STEREO,
 	WARBLE,
+	DIMENSION,
 	GRAIN, // Look below if you want to add another one
 };
 constexpr int32_t kNumModFXTypes = util::to_underlying(ModFXType::GRAIN) + 1;
@@ -450,7 +453,7 @@ constexpr int32_t kNumericDisplayLength = 4;
 constexpr size_t kNumGoldKnobIndicatorLEDs = 4;
 constexpr int32_t kMaxGoldKnobIndicatorLEDValue = kMaxKnobPos / 4;
 
-constexpr int32_t kMaxNumSections = 12;
+constexpr int32_t kMaxNumSections = 24;
 
 constexpr int32_t kNumPhysicalModKnobs = 2;
 
@@ -585,6 +588,7 @@ enum class GlobalMIDICommand {
 	REDO,
 	FILL,
 	TRANSPOSE,
+	NEXT_SONG,
 	LAST, // Keep as boundary
 };
 constexpr auto kNumGlobalMIDICommands = util::to_underlying(GlobalMIDICommand::LAST) + 1;

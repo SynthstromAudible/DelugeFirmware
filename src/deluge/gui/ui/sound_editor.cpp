@@ -11,7 +11,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/rename/rename_clipname_ui.h"
+#include "gui/ui/rename/rename_clip_ui.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/rename/rename_output_ui.h"
 #include "gui/ui/sample_marker_editor.h"
@@ -21,7 +21,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
-#include "gui/views/performance_session_view.h"
+#include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -1198,10 +1198,10 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 
-		// used in performanceSessionView to ignore pad presses when you just exited soundEditor
+		// used in performanceView to ignore pad presses when you just exited soundEditor
 		// with a padAction
-		if (rootUI == &performanceSessionView) {
-			performanceSessionView.justExitedSoundEditor = true;
+		if (rootUI == &performanceView) {
+			performanceView.justExitedSoundEditor = true;
 		}
 
 		exitCompletely();
@@ -1264,22 +1264,22 @@ ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRouti
 	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
 }
 
-bool SoundEditor::pcReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t program) {
+bool SoundEditor::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
-		getCurrentMenuItem()->learnProgramChange(fromDevice, channel, program);
+		getCurrentMenuItem()->learnProgramChange(cable, channel, program);
 		return true;
 	}
 	return false;
 }
-bool SoundEditor::noteOnReceivedForMidiLearn(MIDIDevice* fromDevice, int32_t channel, int32_t note, int32_t velocity) {
-	return getCurrentMenuItem()->learnNoteOn(fromDevice, channel, note);
+bool SoundEditor::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) {
+	return getCurrentMenuItem()->learnNoteOn(cable, channel, note);
 }
 
 // Returns true if some use was made of the message here
-bool SoundEditor::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value) {
+bool SoundEditor::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value) {
 
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
-		getCurrentMenuItem()->learnCC(fromDevice, channel, ccNumber, value);
+		getCurrentMenuItem()->learnCC(cable, channel, ccNumber, value);
 		return true;
 	}
 
@@ -1287,10 +1287,10 @@ bool SoundEditor::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_
 }
 
 // Returns true if some use was made of the message here
-bool SoundEditor::pitchBendReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t data1, uint8_t data2) {
+bool SoundEditor::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2) {
 
 	if (currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()) {
-		getCurrentMenuItem()->learnKnob(fromDevice, 128, 0, channel);
+		getCurrentMenuItem()->learnKnob(&cable, 128, 0, channel);
 		return true;
 	}
 
@@ -1471,7 +1471,7 @@ doMIDIOrCV:
 			}
 		}
 		else {
-			if ((currentUI == &performanceSessionView) && !Buttons::isShiftButtonPressed()) {
+			if ((currentUI == &performanceView) && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuPerformanceView;
 			}
 			else if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
@@ -1734,8 +1734,8 @@ bool SoundEditor::handleClipName() {
 		if (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
 		    || output->type == OutputType::KIT && getRootUI()->getAffectEntire()) {
 			if (clip) {
-				renameClipNameUI.clip = clip;
-				openUI(&renameClipNameUI);
+				renameClipUI.clip = clip;
+				openUI(&renameClipUI);
 				return true;
 			}
 		}

@@ -103,7 +103,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	modulatorCents[1] = 0;
 
 	transpose = 0;
-	modFXType = ModFXType::NONE;
+	modFXType_ = ModFXType::NONE;
 
 	oscillatorSync = false;
 
@@ -146,7 +146,7 @@ Sound::Sound() : patcher(&patchableInfoForSound) {
 	                                                  + params::UNPATCHED_SAMPLE_RATE_REDUCTION);
 	modKnobs[7][0].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING);
 	voicePriority = VoicePriority::MEDIUM;
-	whichExpressionSourcesChangedAtSynthLevel = 0;
+	expressionSourcesChangedAtSynthLevel.reset();
 
 	skippingRendering = true;
 	startSkippingRenderingAtTime = 0;
@@ -356,40 +356,27 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 }
 
 ModFXType Sound::getModFXType() {
-	return modFXType;
+	return modFXType_;
 }
 
 // Returns false if not enough ram
 bool Sound::setModFXType(ModFXType newType) {
 
-	if (util::one_of(newType, {ModFXType::FLANGER, ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::WARBLE})) {
-		if (!modFXBuffer) {
-			// TODO: should give an error here if no free ram
-			modFXBuffer =
-			    (StereoSample*)GeneralMemoryAllocator::get().allocLowSpeed(kModFXBufferSize * sizeof(StereoSample));
-			if (!modFXBuffer) {
-				return false;
-			}
-		}
+	if (util::one_of(newType, {ModFXType::FLANGER, ModFXType::CHORUS, ModFXType::CHORUS_STEREO, ModFXType::WARBLE,
+	                           ModFXType::DIMENSION})) {
+		modfx.setupBuffer();
 		disableGrain();
 	}
 	else if (newType == ModFXType::GRAIN) {
 		enableGrain();
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-			modFXBuffer = NULL;
-		}
+		modfx.disableBuffer();
 	}
 	else {
-		if (modFXBuffer) {
-			delugeDealloc(modFXBuffer);
-			modFXBuffer = NULL;
-		}
+		modfx.disableBuffer();
 		disableGrain();
 	}
 
-	modFXType = newType;
-	clearModFXMemory();
+	modFXType_ = newType;
 	return true;
 }
 
@@ -1648,7 +1635,7 @@ justUnassign:
 			reassessRenderSkippingStatus(
 			    modelStack); // Since we potentially just changed numVoicesAssigned from 0 to 1.
 
-			newVoice->randomizeOscPhases(this);
+			newVoice->randomizeOscPhases(*this);
 		}
 
 		if (sideChainSendLevel != 0) [[unlikely]] {
@@ -2020,7 +2007,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if ((modFXType != ModFXType::NONE) || compressor.getThreshold() > 0) {
+			if ((modFXType_ != ModFXType::NONE) || compressor.getThreshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -2033,7 +2020,7 @@ doCutModFXTail:
 					}
 
 					int32_t waitSamplesModfx = 0;
-					switch (modFXType) {
+					switch (modFXType_) {
 					case ModFXType::CHORUS:
 						[[fallthrough]];
 					case ModFXType::CHORUS_STEREO:
@@ -2422,7 +2409,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	int32_t modFXRate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
 	processSRRAndBitcrushing((StereoSample*)soundBuffer, numSamples, &postFXVolume, paramManager);
-	processFX((StereoSample*)soundBuffer, numSamples, modFXType, modFXRate, modFXDepth, delayWorkingState,
+	processFX((StereoSample*)soundBuffer, numSamples, modFXType_, modFXRate, modFXDepth, delayWorkingState,
 	          &postFXVolume, paramManager, numVoicesAssigned != 0, reverbSendAmount >> 1);
 	processStutter((StereoSample*)soundBuffer, numSamples, paramManager);
 
@@ -2447,7 +2434,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 	postReverbVolumeLastTime = postReverbVolume;
 
 	sourcesChanged = 0;
-	whichExpressionSourcesChangedAtSynthLevel = 0;
+	expressionSourcesChangedAtSynthLevel.reset();
 	for (int i = 0; i < kNumSources; i++) {
 		sources[i].dxPatchChanged = false;
 	}
@@ -2495,7 +2482,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			               getGlobalLFOPhaseIncrement());
 
 			// Do Mod FX
-			modFXLFO.tick(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
+			modfx.tickLFO(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
 
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
@@ -2710,7 +2697,7 @@ void Sound::resyncGlobalLFO() {
 // whichKnob is either which physical mod knob, or which MIDI CC code.
 // For mod knobs, supply midiChannel as 255
 // Returns false if fail due to insufficient RAM.
-bool Sound::learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
+bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
                       uint8_t midiChannel, Song* song) {
 
 	// If a mod knob
@@ -2730,7 +2717,7 @@ bool Sound::learnKnob(MIDIDevice* fromDevice, ParamDescriptor paramDescriptor, u
 
 	// If a MIDI knob
 	else {
-		return ModControllableAudio::learnKnob(fromDevice, paramDescriptor, whichKnob, modKnobMode, midiChannel, song);
+		return ModControllableAudio::learnKnob(cable, paramDescriptor, whichKnob, modKnobMode, midiChannel, song);
 	}
 }
 
@@ -3059,7 +3046,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 									newVoiceSample->stopUsingCache(
 									    &thisVoice->guides[s], (Sample*)thisVoice->guides[s].audioFileHolder->audioFile,
 									    thisVoice->getPriorityRating(),
-									    thisVoice->guides[s].getLoopingType(&sources[s]) == LoopType::LOW_LEVEL);
+									    thisVoice->guides[s].getLoopingType(sources[s]) == LoopType::LOW_LEVEL);
 									// TODO: should really check success of that...
 								}
 							}

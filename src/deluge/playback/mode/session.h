@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "gui/colour/colour.h"
 #include "playback/mode/playback_mode.h"
 
 class InstrumentClip;
@@ -107,3 +108,4 @@ private:
 };
 
 extern Session session;
+extern const deluge::gui::colours::Colour defaultClipSectionColours[];

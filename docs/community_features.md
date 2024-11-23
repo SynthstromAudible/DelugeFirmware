@@ -154,6 +154,8 @@ as the micromonsta and the dreadbox nymphes.
   as synths. The note sent for the learn will be treated as the first row for the kit, and increasing notes get mapped
   to the next rows
 
+- ([#2810]) Added new learnable global command `LOAD NEXT SONG` (which can be quickly learned holding `LEARN` and `LOAD` and sending a MIDI note or CC message). When the Deluge receives this command while it is playing, it will queue to load the next song within the folder of the current song (wraps around when reaching the end of the folder).
+
 #### 3.4 - Tempo & Swing
 
 - ([#178]) New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
@@ -613,7 +615,10 @@ In `KEYBOARD VIEW`, macros are available as a sidebar control.
 - ([#120]) New Stereo Chorus type added to Mod FX. `MOD FX DEPTH` will adjust the amount of stereo widening the effect
   has.
 
-#### 4.2.3 - Warbler Effect
+#### 4.2.3 - Dimension
+- ([#2882]) Boss/roland style dimension effect. Controls are the same as for chorus
+
+#### 4.2.4 - Warbler Effect
 
 - ([#2712]) New Warble fx, which provides randomly warbling pitch shifting and delays to simulate things from a tape reel 
 warbling up to getting chewed up by the machine and spat back out. It's essentially a flanger/chorus/whatever based modulation 
@@ -629,18 +634,29 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
     - Turning feedback up makes it get super weird
 
     - Turning offset up adds phasing (unless feedback is 0, in which case it does nothing)
+  
+#### 4.2.5 - Grain FX
 
-#### 4.2.4 - Warble LFO
+- ([#363] and [#2815]) New `GRAIN` added to Mod FX.
+
+    - Parameters:
+        - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
+        - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
+        - **`MOD FEEDBACK - GRAIN RANDOMNESS (GRTY)`:** Selects the spread of Grain pitch. At minimum it only generates
+          unison and octaves, higher values add 5ths and multi octave jumps.
+        - **`MOD OFFSET - GRAIN Density (DENS)`:** Adjusts Grain Density from sparse to 8 layered grains
+
+#### 4.2.6 - Warble LFO
 - ([#2712]) The randomly varying wave at the center of the warbler, but made into an LFO
 
-#### 4.2.5 - Patchable Wavefolding Distortion
+#### 4.2.7 - Patchable Wavefolding Distortion
 
 - ([#349]) Adds a pre filter `WAVEFOLDE` distortion, and the depth is patchable/automatable. The depth is accessible in
   both the menu and on the un-labeled pad between `SATURATION` and `LPF FREQ`. The fold has no effect when set to 0 and
   removes itself from the signal path.
     - Note that it has no effect on square waves, it's best with sines and triangles
 
-#### 4.2.6 - Quantized Stutter
+#### 4.2.8 - Quantized Stutter
 
 - ([#357]) Set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` rate before triggering it. Once
   you have pressed the `STUTTER`-related gold encoder, then the selected value will be the center value of the encoder
@@ -649,19 +665,9 @@ and a comb filter. Controls are the normal rate/depth/feedback/offset.
 
     - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
-#### 4.2.7 - Grain FX
-
-- ([#363] and [#2815]) New `GRAIN` added to Mod FX.
-
-    - Parameters:
-        - **`MOD RATE`:** Sets Grain Rate (0.5hz - 180hz)
-        - **`MOD DEPTH - GRAIN AMOUNT (AMNT)`:** Controls Grain Volume / Dry Wet Mix
-        - **`MOD FEEDBACK - GRAIN RANDOMNESS (GRTY)`:** Selects the spread of Grain pitch. At minimum it only generates 
-      unison and octaves, higher values add 5ths and multi octave jumps.
-        - **`MOD OFFSET - GRAIN Density (DENS)`:** Adjusts Grain Density from sparse to 8 layered grains
 
 
-#### 4.2.8 - Reverb Improvements
+#### 4.2.9 - Reverb Improvements
 
 - ([#1065]) New reverb models are available for selection inside of the `FX > REVERB > MODEL` menu. These include:
     - Freeverb (the original Deluge reverb)
@@ -1211,6 +1217,19 @@ as an oscillator type within the subtractive engine, so it can be combined with 
 - ([#1390]) Allows saving and loading midi presets. They end up in a new folder named MIDI.
   - Note: The information that is saved is the MIDI channel selection, and the assignments of CC parameters to golden knobs.
 
+#### 4.7.2 - Save/Load MIDI CC Labels + MIDI Device Definition File
+
+- ([#2823]) Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`.
+  - To rename a `MIDI CC`, enter `Automation View` and select the CC you wish to rename using the `Select Encoder` or using the `Grid Shortcut`.
+  - With the `MIDI CC` selected, press `Shift` + the `Name` grid shortcut to open the `MIDI CC Renaming UI`. Enter a new name and press `Select` or `Enter`.
+  - The new `MIDI CC` name will be immediately visible in `Automation View` and you can assign that CC to a `Gold Knob` in the MIDI clip and it will show that name when you press down on the `Gold (Mod) Encoder`.
+  - To save the `MIDI CC` labels to a `MIDI Device Definition File`, hold `Save` + Press down on either `Gold (Mod) Encoder`. It will ask you to enter a file name. Press `Select`, `Enter on the Keyboard` or `Save` to save the file.
+  - To load the `MIDI CC` labels from a `MIDI Device Definition File`, hold `Load` + Press down on either `Gold (Mod) Encoder`. It will ask you to select a file. Press `Select`, `Enter on the Keyboard` or `Load` to load the file.
+  - Saving or Loading a `MIDI Device Definition File` will link that file to the current MIDI Instrument in the current song. If you save the song or save the current midi instrument as a preset, the song file and midi instrument preset file will include a file path to the `MIDI Device Definition File`. If you re-load the song or re-load the midi instrument preset, it will load information from the linked `MIDI Device Definition File`.
+  - You can unlink a Song or Midi Instrument preset from the a `MIDI Device Definition File` via the `MIDI > Device Definition (DEVI)` menu. You will need to re-save the song and/or preset to save the changes. 
+  - You can also manually unlink the song file / preset file from the `MIDI Device Definition File` by searching for `definitionFile`. You should see `name="***"` right under it. Do not delete the name line from the preset. Instead replace the name with `name=""`
+  - You can also use the `MIDI > Device Definition` menu as another way to link / load a `MIDI Device Definition File`. When clicking on the `File Linked (LINK)` setting, it will prompt you to select a `MIDI Device Definition File` to load. After successfully loading the file, the file name will be displayed (on OLED only) below the `File Linked` setting.
+
 ### 4.8 Instrument Clip View - CV Clip Features
 
 #### 4.8.1 - Expression
@@ -1606,7 +1625,11 @@ different firmware
 
 [#2808]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2808
 
+[#2810]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2810
+
 [#2815]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2815
+
+[#2823]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2823
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

@@ -372,11 +372,11 @@ void SampleBrowser::enterKeyPress() {
 		// If we're here, we know that the file has fully loaded
 
 		// If user wants to slice...
-		if (Buttons::isShiftButtonPressed()) {
+		if (soundEditor.editingKit() && Buttons::isShiftButtonPressed()) {
 
 			// Can only do this for Kit Clips, and for source 0, not 1, AND there has to be only one drum present, which
 			// is assigned to the first NoteRow
-			if (getCurrentClip()->type == ClipType::INSTRUMENT && canImportWholeKit()) {
+			if (canImportWholeKit()) {
 				display->displayPopup("SLICER");
 				openUI(&slicer);
 			}
