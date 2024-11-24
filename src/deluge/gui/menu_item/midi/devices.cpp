@@ -111,7 +111,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 	drawValue();
 }
 
-MIDIDevice* Devices::getCable(int32_t deviceIndex) {
+MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
 	if (deviceIndex < lowestDeviceNum || deviceIndex >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		D_PRINTLN("impossible device request");
 		return nullptr;
