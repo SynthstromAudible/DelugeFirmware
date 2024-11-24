@@ -1076,6 +1076,8 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 		// don't back up the param manager since we can't use the backup anyway
 		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
 		                 false);
+
+		kitToLoadFor->selectedDrum = soundDrumToReplace;
 		kitToLoadFor->beenEdited();
 	}
 	else {
