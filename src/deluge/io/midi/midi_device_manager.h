@@ -18,9 +18,9 @@
 #pragma once
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
-#include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"
+#include "io/midi/root_complex/din.h"
 #include "util/container/vector/named_thing_vector.h"
 class Serializer;
 class Deserializer;
@@ -114,7 +114,8 @@ void readDevicesFromFile();
 extern MIDICableUSBUpstream upstreamUSBMIDICable1;
 extern MIDICableUSBUpstream upstreamUSBMIDICable2;
 extern MIDICableUSBUpstream upstreamUSBMIDICable3;
-extern MIDICableDINPorts dinMIDIPorts;
+
+extern DINRootComplex rootDin;
 
 extern bool differentiatingInputsByDevice;
 

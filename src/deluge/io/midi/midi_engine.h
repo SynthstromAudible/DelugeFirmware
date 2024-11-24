@@ -66,9 +66,8 @@ public:
 
 	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
 	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter);
-	bool checkIncomingSerialMidi();
-	void checkIncomingUsbMidi();
 
+	void checkIncomingUsbMidi();
 	void checkIncomingUsbSysex(uint8_t const* message, int32_t ip, int32_t d, int32_t cable);
 
 	void sendMidi(MIDISource source, MIDIMessage message, int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
@@ -78,9 +77,9 @@ public:
 	void sendPositionPointer(MIDISource source, uint16_t positionPointer);
 	void sendContinue(MIDISource source);
 
+	void checkIncomingMidi();
 	void flushMIDI();
 	void sendUsbMidi(MIDIMessage message, int32_t filter);
-	void sendSerialMidi(MIDIMessage message);
 
 	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter);
 	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter);

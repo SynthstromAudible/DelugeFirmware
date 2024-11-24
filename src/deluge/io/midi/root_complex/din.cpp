@@ -15,25 +15,35 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "din.h"
 
-#include "deluge/io/midi//midi_device.h"
+#include "io/debug/log.h"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
 
-class MIDICableUSB : public MIDICable {
-public:
-	MIDICableUSB(uint8_t portNum = 0) {
-		portNumber = portNum;
-		needsToSendMCMs = 0;
+extern "C" {
+#include "RZA1/uart/sio_char.h"
+}
+
+DINRootComplex::DINRootComplex() = default;
+DINRootComplex::~DINRootComplex() = default;
+
+void DINRootComplex::flush() {
+	uartFlushIfNotSending(UART_ITEM_MIDI);
+}
+
+Error DINRootComplex::poll() {
+	uint8_t thisSerialByte;
+	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
+
+	while (timer != nullptr) {
+		auto err = cable.onReceiveByte(*timer, thisSerialByte);
+		if (err != Error::NONE) {
+			return err;
+		}
+
+		timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
 	}
 
-	[[nodiscard]] bool wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const override;
-
-	[[nodiscard]] Error sendMessage(MIDIMessage message) override;
-	[[nodiscard]] Error sendSysex(const uint8_t* data, int32_t len) override;
-	[[nodiscard]] size_t sendBufferSpace() const override;
-
-	void connectedNow(int32_t midiDeviceNum);
-	void sendMCMsNowIfNeeded();
-	uint8_t needsToSendMCMs;
-	uint8_t portNumber;
-};
+	return Error::NO_ERROR_BUT_GET_OUT;
+}

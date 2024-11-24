@@ -17,23 +17,19 @@
 
 #pragma once
 
-#include "deluge/io/midi//midi_device.h"
+#include "io/midi/cable_types/din.h"
+#include "io/midi/midi_root_complex.h"
+#include <array>
 
-class MIDICableUSB : public MIDICable {
+class DINRootComplex : public MIDIRootComplex {
+private:
 public:
-	MIDICableUSB(uint8_t portNum = 0) {
-		portNumber = portNum;
-		needsToSendMCMs = 0;
-	}
+	/// The one and only DIN cable connection
+	MIDICableDINPorts cable;
 
-	[[nodiscard]] bool wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const override;
+	DINRootComplex();
+	~DINRootComplex() override;
 
-	[[nodiscard]] Error sendMessage(MIDIMessage message) override;
-	[[nodiscard]] Error sendSysex(const uint8_t* data, int32_t len) override;
-	[[nodiscard]] size_t sendBufferSpace() const override;
-
-	void connectedNow(int32_t midiDeviceNum);
-	void sendMCMsNowIfNeeded();
-	uint8_t needsToSendMCMs;
-	uint8_t portNumber;
+	void flush() override;
+	[[nodiscard]] Error poll() override;
 };

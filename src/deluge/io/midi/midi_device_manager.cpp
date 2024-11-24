@@ -20,7 +20,6 @@
 #include "gui/menu_item/mpe/zone_num_member_channels.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
-#include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
@@ -64,7 +63,8 @@ std::array<USBDev, USB_NUM_USBIP> usbDeviceCurrentlyBeingSetUp{};
 PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable1{0};
 PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable2{1};
 PLACE_SDRAM_BSS MIDICableUSBUpstream upstreamUSBMIDICable3{2};
-PLACE_SDRAM_BSS MIDICableDINPorts dinMIDIPorts{};
+
+PLACE_SDRAM_BSS DINRootComplex rootDin{};
 
 uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput = 15;
 uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput = 0;
@@ -215,7 +215,7 @@ void recountSmallestMPEZones() {
 
 	recountSmallestMPEZonesForCable(upstreamUSBMIDICable1);
 	recountSmallestMPEZonesForCable(upstreamUSBMIDICable2);
-	recountSmallestMPEZonesForCable(dinMIDIPorts);
+	recountSmallestMPEZonesForCable(rootDin.cable);
 
 	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
 		MIDICableUSBHosted* cable = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
@@ -355,7 +355,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 				device = &upstreamUSBMIDICable3;
 			}
 			else if (!strcmp(port, "din")) {
-				device = &dinMIDIPorts;
+				device = &rootDin.cable;
 			}
 		}
 
@@ -392,7 +392,7 @@ static MIDICable* readCableFromFlash(uint8_t const* memory) {
 		cable = &upstreamUSBMIDICable3;
 	}
 	else if (vendorId == VENDOR_ID_DIN) {
-		cable = &dinMIDIPorts;
+		cable = &rootDin.cable;
 	}
 	else {
 		uint16_t productId = *(uint16_t const*)(memory + 2);
@@ -428,7 +428,7 @@ void writeDevicesToFile() {
 	}
 	anyChangesToSave = false;
 
-	bool anyWorthWritting = dinMIDIPorts.worthWritingToFile() || upstreamUSBMIDICable1.worthWritingToFile()
+	bool anyWorthWritting = rootDin.cable.worthWritingToFile() || upstreamUSBMIDICable1.worthWritingToFile()
 	                        || upstreamUSBMIDICable2.worthWritingToFile();
 	if (!anyWorthWritting) {
 		for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
@@ -457,8 +457,8 @@ void writeDevicesToFile() {
 	writer.writeEarliestCompatibleFirmwareVersion("4.0.0");
 	writer.writeOpeningTagEnd();
 
-	if (dinMIDIPorts.worthWritingToFile()) {
-		dinMIDIPorts.writeToFile(writer, "dinPorts");
+	if (rootDin.cable.worthWritingToFile()) {
+		rootDin.cable.writeToFile(writer, "dinPorts");
 	}
 	if (upstreamUSBMIDICable1.worthWritingToFile()) {
 		upstreamUSBMIDICable1.writeToFile(writer, "upstreamUSBDevice");
@@ -516,7 +516,7 @@ void readDevicesFromFile() {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "dinPorts")) {
-			dinMIDIPorts.readFromFile(reader);
+			rootDin.cable.readFromFile(reader);
 		}
 		else if (!strcmp(tagName, "upstreamUSBDevice")) {
 			upstreamUSBMIDICable1.readFromFile(reader);

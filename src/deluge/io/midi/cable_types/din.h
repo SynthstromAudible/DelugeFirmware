@@ -20,10 +20,19 @@
 #include "deluge/io/midi/midi_device.h"
 
 class MIDICableDINPorts final : public MIDICable {
+private:
+	using IntermediateMessageBuffer = std::array<uint8_t, 3>;
+	IntermediateMessageBuffer messageBytes_;
+	IntermediateMessageBuffer::size_type currentByte_;
+	bool currentlyReceivingSysex_{false};
+
 public:
 	MIDICableDINPorts() {
 		connectionFlags = 1; // DIN ports are always connected
 	}
+
+	/// Called by the DIN root complex when a byte is received
+	[[nodiscard]] Error onReceiveByte(uint32_t timestamp, uint8_t byte);
 
 	[[nodiscard]] bool wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const override;
 
@@ -31,7 +40,7 @@ public:
 	void writeToFlash(uint8_t* memory) override;
 	char const* getDisplayName() override;
 
-	void sendMessage(MIDIMessage message) override;
-	void sendSysex(const uint8_t* data, int32_t len) override;
+	[[nodiscard]] Error sendMessage(MIDIMessage message) override;
+	[[nodiscard]] Error sendSysex(const uint8_t* data, int32_t len) override;
 	size_t sendBufferSpace() const override;
 };

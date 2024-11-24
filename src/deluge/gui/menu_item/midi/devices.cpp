@@ -121,7 +121,7 @@ MIDICable* Devices::getCable(int32_t deviceIndex) {
 	}
 	switch (deviceIndex) {
 	case -3: {
-		return &MIDIDeviceManager::dinMIDIPorts;
+		return &MIDIDeviceManager::rootDin.cable;
 	}
 	case -2: {
 		return &MIDIDeviceManager::upstreamUSBMIDICable1;

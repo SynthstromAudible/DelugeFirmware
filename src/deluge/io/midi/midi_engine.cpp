@@ -514,8 +514,12 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 	}
 
 	// Send serial MIDI
-	if (MIDIDeviceManager::dinMIDIPorts.wantsToOutputMIDIOnChannel(message, filter)) {
-		sendSerialMidi(message);
+	auto& dinCable = MIDIDeviceManager::rootDin.cable;
+	if (dinCable.wantsToOutputMIDIOnChannel(message, filter)) {
+		auto error = dinCable.sendMessage(message);
+		if (error != Error::NONE && error != Error::NO_ERROR_BUT_GET_OUT) {
+			D_PRINTLN("MIDI send error: %d", static_cast<int>(error));
+		}
 	}
 
 	--eventStackTop_;
@@ -573,115 +577,26 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 	}
 }
 
+void MidiEngine::checkIncomingMidi() {
+	// Check incoming USB MIDI
+	midiEngine.checkIncomingUsbMidi();
+
+	// Check incoming Serial MIDI
+	for (int32_t i = 0; i < 12; i++) {
+		auto error = MIDIDeviceManager::rootDin.poll();
+		if (error == Error::NO_ERROR_BUT_GET_OUT) {
+			break;
+		}
+		else if (error != Error::NONE) {
+			D_PRINTLN("MIDI poll error: %d\n", static_cast<int>(error));
+		}
+	}
+}
+
 // Warning - this will sometimes (not always) be called in an ISR
 void MidiEngine::flushMIDI() {
 	flushUSBMIDIOutput();
-	uartFlushIfNotSending(UART_ITEM_MIDI);
-}
-
-void MidiEngine::sendSerialMidi(MIDIMessage message) {
-
-	uint8_t statusByte = message.channel | (message.statusType << 4);
-	int32_t messageLength = bytesPerStatusMessage(statusByte);
-	bufferMIDIUart(statusByte);
-
-	if (messageLength >= 2) {
-		bufferMIDIUart(message.data1);
-
-		if (messageLength == 3) {
-			bufferMIDIUart(message.data2);
-		}
-	}
-}
-
-bool MidiEngine::checkIncomingSerialMidi() {
-
-	uint8_t thisSerialByte;
-	uint32_t* timer = uartGetCharWithTiming(TIMING_CAPTURE_ITEM_MIDI, (char*)&thisSerialByte);
-	if (timer) {
-		// D_PRINTLN((uint32_t)thisSerialByte);
-		MIDICable& cable = MIDIDeviceManager::dinMIDIPorts;
-
-		// If this is a status byte, then we have to store it as the first byte.
-		if (thisSerialByte & 0x80) {
-
-			switch (thisSerialByte) {
-
-			// If it's a realtime message, we have to obey it right now, separately from any other message it was
-			// inserted into the middle of
-			case 0xF8 ... 0xFF:
-				midiMessageReceived(cable, thisSerialByte >> 4, thisSerialByte & 0x0F, 0, 0, timer);
-				return true;
-
-			// Or if it's a SysEx start...
-			case 0xF0:
-				currentlyReceivingSysExSerial = true;
-				D_PRINTLN("Sysex start");
-				cable.incomingSysexBuffer[0] = thisSerialByte;
-				cable.incomingSysexPos = 1;
-				// numSerialMidiInput = 0; // This would throw away any running status stuff...
-				return true;
-			}
-
-			// If we didn't return for any of those, then it's just a regular old status message (or Sysex stop
-			// message). All these will end any ongoing SysEx
-
-			// If it was a Sysex stop, that's all we need to do
-			if (thisSerialByte == 0xF7) {
-				D_PRINTLN("Sysex end");
-				if (currentlyReceivingSysExSerial) {
-					currentlyReceivingSysExSerial = false;
-					if (cable.incomingSysexPos < sizeof cable.incomingSysexBuffer) {
-						cable.incomingSysexBuffer[cable.incomingSysexPos++] = thisSerialByte;
-						midiSysexReceived(cable, cable.incomingSysexBuffer, cable.incomingSysexPos);
-					}
-				}
-				return true;
-			}
-
-			currentlyReceivingSysExSerial = false;
-			numSerialMidiInput = 0;
-		}
-
-		// If not a status byte...
-		else {
-			// If we're currently receiving a SysEx, don't throw it away
-			if (currentlyReceivingSysExSerial) {
-				// TODO: allocate a GMA buffer to some bigger size
-				if (cable.incomingSysexPos < sizeof cable.incomingSysexBuffer) {
-					cable.incomingSysexBuffer[cable.incomingSysexPos++] = thisSerialByte;
-				}
-				D_PRINTLN("Sysex:  %d", thisSerialByte);
-				return true;
-			}
-
-			// Ensure that we're not writing to the first byte of the buffer
-			if (numSerialMidiInput == 0) {
-				return true;
-			}
-		}
-
-		serialMidiInput[numSerialMidiInput] = thisSerialByte;
-		numSerialMidiInput++;
-
-		// If we've received the whole MIDI message, deal with it
-		if (bytesPerStatusMessage(serialMidiInput[0]) == numSerialMidiInput) {
-			uint8_t channel = serialMidiInput[0] & 0x0F;
-
-			midiMessageReceived(MIDIDeviceManager::dinMIDIPorts, serialMidiInput[0] >> 4, channel, serialMidiInput[1],
-			                    serialMidiInput[2], timer);
-
-			// If message was more than 1 byte long, and was a voice or mode message, then allow for running status
-			if (numSerialMidiInput > 1 && ((serialMidiInput[0] & 0xF0) != 0xF0)) {
-				numSerialMidiInput = 1;
-			}
-			else {
-				numSerialMidiInput = 0;
-			}
-		}
-		return true;
-	}
-	return false;
+	MIDIDeviceManager::rootDin.flush();
 }
 
 // Lock USB before calling this!
@@ -1062,7 +977,7 @@ void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8
 	// other messages, rather than using our special clock-specific system
 	if (shouldDoMidiThruNow) {
 		// Only send out on USB if it didn't originate from USB
-		bool shouldSendUSB = (&cable == &MIDIDeviceManager::dinMIDIPorts);
+		bool shouldSendUSB = (&cable == &MIDIDeviceManager::rootDin.cable);
 		// TODO: reconsider interaction with MPE?
 		sendMidi(cable,
 		         MIDIMessage{

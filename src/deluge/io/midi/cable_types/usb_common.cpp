@@ -32,9 +32,9 @@ void MIDICableUSB::sendMCMsNowIfNeeded() {
 	}
 }
 
-void MIDICableUSB::sendMessage(MIDIMessage message) {
+Error MIDICableUSB::sendMessage(MIDIMessage message) {
 	if (!connectionFlags) {
-		return;
+		return Error::NONE;
 	}
 
 	int32_t ip = 0;
@@ -50,6 +50,8 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 			}
 		}
 	}
+
+	return Error::NONE;
 }
 
 size_t MIDICableUSB::sendBufferSpace() const {
@@ -74,9 +76,13 @@ size_t MIDICableUSB::sendBufferSpace() const {
 
 extern bool developerSysexCodeReceived;
 
-void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
+Error MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 6 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
-		return;
+		return Error::INVALID_SYSEX_FORMAT;
+	}
+
+	if (len > sendBufferSpace()) {
+		return Error::OUT_OF_BUFFER_SPACE;
 	}
 
 	int32_t ip = 0;
@@ -92,7 +98,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 	}
 
 	if (!connectedDevice) {
-		return;
+		return Error::NONE;
 	}
 
 	int32_t pos = 0;
@@ -132,6 +138,8 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
 		connectedDevice->bufferMessage(packed);
 	}
+
+	return Error::NONE;
 }
 
 bool MIDICableUSB::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {

@@ -27,6 +27,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
+#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -203,7 +204,7 @@ void readInputsForHardwareTest(bool testButtonStates[9][16]) {
 		}
 	}
 
-	midiEngine.checkIncomingSerialMidi();
+	auto _ = MIDIDeviceManager::rootDin.poll();
 	midiEngine.flushMIDI();
 
 	encoders::readEncoders();

@@ -115,13 +115,13 @@ public:
 	/// @{
 
 	/// Send a MIDI message
-	virtual void sendMessage(MIDIMessage message) = 0;
+	[[nodiscard]] virtual Error sendMessage(MIDIMessage message) = 0;
 
 	/// Send a chunk of SYSEX data.
 	///
 	/// @param data Data to send. Should include the 0xf0 and 0xf7 start/stop bytes.
 	/// @param len Number of bytes in data, including the start/stop bytes.
-	virtual void sendSysex(const uint8_t* data, int32_t len) = 0;
+	[[nodiscard]] virtual Error sendSysex(const uint8_t* data, int32_t len) = 0;
 
 	/// Get the number of bytes available in the send buffer.
 	[[nodiscard]] virtual size_t sendBufferSpace() const = 0;
