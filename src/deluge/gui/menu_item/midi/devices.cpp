@@ -29,7 +29,7 @@ extern deluge::gui::menu_item::midi::Device midiDeviceMenu;
 
 namespace deluge::gui::menu_item::midi {
 
-static constexpr int32_t lowestDeviceNum = -4;
+static constexpr int32_t lowestDeviceNum = -3;
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	bool found = false;
@@ -90,7 +90,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 		if (offset >= 0) {
 			int32_t d = this->getValue();
 			int32_t numSeen = 1;
-			while (d > -4) {
+			while (d > lowestDeviceNum) {
 				d--;
 				if (d == currentScroll) {
 					break;
@@ -112,7 +112,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 }
 
 MIDIDevice* Devices::getDevice(int32_t deviceIndex) {
-	if (deviceIndex < -3 || deviceIndex >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
+	if (deviceIndex < lowestDeviceNum || deviceIndex >= MIDIDeviceManager::hostedMIDIDevices.getNumElements()) {
 		D_PRINTLN("impossible device request");
 		return nullptr;
 	}
