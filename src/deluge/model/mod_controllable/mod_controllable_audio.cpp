@@ -1038,7 +1038,7 @@ doReadPatchedParam:
 			}
 			else if (!strcmp(tagName, "compBlend")) {
 				q31_t masterCompressorBlend = reader.readTagOrAttributeValueInt();
-				compressor.setRelease(masterCompressorBlend);
+				compressor.setBlend(masterCompressorBlend);
 				reader.exitTag("compBlend");
 			}
 			else {
