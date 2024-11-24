@@ -909,10 +909,10 @@ uint32_t Voice::getLocalLFOPhaseIncrement() {
 					// with the "pitch adjust" amount, and the pitch adjust for this source alone. If the pitch goes
 					// crazy-high, this will fall through and prevent auto-release from happening
 					uint32_t actualSampleReadRate = voiceUnisonPartSource->phaseIncrementStoredValue;
-					if (!adjustPitch(&actualSampleReadRate, overallPitchAdjust)) {
+					if (!adjustPitch(actualSampleReadRate, overallPitchAdjust)) {
 						continue;
 					}
-					if (!adjustPitch(&actualSampleReadRate, paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
+					if (!adjustPitch(actualSampleReadRate, paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
 						continue;
 					}
 					// TODO: actualSampleReadRate should probably be affected by time stretching, too. BUT that'd stuff
@@ -1263,7 +1263,7 @@ skipAutoRelease: {}
 			// If overall pitch adjusted...
 			if (overallPitchAdjust != kMaxSampleValue) {
 				for (int32_t s = 0; s < kNumSources; s++) {
-					if (!adjustPitch(&phaseIncrements[s], overallPitchAdjust)) {
+					if (!adjustPitch(phaseIncrements[s], overallPitchAdjust)) {
 						if (synthMode == SynthMode::RINGMOD) {
 							goto skipUnisonPart;
 						}
@@ -1276,7 +1276,7 @@ skipAutoRelease: {}
 
 			// If individual source pitch adjusted...
 			for (int32_t s = 0; s < kNumSources; s++) {
-				if (!adjustPitch(&phaseIncrements[s], paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
+				if (!adjustPitch(phaseIncrements[s], paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
 					if (synthMode == SynthMode::RINGMOD) {
 						goto skipUnisonPart;
 					}
@@ -1366,7 +1366,7 @@ cantBeDoingOscSyncForFirstOsc:
 				if (overallPitchAdjust != kMaxSampleValue) {
 					for (int32_t m = 0; m < kNumModulators; m++) {
 						if (modulatorsActive[m]) {
-							if (!adjustPitch(&phaseIncrementModulator[m], overallPitchAdjust)) {
+							if (!adjustPitch(phaseIncrementModulator[m], overallPitchAdjust)) {
 								modulatorsActive[m] = false;
 							}
 						}
@@ -1376,7 +1376,7 @@ cantBeDoingOscSyncForFirstOsc:
 				// Check if individual modulator pitches adjusted
 				for (int32_t m = 0; m < kNumModulators; m++) {
 					if (modulatorsActive[m]) {
-						if (!adjustPitch(&phaseIncrementModulator[m],
+						if (!adjustPitch(phaseIncrementModulator[m],
 						                 paramFinalValues[params::LOCAL_MODULATOR_0_PITCH_ADJUST + m])) {
 							modulatorsActive[m] = false;
 						}
@@ -1666,13 +1666,13 @@ bool Voice::areAllUnisonPartsInactive(ModelStackWithVoice& modelStack) const {
 }
 
 // Returns false if it takes us above 22.05kHz, in which case it doesn't return a valid value
-bool Voice::adjustPitch(uint32_t* phaseIncrement, int32_t adjustment) {
+bool Voice::adjustPitch(uint32_t& phaseIncrement, int32_t adjustment) {
 	if (adjustment != kMaxSampleValue) {
-		int32_t output = multiply_32x32_rshift32_rounded(*phaseIncrement, adjustment);
-		if (output >= 8388608) {
+		int32_t output = multiply_32x32_rshift32_rounded(phaseIncrement, adjustment);
+		if (output >= (1 << 24)) {
 			return false;
 		}
-		*phaseIncrement = output << 8;
+		phaseIncrement = output << 8;
 	}
 	return true;
 }
@@ -1949,7 +1949,7 @@ instantUnassign:
 		uint32_t phaseIncrement = voiceUnisonPartSource->phaseIncrementStoredValue;
 
 		// Overall pitch adjustment
-		if (!adjustPitch(&phaseIncrement, overallPitchAdjust)) {
+		if (!adjustPitch(phaseIncrement, overallPitchAdjust)) {
 
 pitchTooHigh:
 			if (getPhaseIncrements) {
@@ -1959,7 +1959,7 @@ pitchTooHigh:
 		}
 
 		// Individual source pitch adjustment
-		if (!adjustPitch(&phaseIncrement, paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
+		if (!adjustPitch(phaseIncrement, paramFinalValues[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
 			goto pitchTooHigh;
 		}
 
