@@ -38,8 +38,8 @@ int32_t getPreviousKnobPos(int32_t knobPos, MIDIKnob* knob = nullptr, bool doing
 /// based on the midi takeover default setting of RELATIVE, JUMP, PICKUP, or SCALE
 /// this function will calculate the knob position that the deluge parameter that the midi cc
 /// received is learned to should be set at based on the midi cc value received
-int32_t MidiTakeover::calculateKnobPos(int32_t knobPos, int32_t value, MIDIKnob* knob, bool doingMidiFollow,
-                                       int32_t ccNumber) {
+int32_t MidiTakeover::calculateKnobPos(int32_t knobPos, int32_t ccValue, MIDIKnob* knob, bool doingMidiFollow,
+                                       int32_t ccNumber, bool isStepEditing) {
 	/*
 
 	Step #1: Convert Midi Controller's CC Value to Deluge Knob Position Value
@@ -56,17 +56,19 @@ int32_t MidiTakeover::calculateKnobPos(int32_t knobPos, int32_t value, MIDIKnob*
 	*/
 
 	int32_t midiKnobPos = 64;
-	if (value < kMaxMIDIValue) {
-		midiKnobPos = value - 64;
+	if (ccValue < kMaxMIDIValue) {
+		midiKnobPos = ccValue - 64;
 	}
 
 	// we'll first set newKnobPos equal to current knobPos
 	// if newKnobPos should be updated it will happen below
 	int32_t newKnobPos = knobPos;
 
+	bool isRecording = playbackHandler.isEitherClockActive() && (playbackHandler.recording != RecordingMode::OFF);
+
 	// for controller's sending relative values
 	if (((knob != nullptr) && (knob->relative)) || (midiEngine.midiTakeover == MIDITakeoverMode::RELATIVE)) {
-		int32_t offset = value;
+		int32_t offset = ccValue;
 		if (offset >= 64) {
 			offset -= 128;
 		}
@@ -78,7 +80,7 @@ int32_t MidiTakeover::calculateKnobPos(int32_t knobPos, int32_t value, MIDIKnob*
 		savePreviousKnobPos(newKnobPos, knob, doingMidiFollow, ccNumber);
 	}
 	// deluge value will always jump to the current midi controller value
-	else if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP) {
+	else if (midiEngine.midiTakeover == MIDITakeoverMode::JUMP || isRecording || isStepEditing) {
 		newKnobPos = midiKnobPos;
 
 		savePreviousKnobPos(newKnobPos, knob, doingMidiFollow, ccNumber);
