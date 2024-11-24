@@ -17,6 +17,7 @@
 #include <chrono>
 #include <time.h>
 extern "C" {
+#include "OSLikeStuff/timers_interrupts/clock_type.h"
 #include "RZA1/ostm/ostm.h"
 /* clock_t, clock, CLOCKS_PER_SEC */
 #define clockConversion DELUGE_CLOCKS_PER / CLOCKS_PER_SEC;
@@ -63,10 +64,5 @@ uint32_t getTimerValue(int timerNo) {
 		return mockTimers[timerNo];
 	}
 	return DELUGE_CLOCKS_PER * ((std::chrono::duration<double>(now - timers[0]).count()));
-}
-
-double getTimerValueSeconds(int timerNo) {
-	double seconds = ((double)getTimerValue(timerNo) / DELUGE_CLOCKS_PERf);
-	return seconds;
 }
 }
