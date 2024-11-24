@@ -19,19 +19,19 @@ TEST_GROUP(Clock){
 };
 
 TEST(Clock, doubleConversion) {
-	dClock one = 0.0;
-	dClock two = dClock(0, 0);
+	Time one = 0.0;
+	Time two = Time(0, 0);
 	CHECK_EQUAL(double(one), double(two));
 };
 
 TEST(Clock, doubleDoubleConversion) {
-	dClock one = 123.5;
+	Time one = 123.5;
 	CHECK_EQUAL((double)one, 123.5);
 };
 
 TEST(Clock, convertWithRolls) {
 	double base = 1234.123456; // 9 clock rollovers
-	dClock one = base;
+	Time one = base;
 	double diff = std::abs((double)one - base);
 	CHECK(diff < 0.00001);
 };

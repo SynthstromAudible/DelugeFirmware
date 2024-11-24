@@ -43,11 +43,11 @@ void sleep_2ms() {
 	passMockTime(0.002);
 }
 
-dClock started;
+Time started;
 void yield_2ms() {
 	mock().actualCall("yield_2ms");
 	started = getTimerValueSeconds(0);
-	yield([]() { return getTimerValueSeconds(0) > started + dClock(0.002); });
+	yield([]() { return getTimerValueSeconds(0) > started + Time(0.002); });
 }
 
 TEST_GROUP(Scheduler){
@@ -96,8 +96,7 @@ TEST(Scheduler, scheduleConditional) {
 	mock().clear();
 	mock().expectNCalls(1, "sleep_50ns");
 	// will load as blocked but immediately pass condition
-	addConditionalTask(
-	    sleep_50ns, 0, []() { return true; }, "sleep 50ns");
+	addConditionalTask(sleep_50ns, 0, []() { return true; }, "sleep 50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
 	mock().checkExpectations();
@@ -107,8 +106,7 @@ TEST(Scheduler, scheduleConditionalDoesntRun) {
 	mock().clear();
 	mock().expectNCalls(0, "sleep_50ns");
 	// will load as blocked but immediately pass condition
-	addConditionalTask(
-	    sleep_50ns, 0, []() { return false; }, "sleep 50ns");
+	addConditionalTask(sleep_50ns, 0, []() { return false; }, "sleep 50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
 	mock().checkExpectations();
