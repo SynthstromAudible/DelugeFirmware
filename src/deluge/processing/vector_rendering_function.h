@@ -23,27 +23,14 @@
 [[gnu::always_inline]] static inline std::pair<Argon<int32_t>, uint32_t> //<
 waveRenderingFunctionGeneral(uint32_t phase, int32_t phaseIncrement, uint32_t _phaseToAdd, const int16_t* table,
                              int32_t tableSizeMagnitude) {
-	Argon<uint32_t> readValue = 0U;
-	ArgonHalf<uint16_t> strength2 = 0U;
+	Argon<uint32_t> phaseVector = Argon<uint32_t>{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, phaseIncrement);
+	Argon<uint32_t> indices = phaseVector >> (32 - tableSizeMagnitude);
+	ArgonHalf<uint16_t> strength2 = indices.ShiftRightNarrow<16>() >> 1;
+	auto [value1, value2] = ArgonHalf<int16_t>::LoadGatherInterleaved<2>(table, indices);
 
-	util::constexpr_for<0, 4, 1>([&]<int i>() {
-		phase += phaseIncrement;
-		uint32_t rshifted = phase >> (32 - 16 - tableSizeMagnitude);
-		strength2[i] = rshifted;
-
-		uint32_t whichValue = phase >> (32 - tableSizeMagnitude);
-		uint32_t* readAddress = (uint32_t*)((uint32_t)table + (whichValue << 1));
-		readValue[i].Load(readAddress);
-	});
-
-	strength2 = strength2 >> 1;
-	ArgonHalf<int16_t> value1 = readValue.Narrow().As<int16_t>();
-	ArgonHalf<int16_t> value2 = readValue.ShiftRightNarrow<16>().As<int16_t>();
-	Argon<int32_t> value1Big = value1.ShiftLeftLong<16>();
-
-	ArgonHalf<int16_t> difference = value2 - value1;
-	auto output = value1Big.MultiplyDoubleAddSaturateLong(difference, strength2.As<int16_t>());
-	return {output, phase};
+	// this is a standard linear interpolation of a + (b - a) * fractional
+	auto output = value1.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(value2 - value1, strength2.As<int16_t>());
+	return {output, phase + phaseIncrement * 4};
 }
 
 // Renders 4 wave values (a "vector") together in one go - special case for pulse waves with variable width.
