@@ -26,7 +26,7 @@ public:
 	inline void InitApproximate() {
 		ArgonHalf<float> sign = 16.0f;
 		ArgonHalf<float> frequencies = frequencies_;
-		frequencies.each_lane_with_index([&](float& frequency, int i) {
+		frequencies = frequencies.each_lane_with_index([&](float& frequency, int i) {
 			frequency -= 0.25f;
 			if (frequency < 0.0f) {
 				frequency = -frequency;
