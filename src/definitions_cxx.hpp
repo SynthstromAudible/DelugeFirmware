@@ -810,7 +810,7 @@ enum class AudioInputChannel {
 	MIX,
 	OUTPUT,
 	SPECIFIC_OUTPUT,
-	OFFLINE_OUTPUT,
+	OFFLINE_OUTPUT, // special output only used with offline stem exporting
 };
 
 constexpr AudioInputChannel AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION = AudioInputChannel::MIX;
