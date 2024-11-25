@@ -110,7 +110,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>
-- The arpeggiator has now a new `NOTE PROBABILITY` paramater that will apply a probability to notes (after rhythm and sequence length have been applied).
+- The arpeggiator has now a new `NOTE PROBABILITY (PROB)` paramater that will apply a probability to notes (after rhythm and sequence length have been applied).
 
 ### MIDI
 

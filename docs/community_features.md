@@ -877,7 +877,7 @@ to each individual note onset. ([#1978])
           different than Random, then the pattern will play, in the same octave, the same number of random
           notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
           Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Note Probability`** (NPRO) (unpatchet parameter, assignable to golden knobs). This parameter will apply a probability to notes (after rhythm and sequence length conditions have been applied).
+    - **`Note Probability`** (PROB) (unpatchet parameter, assignable to golden knobs). This parameter will apply a probability to notes (after rhythm and sequence length conditions have been applied).
     - **`Rhythm`** (RHYT) (unpatchet parameter, assignable to golden knobs):
       This parameter will play silences in some of the steps. This menu option show zeroes
       and dashes, "0" means "play note", and "-" means "don't play note" (or play a silence).

@@ -715,7 +715,7 @@ The Sound menu contains the following menu hierarchy:
 		- Up & Down (UPDN)
 		- As Played (PLAY)
 		- Random (RAND)
-	- Note probability (NPRO)
+	- Note probability (PROB)
 	- Rhythm (RHYT)
 	- Sequence Length (LENG)
 	- Ratchet Amount (RATC)
