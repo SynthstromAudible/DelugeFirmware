@@ -22,15 +22,16 @@
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class SequenceLength final : public Integer {
+class NoteProbability final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(
-		    computeCurrentValueForArpMidiCvRatchetsOrRhythm(getCurrentInstrumentClip()->arpeggiatorSequenceLength));
+		auto* current_clip = getCurrentInstrumentClip();
+		int64_t value = (int64_t)current_clip->arpeggiatorNoteProbability;
+		this->setValue(computeCurrentValueForArpMidiCvRatchetsOrRhythm(value));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorSequenceLength =
+		getCurrentInstrumentClip()->arpeggiatorNoteProbability =
 		    computeFinalValueForArpMidiCvRatchetsOrRhythm(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
