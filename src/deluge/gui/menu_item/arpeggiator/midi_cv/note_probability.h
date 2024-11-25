@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -27,7 +28,7 @@ public:
 	void readCurrentValue() override {
 		auto* current_clip = getCurrentInstrumentClip();
 		int64_t value = (int64_t)current_clip->arpeggiatorNoteProbability;
-		this->setValue((value * kMaxMenuValue + 2147483648) >> 32);
+		this->setValue(computeCurrentValueForArpMidiCvRatchetsOrRhythm(value));
 	}
 	void writeCurrentValue() override {
 		getCurrentInstrumentClip()->arpeggiatorNoteProbability = (uint32_t)this->getValue() * 85899345;
