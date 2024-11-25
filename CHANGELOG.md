@@ -107,6 +107,11 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ##### Kits
 - Added ability to change the pad size in the `KIT VELOCITY KEYBOARD VIEW` using the Zoom In/Out shortcut by `Pressing + Turning <>`
 
+### Sequencer
+
+#### <ins>Arpeggiator</ins>
+- The arpeggiator has now a new `NOTE PROBABILITY` paramater that will apply a probability to notes (after rhythm and sequence length have been applied).
+
 ### MIDI
 
 #### <ins>Learn</ins>

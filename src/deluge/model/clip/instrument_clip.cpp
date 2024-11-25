@@ -58,6 +58,7 @@ namespace params = deluge::modulation::params;
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRows() {
 	arpeggiatorRate = 0;
+	arpeggiatorNoteProbability = 0;
 	arpeggiatorRatchetProbability = 0;
 	arpeggiatorRatchetAmount = 0;
 	arpeggiatorSequenceLength = 0;
@@ -149,6 +150,7 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
 	arpeggiatorRate = otherInstrumentClip->arpeggiatorRate;
+	arpeggiatorNoteProbability = otherInstrumentClip->arpeggiatorNoteProbability;
 	arpeggiatorRatchetProbability = otherInstrumentClip->arpeggiatorRatchetProbability;
 	arpeggiatorRatchetAmount = otherInstrumentClip->arpeggiatorRatchetAmount;
 	arpeggiatorSequenceLength = otherInstrumentClip->arpeggiatorSequenceLength;
@@ -2389,6 +2391,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			writer.writeAttribute("rate", arpeggiatorRate);
 			// Community Firmware parameters (always write them after the official ones, just before closing the parent
 			// tag)
+			writer.writeAttribute("noteProbability", arpeggiatorNoteProbability);
 			writer.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
 			writer.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
 			writer.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
@@ -2674,6 +2677,10 @@ someError:
 				if (!strcmp(tagName, "rate")) {
 					arpeggiatorRate = reader.readTagOrAttributeValueInt();
 					reader.exitTag("rate");
+				}
+				else if (!strcmp(tagName, "noteProbability")) {
+					arpeggiatorNoteProbability = reader.readTagOrAttributeValueInt();
+					reader.exitTag("noteProbability");
 				}
 				else if (!strcmp(tagName, "ratchetProbability")) {
 					arpeggiatorRatchetProbability = reader.readTagOrAttributeValueInt();
