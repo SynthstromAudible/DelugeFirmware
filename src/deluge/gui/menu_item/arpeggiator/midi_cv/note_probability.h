@@ -31,7 +31,8 @@ public:
 		this->setValue(computeCurrentValueForArpMidiCvRatchetsOrRhythm(value));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorNoteProbability = (uint32_t)this->getValue() * 85899345;
+		getCurrentInstrumentClip()->arpeggiatorNoteProbability =
+		    computeFinalValueForArpMidiCvRatchetsOrRhythm(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
