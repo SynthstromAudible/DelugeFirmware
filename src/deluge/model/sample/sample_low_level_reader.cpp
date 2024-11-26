@@ -15,14 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "dsp/interpolate/interpolate.h"
 #pragma GCC push_options
 #pragma GCC target("fpu=neon")
 
-#include "model/sample/sample_low_level_reader.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_low_level_reader.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "storage/audio/audio_file_manager.h"
@@ -985,15 +986,6 @@ void SampleLowLevelReader::jumpForwardLinear(int32_t numChannels, int32_t byteDe
 	((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize                                             \
 	 + 1) // that's (numBitsInInput - 16 - numBitsInTableSize); = 4 for now
 
-void SampleLowLevelReader::interpolate(int32_t* __restrict__ sampleRead, int32_t numChannelsNow, int32_t whichKernel) {
-#include "dsp/interpolation/interpolate.h"
-}
-
-void SampleLowLevelReader::interpolateLinear(int32_t* __restrict__ sampleRead, int32_t numChannelsNow,
-                                             int32_t whichKernel) {
-#include "dsp/interpolation/interpolate_linear.h"
-}
-
 // This stuff is in its own function here rather than in Voice because for some reason it's faster
 void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal,
                                                 Sample* sample, int32_t jumpAmount, int32_t numChannels,
@@ -1089,7 +1081,7 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 
 skipFirstSmooth:
 			int32_t sampleRead[2];
-			interpolate(sampleRead, numChannels, whichKernel);
+			deluge::dsp::interpolate(sampleRead, numChannels, whichKernel, oscPos, interpolationBuffer);
 
 			int32_t existingValueL = *oscBufferPosNow;
 
@@ -1150,7 +1142,7 @@ skipFirstSmooth:
 
 skipFirstLinear:
 			int32_t sampleRead[2];
-			interpolateLinear(sampleRead, numChannels, whichKernel);
+			deluge::dsp::interpolateLinear(sampleRead, numChannels, whichKernel, oscPos, interpolationBuffer);
 
 			int32_t existingValueL = *oscBufferPosNow;
 
@@ -1297,7 +1289,7 @@ void SampleLowLevelReader::cloneFrom(SampleLowLevelReader* other, bool stealReas
 		}
 	}
 
-	memcpy(interpolationBuffer, other->interpolationBuffer, sizeof(interpolationBuffer));
+	memcpy(interpolationBuffer.data(), other->interpolationBuffer.data(), sizeof(interpolationBuffer));
 
 	oscPos = other->oscPos;
 	currentPlayPos = other->currentPlayPos;

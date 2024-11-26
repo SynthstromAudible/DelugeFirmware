@@ -20,6 +20,7 @@
 #include "arm_neon_shim.h"
 
 #include "definitions_cxx.hpp"
+#include <array>
 #include <cstdint>
 #define REASSESSMENT_ACTION_STOP_OR_LOOP 0
 #define REASSESSMENT_ACTION_NEXT_CLUSTER 1
@@ -40,8 +41,6 @@ public:
 	void jumpForwardLinear(int32_t numChannels, int32_t byteDepth, uint32_t bitMask, int32_t jumpAmount,
 	                       int32_t phaseIncrement);
 	void jumpForwardZeroes(int32_t bufferSize, int32_t numChannels, int32_t phaseIncrement);
-	void interpolate(int32_t* sampleRead, int32_t numChannels, int32_t whichKernel);
-	void interpolateLinear(int32_t* sampleRead, int32_t numChannels, int32_t whichKernel);
 	void fillInterpolationBufferRetrospectively(Sample* sample, int32_t bufferSize, int32_t startI,
 	                                            int32_t playDirection);
 	void jumpBackSamples(Sample* sample, int32_t numToJumpBack, int32_t playDirection);
@@ -97,7 +96,7 @@ public:
 	uint8_t reassessmentAction;
 	int8_t interpolationBufferSizeLastTime; // 0 if was previously switched off
 
-	int16x4_t interpolationBuffer[2][kInterpolationMaxNumSamples >> 2];
+	std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2> interpolationBuffer;
 
 	Cluster* clusters[kNumClustersLoadedAhead];
 
