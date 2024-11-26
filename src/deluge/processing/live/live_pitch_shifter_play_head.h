@@ -19,6 +19,7 @@
 
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
+#include <array>
 
 class LivePitchShifter;
 class LiveInputBuffer;
@@ -51,11 +52,7 @@ public:
 	int32_t rawBufferReadPos;
 	uint32_t oscPos;
 
-	int16x4_t interpolationBuffer[2][kInterpolationMaxNumSamples >> 2];
+	std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2> interpolationBuffer;
 
 	uint32_t percPos;
-
-private:
-	void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel);
-	void interpolateLinear(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel);
 };
