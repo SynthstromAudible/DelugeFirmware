@@ -16,6 +16,7 @@
  */
 
 #include "dsp/interpolate/interpolate.h"
+#include <cstdint>
 #pragma GCC push_options
 #pragma GCC target("fpu=neon")
 
@@ -1080,8 +1081,7 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 			}
 
 skipFirstSmooth:
-			int32_t sampleRead[2];
-			deluge::dsp::interpolate(sampleRead, numChannels, whichKernel, oscPos, interpolationBuffer);
+			auto sampleRead = deluge::dsp::interpolate(interpolationBuffer, numChannels, whichKernel, oscPos);
 
 			int32_t existingValueL = *oscBufferPosNow;
 
@@ -1141,8 +1141,7 @@ skipFirstSmooth:
 			}
 
 skipFirstLinear:
-			int32_t sampleRead[2];
-			deluge::dsp::interpolateLinear(sampleRead, numChannels, whichKernel, oscPos, interpolationBuffer);
+			auto sampleRead = deluge::dsp::interpolateLinear(interpolationBuffer, numChannels, whichKernel, oscPos);
 
 			int32_t existingValueL = *oscBufferPosNow;
 

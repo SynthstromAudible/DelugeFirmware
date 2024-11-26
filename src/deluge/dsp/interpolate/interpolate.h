@@ -7,9 +7,13 @@
 extern const int16_t windowedSincKernel[][17][16];
 
 namespace deluge::dsp {
-void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel, uint32_t oscPos,
-                 std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer);
-void interpolateLinear(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel, uint32_t oscPos,
-                       std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer);
+
+std::array<int32_t, 2>
+interpolate(std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer, size_t channels,
+            int32_t whichKernel, uint32_t oscPos);
+
+std::array<int32_t, 2>
+interpolateLinear(std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer,
+                  size_t channels, int32_t whichKernel, uint32_t oscPos);
 
 } // namespace deluge::dsp

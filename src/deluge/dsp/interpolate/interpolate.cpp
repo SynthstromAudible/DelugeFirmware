@@ -4,8 +4,9 @@
 #include <limits>
 
 namespace deluge::dsp {
-void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel, uint32_t oscPos,
-                 std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer) {
+std::array<int32_t, 2>
+interpolate(std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer, size_t channels,
+            int32_t whichKernel, uint32_t oscPos) {
 	constexpr size_t numBitsInTableSize = 8;
 
 	constexpr size_t rshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize + 1);
@@ -17,6 +18,8 @@ void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKerne
 	else {
 		rshifted = oscPos << (-rshiftAmount);
 	}
+
+	std::array<int32_t, 2> sampleRead;
 
 	int16_t strength2 = rshifted & std::numeric_limits<int16_t>::max();
 
@@ -43,7 +46,7 @@ void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKerne
 
 	sampleRead[0] = twosies[0] + twosies[1];
 
-	if (numChannelsNow == 2) {
+	if (channels == 2) {
 
 		Argon<int32_t> multiplied = 0;
 
@@ -56,17 +59,21 @@ void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKerne
 
 		sampleRead[1] = twosies[0] + twosies[1];
 	}
+	return sampleRead;
 }
 
-void interpolateLinear(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel, uint32_t oscPos,
-                       std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer) {
+std::array<int32_t, 2>
+interpolateLinear(std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer,
+                  size_t channels, int32_t whichKernel, uint32_t oscPos) {
+	std::array<int32_t, 2> sampleRead;
 	int16_t strength2 = oscPos >> 9;
 	int16_t strength1 = 32767 - strength2;
 
 	sampleRead[0] = (interpolationBuffer[0][0][1] * strength1) + (interpolationBuffer[0][0][0] * strength2);
-	if (numChannelsNow == 2) {
+	if (channels == 2) {
 		sampleRead[1] = (interpolationBuffer[1][0][1] * strength1) + (interpolationBuffer[1][0][0] * strength2);
 	}
+	return sampleRead;
 }
 } // namespace deluge::dsp
 
