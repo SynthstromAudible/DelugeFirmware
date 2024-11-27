@@ -20,7 +20,6 @@
 #include "gui/ui/keyboard/column_controls/control_column.h"
 
 namespace deluge::gui::ui::keyboard::controls {
-#define MAX_CHORD_NOTES 4
 
 enum ChordModeChord {
 	NO_CHORD = 0,

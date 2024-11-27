@@ -20,10 +20,8 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "lib/printf.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
-#include "modulation/arpeggiator.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Rhythm final : public Integer {

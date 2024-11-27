@@ -510,3 +510,41 @@ const std::array<Iterance, 35> iterancePresets = {
 	Iterance{7, 0b1}, Iterance{7, 0b10}, Iterance{7, 0b100}, Iterance{7, 0b1000}, Iterance{7, 0b10000}, Iterance{7, 0b100000}, Iterance{7, 0b1000000},
 	Iterance{8, 0b1}, Iterance{8, 0b10}, Iterance{8, 0b100}, Iterance{8, 0b1000}, Iterance{8, 0b10000}, Iterance{8, 0b100000}, Iterance{8, 0b1000000}, Iterance{8, 0b10000000}
 	};
+
+// CHORD TYPES
+
+uint8_t chordTypeSemitoneOffsets[MAX_CHORD_TYPES][MAX_CHORD_NOTES] = {
+    /* NO_CHORD  */ {0, 0, 0, 0},
+    /* FIFTH     */ {0, 7, 0, 0},
+    /* SUS2      */ {0, 2, 7, 0},
+    /* MINOR     */ {0, 3, 7, 0},
+    /* MAJOR     */ {0, 4, 7, 0},
+    /* SUS4      */ {0, 5, 7, 0},
+    /* MINOR7    */ {0, 3, 7, 10},
+    /* DOMINANT7 */ {0, 4, 7, 10},
+    /* MAJOR7    */ {0, 4, 7, 11},
+};
+
+uint8_t chordTypeNoteCount[MAX_CHORD_TYPES] = {
+    /* NO_CHORD  */ 1,
+    /* FIFTH     */ 2,
+    /* SUS2      */ 3,
+    /* MINOR     */ 3,
+    /* MAJOR     */ 3,
+    /* SUS4      */ 3,
+    /* MINOR7    */ 4,
+    /* DOMINANT7 */ 4,
+    /* MAJOR7    */ 4,
+};
+
+const std::array<deluge::l10n::String, MAX_CHORD_TYPES> chordNames = {
+    /* NO_CHORD  */ deluge::l10n::String::STRING_FOR_NONE,
+    /* NO_CHORD  */ deluge::l10n::String::STRING_FOR_FIFTH,
+	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_SUS2,
+	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_MINOR,
+	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_MAJOR,
+	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_SUS4,
+	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_MINOR7,
+	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_DOMINANT7,
+	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_MAJOR7,
+};

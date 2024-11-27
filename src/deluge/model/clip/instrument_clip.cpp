@@ -2401,6 +2401,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 		writer.writeAttribute("syncType", arpSettings.syncType);
 		writer.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		writer.writeAttribute("chordType", arpSettings.chordTypeIndex);
 		writer.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
 		writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
 		writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
@@ -2738,6 +2739,13 @@ someError:
 					arpSettings.octaveMode = stringToArpOctaveMode(reader.readTagOrAttributeValue());
 					arpSettings.updatePresetFromCurrentSettings();
 					reader.exitTag("octaveMode");
+				}
+				else if (!strcmp(tagName, "chordType")) {
+					uint8_t chordTypeIndex = (uint8_t)reader.readTagOrAttributeValueInt();
+					if (chordTypeIndex >= 0 && chordTypeIndex < MAX_CHORD_TYPES) {
+						arpSettings.chordTypeIndex = chordTypeIndex;
+					}
+					reader.exitTag("chordType");
 				}
 				else if (!strcmp(tagName, "noteMode")) {
 					arpSettings.noteMode = stringToArpNoteMode(reader.readTagOrAttributeValue());

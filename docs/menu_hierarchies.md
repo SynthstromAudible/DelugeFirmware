@@ -709,12 +709,13 @@ The Sound menu contains the following menu hierarchy:
 		- Up & Down (UPDN)
 		- Alternate (ALT)
 		- Random (RAND)
-	- Note Mode (NMOD) (NOTE: Available in Synth sounds but not in Kit sounds)
+	- Note Mode (NMOD)
 		- Up
 		- Down
 		- Up & Down (UPDN)
 		- As Played (PLAY)
 		- Random (RAND)
+	- Chord Type (CHRD) (NOTE: Available only in Kit Rows)
 	- Note probability (PROB)
 	- Rhythm (RHYT)
 	- Sequence Length (LENG)
