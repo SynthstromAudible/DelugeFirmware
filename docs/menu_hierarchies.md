@@ -158,6 +158,7 @@ The Settings menu contains the following menu hierarchy:
 			- Layout (LAYT)
 				- Isomorphic (ISO)
 				- In-Key (INKY)
+				- Piano (PIAN)
 			- Sidebar Controls (CTRL)
 				- Momentary Velocity (MVEL)
 					- Disabled (OFF)

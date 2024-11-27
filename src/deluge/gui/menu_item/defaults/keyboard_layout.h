@@ -31,6 +31,7 @@ public:
 		return {
 		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_ISOMORPHIC),
 		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_INKEY),
+		    l10n::getView(l10n::String::STRING_FOR_DEFAULT_UI_KEYBOARD_LAYOUT_PIANO),
 		};
 	}
 };
