@@ -35,8 +35,8 @@ class SamplePlaybackGuide;
 
 class SampleLowLevelReader {
 public:
-	SampleLowLevelReader();
-	~SampleLowLevelReader();
+	SampleLowLevelReader() = default;
+	~SampleLowLevelReader() = default;
 
 	void unassignAllReasons(bool wontBeUsedAgain);
 	void jumpForwardLinear(int32_t numChannels, int32_t byteDepth, uint32_t bitMask, int32_t jumpAmount,
@@ -86,8 +86,7 @@ public:
 	                                  TimeStretcher* timeStretcher, bool bufferingToTimeStretcher,
 	                                  int32_t whichPlayHead, int32_t whichKernel, int32_t priorityRating);
 
-	void bufferIndividualSampleForInterpolation(uint32_t bitMask, int32_t numChannels, int32_t byteDepth,
-	                                            char* playPosNow);
+	void bufferIndividualSampleForInterpolation(int32_t numChannels, int32_t byteDepth, char* playPosNow);
 	void bufferZeroForInterpolation(int32_t numChannels);
 
 	uint32_t oscPos;
@@ -99,7 +98,7 @@ public:
 
 	deluge::dsp::Interpolator interpolator_;
 
-	Cluster* clusters[kNumClustersLoadedAhead];
+	std::array<Cluster*, kNumClustersLoadedAhead> clusters = {nullptr, nullptr};
 
 private:
 	bool assignClusters(SamplePlaybackGuide* guide, Sample* sample, int32_t clusterIndex, int32_t priorityRating);

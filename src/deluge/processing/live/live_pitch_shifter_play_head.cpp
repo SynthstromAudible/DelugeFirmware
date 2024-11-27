@@ -77,20 +77,13 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 				if (numSamplesToJumpForward > kInterpolationMaxNumSamples) {
 					rawBufferReadPos = (rawBufferReadPos + (numSamplesToJumpForward - kInterpolationMaxNumSamples))
 					                   & (kInputRawBufferSize - 1);
-					numSamplesToJumpForward =
-					    kInterpolationMaxNumSamples; // Shouldn't be necesssary, but for some reason this seems to do
-					                                 // some optimization and speed things up. Re-test?
+
+					// Shouldn't be necesssary, but for some reason this seems to do
+					// some optimization and speed things up. Re-test?
+					numSamplesToJumpForward = kInterpolationMaxNumSamples;
 				}
 
-				for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
-					interpolator_.bufferL(i) = interpolator_.bufferL(i - numSamplesToJumpForward);
-				}
-
-				if (numChannels == 2) {
-					for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
-						interpolator_.bufferR(i) = interpolator_.bufferR(i - numSamplesToJumpForward);
-					}
-				}
+				interpolator_.jumpForward(numSamplesToJumpForward);
 
 				while (numSamplesToJumpForward--) {
 					interpolator_.bufferL(numSamplesToJumpForward) = rawBuffer[rawBufferReadPos * numChannels] >> 16;
