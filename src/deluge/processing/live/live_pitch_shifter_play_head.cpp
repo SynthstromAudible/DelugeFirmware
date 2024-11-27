@@ -83,20 +83,19 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 				}
 
 				for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
-					interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - numSamplesToJumpForward];
+					interpolator_.bufferL(i) = interpolator_.bufferL(i - numSamplesToJumpForward);
 				}
 
 				if (numChannels == 2) {
 					for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
-						interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - numSamplesToJumpForward];
+						interpolator_.bufferR(i) = interpolator_.bufferR(i - numSamplesToJumpForward);
 					}
 				}
 
 				while (numSamplesToJumpForward--) {
-					interpolationBuffer[0][0][numSamplesToJumpForward] =
-					    rawBuffer[rawBufferReadPos * numChannels] >> 16;
+					interpolator_.bufferL(numSamplesToJumpForward) = rawBuffer[rawBufferReadPos * numChannels] >> 16;
 					if (numChannels == 2) {
-						interpolationBuffer[1][0][numSamplesToJumpForward] = rawBuffer[rawBufferReadPos * 2 + 1] >> 16;
+						interpolator_.bufferR(numSamplesToJumpForward) = rawBuffer[rawBufferReadPos * 2 + 1] >> 16;
 					}
 
 					rawBufferReadPos = (rawBufferReadPos + 1) & (kInputRawBufferSize - 1);
@@ -105,16 +104,15 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 
 			amplitude += amplitudeIncrement;
 
-			std::array<int32_t, 2> sampleRead =
-			    (interpolationBufferSize > 2)
-			        ? deluge::dsp::interpolate(interpolationBuffer, numChannels, whichKernel, oscPos)
-			        : deluge::dsp::interpolateLinear(interpolationBuffer, numChannels, whichKernel, oscPos);
+			StereoSample sampleRead = (interpolationBufferSize > 2)
+			                              ? interpolator_.interpolate(numChannels, whichKernel, oscPos)
+			                              : interpolator_.interpolateLinear(numChannels, oscPos);
 
-			*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead[0], amplitude) << 5;
+			*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead.l, amplitude) << 5;
 			outputBuffer++;
 
 			if (numChannels == 2) {
-				*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead[1], amplitude) << 5;
+				*outputBuffer += multiply_32x32_rshift32_rounded(sampleRead.r, amplitude) << 5;
 				outputBuffer++;
 			}
 		} while (outputBuffer != outputBufferEnd);
@@ -186,14 +184,21 @@ int32_t LivePitchShifterPlayHead::getNumRawSamplesBehindInput(LiveInputBuffer* l
 	}
 }
 
+/// @param numChannels a value between 0 and 1
 void LivePitchShifterPlayHead::fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int32_t numChannels) {
-	for (int32_t c = 0; c < numChannels; c++) {
-		for (int32_t i = 1; i <= kInterpolationMaxNumSamples; i++) {
-			int32_t pos = (uint32_t)(rawBufferReadPos - i) & (kInputRawBufferSize - 1);
+	for (int32_t i = 0; i < kInterpolationMaxNumSamples; ++i) {
+		int32_t pos = (uint32_t)(rawBufferReadPos - (i + 1)) & (kInputRawBufferSize - 1);
 
-			interpolationBuffer[c][0][i - 1] = (pos < liveInputBuffer->numRawSamplesProcessed)
-			                                       ? liveInputBuffer->rawBuffer[pos * numChannels + c] >> 16
-			                                       : 0;
+		interpolator_.bufferL(i) =
+		    (pos < liveInputBuffer->numRawSamplesProcessed) ? liveInputBuffer->rawBuffer[pos * numChannels] >> 16 : 0;
+	}
+	if (numChannels == 2) {
+		for (int32_t i = 0; i < kInterpolationMaxNumSamples; ++i) {
+			int32_t pos = (uint32_t)(rawBufferReadPos - (i + 1)) & (kInputRawBufferSize - 1);
+
+			interpolator_.bufferR(i) = (pos < liveInputBuffer->numRawSamplesProcessed)
+			                               ? liveInputBuffer->rawBuffer[pos * numChannels + 1] >> 16
+			                               : 0;
 		}
 	}
 }

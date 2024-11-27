@@ -473,10 +473,9 @@ void SampleLowLevelReader::fillInterpolationBufferRetrospectively(Sample* sample
 	for (int32_t i = startI; i < bufferSize; i++) {
 
 		if (!clusters[0]) {
-justWriteZeros:
-			interpolationBuffer[0][0][i] = 0;
+			interpolator_.bufferL(i) = 0;
 			if (sample->numChannels == 2) {
-				interpolationBuffer[1][0][i] = 0;
+				interpolator_.bufferR(i) = 0;
 			}
 		}
 
@@ -488,16 +487,19 @@ justWriteZeros:
 
 			// If there was valid audio data there...
 			if (bytesPastClusterStart >= 0) {
-				interpolationBuffer[0][0][i] = *(int16_t*)(thisPlayPos + 2);
+				interpolator_.bufferL(i) = *(int16_t*)(thisPlayPos + 2);
 
 				if (sample->numChannels == 2) {
-					interpolationBuffer[1][0][i] = *(int16_t*)(thisPlayPos + 2 + sample->byteDepth);
+					interpolator_.bufferR(i) = *(int16_t*)(thisPlayPos + 2 + sample->byteDepth);
 				}
 			}
 
 			// Or if not, just write zeros
 			else {
-				goto justWriteZeros;
+				interpolator_.bufferL(i) = 0;
+				if (sample->numChannels == 2) {
+					interpolator_.bufferR(i) = 0;
+				}
 			}
 		}
 	}
@@ -510,9 +512,9 @@ bool SampleLowLevelReader::fillInterpolationBufferForward(SamplePlaybackGuide* g
 
 		if (!clusters[0]) {
 doZeroesFillingBuffer:
-			interpolationBuffer[0][0][i] = 0;
+			interpolator_.bufferL(i) = 0;
 			if (sample->numChannels == 2) {
-				interpolationBuffer[1][0][i] = 0;
+				interpolator_.bufferR(i) = 0;
 			}
 			currentPlayPos++;
 			if ((uint32_t)currentPlayPos >= interpolationBufferSize) {
@@ -527,9 +529,9 @@ doZeroesFillingBuffer:
 				goto doZeroesFillingBuffer;
 			}
 
-			interpolationBuffer[0][0][i] = *(int16_t*)(currentPlayPos + 2);
+			interpolator_.bufferL(i) = *(int16_t*)(currentPlayPos + 2);
 			if (sample->numChannels == 2) {
-				interpolationBuffer[1][0][i] = *(int16_t*)(currentPlayPos + 2 + sample->byteDepth);
+				interpolator_.bufferR(i) = *(int16_t*)(currentPlayPos + 2 + sample->byteDepth);
 			}
 
 			// And move forward one more
@@ -625,9 +627,9 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				int32_t offset = difference >> 1;
 
 				for (int32_t i = 0; i < interpolationBufferSize; i++) {
-					interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i + offset];
+					interpolator_.bufferL(i) = interpolator_.bufferL(i + offset);
 					if (sample->numChannels == 2) {
-						interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i + offset];
+						interpolator_.bufferR(i) = interpolator_.bufferR(i + offset);
 					}
 				}
 
@@ -657,9 +659,9 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 				int32_t offset = difference >> 1;
 
 				for (int32_t i = 0; i < interpolationBufferSizeLastTime; i++) {
-					interpolationBuffer[0][0][i + offset] = interpolationBuffer[0][0][i];
+					interpolator_.bufferL(i + offset) = interpolator_.bufferL(i);
 					if (sample->numChannels == 2) {
-						interpolationBuffer[1][0][i + offset] = interpolationBuffer[1][0][i];
+						interpolator_.bufferR(i + offset) = interpolator_.bufferR(i);
 					}
 				}
 
@@ -672,9 +674,9 @@ bool SampleLowLevelReader::considerUpcomingWindow(SamplePlaybackGuide* guide, Sa
 
 				// If still here, fill far end with zeros. Not perfect, but it'll do.
 				for (int32_t i = (interpolationBufferSize - offset); i < interpolationBufferSize; i++) {
-					interpolationBuffer[0][0][i] = 0;
+					interpolator_.bufferL(i) = 0;
 					if (sample->numChannels == 2) {
-						interpolationBuffer[1][0][i] = 0;
+						interpolator_.bufferR(i) = 0;
 					}
 				}
 
@@ -888,16 +890,16 @@ void SampleLowLevelReader::bufferIndividualSampleForInterpolation(uint32_t bitMa
 	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that
 	// that's actually more efficient though
 	for (int32_t i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
-		interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - 1];
+		interpolator_.bufferL(i) = interpolator_.bufferL(i - 1);
 		if (numChannels == 2) {
-			interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - 1];
+			interpolator_.bufferR(i) = interpolator_.bufferR(i - 1);
 		}
 	}
 
-	interpolationBuffer[0][0][0] = *(int16_t*)(playPosNow + 2);
+	interpolator_.bufferL(0) = *(int16_t*)(playPosNow + 2);
 
 	if (numChannels == 2) {
-		interpolationBuffer[1][0][0] = *(int16_t*)(playPosNow + 2 + byteDepth);
+		interpolator_.bufferR(0) = *(int16_t*)(playPosNow + 2 + byteDepth);
 	}
 }
 
@@ -908,16 +910,16 @@ void SampleLowLevelReader::bufferZeroForInterpolation(int32_t numChannels) {
 	// This works better than using memmoves. Ideally we'd switch this off if not smoothly interpolating - check that
 	// that's actually more efficient though
 	for (int32_t i = kInterpolationMaxNumSamples - 1; i >= 1; i--) {
-		interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - 1];
+		interpolator_.bufferL(i) = interpolator_.bufferL(i - 1);
 		if (numChannels == 2) {
-			interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - 1];
+			interpolator_.bufferR(i) = interpolator_.bufferR(i - 1);
 		}
 	}
 
-	interpolationBuffer[0][0][0] = 0;
+	interpolator_.bufferL(0) = 0;
 
 	if (numChannels == 2) {
-		interpolationBuffer[1][0][0] = 0;
+		interpolator_.bufferR(0) = 0;
 	}
 
 	currentPlayPos++;
@@ -955,29 +957,29 @@ void SampleLowLevelReader::jumpForwardLinear(int32_t numChannels, int32_t byteDe
 
 		if (numChannels == 2) {
 			if (numSamplesToJumpForward >= 2) {
-				interpolationBuffer[0][0][1] = *(int16_t*)(currentPlayPos + 2);
-				interpolationBuffer[1][0][1] = *(int16_t*)(currentPlayPos + 2 + byteDepth);
+				interpolator_.bufferL(1) = *(int16_t*)(currentPlayPos + 2);
+				interpolator_.bufferR(1) = *(int16_t*)(currentPlayPos + 2 + byteDepth);
 				currentPlayPos += jumpAmount;
 			}
 			else {
-				interpolationBuffer[0][0][1] = interpolationBuffer[0][0][0];
-				interpolationBuffer[1][0][1] = interpolationBuffer[1][0][0];
+				interpolator_.bufferL(1) = interpolator_.bufferL(0);
+				interpolator_.bufferR(1) = interpolator_.bufferR(0);
 			}
-			interpolationBuffer[1][0][0] = *(int16_t*)(currentPlayPos + 2 + byteDepth);
+			interpolator_.bufferR(0) = *(int16_t*)(currentPlayPos + 2 + byteDepth);
 		}
 
 		else {
 			if (numSamplesToJumpForward >= 2) {
-				interpolationBuffer[0][0][1] = *(int16_t*)(currentPlayPos + 2);
+				interpolator_.bufferL(1) = *(int16_t*)(currentPlayPos + 2);
 				currentPlayPos += jumpAmount;
 			}
 			else {
-				interpolationBuffer[0][0][1] = interpolationBuffer[0][0][0];
+				interpolator_.bufferL(1) = interpolator_.bufferL(0);
 			}
 		}
 
 		// Putting these down here did speed things up!
-		interpolationBuffer[0][0][0] = *(int16_t*)(currentPlayPos + 2);
+		interpolator_.bufferL(0) = *(int16_t*)(currentPlayPos + 2);
 		currentPlayPos += jumpAmount;
 	}
 }
@@ -1037,20 +1039,19 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 					int16_t sourceL = *(int16_t*)currentPlayPosNow;
 
 					for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
-						interpolationBuffer[0][0][i] = interpolationBuffer[0][0][i - numSamplesToJumpForward];
+						interpolator_.bufferL(i) = interpolator_.bufferL(i - numSamplesToJumpForward);
 					}
 
 					if (numChannels == 2) {
 						for (int32_t i = kInterpolationMaxNumSamples - 1; i >= numSamplesToJumpForward; i--) {
-							interpolationBuffer[1][0][i] = interpolationBuffer[1][0][i - numSamplesToJumpForward];
+							interpolator_.bufferR(i) = interpolator_.bufferR(i - numSamplesToJumpForward);
 						}
 
 						numSamplesToJumpForward--;
 
 						while (true) {
-							interpolationBuffer[0][0][numSamplesToJumpForward] = sourceL;
-							interpolationBuffer[1][0][numSamplesToJumpForward] =
-							    *(int16_t*)(currentPlayPosNow + byteDepth);
+							interpolator_.bufferL(numSamplesToJumpForward) = sourceL;
+							interpolator_.bufferR(numSamplesToJumpForward) = *(int16_t*)(currentPlayPosNow + byteDepth);
 							currentPlayPosNow += jumpAmount;
 							if (!numSamplesToJumpForward) {
 								goto skipFirstSmooth;
@@ -1066,7 +1067,7 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 
 						while (true) {
 							currentPlayPosNow += jumpAmount;
-							interpolationBuffer[0][0][numSamplesToJumpForward] = sourceL;
+							interpolator_.bufferL(numSamplesToJumpForward) = sourceL;
 							if (!numSamplesToJumpForward) {
 								goto skipFirstSmooth;
 							}
@@ -1081,20 +1082,20 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 			}
 
 skipFirstSmooth:
-			auto sampleRead = deluge::dsp::interpolate(interpolationBuffer, numChannels, whichKernel, oscPos);
+			auto sampleRead = interpolator_.interpolate(numChannels, whichKernel, oscPos);
 
 			int32_t existingValueL = *oscBufferPosNow;
 
 			// If caching, do that now
 			if (writingCache) {
 				for (int32_t i = 4 - kCacheByteDepth; i < 4; i++) {
-					*cacheWritePosNow = ((char*)&sampleRead[0])[i];
+					*cacheWritePosNow = ((char*)&sampleRead.l)[i];
 					cacheWritePosNow++;
 				}
 
 				if (numChannels == 2) {
 					for (int32_t i = 4 - kCacheByteDepth; i < 4; i++) {
-						*cacheWritePosNow = ((char*)&sampleRead[1])[i];
+						*cacheWritePosNow = ((char*)&sampleRead.r)[i];
 						cacheWritePosNow++;
 					}
 				}
@@ -1102,22 +1103,20 @@ skipFirstSmooth:
 
 			// If condensing to mono, do that now
 			if (numChannels == 2 && numChannelsAfterCondensing == 1) {
-				sampleRead[0] = ((sampleRead[0] >> 1) + (sampleRead[1] >> 1));
+				sampleRead.l = ((sampleRead.l / 2) + (sampleRead.r / 2));
 			}
 
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(
-			    existingValueL, sampleRead[0],
-			    *amplitude); // sourceAmplitude is modified above; using accumulate made no difference
+			// sourceAmplitude is modified above; using accumulate made no difference
+			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead.l, *amplitude);
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
 				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow =
-				    multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead[1], *amplitude);
+				*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead.r, *amplitude);
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);
@@ -1141,28 +1140,27 @@ skipFirstSmooth:
 			}
 
 skipFirstLinear:
-			auto sampleRead = deluge::dsp::interpolateLinear(interpolationBuffer, numChannels, whichKernel, oscPos);
+			auto sampleRead = interpolator_.interpolateLinear(numChannels, oscPos);
 
 			int32_t existingValueL = *oscBufferPosNow;
 
 			// If condensing to mono, do that now
 			if (numChannels == 2 && numChannelsAfterCondensing == 1) {
-				sampleRead[0] = ((sampleRead[0] >> 1) + (sampleRead[1] >> 1));
+				sampleRead.l = ((sampleRead.l >> 1) + (sampleRead.r >> 1));
 			}
 
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
 			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(
-			    existingValueL, sampleRead[0],
+			    existingValueL, sampleRead.l,
 			    *amplitude); // sourceAmplitude is modified above; using accumulate made no difference
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
 				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow =
-				    multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead[1], *amplitude);
+				*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead.r, *amplitude);
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);
@@ -1280,7 +1278,7 @@ void SampleLowLevelReader::cloneFrom(SampleLowLevelReader* other, bool stealReas
 
 		if (clusters[l]) {
 			if (stealReasons) {
-				other->clusters[l] = NULL;
+				other->clusters[l] = nullptr;
 			}
 			else {
 				audioFileManager.addReasonToCluster(clusters[l]);
@@ -1288,8 +1286,7 @@ void SampleLowLevelReader::cloneFrom(SampleLowLevelReader* other, bool stealReas
 		}
 	}
 
-	memcpy(interpolationBuffer.data(), other->interpolationBuffer.data(), sizeof(interpolationBuffer));
-
+	interpolator_ = other->interpolator_;
 	oscPos = other->oscPos;
 	currentPlayPos = other->currentPlayPos;
 	reassessmentLocation = other->reassessmentLocation;

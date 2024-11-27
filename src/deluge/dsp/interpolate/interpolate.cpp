@@ -1,12 +1,11 @@
 #include "interpolate.h"
 #include "definitions_cxx.hpp"
 #include <argon.hpp>
+#include <cstdint>
 #include <limits>
 
 namespace deluge::dsp {
-std::array<int32_t, 2>
-interpolate(std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer, size_t channels,
-            int32_t whichKernel, uint32_t oscPos) {
+StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uint32_t oscPos) {
 	constexpr size_t numBitsInTableSize = 8;
 
 	constexpr size_t rshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize + 1);
@@ -19,66 +18,62 @@ interpolate(std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2
 		rshifted = oscPos << (-rshiftAmount);
 	}
 
-	std::array<int32_t, 2> sampleRead;
+	StereoSample sampleRead;
 
 	int16_t strength2 = rshifted & std::numeric_limits<int16_t>::max();
 
 	int32_t progressSmall = oscPos >> (24 + kInterpolationMaxNumSamplesMagnitude - numBitsInTableSize);
 
-	Argon<int16_t> kernelVector[kInterpolationMaxNumSamples >> 3];
+	std::array<Argon<int16_t>, kInterpolationMaxNumSamples / 8> kernelVector;
 
-	for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-		auto value1 = Argon<int16_t>::Load(&windowedSincKernel[whichKernel][progressSmall][i << 3]);
-		auto value2 = Argon<int16_t>::Load(&windowedSincKernel[whichKernel][progressSmall + 1][i << 3]);
+	for (size_t i = 0; i < kernelVector.size(); ++i) {
+		auto value1 = Argon<int16_t>::Load(&windowedSincKernel[whichKernel][progressSmall][i * 8]);
+		auto value2 = Argon<int16_t>::Load(&windowedSincKernel[whichKernel][progressSmall + 1][i * 8]);
 
 		// standard linear a + (b - a) * fractional
 		kernelVector[i] = value1.MultiplyAddFixedPoint((value2 - value1), strength2);
 	}
 
 	Argon<int32_t> multiplied = 0;
-
-	for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), interpolationBuffer[0][i << 1]);
-		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), interpolationBuffer[0][(i << 1) + 1]);
+	for (size_t i = 0; i < kernelVector.size(); ++i) {
+		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), interpolation_buffer_l_[i * 2]);
+		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), interpolation_buffer_l_[(i * 2) + 1]);
 	}
 
 	ArgonHalf<int32_t> twosies = multiplied.GetHigh() + multiplied.GetLow();
 
-	sampleRead[0] = twosies[0] + twosies[1];
+	sampleRead.l = twosies[0] + twosies[1];
 
 	if (channels == 2) {
 
 		Argon<int32_t> multiplied = 0;
-
-		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), interpolationBuffer[1][i << 1]);
-			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), interpolationBuffer[1][(i << 1) + 1]);
+		for (size_t i = 0; i < kernelVector.size(); ++i) {
+			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), interpolation_buffer_r_[i * 2]);
+			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), interpolation_buffer_r_[(i * 2) + 1]);
 		}
 
 		ArgonHalf<int32_t> twosies = multiplied.GetHigh() + multiplied.GetLow();
 
-		sampleRead[1] = twosies[0] + twosies[1];
+		sampleRead.r = twosies[0] + twosies[1];
 	}
 	return sampleRead;
 }
 
-std::array<int32_t, 2>
-interpolateLinear(std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer,
-                  size_t channels, int32_t whichKernel, uint32_t oscPos) {
-	std::array<int32_t, 2> sampleRead;
-	int16_t strength2 = oscPos >> 9;
-	int16_t strength1 = 32767 - strength2;
+StereoSample Interpolator::interpolateLinear(size_t channels, uint32_t phase) {
+	StereoSample sampleRead;
+	int16_t strength2 = phase >> 9;
+	int16_t strength1 = std::numeric_limits<int16_t>::max() - strength2; // inverse
 
-	sampleRead[0] = (interpolationBuffer[0][0][1] * strength1) + (interpolationBuffer[0][0][0] * strength2);
+	sampleRead.l = (interpolation_buffer_l_[0][1] * strength1) + (interpolation_buffer_l_[0][0] * strength2);
 	if (channels == 2) {
-		sampleRead[1] = (interpolationBuffer[1][0][1] * strength1) + (interpolationBuffer[1][0][0] * strength2);
+		sampleRead.r = (interpolation_buffer_r_[0][1] * strength1) + (interpolation_buffer_r_[0][0] * strength2);
 	}
 	return sampleRead;
 }
 } // namespace deluge::dsp
 
 // clang-format off
-const int16_t windowedSincKernel[][17][16] __attribute__ ((aligned (CACHE_LINE_SIZE))) = {
+const int16_t windowedSincKernel[7][17][16] __attribute__ ((aligned (CACHE_LINE_SIZE))) = {
 	{
 		{0, 0, 0, 0, 0, 0, 0, -1, 32767, -1, 0, 0, 0, 0, 0, 0, },
 		{-2, 7, -28, 80, -188, 400, -831, 2056, 32548, -1784, 754, -363, 168, -70, 24, -6, },
