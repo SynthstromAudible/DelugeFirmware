@@ -2415,8 +2415,71 @@ dontUseCache: {}
 	}
 }
 
-CREATE_WAVE_RENDER_FUNCTION_INSTANCE(renderWave, waveRenderingFunctionGeneral);
-CREATE_WAVE_RENDER_FUNCTION_INSTANCE(renderPulseWave, waveRenderingFunctionPulse);
+/* Before calling, you must:
+    amplitude <<= 1;
+    amplitudeIncrement <<= 1;
+*/
+void renderWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,
+                int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,
+                bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement) {
+	int16x4_t const32767 = vdup_n_s16(32767);
+	int32_t* __restrict__ outputBufferPos = outputBuffer;
+
+	int32x4_t amplitudeVector = createAmplitudeVector(amplitude, amplitudeIncrement);
+	int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
+
+	uint32_t phaseTemp = phase;
+
+	do {
+		int32x4_t valueVector;
+
+		waveRenderingFunctionGeneral(valueVector, phaseTemp, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
+
+		if (applyAmplitude) {
+			int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);
+			valueVector = vqdmulhq_s32(amplitudeVector, valueVector);
+			amplitudeVector = vaddq_s32(amplitudeVector, amplitudeIncrementVector);
+			valueVector = vaddq_s32(valueVector, existingDataInBuffer);
+		}
+
+		vst1q_s32(outputBufferPos, valueVector);
+
+		outputBufferPos += 4;
+	} while (outputBufferPos < bufferEnd);
+}
+
+/* Before calling, you must:
+    amplitude <<= 1;
+    amplitudeIncrement <<= 1;
+*/
+void renderPulseWave(const int16_t* __restrict__ table, int32_t tableSizeMagnitude, int32_t amplitude,
+                     int32_t* __restrict__ outputBuffer, int32_t* bufferEnd, uint32_t phaseIncrement, uint32_t phase,
+                     bool applyAmplitude, uint32_t phaseToAdd, int32_t amplitudeIncrement) {
+	int16x4_t const32767 = vdup_n_s16(32767);
+	int32_t* __restrict__ outputBufferPos = outputBuffer;
+
+	int32x4_t amplitudeVector = createAmplitudeVector(amplitude, amplitudeIncrement);
+	int32x4_t amplitudeIncrementVector = vdupq_n_s32(amplitudeIncrement << 1);
+
+	uint32_t phaseTemp = phase;
+
+	do {
+		int32x4_t valueVector;
+
+		waveRenderingFunctionPulse(valueVector, phaseTemp, phaseIncrement, phaseToAdd, table, tableSizeMagnitude);
+
+		if (applyAmplitude) {
+			int32x4_t existingDataInBuffer = vld1q_s32(outputBufferPos);
+			valueVector = vqdmulhq_s32(amplitudeVector, valueVector);
+			amplitudeVector = vaddq_s32(amplitudeVector, amplitudeIncrementVector);
+			valueVector = vaddq_s32(valueVector, existingDataInBuffer);
+		}
+
+		vst1q_s32(outputBufferPos, valueVector);
+
+		outputBufferPos += 4;
+	} while (outputBufferPos < bufferEnd);
+}
 
 // Experiment. It goes basically exactly the same speed as the non-vector one.
 /*
@@ -3096,8 +3159,20 @@ doSaw:
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 						int32_t numSamplesThisOscSyncSession = numSamples;
 						int16x4_t const32767 = vdup_n_s16(32767); // The pulse rendering function needs this.
-						RENDER_OSC_SYNC(STORE_VECTOR_WAVE_FOR_ONE_SYNC, waveRenderingFunctionPulse, 0,
-						                startRenderingASyncForPulseWave);
+						auto storeVectorWaveForOneSync = [&](int32_t const* const bufferEndThisSyncRender,
+						                                     uint32_t phaseTemp, int32_t* __restrict__ writePos) {
+							do {
+								int32x4_t valueVector;
+								waveRenderingFunctionPulse(valueVector, phaseTemp, phaseIncrement, phaseToAdd, table,
+								                           tableSizeMagnitude);
+								vst1q_s32(writePos, valueVector);
+								writePos += 4;
+							} while (writePos < bufferEndThisSyncRender);
+						};
+						renderOscSync(
+						    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
+						    resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase,
+						    numSamplesThisOscSyncSession, bufferStartThisSync);
 						phase <<= 1;
 						goto doNeedToApplyAmplitude;
 					}
@@ -3129,8 +3204,20 @@ callRenderWave:
 		if (doOscSync) {
 			int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 			int32_t numSamplesThisOscSyncSession = numSamples;
-			RENDER_OSC_SYNC(STORE_VECTOR_WAVE_FOR_ONE_SYNC, waveRenderingFunctionGeneral, 0,
-			                startRenderingASyncForWave);
+			auto storeVectorWaveForOneSync = //<
+			    [&](int32_t const* const bufferEndThisSyncRender, uint32_t phaseTemp, int32_t* __restrict__ writePos) {
+				    do {
+					    int32x4_t valueVector;
+					    waveRenderingFunctionGeneral(valueVector, phaseTemp, phaseIncrement, phaseToAdd, table,
+					                                 tableSizeMagnitude);
+					    vst1q_s32(writePos, valueVector);
+					    writePos += 4;
+				    } while (writePos < bufferEndThisSyncRender);
+			    };
+			renderOscSync(
+			    storeVectorWaveForOneSync, [](uint32_t) {}, phase, phaseIncrement, resetterPhase,
+			    resetterPhaseIncrement, resetterDivideByPhaseIncrement, retriggerPhase, numSamplesThisOscSyncSession,
+			    bufferStartThisSync);
 			goto doNeedToApplyAmplitude;
 		}
 		else {

@@ -1,6 +1,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/active_scales.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
+#include "gui/menu_item/arpeggiator/midi_cv/note_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
@@ -224,6 +225,10 @@ arpeggiator::OnlyForSoundUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
 arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
 arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpNoteProbabilityMenu{
+    STRING_FOR_NOTE_PROBABILITY, STRING_FOR_ARP_NOTE_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_NOTE_PROBABILITY};
+arpeggiator::midi_cv::NoteProbability arpNoteProbabilityMenuMIDIOrCV{STRING_FOR_NOTE_PROBABILITY,
+                                                                     STRING_FOR_ARP_NOTE_PROBABILITY_MENU_TITLE};
 arpeggiator::Rhythm arpRhythmMenu{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE, params::UNPATCHED_ARP_RHYTHM};
 arpeggiator::midi_cv::Rhythm arpRhythmMenuMIDIOrCV{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpSequenceLengthMenu{
@@ -256,6 +261,8 @@ submenu::Arpeggiator arpMenu{
         &arpOctavesMenu,
         &arpOctaveModeMenu,
         &arpNoteModeMenu,
+        &arpNoteProbabilityMenu,
+        &arpNoteProbabilityMenuMIDIOrCV,
         &arpRhythmMenu,
         &arpRhythmMenuMIDIOrCV,
         &arpSequenceLengthMenu,

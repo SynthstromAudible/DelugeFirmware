@@ -304,7 +304,6 @@ add_custom_command(TARGET deluge
         COMMAND ${CMAKE_OBJCOPY} -O binary -S $<TARGET_FILE:deluge> ${BIN_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Objcopying deluge to firmware ${BIN_FILE}"
-        DEPENDS deluge
         BYPRODUCTS ${BIN_FILE})
 
 # generate .hex firmware file
@@ -313,7 +312,6 @@ add_custom_command(TARGET deluge
         COMMAND ${CMAKE_OBJCOPY} -O ihex -S $<TARGET_FILE:deluge> ${HEX_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Objcopying deluge to firmware ${HEX_FILE}"
-        DEPENDS deluge
         BYPRODUCTS ${HEX_FILE})
 
 # # generate .objdump file
@@ -331,7 +329,6 @@ add_custom_command(TARGET deluge
         COMMAND ${CMAKE_NM} -t d -S -C -r --special-syms --size-sort $<TARGET_FILE:deluge> > ${NMDUMP_FILE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "NM dumping deluge firmware ${NMDUMP_FILE}"
-        DEPENDS deluge
         BYPRODUCTS ${NMDUMP_FILE}
 )
 
@@ -340,7 +337,6 @@ add_custom_command(TARGET deluge
     POST_BUILD
         COMMAND ${CMAKE_SIZE} $<TARGET_FILE:deluge>
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS deluge
 )
 
 # Clean up artefacts

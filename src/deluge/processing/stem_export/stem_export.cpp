@@ -152,8 +152,20 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 	timeThereWasLastSomeActivity = 0xFFFFFFFF;
 	playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	if (playbackHandler.isEitherClockActive()) {
-		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, AudioInputChannel::MIX, writeLoopEndPos(),
-		                                   allowNormalization);
+		// default - record the MIX (before SongFX)
+		AudioInputChannel channel = AudioInputChannel::MIX;
+		// if we want to record stems with SongFX
+		if (includeSongFX) {
+			// special input channel for offline rendering
+			if (renderOffline) {
+				channel = AudioInputChannel::OFFLINE_OUTPUT;
+			}
+			// record output for live rendering
+			else {
+				channel = AudioInputChannel::OUTPUT;
+			}
+		}
+		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(), allowNormalization);
 		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
 			stopRecording = true;
 		}

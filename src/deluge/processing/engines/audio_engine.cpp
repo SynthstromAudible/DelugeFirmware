@@ -642,6 +642,16 @@ void renderAudioForStemExport(size_t numSamples) {
 		renderSongFX(numSamples);
 	}
 
+	// If we're recording final output for offline stem export with song FX
+	// Check if we have a recorder
+	SampleRecorder* recorder = audioRecorder.recorder;
+	if (recorder && recorder->mode == AudioInputChannel::OFFLINE_OUTPUT) {
+		// continue feeding audio if we're not finished recording
+		if (recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+			recorder->feedAudio((int32_t*)renderingBuffer.data(), numSamples, true);
+		}
+	}
+
 	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer.data(), numSamples);
 
 	doMonitoring = false;

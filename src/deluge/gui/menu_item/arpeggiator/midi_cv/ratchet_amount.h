@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"

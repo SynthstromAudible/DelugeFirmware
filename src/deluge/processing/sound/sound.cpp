@@ -164,6 +164,7 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
 
 	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_ARP_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
@@ -732,6 +733,13 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 		                           readAutomationUpToPos);
 		reader.exitTag("ratchetProbability");
+	}
+
+	else if (!strcmp(tagName, "noteProbability")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_NOTE_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("noteProbability");
 	}
 
 	else if (!strcmp(tagName, "sequenceLength")) {
@@ -1535,6 +1543,13 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.noteCodeOnPostArp, velocity,
 		                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate, fromMIDIChannel);
 	}
+	else {
+		// in the case of the arpeggiator not returning a note On (could happen if Note Probability evaluates to "don't
+		// play") we must at least evaluate the skipping if the arpeggiator is on
+		if (arpSettings != nullptr && getArp()->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
+			reassessRenderSkippingStatus(modelStackWithSoundFlags);
+		}
+	}
 }
 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
@@ -2248,11 +2263,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t sequenceLength =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
 		uint32_t rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
+		uint32_t noteProbability =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
 
 		ArpReturnInstruction instruction;
 
-		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm, ratchetAmount,
-		                 ratchetProbability, &instruction);
+		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm,
+		                 noteProbability, ratchetAmount, ratchetProbability, &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
@@ -3646,6 +3663,11 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
 		reader.exitTag("arpeggiatorGate");
 	}
+	else if (!strcmp(tagName, "noteProbability")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_NOTE_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("noteProbability");
+	}
 	else if (!strcmp(tagName, "ratchetProbability")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 		                           readAutomationUpToPos);
@@ -3956,6 +3978,8 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 
 	patchedParams->writeParamAsAttribute(writer, "waveFold", params::LOCAL_FOLD, writeAutomation);
 
+	unpatchedParams->writeParamAsAttribute(writer, "noteProbability", params::UNPATCHED_ARP_NOTE_PROBABILITY,
+	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
