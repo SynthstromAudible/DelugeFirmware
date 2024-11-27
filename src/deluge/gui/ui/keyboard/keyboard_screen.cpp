@@ -47,9 +47,9 @@
 #include "gui/ui/keyboard/layout/chord_library.h"
 #include "gui/ui/keyboard/layout/column_control_state.h"
 #include "gui/ui/keyboard/layout/in_key.h"
-#include "gui/ui/keyboard/layout/piano.h"
 #include "gui/ui/keyboard/layout/isomorphic.h"
 #include "gui/ui/keyboard/layout/norns.h"
+#include "gui/ui/keyboard/layout/piano.h"
 #include "gui/ui/keyboard/layout/velocity_drums.h"
 
 deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};

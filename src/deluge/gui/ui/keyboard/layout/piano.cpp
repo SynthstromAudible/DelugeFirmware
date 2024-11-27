@@ -29,8 +29,8 @@ void KeyboardLayoutPiano::evaluatePads(PressedPad presses[kMaxNumKeyboardPadPres
 	for (int32_t idxPress = 0; idxPress < kMaxNumKeyboardPadPresses; ++idxPress) {
 		auto pressed = presses[idxPress];
 		if (pressed.active && pressed.x < kDisplayWidth) {
-			auto noteInterval=intervalFromCoords(pressed.x, pressed.y);
-			if (noteInterval != 0 ) {
+			auto noteInterval = intervalFromCoords(pressed.x, pressed.y);
+			if (noteInterval != 0) {
 				enableNote(noteFromCoords(pressed.x, pressed.y), velocity);
 			}
 		}
@@ -61,7 +61,7 @@ void KeyboardLayoutPiano::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 	KeyboardStatePiano& state = getState().piano;
 	int32_t newNoteOffset = state.noteOffset + offset;
 	// allow to shift horizontally only for 8 semi (1 oct), for more - use a vertical scroll
-	if (newNoteOffset >= 0 && newNoteOffset <= highestNoteOffset ) {
+	if (newNoteOffset >= 0 && newNoteOffset <= highestNoteOffset) {
 		state.noteOffset += offset;
 	}
 }
@@ -69,8 +69,8 @@ void KeyboardLayoutPiano::handleHorizontalEncoder(int32_t offset, bool shiftEnab
 // Fill up noteColours array with colours
 void KeyboardLayoutPiano::precalculate() {
 	KeyboardStatePiano& state = getState().piano;
-	for (int32_t i = 0; i <= totalPianoOctaves ; ++i) {
-		noteColours[i] = getNoteColour((state.scrollOffset + i)*colourOffset);
+	for (int32_t i = 0; i <= totalPianoOctaves; ++i) {
+		noteColours[i] = getNoteColour((state.scrollOffset + i) * colourOffset);
 	}
 }
 
@@ -92,19 +92,19 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 	// Iterate over grid image
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			auto noteInterval=intervalFromCoords(x, y);
-			if (noteInterval != 0 ) {
+			auto noteInterval = intervalFromCoords(x, y);
+			if (noteInterval != 0) {
 				auto note = noteFromCoords(x, y);
 				int32_t noteWithinOctave = (uint16_t)((note + kOctaveSize) - getRootNote()) % kOctaveSize;
-				RGB colourSource = noteColours[y/2];
+				RGB colourSource = noteColours[y / 2];
 				// Active Root Note: Full brightness and colour
 				if (noteWithinOctave == 0 && octaveActiveNotes[noteWithinOctave]) {
 					image[y][x] = colourSource.adjust(255, 1);
 				}
 				// Highlight incomming notes
 				else if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::HighlightIncomingNotes)
-						== RuntimeFeatureStateToggle::On
-						&& getHighlightedNotes()[note] != 0) {
+				             == RuntimeFeatureStateToggle::On
+				         && getHighlightedNotes()[note] != 0) {
 					image[y][x] = colourSource.adjust(getHighlightedNotes()[note], 1);
 				}
 				// Inactive Root Note: Full colour but less brightness
@@ -116,15 +116,16 @@ void KeyboardLayoutPiano::renderPads(RGB image[][kDisplayWidth + kSideBarWidth])
 					image[y][x] = colourSource.adjust(127, 1);
 				}
 				// Other notes in a scale (or all notes if no scale): Toned down a little and low brighness
-				else if (octaveScaleNotes.has(noteWithinOctave) || ! getScaleModeEnabled()) {
+				else if (octaveScaleNotes.has(noteWithinOctave) || !getScaleModeEnabled()) {
 					image[y][x] = colourSource.adjust(186, 3);
 				}
 				// Non-scale notes: Dark tone, low brightness
 				else {
 					image[y][x] = colourSource.adjust(64, 3);
 				}
-			// No note at all on this pad
-			} else {
+				// No note at all on this pad
+			}
+			else {
 				image[y][x] = colours::black;
 			}
 		}
