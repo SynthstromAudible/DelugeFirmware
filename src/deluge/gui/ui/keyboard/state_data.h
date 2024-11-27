@@ -41,6 +41,13 @@ struct KeyboardStateInKey {
 	int32_t rowInterval = kDefaultInKeyRowInterval;
 };
 
+struct KeyboardStatePiano {
+	// default octave = 1 (0 = -2oct), use a vertical scroll to change it
+	int32_t scrollOffset = 3;
+	// default note=0 (C)
+	int32_t noteOffset = 0;
+};
+
 struct KeyboardStateChordLibrary {
 	int32_t rowInterval = kOctaveSize;
 	int32_t scrollOffset = 0;
@@ -63,6 +70,7 @@ struct KeyboardState {
 	KeyboardStateIsomorphic isomorphic;
 	KeyboardStateDrums drums;
 	KeyboardStateInKey inKey;
+	KeyboardStatePiano piano;
 	KeyboardStateChord chord;
 	KeyboardStateChordLibrary chordLibrary;
 
