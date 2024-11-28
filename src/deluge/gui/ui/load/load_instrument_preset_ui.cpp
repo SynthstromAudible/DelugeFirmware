@@ -315,6 +315,19 @@ static Error getRawFilePath(String* path, FileItem *item) {
 return  path->concatenate(&item->filename);
 }
 
+SoundInstrument *LoadInstrumentPresetUI::prepareForDX7(FileItem *currentFileItem) {
+	ParamManagerForTimeline newParamManager;
+	SoundInstrument* newInstrument = (SoundInstrument *)StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
+	newInstrument->dirPath.set(&currentDir);
+	newInstrument->syxPath.set(&currentFileItem->filename);
+	newInstrument->setupAsBlankSynth(&newParamManager, true);
+	// TODO: oldInstrumentShouldBeReplaced ??????
+	//  This is how we feed a ParamManager into the replaceInstrument() function
+	currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
+									&newParamManager, true);
+	return newInstrument;
+}
+
 void LoadInstrumentPresetUI::enterKeyPress() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
@@ -344,15 +357,7 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 		}
 
 		// TODO: not if we currently is at a freshly loaded DX7 instrument, in case we can just modify it in place
-		ParamManagerForTimeline newParamManager;
-		SoundInstrument* newInstrument = (SoundInstrument *)StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
-		newInstrument->dirPath.set(&currentDir);
-		newInstrument->syxPath.set(&currentFileItem->filename);
-		newInstrument->setupAsBlankSynth(&newParamManager, true);
-		// TODO: oldInstrumentShouldBeReplaced ??????
-		//  This is how we feed a ParamManager into the replaceInstrument() function
-		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
-		                                &newParamManager, true);
+		SoundInstrument *newInstrument = prepareForDX7(currentFileItem);
 		currentSong->replaceInstrument(instrumentToReplace, newInstrument);
 		currentInstrument = newInstrument;
 		instrumentToReplace = newInstrument;
@@ -921,9 +926,17 @@ Error LoadInstrumentPresetUI::performLoad(bool doClone) {
 		return Error::NONE; // Happens if navigate over a folder's name (Instrument stays the same),
 	}
 
+	bool is_single_syx = false;
 	if (isSYXFile(currentFileItem)) {
-		// TODO: if this is a single-patch .syx file, treat it as a synth patch already
-		return Error::NONE;
+		String path;
+		getRawFilePath(&path, currentFileItem);
+		loadDxCartridgeUI.tryLoad(path.get());
+
+		if (loadDxCartridgeUI.pd->isCartridge()) {
+			return Error::NONE;
+		} else {
+			is_single_syx = true;
+		}
 	}
 
 	// then back onto that neighbouring Instrument - you'd incorrectly get a "USED" error without this line.
@@ -990,9 +1003,16 @@ giveUsedError:
 		// Browser::checkFP();
 
 		// synth or kit
-		error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
-		                                               &newInstrument, &currentFileItem->filePointer, &enteredText,
-		                                               &currentDir);
+		if (is_single_syx) {
+			SoundInstrument *dxInstrument = prepareForDX7(currentFileItem);
+			newInstrument = dxInstrument;
+			loadDxCartridgeUI.pd->unpackProgram(dxInstrument->sources[0].dxPatch->params, 0);
+			currentFileItem->instrument = newInstrument;
+		} else {
+			error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
+														   &newInstrument, &currentFileItem->filePointer, &enteredText,
+														   &currentDir);
+		}
 
 		if (error != Error::NONE) {
 			return error;
@@ -1486,7 +1506,7 @@ readAgain:
 	int32_t newCatalogSearchDirection = (offset >= 0) ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
 readAgainWithSameOffset:
 	toReturn.error =
-	    readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, oldNameString.get(),
+	    readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXMLandSYX, oldNameString.get(),
 	                           FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, newCatalogSearchDirection);
 
 	if (toReturn.error != Error::NONE) {

@@ -37,6 +37,7 @@
 #include "util/functions.h"
 #include <cstring>
 #include <new>
+#include <strings.h>
 
 using namespace deluge;
 
@@ -397,6 +398,12 @@ nonNumericFile:
 	return error;
 }
 
+// TODO: dubplicate for testing...
+static bool isSYXFile(FileItem *item) {
+	size_t len = item->filename.getLength();
+	return(len >= 4 && strcasecmp(item->filename.get()+(len-4), ".syx") == 0);
+}
+
 void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement) {
 	int32_t writeI = 0;
 	FileItem* nextItem = (FileItem*)fileItems.getElementAddress(0);
@@ -447,10 +454,14 @@ deleteThisItem:
 						}
 					}
 				}
-			}
-
+			} else if (isSYXFile(nextItem)) {
+				// This is a bit of a hack, but loading every single syx file and checking the signature
+				// is going to be quite expensive.
+				//if (nextItem->filePointer.objsize >= 4096) {
+					goto deleteThisItem;
+				//}
 			// Or if next item has an Instrument, and we're just a file...
-			else if (nextItem->instrument) {
+			} else if (nextItem->instrument) {
 				if (!strcasecmp(readItem->displayName, nextItem->displayName)) { // And if same name...
 					goto deleteThisItem;
 				}
