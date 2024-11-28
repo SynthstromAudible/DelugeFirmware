@@ -1095,6 +1095,15 @@ to each individual note onset. ([#1978])
 
 - As the UI and implementation is still experimental, a community setting has to be activated to access the `CHORD LIBRARY` keyboard. See the [Community Features Menu](#5-community-features-menu-aka-runtime-settings) for more information.
 
+#### 4.4.1.8 - Display Piano Keyboard Layout
+
+- ([#2983]) Provides a classic piano keyboard layout for Deluge.
+- One screen displays 5 octaves with different colors. But you can scroll this keyboard vertically to increase octaves to the highest or decrease to the lowest. You can also shift the keyboard to start on a different note than C. This is done by using the horizontal scroll.
+- If the Scale mode is enabled, all the notes in this scale will be displayed brighter than the notes outside the scale. Of course, you can change the scale, and the keys will change accordingly. The same thing with the root note (the brightest one).
+- The same notes you play are highlighted in other octaves as well.
+- This keyboard highlights incoming MIDI notes.
+- You can set this keyboard by default in `MENU -> DEFAULTS -> UI -> KEYBOARD -> LAYOUT -> PIAN`
+
 #### 4.4.2 - Scales
 
 - ([#991]) Added new scales for instrument clips.
@@ -1635,6 +1644,8 @@ different firmware
 [#2823]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2823
 
 [#2978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2978
+
+[#2983]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2983
 
 [#2985]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2985
 

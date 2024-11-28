@@ -1007,6 +1007,7 @@ constexpr int8_t kNumThresholdRecordingModes = kLastThresholdRecordingMode + 1;
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
 	KeyboardLayoutTypeInKey,
+	KeyboardLayoutTypePiano,
 	KeyboardLayoutTypeChord,
 	KeyboardLayoutTypeChordLibrary,
 	KeyboardLayoutTypeDrums,
