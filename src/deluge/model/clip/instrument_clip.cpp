@@ -58,7 +58,7 @@ namespace params = deluge::modulation::params;
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
 InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRows() {
 	arpeggiatorRate = 0;
-	arpeggiatorNoteProbability = 0;
+	arpeggiatorNoteProbability = 4294967295u; // Default to 50 if not set in XML
 	arpeggiatorRatchetProbability = 0;
 	arpeggiatorRatchetAmount = 0;
 	arpeggiatorSequenceLength = 0;
