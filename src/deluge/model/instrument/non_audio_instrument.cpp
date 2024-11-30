@@ -41,6 +41,10 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 			uint32_t ratchetAmount = (uint32_t)activeInstrumentClip->arpeggiatorRatchetAmount;
 			uint32_t sequenceLength = (uint32_t)activeInstrumentClip->arpeggiatorSequenceLength;
 			uint32_t rhythm = (uint32_t)activeInstrumentClip->arpeggiatorRhythm;
+			uint32_t spreadVelocity = (uint32_t)activeInstrumentClip->arpeggiatorSpreadVelocity;
+			uint32_t spreadGate = (uint32_t)activeInstrumentClip->arpeggiatorSpreadGate;
+			uint32_t spreadNote = (uint32_t)activeInstrumentClip->arpeggiatorSpreadNote;
+			uint32_t spreadOctave = (uint32_t)activeInstrumentClip->arpeggiatorSpreadOctave;
 
 			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
 			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
@@ -50,7 +54,7 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 
 			arpeggiator.render(&activeInstrumentClip->arpSettings, numSamples, gateThreshold, phaseIncrement,
 			                   sequenceLength, rhythm, noteProbability, ratchetAmount, ratchetProbability,
-			                   &instruction);
+			                   spreadVelocity, spreadGate, spreadNote, spreadOctave, &instruction);
 
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 				noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
@@ -203,7 +207,12 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 		uint32_t noteProbability = (uint32_t)activeInstrumentClip->arpeggiatorNoteProbability;
 		uint32_t ratchetAmount = (uint32_t)activeInstrumentClip->arpeggiatorRatchetAmount;
 		uint32_t ratchetProbability = (uint32_t)activeInstrumentClip->arpeggiatorRatchetProbability;
-		arpeggiator.updateParams(sequenceLength, rhythm, noteProbability, ratchetAmount, ratchetProbability);
+		uint32_t spreadVelocity = (uint32_t)activeInstrumentClip->arpeggiatorSpreadVelocity;
+		uint32_t spreadGate = (uint32_t)activeInstrumentClip->arpeggiatorSpreadGate;
+		uint32_t spreadNote = (uint32_t)activeInstrumentClip->arpeggiatorSpreadNote;
+		uint32_t spreadOctave = (uint32_t)activeInstrumentClip->arpeggiatorSpreadOctave;
+		arpeggiator.updateParams(sequenceLength, rhythm, noteProbability, ratchetAmount, ratchetProbability,
+		                         spreadVelocity, spreadGate, spreadNote, spreadOctave);
 	}
 
 	ArpReturnInstruction instruction;

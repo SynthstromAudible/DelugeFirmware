@@ -169,6 +169,10 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_VELOCITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_NOTE].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 
@@ -753,6 +757,34 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
 		reader.exitTag("rhythm");
+	}
+
+	else if (!strcmp(tagName, "spreadVelocity")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_VELOCITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadVelocity");
+	}
+
+	else if (!strcmp(tagName, "spreadGate")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadGate");
+	}
+
+	else if (!strcmp(tagName, "spreadNote")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_NOTE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadNote");
+	}
+
+	else if (!strcmp(tagName, "spreadOctave")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadOctave");
 	}
 
 	else if (!strcmp(tagName,
@@ -2265,11 +2297,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
 		uint32_t noteProbability =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
+		uint32_t spreadVelocity =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_VELOCITY) + 2147483648;
+		uint32_t spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
+		uint32_t spreadNote = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_NOTE) + 2147483648;
+		uint32_t spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
 
 		ArpReturnInstruction instruction;
 
 		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm,
-		                 noteProbability, ratchetAmount, ratchetProbability, &instruction);
+		                 noteProbability, ratchetAmount, ratchetProbability, spreadVelocity, spreadGate, spreadNote,
+		                 spreadOctave, &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
@@ -3687,6 +3725,26 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
 		reader.exitTag("rhythm");
 	}
+	else if (!strcmp(tagName, "spreadVelocity")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_VELOCITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadVelocity");
+	}
+	else if (!strcmp(tagName, "spreadGate")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadGate");
+	}
+	else if (!strcmp(tagName, "spreadNote")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_NOTE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadNote");
+	}
+	else if (!strcmp(tagName, "spreadOctave")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadOctave");
+	}
 	else if (!strcmp(tagName, "portamento")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
 		reader.exitTag("portamento");
@@ -3987,6 +4045,12 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute(writer, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadVelocity", params::UNPATCHED_ARP_SPREAD_VELOCITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadGate", params::UNPATCHED_ARP_SPREAD_GATE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadNote", params::UNPATCHED_ARP_SPREAD_NOTE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE,
+	                                       writeAutomation);
 
 	writer.writeOpeningTagEnd();
 

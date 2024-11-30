@@ -64,6 +64,10 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 	arpeggiatorSequenceLength = 0;
 	arpeggiatorRhythm = 0;
 	arpeggiatorGate = 0;
+	arpeggiatorSpreadVelocity = 0;
+	arpeggiatorSpreadGate = 0;
+	arpeggiatorSpreadNote = 0;
+	arpeggiatorSpreadOctave = 0;
 
 	midiBank = 128; // Means none
 	midiSub = 128;  // Means none
@@ -156,6 +160,10 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	arpeggiatorSequenceLength = otherInstrumentClip->arpeggiatorSequenceLength;
 	arpeggiatorRhythm = otherInstrumentClip->arpeggiatorRhythm;
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
+	arpeggiatorSpreadVelocity = otherInstrumentClip->arpeggiatorSpreadVelocity;
+	arpeggiatorSpreadGate = otherInstrumentClip->arpeggiatorSpreadGate;
+	arpeggiatorSpreadNote = otherInstrumentClip->arpeggiatorSpreadNote;
+	arpeggiatorSpreadOctave = otherInstrumentClip->arpeggiatorSpreadOctave;
 }
 
 // Will replace the Clip in the modelStack, if success.
@@ -2396,6 +2404,10 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			writer.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
 			writer.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
 			writer.writeAttribute("rhythm", arpeggiatorRhythm);
+			writer.writeAttribute("spreadVelocity", arpeggiatorSpreadVelocity);
+			writer.writeAttribute("spreadGate", arpeggiatorSpreadGate);
+			writer.writeAttribute("spreadNote", arpeggiatorSpreadNote);
+			writer.writeAttribute("spreadOctave", arpeggiatorSpreadOctave);
 		}
 
 		// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
@@ -2697,6 +2709,22 @@ someError:
 				else if (!strcmp(tagName, "rhythm")) {
 					arpeggiatorRhythm = reader.readTagOrAttributeValueInt();
 					reader.exitTag("rhythm");
+				}
+				else if (!strcmp(tagName, "spreadVelocity")) {
+					arpeggiatorSpreadVelocity = reader.readTagOrAttributeValueInt();
+					reader.exitTag("spreadVelocity");
+				}
+				else if (!strcmp(tagName, "spreadGate")) {
+					arpeggiatorSpreadGate = reader.readTagOrAttributeValueInt();
+					reader.exitTag("spreadGate");
+				}
+				else if (!strcmp(tagName, "spreadNote")) {
+					arpeggiatorSpreadNote = reader.readTagOrAttributeValueInt();
+					reader.exitTag("spreadNote");
+				}
+				else if (!strcmp(tagName, "spreadOctave")) {
+					arpeggiatorSpreadOctave = reader.readTagOrAttributeValueInt();
+					reader.exitTag("spreadOctave");
 				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = reader.readTagOrAttributeValueInt();
