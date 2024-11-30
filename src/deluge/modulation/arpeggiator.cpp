@@ -786,13 +786,13 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 }
 
 void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb,
-                                   uint32_t ratchAmount, uint32_t ratchProb, uint32_t spVelocity,
-                                   uint32_t spGate, uint32_t spNote, uint32_t spOctave) {
+                                   uint32_t ratchAmount, uint32_t ratchProb, uint32_t spVelocity, uint32_t spGate,
+                                   uint32_t spNote, uint32_t spOctave) {
 	// Update live Sequence Length value with the most up to date value from automation
-	maxSequenceLength = computeCurrentValueForArpMidiCvRatchetsOrRhythm(sequenceLength);
+	maxSequenceLength = computeCurrentValueForUnsignedMenuItem(sequenceLength);
 
 	// Update live Sequence Length value with the most up to date value from automation
-	rhythm = computeCurrentValueForArpMidiCvRatchetsOrRhythm(rhythmValue);
+	rhythm = computeCurrentValueForUnsignedMenuItem(rhythmValue);
 
 	// Update live noteProbability value with the most up to date value from automation
 	noteProbability = noteProb >> 16; // just 16 bits is enough resolution for probability

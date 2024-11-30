@@ -26,12 +26,10 @@ class SequenceLength final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(
-		    computeCurrentValueForArpMidiCvRatchetsOrRhythm(getCurrentInstrumentClip()->arpeggiatorSequenceLength));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorSequenceLength));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorSequenceLength =
-		    computeFinalValueForArpMidiCvRatchetsOrRhythm(this->getValue());
+		getCurrentInstrumentClip()->arpeggiatorSequenceLength = computeFinalValueForUnsignedMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

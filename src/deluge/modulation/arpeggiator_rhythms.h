@@ -20,7 +20,7 @@ typedef struct {
 // - changing the max menu value means this table is now to wrong size,
 //   which the compiler will happily notice (good)
 // - adding arp patterns so that table grows larger than kMaxMenuValue
-//   will require changing value scaling done by computeCurrentValueForArpMidiCvRatchetsOrRhythm
+//   will require changing value scaling done by computeCurrentValueForUnsignedMenuItem
 // - changing value scaling will re-scaling values from old song file
 //
 // There's a test that will break if you don't read this comment and

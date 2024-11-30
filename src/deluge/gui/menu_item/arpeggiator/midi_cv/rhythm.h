@@ -30,10 +30,10 @@ class Rhythm final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForArpMidiCvRatchetsOrRhythm(getCurrentInstrumentClip()->arpeggiatorRhythm));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorRhythm));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRhythm = computeFinalValueForArpMidiCvRatchetsOrRhythm(this->getValue());
+		getCurrentInstrumentClip()->arpeggiatorRhythm = computeFinalValueForUnsignedMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxPresetArpRhythm; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
