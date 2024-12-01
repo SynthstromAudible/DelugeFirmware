@@ -460,9 +460,9 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
 /// called from playback handler
 /// determines whether a midi cc received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t ccValue,
+void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t ccValue,
                                 bool* doingMidiThru, ModelStack* modelStack) {
-	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
+	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context (for params that's only for the active mod controllable stack)
 		Clip* clip = getSelectedOrActiveClip();
@@ -510,12 +510,12 @@ void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNum
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
 					Kit* kit = (Kit*)clip->output;
-					kit->receivedCCForKit(modelStackWithTimelineCounter, cable, match, channel, ccNumber, ccValue,
+					kit->receivedCCForKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, ccValue,
 					                      doingMidiThru, clip);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
-					melodicInstrument->receivedCC(modelStackWithTimelineCounter, cable, match, channel, ccNumber,
+					melodicInstrument->receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber,
 					                              ccValue, doingMidiThru);
 				}
 			}
