@@ -2393,6 +2393,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("mode", (char*)arpModeToString(arpSettings.mode));
 		writer.writeAttribute("syncLevel", arpSettings.syncLevel);
 		writer.writeAttribute("numOctaves", arpSettings.numOctaves);
+		writer.writeAttribute("spreadLock", arpSettings.spreadLock);
 
 		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 			writer.writeAttribute("gate", arpeggiatorGate);
@@ -2729,6 +2730,10 @@ someError:
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = reader.readTagOrAttributeValueInt();
 					reader.exitTag("numOctaves");
+				}
+				else if (!strcmp(tagName, "spreadLock")) {
+					arpSettings.spreadLock = reader.readTagOrAttributeValueInt();
+					reader.exitTag("spreadLock");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
 					arpSettings.syncLevel = (SyncLevel)reader.readTagOrAttributeValueInt();

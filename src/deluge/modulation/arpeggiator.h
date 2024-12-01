@@ -38,6 +38,7 @@ public:
 		octaveMode = other->octaveMode;
 		noteMode = other->noteMode;
 		numOctaves = other->numOctaves;
+		spreadLock = other->spreadLock;
 		syncType = other->syncType;
 		syncLevel = other->syncLevel;
 		mpeVelocity = other->mpeVelocity;
@@ -113,6 +114,9 @@ public:
 	// Sync settings
 	SyncLevel syncLevel;
 	SyncType syncType;
+
+	// Arp spread lock
+	bool spreadLock{false};
 
 	// MPE settings
 	ArpMpeModSource mpeVelocity{ArpMpeModSource::OFF};
@@ -202,6 +206,18 @@ public:
 	uint32_t spreadGate = 0;
 	uint32_t spreadNote = 0;
 	uint32_t spreadOctave = 0;
+
+	// Spread last lock
+	uint32_t lastLockedSpreadVelocityParameterValue = 0;
+	uint32_t lastLockedSpreadGateParameterValue = 0;
+	uint32_t lastLockedSpreadNoteParameterValue = 0;
+	uint32_t lastLockedSpreadOctaveParameterValue = 0;
+
+	// Up to 16 pre-calculated spread values for each parameter
+	uint32_t lockedSpreadVelocityValues[16] = {};
+	uint32_t lockedSpreadGateValues[16] = {};
+	uint32_t lockedSpreadNoteValues[16] = {};
+	uint32_t lockedSpreadOctaveValues[16] = {};
 
 protected:
 	void resetRatchet();

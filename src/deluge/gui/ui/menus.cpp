@@ -19,6 +19,7 @@
 #include "gui/menu_item/arpeggiator/preset_mode.h"
 #include "gui/menu_item/arpeggiator/rate.h"
 #include "gui/menu_item/arpeggiator/rhythm.h"
+#include "gui/menu_item/arpeggiator/spread_lock.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
@@ -246,6 +247,7 @@ arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMB
 arpeggiator::OnlyForSoundUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
                                                                   STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
                                                                   params::UNPATCHED_ARP_RATCHET_PROBABILITY};
+arpeggiator::SpreadLock arpSpreadLockMenu{STRING_FOR_SPREAD_LOCK, STRING_FOR_ARP_SPREAD_LOCK_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpSpreadVelocityMenu{
     STRING_FOR_SPREAD_VELOCITY, STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_VELOCITY};
 arpeggiator::OnlyForSoundUnpatchedParam arpSpreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
@@ -271,8 +273,9 @@ Submenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
 
 Submenu arpSpreadMenu{
     STRING_FOR_SPREAD,
-    {&arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV, &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV,
-     &arpSpreadNoteMenu, &arpSpreadNoteMenuMIDIOrCV, &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV},
+    {&arpSpreadLockMenu, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV, &arpSpreadGateMenu,
+     &arpSpreadGateMenuMIDIOrCV, &arpSpreadNoteMenu, &arpSpreadNoteMenuMIDIOrCV, &arpSpreadOctaveMenu,
+     &arpSpreadOctaveMenuMIDIOrCV},
 };
 
 submenu::Arpeggiator arpMenu{

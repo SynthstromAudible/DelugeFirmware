@@ -637,6 +637,12 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("numOctaves");
 			}
+			else if (!strcmp(tagName, "spreadLock")) {
+				if (arpSettings) {
+					arpSettings->spreadLock = reader.readTagOrAttributeValueInt();
+				}
+				reader.exitTag("spreadLock");
+			}
 			else if (!strcmp(tagName, "syncType")) {
 				if (arpSettings) {
 					arpSettings->syncType = (SyncType)reader.readTagOrAttributeValueInt();
@@ -4152,6 +4158,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeOpeningTagBeginning("arpeggiator");
 		writer.writeAttribute("mode", arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
 		writer.writeAttribute("numOctaves", arpSettings->numOctaves);
+		writer.writeAttribute("spreadLock", arpSettings->spreadLock);
 		writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel, true);
 		writer.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType, true);
 		writer.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
