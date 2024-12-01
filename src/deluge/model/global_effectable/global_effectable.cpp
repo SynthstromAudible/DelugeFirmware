@@ -1155,7 +1155,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 		disableGrain();
 	}
 	else if (modFXTypeNow == ModFXType::GRAIN) {
-		if (anySoundComingIn) {
+		if (anySoundComingIn && !grainFX) {
 			enableGrain();
 		}
 	}
