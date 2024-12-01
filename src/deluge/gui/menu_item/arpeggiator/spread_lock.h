@@ -15,8 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "definitions_cxx.hpp"
-#include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
@@ -26,7 +24,7 @@ namespace deluge::gui::menu_item::arpeggiator {
 class SpreadLock final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->mode); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->spreadLock); }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue();
 
