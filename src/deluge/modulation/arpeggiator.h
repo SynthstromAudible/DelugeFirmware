@@ -202,6 +202,10 @@ public:
 	uint32_t notesPlayedFromRhythm = 0;
 	uint32_t lastNormalNotePlayedFromRhythm = 0;
 
+	// Locked spread state
+	uint32_t notesPlayedFromLockedSpread = 0;
+	uint32_t lastNormalNotePlayedFromLockedSpread = 0;
+
 	// Note probability state
 	bool lastNormalNotePlayedFromNoteProbability = true;
 
@@ -225,8 +229,9 @@ public:
 protected:
 	void resetRatchet();
 	void resetRhythm();
+	void resetLockedSpread();
 	void carryOnOctaveSequence(ArpeggiatorSettings* settings);
-	void increaseSequenceAndRhythmIndexes();
+	void increaseIndexes(bool hasPlayedRhythmNote);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	bool evaluateRhythm(bool isRatchet);
 	bool evaluateNoteProbability(bool isRatchet);

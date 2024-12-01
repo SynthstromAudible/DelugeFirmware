@@ -73,6 +73,11 @@ void ArpeggiatorBase::resetRhythm() {
 	lastNormalNotePlayedFromRhythm = 0;
 }
 
+void ArpeggiatorBase::resetLockedSpread() {
+	notesPlayedFromLockedSpread = 0;
+	lastNormalNotePlayedFromLockedSpread = 0;
+}
+
 void Arpeggiator::reset() {
 	notes.empty();
 	notesAsPlayed.empty();
@@ -318,6 +323,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 		// so we can reset the ratchet temp values and the rhythm temp values
 		resetRatchet();
 		resetRhythm();
+		resetLockedSpread();
 		playedFirstArpeggiatedNoteYet = false;
 	}
 }
@@ -420,13 +426,22 @@ void ArpeggiatorBase::carryOnOctaveSequence(ArpeggiatorSettings* settings) {
 	}
 }
 
-// Increase sequence and rhythm indexes
-void ArpeggiatorBase::increaseSequenceAndRhythmIndexes() {
+// Increase random, sequence, rhythm and spread indexes
+void ArpeggiatorBase::increaseIndexes(bool hasPlayedRhythmNote) {
+	// Randome Notes
+	randomNotesPlayedFromOctave++;
+	// Sequence Length
 	if (maxSequenceLength > 0) {
 		notesPlayedFromSequence++;
 	}
+	// Rhythm
 	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[rhythm].length;
-	randomNotesPlayedFromOctave++;
+	// Locked Spread
+	if (hasPlayedRhythmNote) {
+		// Only increase notesPlayedFromLockedSpread if we've played a rhythm note,
+		// so we effectively have more slots available and not waste them with silent notes
+		notesPlayedFromLockedSpread = (notesPlayedFromLockedSpread + 1) % SPREAD_LOCK_MAX_SAVED_VALUES;
+	}
 }
 
 void ArpeggiatorForDrum::calculateNextOctave(ArpeggiatorSettings* settings) {
@@ -479,6 +494,8 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		notesPlayedFromSequence = 0;
 		notesPlayedFromRhythm = 0;
 		lastNormalNotePlayedFromRhythm = 0;
+		notesPlayedFromLockedSpread = 0;
+		lastNormalNotePlayedFromLockedSpread = 0;
 	}
 
 	bool shouldCarryOnRhythmNote = evaluateRhythm(isRatchet);
@@ -504,12 +521,15 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			// Save last note played from rhythm
 			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
 
+			// Save last note played from locked spread
+			lastNormalNotePlayedFromLockedSpread = notesPlayedFromLockedSpread;
+
 			// Save last note played from probability
 			lastNormalNotePlayedFromNoteProbability = shouldPlayNote;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
-		increaseSequenceAndRhythmIndexes();
+		increaseIndexes(shouldCarryOnRhythmNote);
 	}
 
 	if (shouldCarryOnRhythmNote && shouldPlayNote) {
@@ -698,6 +718,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		notesPlayedFromSequence = 0;
 		notesPlayedFromRhythm = 0;
 		lastNormalNotePlayedFromRhythm = 0;
+		notesPlayedFromLockedSpread = 0;
+		lastNormalNotePlayedFromLockedSpread = 0;
 		randomNotesPlayedFromOctave = 0;
 		whichNoteCurrentlyOnPostArp = 0;
 	}
@@ -725,12 +747,15 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			// Save last note played from rhythm
 			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
 
+			// Save last note played from locked spread
+			lastNormalNotePlayedFromLockedSpread = notesPlayedFromLockedSpread;
+
 			// Save last note played from probability
 			lastNormalNotePlayedFromNoteProbability = shouldPlayNote;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
-		increaseSequenceAndRhythmIndexes();
+		increaseIndexes(shouldCarryOnRhythmNote);
 	}
 
 	// Clamp the index to real range
