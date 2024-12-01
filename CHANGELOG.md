@@ -171,6 +171,14 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 #### <ins>Loopback</ins>
 - Removed `MIDI LOOPBACK` feature as it included a number of bugs that could not be easily fixed in the feature's current state. This feature may be re-designed and re-introduced in the future when an implementation can be found that does not introduce bugs.
 
+#### <ins>Takeover</ins>
+- Fixed a couple bugs with the `MIDI TAKEOVER` modes `PICKUP` and `SCALE` which did not work properly when recording automation and when editing automated parameters.
+
+#### <ins>Follow</ins>
+- Fixed a couple bugs with `MIDI FOLLOW`:
+  - You can now edit parameters while step editing (e.g. holding a note)
+  - If you enable `MIDI Follow Feedback Automation` the Deluge will now send feedback when step editing
+
 ### User Interface
 
 #### <ins>General</ins>
