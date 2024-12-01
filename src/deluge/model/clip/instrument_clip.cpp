@@ -2404,7 +2404,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.write("\"0x");
 		intToHex(arpSettings.lastLockedSpreadVelocityParameterValue, buffer);
 		writer.write(buffer);
-		for (int i = 0; i < 16; i++) {
+		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 			intToHex(arpSettings.lockedSpreadVelocityValues[i], buffer, 2);
 			writer.write(buffer);
 		}
@@ -2417,7 +2417,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.write("\"0x");
 		intToHex(arpSettings.lastLockedSpreadGateParameterValue, buffer);
 		writer.write(buffer);
-		for (int i = 0; i < 16; i++) {
+		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 			intToHex(arpSettings.lockedSpreadGateValues[i], buffer, 2);
 			writer.write(buffer);
 		}
@@ -2430,7 +2430,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.write("\"0x");
 		intToHex(arpSettings.lastLockedSpreadNoteParameterValue, buffer);
 		writer.write(buffer);
-		for (int i = 0; i < 16; i++) {
+		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 			intToHex(arpSettings.lockedSpreadNoteValues[i], buffer, 2);
 			writer.write(buffer);
 		}
@@ -2443,7 +2443,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.write("\"0x");
 		intToHex(arpSettings.lastLockedSpreadOctaveParameterValue, buffer);
 		writer.write(buffer);
-		for (int i = 0; i < 16; i++) {
+		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 			intToHex(arpSettings.lockedSpreadOctaveValues[i], buffer, 2);
 			writer.write(buffer);
 		}
@@ -2793,10 +2793,10 @@ someError:
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(40);
+							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings.lastLockedSpreadVelocityParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < 16; i++) {
+								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings.lockedSpreadVelocityValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
@@ -2808,10 +2808,10 @@ someError:
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(40);
+							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings.lastLockedSpreadGateParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < 16; i++) {
+								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings.lockedSpreadGateValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
@@ -2823,10 +2823,10 @@ someError:
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(40);
+							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings.lastLockedSpreadNoteParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < 16; i++) {
+								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings.lockedSpreadNoteValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
@@ -2838,10 +2838,10 @@ someError:
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(40);
+							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings.lastLockedSpreadOctaveParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < 16; i++) {
+								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings.lockedSpreadOctaveValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
