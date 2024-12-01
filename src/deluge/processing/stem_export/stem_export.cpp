@@ -897,8 +897,8 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 
 /// based on Stem Export Type, will set a WAV file name in the format of:
 /// /OutputType_StemExportType_OutputName_IndexNumber.WAV
-/// example: /SYNTH_CLIP_BASS SYNTH_00000.WAV
-/// example: /SYNTH_TRACK_BASS SYNTH_00000.WAV
+/// example: /SYNTH_CLIP_BASS SYNTH_TEMPO_ROOT NOTE AND SCALE_00000.WAV
+/// example: /SYNTH_TRACK_BASS SYNTH_TEMPO_ROOT NOTE AND SCALE_00000.WAV
 /// this wavFileName is then concatenate to the filePath name to export the WAV file
 void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber) {
 	// wavFileNameForStemExport = "/"
@@ -908,68 +908,76 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 	}
 
 	if (stemExportType == StemExportType::MASTER_ARRANGEMENT) {
-		// wavFileNameForStemExport = "/ARRANAGEMENT
-		error = wavFileNameForStemExport.concatenate("ARRANGEMENT");
+		// wavFileNameForStemExport = "/ARRANGEMENT_
+		error = appendStemExportTypeToWavFileNameForStemExport(stemExportType);
+		if (error != Error::NONE) {
+			return;
+		}
+
+		// wavFileNameForStemExport = /ARRANGEMENT_TEMPO###BPM_
+		error = appendTempoToWavFileNameForStemExport();
+		if (error != Error::NONE) {
+			return;
+		}
+
+		// wavFileNameForStemExport = /ARRANGEMENT_TEMPO###BPM_ROOT NOTE_
+		error = appendRootNoteToWavFileNameForStemExport();
+		if (error != Error::NONE) {
+			return;
+		}
+
+		// wavFileNameForStemExport = /ARRANGEMENT_TEMPO###BPM_ROOT NOTE_SCALE NAME
+		error = appendScaleNameToWavFileNameForStemExport();
 		if (error != Error::NONE) {
 			return;
 		}
 	}
 	else {
-		// wavFileNameForStemExport = "/OutputType
-		const char* outputType;
-		switch (output->type) {
-		case OutputType::AUDIO:
-			outputType = "AUDIO";
-			break;
-		case OutputType::SYNTH:
-			outputType = "SYNTH";
-			break;
-		case OutputType::KIT:
-			outputType = "KIT";
-			break;
-		default:
-			break;
-		}
-		error = wavFileNameForStemExport.concatenate(outputType);
+		// wavFileNameForStemExport = "/OutputType_
+		error = appendOutputTypeToWavFileNameForStemExport(output);
 		if (error != Error::NONE) {
 			return;
 		}
 	}
 
 	if (stemExportType != StemExportType::MASTER_ARRANGEMENT) {
-		// wavFileNameForStemExport = "/OutputType_
-		error = wavFileNameForStemExport.concatenate("_");
-		if (error != Error::NONE) {
-			return;
-		}
-
 		// wavFileNameForStemExport = "/OutputType_StemExportType_
-		if (stemExportType == StemExportType::CLIP) {
-			error = wavFileNameForStemExport.concatenate("CLIP_");
-			if (error != Error::NONE) {
-				return;
-			}
-		}
-		else if (stemExportType == StemExportType::TRACK) {
-			error = wavFileNameForStemExport.concatenate("TRACK_");
-			if (error != Error::NONE) {
-				return;
-			}
-		}
-
-		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName
-		error = wavFileNameForStemExport.concatenate(output->name.get());
+		error = appendStemExportTypeToWavFileNameForStemExport(stemExportType);
 		if (error != Error::NONE) {
 			return;
 		}
 
 		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_
+		error = appendOutputNameToWavFileNameForStemExport(output);
+		if (error != Error::NONE) {
+			return;
+		}
+
+		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_Tempo###BPM_
+		error = appendTempoToWavFileNameForStemExport();
+		if (error != Error::NONE) {
+			return;
+		}
+
+		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_Tempo###BPM_ROOT NOTE_
+		error = appendRootNoteToWavFileNameForStemExport();
+		if (error != Error::NONE) {
+			return;
+		}
+
+		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_Tempo###BPM_ROOT NOTE_SCALE NAME
+		error = appendScaleNameToWavFileNameForStemExport();
+		if (error != Error::NONE) {
+			return;
+		}
+
+		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_Tempo###BPM_ROOT NOTE_SCALE NAME_
 		error = wavFileNameForStemExport.concatenate("_");
 		if (error != Error::NONE) {
 			return;
 		}
 
-		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_###
+		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_Tempo###BPM_ROOT NOTE_SCALE NAME_###
 		error = wavFileNameForStemExport.concatenateInt(fileNumber, 3);
 		if (error != Error::NONE) {
 			return;
@@ -984,6 +992,73 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 
 	// set this flag to true so that the wavFileName set above is used when exporting
 	wavFileNameForStemExportSet = true;
+}
+
+Error StemExport::appendOutputTypeToWavFileNameForStemExport(Output* output) {
+	const char* outputType;
+	switch (output->type) {
+	case OutputType::AUDIO:
+		outputType = "AUDIO";
+		break;
+	case OutputType::SYNTH:
+		outputType = "SYNTH";
+		break;
+	case OutputType::KIT:
+		outputType = "KIT";
+		break;
+	default:
+		break;
+	}
+	Error error = wavFileNameForStemExport.concatenate(outputType);
+	if (error == Error::NONE) {
+		return wavFileNameForStemExport.concatenate("_");
+	}
+	return error;
+}
+
+Error StemExport::appendStemExportTypeToWavFileNameForStemExport(StemExportType stemExportType) {
+	if (stemExportType == StemExportType::CLIP) {
+		return wavFileNameForStemExport.concatenate("CLIP_");
+	}
+	else if (stemExportType == StemExportType::TRACK) {
+		return wavFileNameForStemExport.concatenate("TRACK_");
+	}
+	else if (stemExportType == StemExportType::MASTER_ARRANGEMENT) {
+		return wavFileNameForStemExport.concatenate("ARRANGEMENT_");
+	}
+	return Error::NONE;
+}
+
+Error StemExport::appendOutputNameToWavFileNameForStemExport(Output* output) {
+	Error error = wavFileNameForStemExport.concatenate(output->name.get());
+	if (error == Error::NONE) {
+		return wavFileNameForStemExport.concatenate("_");
+	}
+	return error;
+}
+
+Error StemExport::appendTempoToWavFileNameForStemExport() {
+	Error error = wavFileNameForStemExport.concatenateInt(std::round(playbackHandler.calculateBPMForDisplay()));
+	if (error == Error::NONE) {
+		return wavFileNameForStemExport.concatenate("BPM_");
+	}
+	return error;
+}
+
+Error StemExport::appendRootNoteToWavFileNameForStemExport() {
+	char noteName[5];
+	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
+	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
+
+	Error error = wavFileNameForStemExport.concatenate(noteName);
+	if (error == Error::NONE) {
+		return error = wavFileNameForStemExport.concatenate("_");
+	}
+	return error;
+}
+
+Error StemExport::appendScaleNameToWavFileNameForStemExport() {
+	return wavFileNameForStemExport.concatenate(getScaleName(currentSong->getCurrentScale()));
 }
 
 /// used to check if we should exit out of context menu when recording ends

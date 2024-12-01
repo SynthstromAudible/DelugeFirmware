@@ -22,13 +22,13 @@ If the same SONG and EXPORT TYPE is exported more than once, a 2 digit number in
 
 Stem's are given a meaningful name in the following format:
 
-`ClipType_ExportType_PresetName_FileNumber.WAV`
+`ClipType_ExportType_PresetName_Tempo_Root Note_Scale Name_FileNumber.WAV`
 
 > For example:
 > 
-> SYNTH_CLIP_PRESETNAME_000.WAV
-> SYNTH_TRACK_PRESETNAME_000.WAV
-> ARRANGEMENT.WAV
+> SYNTH_CLIP_PRESETNAME_###BPM_Root Note_Scale Name_000.WAV
+> SYNTH_TRACK_PRESETNAME_###BPM_Root Note_Scale Name_000.WAV
+> ARRANGEMENT_###BPM_Root Note_Scale Name.WAV
 
 ## Shortcuts to Start/Stop Stem Exporting
 

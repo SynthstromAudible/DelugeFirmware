@@ -32,6 +32,10 @@
     - Press and hold `RECORD` + turn  `SELECT`
     - Enter the Song menu while in Song or Arranger View by pressing `SELECT` and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
 
+#### <ins>Stem Export</ins>
+- Added ability to export a single arrangement stem of all unmuted tracks in Arranger View. This behaviour is disabled by default and can be enabled in the stem export configuration menu located at `SONG > EXPORT STEMS > CONFIGURE EXPORT > EXPORT MASTER ARRANGEMENT`.
+- Added Tempo, Root Note and Scale Information to the file names of exported stems.
+
 #### <ins>Arranger View</ins>
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
