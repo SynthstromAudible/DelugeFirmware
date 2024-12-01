@@ -369,14 +369,13 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	int32_t navSys;
 	// we might not need this but just always grab it for simplicity
-	if (rootUI) {
-		if (auto* timelineView = rootUI->toTimelineView()) {
-			navSys = timelineView->getNavSysId();
-		}
+	if (rootUI && rootUI->toTimelineView()) {
+		navSys = ((TimelineView*)rootUI)->getNavSysId();
 	}
 	else {
 		navSys = NAVIGATION_CLIP; // Keyboard view will cause this case
 	}
+
 	// playback restart command - restart should always restart, regardless of what else you're doing. playback
 	// restart command follows play button logic
 	if (restartingPlaybackAtBeginning) {
