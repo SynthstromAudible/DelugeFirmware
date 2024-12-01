@@ -460,9 +460,9 @@ void MidiFollow::sendNoteToClip(MIDIDevice* fromDevice, Clip* clip, MIDIMatchTyp
 /// called from playback handler
 /// determines whether a midi cc received is midi follow relevant
 /// and should be routed to the active context for further processing
-void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t ccNumber, uint8_t value,
+void MidiFollow::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t ccValue,
                                 bool* doingMidiThru, ModelStack* modelStack) {
-	MIDIMatchType match = checkMidiFollowMatch(fromDevice, channel);
+	MIDIMatchType match = checkMidiFollowMatch(cable, channel);
 	if (match != MIDIMatchType::NO_MATCH) {
 		// obtain clip for active context (for params that's only for the active mod controllable stack)
 		Clip* clip = getSelectedOrActiveClip();
@@ -496,8 +496,10 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 				if (modelStack) {
 					auto modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
-					// See if it's learned to a parameter
-					handleReceivedCC(*modelStackWithTimelineCounter, clip, ccNumber, value);
+					if (modelStackWithTimelineCounter) {
+						// See if it's learned to a parameter
+						handleReceivedCC(*modelStackWithTimelineCounter, clip, ccNumber, ccValue);
+					}
 				}
 			}
 		}
@@ -508,13 +510,13 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
 					Kit* kit = (Kit*)clip->output;
-					kit->receivedCCForKit(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber, value,
+					kit->receivedCCForKit(modelStackWithTimelineCounter, cable, match, channel, ccNumber, ccValue,
 					                      doingMidiThru, clip);
 				}
 				else {
 					MelodicInstrument* melodicInstrument = (MelodicInstrument*)clip->output;
-					melodicInstrument->receivedCC(modelStackWithTimelineCounter, fromDevice, match, channel, ccNumber,
-					                              value, doingMidiThru);
+					melodicInstrument->receivedCC(modelStackWithTimelineCounter, cable, match, channel, ccNumber,
+					                              ccValue, doingMidiThru);
 				}
 			}
 		}
@@ -526,7 +528,25 @@ void MidiFollow::midiCCReceived(MIDIDevice* fromDevice, uint8_t channel, uint8_t
 /// this function works by first checking the active context to see if there is an active clip
 /// to determine if the cc intends to control a song level or clip level parameter
 void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithTimelineCounter, Clip* clip,
-                                  int32_t ccNumber, int32_t value) {
+                                  int32_t ccNumber, int32_t ccValue) {
+
+	int32_t modPos = 0;
+	int32_t modLength = 0;
+	bool isStepEditing = false;
+
+	if (modelStackWithTimelineCounter.timelineCounterIsSet()) {
+		TimelineCounter* timelineCounter = modelStackWithTimelineCounter.getTimelineCounter();
+
+		// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
+		// region.
+		if (view.modLength && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+			modPos = view.modPos;
+			modLength = view.modLength;
+			isStepEditing = true;
+		}
+
+		timelineCounter->possiblyCloneForArrangementRecording(&modelStackWithTimelineCounter);
+	}
 
 	// loop through the grid to see if any parameters have been learned to the ccNumber received
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
@@ -538,16 +558,25 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 				                           midiEngine.midiFollowDisplayParam);
 				// check if model stack is valid
 				if (modelStackWithParam && modelStackWithParam->autoParam) {
+					int32_t currentValue;
+
 					// get current value
-					int32_t oldValue =
-					    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+					if (isStepEditing) {
+						currentValue =
+						    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+					}
+					else {
+						currentValue = modelStackWithParam->autoParam->getCurrentValue();
+					}
 
 					// convert current value to knobPos to compare to cc value being received
 					int32_t knobPos =
-					    modelStackWithParam->paramCollection->paramValueToKnobPos(oldValue, modelStackWithParam);
+					    modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
 
-					// calculate new knob position based on value received and deluge current value
-					int32_t newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, nullptr, true, ccNumber);
+					// calculate new knob position based on cc value received and deluge current value
+					int32_t newKnobPos =
+					    MidiTakeover::calculateKnobPos(knobPos, ccValue, nullptr, true, ccNumber, isStepEditing);
+
 					// is the cc being received for the same value as the current knob pos? If so, do nothing
 					if (newKnobPos != knobPos) {
 						// Convert the New Knob Position to a Parameter Value
@@ -555,8 +584,8 @@ void MidiFollow::handleReceivedCC(ModelStackWithTimelineCounter& modelStackWithT
 						    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 						// Set the new Parameter Value for the MIDI Learned Parameter
-						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam,
-						                                                          view.modPos, view.modLength);
+						modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
+						                                                          modLength);
 
 						// check if you're currently editing the same learned param in automation view or
 						// performance view if so, you will need to refresh the automation editor grid or the
@@ -618,6 +647,27 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 
 	// check that model stack is valid
 	if (modelStackWithTimelineCounter) {
+		int32_t modPos = 0;
+		bool isStepEditing = false;
+
+		if (modelStackWithTimelineCounter->timelineCounterIsSet()) {
+			TimelineCounter* timelineCounter = modelStackWithTimelineCounter->getTimelineCounter();
+
+			// Only if this exact TimelineCounter is having automation step-edited, we can send the value for just a
+			// region.
+			if (view.modLength
+			    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+
+				// don't send automation feedback if you're step editing
+				if (isAutomation) {
+					return;
+				}
+
+				modPos = view.modPos;
+				isStepEditing = true;
+			}
+		}
+
 		// loop through the grid to see if any parameters have been learned
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
 			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -628,9 +678,15 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 					// check that model stack is valid
 					if (modelStackWithParam && modelStackWithParam->autoParam) {
 						if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
+							int32_t currentValue;
 							// obtain current value of the learned parameter
-							int32_t currentValue =
-							    modelStackWithParam->autoParam->getValuePossiblyAtPos(view.modPos, modelStackWithParam);
+							if (isStepEditing) {
+								currentValue =
+								    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+							}
+							else {
+								currentValue = modelStackWithParam->autoParam->getCurrentValue();
+							}
 
 							// convert current value to a knob position
 							int32_t knobPos = modelStackWithParam->paramCollection->paramValueToKnobPos(
