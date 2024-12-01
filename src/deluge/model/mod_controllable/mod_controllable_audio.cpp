@@ -887,20 +887,24 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 			if (value >= 16 && value < 112) {
 				knob->relative = false;
 			}
-			// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
-			// region.
+
 			int32_t modPos = 0;
 			int32_t modLength = 0;
+			bool isStepEditing = false;
 
 			if (modelStack->timelineCounterIsSet()) {
+				TimelineCounter* timelineCounter = modelStack->getTimelineCounter();
+
+				// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
+				// region.
 				if (view.modLength
-				    && modelStack->getTimelineCounter()
-				           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+				    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 					modPos = view.modPos;
 					modLength = view.modLength;
+					isStepEditing = true;
 				}
 
-				modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+				timelineCounter->possiblyCloneForArrangementRecording(modelStack);
 			}
 
 			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from
@@ -912,14 +916,23 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				int32_t newKnobPos;
+				int32_t currentValue;
 
-				int32_t previousValue =
-				    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+				// get current value
+				if (isStepEditing) {
+					currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+				}
+				else {
+					currentValue = modelStackWithParam->autoParam->getCurrentValue();
+				}
+
+				// convert current value to knobPos to compare to cc value being received
 				int32_t knobPos =
-				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
+				    modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
 
 				// calculate new knob position based on value received and deluge current value
-				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob);
+				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob, false, CC_NUMBER_NONE, isStepEditing);
+
 				// is the cc being received for the same value as the current knob pos? If so, do nothing
 				if (newKnobPos == knobPos) {
 					continue;
@@ -971,23 +984,45 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 			if (value >= 16 && value < 112) {
 				knob->relative = false;
 			}
-			// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
-			// region.
+
 			int32_t modPos = 0;
 			int32_t modLength = 0;
+			bool isStepEditing = false;
+
+			if (modelStackWithThreeMainThings->timelineCounterIsSet()) {
+				TimelineCounter* timelineCounter = modelStackWithThreeMainThings->getTimelineCounter();
+
+				// Only if this exact TimelineCounter is having automation step-edited, we can set the value for just a
+				// region.
+				if (view.modLength
+				    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+					modPos = view.modPos;
+					modLength = view.modLength;
+					isStepEditing = true;
+				}
+			}
 
 			ModelStackWithAutoParam* modelStackWithParam = getParamFromMIDIKnob(knob, modelStackWithThreeMainThings);
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				int32_t newKnobPos;
+				int32_t currentValue;
 
-				int32_t previousValue =
-				    modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+				// get current value
+				if (isStepEditing) {
+					currentValue = modelStackWithParam->autoParam->getValuePossiblyAtPos(modPos, modelStackWithParam);
+				}
+				else {
+					currentValue = modelStackWithParam->autoParam->getCurrentValue();
+				}
+
+				// convert current value to knobPos to compare to cc value being received
 				int32_t knobPos =
-				    modelStackWithParam->paramCollection->paramValueToKnobPos(previousValue, modelStackWithParam);
+				    modelStackWithParam->paramCollection->paramValueToKnobPos(currentValue, modelStackWithParam);
 
 				// calculate new knob position based on value received and deluge current value
-				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob);
+				newKnobPos = MidiTakeover::calculateKnobPos(knobPos, value, knob, false, CC_NUMBER_NONE, isStepEditing);
+
 				// is the cc being received for the same value as the current knob pos? If so, do nothing
 				if (newKnobPos == knobPos) {
 					continue;
@@ -1046,14 +1081,14 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 			int32_t modLength = 0;
 
 			if (modelStack->timelineCounterIsSet()) {
+				TimelineCounter* timelineCounter = modelStack->getTimelineCounter();
 				if (view.modLength
-				    && modelStack->getTimelineCounter()
-				           == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
+				    && timelineCounter == view.activeModControllableModelStack.getTimelineCounterAllowNull()) {
 					modPos = view.modPos;
 					modLength = view.modLength;
 				}
 
-				modelStack->getTimelineCounter()->possiblyCloneForArrangementRecording(modelStack);
+				timelineCounter->possiblyCloneForArrangementRecording(modelStack);
 			}
 
 			// Ok, that above might have just changed modelStack->timelineCounter. So we're basically starting from

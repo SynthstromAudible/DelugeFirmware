@@ -39,6 +39,7 @@ To use MIDI follow mode, you will need to configure the various MIDI Follow Mode
   - You can choose MIDI Follow Channel A/B/C or NONE. Thus, when you update MIDI Follow Channel A/B/C it will automatically update the channel used for MIDI Feedback.
       - Note: if no Channel has been set, MIDI Feedback will be Disabled
 - In the MIDI-Follow > Feedback > Automation Feedback submenu, Enable or Disable MIDI follow feedback for automated parameters and set the rate at which feedback for automated parameters is sent
+  - With Automation Feedback enabled, the Deluge will also send feedback while you are holding a note (e.g. step editing automation). This will override the sending of automation feedback until you release the note.
 - In the MIDI-Follow > Feedback > Filter Responses submenu, Enable or Disable filtering of responses received within 1 second of sending a MIDI feedback value update.
 
 ### **Input Device Differentiation**

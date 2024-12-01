@@ -22,6 +22,6 @@
 #include "modulation/params/param_set.h"
 
 namespace MidiTakeover {
-int32_t calculateKnobPos(int32_t knobPos, int32_t value, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
-                         int32_t ccNumber = MIDI_CC_NONE);
+int32_t calculateKnobPos(int32_t knobPos, int32_t ccValue, MIDIKnob* knob = nullptr, bool doingMidiFollow = false,
+                         int32_t ccNumber = MIDI_CC_NONE, bool isStepEditing = false);
 } // namespace MidiTakeover
