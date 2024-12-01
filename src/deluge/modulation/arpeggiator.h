@@ -24,9 +24,12 @@
 #include "util/container/array/resizeable_array.h"
 
 #include <array>
+#include <cstdint>
 
 class PostArpTriggerable;
 class ParamManagerForTimeline;
+
+#define SPREAD_LOCK_MAX_SAVED_VALUES 16
 
 class ArpeggiatorSettings {
 public:
@@ -121,6 +124,18 @@ public:
 	// MPE settings
 	ArpMpeModSource mpeVelocity{ArpMpeModSource::OFF};
 
+	// Spread last lock
+	uint32_t lastLockedSpreadVelocityParameterValue{0};
+	uint32_t lastLockedSpreadGateParameterValue{0};
+	uint32_t lastLockedSpreadNoteParameterValue{0};
+	uint32_t lastLockedSpreadOctaveParameterValue{0};
+
+	// Up to 16 pre-calculated spread values for each parameter
+	uint16_t lockedSpreadVelocityValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
+	uint16_t lockedSpreadGateValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
+	uint16_t lockedSpreadNoteValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
+	uint16_t lockedSpreadOctaveValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
+
 	// Temporary flags
 	bool flagForceArpRestart{false};
 };
@@ -206,18 +221,6 @@ public:
 	uint32_t spreadGate = 0;
 	uint32_t spreadNote = 0;
 	uint32_t spreadOctave = 0;
-
-	// Spread last lock
-	uint32_t lastLockedSpreadVelocityParameterValue = 0;
-	uint32_t lastLockedSpreadGateParameterValue = 0;
-	uint32_t lastLockedSpreadNoteParameterValue = 0;
-	uint32_t lastLockedSpreadOctaveParameterValue = 0;
-
-	// Up to 16 pre-calculated spread values for each parameter
-	uint32_t lockedSpreadVelocityValues[16] = {};
-	uint32_t lockedSpreadGateValues[16] = {};
-	uint32_t lockedSpreadNoteValues[16] = {};
-	uint32_t lockedSpreadOctaveValues[16] = {};
 
 protected:
 	void resetRatchet();
