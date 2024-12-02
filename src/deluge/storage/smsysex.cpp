@@ -57,6 +57,23 @@ struct SysExDataEntry {
 
 deluge::deque<SysExDataEntry> SysExQ;
 
+// The following constants assume that the messageID part ranges from 1 to SYSEX_MSGID_MAX
+// and that SYSEX_MSGID_MAX is 1 less than a power of 2.
+// It also assumes that MAX_SYSEX_SESSIONS is also 1 less than a power of 2.
+const uint32_t MAX_SYSEX_SESSIONS = 15;
+const uint32_t SYSEX_MSGID_MAX = 7;
+const uint32_t SYSEX_MSGID_MASK = 0x07;
+const uint32_t SYSEX_SESSION_MASK = 0x78;
+const uint32_t SYSEX_SESSION_SHIFT = 3;
+
+uint64_t monotonic_counter = 1;
+uint64_t sessionLRU_array [MAX_SYSEX_SESSIONS + 1] = {0};
+
+void smSysex::noteSessionIdUse(uint8_t msgId) {
+	uint32_t sessionNum = (msgId & SYSEX_SESSION_MASK) >> SYSEX_SESSION_SHIFT;
+	sessionLRU_array[sessionNum] = monotonic_counter++;
+}
+
 // Assign a FIL from our pool.
 int32_t smSysex::findEmptyFIL() {
 	for (int i = 0; i < MAX_OPEN_FILES; ++i)
@@ -654,6 +671,49 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	sendMsg(cable, jWriter);
 }
 
+
+// A session ID or sid is a number used by clients to keep track of which messages belong to who.
+void smSysex::assignSession(MIDICable& cable, JsonDeserializer& reader) {
+	char const* tagName;
+	String tag;
+	reader.match('{');
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "tag")) {
+			reader.readTagOrAttributeValueString(&tag);
+		}
+		else {
+			reader.exitTag();
+		}
+	}
+	reader.match('}');
+
+	int sessionNum = 0;
+	uint64_t minSeen = monotonic_counter;
+	for (int i = 1; i <= MAX_SYSEX_SESSIONS; ++i) {
+		if (sessionLRU_array[i] == 0) {
+			sessionNum = i;
+			break;
+		}
+		if (sessionLRU_array[i] < minSeen) {
+			minSeen = sessionLRU_array[i];
+			sessionNum = i;
+		}
+	}
+	// Note the sessionNum as MRU to claim it.
+	sessionLRU_array[sessionNum] = monotonic_counter++;
+
+	startDirect(jWriter);
+	jWriter.writeOpeningTag("^session", false, true);
+	jWriter.writeAttribute("sid", sessionNum);
+	jWriter.writeAttribute("tag", tag.get());
+	jWriter.writeAttribute("sidBase", sessionNum << SYSEX_SESSION_SHIFT);
+	jWriter.writeAttribute("sidMin", (sessionNum << SYSEX_SESSION_SHIFT) + 1);
+	jWriter.writeAttribute("sidMax", (sessionNum << SYSEX_SESSION_SHIFT) + SYSEX_MSGID_MAX);
+	jWriter.closeTag(true);
+	sendMsg(cable, jWriter);
+}
+
+
 void smSysex::doPing(MIDICable& cable, JsonDeserializer& reader) {
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^ping", false, true);
@@ -690,6 +750,7 @@ void smSysex::handleNextSysEx() {
 
 	char const* tagName;
 	uint8_t msgSeqNum = de.data[1];
+	noteSessionIdUse(msgSeqNum);
 	JsonDeserializer parser(de.data + 2, de.len - 2);
 	parser.setReplySeqNum(msgSeqNum);
 
@@ -729,6 +790,10 @@ void smSysex::handleNextSysEx() {
 		}
 		else if (!strcmp(tagName, "utime")) {
 			updateTime(de.cable, parser);
+			goto done;
+		}
+		else if (!strcmp(tagName, "session")) {
+			assignSession(de.cable, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "ping")) {
