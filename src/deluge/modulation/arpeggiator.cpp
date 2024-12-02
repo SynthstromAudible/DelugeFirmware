@@ -23,7 +23,6 @@
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
-#include "util/lookuptables/lookuptables.h"
 
 #define MIN_MPE_MODULATED_VELOCITY 10
 
