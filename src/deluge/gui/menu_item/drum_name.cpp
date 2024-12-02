@@ -18,6 +18,7 @@
 #include "drum_name.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/views/instrument_clip_view.h"
 #include "util/functions.h"
 
 namespace deluge::gui::menu_item {
@@ -28,6 +29,7 @@ bool DrumName::isRelevant(ModControllableAudio* modControllable, int32_t whichTh
 
 void DrumName::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
+	instrumentClipView.cancelAllAuditioning();
 	openUI(&renameDrumUI);
 }
 
