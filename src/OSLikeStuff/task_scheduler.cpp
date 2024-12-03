@@ -97,6 +97,19 @@ struct Task {
 		runnable = false;
 		condition = _condition;
 	}
+
+	void updateNextTimes(Time startTime, Time runtime) {
+
+		lastCallTime = startTime;
+
+		durationStats.update(runtime);
+		totalTime += runtime;
+		lastRunTime = runtime;
+		timesCalled += 1;
+
+		idealCallTime = startTime + schedule.targetInterval - durationStats.average;
+		latestCallTime = startTime + schedule.maxInterval - durationStats.average;
+	}
 	TaskHandle handle{nullptr};
 	TaskSchedule schedule{0, 0, 0, 0};
 	Time earliestCallTime{0};
@@ -340,21 +353,11 @@ void TaskManager::runTask(TaskID id) {
 #if SCHEDULER_DETAILED_STATS
 			currentTask->latency.update(startTime - currentTask->lastCallTime);
 #endif
-			currentTask->lastCallTime = startTime;
-
-			currentTask->durationStats.update(runtime);
-			currentTask->totalTime += runtime;
-			currentTask->lastRunTime = runtime;
-			currentTask->timesCalled += 1;
-			currentTask->earliestCallTime = timeNow + currentTask->schedule.backOffPeriod;
-			currentTask->idealCallTime =
-			    startTime + currentTask->schedule.targetInterval - currentTask->durationStats.average;
-			currentTask->latestCallTime =
-			    startTime + currentTask->schedule.maxInterval - currentTask->durationStats.average;
+			currentTask->updateNextTimes(startTime, runtime);
 		}
 	}
 	currentTask->lastFinishTime = timeNow;
-
+	currentTask->earliestCallTime = timeNow + currentTask->schedule.backOffPeriod;
 	lastFinishTime = timeNow;
 }
 
