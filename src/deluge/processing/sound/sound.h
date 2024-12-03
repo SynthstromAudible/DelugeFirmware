@@ -86,6 +86,23 @@ public:
 	LFO globalLFO;
 	LFOConfig lfoConfig[LFO_COUNT];
 
+	// December 3, 2024
+	// @todo
+	// Commit 6534979986d465a0acf01018e066e1d7ca1d170e
+	// From PR #2004 (LFO: cleanups in preparation for LFO2 sync support)
+	// (https://github.com/SynthstromAudible/DelugeFirmware/pull/2004)
+	// Removed four uint8_t lfo variables from this section and replaced them with the LFOConfig
+	// definition above. This unknowingly introduced a "release" bug which changed the sound of the
+	// Deluge synth engine compared to 1.1 as reported in issue #2660:
+	// (https://github.com/SynthstromAudible/DelugeFirmware/issues/2660)
+	// As a TEMPORARY solution, padding is being added here to fix the bug so as to not hold up
+	// the 1.2 Beta release.
+	// Emphasis on temporary as this bug needs a proper fix, otherwise it will keep coming back
+	// as changes get made to this Sound class.
+	// We think the issue relates to the use of "offsetof" in the param and patcher system
+	// (related to the paramFinalValues / globalSourceValues definitions above)
+	int32_t temporaryPadding;
+
 	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
 	int32_t sideChainSendLevel;
