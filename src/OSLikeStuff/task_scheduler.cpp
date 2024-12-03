@@ -112,7 +112,6 @@ struct Task {
 	}
 	TaskHandle handle{nullptr};
 	TaskSchedule schedule{0, 0, 0, 0};
-	Time earliestCallTime{0};
 	Time idealCallTime{0};
 	Time latestCallTime{0};
 	Time lastCallTime{0};
@@ -217,14 +216,13 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 	for (int i = 0; i < numActiveTasks; i++) {
 		struct Task* t = &list[sortedList[i].task];
 		struct TaskSchedule* s = &t->schedule;
-		Time timeToCall = t->idealCallTime;
-		Time maxTimeToCall = t->latestCallTime;
+
 		Time timeSinceFinish = currentTime - t->lastFinishTime;
 		// ensure every routine is within its target
 		if (currentTime - t->lastCallTime > s->maxInterval) {
 			return sortedList[i].task;
 		}
-		if (timeToCall < currentTime || maxTimeToCall < nextFinishTime) {
+		if (t->idealCallTime < currentTime || t->latestCallTime < nextFinishTime) {
 			if (deadline < Time(0) || currentTime + t->durationStats.average < deadline) {
 
 				if (s->priority < bestPriority && t->handle) {
@@ -234,7 +232,7 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 					}
 					else {
 						bestTask = -1;
-						nextFinishTime = maxTimeToCall;
+						nextFinishTime = t->latestCallTime;
 					}
 					bestPriority = s->priority;
 				}
@@ -357,7 +355,6 @@ void TaskManager::runTask(TaskID id) {
 		}
 	}
 	currentTask->lastFinishTime = timeNow;
-	currentTask->earliestCallTime = timeNow + currentTask->schedule.backOffPeriod;
 	lastFinishTime = timeNow;
 }
 
