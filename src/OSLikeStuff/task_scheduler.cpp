@@ -78,7 +78,7 @@ private:
 	Time overhead{0};
 	Time lastFinishTime{0};
 	Time lastPrintedStats{0};
-	
+
 	TaskID currentID{0};
 	// for time tracking with rollover
 	Time lastTime{0};
