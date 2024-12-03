@@ -101,7 +101,7 @@ public:
 	// as changes get made to this Sound class.
 	// We think the issue relates to the use of "offsetof" in the param and patcher system
 	// (related to the paramFinalValues / globalSourceValues definitions above)
-	int32_t temporaryPadding{0xDEADBEEF};
+	uint32_t temporaryPadding{0xDEADBEEF};
 
 	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
