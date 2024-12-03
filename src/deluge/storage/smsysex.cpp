@@ -137,6 +137,7 @@ void smSysex::sendMsg(MIDICable& cable, JsonSerializer& writer) {
 FILdata* smSysex::openFIL(const char* fPath, int forWrite, uint32_t* fsize, FRESULT* eCode) {
 	FILdata* fp = findEmptyFIL();
 	fp->fName.set(fPath);
+	fp->fileID = FIDcounter++;
 	noteFileIdUse(fp);
 	BYTE mode = FA_READ;
 	if (forWrite) {
@@ -266,7 +267,7 @@ retry:
 
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^open", false, true);
-	jWriter.writeAttribute("fid", fp->fileID);
+	jWriter.writeAttribute("fid", fp != nullptr ? fp->fileID : 0);
 	jWriter.writeAttribute("size", fSize);
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
