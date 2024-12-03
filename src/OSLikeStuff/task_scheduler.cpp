@@ -42,19 +42,7 @@ struct SortedTask {
 
 /// internal only to the task scheduler, hence all public. External interaction to use the api
 struct TaskManager {
-	// All current tasks
-	// Not all entries are filled - removed entries have a null task handle
-	std::array<Task, kMaxTasks> list{};
-	// Sorted list of the current numActiveTasks, lowest priority (highest number) first
-	std::array<SortedTask, kMaxTasks> sortedList;
-	uint8_t numActiveTasks = 0;
-	uint8_t numRegisteredTasks = 0;
-	Time mustEndBefore = -1; // use for testing or I guess if you want a second temporary task manager?
-	bool running{false};
-	Time cpuTime{0};
-	Time overhead{0};
-	Time lastFinishTime{0};
-	Time lastPrintedStats{0};
+
 	void start(Time duration = 0);
 	void removeTask(TaskID id);
 	void runTask(TaskID id);
@@ -77,6 +65,20 @@ struct TaskManager {
 	Time getLastRunTimeforCurrentTask();
 
 private:
+	// All current tasks
+	// Not all entries are filled - removed entries have a null task handle
+	std::array<Task, kMaxTasks> list{};
+	// Sorted list of the current numActiveTasks, lowest priority (highest number) first
+	std::array<SortedTask, kMaxTasks> sortedList;
+	uint8_t numActiveTasks = 0;
+	uint8_t numRegisteredTasks = 0;
+	Time mustEndBefore = -1; // use for testing or I guess if you want a second temporary task manager?
+	bool running{false};
+	Time cpuTime{0};
+	Time overhead{0};
+	Time lastFinishTime{0};
+	Time lastPrintedStats{0};
+	
 	TaskID currentID{0};
 	// for time tracking with rollover
 	Time lastTime{0};
