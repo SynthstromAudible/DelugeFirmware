@@ -33,26 +33,25 @@ extern "C" {
 #define SCHEDULER_DETAILED_STATS (0 && ENABLE_TEXT_OUTPUT)
 
 struct StatBlock {
-#if SCHEDULER_DETAILED_STATS
-	dClock min{std::numeric_limits<dClock>::infinity()};
-	dClock max{-std::numeric_limits<dClock>::infinity()};
-#endif
+
+	Time min{std::numeric_limits<Time>::infinity()};
+	Time max{std::numeric_limits<Time>::infinity() * -1};
+
 	/// Running average, computed as (last + avg) / 2
 	Time average{0};
 
 	[[gnu::hot]] void update(Time v) {
-#if SCHEDULER_DETAILED_STATS
+
 		min = std::min(v, min);
 		max = std::max(v, max);
-#endif
 		average = average.average(v);
 		average = std::max(Time(1), average);
 	}
 	void reset() {
-#if SCHEDULER_DETAILED_STATS
-		min = std::numeric_limits<dClock>::infinity();
-		max = -std::numeric_limits<dClock>::infinity();
-#endif
+
+		min = std::numeric_limits<Time>::infinity();
+		max = std::numeric_limits<Time>::infinity() * -1;
+
 		average = 0;
 	}
 };
@@ -100,6 +99,9 @@ struct Task {
 	}
 	TaskHandle handle{nullptr};
 	TaskSchedule schedule{0, 0, 0, 0};
+	Time earliestCallTime{0};
+	Time idealCallTime{0};
+	Time latestCallTime{0};
 	Time lastCallTime{0};
 	Time lastFinishTime{0};
 
@@ -202,8 +204,8 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 	for (int i = 0; i < numActiveTasks; i++) {
 		struct Task* t = &list[sortedList[i].task];
 		struct TaskSchedule* s = &t->schedule;
-		Time timeToCall = t->lastCallTime + s->targetInterval - t->durationStats.average;
-		Time maxTimeToCall = t->lastCallTime + s->maxInterval - t->durationStats.average;
+		Time timeToCall = t->idealCallTime;
+		Time maxTimeToCall = t->latestCallTime;
 		Time timeSinceFinish = currentTime - t->lastFinishTime;
 		// ensure every routine is within its target
 		if (currentTime - t->lastCallTime > s->maxInterval) {
@@ -344,6 +346,11 @@ void TaskManager::runTask(TaskID id) {
 			currentTask->totalTime += runtime;
 			currentTask->lastRunTime = runtime;
 			currentTask->timesCalled += 1;
+			currentTask->earliestCallTime = timeNow + currentTask->schedule.backOffPeriod;
+			currentTask->idealCallTime =
+			    startTime + currentTask->schedule.targetInterval - currentTask->durationStats.average;
+			currentTask->latestCallTime =
+			    startTime + currentTask->schedule.maxInterval - currentTask->durationStats.average;
 		}
 	}
 	currentTask->lastFinishTime = timeNow;
