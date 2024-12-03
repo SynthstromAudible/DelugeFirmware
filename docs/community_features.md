@@ -971,7 +971,7 @@ to each individual note onset. ([#1978])
 - ([#2641], [#2751]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
   - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
   - To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
-  - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the `SELECT` encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
+  - Note iteration now also supports custom iteration steps. Hold a note and press the `SELECT` encoder to open the Note menu. Scroll to `NOTE ITERANCE` and press `SELECT` again to enter the Note Iterance menu, the default is `OFF`. Turn the `SELECT` encoder right through all options until you see `CUSTOM`, then press the `SELECT` encoder again. A new menu will appear with the `DIVISOR` parameter (from 1 to 8.) The number of `DIVISORS` you choose will set how many `ITERATION #` toggles appear. Each `ITERATION #` allows you to activate or deactivate an iteration step.
   - To edit fill, you need to access the new note and note row editor menu's.
 
 #### 4.3.11 - Added New Note and Note Row Editor Menu's
