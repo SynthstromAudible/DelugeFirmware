@@ -958,10 +958,14 @@ to each individual note onset. ([#1978])
     - **`Spread:`** There are four new parameters (unpatched, assignable to golden knobs), to control how the parameters
       of each arp step are deviated from its base value. If spread is increased for a parameter, the arp steps will
       get a random amount of deviation for that parameter, calculated on each iteration.
-        - `Lock`: this flag will lock the current sequence of generated random values so the sequence has a repeatable pattern. Make use of the `Sequence Length` parameter to further adjust the repeated sequence. To change the generated values, change the value of any of the parameters and the dice will be re-rolled.
-        - `Velocity`: the velocity of the arp step will get a random +- deviation of the base velocity.
-        - `Gate`: the gate of the arp step will get a random +- deviation of the base gate.
-        - `Octave`: the note will get a change in pitch of a +- amount of octaves, going from 0 up to max 3 octaves difference.
+        - `Lock`: this flag will lock the current sequence of generated random values so the sequence has a repeatable pattern. Make use of the `Sequence Length` parameter to further adjust the repeated sequence. To change the generated values, change the value of any of the parameters and the dice will be re-rolled for that parameter.
+        - `Velocity`: the velocity of the arp step will get a random decrease from the base velocity.
+        - `Gate`: the gate of the arp step will get a random positive or negative deviation of the base gate.
+        - `Octave`: the note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of 3 octaves.
+            - From values 0 to 4, no changes in octaves
+            - From 5 to 19, up to 1 octave changes
+            - From 20 to 34, up to 2 octave changes
+            - From 35 to 50, up to 3 octave changes
     - **`MPE`** settings:
       - `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
       velocity of each new arpeggiated note by applying different pressure (aftertouch) or slide (Y) on the keys.

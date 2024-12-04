@@ -217,6 +217,7 @@ public:
 	int32_t spreadVelocityAmount = 0;
 	int32_t spreadGateAmount = 0;
 	int32_t spreadOctaveAmount = 0;
+	bool resetLockedSpreadValuesNextTime = false;
 
 	// Unpatched Automated Params
 	uint16_t noteProbability = 0;

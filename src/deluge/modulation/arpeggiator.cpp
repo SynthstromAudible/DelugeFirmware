@@ -614,49 +614,62 @@ int8_t ArpeggiatorBase::getRandomSpreadVelocityAmount(ArpeggiatorSettings* setti
 	if (spreadVelocity == 0) {
 		return 0;
 	}
-	int32_t am = spreadVelocity >> 24;
-	int32_t amHalf = am >> 1;
-	return random(am) - amHalf; // values go from -128 to 128
+	int32_t am = spreadVelocity >> 25;
+	return -random(am); // values go from 0 to -128 max
 }
 
 int8_t ArpeggiatorBase::getRandomSpreadGateAmount(ArpeggiatorSettings* settings) {
 	if (spreadGate == 0) {
 		return 0;
 	}
-	int32_t am = spreadGate >> 24;
+	int32_t am = spreadGate >> 24; // 256 values
 	int32_t amHalf = am >> 1;
-	return (random(am) - amHalf); // gate range
+	return random(am) - amHalf; // values go from -128 to 128 (8bits) (later we convert it to int24 which gateThresholdSmall uses)
 }
 int8_t ArpeggiatorBase::getRandomSpreadOctaveAmount(ArpeggiatorSettings* settings) {
 	if (spreadOctave == 0) {
 		return 0;
 	}
-	int32_t am = spreadOctave >> 29;
+	int32_t maxOctave;
+	int32_t am = spreadOctave >> 16;
+	if (am > 45874) { // > 35 -> 50
+		maxOctave = 3;
+	}
+	else if (am > 26214) { // > 20 -> 34
+		maxOctave = 2;
+	}
+	else if (am > 6553) { // > 5 -> 19
+		maxOctave = 1;
+	}
+	else { // > 0 -> 4
+		maxOctave = 0;
+	}
 	int32_t amHalf = am >> 1;
-	return random(am) - amHalf; // values from -3 to +4
+	return random(maxOctave); // values go from 0 to 3 max
 }
 
 void ArpeggiatorBase::calculateSpreadAmounts(ArpeggiatorSettings* settings) {
 	if (settings->spreadLock) {
 		// Store generated spread values in an array so we can repeat the sequence
-		if (settings->lastLockedSpreadVelocityParameterValue != spreadVelocity) {
+		if (resetLockedSpreadValuesNextTime || settings->lastLockedSpreadVelocityParameterValue != spreadVelocity) {
 			for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 				settings->lockedSpreadVelocityValues[i] = getRandomSpreadVelocityAmount(settings);
 			}
 			settings->lastLockedSpreadVelocityParameterValue = spreadVelocity;
 		}
-		if (settings->lastLockedSpreadGateParameterValue != spreadGate) {
+		if (resetLockedSpreadValuesNextTime || settings->lastLockedSpreadGateParameterValue != spreadGate) {
 			for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 				settings->lockedSpreadGateValues[i] = getRandomSpreadGateAmount(settings);
 			}
 			settings->lastLockedSpreadGateParameterValue = spreadGate;
 		}
-		if (settings->lastLockedSpreadOctaveParameterValue != spreadOctave) {
+		if (resetLockedSpreadValuesNextTime || settings->lastLockedSpreadOctaveParameterValue != spreadOctave) {
 			for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 				settings->lockedSpreadOctaveValues[i] = getRandomSpreadOctaveAmount(settings);
 			}
 			settings->lastLockedSpreadOctaveParameterValue = spreadOctave;
 		}
+		resetLockedSpreadValuesNextTime = false;
 
 		spreadVelocityAmount =
 		    settings->lockedSpreadVelocityValues[notesPlayedFromLockedSpread % SPREAD_LOCK_MAX_SAVED_VALUES];
@@ -670,9 +683,7 @@ void ArpeggiatorBase::calculateSpreadAmounts(ArpeggiatorSettings* settings) {
 		spreadGateAmount = getRandomSpreadGateAmount(settings);
 		spreadOctaveAmount = getRandomSpreadOctaveAmount(settings);
 		// Rest locked values
-		settings->lastLockedSpreadVelocityParameterValue = 0;
-		settings->lastLockedSpreadGateParameterValue = 0;
-		settings->lastLockedSpreadOctaveParameterValue = 0;
+		resetLockedSpreadValuesNextTime = true;
 	}
 }
 
