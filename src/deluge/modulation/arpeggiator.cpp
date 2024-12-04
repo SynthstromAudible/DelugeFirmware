@@ -489,6 +489,11 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	// Note: for drum arpeggiator, the note mode is irrelevant, so we don't need to check it here.
 	//  We only need to account for octaveMode as it is always a 1-note arpeggio.
 	//  Besides, behavior of OctaveMode::UP_DOWN is equal to OctaveMode::ALTERNATE
+	if (settings->flagForceArpRestart) {
+		// If flagged to restart sequence, do it now and reset the flag
+		playedFirstArpeggiatedNoteYet = false;
+		settings->flagForceArpRestart = false;
+	}
 	if (!isRatchet
 	    && (!playedFirstArpeggiatedNoteYet
 	        || (maxSequenceLength > 0 && notesPlayedFromSequence >= maxSequenceLength))) {
@@ -832,6 +837,11 @@ void Arpeggiator::setInitialNoteAndOctave(ArpeggiatorSettings* settings) {
 }
 
 void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) {
+	if (settings->flagForceArpRestart) {
+		// If flagged to restart sequence, do it now and reset the flag
+		playedFirstArpeggiatedNoteYet = false;
+		settings->flagForceArpRestart = false;
+	}
 	if (!isRatchet
 	    && (!playedFirstArpeggiatedNoteYet
 	        || (maxSequenceLength > 0 && notesPlayedFromSequence >= maxSequenceLength))) {
@@ -1022,12 +1032,6 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 
 	updateParams(sequenceLength, rhythmValue, noteProb, ratchAmount, ratchProb, spreadVelocity, spreadGate,
 	             spreadOctave);
-
-	if (settings->flagForceArpRestart) {
-		// If flagged to restart sequence, do it now and reset the flag
-		playedFirstArpeggiatedNoteYet = false;
-		settings->flagForceArpRestart = false;
-	}
 
 	uint32_t maxGate = 1 << 24;
 
