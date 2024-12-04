@@ -960,9 +960,6 @@ to each individual note onset. ([#1978])
       get a random amount of deviation for that parameter, calculated on each iteration.
         - `Velocity`: the velocity of the arp step will get a random +- deviation of the base velocity.
         - `Gate`: the gate of the arp step will get a random +- deviation of the base gate.
-        - `Note`: the note number on that step will suffer some change in pitch up or down. When the parameter is set low,
-           you will get maybe 3rds and 5ths from the original note, always within the scale, while when increased, you will
-           get 7ths, and for higher values you will start getting wilder note changes, with out of scale notes.
         - `Octave`: the note will get a change in pitch of a +- amount of octaves, going from 0 up to max 3 octaves difference.
     - **`MPE`** settings:
       - `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
