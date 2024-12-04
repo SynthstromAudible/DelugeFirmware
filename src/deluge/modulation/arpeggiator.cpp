@@ -610,7 +610,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	}
 }
 
-int32_t ArpeggiatorBase::getRandomSpreadVelocityAmount(ArpeggiatorSettings* settings) {
+int8_t ArpeggiatorBase::getRandomSpreadVelocityAmount(ArpeggiatorSettings* settings) {
 	if (spreadVelocity == 0) {
 		return 0;
 	}
@@ -619,15 +619,15 @@ int32_t ArpeggiatorBase::getRandomSpreadVelocityAmount(ArpeggiatorSettings* sett
 	return random(am) - amHalf; // values go from -128 to 128
 }
 
-int32_t ArpeggiatorBase::getRandomSpreadGateAmount(ArpeggiatorSettings* settings) {
+int8_t ArpeggiatorBase::getRandomSpreadGateAmount(ArpeggiatorSettings* settings) {
 	if (spreadGate == 0) {
 		return 0;
 	}
-	int32_t am = spreadGate >> 16;
+	int32_t am = spreadGate >> 24;
 	int32_t amHalf = am >> 1;
-	return (random(am) - amHalf) << 8; // gate range
+	return (random(am) - amHalf); // gate range
 }
-int16_t ArpeggiatorBase::getRandomSpreadOctaveAmount(ArpeggiatorSettings* settings) {
+int8_t ArpeggiatorBase::getRandomSpreadOctaveAmount(ArpeggiatorSettings* settings) {
 	if (spreadOctave == 0) {
 		return 0;
 	}
@@ -1032,14 +1032,14 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 			// Need to reduce the spread amount by the same ratchet multiplier
 			if (spreadGateAmount < 0) {
 				// If amount negative, do the correct math
-				signedGateThreshold = signedGateThreshold - ((-spreadGateAmount) >> ratchetNotesMultiplier);
+				signedGateThreshold = signedGateThreshold - (((-spreadGateAmount) << 16) >> ratchetNotesMultiplier);
 			}
 			else {
-				signedGateThreshold = signedGateThreshold + (spreadGateAmount >> ratchetNotesMultiplier);
+				signedGateThreshold = signedGateThreshold + ((spreadGateAmount << 16) >> ratchetNotesMultiplier);
 			}
 		}
 		else {
-			signedGateThreshold = signedGateThreshold + spreadGateAmount;
+			signedGateThreshold = signedGateThreshold + (spreadGateAmount << 16);
 		}
 		// And fix it if out of bounds
 		if (signedGateThreshold < 0) {

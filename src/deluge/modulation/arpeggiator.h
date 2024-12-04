@@ -129,9 +129,9 @@ public:
 	uint32_t lastLockedSpreadOctaveParameterValue{0};
 
 	// Up to 16 pre-calculated spread values for each parameter
-	uint16_t lockedSpreadVelocityValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
-	uint16_t lockedSpreadGateValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
-	uint16_t lockedSpreadOctaveValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
+	int8_t lockedSpreadVelocityValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
+	int8_t lockedSpreadGateValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
+	int8_t lockedSpreadOctaveValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
 
 	// Temporary flags
 	bool flagForceArpRestart{false};
@@ -215,8 +215,8 @@ public:
 
 	// Calculated spread amounts
 	int32_t spreadVelocityAmount = 0;
-	int32_t spreadGateAmount = 0; // only 24 bits range
-	int16_t spreadOctaveAmount = 0;
+	int32_t spreadGateAmount = 0;
+	int32_t spreadOctaveAmount = 0;
 
 	// Unpatched Automated Params
 	uint16_t noteProbability = 0;
@@ -240,9 +240,9 @@ protected:
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
-	int32_t getRandomSpreadVelocityAmount(ArpeggiatorSettings* settings);
-	int32_t getRandomSpreadGateAmount(ArpeggiatorSettings* settings);
-	int16_t getRandomSpreadOctaveAmount(ArpeggiatorSettings* settings);
+	int8_t getRandomSpreadVelocityAmount(ArpeggiatorSettings* settings);
+	int8_t getRandomSpreadGateAmount(ArpeggiatorSettings* settings);
+	int8_t getRandomSpreadOctaveAmount(ArpeggiatorSettings* settings);
 };
 
 class ArpeggiatorForDrum final : public ArpeggiatorBase {
