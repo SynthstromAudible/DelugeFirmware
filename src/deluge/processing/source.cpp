@@ -284,6 +284,9 @@ doChangeType:
 	}
 
 	oscType = newType;
+	if (oscType == OscType::DX7) {
+		ensureDxPatch();
+	}
 }
 
 DxPatch* Source::ensureDxPatch() {

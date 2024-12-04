@@ -66,7 +66,7 @@ as the micromonsta and the dreadbox nymphes.
 
 - ([#147]) Allows CCs to be learnt to the global commands (play, stop, loop, fill, etc.)
 
-- ([#170]) A new `TAKEOVER` submenu was created in the `MIDI` settings menu which consists of three modes that can be
+- ([#170]) A new `TAKEOVER` submenu was created in the `MIDI` settings menu which consists of four modes that can be
   selected from. This mode affects how the Deluge handles MIDI input for learned CC controls:
 
   **1. `JUMP`:** This is the default mode for the Deluge. As soon as a MIDI encoder/Fader position is changed, the
@@ -74,12 +74,14 @@ as the micromonsta and the dreadbox nymphes.
 
   **2. `PICKUP`:** The Deluge will ignore changes to its internal encoder position/Parameter value until the MIDI
   encoder/Fader's position is equal to the Deluge encoder position. After which the MIDI encoder/Fader will move in sync
-  with the Deluge.
+  with the Deluge. 
+    - Note: this mode will behave like the `JUMP` mode when you are recording or step editing automation.
 
   **3. `SCALE`:** The Deluge will increase/decrease its internal encoder position/Parameter value relative to the change
   of the MIDI encoder/Fader position and the amount of "runway" remaining on the MIDI controller. Once the MIDI
   controller reaches its maximum or minimum position, the MIDI encoder/Fader will move in sync with the Deluge. The
   Deluge value will always decrease/increase in the same direction as the MIDI controller.
+    - Note: this mode will behave like the `JUMP` mode when you are recording or step editing automation.
 
   **4. `RELATIVE`:** The Deluge will increase/decrease its internal encoder position/Parameter value using the relative value changes (offset) sent by the controller. The controller must be actually sending relative value changes (127 for down and 1 for up) in order for this to work.
 
@@ -980,7 +982,7 @@ to each individual note onset. ([#1978])
 - ([#2641], [#2751]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
   - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
   - To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
-  - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the `SELECT` encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
+  - Note iteration now also supports custom iteration steps. To access them, hold a note and press the `SELECT` encoder to open the Note menu. Scroll to `NOTE ITERANCE` and press `SELECT` again to enter the Note Iterance menu, the default is `OFF`. Turn the `SELECT` encoder right through all options until you see `CUSTOM`, then press the `SELECT` encoder again. A new menu will appear with the `DIVISOR` parameter (from 1 to 8.) The number of `DIVISORS` you choose will set how many `ITERATION #` toggles appear. Each `ITERATION #` allows you to activate or deactivate an iteration step.
   - To edit fill, you need to access the new note and note row editor menu's.
 
 #### 4.3.11 - Added New Note and Note Row Editor Menu's

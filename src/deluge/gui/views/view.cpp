@@ -1841,6 +1841,13 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 		// activeModControllable might not be a Sound, but in that case, the pointer's not going to get used
 	}
 	setKnobIndicatorLevels();
+
+	// midi follow and midi feedback enabled
+	// re-send midi cc's because learned parameter values may have changed
+	// don't send if midi follow feedback automation is disabled
+	if (midiEngine.midiFollowFeedbackAutomation != MIDIFollowFeedbackAutomationMode::DISABLED) {
+		sendMidiFollowFeedback(nullptr, kNoSelection, true);
+	}
 }
 
 void View::pretendModKnobsUntouchedForAWhile() {

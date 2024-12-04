@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Mark Adams
+ * Copyright © 2024 Mark Adams
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -16,6 +16,7 @@
  */
 
 #include "task_scheduler.h"
+#include "task.h"
 
 #include "io/debug/log.h"
 #include "util/container/static_vector.hpp"
@@ -32,91 +33,6 @@ extern "C" {
 
 #define SCHEDULER_DETAILED_STATS (0 && ENABLE_TEXT_OUTPUT)
 
-struct StatBlock {
-#if SCHEDULER_DETAILED_STATS
-	dClock min{std::numeric_limits<dClock>::infinity()};
-	dClock max{-std::numeric_limits<dClock>::infinity()};
-#endif
-	/// Running average, computed as (last + avg) / 2
-	Time average{0};
-
-	[[gnu::hot]] void update(Time v) {
-#if SCHEDULER_DETAILED_STATS
-		min = std::min(v, min);
-		max = std::max(v, max);
-#endif
-		average = average.average(v);
-		average = std::max(Time(1), average);
-	}
-	void reset() {
-#if SCHEDULER_DETAILED_STATS
-		min = std::numeric_limits<dClock>::infinity();
-		max = -std::numeric_limits<dClock>::infinity();
-#endif
-		average = 0;
-	}
-};
-
-struct TaskSchedule {
-	// 0 is highest priority
-	uint8_t priority;
-	// time to wait between return and calling the function again
-	Time backOffPeriod;
-	// target time between function calls
-	Time targetInterval;
-	// maximum time between function calls
-	Time maxInterval;
-};
-
-// currently 14 are in use
-constexpr int kMaxTasks = 25;
-struct Task {
-	Task() = default;
-
-	// constructor for making a "once" task
-	Task(TaskHandle _handle, uint8_t _priority, Time timeNow, Time _timeToWait, const char* _name) {
-		handle = _handle;
-		lastCallTime = timeNow;
-		schedule = TaskSchedule{_priority, _timeToWait, _timeToWait, _timeToWait * 2};
-		name = _name;
-		removeAfterUse = true;
-	}
-	// makes a repeating task
-	Task(TaskHandle task, TaskSchedule _schedule, const char* _name) {
-		handle = task;
-		schedule = _schedule;
-		name = _name;
-		removeAfterUse = false;
-	}
-	// makes a conditional task
-	Task(TaskHandle task, uint8_t priority, RunCondition _condition, const char* _name) {
-		handle = task;
-		// good to go as soon as it's marked as runnable
-		schedule = {priority, 0, 0, 0};
-		name = _name;
-		removeAfterUse = true;
-		runnable = false;
-		condition = _condition;
-	}
-	TaskHandle handle{nullptr};
-	TaskSchedule schedule{0, 0, 0, 0};
-	Time lastCallTime{0};
-	Time lastFinishTime{0};
-
-	StatBlock durationStats;
-#if SCHEDULER_DETAILED_STATS
-	StatBlock latency;
-#endif
-	bool runnable{true};
-	RunCondition condition{nullptr};
-	bool removeAfterUse{false};
-	const char* name{nullptr};
-
-	Time totalTime{0};
-	int32_t timesCalled{0};
-	Time lastRunTime;
-};
-
 struct SortedTask {
 	uint8_t priority = UINT8_MAX;
 	TaskID task = -1;
@@ -126,19 +42,7 @@ struct SortedTask {
 
 /// internal only to the task scheduler, hence all public. External interaction to use the api
 struct TaskManager {
-	// All current tasks
-	// Not all entries are filled - removed entries have a null task handle
-	std::array<Task, kMaxTasks> list{};
-	// Sorted list of the current numActiveTasks, lowest priority (highest number) first
-	std::array<SortedTask, kMaxTasks> sortedList;
-	uint8_t numActiveTasks = 0;
-	uint8_t numRegisteredTasks = 0;
-	Time mustEndBefore = -1; // use for testing or I guess if you want a second temporary task manager?
-	bool running{false};
-	Time cpuTime{0};
-	Time overhead{0};
-	Time lastFinishTime{0};
-	Time lastPrintedStats{0};
+
 	void start(Time duration = 0);
 	void removeTask(TaskID id);
 	void runTask(TaskID id);
@@ -161,6 +65,20 @@ struct TaskManager {
 	Time getLastRunTimeforCurrentTask();
 
 private:
+	// All current tasks
+	// Not all entries are filled - removed entries have a null task handle
+	std::array<Task, kMaxTasks> list{};
+	// Sorted list of the current numActiveTasks, lowest priority (highest number) first
+	std::array<SortedTask, kMaxTasks> sortedList;
+	uint8_t numActiveTasks = 0;
+	uint8_t numRegisteredTasks = 0;
+	Time mustEndBefore = -1; // use for testing or I guess if you want a second temporary task manager?
+	bool running{false};
+	Time cpuTime{0};
+	Time overhead{0};
+	Time lastFinishTime{0};
+	Time lastPrintedStats{0};
+
 	TaskID currentID{0};
 	// for time tracking with rollover
 	Time lastTime{0};
@@ -202,14 +120,13 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 	for (int i = 0; i < numActiveTasks; i++) {
 		struct Task* t = &list[sortedList[i].task];
 		struct TaskSchedule* s = &t->schedule;
-		Time timeToCall = t->lastCallTime + s->targetInterval - t->durationStats.average;
-		Time maxTimeToCall = t->lastCallTime + s->maxInterval - t->durationStats.average;
+
 		Time timeSinceFinish = currentTime - t->lastFinishTime;
 		// ensure every routine is within its target
 		if (currentTime - t->lastCallTime > s->maxInterval) {
 			return sortedList[i].task;
 		}
-		if (timeToCall < currentTime || maxTimeToCall < nextFinishTime) {
+		if (t->idealCallTime < currentTime || t->latestCallTime < nextFinishTime) {
 			if (deadline < Time(0) || currentTime + t->durationStats.average < deadline) {
 
 				if (s->priority < bestPriority && t->handle) {
@@ -219,7 +136,7 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 					}
 					else {
 						bestTask = -1;
-						nextFinishTime = maxTimeToCall;
+						nextFinishTime = t->latestCallTime;
 					}
 					bestPriority = s->priority;
 				}
@@ -338,16 +255,10 @@ void TaskManager::runTask(TaskID id) {
 #if SCHEDULER_DETAILED_STATS
 			currentTask->latency.update(startTime - currentTask->lastCallTime);
 #endif
-			currentTask->lastCallTime = startTime;
-
-			currentTask->durationStats.update(runtime);
-			currentTask->totalTime += runtime;
-			currentTask->lastRunTime = runtime;
-			currentTask->timesCalled += 1;
+			currentTask->updateNextTimes(startTime, runtime);
 		}
 	}
 	currentTask->lastFinishTime = timeNow;
-
 	lastFinishTime = timeNow;
 }
 
