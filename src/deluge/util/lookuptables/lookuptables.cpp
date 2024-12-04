@@ -538,13 +538,13 @@ uint8_t chordTypeNoteCount[MAX_CHORD_TYPES] = {
 };
 
 const std::array<deluge::l10n::String, MAX_CHORD_TYPES> chordNames = {
-    /* NO_CHORD  */ deluge::l10n::String::STRING_FOR_NONE,
-    /* NO_CHORD  */ deluge::l10n::String::STRING_FOR_FIFTH,
-	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_SUS2,
-	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_MINOR,
-	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_MAJOR,
-	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_SUS4,
-	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_MINOR7,
-	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_DOMINANT7,
-	/* NO_CHORD  */ deluge::l10n::String::STRING_FOR_MAJOR7,
+    deluge::l10n::String::STRING_FOR_NONE,
+    deluge::l10n::String::STRING_FOR_FIFTH,
+	deluge::l10n::String::STRING_FOR_SUS2,
+	deluge::l10n::String::STRING_FOR_MINOR,
+	deluge::l10n::String::STRING_FOR_MAJOR,
+	deluge::l10n::String::STRING_FOR_SUS4,
+	deluge::l10n::String::STRING_FOR_MINOR7,
+	deluge::l10n::String::STRING_FOR_DOMINANT7,
+	deluge::l10n::String::STRING_FOR_MAJOR7,
 };

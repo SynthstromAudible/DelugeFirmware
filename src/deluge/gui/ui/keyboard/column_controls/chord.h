@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/ui/keyboard/column_controls/control_column.h"
+#include "util/lookuptables/lookuptables.h"
 
 namespace deluge::gui::ui::keyboard::controls {
 
@@ -45,7 +46,7 @@ public:
 	void handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
 	               KeyboardLayout* layout) override;
 
-	uint8_t chordSemitoneOffsets[4] = {0};
+	uint8_t chordSemitoneOffsets[MAX_CHORD_NOTES] = {0};
 
 private:
 	ChordModeChord activeChord = NO_CHORD;

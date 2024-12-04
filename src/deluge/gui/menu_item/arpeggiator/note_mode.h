@@ -20,7 +20,6 @@
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
-#include <cstdint>
 
 namespace deluge::gui::menu_item::arpeggiator {
 class NoteMode : public Selection {
