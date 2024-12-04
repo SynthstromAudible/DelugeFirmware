@@ -721,6 +721,11 @@ The Sound menu contains the following menu hierarchy:
 	- Sequence Length (LENG)
 	- Ratchet Amount (RATC)
 	- Ratchet Probability (RPRO)
+	- Spread
+		- Lock (LOCK)
+		- Velocity (VELO)
+		- Gate (GATE)
+		- Octave (OCTA)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -1305,6 +1310,11 @@ The MIDI menu contains the following menu hierarchy:
 	- Sequence Length (LENG)
 	- Ratchet Amount (RATC)
 	- Ratchet Probability (RPRO)
+	- Spread
+		- Lock (LOCK)
+		- Velocity (VELO)
+		- Gate (GATE)
+		- Octave (OCTA)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -1397,6 +1407,11 @@ The CV menu contains the following menu hierarchy:
 	- Sequence Length (LENG)
 	- Ratchet Amount (RATC)
 	- Ratchet Probability (RPRO)
+	- Spread
+		- Lock (LOCK)
+		- Velocity (VELO)
+		- Gate (GATE)
+		- Octave (OCTA)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)

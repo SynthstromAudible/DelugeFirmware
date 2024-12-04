@@ -958,6 +958,7 @@ to each individual note onset. ([#1978])
     - **`Spread:`** There are four new parameters (unpatched, assignable to golden knobs), to control how the parameters
       of each arp step are deviated from its base value. If spread is increased for a parameter, the arp steps will
       get a random amount of deviation for that parameter, calculated on each iteration.
+        - `Lock`: this flag will lock the current sequence of generated random values so the sequence has a repeatable pattern. Make use of the `Sequence Length` parameter to further adjust the repeated sequence.
         - `Velocity`: the velocity of the arp step will get a random +- deviation of the base velocity.
         - `Gate`: the gate of the arp step will get a random +- deviation of the base gate.
         - `Octave`: the note will get a change in pitch of a +- amount of octaves, going from 0 up to max 3 octaves difference.
