@@ -24,7 +24,7 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 DIR sxDIR;
-uint32_t offsetCounter;
+uint32_t dirOffsetCounter;
 
 JsonSerializer jWriter;
 String activeDirName;
@@ -39,6 +39,7 @@ struct FILdata {
 	uint32_t fileID;
 	uint32_t LRUstamp = 0;
 	uint32_t fSize = 0;
+	uint32_t fPosition = 0; // file offset noted after last read/write operation.
 	bool fileOpen = false;
 	int forWrite = false;
 	FIL file;
@@ -70,12 +71,12 @@ const uint32_t SYSEX_MSGID_MASK = 0x07;
 const uint32_t SYSEX_SESSION_MASK = 0x78;
 const uint32_t SYSEX_SESSION_SHIFT = 3;
 
-uint32_t monotonic_counter = 1;
+uint32_t session_mono_counter = 1;
 uint32_t sessionLRU_array[MAX_SYSEX_SESSIONS + 1] = {0};
 
 void smSysex::noteSessionIdUse(uint8_t msgId) {
 	uint32_t sessionNum = (msgId & SYSEX_SESSION_MASK) >> SYSEX_SESSION_SHIFT;
-	sessionLRU_array[sessionNum] = monotonic_counter++;
+	sessionLRU_array[sessionNum] = session_mono_counter++;
 }
 
 void smSysex::noteFileIdUse(FILdata* fp) {
@@ -151,6 +152,7 @@ FILdata* smSysex::openFIL(const char* fPath, int forWrite, uint32_t* fsize, FRES
 		fp->fileOpen = true;
 		fp->forWrite = forWrite;
 		fp->fSize = f_size(&fp->file);
+		fp->fPosition = 0;
 		return fp;
 	}
 	return nullptr;
@@ -445,11 +447,11 @@ void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 
 	const char* pathVal = path.get();
 	const TCHAR* pathTC = (const TCHAR*)pathVal;
-	if (lineOffset == 0 || strcmp(activeDirName.get(), pathVal) || lineOffset != offsetCounter) {
+	if (lineOffset == 0 || strcmp(activeDirName.get(), pathVal) || lineOffset != dirOffsetCounter) {
 		errCode = f_opendir(&sxDIR, pathTC);
 		if (errCode != FRESULT::FR_OK)
 			goto errorFound;
-		offsetCounter = 0;
+		dirOffsetCounter = 0;
 		activeDirName.set(pathVal);
 		if (lineOffset > 0) {
 			FILINFO fno;
@@ -459,7 +461,7 @@ void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 					break;
 				if (fno.altname[0] == 0)
 					break;
-				offsetCounter++;
+				dirOffsetCounter++;
 			}
 		}
 	}
@@ -493,7 +495,7 @@ errorFound:;
 		jWriter.writeAttribute("attr", fno.fattrib);
 
 		jWriter.closeTag();
-		offsetCounter++;
+		dirOffsetCounter++;
 	}
 	jWriter.writeArrayEnding("list", true, false);
 	jWriter.writeAttribute("err", errCode);
@@ -542,11 +544,15 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 
 		if (readBlockBuffer && fp) {
 			noteFileIdUse(fp);
-			errCode = f_lseek(&fp->file, addr);
+			// If file position requested is not what we expect, seek to requested.
+			if (fp->fPosition != addr) {
+				errCode = f_lseek(&fp->file, addr);
+			}
 			if (errCode == FRESULT::FR_OK) {
 				errCode = f_read(&fp->file, readBlockBuffer, size, &actuallyRead);
 				size = actuallyRead;
 				srcAddr = readBlockBuffer;
+				fp->fPosition = addr + actuallyRead;
 			}
 			else {
 				D_PRINTLN("lseek issue: %d", errCode);
@@ -635,12 +641,15 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 		errCode = FRESULT::FR_NOT_ENABLED;
 	}
 	if (writeBlockBuffer && (fp != nullptr)) {
-		// errCode = f_lseek(&fp->file, addr);
+		if (addr != fp->fPosition) {
+			errCode = f_lseek(&fp->file, addr);
+		}
 		if (errCode == FRESULT::FR_OK) {
 			noteFileIdUse(fp);
 			UINT actuallyWritten = 0;
 			errCode = f_write(&fp->file, writeBlockBuffer, decodedSize, &actuallyWritten);
 			size = actuallyWritten;
+			fp->fPosition = addr + actuallyWritten;
 		}
 	}
 	startReply(jWriter, reader);
@@ -713,7 +722,7 @@ void smSysex::assignSession(MIDICable& cable, JsonDeserializer& reader) {
 	reader.match('}');
 
 	int sessionNum = 0;
-	uint32_t minSeen = monotonic_counter;
+	uint32_t minSeen = session_mono_counter;
 	for (int i = 1; i <= MAX_SYSEX_SESSIONS; ++i) {
 		if (sessionLRU_array[i] == 0) {
 			sessionNum = i;
@@ -725,7 +734,7 @@ void smSysex::assignSession(MIDICable& cable, JsonDeserializer& reader) {
 		}
 	}
 	// Note the sessionNum as MRU to claim it.
-	sessionLRU_array[sessionNum] = monotonic_counter++;
+	sessionLRU_array[sessionNum] = session_mono_counter++;
 
 	startDirect(jWriter);
 	jWriter.writeOpeningTag("^session", false, true);
