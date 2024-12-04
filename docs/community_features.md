@@ -844,7 +844,7 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198]) Added new features to the arpeggiator, which include:
+- ([#1198] [#2990]) Added new features to the arpeggiator, which include:
     - Splitted the old `Mode` setting into separate settings: `Mode` (Off or Arpeggiator), `Octave Mode` (Up, Down,
       Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random), so you can setup
       individually how octaves are walked and how notes are walked in the sequence.
@@ -1655,6 +1655,8 @@ different firmware
 [#2823]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2823
 
 [#2983]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2983
+
+[#2990]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2990
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 
