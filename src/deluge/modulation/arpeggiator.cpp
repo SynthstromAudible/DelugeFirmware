@@ -1044,14 +1044,14 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 			// Need to reduce the spread amount by the same ratchet multiplier
 			if (spreadGateAmount < 0) {
 				// If amount negative, do the correct math
-				signedGateThreshold = signedGateThreshold - (((-spreadGateAmount) << 16) >> ratchetNotesMultiplier);
+				signedGateThreshold = signedGateThreshold - (((-spreadGateAmount) << 17) >> ratchetNotesMultiplier);
 			}
 			else {
-				signedGateThreshold = signedGateThreshold + ((spreadGateAmount << 16) >> ratchetNotesMultiplier);
+				signedGateThreshold = signedGateThreshold + ((spreadGateAmount << 17) >> ratchetNotesMultiplier);
 			}
 		}
 		else {
-			signedGateThreshold = signedGateThreshold + (spreadGateAmount << 16);
+			signedGateThreshold = signedGateThreshold + (spreadGateAmount << 17);
 		}
 		// And fix it if out of bounds
 		if (signedGateThreshold < 0) {

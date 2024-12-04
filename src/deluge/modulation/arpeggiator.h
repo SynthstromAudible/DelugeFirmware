@@ -182,15 +182,15 @@ public:
 	virtual void reset() = 0;
 
 	bool ratchetingIsAvailable = true;
-	bool gateCurrentlyActive;
-	uint32_t gatePos;
-	int8_t currentOctave;
-	int8_t currentDirection;
-	int8_t currentOctaveDirection;
-	bool playedFirstArpeggiatedNoteYet;
-	uint8_t lastVelocity;
-	int16_t noteCodeCurrentlyOnPostArp;
-	uint8_t outputMIDIChannelForNoteCurrentlyOnPostArp;
+	bool gateCurrentlyActive = false;
+	uint32_t gatePos = 0;
+	int8_t currentOctave = 0;
+	int8_t currentDirection = 1;
+	int8_t currentOctaveDirection = 1;
+	bool playedFirstArpeggiatedNoteYet = false;
+	uint8_t lastVelocity = 0;
+	int16_t noteCodeCurrentlyOnPostArp = 0;
+	uint8_t outputMIDIChannelForNoteCurrentlyOnPostArp = 0;
 
 	// Playing state
 	uint32_t notesPlayedFromSequence = 0;
