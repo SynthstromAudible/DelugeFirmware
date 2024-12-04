@@ -667,9 +667,7 @@ The Sound menu contains the following menu hierarchy:
 </details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
+	- Enabled (ON)
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
 
@@ -1257,9 +1255,7 @@ The MIDI menu contains the following menu hierarchy:
 <details><summary>Sub-Bank (SUB)</summary></details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
+	- Enabled (ON)
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
 
