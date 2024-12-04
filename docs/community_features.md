@@ -957,7 +957,7 @@ to each individual note onset. ([#1978])
         - `Ratchet Probability` (RPRO): this sets how likely a step is to be ratcheted
             - Being 0 (0%), no ratchets at all
             - And 50 (100%), all notes will evaluate to be ratcheted.
-    - **`Spread:`** There are four new parameters (unpatched, assignable to golden knobs), to control how the parameters
+    - **`Spread:`** There are three new parameters (unpatched, assignable to golden knobs), to control how the parameters
       of each arp step are deviated from its base value. If spread is increased for a parameter, the arp steps will
       get a random amount of deviation for that parameter, calculated on each iteration.
         - `Lock`: this flag will lock the current sequence of generated random values so the sequence has a repeatable pattern. Make use of the `Sequence Length` parameter to further adjust the repeated sequence. To change the generated values, change the value of any of the parameters and the dice will be re-rolled for that parameter.
