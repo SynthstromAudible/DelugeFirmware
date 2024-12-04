@@ -34,7 +34,7 @@ public:
 	Type(l10n::String name, l10n::String title_format_str) : Selection(name), FormattedTitle(title_format_str){};
 	void beginSession(MenuItem* navigatedBackwardFrom) override { Selection::beginSession(navigatedBackwardFrom); }
 
-	bool mayUseDx() { return soundEditor.currentSource->dxPatch != nullptr; }
+	bool mayUseDx() { return !soundEditor.editingKit() && soundEditor.currentSourceIndex == 0; }
 
 	void readCurrentValue() override {
 		int32_t rawVal = (int32_t)soundEditor.currentSource->oscType;
@@ -67,6 +67,7 @@ public:
 		}
 
 		soundEditor.currentSource->setOscType(newValue);
+
 		if (oldValue == OscType::SQUARE || newValue == OscType::SQUARE) {
 			soundEditor.currentSound->setupPatchingForAllParamManagers(currentSong);
 		}

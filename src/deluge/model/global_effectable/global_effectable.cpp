@@ -202,9 +202,7 @@ char const* GlobalEffectable::getModFXTypeDisplayName() {
 	auto modTypeCount = kNumModFXTypes;
 
 	modFXType_ = static_cast<ModFXType>(util::to_underlying(modFXType_) % modTypeCount);
-	if (modFXType_ == ModFXType::NONE) {
-		modFXType_ = static_cast<ModFXType>(1);
-	}
+
 	return modfx::modFXToString(modFXType_);
 }
 
@@ -236,10 +234,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		if (whichModEncoder == 1) {
 			if (on) {
 				auto modTypeCount = kNumModFXTypes;
-				modFXType_ = static_cast<ModFXType>((util::to_underlying(modFXType_) + 1) % modTypeCount);
-				if (modFXType_ == ModFXType::NONE) {
-					modFXType_ = static_cast<ModFXType>(1);
-				}
+				setModFXType(static_cast<ModFXType>((util::to_underlying(modFXType_) + 1) % modTypeCount));
 				ensureModFXParamIsValid();
 
 				// if mod button is pressed, update mod button pop up
@@ -1155,7 +1150,7 @@ void GlobalEffectable::processFXForGlobalEffectable(StereoSample* inputBuffer, i
 		disableGrain();
 	}
 	else if (modFXTypeNow == ModFXType::GRAIN) {
-		if (anySoundComingIn) {
+		if (anySoundComingIn && !grainFX) {
 			enableGrain();
 		}
 	}
@@ -1230,12 +1225,14 @@ const char* modFXToString(ModFXType type) {
 		return l10n::get(STRING_FOR_CHORUS);
 	case ModFXType::CHORUS_STEREO:
 		return l10n::get(STRING_FOR_STEREO_CHORUS);
+	case ModFXType::DIMENSION:
+		return l10n::get(STRING_FOR_DIMENSION);
 	case ModFXType::GRAIN:
 		return l10n::get(STRING_FOR_GRAIN);
 	case ModFXType::WARBLE:
 		return l10n::get(STRING_FOR_WARBLE);
 	default:
-		return l10n::get(STRING_FOR_NONE);
+		return l10n::get(STRING_FOR_DISABLED);
 	}
 }
 } // namespace modfx
