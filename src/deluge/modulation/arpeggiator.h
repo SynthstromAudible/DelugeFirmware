@@ -23,6 +23,7 @@
 #include "util/container/array/resizeable_array.h"
 
 #include <array>
+#include <cstdint>
 
 class PostArpTriggerable;
 class ParamManagerForTimeline;
@@ -125,13 +126,11 @@ public:
 	// Spread last lock
 	uint32_t lastLockedSpreadVelocityParameterValue{0};
 	uint32_t lastLockedSpreadGateParameterValue{0};
-	uint32_t lastLockedSpreadNoteParameterValue{0};
 	uint32_t lastLockedSpreadOctaveParameterValue{0};
 
 	// Up to 16 pre-calculated spread values for each parameter
 	uint16_t lockedSpreadVelocityValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
 	uint16_t lockedSpreadGateValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
-	uint16_t lockedSpreadNoteValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
 	uint16_t lockedSpreadOctaveValues[SPREAD_LOCK_MAX_SAVED_VALUES]{};
 
 	// Temporary flags
@@ -143,6 +142,7 @@ struct ArpNote {
 	                                 // might be MIDI_CHANNEL_NONE.
 	int16_t mpeValues[kNumExpressionDimensions];
 	uint8_t velocity;
+	uint8_t baseVelocity;
 	uint8_t outputMemberChannel;
 };
 
@@ -170,14 +170,14 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb, uint32_t ratchAmount,
-	                  uint32_t ratchProb, uint32_t spreadVelocity, uint32_t spreadGate, uint32_t spreadNote,
-	                  uint32_t spreadOctave);
+	                  uint32_t ratchProb, uint32_t spreadVelocity, uint32_t spreadGate, uint32_t spreadOctave);
 	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
 	            uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb, uint32_t ratchAmount,
-	            uint32_t ratchProb, uint32_t spreadVelocity, uint32_t spreadGate, uint32_t spreadNote,
-	            uint32_t spreadOctave, ArpReturnInstruction* instruction);
+	            uint32_t ratchProb, uint32_t spreadVelocity, uint32_t spreadGate, uint32_t spreadOctave,
+	            ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
+	void calculateSpreadAmounts(ArpeggiatorSettings* settings);
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
 
@@ -213,6 +213,11 @@ public:
 	uint32_t ratchetNotesCount = 0;
 	bool isRatcheting = false;
 
+	// Calculated spread amounts
+	int32_t spreadVelocityAmount = 0;
+	int32_t spreadGateAmount = 0; // only 24 bits range
+	int16_t spreadOctaveAmount = 0;
+
 	// Unpatched Automated Params
 	uint16_t noteProbability = 0;
 	uint16_t ratchetProbability = 0;
@@ -221,7 +226,6 @@ public:
 	uint32_t ratchetAmount = 0;
 	uint32_t spreadVelocity = 0;
 	uint32_t spreadGate = 0;
-	uint32_t spreadNote = 0;
 	uint32_t spreadOctave = 0;
 
 protected:
@@ -236,6 +240,9 @@ protected:
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
+	int32_t getRandomSpreadVelocityAmount(ArpeggiatorSettings* settings);
+	int32_t getRandomSpreadGateAmount(ArpeggiatorSettings* settings);
+	int16_t getRandomSpreadOctaveAmount(ArpeggiatorSettings* settings);
 };
 
 class ArpeggiatorForDrum final : public ArpeggiatorBase {

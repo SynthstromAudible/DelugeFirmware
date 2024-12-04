@@ -66,7 +66,6 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 	arpeggiatorGate = 0;
 	arpeggiatorSpreadVelocity = 0;
 	arpeggiatorSpreadGate = 0;
-	arpeggiatorSpreadNote = 0;
 	arpeggiatorSpreadOctave = 0;
 
 	midiBank = 128; // Means none
@@ -162,7 +161,6 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
 	arpeggiatorSpreadVelocity = otherInstrumentClip->arpeggiatorSpreadVelocity;
 	arpeggiatorSpreadGate = otherInstrumentClip->arpeggiatorSpreadGate;
-	arpeggiatorSpreadNote = otherInstrumentClip->arpeggiatorSpreadNote;
 	arpeggiatorSpreadOctave = otherInstrumentClip->arpeggiatorSpreadOctave;
 }
 
@@ -2422,19 +2420,6 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			writer.write(buffer);
 		}
 		writer.write("\"");
-		// Spread note
-		writer.insertCommaIfNeeded();
-		writer.write("\n");
-		writer.printIndents();
-		writer.writeTagNameAndSeperator("lockedSpreadNote");
-		writer.write("\"0x");
-		intToHex(arpSettings.lastLockedSpreadNoteParameterValue, buffer);
-		writer.write(buffer);
-		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings.lockedSpreadNoteValues[i], buffer, 2);
-			writer.write(buffer);
-		}
-		writer.write("\"");
 		// Spread octave
 		writer.insertCommaIfNeeded();
 		writer.write("\n");
@@ -2461,7 +2446,6 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			writer.writeAttribute("rhythm", arpeggiatorRhythm);
 			writer.writeAttribute("spreadVelocity", arpeggiatorSpreadVelocity);
 			writer.writeAttribute("spreadGate", arpeggiatorSpreadGate);
-			writer.writeAttribute("spreadNote", arpeggiatorSpreadNote);
 			writer.writeAttribute("spreadOctave", arpeggiatorSpreadOctave);
 		}
 
@@ -2773,10 +2757,6 @@ someError:
 					arpeggiatorSpreadGate = reader.readTagOrAttributeValueInt();
 					reader.exitTag("spreadGate");
 				}
-				else if (!strcmp(tagName, "spreadNote")) {
-					arpeggiatorSpreadNote = reader.readTagOrAttributeValueInt();
-					reader.exitTag("spreadNote");
-				}
 				else if (!strcmp(tagName, "spreadOctave")) {
 					arpeggiatorSpreadOctave = reader.readTagOrAttributeValueInt();
 					reader.exitTag("spreadOctave");
@@ -2793,11 +2773,13 @@ someError:
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings.lastLockedSpreadVelocityParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings.lockedSpreadVelocityValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+									arpSettings.lockedSpreadVelocityValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
 						}
@@ -2808,41 +2790,30 @@ someError:
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings.lastLockedSpreadGateParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings.lockedSpreadGateValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+									arpSettings.lockedSpreadGateValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
 						}
 					}
 					reader.exitTag("lockedSpreadGate");
 				}
-				else if (!strcmp(tagName, "lockedSpreadNote")) {
-					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
-								arpSettings.lastLockedSpreadNoteParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings.lockedSpreadNoteValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
-								}
-							}
-						}
-					}
-					reader.exitTag("lockedSpreadNote");
-				}
 				else if (!strcmp(tagName, "lockedSpreadOctave")) {
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings.lastLockedSpreadOctaveParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings.lockedSpreadOctaveValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+									arpSettings.lockedSpreadOctaveValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
 						}

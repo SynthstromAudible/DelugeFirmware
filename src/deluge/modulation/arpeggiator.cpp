@@ -20,6 +20,7 @@
 #include "gui/menu_item/value_scaling.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/arpeggiator_rhythms.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
@@ -90,6 +91,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 
 	arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
 	arpNote.inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
+	arpNote.baseVelocity = velocity;
 	arpNote.velocity = velocity; // Means note is on.
 	// MIDIInstrument might set this later, but it needs to be MIDI_CHANNEL_NONE until then so it doesn't get included
 	// in the survey that will happen of existing output member channels.
@@ -193,6 +195,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// Save arpNote
 		arpNote = (ArpNote*)notes.getElementAddress(notesKey);
 		arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
+		arpNote->baseVelocity = velocity;
 		arpNote->velocity = velocity;
 		// MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
 		// doesn't get included in the survey that will happen of existing output member
@@ -214,6 +217,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 		// Save arpNote
 		arpNoteAsPlayed = (ArpNote*)notesAsPlayed.getElementAddress(notesAsPlayedIndex);
 		arpNoteAsPlayed->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] = noteCode;
+		arpNoteAsPlayed->baseVelocity = velocity;
 		arpNoteAsPlayed->velocity = velocity;
 		// MIDIInstrument might set this, but it needs to be MIDI_CHANNEL_NONE until then so it
 		// doesn't get included in the survey that will happen of existing output member
@@ -436,6 +440,7 @@ void ArpeggiatorBase::increaseIndexes(bool hasPlayedRhythmNote) {
 	// Rhythm
 	notesPlayedFromRhythm = (notesPlayedFromRhythm + 1) % arpRhythmPatterns[rhythm].length;
 	// Locked Spread
+
 	if (hasPlayedRhythmNote) {
 		// Only increase notesPlayedFromLockedSpread if we've played a rhythm note,
 		// so we effectively have more slots available and not waste them with silent notes
@@ -514,6 +519,9 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			// Move indexes to the next note in the sequence
 			calculateNextOctave(settings);
 
+			// Calculate spread amounts
+			calculateSpreadAmounts(settings);
+
 			// As we have set a note and an octave, we can say we have played a note
 			playedFirstArpeggiatedNoteYet = true;
 
@@ -539,28 +547,132 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			gatePos = 0;
 		}
 
-		// Check if we need to update velocity with some MPE value
-		switch (settings->mpeVelocity) {
-		case ArpMpeModSource::AFTERTOUCH:
-			arpNote.velocity = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
-			break;
-		case ArpMpeModSource::MPE_Y:
-			arpNote.velocity =
-			    ((arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 1) + (1 << 14)) >> 8;
-			break;
+		uint8_t velocity = arpNote.baseVelocity;
+
+		if (settings->mpeVelocity != ArpMpeModSource::OFF) {
+			// Check if we need to update velocity with some MPE value
+			switch (settings->mpeVelocity) {
+			case ArpMpeModSource::AFTERTOUCH:
+				velocity = arpNote.mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
+				break;
+			case ArpMpeModSource::MPE_Y:
+				velocity = arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
+				// velocity = ((arpNote.mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 1) + (1 << 14)) >>
+				// 8;
+				break;
+			}
+			// Fix base velocity if it's outside of MPE-controlled bounds
+			if (velocity < MIN_MPE_MODULATED_VELOCITY) {
+				velocity = MIN_MPE_MODULATED_VELOCITY;
+			}
 		}
-		// Fix velocity if it's too low
-		if (arpNote.velocity < MIN_MPE_MODULATED_VELOCITY) {
-			arpNote.velocity = MIN_MPE_MODULATED_VELOCITY;
+		arpNote.baseVelocity = velocity;
+		if (spreadVelocityAmount != 0) {
+			// Now apply velocity spread to the base velocity
+			int32_t signedVelocity = (int32_t)velocity;
+			signedVelocity = signedVelocity + spreadVelocityAmount;
+			// And fix it if out of bounds
+			if (signedVelocity < 1) {
+				signedVelocity = 1;
+			}
+			else if (signedVelocity > 127) {
+				signedVelocity = 127;
+			}
+			// Convert back to unsigned
+			velocity = (uint32_t)signedVelocity;
 		}
-		// Play the note
-		noteCodeCurrentlyOnPostArp = kNoteForDrum + (int32_t)currentOctave * 12;
+		arpNote.velocity = velocity;
+		// Get current sequence note
+		int16_t note = kNoteForDrum + (int16_t)currentOctave * 12;
+		// Fix base note if it's out of bounds
+		if (note > 127) {
+			note = 127;
+		}
+		if (spreadOctaveAmount != 0) {
+			// Now apply note & octave spread to the base note
+			note = note + spreadOctaveAmount * 12;
+			// And fix it if out of bounds
+			if (note < 0) {
+				note = 0;
+			}
+			else if (note > 127) {
+				note = 127;
+			}
+		}
+		// Set the note to be played
+		noteCodeCurrentlyOnPostArp = note;
 		instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 		instruction->arpNoteOn = &arpNote;
 	}
 	else {
 		// Rhythm silence: Don't play the note
 		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
+	}
+}
+
+int32_t ArpeggiatorBase::getRandomSpreadVelocityAmount(ArpeggiatorSettings* settings) {
+	if (spreadVelocity == 0) {
+		return 0;
+	}
+	int32_t am = spreadVelocity >> 24;
+	int32_t amHalf = am >> 1;
+	return random(am) - amHalf; // values go from -128 to 128
+}
+
+int32_t ArpeggiatorBase::getRandomSpreadGateAmount(ArpeggiatorSettings* settings) {
+	if (spreadGate == 0) {
+		return 0;
+	}
+	int32_t am = spreadGate >> 16;
+	int32_t amHalf = am >> 1;
+	return (random(am) - amHalf) << 8; // gate range
+}
+int16_t ArpeggiatorBase::getRandomSpreadOctaveAmount(ArpeggiatorSettings* settings) {
+	if (spreadOctave == 0) {
+		return 0;
+	}
+	int32_t am = spreadOctave >> 29;
+	int32_t amHalf = am >> 1;
+	return random(am) - amHalf; // values from -3 to +4
+}
+
+void ArpeggiatorBase::calculateSpreadAmounts(ArpeggiatorSettings* settings) {
+	if (settings->spreadLock) {
+		// Store generated spread values in an array so we can repeat the sequence
+		if (settings->lastLockedSpreadVelocityParameterValue != spreadVelocity) {
+			for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+				settings->lockedSpreadVelocityValues[i] = getRandomSpreadVelocityAmount(settings);
+			}
+			settings->lastLockedSpreadVelocityParameterValue = spreadVelocity;
+		}
+		if (settings->lastLockedSpreadGateParameterValue != spreadGate) {
+			for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+				settings->lockedSpreadGateValues[i] = getRandomSpreadGateAmount(settings);
+			}
+			settings->lastLockedSpreadGateParameterValue = spreadGate;
+		}
+		if (settings->lastLockedSpreadOctaveParameterValue != spreadOctave) {
+			for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+				settings->lockedSpreadOctaveValues[i] = getRandomSpreadOctaveAmount(settings);
+			}
+			settings->lastLockedSpreadOctaveParameterValue = spreadOctave;
+		}
+
+		spreadVelocityAmount =
+		    settings->lockedSpreadVelocityValues[notesPlayedFromLockedSpread % SPREAD_LOCK_MAX_SAVED_VALUES];
+		spreadGateAmount = settings->lockedSpreadGateValues[notesPlayedFromLockedSpread % SPREAD_LOCK_MAX_SAVED_VALUES];
+		spreadOctaveAmount =
+		    settings->lockedSpreadOctaveValues[notesPlayedFromLockedSpread % SPREAD_LOCK_MAX_SAVED_VALUES];
+	}
+	else {
+		// Lively create new spread values on the fly each time a note is played
+		spreadVelocityAmount = getRandomSpreadVelocityAmount(settings);
+		spreadGateAmount = getRandomSpreadGateAmount(settings);
+		spreadOctaveAmount = getRandomSpreadOctaveAmount(settings);
+		// Rest locked values
+		settings->lastLockedSpreadVelocityParameterValue = 0;
+		settings->lastLockedSpreadGateParameterValue = 0;
+		settings->lastLockedSpreadOctaveParameterValue = 0;
 	}
 }
 
@@ -740,6 +852,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			// Move indexes to the next note in the sequence
 			calculateNextNoteAndOrOctave(settings);
 
+			// Calculate spread amounts
+			calculateSpreadAmounts(settings);
+
 			// As we have set a note and an octave, we can say we have played a note
 			playedFirstArpeggiatedNoteYet = true;
 
@@ -776,22 +891,59 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			gatePos = 0;
 		}
 
-		// Check if we need to update velocity with some MPE value
-		switch (settings->mpeVelocity) {
-		case ArpMpeModSource::AFTERTOUCH:
-			arpNote->velocity = arpNote->mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
-			break;
-		case ArpMpeModSource::MPE_Y:
-			arpNote->velocity = arpNote->mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
-			break;
+		uint8_t velocity = arpNote->baseVelocity;
+
+		if (settings->mpeVelocity != ArpMpeModSource::OFF) {
+			// Check if we need to update velocity with some MPE value
+			switch (settings->mpeVelocity) {
+			case ArpMpeModSource::AFTERTOUCH:
+				velocity = arpNote->mpeValues[util::to_underlying(Expression::Z_PRESSURE)] >> 8;
+				break;
+			case ArpMpeModSource::MPE_Y:
+				velocity = arpNote->mpeValues[util::to_underlying(Expression::Y_SLIDE_TIMBRE)] >> 8;
+				break;
+			}
+			// Fix base velocity if it's outside of MPE-controlled bounds
+			if (velocity < MIN_MPE_MODULATED_VELOCITY) {
+				velocity = MIN_MPE_MODULATED_VELOCITY;
+			}
 		}
-		// Fix velocity if it's too low
-		if (arpNote->velocity < MIN_MPE_MODULATED_VELOCITY) {
-			arpNote->velocity = MIN_MPE_MODULATED_VELOCITY;
+		arpNote->baseVelocity = velocity;
+		if (spreadVelocityAmount != 0) {
+			// Now apply velocity spread to the base velocity
+			int32_t signedVelocity = (int32_t)velocity;
+			signedVelocity = signedVelocity + spreadVelocityAmount;
+			// And fix it if out of bounds
+			if (signedVelocity < 1) {
+				signedVelocity = 1;
+			}
+			else if (signedVelocity > 127) {
+				signedVelocity = 127;
+			}
+			// Convert back to unsigned
+			velocity = (uint32_t)signedVelocity;
 		}
-		// Play the note
-		noteCodeCurrentlyOnPostArp =
-		    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int32_t)currentOctave * 12;
+		arpNote->velocity = velocity;
+		// Get current sequence note
+		int16_t note =
+		    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int16_t)currentOctave * 12;
+		// Fix base note if it's out of bounds
+		if (note > 127) {
+			note = 127;
+		}
+		if (spreadOctaveAmount != 0) {
+			// Now apply note & octave spread to the base note
+			note = note + spreadOctaveAmount * 12;
+			// And fix it if out of bounds
+			if (note < 0) {
+				note = 0;
+			}
+			else if (note > 127) {
+				note = 127;
+			}
+		}
+		// Set the note to be played
+		noteCodeCurrentlyOnPostArp = note;
 		instruction->noteCodeOnPostArp = noteCodeCurrentlyOnPostArp;
 		instruction->arpNoteOn = arpNote;
 	}
@@ -811,7 +963,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 
 void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb,
                                    uint32_t ratchAmount, uint32_t ratchProb, uint32_t spVelocity, uint32_t spGate,
-                                   uint32_t spNote, uint32_t spOctave) {
+                                   uint32_t spOctave) {
 	// Update live Sequence Length value with the most up to date value from automation
 	maxSequenceLength = computeCurrentValueForUnsignedMenuItem(sequenceLength);
 
@@ -840,9 +992,9 @@ void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue
 		ratchetAmount = 0;
 	}
 
+	// Spread values
 	spreadVelocity = spVelocity;
 	spreadGate = spGate;
-	spreadNote = spNote;
 	spreadOctave = spOctave;
 }
 
@@ -851,12 +1003,12 @@ void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
                              uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb,
                              uint32_t ratchAmount, uint32_t ratchProb, uint32_t spreadVelocity, uint32_t spreadGate,
-                             uint32_t spreadNote, uint32_t spreadOctave, ArpReturnInstruction* instruction) {
+                             uint32_t spreadOctave, ArpReturnInstruction* instruction) {
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
 		return;
 	}
 
-	updateParams(sequenceLength, rhythmValue, noteProb, ratchAmount, ratchProb, spreadVelocity, spreadGate, spreadNote,
+	updateParams(sequenceLength, rhythmValue, noteProb, ratchAmount, ratchProb, spreadVelocity, spreadGate,
 	             spreadOctave);
 
 	if (settings->flagForceArpRestart) {
@@ -865,14 +1017,41 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, 
 		settings->flagForceArpRestart = false;
 	}
 
+	uint32_t maxGate = 1 << 24;
+
 	uint32_t gateThresholdSmall = gateThreshold >> 8;
 
 	if (isRatcheting) {
 		// shorten gate in case we are ratcheting (with the calculated number of ratchet notes)
 		gateThresholdSmall = gateThresholdSmall >> ratchetNotesMultiplier;
 	}
+	if (spreadGateAmount != 0) {
+		// Apply spread to gate threshold
+		int32_t signedGateThreshold = (int32_t)gateThresholdSmall;
+		if (isRatcheting) {
+			// Need to reduce the spread amount by the same ratchet multiplier
+			if (spreadGateAmount < 0) {
+				// If amount negative, do the correct math
+				signedGateThreshold = signedGateThreshold - ((-spreadGateAmount) >> ratchetNotesMultiplier);
+			}
+			else {
+				signedGateThreshold = signedGateThreshold + (spreadGateAmount >> ratchetNotesMultiplier);
+			}
+		}
+		else {
+			signedGateThreshold = signedGateThreshold + spreadGateAmount;
+		}
+		// And fix it if out of bounds
+		if (signedGateThreshold < 0) {
+			signedGateThreshold = 0;
+		}
+		else if (signedGateThreshold >= maxGate) {
+			signedGateThreshold = maxGate - 1;
+		}
+		// Convert back to unsigned
+		gateThresholdSmall = (uint32_t)signedGateThreshold;
+	}
 
-	uint32_t maxGate = 1 << 24;
 	uint32_t maxGateForRatchet = maxGate >> ratchetNotesMultiplier;
 
 	bool syncedNow = (settings->syncLevel && (playbackHandler.isEitherClockActive()));

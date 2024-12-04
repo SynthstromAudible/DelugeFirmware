@@ -171,7 +171,6 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_VELOCITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_NOTE].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
@@ -689,11 +688,13 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings->lastLockedSpreadVelocityParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedSpreadVelocityValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+									arpSettings->lockedSpreadVelocityValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
 						}
@@ -706,11 +707,13 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings->lastLockedSpreadGateParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedSpreadGateValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+									arpSettings->lockedSpreadGateValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
 						}
@@ -718,33 +721,18 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("lockedSpreadGate");
 			}
-			else if (!strcmp(tagName, "lockedSpreadNote")) {
-				if (arpSettings) {
-					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
-							if (hexChars) {
-								arpSettings->lastLockedSpreadNoteParameterValue = hexToIntFixedLength(hexChars, 8);
-								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedSpreadNoteValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
-								}
-							}
-						}
-					}
-				}
-				reader.exitTag("lockedSpreadNote");
-			}
 			else if (!strcmp(tagName, "lockedSpreadOctave")) {
 				if (arpSettings) {
 					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
-							char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings->lastLockedSpreadOctaveParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-									arpSettings->lockedSpreadOctaveValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+									arpSettings->lockedSpreadOctaveValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
 						}
@@ -845,13 +833,6 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
 		                           readAutomationUpToPos);
 		reader.exitTag("spreadGate");
-	}
-
-	else if (!strcmp(tagName, "spreadNote")) {
-		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_NOTE,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadNote");
 	}
 
 	else if (!strcmp(tagName, "spreadOctave")) {
@@ -2374,14 +2355,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t spreadVelocity =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_VELOCITY) + 2147483648;
 		uint32_t spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
-		uint32_t spreadNote = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_NOTE) + 2147483648;
 		uint32_t spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
 
 		ArpReturnInstruction instruction;
 
 		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm,
-		                 noteProbability, ratchetAmount, ratchetProbability, spreadVelocity, spreadGate, spreadNote,
-		                 spreadOctave, &instruction);
+		                 noteProbability, ratchetAmount, ratchetProbability, spreadVelocity, spreadGate, spreadOctave,
+		                 &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
@@ -3809,11 +3789,6 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		                           readAutomationUpToPos);
 		reader.exitTag("spreadGate");
 	}
-	else if (!strcmp(tagName, "spreadNote")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_NOTE,
-		                           readAutomationUpToPos);
-		reader.exitTag("spreadNote");
-	}
 	else if (!strcmp(tagName, "spreadOctave")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
 		                           readAutomationUpToPos);
@@ -4122,7 +4097,6 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute(writer, "spreadVelocity", params::UNPATCHED_ARP_SPREAD_VELOCITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "spreadGate", params::UNPATCHED_ARP_SPREAD_GATE, writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "spreadNote", params::UNPATCHED_ARP_SPREAD_NOTE, writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE,
 	                                       writeAutomation);
 
@@ -4253,19 +4227,6 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.write(buffer);
 		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 			intToHex(arpSettings->lockedSpreadGateValues[i], buffer, 2);
-			writer.write(buffer);
-		}
-		writer.write("\"");
-		// Spread note
-		writer.insertCommaIfNeeded();
-		writer.write("\n");
-		writer.printIndents();
-		writer.writeTagNameAndSeperator("lockedSpreadNote");
-		writer.write("\"0x");
-		intToHex(arpSettings->lastLockedSpreadNoteParameterValue, buffer);
-		writer.write(buffer);
-		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings->lockedSpreadNoteValues[i], buffer, 2);
 			writer.write(buffer);
 		}
 		writer.write("\"");

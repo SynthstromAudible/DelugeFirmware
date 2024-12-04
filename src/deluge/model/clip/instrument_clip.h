@@ -110,7 +110,6 @@ public:
 	uint32_t arpeggiatorNoteProbability;
 	uint32_t arpeggiatorSpreadVelocity;
 	uint32_t arpeggiatorSpreadGate;
-	uint32_t arpeggiatorSpreadNote;
 	uint32_t arpeggiatorSpreadOctave;
 
 	ParamManagerForTimeline backedUpParamManagerMIDI;

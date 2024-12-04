@@ -24,6 +24,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/arpeggiator_rhythms.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Rhythm final : public Integer {

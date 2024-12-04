@@ -121,7 +121,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 68;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 67;
 constexpr int32_t kNumGlobalParamsForAutomation = 26;
 constexpr int32_t kParamNodeWidth = 3;
 
@@ -206,7 +206,6 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_VELOCITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_GATE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_NOTE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_OCTAVE},
     // Noise
     {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},
