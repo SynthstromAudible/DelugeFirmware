@@ -624,7 +624,8 @@ int8_t ArpeggiatorBase::getRandomSpreadGateAmount(ArpeggiatorSettings* settings)
 	}
 	int32_t am = spreadGate >> 24; // 256 values
 	int32_t amHalf = am >> 1;
-	return random(am) - amHalf; // values go from -128 to 128 (8bits) (later we convert it to int24 which gateThresholdSmall uses)
+	return random(am)
+	       - amHalf; // values go from -128 to 128 (8bits) (later we convert it to int24 which gateThresholdSmall uses)
 }
 int8_t ArpeggiatorBase::getRandomSpreadOctaveAmount(ArpeggiatorSettings* settings) {
 	if (spreadOctave == 0) {
