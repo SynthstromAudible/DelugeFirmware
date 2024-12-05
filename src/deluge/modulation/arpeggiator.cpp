@@ -448,42 +448,6 @@ void ArpeggiatorBase::increaseIndexes(bool hasPlayedRhythmNote) {
 	}
 }
 
-void ArpeggiatorForDrum::calculateNextOctave(ArpeggiatorSettings* settings) {
-	// If RANDOM, we do the same thing whether playedFirstArpeggiatedNoteYet or not
-	if (settings->octaveMode == ArpOctaveMode::RANDOM) {
-		currentOctave = getRandom255() % settings->numOctaves;
-		currentOctaveDirection = 1;
-		// Must set all these variables here, even though RANDOM
-		// doesn't use them, in case user changes arp mode.
-		currentOctaveDirection = 1;
-	}
-	// Or not RANDOM
-	else {
-		// If which-note not actually set up yet...
-		if (!playedFirstArpeggiatedNoteYet) {
-			// Set the initial octave
-			setInitialOctave(settings);
-		}
-		// Otherwise, just carry on the sequence of arpeggiated notes
-		else {
-			carryOnOctaveSequence(settings);
-		}
-	}
-}
-
-// Set initial values for note and octave
-void ArpeggiatorForDrum::setInitialOctave(ArpeggiatorSettings* settings) {
-	// OCTAVE
-	if (settings->octaveMode == ArpOctaveMode::DOWN) {
-		currentOctave = settings->numOctaves - 1;
-		currentOctaveDirection = -1;
-	}
-	else {
-		currentOctave = 0;
-		currentOctaveDirection = 1;
-	}
-}
-
 void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction,
                                       bool isRatchet) {
 	// Note: for drum arpeggiator, the note mode is irrelevant, so we don't need to check it here.
@@ -505,6 +469,8 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		lastNormalNotePlayedFromRhythm = 0;
 		notesPlayedFromLockedSpread = 0;
 		lastNormalNotePlayedFromLockedSpread = 0;
+		randomNotesPlayedFromOctave = 0;
+		whichNoteCurrentlyOnPostArp = 0;
 	}
 
 	bool shouldCarryOnRhythmNote = evaluateRhythm(isRatchet);
@@ -522,7 +488,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			maybeSetupNewRatchet(settings);
 
 			// Move indexes to the next note in the sequence
-			calculateNextOctave(settings);
+			calculateNextNoteAndOrOctave(settings, chordTypeNoteCount[settings->chordTypeIndex]);
 
 			// Calculate spread amounts
 			calculateSpreadAmounts(settings);
@@ -588,7 +554,10 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		}
 		arpNote.velocity = velocity;
 		// Get current sequence note
-		int16_t note = kNoteForDrum + (int16_t)currentOctave * 12;
+		int16_t note =
+		    kNoteForDrum
+		    + chordTypeSemitoneOffsets[settings->chordTypeIndex][whichNoteCurrentlyOnPostArp % MAX_CHORD_NOTES]
+		    + (int16_t)currentOctave * 12;
 		// Fix base note if it's out of bounds
 		if (note > 127) {
 			note = 127;
@@ -693,11 +662,11 @@ void ArpeggiatorBase::calculateSpreadAmounts(ArpeggiatorSettings* settings) {
 	}
 }
 
-void Arpeggiator::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings) {
+void ArpeggiatorBase::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes) {
 	// If FULL-RANDOM (RANDOM for both Note and Octave)
 	// we do the same thing whether playedFirstArpeggiatedNoteYet or not
 	if (settings->noteMode == ArpNoteMode::RANDOM && settings->octaveMode == ArpOctaveMode::RANDOM) {
-		whichNoteCurrentlyOnPostArp = getRandom255() % (uint8_t)notes.getNumElements();
+		whichNoteCurrentlyOnPostArp = getRandom255() % numActiveNotes;
 		currentOctave = getRandom255() % settings->numOctaves;
 		// Must set all these variables here, even though RANDOM
 		// doesn't use them, in case user changes arp mode.
@@ -711,11 +680,11 @@ void Arpeggiator::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings) {
 		// If which-note not actually set up yet...
 		if (!playedFirstArpeggiatedNoteYet) {
 			// Set the initial note and octave values and directions
-			setInitialNoteAndOctave(settings);
+			setInitialNoteAndOctave(settings, numActiveNotes);
 		}
 
 		// For 1-note arpeggios it is simpler and can use the same logic as for drums
-		else if (notes.getNumElements() == 1) {
+		else if (numActiveNotes == 1) {
 			carryOnOctaveSequence(settings);
 		}
 
@@ -729,8 +698,8 @@ void Arpeggiator::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings) {
 			bool changingOctaveDirection = false;
 			if (settings->noteMode == ArpNoteMode::RANDOM) {
 				// Note: Random
-				whichNoteCurrentlyOnPostArp = getRandom255() % (uint8_t)notes.getNumElements();
-				if (randomNotesPlayedFromOctave >= notes.getNumElements()) {
+				whichNoteCurrentlyOnPostArp = getRandom255() % numActiveNotes;
+				if (randomNotesPlayedFromOctave >= numActiveNotes) {
 					changeOctave = true;
 				}
 			}
@@ -738,7 +707,7 @@ void Arpeggiator::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings) {
 				whichNoteCurrentlyOnPostArp += currentDirection;
 
 				// If reached top of notes (so current direction must be up)
-				if (whichNoteCurrentlyOnPostArp >= notes.getNumElements()) {
+				if (whichNoteCurrentlyOnPostArp >= numActiveNotes) {
 					changingOctaveDirection =
 					    (int32_t)currentOctave >= settings->numOctaves - 1
 					    && (settings->noteMode == ArpNoteMode::UP || settings->noteMode == ArpNoteMode::AS_PLAYED
@@ -747,12 +716,12 @@ void Arpeggiator::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings) {
 					if (changingOctaveDirection) {
 						// Now go down (without repeating)
 						currentDirection = -1;
-						whichNoteCurrentlyOnPostArp = notes.getNumElements() - 2;
+						whichNoteCurrentlyOnPostArp = numActiveNotes - 2;
 					}
 					else if (settings->noteMode == ArpNoteMode::UP_DOWN) {
 						// Now go down (repeating note)
 						currentDirection = -1;
-						whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
+						whichNoteCurrentlyOnPostArp = numActiveNotes - 1;
 					}
 					else { // Up or AsPlayed
 						// Start on next octave first note
@@ -780,7 +749,7 @@ void Arpeggiator::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings) {
 						changeOctave = true;
 					}
 					else { // Down
-						whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
+						whichNoteCurrentlyOnPostArp = numActiveNotes - 1;
 						changeOctave = true;
 					}
 				}
@@ -799,16 +768,16 @@ void Arpeggiator::calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings) {
 }
 
 // Set initial values for note and octave
-void Arpeggiator::setInitialNoteAndOctave(ArpeggiatorSettings* settings) {
+void ArpeggiatorBase::setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes) {
 	// NOTE
 	if (settings->noteMode == ArpNoteMode::RANDOM) {
 		// Note: Random
-		whichNoteCurrentlyOnPostArp = getRandom255() % (uint8_t)notes.getNumElements();
+		whichNoteCurrentlyOnPostArp = getRandom255() % numActiveNotes;
 		currentDirection = 1;
 	}
 	else if (settings->noteMode == ArpNoteMode::DOWN) {
 		// Note: Down
-		whichNoteCurrentlyOnPostArp = notes.getNumElements() - 1;
+		whichNoteCurrentlyOnPostArp = numActiveNotes - 1;
 		currentDirection = -1;
 	}
 	else {
@@ -872,7 +841,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			maybeSetupNewRatchet(settings);
 
 			// Move indexes to the next note in the sequence
-			calculateNextNoteAndOrOctave(settings);
+			calculateNextNoteAndOrOctave(settings, (uint8_t)notes.getNumElements());
 
 			// Calculate spread amounts
 			calculateSpreadAmounts(settings);

@@ -1,5 +1,6 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/active_scales.h"
+#include "gui/menu_item/arpeggiator/chord_type.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/note_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
@@ -224,6 +225,7 @@ arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{STRIN
 arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{STRING_FOR_NOTE_MODE,
                                                                                STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::ChordType arpChordTypeMenuKit{STRING_FOR_CHORD_TYPE, STRING_FOR_ARP_CHORD_TYPE_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE,
                                                     params::UNPATCHED_ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
@@ -284,6 +286,7 @@ submenu::Arpeggiator arpMenu{
         &arpOctavesMenu,
         &arpOctaveModeMenu,
         &arpNoteModeMenu,
+        &arpChordTypeMenuKit,
         &arpNoteProbabilityMenu,
         &arpNoteProbabilityMenuMIDIOrCV,
         &arpRhythmMenu,
