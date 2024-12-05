@@ -37,6 +37,7 @@ public:
 		mode = other->mode;
 		octaveMode = other->octaveMode;
 		noteMode = other->noteMode;
+		chordTypeIndex = other->chordTypeIndex;
 		numOctaves = other->numOctaves;
 		syncType = other->syncType;
 		syncLevel = other->syncLevel;
@@ -110,6 +111,9 @@ public:
 	// Octave settings
 	uint8_t numOctaves{2};
 
+	// Chord type (only for kit arpeggiators)
+	uint8_t chordTypeIndex{0};
+
 	// Sync settings
 	SyncLevel syncLevel;
 	SyncType syncType;
@@ -176,6 +180,7 @@ public:
 	// Playing state
 	uint32_t notesPlayedFromSequence = 0;
 	uint32_t randomNotesPlayedFromOctave = 0;
+	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
 
 	// Rhythm state
 	uint32_t notesPlayedFromRhythm = 0;
@@ -198,6 +203,8 @@ public:
 	uint32_t ratchetAmount = 0;
 
 protected:
+	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
+	void setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
 	void resetRatchet();
 	void resetRhythm();
 	void carryOnOctaveSequence(ArpeggiatorSettings* settings);
@@ -220,8 +227,6 @@ public:
 	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
 
 protected:
-	void calculateNextOctave(ArpeggiatorSettings* settings);
-	void setInitialOctave(ArpeggiatorSettings* settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);
 	bool hasAnyInputNotesActive();
 };
@@ -241,10 +246,7 @@ public:
 	OrderedResizeableArray notes;
 	// This array tracks the notes as they were played by the user
 	ResizeableArray notesAsPlayed;
-	int16_t whichNoteCurrentlyOnPostArp; // As in, the index within our list
 
 protected:
-	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings);
-	void setInitialNoteAndOctave(ArpeggiatorSettings* settings);
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);
 };

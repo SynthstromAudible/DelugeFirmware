@@ -844,7 +844,7 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198]) Added new features to the arpeggiator, which include:
+- ([#1198] [#2978] [#2985]) Added new features to the arpeggiator, which include:
     - Splitted the old `Mode` setting into separate settings: `Mode` (Off or Arpeggiator), `Octave Mode` (Up, Down,
       Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random), so you can setup
       individually how octaves are walked and how notes are walked in the sequence.
@@ -875,10 +875,12 @@ to each individual note onset. ([#1978])
         - `As played` (PLAY) will walk the notes in the same order that they were played. Tip: this mode
           also works in conjunction with Octave Mode Alternate, which will walk all the notes and octaves
           all the way up (with notes as played), and then down reversing the order of played notes.
+          Note: this produces the same effect as Up for Kit Rows.
         - `Random` (RAND) will choose a random note each time. If the Octave Mode is set to something
           different than Random, then the pattern will play, in the same octave, the same number of random
           notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
           Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
+    - **`Chord Type`** (CHRD) (only for Kit Rows): This allows you to emulate a held chord so you can use `Note Mode` on the Kit Row.
     - **`Note Probability`** (PROB) (unpatchet parameter, assignable to golden knobs). This parameter will apply a probability to notes (after rhythm and sequence length conditions have been applied).
     - **`Rhythm`** (RHYT) (unpatchet parameter, assignable to golden knobs):
       This parameter will play silences in some of the steps. This menu option show zeroes
@@ -971,7 +973,7 @@ to each individual note onset. ([#1978])
 - ([#2641], [#2751]) Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
   - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
   - To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
-  - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the `SELECT` encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
+  - Note iteration now also supports custom iteration steps. To access them, hold a note and press the `SELECT` encoder to open the Note menu. Scroll to `NOTE ITERANCE` and press `SELECT` again to enter the Note Iterance menu, the default is `OFF`. Turn the `SELECT` encoder right through all options until you see `CUSTOM`, then press the `SELECT` encoder again. A new menu will appear with the `DIVISOR` parameter (from 1 to 8.) The number of `DIVISORS` you choose will set how many `ITERATION #` toggles appear. Each `ITERATION #` allows you to activate or deactivate an iteration step.
   - To edit fill, you need to access the new note and note row editor menu's.
 
 #### 4.3.11 - Added New Note and Note Row Editor Menu's
@@ -1643,7 +1645,11 @@ different firmware
 
 [#2823]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2823
 
+[#2978]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2978
+
 [#2983]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2983
+
+[#2985]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2985
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

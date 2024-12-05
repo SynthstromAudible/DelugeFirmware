@@ -134,3 +134,9 @@ extern const uint8_t noteCodeToNoteLetter[];
 extern const bool noteCodeIsSharp[];
 
 extern const std::array<Iterance, 35> iterancePresets;
+
+#define MAX_CHORD_TYPES 9
+#define MAX_CHORD_NOTES 4
+extern uint8_t chordTypeSemitoneOffsets[MAX_CHORD_TYPES][MAX_CHORD_NOTES];
+extern uint8_t chordTypeNoteCount[MAX_CHORD_TYPES];
+extern const std::array<deluge::l10n::String, MAX_CHORD_TYPES> chordNames;
