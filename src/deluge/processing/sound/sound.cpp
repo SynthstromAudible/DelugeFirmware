@@ -661,6 +661,18 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("noteMode");
 			}
+			else if (!strcmp(tagName, "chordType")) {
+				if (arpSettings) {
+					uint8_t chordTypeIndex = (uint8_t)reader.readTagOrAttributeValueInt();
+					char buffer[12];
+					intToString(chordTypeIndex, buffer + strlen(buffer));
+					display->displayPopup(buffer);
+					if (chordTypeIndex >= 0 && chordTypeIndex < MAX_CHORD_TYPES) {
+						arpSettings->chordTypeIndex = chordTypeIndex;
+					}
+				}
+				reader.exitTag("chordType");
+			}
 			else if (!strcmp(tagName, "mpeVelocity")) {
 				if (arpSettings) {
 					arpSettings->mpeVelocity = stringToArpMpeModSource(reader.readTagOrAttributeValue());
@@ -4091,6 +4103,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel, true);
 		writer.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType, true);
 		writer.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
+		writer.writeAttribute("chordType", arpSettings->chordTypeIndex);
 		writer.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
 		writer.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		writer.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
