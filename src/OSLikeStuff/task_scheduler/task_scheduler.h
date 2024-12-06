@@ -40,7 +40,7 @@ struct TaskManager {
 	void ignoreForStats();
 	void setNextRunTimeforCurrentTask(Time seconds);
 
-	Time getLastRunTimeforCurrentTask();
+	Time getAverageRunTimeForCurrentTask();
 
 private:
 	// All current tasks

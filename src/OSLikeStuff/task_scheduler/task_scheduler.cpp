@@ -61,7 +61,9 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 	for (int i = 0; i < numActiveTasks; i++) {
 		struct Task* t = &list[sortedList[i].task];
 		struct TaskSchedule* s = &t->schedule;
-
+		if (!t->isRunnable()) {
+			continue;
+		}
 		// ensure every routine is within its target
 		if (currentTime - t->lastCallTime > s->maxInterval) {
 			return sortedList[i].task;
@@ -150,7 +152,7 @@ TaskID TaskManager::addConditionalTask(TaskHandle task, uint8_t priority, RunCon
 		return -1;
 	}
 	TaskID index = insertTaskToList(Task{task, priority, condition, name});
-	//  don't sort since it's not runnable yet anyway, so no change to the active list
+	createSortedList();
 	return index;
 }
 
@@ -164,7 +166,7 @@ void TaskManager::ignoreForStats() {
 	countThisTask = false;
 }
 
-Time TaskManager::getLastRunTimeforCurrentTask() {
+Time TaskManager::getAverageRunTimeForCurrentTask() {
 	auto currentTask = &list[currentID];
 	return currentTask->durationStats.average;
 }

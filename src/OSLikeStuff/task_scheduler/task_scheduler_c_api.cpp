@@ -14,8 +14,8 @@ void ignoreForStats() {
 	taskManager.ignoreForStats();
 }
 
-double getLastRunTimeforCurrentTask() {
-	return taskManager.getLastRunTimeforCurrentTask();
+double getAverageRunTimeforCurrentTask() {
+	return taskManager.getAverageRunTimeForCurrentTask();
 }
 
 void setNextRunTimeforCurrentTask(double seconds) {
