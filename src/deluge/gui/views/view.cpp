@@ -69,6 +69,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
+#include "modulation/arpeggiator_rhythms.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"

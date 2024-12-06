@@ -8,6 +8,9 @@
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/rhythm.h"
 #include "gui/menu_item/arpeggiator/midi_cv/sequence_length.h"
+#include "gui/menu_item/arpeggiator/midi_cv/spread_gate.h"
+#include "gui/menu_item/arpeggiator/midi_cv/spread_octave.h"
+#include "gui/menu_item/arpeggiator/midi_cv/spread_velocity.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/mpe_velocity.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
@@ -16,6 +19,7 @@
 #include "gui/menu_item/arpeggiator/preset_mode.h"
 #include "gui/menu_item/arpeggiator/rate.h"
 #include "gui/menu_item/arpeggiator/rhythm.h"
+#include "gui/menu_item/arpeggiator/spread_lock.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
@@ -244,12 +248,31 @@ arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMB
 arpeggiator::OnlyForSoundUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
                                                                   STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
                                                                   params::UNPATCHED_ARP_RATCHET_PROBABILITY};
+arpeggiator::SpreadLock arpSpreadLockMenu{STRING_FOR_SPREAD_LOCK, STRING_FOR_ARP_SPREAD_LOCK_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpSpreadVelocityMenu{
+    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_VELOCITY};
+arpeggiator::OnlyForSoundUnpatchedParam arpSpreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
+                                                          params::UNPATCHED_ARP_SPREAD_GATE};
+arpeggiator::OnlyForSoundUnpatchedParam arpSpreadOctaveMenu{
+    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE};
+arpeggiator::midi_cv::SpreadVelocity arpSpreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
+                                                                   STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE};
+arpeggiator::midi_cv::SpreadGate arpSpreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE,
+                                                           STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
+arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
+                                                               STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 
 // Arp: MPE
 arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
 Submenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
+
+Submenu arpSpreadMenu{
+    STRING_FOR_SPREAD,
+    {&arpSpreadLockMenu, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV, &arpSpreadGateMenu,
+     &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV},
+};
 
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,
@@ -274,6 +297,7 @@ submenu::Arpeggiator arpMenu{
         &arpRatchetAmountMenuMIDIOrCV,
         &arpRatchetProbabilityMenu,
         &arpRatchetProbabilityMenuMIDIOrCV,
+        &arpSpreadMenu,
         &arpMpeMenu,
     },
 };

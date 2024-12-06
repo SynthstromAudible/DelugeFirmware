@@ -28,11 +28,10 @@ public:
 	void readCurrentValue() override {
 		auto* current_clip = getCurrentInstrumentClip();
 		int64_t value = (int64_t)current_clip->arpeggiatorNoteProbability;
-		this->setValue(computeCurrentValueForArpMidiCvRatchetsOrRhythm(value));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(value));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorNoteProbability =
-		    computeFinalValueForArpMidiCvRatchetsOrRhythm(this->getValue());
+		getCurrentInstrumentClip()->arpeggiatorNoteProbability = computeFinalValueForUnsignedMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

@@ -15,25 +15,34 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/integer.h"
-#include "gui/menu_item/value_scaling.h"
+#include "gui/l10n/strings.h"
+#include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
 
-namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class RatchetAmount final : public Integer {
+namespace deluge::gui::menu_item::arpeggiator {
+class SpreadLock final : public Selection {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorRatchetAmount));
-	}
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->spreadLock); }
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRatchetAmount = computeFinalValueForUnsignedMenuItem(this->getValue());
+		auto current_value = this->getValue();
+
+		soundEditor.currentArpSettings->spreadLock = this->getValue() != 0;
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip();
+
+	deluge::vector<std::string_view> getOptions() override {
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_DISABLED), //<
+		    l10n::getView(STRING_FOR_ENABLED),  //<
+		};
 	}
+
+	// flag this selection menu as a toggle menu so we can use a checkbox to toggle value
+	bool isToggle() override { return true; }
+
+	// don't enter menu on select button press
+	bool shouldEnterSubmenu() override { return false; }
 };
-} // namespace deluge::gui::menu_item::arpeggiator::midi_cv
+} // namespace deluge::gui::menu_item::arpeggiator

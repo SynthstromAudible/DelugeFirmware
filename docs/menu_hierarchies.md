@@ -667,9 +667,7 @@ The Sound menu contains the following menu hierarchy:
 </details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
+	- Enabled (ON)
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
 
@@ -722,6 +720,11 @@ The Sound menu contains the following menu hierarchy:
 	- Sequence Length (LENG)
 	- Ratchet Amount (RATC)
 	- Ratchet Probability (RPRO)
+	- Spread
+		- Lock (LOCK)
+		- Velocity (VELO)
+		- Gate (GATE)
+		- Octave (OCTA)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -1253,9 +1256,7 @@ The MIDI menu contains the following menu hierarchy:
 <details><summary>Sub-Bank (SUB)</summary></details>
 <details><summary>Arpeggiator (ARPE)</summary>
 
-	- Mode
-		- OFF
-		- Arpeggiator (ARP)
+	- Enabled (ON)
 	- Sync
 	NOTE: These options can change depending on how your default resolution is set
 
@@ -1306,6 +1307,11 @@ The MIDI menu contains the following menu hierarchy:
 	- Sequence Length (LENG)
 	- Ratchet Amount (RATC)
 	- Ratchet Probability (RPRO)
+	- Spread
+		- Lock (LOCK)
+		- Velocity (VELO)
+		- Gate (GATE)
+		- Octave (OCTA)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
@@ -1398,6 +1404,11 @@ The CV menu contains the following menu hierarchy:
 	- Sequence Length (LENG)
 	- Ratchet Amount (RATC)
 	- Ratchet Probability (RPRO)
+	- Spread
+		- Lock (LOCK)
+		- Velocity (VELO)
+		- Gate (GATE)
+		- Octave (OCTA)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
