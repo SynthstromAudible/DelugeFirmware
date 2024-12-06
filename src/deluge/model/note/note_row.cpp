@@ -2235,7 +2235,8 @@ stopNote:
 						// If it's a cut-mode sample, though, we want it to stop, so it can get retriggered
 						// again from the start. Same for time-stretching - although those can loop themselves,
 						// caching comes along and stuffs that up, so let's just stop em.
-						if (clip->output->type == OutputType::SYNTH) { // For Sounds
+						if (clip->output->type == OutputType::SYNTH
+						    && clip->arpSettings.mode == ArpMode::OFF) { // For Sounds
 
 							if (((SoundInstrument*)clip->output)->hasCutModeSamples(&clip->paramManager)) {
 								goto stopNote;
@@ -2245,8 +2246,8 @@ stopNote:
 								goto stopNote;
 							}
 						}
-						else if (clip->output->type == OutputType::KIT && drum
-						         && drum->type == DrumType::SOUND) { // For Kits
+						else if (clip->output->type == OutputType::KIT && drum && drum->type == DrumType::SOUND
+						         && clip->arpSettings.mode == ArpMode::OFF) { // For Kits
 							if (((SoundDrum*)drum)->hasCutModeSamples(&paramManager)) {
 								goto stopNote;
 							}
@@ -3477,7 +3478,7 @@ useDefaultLift:
 
 				numElementsToAllocateFor--;
 			}
-getOut: {}
+getOut : {}
 		}
 
 		// Notes stored as hex data including lift (V3.2 onwards)
