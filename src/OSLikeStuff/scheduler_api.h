@@ -14,8 +14,11 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef DELUGE_TASK_SCHEDULER_H
-#define DELUGE_TASK_SCHEDULER_H
+#ifndef DELUGE_SCHEDULER_API_H
+#define DELUGE_SCHEDULER_API_H
+
+// this is the external API for the task scheduler. The internal implementation is in C++ but as the scheduler is
+// involved in the C portions of the codebase it needs a C api
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,7 +54,7 @@ uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const 
 /// interfere with scheduling
 uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
 void ignoreForStats();
-double getLastRunTimeforCurrentTask();
+double getAverageRunTimeforCurrentTask();
 double getSystemTime();
 void setNextRunTimeforCurrentTask(double seconds);
 void removeTask(TaskID id);
@@ -63,4 +66,4 @@ void startTaskManager();
 #ifdef __cplusplus
 }
 #endif
-#endif // DELUGE_TASK_SCHEDULER_H
+#endif // DELUGE_SCHEDULER_API_H

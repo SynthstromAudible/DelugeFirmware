@@ -6,7 +6,7 @@
  * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software Foundation,
  * either version 3 of the License, or (at your option) any later version.
- *
+ *or
  * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
@@ -17,7 +17,7 @@
 
 #ifndef DELUGE_TASK_H
 #define DELUGE_TASK_H
-#include "task_scheduler.h"
+#include "OSLikeStuff/scheduler_api.h"
 // internal to the scheduler - do not include from anywhere else
 struct StatBlock {
 
@@ -54,35 +54,29 @@ struct TaskSchedule {
 	Time maxInterval;
 };
 
-// currently 14 are in use
-constexpr int kMaxTasks = 25;
+enum class State {
+	BLOCKED,
+	QUEUED,
+	READY,
+};
+
 struct Task {
 	Task() = default;
 
 	// constructor for making a "once" task
-	Task(TaskHandle _handle, uint8_t _priority, Time timeNow, Time _timeToWait, const char* _name) {
-		handle = _handle;
-		lastCallTime = timeNow;
+	Task(TaskHandle _handle, uint8_t _priority, Time timeNow, Time _timeToWait, const char* _name)
+	    : handle(_handle), lastCallTime(timeNow), removeAfterUse(true), name(_name) {
+
 		schedule = TaskSchedule{_priority, _timeToWait, _timeToWait, _timeToWait * 2};
-		name = _name;
-		removeAfterUse = true;
 	}
 	// makes a repeating task
-	Task(TaskHandle task, TaskSchedule _schedule, const char* _name) {
-		handle = task;
-		schedule = _schedule;
-		name = _name;
-		removeAfterUse = false;
-	}
-	// makes a conditional task
-	Task(TaskHandle task, uint8_t priority, RunCondition _condition, const char* _name) {
-		handle = task;
+	Task(TaskHandle task, TaskSchedule _schedule, const char* _name) : handle(task), schedule(_schedule), name(_name) {}
+	// makes a conditional once task
+	Task(TaskHandle task, uint8_t priority, RunCondition _condition, const char* _name)
+	    : handle(task), state(State::BLOCKED), condition(_condition), removeAfterUse(true), name(_name) {
+
 		// good to go as soon as it's marked as runnable
 		schedule = {priority, 0, 0, 0};
-		name = _name;
-		removeAfterUse = true;
-		runnable = false;
-		condition = _condition;
 	}
 
 	void updateNextTimes(Time startTime, Time runtime) {
@@ -97,6 +91,22 @@ struct Task {
 		idealCallTime = startTime + schedule.targetInterval - durationStats.average;
 		latestCallTime = startTime + schedule.maxInterval - durationStats.average;
 	}
+	// returns true if the task becomes runnable
+	bool checkCondition() {
+		if (condition != nullptr && state == State::BLOCKED) {
+			if (condition()) {
+				state = State::READY;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	[[nodiscard]] bool isReady(Time currentTime) const { return state == State::READY && isReleased(currentTime); };
+	[[nodiscard]] bool isRunnable() const { return state == State::READY; }
+	[[nodiscard]] bool isReleased(Time currentTime) const {
+		return currentTime - lastFinishTime > schedule.backOffPeriod;
+	}
 	TaskHandle handle{nullptr};
 	TaskSchedule schedule{0, 0, 0, 0};
 	Time idealCallTime{0};
@@ -108,7 +118,7 @@ struct Task {
 #if SCHEDULER_DETAILED_STATS
 	StatBlock latency;
 #endif
-	bool runnable{true};
+	State state{State::READY};
 	RunCondition condition{nullptr};
 	bool removeAfterUse{false};
 	const char* name{nullptr};
