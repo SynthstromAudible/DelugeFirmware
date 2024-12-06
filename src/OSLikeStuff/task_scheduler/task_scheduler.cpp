@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "task_scheduler.h"
-#include "task.h"
+#include "OSLikeStuff/task_scheduler.h"
+#include "OSLikeStuff/task_scheduler/task.h"
 
 #include "io/debug/log.h"
 #include "util/container/static_vector.hpp"
@@ -39,7 +39,8 @@ struct SortedTask {
 	// priorities are descending, so this puts low pri tasks first
 	bool operator<(const SortedTask& another) const { return priority > another.priority; }
 };
-
+// currently 14 are in use
+constexpr int kMaxTasks = 25;
 /// internal only to the task scheduler, hence all public. External interaction to use the api
 struct TaskManager {
 
@@ -94,7 +95,7 @@ TaskManager taskManager;
 void TaskManager::createSortedList() {
 	int j = 0;
 	for (TaskID i = 0; i < kMaxTasks; i++) {
-		if (list[i].handle != nullptr && list[i].runnable) {
+		if (list[i].handle != nullptr) {
 			sortedList[j] = (SortedTask{list[i].schedule.priority, i});
 			j++;
 		}
@@ -121,7 +122,6 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 		struct Task* t = &list[sortedList[i].task];
 		struct TaskSchedule* s = &t->schedule;
 
-		Time timeSinceFinish = currentTime - t->lastFinishTime;
 		// ensure every routine is within its target
 		if (currentTime - t->lastCallTime > s->maxInterval) {
 			return sortedList[i].task;
@@ -130,7 +130,7 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 			if (deadline < Time(0) || currentTime + t->durationStats.average < deadline) {
 
 				if (s->priority < bestPriority && t->handle) {
-					if (timeSinceFinish > s->backOffPeriod) {
+					if (t->isReady(currentTime)) {
 						bestTask = sortedList[i].task;
 						nextFinishTime = currentTime + t->durationStats.average;
 					}
@@ -325,7 +325,6 @@ void TaskManager::start(Time duration) {
 
 	startClock();
 	Time startTime = getSecondsFromStart();
-	Time lastLoop = startTime;
 	if (duration != Time(0)) {
 		mustEndBefore = startTime + duration;
 	}
@@ -335,7 +334,6 @@ void TaskManager::start(Time duration) {
 
 	while (duration == Time(0) || getSecondsFromStart() < startTime + duration) {
 		Time newTime = getSecondsFromStart();
-		lastLoop = newTime;
 		TaskID task = chooseBestTask(mustEndBefore);
 		if (task >= 0) {
 			runTask(task);
@@ -364,11 +362,8 @@ bool TaskManager::checkConditionalTasks() {
 	bool addedTask = false;
 	for (int i = 0; i < kMaxTasks; i++) {
 		struct Task* t = &list[i];
-		if (t->condition != nullptr && !(t->runnable)) {
-			t->runnable = t->condition();
-			if (t->runnable) {
-				addedTask = true;
-			}
+		if (t->checkCondition()) {
+			addedTask = true;
 		}
 	}
 	if (addedTask) {

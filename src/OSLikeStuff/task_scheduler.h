@@ -16,6 +16,9 @@
  */
 #ifndef DELUGE_TASK_SCHEDULER_H
 #define DELUGE_TASK_SCHEDULER_H
+
+// this is the external API for the task scheduler. The internal implementation is in C++ but as the scheduler is
+// involved in the C portions of the codebase it needs a C api
 #ifdef __cplusplus
 extern "C" {
 #endif
