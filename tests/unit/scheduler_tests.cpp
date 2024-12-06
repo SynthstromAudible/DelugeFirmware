@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "CppUTestExt/MockSupport.h"
 #include "OSLikeStuff/task_scheduler/task_scheduler.cpp"
+#include "OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp"
 #include "cstdint"
 #include "mocks/timer_mocks.h"
 #include <iostream>
