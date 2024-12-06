@@ -13,7 +13,7 @@
 #include "io/midi/sysex.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
-#include "task_scheduler.h"
+#include "scheduler_api.h"
 #include "util/containers.h"
 #include "util/pack.h"
 #include <cstring>
