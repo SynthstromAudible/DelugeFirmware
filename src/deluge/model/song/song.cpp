@@ -1337,7 +1337,7 @@ Error Song::readFromFile(Deserializer& reader) {
 	char const* tagName;
 
 	for (int32_t s = 0; s < kMaxNumSections; s++) {
-		sections[s].numRepetitions = -1;
+		sections[s].numRepetitions = 0;
 	}
 	for (int32_t y = 0; y < 8; y++) {
 		sessionMacros[y].kind = NO_MACRO;
