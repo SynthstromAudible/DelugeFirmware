@@ -3478,7 +3478,7 @@ useDefaultLift:
 
 				numElementsToAllocateFor--;
 			}
-getOut : {}
+getOut: {}
 		}
 
 		// Notes stored as hex data including lift (V3.2 onwards)
