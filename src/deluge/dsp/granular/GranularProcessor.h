@@ -18,7 +18,7 @@
 #pragma once
 
 #include "GranularProcessor.h"
-#include "OSLikeStuff/task_scheduler.h"
+#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "dsp/filter/ladder_components.h"
 #include "dsp/stereo_sample.h"

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "OSLikeStuff/task_scheduler.h"
+#include "OSLikeStuff/scheduler_api.h"
 #include "OSLikeStuff/task_scheduler/task.h"
 
 #include "io/debug/log.h"

@@ -60,11 +60,11 @@
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/smsysex.h"
 #include "storage/storage_manager.h"
-#include "task_scheduler.h"
 #include "util/misc.h"
 #include "util/pack.h"
 #include <stdlib.h>
