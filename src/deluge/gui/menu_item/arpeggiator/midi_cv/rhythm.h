@@ -22,16 +22,18 @@
 #include "hid/display/oled.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "modulation/arpeggiator.h"
+#include "modulation/arpeggiator_rhythms.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Rhythm final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForArpMidiCvRatchetsOrRhythm(getCurrentInstrumentClip()->arpeggiatorRhythm));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorRhythm));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRhythm = computeFinalValueForArpMidiCvRatchetsOrRhythm(this->getValue());
+		getCurrentInstrumentClip()->arpeggiatorRhythm = computeFinalValueForUnsignedMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxPresetArpRhythm; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

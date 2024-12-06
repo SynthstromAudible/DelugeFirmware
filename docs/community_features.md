@@ -844,7 +844,7 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198] [#2978] [#2985]) Added new features to the arpeggiator, which include:
+- ([#1198] [#2978] [#2985] [#2990]) Added new features to the arpeggiator, which include:
     - Splitted the old `Mode` setting into separate settings: `Mode` (Off or Arpeggiator), `Octave Mode` (Up, Down,
       Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random), so you can setup
       individually how octaves are walked and how notes are walked in the sequence.
@@ -855,9 +855,7 @@ to each individual note onset. ([#1978])
         - `Both` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`.
         - `Random` will setup Mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`.
         - `Custom` will setup Mode to `Arpeggiator`, and enter a submenu to let you edit Octave Mode and Note Mode.
-    - **`Mode (MODE):`**
-        - `Off` disables the arpeggiator.
-        - `Arpeggiator` (ARP) enables the arpeggiator.
+    - **`Enabled (ON):`**: enables the arpeggiator.
     - **`Octave Mode (OMOD):`**
         - `Up` (UP) will walk the octaves up.
         - `Down` (DOWN) will walk the octaves down.
@@ -880,9 +878,9 @@ to each individual note onset. ([#1978])
           different than Random, then the pattern will play, in the same octave, the same number of random
           notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
           Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Chord Type`** (CHRD) (only for Kit Rows): This allows you to emulate a held chord so you can use `Note Mode` on the Kit Row.
-    - **`Note Probability`** (PROB) (unpatchet parameter, assignable to golden knobs). This parameter will apply a probability to notes (after rhythm and sequence length conditions have been applied).
-    - **`Rhythm`** (RHYT) (unpatchet parameter, assignable to golden knobs):
+    - **`Note Probability (PROB)`** (unpatchet parameter, assignable to golden knobs). This parameter will apply a probability to notes (after rhythm and sequence length conditions have been applied).
+    - **`Chord Type (CHRD)`** (only for Kit Rows): This allows you to emulate a held chord so you can use `Note Mode` on the Kit Row.
+    - **`Rhythm (RHYT)`** (unpatchet parameter, assignable to golden knobs):
       This parameter will play silences in some of the steps. This menu option show zeroes
       and dashes, "0" means "play note", and "-" means "don't play note" (or play a silence).
       The available options are:
@@ -942,7 +940,7 @@ to each individual note onset. ([#1978])
           <li>50: 00-0-0</li>
         </ul>
       </details>
-    - **`Sequence Length`** (LENG) (unpatchet parameter, assignable to golden knobs):
+    - **`Sequence Length (LENG)`**  (unpatchet parameter, assignable to golden knobs):
         - If set to zero, the arpeggiator pattern will play fully.
         - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
           reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm parameter
@@ -959,6 +957,17 @@ to each individual note onset. ([#1978])
         - `Ratchet Probability` (RPRO): this sets how likely a step is to be ratcheted
             - Being 0 (0%), no ratchets at all
             - And 50 (100%), all notes will evaluate to be ratcheted.
+    - **`Spread (SPRE):`** There are three new parameters (unpatched, assignable to golden knobs), to control how the parameters
+      of each arp step are deviated from its base value. If spread is increased for a parameter, the arp steps will
+      get a random amount of deviation for that parameter, calculated on each iteration.
+        - `Lock`: this flag will lock the current sequence of generated random values so the sequence has a repeatable pattern. Make use of the `Sequence Length` parameter to further adjust the repeated sequence. To change the generated values, change the value of any of the parameters and the dice will be re-rolled for that parameter.
+        - `Velocity`: the velocity of the arp step will get a random decrease from the base velocity.
+        - `Gate`: the gate of the arp step will get a random positive or negative deviation of the base gate.
+        - `Octave`: the note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of 3 octaves.
+            - From values 0 to 4, no changes in octaves
+            - From 5 to 19, up to 1 octave changes
+            - From 20 to 34, up to 2 octave changes
+            - From 35 to 50, up to 3 octave changes
     - **`MPE`** settings:
       - `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
       velocity of each new arpeggiated note by applying different pressure (aftertouch) or slide (Y) on the keys.
@@ -1650,6 +1659,8 @@ different firmware
 [#2983]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2983
 
 [#2985]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2985
+
+[#2990]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2990
 
 [Automation View Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/automation_view.md
 

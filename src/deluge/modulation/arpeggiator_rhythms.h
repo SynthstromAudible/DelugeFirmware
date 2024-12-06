@@ -20,12 +20,65 @@ typedef struct {
 // - changing the max menu value means this table is now to wrong size,
 //   which the compiler will happily notice (good)
 // - adding arp patterns so that table grows larger than kMaxMenuValue
-//   will require changing value scaling done by computeCurrentValueForArpMidiCvRatchetsOrRhythm
+//   will require changing value scaling done by computeCurrentValueForUnsignedMenuItem
 // - changing value scaling will re-scaling values from old song file
 //
 // There's a test that will break if you don't read this comment and
 // break the relationship anyhow.
 const int32_t kMaxPresetArpRhythm = kMaxMenuValue;
+// const uint32_t arpRhythmActiveNotesInPattern[kMaxPresetArpRhythm + 1] = {
+// 	1, // <- 1 step
+// 	1, // <- 3 steps
+// 	2, // <-
+// 	2, // <-
+// 	3, // <- 4 steps
+// 	2, // <-
+// 	3, // <-
+// 	2, // <-
+// 	3, // <-
+// 	1, // <- 5 steps
+// 	4, // <-
+// 	2, // <-
+// 	4, // <-
+// 	2, // <-
+// 	4, // <-
+// 	2, // <-
+// 	4, // <-
+// 	2, // <-
+// 	3, // <-
+// 	3, // <-
+// 	3, // <-
+// 	3, // <-
+// 	3, // <-
+// 	3, // <-
+// 	1, // <- 6 steps
+// 	5, // <-
+// 	2, // <-
+// 	5, // <-
+// 	2, // <-
+// 	5, // <-
+// 	2, // <-
+// 	5, // <-
+// 	2, // <-
+// 	5, // <-
+// 	4, // <-
+// 	3, // <-
+// 	4, // <-
+// 	3, // <-
+// 	4, // <-
+// 	3, // <-
+// 	4, // <-
+// 	3, // <-
+// 	4, // <-
+// 	3, // <-
+// 	4, // <-
+// 	3, // <-
+// 	4, // <-
+// 	3, // <-
+// 	3, // <-
+// 	3, // <-
+// 	4, // <-
+// };
 const ArpRhythm arpRhythmPatterns[kMaxPresetArpRhythm + 1] = {
     {1, {1, 1, 1, 1, 1, 1}}, // <- 1 step
     {3, {1, 0, 0, 1, 1, 1}}, // <- 3 steps

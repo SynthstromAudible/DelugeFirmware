@@ -27,11 +27,11 @@ public:
 	using Integer::Integer;
 	void readCurrentValue() override {
 		this->setValue(
-		    computeCurrentValueForArpMidiCvRatchetsOrRhythm(getCurrentInstrumentClip()->arpeggiatorRatchetProbability));
+		    computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorRatchetProbability));
 	}
 	void writeCurrentValue() override {
 		getCurrentInstrumentClip()->arpeggiatorRatchetProbability =
-		    computeFinalValueForArpMidiCvRatchetsOrRhythm(this->getValue());
+		    computeFinalValueForUnsignedMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
