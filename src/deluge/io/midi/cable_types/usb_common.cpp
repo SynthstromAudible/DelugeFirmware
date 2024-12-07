@@ -130,3 +130,12 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		connectedDevice->bufferMessage(packed);
 	}
 }
+
+bool MIDICableUSB::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {
+	if (message.isSystemMessage()) {
+		return sendClock;
+	}
+	else {
+		return MIDICable::wantsToOutputMIDIOnChannel(message, filter);
+	}
+}

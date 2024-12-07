@@ -98,7 +98,9 @@ public:
 	virtual char const* getDisplayName() = 0;
 
 	void dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb);
-	bool wantsToOutputMIDIOnChannel(int32_t channel, int32_t filter);
+
+	/// Used to decide if the given message should be output on a channel
+	[[nodiscard]] virtual bool wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const;
 
 	/// @name File IO functions
 	/// @{

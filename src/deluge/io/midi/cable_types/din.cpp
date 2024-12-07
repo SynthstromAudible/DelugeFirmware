@@ -56,3 +56,7 @@ void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 		bufferMIDIUart(data[i]);
 	}
 }
+
+bool MIDICableDINPorts::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {
+	return message.isSystemMessage() || MIDICable::wantsToOutputMIDIOnChannel(message, filter);
+}
