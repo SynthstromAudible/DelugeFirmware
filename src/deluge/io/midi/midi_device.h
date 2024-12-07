@@ -124,7 +124,7 @@ public:
 	virtual void sendSysex(const uint8_t* data, int32_t len) = 0;
 
 	/// Get the number of bytes available in the send buffer.
-	virtual size_t sendBufferSpace() = 0;
+	[[nodiscard]] virtual size_t sendBufferSpace() const = 0;
 
 	/// @}
 	/// @name High-level IO functions

@@ -30,7 +30,7 @@ public:
 
 	void sendMessage(MIDIMessage message) override;
 	void sendSysex(const uint8_t* data, int32_t len) override;
-	size_t sendBufferSpace() override;
+	size_t sendBufferSpace() const override;
 
 	void connectedNow(int32_t midiDeviceNum);
 	void sendMCMsNowIfNeeded();

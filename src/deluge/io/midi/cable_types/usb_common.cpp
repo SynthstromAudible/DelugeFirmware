@@ -49,7 +49,7 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 	}
 }
 
-size_t MIDICableUSB::sendBufferSpace() {
+size_t MIDICableUSB::sendBufferSpace() const {
 	int32_t ip = 0;
 	ConnectedUSBMIDIDevice* connectedDevice = nullptr;
 

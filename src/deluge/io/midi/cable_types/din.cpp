@@ -42,7 +42,7 @@ void MIDICableDINPorts::sendMessage(MIDIMessage message) {
 	midiEngine.sendSerialMidi(message);
 }
 
-size_t MIDICableDINPorts::sendBufferSpace() {
+size_t MIDICableDINPorts::sendBufferSpace() const {
 	return uartGetTxBufferSpace(UART_ITEM_MIDI);
 }
 
