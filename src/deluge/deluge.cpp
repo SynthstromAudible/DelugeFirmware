@@ -19,6 +19,7 @@
 
 #include "RZA1/sdhi/inc/sdif.h"
 #include "definitions_cxx.hpp"
+#include "deluge/io/usb//usb_state.h"
 #include "drivers/pic/pic.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/browser.h"
@@ -561,8 +562,6 @@ void setupOLED() {
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);
 
-extern "C" volatile uint32_t usbLock;
-
 extern "C" void usb_main_host(void);
 
 void registerTasks() {
@@ -861,20 +860,20 @@ extern "C" int32_t deluge_main(void) {
 		deluge::hid::display::swapDisplayType();
 	}
 
-	usbLock = 1;
-	openUSBHost();
+	{
+		deluge::io::usb::USBAutoLock lock;
+		openUSBHost();
 
-	// If nothing was plugged in to us as host, we'll go peripheral
-	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
-	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then,
-	// that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
-	if (!anythingInitiallyAttachedAsUSBHost) {
-		D_PRINTLN("switching from host to peripheral");
-		closeUSBHost();
-		openUSBPeripheral();
+		// If nothing was plugged in to us as host, we'll go peripheral
+		// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
+		// To do that, I'd really need to know at any point in time whether the user had just made a connection, just
+		// then, that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
+		if (!anythingInitiallyAttachedAsUSBHost) {
+			D_PRINTLN("switching from host to peripheral");
+			closeUSBHost();
+			openUSBPeripheral();
+		}
 	}
-
-	usbLock = 0;
 
 	// Hopefully we can read these files now
 	runtimeFeatureSettings.readSettingsFromFile();

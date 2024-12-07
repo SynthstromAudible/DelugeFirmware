@@ -17,6 +17,7 @@
 
 #include "io/midi/midi_engine.h"
 #include "definitions_cxx.hpp"
+#include "deluge/io/usb/usb_state.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -32,10 +33,11 @@
 #include "storage/smsysex.h"
 #include "version.h"
 
+using namespace deluge::io::usb;
+
 extern "C" {
 #include "RZA1/uart/sio_char.h"
 
-volatile uint32_t usbLock = 0;
 void usb_cstd_usb_task();
 
 #include "RZA1/system/iodefine.h"
@@ -45,19 +47,6 @@ void usb_cstd_usb_task();
 
 #include "RZA1/usb/r_usb_hmidi/src/inc/r_usb_hmidi.h"
 #include "RZA1/usb/userdef/r_usb_hmidi_config.h"
-
-extern uint16_t g_usb_peri_connected;
-
-uint8_t stopSendingAfterDeviceNum[USB_NUM_USBIP];
-uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
-uint8_t anyUSBSendingStillHappening[USB_NUM_USBIP];
-
-usb_utr_t g_usb_midi_send_utr[USB_NUM_USBIP];
-usb_utr_t g_usb_midi_recv_utr[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
-
-extern uint16_t g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][(USB_EPL * 2) + 1];
-
-extern usb_utr_t* g_p_usb_pipe[USB_MAX_PIPE_NO + 1u];
 
 usb_regadr_t usb_hstd_get_usb_ip_adr(uint16_t ipno);
 void change_destination_of_send_pipe(usb_utr_t* ptr, uint16_t pipe, uint16_t* tbl, int32_t sq);
@@ -69,9 +58,6 @@ void hw_usb_clear_pid(usb_utr_t* ptr, uint16_t pipeno, uint16_t data);
 uint16_t hw_usb_read_pipectr(usb_utr_t* ptr, uint16_t pipeno);
 
 void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume = false);
-
-uint8_t currentDeviceNumWithSendPipe[USB_NUM_USBIP][2] = {
-    MAX_NUM_USB_MIDI_DEVICES, MAX_NUM_USB_MIDI_DEVICES}; // One without, and one with, interrupt endpoints
 
 // We now bypass calling this for successful as peripheral on A1 (see usb_pstd_bemp_pipe_process_rohan_midi())
 void usbSendCompleteAsHost(int32_t ip) {
@@ -211,8 +197,6 @@ void brdyOccurred(int32_t ip) {
 
 PLACE_SDRAM_BSS MidiEngine midiEngine{};
 
-bool anythingInUSBOutputBuffer = false;
-
 MidiEngine::MidiEngine() {
 	numSerialMidiInput = 0;
 	currentlyReceivingSysExSerial = false;
@@ -273,8 +257,8 @@ void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume) {
 
 	int32_t isInterrupt = (pipeNumber == USB_CFG_HMIDI_INT_SEND);
 
-	if (d != currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt]) {
-		currentDeviceNumWithSendPipe[USB_CFG_USE_USBIP][isInterrupt] = d;
+	if (d != currentDeviceNumWithSendPipe[isInterrupt]) {
+		currentDeviceNumWithSendPipe[isInterrupt] = d;
 		change_destination_of_send_pipe(&g_usb_midi_send_utr[USB_CFG_USE_USBIP], pipeNumber,
 		                                g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d], connectedDevice->sq);
 	}
@@ -305,7 +289,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 	// is this still relevant? anyUSBSendingStillHappening[ip] acts as the lock between routine and interrupt
 	// on the sending side. all other uses of usbLock seems to be about _receiving_. Can there be a conflict
 	// between sending and receiving as well??
-	usbLock = 1;
+	USBAutoLock lock;
 
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
 		if (anyUSBSendingStillHappening[ip]) {
@@ -342,7 +326,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 			// This next bit was written with multiple devices on hubs in mind, but seems to work for a single MIDI
 			// device too
 
-			int32_t midiDeviceNumToSendTo = currentDeviceNumWithSendPipe[ip][0]; // This will do
+			int32_t midiDeviceNumToSendTo = currentDeviceNumWithSendPipe[0]; // This will do
 			if (midiDeviceNumToSendTo >= MAX_NUM_USB_MIDI_DEVICES) {
 				midiDeviceNumToSendTo = 0; // In case it was set to "none", I think
 			}
@@ -405,8 +389,6 @@ void MidiEngine::flushUSBMIDIOutput() {
 		}
 getOut: {}
 	}
-
-	usbLock = 0;
 }
 
 bool MidiEngine::anythingInOutputBuffer() {
@@ -760,9 +742,8 @@ void MidiEngine::checkIncomingUsbMidi() {
 
 	if (!usbLockNow) {
 		// Have to call this regularly, to do "callbacks" that will grab out the received data
-		usbLock = 1;
+		USBAutoLock lock;
 		usb_cstd_usb_task();
-		usbLock = 0;
 	}
 
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
@@ -827,10 +808,9 @@ void MidiEngine::checkIncomingUsbMidi() {
 
 					connectedUSBMIDIDevices[ip][0].currentlyWaitingToReceive = 1;
 
-					usbLock = 1;
+					USBAutoLock lock;
 					g_p_usb_pipe[USB_CFG_PMIDI_BULK_IN] = &g_usb_midi_recv_utr[ip][0];
 					usb_receive_start_rohan_midi(USB_CFG_PMIDI_BULK_IN);
-					usbLock = 0;
 				}
 
 				// Or as host
@@ -839,9 +819,8 @@ void MidiEngine::checkIncomingUsbMidi() {
 					// Only allowed to setup receive-transfer if not in the process of sending to various devices.
 					// (Wait, still? Was this just because of that insane bug that's now fixed?)
 					if (usbDeviceNumBeingSentToNow[ip] == stopSendingAfterDeviceNum[ip]) {
-						usbLock = 1;
+						USBAutoLock lock;
 						setupUSBHostReceiveTransfer(ip, d);
-						usbLock = 0;
 					}
 				}
 			}

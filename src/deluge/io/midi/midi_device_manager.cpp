@@ -24,17 +24,18 @@
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/usb/usb_state.h"
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
 #include "util/container/vector/named_thing_vector.h"
 #include "util/misc.h"
 
+using namespace deluge::io::usb;
+
 extern "C" {
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
 #include "drivers/uart/uart.h"
-
-extern uint8_t anyUSBSendingStillHappening[];
 }
 #pragma GCC diagnostic push
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
@@ -636,7 +637,7 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 	sendDataRingBuf[ringBufWriteIdx & MIDI_SEND_RING_MASK] = fullMessage;
 	ringBufWriteIdx++;
 
-	anythingInUSBOutputBuffer = true;
+	deluge::io::usb::anythingInUSBOutputBuffer = true;
 }
 
 bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
