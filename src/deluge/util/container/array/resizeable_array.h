@@ -53,7 +53,7 @@ public:
 		return (char* __restrict__)memory + (absoluteIndex * elementSize);
 	}
 
-	[[gnu::always_inline]] inline int32_t getNumElements() { return numElements; }
+	[[gnu::always_inline]] inline int32_t getNumElements() const { return numElements; }
 
 	uint32_t elementSize;
 	bool emptyingShouldFreeMemory;

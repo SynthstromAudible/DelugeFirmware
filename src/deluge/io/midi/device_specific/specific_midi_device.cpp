@@ -31,9 +31,12 @@ SpecificMidiDeviceType getSpecificMidiDeviceType(uint16_t vendorId, uint16_t pro
 void iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook hook) {
 	using namespace MIDIDeviceManager;
 
-	for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
-		auto* specificDevice = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
+	if (rootUSB == nullptr || rootUSB->getType() != RootComplexType::RC_USB_HOST) {
+		return;
+	}
 
-		specificDevice->callHook(hook);
+	for (auto& c : rootUSB->getCables()) {
+		auto& cable = static_cast<MIDICableUSBHosted&>(c);
+		cable.callHook(hook);
 	}
 }

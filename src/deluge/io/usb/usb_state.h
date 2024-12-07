@@ -51,6 +51,9 @@ extern uint8_t usbDeviceNumBeingSentToNow[USB_NUM_USBIP];
 /// Flag to prevent reentrant sending
 extern uint8_t anyUSBSendingStillHappening[USB_NUM_USBIP];
 
+/// up internal USB state
+void usbSetup();
+
 } // namespace deluge::io::usb
 
 extern "C" {
@@ -70,6 +73,24 @@ extern uint16_t g_usb_hmidi_tmp_ep_tbl[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES][
 
 // One without, and one with, interrupt endpoints
 extern uint8_t currentDeviceNumWithSendPipe[2];
+
+extern uint16_t g_usb_usbmode;
+
+/// Timestamp of the last BRDY event, from the SSI_TX_DMA_CHANNEL
+extern uint32_t timeLastBRDY[USB_NUM_USBIP];
+
+/// Start a receive operation on a given pipe
+void usb_receive_start_rohan_midi(uint16_t pipe);
+
+// Used when deluge is in host mode.
+//
+// Implemented in root_complex/usb_hosted.cpp
+void usbSendCompleteAsHost(int32_t ip);
+
+// Used when deluge is in peripheral mode.
+//
+// Implemented in root_complex/usb_peripheral.cpp
+void usbSendCompleteAsPeripheral(int32_t ip);
 
 #ifdef __cplusplus
 }

@@ -30,7 +30,7 @@ void MIDICableUSBUpstream::writeToFlash(uint8_t* memory) {
 	*(uint16_t*)memory = portNumber ? VENDOR_ID_UPSTREAM_USB2 : VENDOR_ID_UPSTREAM_USB;
 }
 
-char const* MIDICableUSBUpstream::getDisplayName() {
+char const* MIDICableUSBUpstream::getDisplayName() const {
 	switch (portNumber) {
 	case 0:
 		return deluge::l10n::get(deluge::l10n::String::STRING_FOR_UPSTREAM_USB_PORT_1);

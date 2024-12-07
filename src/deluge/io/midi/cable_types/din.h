@@ -38,9 +38,9 @@ public:
 
 	void writeReferenceAttributesToFile(Serializer& writer) override;
 	void writeToFlash(uint8_t* memory) override;
-	char const* getDisplayName() override;
+	[[nodiscard]] char const* getDisplayName() const override;
 
 	[[nodiscard]] Error sendMessage(MIDIMessage message) override;
 	[[nodiscard]] Error sendSysex(const uint8_t* data, int32_t len) override;
-	size_t sendBufferSpace() const override;
+	[[nodiscard]] size_t sendBufferSpace() const override;
 };

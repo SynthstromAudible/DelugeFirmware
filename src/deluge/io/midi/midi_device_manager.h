@@ -21,6 +21,7 @@
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/root_complex/din.h"
+#include "io/midi/root_complex/usb_hosted.h"
 #include "util/container/vector/named_thing_vector.h"
 class Serializer;
 class Deserializer;
@@ -111,15 +112,16 @@ void writeDevicesToFile();
 void readAHostedDeviceFromFile(Deserializer& reader);
 void readDevicesFromFile();
 
-extern MIDICableUSBUpstream upstreamUSBMIDICable1;
-extern MIDICableUSBUpstream upstreamUSBMIDICable2;
-extern MIDICableUSBUpstream upstreamUSBMIDICable3;
+/// Configure the MIDI root complex. Should be an instance of MIDIRootComplexUSBHosted or MIDIRootCOmplexUSBPeripheral,
+/// or nullptr (representing disconnection).
+void setUSBRoot(MIDIRootComplex* root);
 
 extern DINRootComplex rootDin;
+extern MIDIRootComplex* rootUSB;
+
+MIDIRootComplexUSBHosted* getHosted();
 
 extern bool differentiatingInputsByDevice;
-
-extern NamedThingVector hostedMIDIDevices;
 
 extern uint8_t lowestLastMemberChannelOfLowerZoneOnConnectedOutput;
 extern uint8_t highestLastMemberChannelOfUpperZoneOnConnectedOutput;

@@ -18,6 +18,15 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "io/midi/midi_device.h"
+
+enum class RootComplexType {
+	RC_DIN,
+	RC_USB_PERIPHERAL,
+	/// needs the RC_ prefix even though this is an enum class because USB_HOST is a preprocessor macro in some of the
+	/// RZA1 headers
+	RC_USB_HOST,
+};
 
 /// Represents a group of cables we can do I/O on.
 ///
@@ -25,6 +34,52 @@
 /// bridge to the PCIe bus by the bus controller. Similarly, this class represents the interface from the Deluge
 /// software to a MIDI device connection.
 class MIDIRootComplex {
+	class CableIterator {
+	private:
+		MIDIRootComplex& parent_;
+		size_t index_;
+
+	public:
+		CableIterator(const CableIterator&) = default;
+		CableIterator(CableIterator&&) = default;
+		CableIterator& operator=(const CableIterator&) = delete;
+		CableIterator& operator=(CableIterator&&) = delete;
+
+		CableIterator(MIDIRootComplex& parent, size_t index) : parent_{parent}, index_{index} {}
+
+		CableIterator& operator++() {
+			index_++;
+			return *this;
+		}
+
+		CableIterator operator++(int) {
+			auto pre = *this;
+			index_++;
+			return pre;
+		}
+
+		friend bool operator==(CableIterator const& a, CableIterator const& b) {
+			return &a.parent_ == &b.parent_ && a.index_ == b.index_;
+		};
+
+		friend bool operator!=(CableIterator const& a, CableIterator const& b) {
+			return &a.parent_ != &b.parent_ || a.index_ != b.index_;
+		};
+
+		MIDICable& operator*() { return *parent_.getCable(index_); }
+		MIDICable* operator->() { return parent_.getCable(index_); }
+	};
+
+	class CableSet {
+	public:
+		MIDIRootComplex& parent;
+
+		explicit CableSet(MIDIRootComplex& ccplex) : parent{ccplex} {}
+
+		CableIterator begin() { return CableIterator{parent, 0}; }
+		CableIterator end() { return CableIterator{parent, parent.getNumCables()}; }
+	};
+
 public:
 	MIDIRootComplex() = default;
 	MIDIRootComplex(const MIDIRootComplex&) = delete;
@@ -33,6 +88,13 @@ public:
 	MIDIRootComplex& operator=(MIDIRootComplex&&) = delete;
 
 	virtual ~MIDIRootComplex() = default;
+
+	[[nodiscard]] virtual RootComplexType getType() const = 0;
+
+	[[nodiscard]] virtual size_t getNumCables() const = 0;
+	[[nodiscard]] virtual MIDICable* getCable(size_t cableIdx) = 0;
+
+	CableSet getCables() { return CableSet{*this}; }
 
 	/// Flush as much data as possible from any internal buffers to hardware queues
 	virtual void flush() = 0;

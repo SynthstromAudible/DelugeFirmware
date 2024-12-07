@@ -95,7 +95,7 @@ class MIDICable {
 public:
 	MIDICable();
 	virtual void writeToFlash(uint8_t* memory) = 0;
-	virtual char const* getDisplayName() = 0;
+	[[nodiscard]] virtual char const* getDisplayName() const = 0;
 
 	void dataEntryMessageReceived(ModelStack* modelStack, int32_t channel, int32_t msb);
 

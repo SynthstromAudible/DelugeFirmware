@@ -35,7 +35,7 @@ void MIDICableDINPorts::writeToFlash(uint8_t* memory) {
 	*(uint16_t*)memory = VENDOR_ID_DIN;
 }
 
-char const* MIDICableDINPorts::getDisplayName() {
+char const* MIDICableDINPorts::getDisplayName() const {
 	return deluge::l10n::get(deluge::l10n::String::STRING_FOR_DIN_PORTS);
 }
 

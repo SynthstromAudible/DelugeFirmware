@@ -32,6 +32,7 @@ public:
 	[[nodiscard]] Error sendSysex(const uint8_t* data, int32_t len) override;
 	[[nodiscard]] size_t sendBufferSpace() const override;
 
+	void checkIncomingSysex(uint8_t const* msg, int32_t ip, int32_t d);
 	void connectedNow(int32_t midiDeviceNum);
 	void sendMCMsNowIfNeeded();
 	uint8_t needsToSendMCMs;

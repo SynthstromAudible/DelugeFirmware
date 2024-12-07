@@ -19,8 +19,10 @@
 #include <OSLikeStuff/scheduler_api.h>
 #include <bitset>
 #include <extern.h>
+
+#include "io/usb/usb_state.h"
+
 extern uint8_t currentlyAccessingCard;
-extern uint32_t usbLock;
 // this is basically a bitset however the enums need to be exposed to C code and this is easier to keep synced
 class ResourceChecker {
 	uint32_t resources_{0};
@@ -39,7 +41,7 @@ public:
 			anythingLocked |= currentlyAccessingCard;
 		}
 		if ((resources_ & RESOURCE_USB) != 0u) {
-			anythingLocked |= usbLock;
+			anythingLocked |= deluge::io::usb::usbLock;
 		}
 		if ((resources_ & RESOURCE_SD_ROUTINE) != 0u) {
 			anythingLocked |= sdRoutineLock;

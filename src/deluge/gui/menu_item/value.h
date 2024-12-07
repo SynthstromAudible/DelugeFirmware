@@ -32,7 +32,10 @@ public:
 	void readValueAgain() override;
 	bool selectEncoderActionEditsInstrument() final { return true; }
 
-	void setValue(T value) { value_ = value; }
+	void setValue(T value) {
+		D_PRINTLN("%d", value);
+		value_ = value;
+	}
 
 	template <util::enumeration E>
 	void setValue(E value) {

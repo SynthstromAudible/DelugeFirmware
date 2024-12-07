@@ -18,6 +18,41 @@
 #include "usb_common.h"
 #include "io/midi/midi_engine.h"
 
+void MIDICableUSB::checkIncomingSysex(uint8_t const* msg, int32_t ip, int32_t d) {
+	ConnectedUSBMIDIDevice* connected = &connectedUSBMIDIDevices[ip][d];
+
+	uint8_t statusType = msg[0] & 15;
+	int32_t to_read = 0;
+	bool will_end = false;
+	if (statusType == 0x4) {
+		// sysex start or continue
+		if (msg[1] == 0xf0) {
+			this->incomingSysexPos = 0;
+		}
+		to_read = 3;
+	}
+	else if (statusType >= 0x5 && statusType <= 0x7) {
+		to_read = statusType - 0x4; // read between 1-3 bytes
+		will_end = true;
+	}
+
+	for (int32_t i = 0; i < to_read; i++) {
+		if (this->incomingSysexPos >= sizeof(this->incomingSysexBuffer)) {
+			// TODO: allocate a GMA buffer to some bigger size
+			this->incomingSysexPos = 0;
+			return; // bail out
+		}
+		this->incomingSysexBuffer[this->incomingSysexPos++] = msg[i + 1];
+	}
+
+	if (will_end) {
+		if (this->incomingSysexBuffer[0] == 0xf0) {
+			midiEngine.midiSysexReceived(*this, this->incomingSysexBuffer, this->incomingSysexPos);
+		}
+		this->incomingSysexPos = 0;
+	}
+}
+
 void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
 	connectionFlags |= (1 << midiDeviceNum);
 	needsToSendMCMs = 2;
@@ -30,6 +65,24 @@ void MIDICableUSB::sendMCMsNowIfNeeded() {
 			sendAllMCMs();
 		}
 	}
+}
+
+static uint32_t setupUSBMessage(MIDIMessage message) {
+	// format message per USB midi spec on virtual cable 0
+	uint8_t cin;
+	uint8_t firstByte = (message.channel & 15) | (message.statusType << 4);
+
+	switch (firstByte) {
+	case 0xF2: // Position pointer
+		cin = 0x03;
+		break;
+
+	default:
+		cin = message.statusType; // Good for voice commands
+		break;
+	}
+
+	return ((uint32_t)message.data2 << 24) | ((uint32_t)message.data1 << 16) | ((uint32_t)firstByte << 8) | cin;
 }
 
 Error MIDICableUSB::sendMessage(MIDIMessage message) {
@@ -46,7 +99,7 @@ Error MIDICableUSB::sendMessage(MIDIMessage message) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			if (connectedDevice->canHaveMIDISent) {
 				uint32_t channeledMessage = fullMessage | (portNumber << 4);
-				connectedDevice->bufferMessage(fullMessage);
+				connectedDevice->bufferMessage(channeledMessage);
 			}
 		}
 	}

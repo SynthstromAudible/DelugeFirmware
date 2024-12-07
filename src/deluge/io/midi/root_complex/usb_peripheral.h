@@ -17,23 +17,32 @@
 
 #pragma once
 
-#include "io/midi/cable_types/din.h"
+#include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/midi_root_complex.h"
 #include <array>
 
-class DINRootComplex : public MIDIRootComplex {
+class MIDIRootComplexUSBPeripheral : public MIDIRootComplex {
 private:
+	using CableArray = std::array<MIDICableUSBUpstream, 3>;
+
+	CableArray cables_;
+
 public:
-	/// The one and only DIN cable connection
-	MIDICableDINPorts cable;
+	MIDIRootComplexUSBPeripheral(const MIDIRootComplexUSBPeripheral&) = delete;
+	MIDIRootComplexUSBPeripheral(MIDIRootComplexUSBPeripheral&&) = delete;
+	MIDIRootComplexUSBPeripheral& operator=(const MIDIRootComplexUSBPeripheral&) = delete;
+	MIDIRootComplexUSBPeripheral& operator=(MIDIRootComplexUSBPeripheral&&) = delete;
 
-	DINRootComplex();
-	~DINRootComplex() override;
+	MIDIRootComplexUSBPeripheral();
+	~MIDIRootComplexUSBPeripheral() override;
 
-	[[nodiscard]] RootComplexType getType() const override { return RootComplexType::RC_DIN; };
+	[[nodiscard]] size_t getNumCables() const override {
+		// This returns 2, not 3, because the 3rd cable is secret (only used by sysex infrastructure)
+		return 2;
+	}
 
-	[[nodiscard]] size_t getNumCables() const override { return 1; }
-	[[nodiscard]] MIDICable* getCable(size_t cableIdx) override { return (cableIdx == 0) ? &cable : nullptr; }
+	[[nodiscard]] MIDICable* getCable(size_t index) override;
+	[[nodiscard]] RootComplexType getType() const override { return RootComplexType::RC_USB_PERIPHERAL; }
 
 	void flush() override;
 	[[nodiscard]] Error poll() override;

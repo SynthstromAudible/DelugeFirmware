@@ -49,6 +49,8 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/root_complex/usb_hosted.h"
+#include "io/midi/root_complex/usb_peripheral.h"
 #include "lib/printf.h" // IWYU pragma: keep this over rides printf with a non allocating version
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
@@ -242,14 +244,6 @@ bool readButtonsAndPads() {
 	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
 		usbInitializationPeriodComplete = 1;
 	}
-
-	/*
-	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >=
-	(44100 << 1)) { D_PRINTLN("closing peripheral"); closeUSBPeripheral(); D_PRINTLN("switching back to host");
-	    openUSBHost();
-	    closedPeripheral = true;
-	}
-	*/
 
 	if (waitingForSDRoutineToEnd) {
 		if (sdRoutineLock) {
@@ -864,14 +858,20 @@ extern "C" int32_t deluge_main(void) {
 		deluge::io::usb::USBAutoLock lock;
 		openUSBHost();
 
-		// If nothing was plugged in to us as host, we'll go peripheral
-		// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
-		// To do that, I'd really need to know at any point in time whether the user had just made a connection, just
-		// then, that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
-		if (!anythingInitiallyAttachedAsUSBHost) {
+		if (anythingInitiallyAttachedAsUSBHost) {
+			MIDIDeviceManager::setUSBRoot(new MIDIRootComplexUSBHosted());
+		}
+		else {
+			// If nothing was plugged in to us as host, we'll go peripheral
+			// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
+			// To do that, I'd really need to know at any point in time whether the user had just made a connection,
+			// just then, that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral
+			// yet.
 			D_PRINTLN("switching from host to peripheral");
 			closeUSBHost();
 			openUSBPeripheral();
+
+			// configuredAsPeripheral will set the root complex.
 		}
 	}
 
