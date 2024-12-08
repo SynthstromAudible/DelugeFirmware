@@ -44,7 +44,6 @@ String Browser::currentDir{};
 bool Browser::qwertyVisible;
 
 CStringArray Browser::fileItems{sizeof(FileItem)};
-int32_t Browser::scrollPosVertical;
 int32_t Browser::fileIndexSelected;
 int32_t Browser::numCharsInPrefix;
 bool Browser::arrivedAtFileByTyping;
@@ -603,18 +602,6 @@ setEnteredTextAndUseFoundFile:
 				if (error != Error::NONE) {
 					goto gotErrorAfterAllocating;
 				}
-useFoundFile:
-				scrollPosVertical = fileIndexSelected;
-				if (display->getNumBrowserAndMenuLines() > 1) {
-					int32_t lastAllowed = fileItems.getNumElements() - display->getNumBrowserAndMenuLines();
-					if (scrollPosVertical > lastAllowed) {
-						scrollPosVertical = lastAllowed;
-						if (scrollPosVertical < 0) {
-							scrollPosVertical = 0;
-						}
-					}
-				}
-
 				goto everythingFinalized;
 			}
 
@@ -653,7 +640,7 @@ useFoundFile:
 			}
 
 			if (thisSlot.subSlot >= 25) {
-				goto useFoundFile;
+				goto everythingFinalized;
 			}
 
 			char nameBuffer[20];
@@ -820,7 +807,6 @@ pickBrandNewNameIfNoneNominated:
 
 useNonExistentFileName:     // Normally this will get skipped over - if we found a file.
 	fileIndexSelected = -1; // No files.
-	scrollPosVertical = 0;
 
 everythingFinalized:
 	folderContentsReady(direction);
@@ -952,7 +938,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 
 		newFileIndex = fileItems.search(enteredText.get());
 		if (offset < 0) {
-			newFileIndex--;
+			newFileIndex--; // XXX: why?
 		}
 	}
 	else {
@@ -1051,7 +1037,6 @@ nonNumeric:
 	if (newFileIndex < 0) {
 		D_PRINTLN("index below 0");
 		if (numFileItemsDeletedAtStart) {
-			scrollPosVertical = 9999;
 
 tryReadingItems:
 			D_PRINTLN("reloading");
@@ -1074,7 +1059,6 @@ gotErrorAfterAllocating:
 		}
 
 		else { // Wrap to end
-			scrollPosVertical = 0;
 
 			if (numFileItemsDeletedAtEnd) {
 				newCatalogSearchDirection = CATALOG_SEARCH_LEFT;
@@ -1096,10 +1080,10 @@ searchFromOneEnd:
 		}
 	}
 
-	else if (newFileIndex >= fileItems.getNumElements()) {
+	// we try to have 1 beyond the current index
+	else if ((newFileIndex + 1) >= fileItems.getNumElements()) {
 		D_PRINTLN("out of file items");
 		if (numFileItemsDeletedAtEnd) {
-			scrollPosVertical = 0;
 			goto tryReadingItems;
 		}
 
@@ -1108,7 +1092,6 @@ searchFromOneEnd:
 		}
 
 		else {
-			scrollPosVertical = 9999;
 
 			if (numFileItemsDeletedAtStart) {
 				newCatalogSearchDirection = CATALOG_SEARCH_RIGHT;
@@ -1125,13 +1108,6 @@ searchFromOneEnd:
 	}
 
 	fileIndexSelected = newFileIndex;
-
-	if (scrollPosVertical > fileIndexSelected) {
-		scrollPosVertical = fileIndexSelected;
-	}
-	else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
-		scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
-	}
 
 	enteredTextEditPos = 0;
 	if (display->haveOLED()) {
@@ -1267,11 +1243,6 @@ notFound:
 
 	fileIndexSelected = i;
 
-	// Move scroll only if found item is completely offscreen.
-	if (display->have7SEG() || scrollPosVertical > i || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
-		scrollPosVertical = i;
-	}
-
 	error = setEnteredTextFromCurrentFilename();
 	if (error != Error::NONE) {
 		goto gotError;
@@ -1328,19 +1299,43 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	bool isFolder = false;
 	bool isSelectedIndex = true;
 	char const* displayName;
-	int32_t o;
+	int32_t row;
 
 	// If we're currently typing a filename which doesn't (yet?) have a file...
 	if (fileIndexSelected == -1) {
 		displayName = enteredText.get();
-		o = OLED_HEIGHT_CHARS; // Make sure below loop doesn't keep looping.
+		row = OLED_HEIGHT_CHARS; // Make sure below loop doesn't keep looping.
 		goto drawAFile;
 	}
 
 	else {
-		for (o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
+		// KLUDGE: Since fileItems does not contain _all_ the files, only some portion of them
+		// relevant to current display, this code relies on two somewhat brittle assumptions:
+		//
+		//   1. fileIndexSelected is zero IFF we're on the actual first file
+		//   2. fileIndexSelected is getNumElements() - 1 IFF we're on the actual last file
+		//
+		// The selectEncoderAction explicitly maintains the #2, kinda, with new code trying to
+		// load one file more than fileIndexSelected requires.
+		//
+		// The assumption #1 seems true on light testing, but it's not obvious how or why.
+		int32_t firstVisible;
+		if (fileIndexSelected == 0) {
+			// We're on the first item.
+			firstVisible = fileIndexSelected;
+		}
+		else if (fileIndexSelected < (fileItems.getNumElements() - 1)) {
+			// We're somewhere in the middle
+			firstVisible = fileIndexSelected - 1;
+		}
+		else {
+			// We're on the last item: first visible is two earlier -- if we have that many.
+			firstVisible = std::max((int32_t)0, fileIndexSelected - 2);
+		}
+
+		for (row = 0; row < OLED_HEIGHT_CHARS - 1; row++) {
 			{
-				int32_t i = o + scrollPosVertical;
+				int32_t i = row + firstVisible;
 
 				if (i >= fileItems.getNumElements()) {
 					break;
