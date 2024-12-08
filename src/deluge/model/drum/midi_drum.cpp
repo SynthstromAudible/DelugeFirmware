@@ -29,12 +29,38 @@ MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
-	lastVelocity = velocity;
-	midiEngine.sendNote(this, true, note, velocity, channel, kMIDIOutputFilterNoMPE);
-	state = true;
+	ArpeggiatorSettings* arpSettings = getArpSettings(nullptr);
+	ArpReturnInstruction instruction;
+	// Run everything by the Arp...
+	arpeggiator.noteOn(arpSettings, note, velocity, &instruction, fromMIDIChannel, mpeValues);
+	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
+		noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, velocity);
+	}
+	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) [[likely]] {
+		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+	}
 }
 
 void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
+	ArpeggiatorSettings* arpSettings = getArpSettings(nullptr);
+	ArpReturnInstruction instruction;
+	// Run everything by the Arp...
+	arpeggiator.noteOff(arpSettings, &instruction);
+	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
+		noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, velocity);
+	}
+	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
+		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+	}
+}
+
+void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
+	lastVelocity = arpNote->velocity;
+	midiEngine.sendNote(this, true, note, lastVelocity, channel, kMIDIOutputFilterNoMPE);
+	state = true;
+}
+
+void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) {
 	midiEngine.sendNote(this, false, note, velocity, channel, kMIDIOutputFilterNoMPE);
 	state = false;
 }

@@ -16,6 +16,7 @@
  */
 
 #include "model/drum/gate_drum.h"
+#include "definitions_cxx.hpp"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
 #include <string.h>
@@ -26,13 +27,29 @@ GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 
 void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
                       int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
-	cvEngine.sendNote(true, channel);
-	state = true;
+	ArpeggiatorSettings* arpSettings = getArpSettings(nullptr);
+	ArpReturnInstruction instruction;
+	// Run everything by the Arp...
+	arpeggiator.noteOn(arpSettings, kNoteForDrum, velocity, &instruction, fromMIDIChannel, mpeValues);
+	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
+		noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, velocity);
+	}
+	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
+		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+	}
 }
 
 void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
-	cvEngine.sendNote(false, channel);
-	state = false;
+	ArpeggiatorSettings* arpSettings = getArpSettings(nullptr);
+	ArpReturnInstruction instruction;
+	// Run everything by the Arp...
+	arpeggiator.noteOff(arpSettings, &instruction);
+	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
+		noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, velocity);
+	}
+	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
+		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+	}
 }
 
 void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
@@ -70,4 +87,14 @@ void GateDrum::getName(char* buffer) {
 
 int32_t GateDrum::getNumChannels() {
 	return NUM_GATE_CHANNELS;
+}
+
+void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
+	cvEngine.sendNote(true, channel);
+	state = true;
+}
+
+void GateDrum::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) {
+	cvEngine.sendNote(false, channel);
+	state = false;
 }

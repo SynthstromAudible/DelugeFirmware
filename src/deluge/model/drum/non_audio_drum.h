@@ -44,6 +44,12 @@ public:
 	uint8_t channel;
 	int8_t channelEncoderCurrentOffset;
 
+	ArpeggiatorBase* getArp() { return &arpeggiator; }
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
+
+	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) = 0;
+	virtual void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) = 0;
+
 protected:
 	void modChange(ModelStackWithThreeMainThings* modelStack, int32_t offset, int8_t* encoderOffset, uint8_t* value,
 	               int32_t numValues);

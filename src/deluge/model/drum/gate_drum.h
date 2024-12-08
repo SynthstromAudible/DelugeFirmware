@@ -32,6 +32,9 @@ public:
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
 	            uint32_t samplesLate = 0);
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity);
+	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
+	void noteOffPostArp(int32_t noteCode, int32_t oldMIDIChannel, int32_t velocity);
+
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager);
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
 	void getName(char* buffer);

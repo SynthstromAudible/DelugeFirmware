@@ -30,9 +30,6 @@ public:
 	String path;
 	bool nameIsDiscardable;
 
-	ArpeggiatorForDrum arpeggiator;
-	ArpeggiatorSettings arpSettings;
-
 	SoundDrum();
 	bool isDrum() { return true; }
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
@@ -61,7 +58,7 @@ public:
 	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
 
-	ArpeggiatorBase* getArp();
+    ArpeggiatorBase* getArp() { return &arpeggiator; }
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
 	void resetTimeEnteredState();
 };
