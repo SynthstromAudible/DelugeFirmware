@@ -40,6 +40,7 @@ extern deluge::gui::menu_item::stem_export::Start startStemExportMenu;
 extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
 extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuNonAudioDrum;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuAudioClip;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuPerformanceView;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuSongView;

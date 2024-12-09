@@ -38,6 +38,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/drum/non_audio_drum.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -668,7 +669,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 				}
 			}
 
-stopThat: {}
+stopThat : {}
 
 			if (currentParamShorcutX != 255) {
 				updateSourceBlinks(currentItem);
@@ -1387,15 +1388,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 						newArpSettings = &((SoundDrum*)selectedDrum)->arpSettings;
 					}
 					else {
-						if (item != &sequenceDirectionMenu) {
-							if (selectedDrum->type == DrumType::MIDI) {
-								indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI);
-							}
-							else { // GATE
-								indicator_leds::indicateAlertOnLed(IndicatorLED::CV);
-							}
-							return false;
-						}
+						newArpSettings = &((NonAudioDrum*)selectedDrum)->arpSettings;
 					}
 				}
 
@@ -1459,6 +1452,12 @@ doMIDIOrCV:
 
 				else if ((outputType == OutputType::KIT) && instrumentClip->affectEntire) {
 					newItem = &soundEditorRootMenuKitGlobalFX;
+				}
+
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire && ((Kit*)output)->selectedDrum != nullptr
+				         && (((Kit*)output)->selectedDrum->type == DrumType::MIDI
+				             || ((Kit*)output)->selectedDrum->type == DrumType::GATE)) {
+					newItem = &soundEditorRootMenuNonAudioDrum;
 				}
 
 				else {
