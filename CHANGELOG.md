@@ -198,6 +198,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>OLED Display Improvements</ins>
 - Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
+- Updated OLED display to stop scrolling text while playback is running.
 
 #### <ins>Stem Export</ins>
 - Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
