@@ -48,41 +48,36 @@ void TaskManager::createSortedList() {
 		std::sort(&sortedList[0], (&sortedList[numActiveTasks - 1]) + 1);
 	}
 }
-
+bool dumped = false;
 // deadline < 0 means no deadline
 TaskID TaskManager::chooseBestTask(Time deadline) {
 	Time currentTime = getSecondsFromStart();
-	Time nextFinishTime = currentTime;
+	Time latestFinishTime = deadline > Time(0) ? deadline : std::numeric_limits<Time>::max();
 	TaskID bestTask = -1;
 	uint8_t bestPriority = INT8_MAX;
 	/// Go through all tasks. If a task needs to be called before the current best task finishes, and has a higher
 	/// priority than the current best task, it becomes the best task
 
-	for (int i = 0; i < numActiveTasks; i++) {
+	for (int i = numActiveTasks - 1; i >= 0; i--) {
 		struct Task* t = &list[sortedList[i].task];
 		struct TaskSchedule* s = &t->schedule;
+
 		if (!t->isRunnable()) {
 			continue;
 		}
 		// ensure every routine is within its target
-		if (currentTime - t->lastCallTime > s->maxInterval) {
+		if (currentTime > t->lastCallTime + s->maxInterval) {
 			return sortedList[i].task;
 		}
-		if (t->idealCallTime < currentTime || t->latestCallTime < nextFinishTime) {
-			if (deadline < Time(0) || currentTime + t->durationStats.average < deadline) {
+		if (t->idealCallTime < currentTime && currentTime + t->durationStats.average < latestFinishTime) {
 
-				if (s->priority < bestPriority && t->handle) {
-					if (t->isReady(currentTime)) {
-						bestTask = sortedList[i].task;
-						nextFinishTime = currentTime + t->durationStats.average;
-					}
-					else {
-						bestTask = -1;
-						nextFinishTime = t->latestCallTime;
-					}
-					bestPriority = s->priority;
-				}
+			if (t->isReady(currentTime)) {
+				bestTask = sortedList[i].task;
 			}
+			latestFinishTime = t->lastCallTime + s->maxInterval;
+		}
+		else {
+			latestFinishTime = std::min(latestFinishTime, t->lastCallTime + s->maxInterval);
 		}
 	}
 	// if we didn't find a task because something high priority needs to wait to run, find the next task we can do
@@ -92,22 +87,20 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task* t = &list[sortedList[i].task];
 			struct TaskSchedule* s = &t->schedule;
-			if (currentTime + t->durationStats.average < nextFinishTime
-			    && currentTime - t->lastFinishTime > s->targetInterval
-			    && currentTime - t->lastFinishTime > s->backOffPeriod) {
+			if (currentTime + t->durationStats.max < latestFinishTime
+			    && currentTime - t->lastFinishTime > s->targetInterval && t->isReady(currentTime)) {
 				return sortedList[i].task;
 			}
 		}
 		// then look based on min time just to avoid busy waiting
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task* t = &list[sortedList[i].task];
-			struct TaskSchedule* s = &t->schedule;
-			if (currentTime + t->durationStats.average < nextFinishTime
-			    && currentTime - t->lastFinishTime > s->backOffPeriod) {
+			if (currentTime + t->durationStats.max < latestFinishTime && t->isReady(currentTime)) {
 				return sortedList[i].task;
 			}
 		}
 	}
+
 	return bestTask;
 }
 
@@ -273,7 +266,6 @@ void TaskManager::start(Time duration) {
 	else {
 		mustEndBefore = -1;
 	}
-
 	while (duration == Time(0) || getSecondsFromStart() < startTime + duration) {
 		Time newTime = getSecondsFromStart();
 		TaskID task = chooseBestTask(mustEndBefore);
@@ -289,6 +281,7 @@ void TaskManager::start(Time duration) {
 				printStats();
 			}
 		}
+
 	}
 }
 void TaskManager::startClock() {

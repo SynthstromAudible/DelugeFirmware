@@ -55,10 +55,16 @@ void passMockTime(double seconds) {
 	mockTimers[1] += ticks;
 }
 
+void passMockTimeMin() {
+	uint32_t ticks = 1;
+	mockTimers[0] += ticks;
+	mockTimers[1] += ticks;
+}
+
 // returns ticks at the rate the deluge clock would generate them
 uint32_t getTimerValue(int timerNo) {
 	/// this ensures that the mocked time keeps advancing
-	passMockTime(0.0000001);
+	passMockTimeMin();
 	auto now = std::chrono::steady_clock::now();
 	if (mockTimeIntervals) {
 		return mockTimers[timerNo];

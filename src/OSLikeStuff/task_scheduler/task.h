@@ -102,16 +102,16 @@ struct Task {
 		return false;
 	}
 
-	[[nodiscard]] bool isReady(Time currentTime) const { return state == State::READY && isReleased(currentTime); };
-	[[nodiscard]] bool isRunnable() const { return state == State::READY; }
+	[[nodiscard]] bool isReady(Time currentTime) const { return isRunnable() && isReleased(currentTime); };
+	[[nodiscard]] bool isRunnable() const { return (handle != nullptr) && state == State::READY; }
 	[[nodiscard]] bool isReleased(Time currentTime) const {
-		return currentTime - lastFinishTime > schedule.backOffPeriod;
+		return currentTime - lastCallTime > schedule.backOffPeriod;
 	}
 	TaskHandle handle{nullptr};
 	TaskSchedule schedule{0, 0, 0, 0};
 	Time idealCallTime{0};
 	Time latestCallTime{0};
-	Time lastCallTime{0};
+	Time lastCallTime{-1};
 	Time lastFinishTime{0};
 
 	StatBlock durationStats;

@@ -29,18 +29,18 @@ struct SelfRemoving {
 };
 
 void sleep_50ns() {
+
 	mock().actualCall("sleep_50ns");
-	uint32_t now = getTimerValue(0);
 	passMockTime(0.00005);
 }
 void sleep_20ns() {
+
 	mock().actualCall("sleep_20ns");
-	uint32_t now = getTimerValue(0);
 	passMockTime(0.00002);
 }
 void sleep_2ms() {
+
 	mock().actualCall("sleep_2ms");
-	uint32_t now = getTimerValue(0);
 	passMockTime(0.002);
 }
 
@@ -156,10 +156,10 @@ TEST(Scheduler, removeWithPriZero) {
 	mock().expectNCalls((0.01 - 0.002) / 0.001 - 1, "sleep_50ns");
 	mock().expectNCalls(2, "sleep_2ms");
 	// every 1ms sleep for 50ns and 10ns
-	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep 50ns");
-	addRepeatingTask([]() { passMockTime(0.00001); }, 0, 0.001, 0.001, 0.001, "mock time");
+	addRepeatingTask(sleep_50ns, 0, 0.0099, 0.0099, 0.001, "sleep 50ns");
+
 	addOnceTask(sleep_2ms, 11, 0.002, "sleep 2 ms");
-	addRepeatingTask([]() { passMockTime(0.00003); }, 0, 0.001, 0.001, 0.001, "mock time");
+
 	addOnceTask(sleep_2ms, 11, 0.009, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.01);

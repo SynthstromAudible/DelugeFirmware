@@ -5,7 +5,8 @@
 extern "C" {
 #endif
 
-#include <math.h>
+#include "math.h"
+#include "stdint.h"
 #define DELUGE_CLOCKS_PER 33330000
 #define DELUGE_CLOCKS_PERf 33330000.
 #define ONE_OVER_CLOCK (1 / DELUGE_CLOCKS_PERf)
