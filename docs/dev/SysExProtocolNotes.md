@@ -1,4 +1,4 @@
-##### How the SysEx protocol works
+# How the SysEx protocol works
 
 Messages consist of a SysEx "packet" which has a header, a sequence number, a JSON body, an optional 0 separator and packed binary part.
 
@@ -45,3 +45,7 @@ The file routines include:
 	getDirInfo
 
 The file routines work with Uint8Array objects. The assumption is that we have an enormous amount of free memory on the web side. Downloading uses the web File System API and can handle nested directories.
+
+## Additional Developer Resources
+
+* Access more developer resources in [Additional Information](/dev/additional_info.md).

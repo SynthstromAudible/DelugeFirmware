@@ -1,13 +1,13 @@
 # Bug Fixes
-## 1. Introduction
+### 1. Introduction
 
 Every time a Pull Request fixes a bug in the community firmware it shall be noted down.
 
-## 2. File Compatibility Warning
+### 2. File Compatibility Warning
 
 In general, we try to maintain file compatibility with the official firmware. However, **files (including songs, presets, etc.) that use community features may not ever load correctly on the official firmware again**. Make sure to back up your SD card!
 
-## 3. General Improvements
+### 3. General Improvements
 
 Here is a list of general improvements that have been made, ordered from newest to oldest:
 
@@ -20,3 +20,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 [#29]: https://github.com/SynthstromAudible/DelugeFirmware/pull/29
 [#512]: https://github.com/SynthstromAudible/DelugeFirmware/pull/512
 [#945]: https://github.com/SynthstromAudible/DelugeFirmware/pull/945
+
+## Additional Developer Resources
+
+* Access more developer resources in [Additional Information](/dev/additional_info.md).
