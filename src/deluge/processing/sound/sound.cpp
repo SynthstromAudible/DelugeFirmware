@@ -4212,6 +4212,14 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeOpeningTagBeginning("arpeggiator");
 		writer.writeAttribute("mode", arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
 		writer.writeAttribute("numOctaves", arpSettings->numOctaves);
+
+		writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel, true);
+		writer.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType, true);
+		writer.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
+		writer.writeAttribute("chordType", arpSettings->chordTypeIndex);
+		writer.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
+		writer.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
+		writer.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
 		writer.writeAttribute("spreadLock", arpSettings->spreadLock);
 
 		// Write locked spread params
@@ -4256,13 +4264,6 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		}
 		writer.write("\"");
 
-		writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel, true);
-		writer.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType, true);
-		writer.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
-		writer.writeAttribute("chordType", arpSettings->chordTypeIndex);
-		writer.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
-		writer.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
-		writer.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));
 		writer.closeTag();
 	}
 

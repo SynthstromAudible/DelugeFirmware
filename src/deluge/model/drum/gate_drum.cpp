@@ -17,6 +17,7 @@
 
 #include "model/drum/gate_drum.h"
 #include "definitions_cxx.hpp"
+#include "model/drum/non_audio_drum.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
 #include <string.h>
@@ -56,15 +57,14 @@ void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 	writer.writeOpeningTagBeginning("gateOutput", true);
 
 	writer.writeAttribute("channel", channel, false);
+	writer.writeOpeningTagEnd();
+
+	NonAudioDrum::writeArpeggiatorToFile(writer);
 
 	if (savingSong) {
-		writer.writeOpeningTagEnd();
 		Drum::writeMIDICommandsToFile(writer);
-		writer.writeClosingTag("gateOutput", true, true);
 	}
-	else {
-		writer.closeTag(true);
-	}
+	writer.writeClosingTag("gateOutput", true, true);
 }
 
 Error GateDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {

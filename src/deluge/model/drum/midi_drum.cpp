@@ -19,6 +19,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "io/midi/midi_engine.h"
+#include "model/drum/non_audio_drum.h"
 #include "storage/storage_manager.h"
 #include <string.h>
 
@@ -76,15 +77,14 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 
 	writer.writeAttribute("channel", channel, false);
 	writer.writeAttribute("note", note, false);
+	writer.writeOpeningTagEnd();
+
+	NonAudioDrum::writeArpeggiatorToFile(writer);
 
 	if (savingSong) {
-		writer.writeOpeningTagEnd();
 		Drum::writeMIDICommandsToFile(writer);
-		writer.writeClosingTag("midiOutput", true, true);
 	}
-	else {
-		writer.closeTag(true);
-	}
+	writer.writeClosingTag("midiOutput", true, true);
 }
 
 Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) {

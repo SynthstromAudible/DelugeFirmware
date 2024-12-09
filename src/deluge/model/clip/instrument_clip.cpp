@@ -2391,6 +2391,30 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("mode", (char*)arpModeToString(arpSettings.mode));
 		writer.writeAttribute("syncLevel", arpSettings.syncLevel);
 		writer.writeAttribute("numOctaves", arpSettings.numOctaves);
+
+		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+			writer.writeAttribute("gate", arpeggiatorGate);
+			writer.writeAttribute("rate", arpeggiatorRate);
+			// Community Firmware parameters (always write them after the official ones, just before closing the parent
+			// tag)
+			writer.writeAttribute("noteProbability", arpeggiatorNoteProbability);
+			writer.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
+			writer.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
+			writer.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
+			writer.writeAttribute("rhythm", arpeggiatorRhythm);
+			writer.writeAttribute("spreadVelocity", arpeggiatorSpreadVelocity);
+			writer.writeAttribute("spreadGate", arpeggiatorSpreadGate);
+			writer.writeAttribute("spreadOctave", arpeggiatorSpreadOctave);
+		}
+
+		// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
+		writer.writeAttribute("syncType", arpSettings.syncType);
+		writer.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		writer.writeAttribute("chordType", arpSettings.chordTypeIndex);
+		writer.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
+		writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
+		writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
+
 		writer.writeAttribute("spreadLock", arpSettings.spreadLock);
 		// Write locked spread params
 		char buffer[9];
@@ -2433,29 +2457,6 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			writer.write(buffer);
 		}
 		writer.write("\"");
-
-		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
-			writer.writeAttribute("gate", arpeggiatorGate);
-			writer.writeAttribute("rate", arpeggiatorRate);
-			// Community Firmware parameters (always write them after the official ones, just before closing the parent
-			// tag)
-			writer.writeAttribute("noteProbability", arpeggiatorNoteProbability);
-			writer.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
-			writer.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
-			writer.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
-			writer.writeAttribute("rhythm", arpeggiatorRhythm);
-			writer.writeAttribute("spreadVelocity", arpeggiatorSpreadVelocity);
-			writer.writeAttribute("spreadGate", arpeggiatorSpreadGate);
-			writer.writeAttribute("spreadOctave", arpeggiatorSpreadOctave);
-		}
-
-		// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-		writer.writeAttribute("syncType", arpSettings.syncType);
-		writer.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
-		writer.writeAttribute("chordType", arpSettings.chordTypeIndex);
-		writer.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
-		writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
-		writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
 
 		writer.closeTag();
 	}
