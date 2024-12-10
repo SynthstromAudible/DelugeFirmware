@@ -1,6 +1,6 @@
 # Deluge Community Firmware Change Log
 
-> To find a detailed list of how to use each feature, check here: [Community Features](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/community_features.md)
+> To find a detailed list of how to use each feature, check here: [Community Features](docs/community_features.md)
 
 ## c1.3.0
 
@@ -366,7 +366,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Fixed several bugs with pad grid rendering.
 
 #### <ins>Documentation</ins>
-- Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/menu_hierarchies.md)
+- Created a new menu hierarchies document that documents the Deluge menu structure for OLED and 7SEG and can be used as a reference for navigating the various menu's. See: [Menu Hierarchies](docs/menu_hierarchies.md)
 
 #### <ins>Menu UI Improvements</ins>
 - Holding back now fully exits the menu
