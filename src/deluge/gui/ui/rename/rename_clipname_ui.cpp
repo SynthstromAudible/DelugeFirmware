@@ -84,9 +84,10 @@ ActionResult RenameClipNameUI::buttonAction(deluge::hid::Button b, bool on, bool
 
 void RenameClipNameUI::enterKeyPress() {
 
-	// If actually changing it...
-	if (!clip->clipName.equalsCaseIrrespective(&enteredText)) {
-		if (currentSong->getAudioOutputFromName(&enteredText)) {
+	// Don't allow duplicate names on clips of a single output.
+	if (!clip->name.equalsCaseIrrespective(&enteredText)) {
+		Clip* other = currentSong->getClipFromName(&enteredText);
+		if (other && other->output == clip->output) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
