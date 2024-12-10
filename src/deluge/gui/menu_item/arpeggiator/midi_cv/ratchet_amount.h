@@ -36,15 +36,15 @@ public:
 			if (currentDrum != nullptr
 			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
 				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
-				this->setValue(computeCurrentValueForStandardMenuItem(nonAudioDrum->arpeggiatorRatchetAmount));
+				this->setValue(computeCurrentValueForUnsignedMenuItem(nonAudioDrum->arpeggiatorRatchetAmount));
 			}
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
-			this->setValue(computeCurrentValueForStandardMenuItem(((InstrumentClip*)currentClip)->arpeggiatorRatchetAmount));
+			this->setValue(computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpeggiatorRatchetAmount));
 		}
 	}
 	void writeCurrentValue() override {
-		int32_t value = computeFinalValueForStandardMenuItem(this->getValue());
+		uint32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
 		Clip* currentClip = getCurrentClip();
 		if (currentClip->output->type == OutputType::KIT) {
 			Drum* currentDrum = ((Kit*)currentClip->output)->selectedDrum;

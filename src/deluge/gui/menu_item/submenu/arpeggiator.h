@@ -28,9 +28,9 @@ public:
 	using Submenu::Submenu;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
 
-		soundEditor.currentArpSettings = soundEditor.editingKit()
-		                                     ? &(static_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
-		                                     : &getCurrentInstrumentClip()->arpSettings;
+		// soundEditor.currentArpSettings = soundEditor.editingKit()
+		//                                      ? &(static_cast<SoundDrum*>(soundEditor.currentSound))->arpSettings
+		//                                      : &getCurrentInstrumentClip()->arpSettings;
 		Submenu::beginSession(navigatedBackwardFrom);
 	}
 };

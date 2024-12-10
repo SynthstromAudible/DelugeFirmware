@@ -2732,35 +2732,35 @@ someError:
 					reader.exitTag("rate");
 				}
 				else if (!strcmp(tagName, "noteProbability")) {
-					arpeggiatorNoteProbability = reader.readTagOrAttributeValueInt();
+					arpeggiatorNoteProbability = (uint32_t)reader.readTagOrAttributeValueInt();
 					reader.exitTag("noteProbability");
 				}
 				else if (!strcmp(tagName, "ratchetProbability")) {
-					arpeggiatorRatchetProbability = reader.readTagOrAttributeValueInt();
+					arpeggiatorRatchetProbability = (uint32_t)reader.readTagOrAttributeValueInt();
 					reader.exitTag("ratchetProbability");
 				}
 				else if (!strcmp(tagName, "ratchetAmount")) {
-					arpeggiatorRatchetAmount = reader.readTagOrAttributeValueInt();
+					arpeggiatorRatchetAmount = (uint32_t)reader.readTagOrAttributeValueInt();
 					reader.exitTag("ratchetAmount");
 				}
 				else if (!strcmp(tagName, "sequenceLength")) {
-					arpeggiatorSequenceLength = reader.readTagOrAttributeValueInt();
+					arpeggiatorSequenceLength = (uint32_t)reader.readTagOrAttributeValueInt();
 					reader.exitTag("sequenceLength");
 				}
 				else if (!strcmp(tagName, "rhythm")) {
-					arpeggiatorRhythm = reader.readTagOrAttributeValueInt();
+					arpeggiatorRhythm = (uint32_t)reader.readTagOrAttributeValueInt();
 					reader.exitTag("rhythm");
 				}
 				else if (!strcmp(tagName, "spreadVelocity")) {
-					arpeggiatorSpreadVelocity = reader.readTagOrAttributeValueInt();
+					arpeggiatorSpreadVelocity = (uint32_t)reader.readTagOrAttributeValueInt();
 					reader.exitTag("spreadVelocity");
 				}
 				else if (!strcmp(tagName, "spreadGate")) {
-					arpeggiatorSpreadGate = reader.readTagOrAttributeValueInt();
+					arpeggiatorSpreadGate = (uint32_t)reader.readTagOrAttributeValueInt();
 					reader.exitTag("spreadGate");
 				}
 				else if (!strcmp(tagName, "spreadOctave")) {
-					arpeggiatorSpreadOctave = reader.readTagOrAttributeValueInt();
+					arpeggiatorSpreadOctave = (uint32_t)reader.readTagOrAttributeValueInt();
 					reader.exitTag("spreadOctave");
 				}
 				else if (!strcmp(tagName, "numOctaves")) {
