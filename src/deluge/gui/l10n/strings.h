@@ -907,9 +907,9 @@ enum class String : size_t {
 	// string for configuring hold time for sticky shift / perf view / keyboard sidebars
 	STRING_FOR_HOLD_TIME,
 
-	// strings for Stem Export
-	STRING_FOR_EXPORT_STEMS,
-	STRING_FOR_START_EXPORT_STEMS,
+	// strings for Audio Export
+	STRING_FOR_EXPORT_AUDIO,
+	STRING_FOR_START_EXPORT,
 	STRING_FOR_CONFIGURE_EXPORT_STEMS,
 	STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
 	STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE,

@@ -875,8 +875,8 @@
 
         "STRING_FOR_HOLD_TIME": "Hold Press Time",
 
-        "STRING_FOR_EXPORT_STEMS": "Export Stems",
-        "STRING_FOR_START_EXPORT_STEMS": "Start Export",
+        "STRING_FOR_EXPORT_AUDIO": "Export Audio",
+        "STRING_FOR_START_EXPORT": "Start Export",
         "STRING_FOR_CONFIGURE_EXPORT_STEMS": "Configure Export",
         "STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION": "Normalization",
         "STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE": "Export to Silence",
@@ -907,7 +907,7 @@
         "STRING_FOR_CONVERT_TO_AUDIO": "Convert to Audio",
         "STRING_FOR_CLIP_MODE": "Clip Mode",
         "STRING_FOR_CLIP_NAME": "Clip Name",
-        
+
         "STRING_FOR_NOTE_EDITOR": "Note Editor",
         "STRING_FOR_NOTE_EDITOR_VELOCITY": "Note Velocity",
         "STRING_FOR_NOTE_EDITOR_PROBABILITY": "Note Probability",
@@ -928,9 +928,9 @@
         "STRING_FOR_ITERATION_STEP_6": "Iteration 6",
         "STRING_FOR_ITERATION_STEP_7": "Iteration 7",
         "STRING_FOR_ITERATION_STEP_8": "Iteration 8",
-        
+
         "STRING_FOR_DEFAULT_CLIP_TYPE": "Clip Type",
         "STRING_FOR_DEFAULT_NEW_CLIP_TYPE": "New Clip Type",
-        "STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE": "Use Last Clip Type"        
+        "STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE": "Use Last Clip Type"
     }
 }

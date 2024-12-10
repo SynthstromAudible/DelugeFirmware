@@ -46,7 +46,7 @@ A `MIDI Device Definition File` is saved on the SD Card in the folder path: `MID
 
 #### Load with the Song
 
-When you load a song for which MIDI CC name changes were previously saved, those name changes will be re-loaded. 
+When you load a song for which MIDI CC name changes were previously saved, those name changes will be re-loaded.
 
 If you linked the Song to a `MIDI Device Definition File`, then the changes will be loaded from that definition file.
 
@@ -54,7 +54,7 @@ If the Song is not linked to a definition file, then the name changes will be lo
 
 #### Load from Midi Preset
 
-When you load a MIDI preset for which MIDI cc name changes were previously saved, those name changes will be re-loaded. 
+When you load a MIDI preset for which MIDI cc name changes were previously saved, those name changes will be re-loaded.
 
 If you linked the preset to a `MIDI Device Definition File`, then the changes will be loaded from that definition file.
 
@@ -68,7 +68,7 @@ Saving or Loading a `MIDI Device Definition File` will link that file to the cur
 
 ### Linking / Unlinking a MIDI Device Definition File
 
-You can unlink a Song or Midi Instrument preset from the a `MIDI Device Definition File` via the `MIDI > Device Definition (DEVI)` menu. You will need to re-save the song and/or preset to save the changes. 
+You can unlink a Song or Midi Instrument preset from the a `MIDI Device Definition File` via the `MIDI > Device Definition (DEVI)` menu. You will need to re-save the song and/or preset to save the changes.
 
 You can also manually unlink the song file / preset file from the `MIDI Device Definition File` by searching for `definitionFile`. You should see `name="***"` right under it. Do not delete the name line from the preset. Instead replace the name with `name=""`
 
@@ -80,9 +80,9 @@ You can also use the `MIDI > Device Definition` menu as another way to link / lo
 
 Firstly, when you load a `MIDI Device Definition File`, the song will become linked to that file. If you wish to make changes to the cc labels, you will need to either:
 
-A) unlink the song from the `MIDI Device Definition File` and make changes to the labels and save them to the song, 
+A) unlink the song from the `MIDI Device Definition File` and make changes to the labels and save them to the song,
 
-or 
+or
 
 B) you will need to save those label changes back to a `MIDI Device Definition File` and save the song so that it reloads from that file.
 
@@ -118,7 +118,7 @@ TLDR steps:
 5. Save song
 ```
 
-If you loaded a song and loaded a `MIDI Device Definition File` and now want to make changes to CC Labels, or you just started making changes as part of that song, you can save those changes back to the same or a new `MIDI Device Definition File`. 
+If you loaded a song and loaded a `MIDI Device Definition File` and now want to make changes to CC Labels, or you just started making changes as part of that song, you can save those changes back to the same or a new `MIDI Device Definition File`.
 
 After you have saved the changes to the `MIDI Device Definition File`, you will need to Save the song and/or MIDI preset to link the Song / Preset to that `MIDI Device Definition File`.
 

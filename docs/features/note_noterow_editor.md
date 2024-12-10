@@ -12,17 +12,17 @@ To edit fill, you need to access the new note and note row editor menu's.
 
 ### Enter Note Editor Menu
 
-Hold a note and press the select encoder to enter the note editor menu. 
+Hold a note and press the select encoder to enter the note editor menu.
 
-The note you were holding will be the note selected when you enter the note editor. 
+The note you were holding will be the note selected when you enter the note editor.
 
 If playback is off, you will hear what that note sounds like. You can toggle whether you want to hear / not hear the note by pressing the note again.
 
 ### Selecting a Note
 
-While in the note editor menu, the selected note will blink. 
+While in the note editor menu, the selected note will blink.
 
-You can select another note by pressing the note on the grid. 
+You can select another note by pressing the note on the grid.
 
 You can vertical scroll, horizontal scroll, and zoom in / out to find a note you want to edit.
 
@@ -51,7 +51,7 @@ You can exit the menu by pressing BACK to back out or you can press the greyed o
 
 ### Enter Note Row Editor Menu
 
-Hold a note row audition pad and press the select encoder to enter the note row editor menu. 
+Hold a note row audition pad and press the select encoder to enter the note row editor menu.
 
 The note row you were holding will be the note row selected when you enter the note row editor.
 
@@ -59,7 +59,7 @@ While in the Note Row Editor Menu, the audition pads will not sound. They will f
 
 ### Selecting A Note Row
 
-While in the note row editor menu, the selected note row audition pad will blink. 
+While in the note row editor menu, the selected note row audition pad will blink.
 
 You can select other note row's by:
 - pressing the note row audition pad

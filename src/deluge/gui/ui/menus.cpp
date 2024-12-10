@@ -1406,7 +1406,7 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
 };
 
 // Sub menu for Stem Export
-menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT_STEMS};
+menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT};
 
 ToggleBool configureNormalizationMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
                                       STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, stemExport.allowNormalization};
@@ -1429,7 +1429,7 @@ menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
                                            }};
 
 menu_item::Submenu stemExportMenu{
-    STRING_FOR_EXPORT_STEMS,
+    STRING_FOR_EXPORT_AUDIO,
     {
         &startStemExportMenu,
         &configureStemExportMenu,
