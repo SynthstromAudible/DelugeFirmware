@@ -2,14 +2,19 @@
 #include "io/midi/midi_device_manager.h"
 #include "storage/storage_manager.h"
 
+struct FILdata;
+
 namespace smSysex {
 
 const uint32_t MAX_PATH_NAME_LEN = 255;
 
-int openFIL(const char* fPath, bool forWrite, uint32_t* fsize, FRESULT* eCode);
-FRESULT closeFIL(int fx);
-int32_t findEmptyFIL();
+FILdata* openFIL(const char* fPath, int forWrite, uint32_t* fsize, FRESULT* eCode);
+FRESULT closeFIL(FILdata* fd);
+FILdata* findEmptyFIL();
 
+void noteSessionIdUse(uint8_t msgId);
+void noteFileIdUse(FILdata* fp);
+FILdata* entryForFID(uint32_t fileId);
 void startDirect(JsonSerializer& writer);
 void startReply(JsonSerializer& writer, JsonDeserializer& reader);
 void sendMsg(MIDICable& device, JsonSerializer& writer);
@@ -26,6 +31,7 @@ void createDirectory(MIDICable& cable, JsonDeserializer& reader);
 FRESULT createPathDirectories(String& path, uint32_t date, uint32_t time);
 void rename(MIDICable& cable, JsonDeserializer& reader);
 void updateTime(MIDICable& cable, JsonDeserializer& reader);
+void assignSession(MIDICable& cable, JsonDeserializer& reader);
 void doPing(MIDICable& cable, JsonDeserializer& reader);
 uint32_t decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax);
 } // namespace smSysex

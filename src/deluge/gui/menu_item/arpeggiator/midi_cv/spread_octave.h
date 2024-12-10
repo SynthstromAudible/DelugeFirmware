@@ -22,14 +22,14 @@
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
-class RatchetAmount final : public Integer {
+class SpreadOctave final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorRatchetAmount));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorSpreadOctave));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorRatchetAmount = computeFinalValueForUnsignedMenuItem(this->getValue());
+		getCurrentInstrumentClip()->arpeggiatorSpreadOctave = computeFinalValueForUnsignedMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

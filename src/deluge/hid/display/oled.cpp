@@ -26,6 +26,7 @@
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
 #include "io/midi/sysex.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "util/cfunctions.h"
@@ -999,40 +1000,53 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		return; // Probably isn't necessary...
 	}
 
+	bool doScroll = !playbackHandler.isEitherClockActive(); // only scroll when playback is off
 	bool finished = true;
 
 	for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
+		bool doRender = true;
 		SideScroller* scroller = &sideScrollers[s];
 		if (scroller->text) {
-			if (scroller->finished) {
-				continue;
-			}
+			if (doScroll) {
+				if (scroller->finished) {
+					continue;
+				}
 
-			scroller->pos += sideScrollerDirection;
+				scroller->pos += sideScrollerDirection;
 
-			if (scroller->pos <= 0) {
-				scroller->finished = true;
+				if (scroller->pos <= 0) {
+					scroller->finished = true;
+				}
+				else if (scroller->pos >= scroller->stringLengthPixels - scroller->boxLengthPixels) {
+					scroller->finished = true;
+				}
+				else {
+					finished = false;
+				}
 			}
-			else if (scroller->pos >= scroller->stringLengthPixels - scroller->boxLengthPixels) {
-				scroller->finished = true;
-			}
+			// if playback is running, don't scroll
 			else {
-				finished = false;
+				// re-render if we're not at the beginning
+				doRender = (scroller->pos > 0);
+				// reset scroll position to beginning
+				scroller->pos = 0;
 			}
 
-			int32_t endX = scroller->endX;
-			if (FlashStorage::accessibilityMenuHighlighting) {
-				// for submenu's, this is the padding before the icon's are rendered
-				// need to clear this area otherwise it leaves a white pixels
-				endX += 4;
-			}
-
-			// Ok, have to render.
-			main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
-			main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
-			                scroller->textSizeY, scroller->pos, scroller->endX);
-			if (scroller->doHighlight && !FlashStorage::accessibilityMenuHighlighting) {
-				main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY, scroller->endY);
+			if (doRender) {
+				int32_t endX = scroller->endX;
+				if (FlashStorage::accessibilityMenuHighlighting) {
+					// for submenu's, this is the padding before the icon's are rendered
+					// need to clear this area otherwise it leaves a white pixels
+					endX += 4;
+				}
+				// Ok, have to render.
+				main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
+				main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
+				                scroller->textSizeY, scroller->pos, scroller->endX);
+				if (scroller->doHighlight && !FlashStorage::accessibilityMenuHighlighting) {
+					main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY,
+					                scroller->endY);
+				}
 			}
 		}
 	}
@@ -1049,7 +1063,13 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 	}
 	else {
 		timeInterval = kScrollTime;
-		sideScrollerDirection = -sideScrollerDirection;
+		if (doScroll) {
+			sideScrollerDirection = -sideScrollerDirection;
+		}
+		// if  we're not scrolling, we reset the scroll position to forward
+		else {
+			sideScrollerDirection = 1;
+		}
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			sideScrollers[s].finished = false;
 		}

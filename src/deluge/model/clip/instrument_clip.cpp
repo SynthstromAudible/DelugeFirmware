@@ -64,6 +64,9 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 	arpeggiatorSequenceLength = 0;
 	arpeggiatorRhythm = 0;
 	arpeggiatorGate = 0;
+	arpeggiatorSpreadVelocity = 0;
+	arpeggiatorSpreadGate = 0;
+	arpeggiatorSpreadOctave = 0;
 
 	midiBank = 128; // Means none
 	midiSub = 128;  // Means none
@@ -156,6 +159,9 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	arpeggiatorSequenceLength = otherInstrumentClip->arpeggiatorSequenceLength;
 	arpeggiatorRhythm = otherInstrumentClip->arpeggiatorRhythm;
 	arpeggiatorGate = otherInstrumentClip->arpeggiatorGate;
+	arpeggiatorSpreadVelocity = otherInstrumentClip->arpeggiatorSpreadVelocity;
+	arpeggiatorSpreadGate = otherInstrumentClip->arpeggiatorSpreadGate;
+	arpeggiatorSpreadOctave = otherInstrumentClip->arpeggiatorSpreadOctave;
 }
 
 // Will replace the Clip in the modelStack, if success.
@@ -2385,6 +2391,48 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("mode", (char*)arpModeToString(arpSettings.mode));
 		writer.writeAttribute("syncLevel", arpSettings.syncLevel);
 		writer.writeAttribute("numOctaves", arpSettings.numOctaves);
+		writer.writeAttribute("spreadLock", arpSettings.spreadLock);
+		// Write locked spread params
+		char buffer[9];
+		// Spread velocity
+		writer.insertCommaIfNeeded();
+		writer.write("\n");
+		writer.printIndents();
+		writer.writeTagNameAndSeperator("lockedSpreadVelocity");
+		writer.write("\"0x");
+		intToHex(arpSettings.lastLockedSpreadVelocityParameterValue, buffer);
+		writer.write(buffer);
+		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+			intToHex(arpSettings.lockedSpreadVelocityValues[i], buffer, 2);
+			writer.write(buffer);
+		}
+		writer.write("\"");
+		// Spread gate
+		writer.insertCommaIfNeeded();
+		writer.write("\n");
+		writer.printIndents();
+		writer.writeTagNameAndSeperator("lockedSpreadGate");
+		writer.write("\"0x");
+		intToHex(arpSettings.lastLockedSpreadGateParameterValue, buffer);
+		writer.write(buffer);
+		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+			intToHex(arpSettings.lockedSpreadGateValues[i], buffer, 2);
+			writer.write(buffer);
+		}
+		writer.write("\"");
+		// Spread octave
+		writer.insertCommaIfNeeded();
+		writer.write("\n");
+		writer.printIndents();
+		writer.writeTagNameAndSeperator("lockedSpreadOctave");
+		writer.write("\"0x");
+		intToHex(arpSettings.lastLockedSpreadOctaveParameterValue, buffer);
+		writer.write(buffer);
+		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+			intToHex(arpSettings.lockedSpreadOctaveValues[i], buffer, 2);
+			writer.write(buffer);
+		}
+		writer.write("\"");
 
 		if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 			writer.writeAttribute("gate", arpeggiatorGate);
@@ -2396,11 +2444,15 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			writer.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
 			writer.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
 			writer.writeAttribute("rhythm", arpeggiatorRhythm);
+			writer.writeAttribute("spreadVelocity", arpeggiatorSpreadVelocity);
+			writer.writeAttribute("spreadGate", arpeggiatorSpreadGate);
+			writer.writeAttribute("spreadOctave", arpeggiatorSpreadOctave);
 		}
 
 		// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
 		writer.writeAttribute("syncType", arpSettings.syncType);
 		writer.writeAttribute("arpMode", (char*)arpModeToString(arpSettings.mode));
+		writer.writeAttribute("chordType", arpSettings.chordTypeIndex);
 		writer.writeAttribute("noteMode", (char*)arpNoteModeToString(arpSettings.noteMode));
 		writer.writeAttribute("octaveMode", (char*)arpOctaveModeToString(arpSettings.octaveMode));
 		writer.writeAttribute("mpeVelocity", (char*)arpMpeModSourceToString(arpSettings.mpeVelocity));
@@ -2698,9 +2750,76 @@ someError:
 					arpeggiatorRhythm = reader.readTagOrAttributeValueInt();
 					reader.exitTag("rhythm");
 				}
+				else if (!strcmp(tagName, "spreadVelocity")) {
+					arpeggiatorSpreadVelocity = reader.readTagOrAttributeValueInt();
+					reader.exitTag("spreadVelocity");
+				}
+				else if (!strcmp(tagName, "spreadGate")) {
+					arpeggiatorSpreadGate = reader.readTagOrAttributeValueInt();
+					reader.exitTag("spreadGate");
+				}
+				else if (!strcmp(tagName, "spreadOctave")) {
+					arpeggiatorSpreadOctave = reader.readTagOrAttributeValueInt();
+					reader.exitTag("spreadOctave");
+				}
 				else if (!strcmp(tagName, "numOctaves")) {
 					arpSettings.numOctaves = reader.readTagOrAttributeValueInt();
 					reader.exitTag("numOctaves");
+				}
+				else if (!strcmp(tagName, "spreadLock")) {
+					arpSettings.spreadLock = reader.readTagOrAttributeValueInt();
+					reader.exitTag("spreadLock");
+				}
+				else if (!strcmp(tagName, "lockedSpreadVelocity")) {
+					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							if (hexChars) {
+								arpSettings.lastLockedSpreadVelocityParameterValue = hexToIntFixedLength(hexChars, 8);
+								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+									arpSettings.lockedSpreadVelocityValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+								}
+							}
+						}
+					}
+					reader.exitTag("lockedSpreadVelocity");
+				}
+				else if (!strcmp(tagName, "lockedSpreadGate")) {
+					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							if (hexChars) {
+								arpSettings.lastLockedSpreadGateParameterValue = hexToIntFixedLength(hexChars, 8);
+								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+									arpSettings.lockedSpreadGateValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+								}
+							}
+						}
+					}
+					reader.exitTag("lockedSpreadGate");
+				}
+				else if (!strcmp(tagName, "lockedSpreadOctave")) {
+					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							if (hexChars) {
+								arpSettings.lastLockedSpreadOctaveParameterValue = hexToIntFixedLength(hexChars, 8);
+								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+									arpSettings.lockedSpreadOctaveValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+								}
+							}
+						}
+					}
+					reader.exitTag("lockedSpreadOctave");
 				}
 				else if (!strcmp(tagName, "syncLevel")) {
 					arpSettings.syncLevel = (SyncLevel)reader.readTagOrAttributeValueInt();
@@ -2738,6 +2857,13 @@ someError:
 					arpSettings.octaveMode = stringToArpOctaveMode(reader.readTagOrAttributeValue());
 					arpSettings.updatePresetFromCurrentSettings();
 					reader.exitTag("octaveMode");
+				}
+				else if (!strcmp(tagName, "chordType")) {
+					uint8_t chordTypeIndex = (uint8_t)reader.readTagOrAttributeValueInt();
+					if (chordTypeIndex >= 0 && chordTypeIndex < MAX_CHORD_TYPES) {
+						arpSettings.chordTypeIndex = chordTypeIndex;
+					}
+					reader.exitTag("chordType");
 				}
 				else if (!strcmp(tagName, "noteMode")) {
 					arpSettings.noteMode = stringToArpNoteMode(reader.readTagOrAttributeValue());

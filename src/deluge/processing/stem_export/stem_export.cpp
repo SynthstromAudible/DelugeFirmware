@@ -35,8 +35,8 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
-#include "task_scheduler.h"
 #include <new>
 #include <string.h>
 

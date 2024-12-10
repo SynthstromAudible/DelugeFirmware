@@ -2983,7 +2983,7 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 	}
 	else {
 		intToString(probability * 5, buffer);
-		display->setText(buffer, true, prevBase ? 3 : 255);
+		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
 	}
 }
 

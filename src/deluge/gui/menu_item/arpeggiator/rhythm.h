@@ -19,7 +19,6 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "lib/printf.h"
 #include "modulation/arpeggiator_rhythms.h"
 
 namespace deluge::gui::menu_item::arpeggiator {

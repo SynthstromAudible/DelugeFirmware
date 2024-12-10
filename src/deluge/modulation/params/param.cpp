@@ -268,6 +268,9 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_ARP_RATCHET_AMOUNT - unc] = STRING_FOR_ARP_RATCHETS_MENU_TITLE,
 		    [UNPATCHED_ARP_SEQUENCE_LENGTH - unc] = STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
 		    [UNPATCHED_ARP_RHYTHM - unc] = STRING_FOR_ARP_RHYTHM_MENU_TITLE,
+		    [UNPATCHED_ARP_SPREAD_VELOCITY - unc] = STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE,
+		    [UNPATCHED_ARP_SPREAD_GATE - unc] = STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
+		    [UNPATCHED_ARP_SPREAD_OCTAVE - unc] = STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE,
 		    [UNPATCHED_PORTAMENTO - unc] = STRING_FOR_PORTAMENTO,
 		};
 		return l10n::get(NAMES[p - unc]);
@@ -355,6 +358,15 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case UNPATCHED_ARP_RHYTHM:
 			return "rhythm";
+
+		case UNPATCHED_ARP_SPREAD_VELOCITY:
+			return "spreadVelocity";
+
+		case UNPATCHED_ARP_SPREAD_GATE:
+			return "spreadGate";
+
+		case UNPATCHED_ARP_SPREAD_OCTAVE:
+			return "spreadOctave";
 
 		case UNPATCHED_PORTAMENTO:
 			return "portamento";

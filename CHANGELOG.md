@@ -114,6 +114,8 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>Arpeggiator</ins>
 - The arpeggiator has now a new `NOTE PROBABILITY (PROB)` paramater that will apply a probability to notes (after rhythm and sequence length have been applied).
+- Added new `CHORD TYPE (CHRD)` paramater that will emulate a held chord so you can use `NOTE MODE` on the Kit Row.
+- The arpeggiator has now a new `SPREAD` submenu with up to 3 parameters that will allow you to control how those parameters of each arp step are deviated from its base value.
 
 ### MIDI
 
@@ -196,6 +198,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>OLED Display Improvements</ins>
 - Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
+- Updated OLED display to stop scrolling text while playback is running.
 
 #### <ins>Stem Export</ins>
 - Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
