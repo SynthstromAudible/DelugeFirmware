@@ -1676,7 +1676,7 @@ different firmware
 
 [DX7 Synth Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/dx_synth.md
 
-[Audio Export Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/stem_export.md
+[Audio Export Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/audio_export.md
 
 [Chord Keyboard Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/chord_keyboard.md
 
