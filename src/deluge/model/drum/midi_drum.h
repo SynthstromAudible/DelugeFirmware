@@ -28,7 +28,7 @@ public:
 	            uint32_t samplesLate = 0);
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue);
 	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
-	void noteOffPostArp(int32_t noteCode, int32_t oldMIDIChannel, int32_t velocity);
+	void noteOffPostArp(int32_t noteCodePostArp);
 
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager);
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);

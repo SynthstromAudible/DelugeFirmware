@@ -35,7 +35,7 @@ void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 	// Run everything by the Arp...
 	arpeggiator.noteOn(arpSettings, note, velocity, &instruction, fromMIDIChannel, mpeValues);
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-		noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, velocity);
+		noteOffPostArp(instruction.noteCodeOffPostArp);
 	}
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) [[likely]] {
 		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
@@ -48,7 +48,7 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	// Run everything by the Arp...
 	arpeggiator.noteOff(arpSettings, &instruction);
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-		noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, velocity);
+		noteOffPostArp(instruction.noteCodeOffPostArp);
 	}
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
 		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
@@ -57,12 +57,12 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 
 void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	lastVelocity = arpNote->velocity;
-	midiEngine.sendNote(this, true, note, lastVelocity, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE);
 	state = true;
 }
 
-void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) {
-	midiEngine.sendNote(this, false, note, velocity, channel, kMIDIOutputFilterNoMPE);
+void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
+	midiEngine.sendNote(this, false, noteCodePostArp, 64, channel, kMIDIOutputFilterNoMPE);
 	state = false;
 }
 

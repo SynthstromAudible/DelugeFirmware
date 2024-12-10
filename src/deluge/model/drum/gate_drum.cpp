@@ -33,7 +33,7 @@ void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 	// Run everything by the Arp...
 	arpeggiator.noteOn(arpSettings, kNoteForDrum, velocity, &instruction, fromMIDIChannel, mpeValues);
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-		noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, velocity);
+		noteOffPostArp(instruction.noteCodeOffPostArp);
 	}
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
 		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
@@ -46,7 +46,7 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	// Run everything by the Arp...
 	arpeggiator.noteOff(arpSettings, &instruction);
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-		noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, velocity);
+		noteOffPostArp(instruction.noteCodeOffPostArp);
 	}
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
 		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
@@ -94,7 +94,7 @@ void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	state = true;
 }
 
-void GateDrum::noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) {
+void GateDrum::noteOffPostArp(int32_t noteCodePostArp) {
 	cvEngine.sendNote(false, channel);
 	state = false;
 }

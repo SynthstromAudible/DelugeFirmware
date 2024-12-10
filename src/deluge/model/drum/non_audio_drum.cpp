@@ -204,35 +204,35 @@ bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "noteProbability")) {
-				arpeggiatorNoteProbability = (uint32_t)reader.readTagOrAttributeValueInt();
+				arpeggiatorNoteProbability = reader.readTagOrAttributeValueInt();
 				reader.exitTag("noteProbability");
 			}
 			else if (!strcmp(tagName, "ratchetProbability")) {
-				arpeggiatorRatchetProbability = (uint32_t)reader.readTagOrAttributeValueInt();
+				arpeggiatorRatchetProbability = reader.readTagOrAttributeValueInt();
 				reader.exitTag("ratchetProbability");
 			}
 			else if (!strcmp(tagName, "ratchetAmount")) {
-				arpeggiatorRatchetAmount = (uint32_t)reader.readTagOrAttributeValueInt();
+				arpeggiatorRatchetAmount = reader.readTagOrAttributeValueInt();
 				reader.exitTag("ratchetAmount");
 			}
 			else if (!strcmp(tagName, "sequenceLength")) {
-				arpeggiatorSequenceLength = (uint32_t)reader.readTagOrAttributeValueInt();
+				arpeggiatorSequenceLength = reader.readTagOrAttributeValueInt();
 				reader.exitTag("sequenceLength");
 			}
 			else if (!strcmp(tagName, "rhythm")) {
-				arpeggiatorRhythm = (uint32_t)reader.readTagOrAttributeValueInt();
+				arpeggiatorRhythm = reader.readTagOrAttributeValueInt();
 				reader.exitTag("rhythm");
 			}
 			else if (!strcmp(tagName, "spreadVelocity")) {
-				arpeggiatorSpreadVelocity = (uint32_t)reader.readTagOrAttributeValueInt();
+				arpeggiatorSpreadVelocity = reader.readTagOrAttributeValueInt();
 				reader.exitTag("spreadVelocity");
 			}
 			else if (!strcmp(tagName, "spreadGate")) {
-				arpeggiatorSpreadGate = (uint32_t)reader.readTagOrAttributeValueInt();
+				arpeggiatorSpreadGate = reader.readTagOrAttributeValueInt();
 				reader.exitTag("spreadGate");
 			}
 			else if (!strcmp(tagName, "spreadOctave")) {
-				arpeggiatorSpreadOctave = (uint32_t)reader.readTagOrAttributeValueInt();
+				arpeggiatorSpreadOctave = reader.readTagOrAttributeValueInt();
 				reader.exitTag("spreadOctave");
 			}
 			else if (!strcmp(tagName, "numOctaves")) {
@@ -248,12 +248,12 @@ bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName
 					char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 					if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
 						char const* hexChars =
-							reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+						    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 						if (hexChars) {
 							arpSettings.lastLockedSpreadVelocityParameterValue = hexToIntFixedLength(hexChars, 8);
 							for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
 								arpSettings.lockedSpreadVelocityValues[i] =
-									hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+								    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 							}
 						}
 					}
@@ -265,12 +265,11 @@ bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName
 					char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 					if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
 						char const* hexChars =
-							reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+						    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 						if (hexChars) {
 							arpSettings.lastLockedSpreadGateParameterValue = hexToIntFixedLength(hexChars, 8);
 							for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-								arpSettings.lockedSpreadGateValues[i] =
-									hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+								arpSettings.lockedSpreadGateValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 							}
 						}
 					}
@@ -282,12 +281,11 @@ bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName
 					char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 					if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
 						char const* hexChars =
-							reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+						    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
 						if (hexChars) {
 							arpSettings.lastLockedSpreadOctaveParameterValue = hexToIntFixedLength(hexChars, 8);
 							for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
-								arpSettings.lockedSpreadOctaveValues[i] =
-									hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+								arpSettings.lockedSpreadOctaveValues[i] = hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 							}
 						}
 					}
@@ -312,7 +310,7 @@ bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName
 					// that is, if we detect they have a value other than default
 					OldArpMode oldMode = stringToOldArpMode(reader.readTagOrAttributeValue());
 					if (arpSettings.mode == ArpMode::OFF && arpSettings.noteMode == ArpNoteMode::UP
-						&& arpSettings.octaveMode == ArpOctaveMode::UP) {
+					    && arpSettings.octaveMode == ArpOctaveMode::UP) {
 						arpSettings.mode = oldModeToArpMode(oldMode);
 						arpSettings.noteMode = oldModeToArpNoteMode(oldMode);
 						arpSettings.octaveMode = oldModeToArpOctaveMode(oldMode);

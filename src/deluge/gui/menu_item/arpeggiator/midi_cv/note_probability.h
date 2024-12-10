@@ -40,7 +40,8 @@ public:
 			}
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
-			this->setValue(computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpeggiatorNoteProbability));
+			this->setValue(
+			    computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpeggiatorNoteProbability));
 		}
 	}
 	void writeCurrentValue() override {

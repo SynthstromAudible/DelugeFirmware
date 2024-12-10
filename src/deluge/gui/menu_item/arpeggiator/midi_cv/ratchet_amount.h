@@ -40,7 +40,8 @@ public:
 			}
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
-			this->setValue(computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpeggiatorRatchetAmount));
+			this->setValue(
+			    computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpeggiatorRatchetAmount));
 		}
 	}
 	void writeCurrentValue() override {

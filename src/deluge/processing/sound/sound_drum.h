@@ -58,7 +58,7 @@ public:
 	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
 
-    ArpeggiatorBase* getArp() { return &arpeggiator; }
+	ArpeggiatorBase* getArp() { return &arpeggiator; }
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
 	void resetTimeEnteredState();
 };

@@ -667,8 +667,9 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 	for (int32_t i = 0; i < ((InstrumentClip*)activeClip)->noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = ((InstrumentClip*)activeClip)->noteRows.getElement(i);
 		// For Midi and Gate rows, we need to call the render method of the arpeggiator
-		if (thisNoteRow->drum && (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE)) {
-			NonAudioDrum *nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
+		if (thisNoteRow->drum
+		    && (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE)) {
+			NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
 
 			uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpeggiatorGate + 2147483648;
 			uint32_t noteProbability = (uint32_t)nonAudioDrum->arpeggiatorNoteProbability;
@@ -686,10 +687,10 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 
 			ArpReturnInstruction instruction;
 			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, numSamples, gateThreshold, phaseIncrement,
-			                   sequenceLength, rhythm, noteProbability, ratchetAmount, ratchetProbability,
-			                   spreadVelocity, spreadGate, spreadOctave, &instruction);
+			                                 sequenceLength, rhythm, noteProbability, ratchetAmount, ratchetProbability,
+			                                 spreadVelocity, spreadGate, spreadOctave, &instruction);
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-				nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, instruction.arpNoteOn->velocity);
+				nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
 			}
 
 			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
@@ -697,7 +698,6 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 			}
 		}
 	}
-
 }
 
 // offer the CC to kit gold knobs without also offering to all drums
@@ -1006,14 +1006,14 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 			bool reversed = (clipIsActive && modelStackWithNoteRow->isCurrentlyPlayingReversed());
 
-			int32_t ticksTilNextArpEventThisDrum = drum->arpeggiator.doTickForward(
-			    &drum->arpSettings, &instruction, currentPosThisRow, reversed);
+			int32_t ticksTilNextArpEventThisDrum =
+			    drum->arpeggiator.doTickForward(&drum->arpSettings, &instruction, currentPosThisRow, reversed);
 
 			if (thisNoteRow->drum->type == DrumType::SOUND) {
-				SoundDrum *soundDrum = (SoundDrum*)thisNoteRow->drum;
+				SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
 				ModelStackWithSoundFlags* modelStackWithSoundFlags =
-					modelStackWithNoteRow->addOtherTwoThings(soundDrum, &thisNoteRow->paramManager)->addSoundFlags();
+				    modelStackWithNoteRow->addOtherTwoThings(soundDrum, &thisNoteRow->paramManager)->addSoundFlags();
 
 				if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 					soundDrum->noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
@@ -1021,13 +1021,14 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 				if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
 					soundDrum->noteOnPostArpeggiator(
-						modelStackWithSoundFlags,
-						instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
-						instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity, instruction.arpNoteOn->mpeValues,
-						instruction.sampleSyncLengthOn, 0, 0);
+					    modelStackWithSoundFlags,
+					    instruction.arpNoteOn->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)],
+					    instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity,
+					    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0);
 				}
-			} else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
-				MIDIDrum *nonAudioDrum = (MIDIDrum*)thisNoteRow->drum;
+			}
+			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
+				MIDIDrum* nonAudioDrum = (MIDIDrum*)thisNoteRow->drum;
 
 				uint32_t sequenceLength = (uint32_t)nonAudioDrum->arpeggiatorSequenceLength;
 				uint32_t rhythm = (uint32_t)nonAudioDrum->arpeggiatorRhythm;
@@ -1038,11 +1039,11 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				uint32_t spreadGate = (uint32_t)nonAudioDrum->arpeggiatorSpreadGate;
 				uint32_t spreadOctave = (uint32_t)nonAudioDrum->arpeggiatorSpreadOctave;
 
-				drum->arpeggiator.updateParams(sequenceLength, rhythm, noteProbability, ratchetAmount, ratchetProbability,
-				                               spreadVelocity, spreadGate, spreadOctave);
+				drum->arpeggiator.updateParams(sequenceLength, rhythm, noteProbability, ratchetAmount,
+				                               ratchetProbability, spreadVelocity, spreadGate, spreadOctave);
 
 				if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-					nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff, 64);
+					nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
 				}
 
 				if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {

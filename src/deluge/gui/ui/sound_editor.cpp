@@ -143,9 +143,9 @@ bool SoundEditor::editingCVOrMIDIClip() {
 }
 
 bool SoundEditor::editingNonAudioDrumRow() {
-	return getCurrentOutputType() == OutputType::KIT
-		           && getCurrentKit()->selectedDrum && (getCurrentKit()->selectedDrum->type == DrumType::MIDI
-		               || getCurrentKit()->selectedDrum->type == DrumType::GATE);
+	return getCurrentOutputType() == OutputType::KIT && getCurrentKit()->selectedDrum
+	       && (getCurrentKit()->selectedDrum->type == DrumType::MIDI
+	           || getCurrentKit()->selectedDrum->type == DrumType::GATE);
 }
 
 bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -675,7 +675,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 				}
 			}
 
-stopThat : {}
+stopThat: {}
 
 			if (currentParamShorcutX != 255) {
 				updateSourceBlinks(currentItem);
@@ -1460,7 +1460,8 @@ doMIDIOrCV:
 					newItem = &soundEditorRootMenuKitGlobalFX;
 				}
 
-				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire && ((Kit*)output)->selectedDrum != nullptr
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
+				         && ((Kit*)output)->selectedDrum != nullptr
 				         && (((Kit*)output)->selectedDrum->type == DrumType::MIDI
 				             || ((Kit*)output)->selectedDrum->type == DrumType::GATE)) {
 					newItem = &soundEditorRootMenuNonAudioDrum;
