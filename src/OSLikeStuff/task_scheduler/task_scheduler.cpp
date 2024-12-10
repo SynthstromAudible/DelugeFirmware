@@ -66,7 +66,7 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 			continue;
 		}
 		// ensure every routine is within its target
-		if (currentTime > t->lastCallTime + s->maxInterval) {
+		if (currentTime > t->lastCallTime + s->maxInterval && t->isReady(currentTime)) {
 			return sortedList[i].task;
 		}
 		if (t->idealCallTime < currentTime && currentTime + t->durationStats.average < latestFinishTime) {
@@ -87,7 +87,7 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task* t = &list[sortedList[i].task];
 			struct TaskSchedule* s = &t->schedule;
-			if (currentTime + t->durationStats.max < latestFinishTime
+			if (currentTime + t->durationStats.average < latestFinishTime
 			    && currentTime - t->lastFinishTime > s->targetInterval && t->isReady(currentTime)) {
 				return sortedList[i].task;
 			}
@@ -95,7 +95,7 @@ TaskID TaskManager::chooseBestTask(Time deadline) {
 		// then look based on min time just to avoid busy waiting
 		for (int i = (numActiveTasks - 1); i >= 0; i--) {
 			struct Task* t = &list[sortedList[i].task];
-			if (currentTime + t->durationStats.max < latestFinishTime && t->isReady(currentTime)) {
+			if (currentTime + t->durationStats.average < latestFinishTime && t->isReady(currentTime)) {
 				return sortedList[i].task;
 			}
 		}
