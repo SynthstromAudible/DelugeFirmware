@@ -24,17 +24,17 @@
 #include "model/drum/non_audio_drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
-#include <cstdint>
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Gate final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		Clip* currentClip = getCurrentClip();
+		Clip* currentClip = getCurrentInstrumentClip();
 		if (currentClip->output->type == OutputType::KIT) {
 			Drum* currentDrum = ((Kit*)currentClip->output)->selectedDrum;
-			if (currentDrum != nullptr && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
+			if (currentDrum != nullptr
+			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
 				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
 				this->setValue(computeCurrentValueForStandardMenuItem(nonAudioDrum->arpeggiatorGate));
 			}
@@ -48,7 +48,8 @@ public:
 		Clip* currentClip = getCurrentClip();
 		if (currentClip->output->type == OutputType::KIT) {
 			Drum* currentDrum = ((Kit*)currentClip->output)->selectedDrum;
-			if (currentDrum != nullptr && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
+			if (currentDrum != nullptr
+			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
 				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
 				nonAudioDrum->arpeggiatorGate = value;
 			}
@@ -59,10 +60,7 @@ public:
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip()
-		       || (getCurrentClip()->output->type == OutputType::KIT
-		           && (((Kit*)getCurrentClip())->selectedDrum->type == DrumType::MIDI
-		               || ((Kit*)getCurrentClip())->selectedDrum->type == DrumType::GATE));
+		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow();
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

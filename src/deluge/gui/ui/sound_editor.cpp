@@ -142,6 +142,12 @@ bool SoundEditor::editingCVOrMIDIClip() {
 	return (getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::CV);
 }
 
+bool SoundEditor::editingNonAudioDrumRow() {
+	return getCurrentOutputType() == OutputType::KIT
+		           && getCurrentKit()->selectedDrum && (getCurrentKit()->selectedDrum->type == DrumType::MIDI
+		               || getCurrentKit()->selectedDrum->type == DrumType::GATE);
+}
+
 bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	bool doGreyout = true;
 
@@ -625,7 +631,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForAudioClips);
 		}
 		// Or for MIDI or CV clips
-		else if (editingCVOrMIDIClip()) {
+		else if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (midiOrCVParamShortcuts[y] == currentItem) {
 					setupShortcutBlink(11, y, 0);
@@ -939,7 +945,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			// Shortcut to edit a parameter
 			if (x < 14 || (x == 14 && y < 5)) {
 
-				if (editingCVOrMIDIClip()) {
+				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
 					if (x == 11) {
 						item = midiOrCVParamShortcuts[y];
 					}
@@ -1387,7 +1393,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 						newParamManager = &noteRow->paramManager;
 						newArpSettings = &((SoundDrum*)selectedDrum)->arpSettings;
 					}
-					else {
+					else if (selectedDrum->type == DrumType::MIDI || selectedDrum->type == DrumType::GATE) {
 						newArpSettings = &((NonAudioDrum*)selectedDrum)->arpSettings;
 					}
 				}
