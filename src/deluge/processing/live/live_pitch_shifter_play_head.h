@@ -19,7 +19,6 @@
 
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
-#include "dsp/interpolate/interpolate.h"
 #include <array>
 
 class LivePitchShifter;
@@ -53,7 +52,7 @@ public:
 	int32_t rawBufferReadPos;
 	uint32_t oscPos;
 
-	deluge::dsp::Interpolator interpolator_;
+	std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2> interpolationBuffer;
 
 	uint32_t percPos;
 };
