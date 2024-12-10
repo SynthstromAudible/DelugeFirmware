@@ -34,7 +34,6 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::RENAME_MIDI_CC; }
-	const char* getName() { return "rename_midi_cc_ui"; }
 	bool exitUI() override;
 
 protected:

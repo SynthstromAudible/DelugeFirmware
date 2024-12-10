@@ -59,7 +59,6 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::SLICER; }
-	const char* getName() { return "slicer"; }
 
 private:
 	// 7SEG Only

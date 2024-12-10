@@ -146,7 +146,6 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::SOUND_EDITOR; }
-	const char* getName() { return "sound_editor"; }
 
 	bool selectedNoteRow;
 

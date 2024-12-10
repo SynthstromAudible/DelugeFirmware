@@ -58,7 +58,6 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
 	void exitAndNeverDeleteDrum();
 
-	const char* getName() { return "sample_browser"; }
 	String lastFilePathLoaded;
 
 protected:

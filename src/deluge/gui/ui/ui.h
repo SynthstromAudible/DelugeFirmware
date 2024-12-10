@@ -126,7 +126,6 @@ public:
 	virtual TimelineView* toTimelineView() { return nullptr; }
 
 	virtual void scrollFinished() {}
-	virtual const char* getName() { return "UI"; }
 	virtual bool pcReceivedForMidiLearn(MIDICable& fromCable, int32_t channel, int32_t program) { return false; }
 
 	virtual bool noteOnReceivedForMidiLearn(MIDICable& fromCable, int32_t channel, int32_t note, int32_t velocity) {

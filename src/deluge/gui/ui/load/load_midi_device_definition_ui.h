@@ -45,7 +45,6 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::LOAD_MIDI_DEVICE_DEFINITION; }
-	const char* getName() { return "load_midi_device_definition_ui"; }
 
 protected:
 	void folderContentsReady(int32_t entryDirection);

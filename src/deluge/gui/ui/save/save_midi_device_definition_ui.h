@@ -33,7 +33,6 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}
-	const char* getName() { return "save_midi_device_definition_ui"; }
 };
 
 extern SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI;

@@ -61,7 +61,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::AUDIO_CLIP; }
-	const char* getName() { return "audio_clip_view"; }
 
 private:
 	uint32_t timeSongButtonPressed;

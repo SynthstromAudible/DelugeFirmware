@@ -35,7 +35,6 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
 		return true;
 	}
-	const char* getName() { return "save_instrument_preset_ui"; }
 
 protected:
 	// int32_t arrivedInNewFolder(int32_t direction);

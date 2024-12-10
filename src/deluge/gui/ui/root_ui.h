@@ -39,5 +39,4 @@ public:
 	virtual void midiLearnFlash() {}
 	// ui
 	virtual UIType getUIType() { return UIType::NONE; }
-	const char* getName() { return "root_ui"; }
 };

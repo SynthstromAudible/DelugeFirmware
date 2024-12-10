@@ -32,7 +32,6 @@ public:
 		return true;
 	}
 
-	const char* getName() { return "qwerty_ui"; }
 	static bool predictionInterrupted;
 	static String enteredText;
 

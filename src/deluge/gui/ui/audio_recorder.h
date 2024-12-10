@@ -53,7 +53,6 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::AUDIO_RECORDER; }
-	const char* getName() { return "audio_recorder"; }
 
 private:
 	void finishRecording();

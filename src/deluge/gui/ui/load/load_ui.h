@@ -24,7 +24,6 @@ public:
 	LoadUI();
 
 	void focusRegained();
-	const char* getName() { return "load_ui"; }
 
 protected:
 	virtual void searchMemoryForBetterFile(int32_t offset, char* bestFilenameFound) {}

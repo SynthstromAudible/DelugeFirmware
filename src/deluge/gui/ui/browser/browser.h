@@ -104,7 +104,6 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::BROWSER; }
-	const char* getName() { return "browser"; }
 	bool exitUI() override {
 		Browser::close();
 		return true;

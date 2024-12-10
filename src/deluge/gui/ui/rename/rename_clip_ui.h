@@ -37,7 +37,6 @@ public:
 
 	// ui
 	UIType getUIType() { return UIType::RENAME_CLIP; }
-	const char* getName() { return "rename_clip_ui"; }
 	bool exitUI() override;
 
 protected:

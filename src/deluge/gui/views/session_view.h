@@ -48,7 +48,6 @@ public:
 	bool opened();
 	void focusRegained();
 
-	const char* getName() { return "session_view"; }
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
