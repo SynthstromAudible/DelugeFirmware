@@ -10,7 +10,7 @@ Now with one quick action you can start a stem export job, walk away from your D
 
 ## Stems Folder
 
-Stems get exported to a new `SAMPLES/STEMS/` folder. 
+Stems get exported to a new `SAMPLES/STEMS/` folder.
 
 Within the `STEMS` folder, when exporting stems, a folder with the `SONG NAME` is created if it does not already exist. Unsaved songs are saved with the song name `UNSAVED`. Thus, you will have a new folder named `SAMPLES/STEMS/SONG NAME/`.
 
@@ -25,7 +25,7 @@ Stem's are given a meaningful name in the following format:
 `ClipType_ExportType_PresetName_FileNumber.WAV`
 
 > For example:
-> 
+>
 > SYNTH_CLIP_PRESETNAME_000.WAV
 > SYNTH_TRACK_PRESETNAME_000.WAV
 > ARRANGEMENT.WAV
@@ -65,7 +65,7 @@ Stem's are given a meaningful name in the following format:
 
 ### Normalization
 - Normalization is off by default. Normalization sets the peak of the recorded stems to be at 0dB (as loud as possible without distorting).
-  - Normalization can be turned on in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\NORMALIZATION`  
+  - Normalization can be turned on in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\NORMALIZATION`
 
 ### Song FX
 - Song FX are excluded by default. They can be included in the stem export configuration menu located at: `SONG\EXPORT STEMS\CONFIGURE EXPORT\SONG FX`
@@ -83,7 +83,7 @@ Stem's are given a meaningful name in the following format:
 
 ## Stem Export Menu
 
-A new `EXPORT STEMS` menu has been added to the `SONG` menu accessible in Song and Arranger Views. 
+A new `EXPORT STEMS` menu has been added to the `SONG` menu accessible in Song and Arranger Views.
 
 This menu allows you to start a stem export and configure various settings related to the stem export.
 
@@ -115,11 +115,11 @@ For heavy arrangements, if you encounter the above issue, we recommend turning o
 
 The problem is due to memory filling up faster when using `Offline Rendering` compared to `Online (Live) Rendering`. We hope to find a solution for this problem as soon as possible.
 
-#### Scenario: Special characters in the track name 
+#### Scenario: Special characters in the track name
 
 One user reported that they were unable to export a track even though the stem export indicated that the track had been exported.
 
-Solution: 
+Solution:
 
 Check that the track name doesn't have any special characters. In this case, the user had a track called << Organ >>. Removing the characters "<< >>" and just naming the track "Organ" allowed the track to be exported.
 

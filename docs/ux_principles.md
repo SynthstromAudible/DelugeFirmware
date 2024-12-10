@@ -4,7 +4,7 @@
 The Deluge is a standalone instrument that also works as a controller/sequencer. It has two core features which set it apart from the competition:
 
 * Tracks can be smoothly changed from the internal synths to midi/cv and back again
-* It features a linear arranger 
+* It features a linear arranger
 
 These features should be maintained and any new features must not impact them
 
@@ -13,12 +13,12 @@ The deluge is not a computer, and should not feel like you're operating one. Dir
 
 ## Guidelines
 
-* Favour explicitness 
+* Favour explicitness
     - Parameters describe their action on the waveform, not their result on the final sound
     - A user who understands synthesis should immediately be able to edit the deluge
 * Favour simplicity
     - Menus should never feel mandatory
-    - Make the shortcuts and gold knob system feel like a feature and not a hindrance 
+    - Make the shortcuts and gold knob system feel like a feature and not a hindrance
     - The OLED screen is a bonus, not a requirement
 * Favour performance
     - Entire parameter ranges should be useful and scaled for quick editing

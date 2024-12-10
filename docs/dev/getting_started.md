@@ -66,14 +66,14 @@ Built files output to subdirectories named after the configuration (e.g. `build/
 
 #### Build configurations:
 
-* `debug` - build selected target with debugging support (including debugging symbols and different optimizations) 
+* `debug` - build selected target with debugging support (including debugging symbols and different optimizations)
 * `release` - build selected target with optimizations for release.
 
-#### Build arguments: 
+#### Build arguments:
 
 * `-S` or `--no-status` - this disables the `ninja` status line while building. Output from compilation commands (such as warnings and errors) will still be printed.
 * `-v` or `--verbose` - this prints greater level of detail to the console (i.e. exactly the compiler/linker commands called)
-* `-c` or `--clean-first` - clean before building 
+* `-c` or `--clean-first` - clean before building
 
 #### CMake custom arguments
 
