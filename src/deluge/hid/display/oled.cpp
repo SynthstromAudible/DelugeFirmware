@@ -1029,17 +1029,10 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 			}
 
 			if (doRender) {
-				int32_t endX = scroller->endX;
-				if (FlashStorage::accessibilityMenuHighlighting) {
-					// for submenu's, this is the padding before the icon's are rendered
-					// need to clear this area otherwise it leaves a white pixels
-					endX += 4;
-				}
-				// Ok, have to render.
-				main.clearAreaExact(scroller->startX, scroller->startY, endX - 1, scroller->endY);
+				main.clearAreaExact(scroller->startX, scroller->startY, scroller->endX - 1, scroller->endY);
 				main.drawString(scroller->text, scroller->startX, scroller->startY, scroller->textSpacingX,
 				                scroller->textSizeY, scroller->pos, scroller->endX);
-				if (scroller->doHighlight && !FlashStorage::accessibilityMenuHighlighting) {
+				if (scroller->doHighlight) {
 					main.invertArea(scroller->startX, scroller->endX - scroller->startX, scroller->startY,
 					                scroller->endY);
 				}
@@ -1062,7 +1055,7 @@ void OLED::scrollingAndBlinkingTimerEvent() {
 		if (doScroll) {
 			sideScrollerDirection = -sideScrollerDirection;
 		}
-		// if  we're not scrolling, we reset the scroll position to forward
+		// if  we're not scrolling, we reset the scroll direction to forward
 		else {
 			sideScrollerDirection = 1;
 		}
