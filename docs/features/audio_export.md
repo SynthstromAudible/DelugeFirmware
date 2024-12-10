@@ -28,7 +28,7 @@ Exported files are given a meaningful name in the following format:
 >
 > SYNTH_CLIP_PRESETNAME_000.WAV
 > SYNTH_TRACK_PRESETNAME_000.WAV
-> ARRANGEMENT.WAV
+> MIXDOWN.WAV
 
 ## Shortcuts to Start/Stop Exporting
 
