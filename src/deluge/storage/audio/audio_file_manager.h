@@ -40,8 +40,12 @@ enum class AlternateLoadDirStatus {
 	DOES_EXIST,
 };
 
-char const* const audioRecordingFolderNames[] = {"SAMPLES/CLIPS", "SAMPLES/RECORD", "SAMPLES/RESAMPLE",
-                                                 "SAMPLES/STEMS"};
+char const* const audioRecordingFolderNames[] = {
+    "SAMPLES/CLIPS",
+    "SAMPLES/RECORD",
+    "SAMPLES/RESAMPLE",
+    "SAMPLES/EXPORTS",
+};
 
 /*
  * ===================== SD card audio streaming ==================
