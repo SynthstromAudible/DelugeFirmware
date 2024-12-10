@@ -908,8 +908,8 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 	}
 
 	if (stemExportType == StemExportType::MASTER_ARRANGEMENT) {
-		// wavFileNameForStemExport = "/ARRANAGEMENT
-		error = wavFileNameForStemExport.concatenate("ARRANGEMENT");
+		// wavFileNameForStemExport = "/MIXDOWN
+		error = wavFileNameForStemExport.concatenate("MIXDOWN");
 		if (error != Error::NONE) {
 			return;
 		}
