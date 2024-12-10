@@ -153,6 +153,9 @@ public:
 	AutomationParamType automationParamType;
 	bool getAffectEntire() override;
 
+	// public so action logger can access it
+	void resetShortcutBlinking();
+
 private:
 	// button action functions
 	bool handleScaleButtonAction(InstrumentClip* instrumentClip, OutputType outputType, bool on);
@@ -340,7 +343,6 @@ private:
 	                                                    int32_t offset);
 
 	void blinkShortcuts();
-	void resetShortcutBlinking();
 	void resetParameterShortcutBlinking();
 
 	bool parameterShortcutBlinking;
