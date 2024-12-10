@@ -2,6 +2,7 @@
     "files.eol": "\n",
     "files.insertFinalNewline": true,
     "files.encoding": "utf8",
+    "files.trimTrailingWhitespace": true,
     "cmake.generator": "Ninja Multi-Config",
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
@@ -32,7 +33,7 @@
     "cmake.configureEnvironment": {
         "DELUGE_FW_ROOT": "${workspaceRoot}"
     },
-    "cortex-debug.armToolchainPath.windows": "${workspaceRoot}/toolchain/v13/win32-x86_64/arm-none-eabi-gcc/bin",
+    "cortex-debug.armToolchainPath.windows": "${workspaceRoot}/toolchain/v16/win32-x86_64/arm-none-eabi-gcc/bin",
     "advancedLocalFormatters.formatters": [
         {
             "command": {
