@@ -94,7 +94,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 * All project files, especially source files need to have a compatible license with the project.
   See [LICENSE](../LICENSE).
 * There is no written standard on code guidelines yet but please make your code match the existing style as much as possible.
-* Exception: the old code uses GOTOs and single returns heavily - new C++ code should favour other flow control methods 
+* Exception: the old code uses GOTOs and single returns heavily - new C++ code should favour other flow control methods
   and early returns instead, the old code is a result of the project's roots in C.
 * Clang Format runs on CI following the config in .clang-format. As there are slight differences between versions, we
   provide a command "./dbt format" to run the CI version exactly, which should gaurantee that your PR passes the checks
@@ -204,22 +204,22 @@ need to use in the command to authenticate with the Deluge.
 The `loadfw` command should automatically identify the correct MIDI port, as long as you are connected directly via USB.
 
 The first time you run it, the command will ask you for the key code you from the Deluge menu. The code is cached in
-`.deluge_hex_key` file in the DelugeFirmware directory, if it changes delete the file to have `loadfw` ask again for the key. 
+`.deluge_hex_key` file in the DelugeFirmware directory, if it changes delete the file to have `loadfw` ask again for the key.
 
 More instructions available via:
 `./dbt loadfw -h`
 
-**NOTE:** loadfw *can not* flash the new firmware to the permanent memory of the Deluge. 
+**NOTE:** loadfw *can not* flash the new firmware to the permanent memory of the Deluge.
 It is only loaded to RAM and then executed. Consequences:
 * **Good:** After switching off and on again, Deluge will boot from the last firmware flashed to permanent memory *from the SD card*.
 This is great for development, because if your changes crash the Deluge, just switch it off and on again and you are instantly back to the last
 (hopefully stable) version that was flashed from SD card.
 * **Meh**: If you want to keep your updated firmware on the Deluge persistently, i.e. surviving a power cycle, you *have to* physically copy it to your SD card
 and update it as described in https://github.com/SynthstromAudible/DelugeFirmware/wiki#updating-firmware
-* **Possibly bad:** *In rare cases* the firmware can behave differently when uploaded via loadfw than when actually flashed from SD card. 
+* **Possibly bad:** *In rare cases* the firmware can behave differently when uploaded via loadfw than when actually flashed from SD card.
 While this should only be relevant when changing low-level code executed at boot time,
 **please** always verify that your firmware also works when actually flashed from SD card,
-especially before making a pull request (ask me how I know...). 
+especially before making a pull request (ask me how I know...).
 
 ### Printing debug log messages on the console
 
@@ -263,28 +263,28 @@ This is a sample of the output:
 
 ### Deluge Crash Reader Discord Bot
 
-If deluge crashes, there is a colorful pixelated image that gets displayed across the main pads and sidebar. In case 
-of a CPU fault or C++ exception, the handler will print the last link register address and as many pointers to the code 
-section it can find in the stack data. The main pads display 4 32-bit numbers which are the addresses. Every color block 
+If deluge crashes, there is a colorful pixelated image that gets displayed across the main pads and sidebar. In case
+of a CPU fault or C++ exception, the handler will print the last link register address and as many pointers to the code
+section it can find in the stack data. The main pads display 4 32-bit numbers which are the addresses. Every color block
 is one address. Each pad is a bit, 1 is lit, 0 is unlit. The most significant bit is at the lower left corner
-of the color block, and the least significant bit is at the top right. Each column is one byte, reading along a single 
-column from bottom row to top row first, then incrementing to the next column from left to right. Rotating Deluge 90 
-degrees to the right makes it easy to read and enter the bytes into Windows calculator. However, we have created a 
+of the color block, and the least significant bit is at the top right. Each column is one byte, reading along a single
+column from bottom row to top row first, then incrementing to the next column from left to right. Rotating Deluge 90
+degrees to the right makes it easy to read and enter the bytes into Windows calculator. However, we have created a
 Deluge Crash Reader Discord Bot which can decode the addresses for you from a picture of the pads.
 
 The red sidebar is the first 4 chars of commit ID. Pink color in main pads means it's from ARM USR mode. Blue would be
-SYS mode. Stack pointers will alternate green and light blue. 
+SYS mode. Stack pointers will alternate green and light blue.
 
-The Deluge Crash Reader Discord Bot uses image recognition to decode the pad lights for you if you post a picture of 
-your Deluge to the nightly-testing channel on the Deluge Discord. Take a photo of your deluge, make sure all the pad 
-LEDs are inside the photo, then post it in the channel, and the robot should output the decoded addresses and the 
+The Deluge Crash Reader Discord Bot uses image recognition to decode the pad lights for you if you post a picture of
+your Deluge to the nightly-testing channel on the Deluge Discord. Take a photo of your deluge, make sure all the pad
+LEDs are inside the photo, then post it in the channel, and the robot should output the decoded addresses and the
 command used to investigate the addresses.
 
 For example, after posting a picture, the Deluge Crash Reader might output a message similar to this:
 
-Thanks for the image @username!, try running  
-I couldn't find a recent matching commit for `0x714a`  
-`arm-none-eabi-addr2line -Capife build/Release/deluge.elf 0x200a2f5b 0x200f3100 0x200fe6c1 0x2006dfe7 `  
+Thanks for the image @username!, try running
+I couldn't find a recent matching commit for `0x714a`
+`arm-none-eabi-addr2line -Capife build/Release/deluge.elf 0x200a2f5b 0x200f3100 0x200fe6c1 0x2006dfe7 `
 
 Then run the command that Deluge Crash Reader Bot outputs. This outputs the latest stack trace before hard crashing.
 (If you're on Windows and using VS Code, try running `.\dbt.cmd shell` first in your terminal.)

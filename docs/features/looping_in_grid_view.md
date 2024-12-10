@@ -34,7 +34,7 @@ To use the technique shown in the video above, you must follow these steps:
 This technique requires the following:
 - you have created a clip
 - you have selected that clip by pressing and holding it from grid view or by entering it
-- you are able to use the Global MIDI Commands: `LOOP` or `LAYERING LOOP` by either using the Grid Loop/Layering Loop pads or by sending the Loop/Layering Loop Global MIDI Commands using an external controller. 
+- you are able to use the Global MIDI Commands: `LOOP` or `LAYERING LOOP` by either using the Grid Loop/Layering Loop pads or by sending the Loop/Layering Loop Global MIDI Commands using an external controller.
 
 To enable the Grid Loop/Layering Loop pads, enable `Grid View Loop Pads (LOOP)` in the `Community Features menu`.
  - When On, two pads (Red and Magenta) in the GRID VIEW sidebar will be illuminated and enable you to trigger the LOOP (Red) and LAYERING LOOP (Magenta) global MIDI commands to make it easier for you to loop in GRID VIEW without a MIDI controller.

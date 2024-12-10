@@ -12,7 +12,7 @@ Comes with a MIDI feedback mode to send updated parameter values on the MIDI fol
 
 Comes with an XML file (`SETTINGS/MIDIFollow.XML`) with default CC to Deluge parameter mappings. You can customize this XML file to map CC's differently as required.
 
-**Simple summary:** 
+**Simple summary:**
 - Set your follow and feedback channel(s)
 - Set your MIDI Controller(s) to the same channel(s)
 - Set a root note for your kits
@@ -106,9 +106,9 @@ MIDI CC mappings for MIDI Follow Mode are saved to the `SETTINGS` folder in the 
 Within `MIDIFollow.XML`, all Parameters that can mapped to a MIDI CC are listed. The MIDI CC value is enclosed between a Parameter XML tag - e.g. `<lpfFrequency>74</lpfFrequency>` indicates that MIDI CC 74 is mapped to the LPF Frequency parameter. Conversely when a value of 255 is entered (e.g. `<hpfFrequency>255</hpfFrequency>`) it indicates that no MIDI CC value has been mapped to that parameter.
 
 ![image](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/1ae66f8b-1627-4e2f-a05d-fd7a8c73b62f)
-You can manually edit the `MIDIFollow.XML` to enter your MIDI CC mappings to each Parameter. 
+You can manually edit the `MIDIFollow.XML` to enter your MIDI CC mappings to each Parameter.
 
-The defaults from `MIDIFollow.XML` are loaded automatically when you start the Deluge so you can begin controlling the deluge with your MIDI controller right away. 
+The defaults from `MIDIFollow.XML` are loaded automatically when you start the Deluge so you can begin controlling the deluge with your MIDI controller right away.
 
 Note: A parameter can only be mapped to one MIDI CC. Conversely, a MIDI CC can be mapped to multiple parameters.
 
@@ -126,9 +126,9 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 
 ## Re-cap of functionality
 
-1. Added new MIDI submenu for MIDI-Follow where you can: 
+1. Added new MIDI submenu for MIDI-Follow where you can:
 
-- Set up to three MIDI Follow Channels and Devices 
+- Set up to three MIDI Follow Channels and Devices
 - Set the MIDI Follow Root Note for Kits
 - Enable or Disable MIDI Follow Param Pop-up's
 - Enable or Disable MIDI Follow Feedback by setting/unsetting the MIDI Follow Feedback Channel
@@ -150,7 +150,7 @@ If you experience MIDI stutter / lag while using MIDI follow mode, you may need 
 
 Things you can try:
 
-1) Disable MIDI Feedback altogether by setting the MIDI Feedback Channel to NONE in the following sub-menu: MIDI > MIDI-FOLLOW > FEEDBACK > CHANNEL 
+1) Disable MIDI Feedback altogether by setting the MIDI Feedback Channel to NONE in the following sub-menu: MIDI > MIDI-FOLLOW > FEEDBACK > CHANNEL
 
 2) Disable MIDI Automation Feedback. Set the following menu to Disabled: MIDI > MIDI-FOLLOW > FEEDBACK > AUTOMATION FEEDBACK
 
