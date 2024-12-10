@@ -36,7 +36,7 @@ Exported files are given a meaningful name in the following format:
 
 - Hold `SAVE` + Press `RECORD` while Playback and Record are disabled to launch the export process
 - When the export is finished, a dialog will appear on the display that tells you that the export process has finished. Press `SELECT`, `BACK` or any `PAD` on the grid to exit the dialog.
-- Note 1: Tracks are exported without Master (Song) FX applied
+- Note 1: Master (Song) FX are excluded from the export by default (but can be included - see below)
 - Note 2: MIDI and CV Instruments and Clips are excluded from the export
 - Note 3: Instruments and Clips that are `EMPTY` (e.g. they have no Notes or Audio Files) are excluded from the export
 - Note 4: In Arranger View, any Instruments that are `MUTED` are excluded from the export
@@ -67,7 +67,7 @@ Exported files are given a meaningful name in the following format:
   - Normalization can be turned on in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\NORMALIZATION`
 
 ### Song FX
-- By default, song FX are excluded. They can be included in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\SONG FX`
+- By default, song FX are excluded (these are the master FX in Song and Arranger Views when Affect Entire is enabled). They can be included in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\SONG FX`
 
 ### Clip Loop Points
 
