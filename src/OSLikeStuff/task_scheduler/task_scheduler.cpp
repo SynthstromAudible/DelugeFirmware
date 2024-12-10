@@ -281,7 +281,6 @@ void TaskManager::start(Time duration) {
 				printStats();
 			}
 		}
-
 	}
 }
 void TaskManager::startClock() {
