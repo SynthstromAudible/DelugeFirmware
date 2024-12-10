@@ -30,7 +30,7 @@ class Output;
 
 class LoadInstrumentPresetUI final : public LoadUI {
 public:
-	LoadInstrumentPresetUI();
+	LoadInstrumentPresetUI() = default;
 	bool opened() override;
 	// void selectEncoderAction(int8_t offset);
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
@@ -74,9 +74,9 @@ public:
 		noteRowIndex = rowIndex; // (not set value for note rows)
 		noteRow = row;
 	}
+
 	// ui
 	UIType getUIType() override { return UIType::LOAD_INSTRUMENT_PRESET; }
-	const char* getName() override { return "load_instrument_preset"; }
 
 protected:
 	void enterKeyPress() override;

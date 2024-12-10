@@ -36,9 +36,6 @@ using namespace deluge;
 
 SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI{};
 
-SaveMidiDeviceDefinitionUI::SaveMidiDeviceDefinitionUI() {
-}
-
 bool SaveMidiDeviceDefinitionUI::opened() {
 	if (!getRootUI()->toClipMinder() || getCurrentOutputType() != OutputType::MIDI_OUT) {
 		return false;

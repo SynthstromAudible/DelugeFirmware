@@ -34,8 +34,6 @@ public:
 	Output* output;
 
 	// ui
-	UIType getUIType() override { return UIType::RENAME_OUTPUT; }
-	const char* getName() override { return "rename_output_ui"; }
 	bool exitUI() override;
 
 protected:

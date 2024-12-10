@@ -32,9 +32,6 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 
-ClipView::ClipView() {
-}
-
 uint32_t ClipView::getMaxZoom() {
 	return getCurrentClip()->getMaxZoom();
 }

@@ -61,7 +61,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::KEYBOARD_SCREEN; }
-	const char* getName() override { return "keyboard_screen"; }
 	void checkNewInstrument(Instrument* newInstrument);
 
 private:

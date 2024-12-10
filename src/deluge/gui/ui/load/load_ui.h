@@ -21,10 +21,9 @@
 
 class LoadUI : public SlotBrowser {
 public:
-	LoadUI();
+	LoadUI() = default;
 
 	void focusRegained() override;
-	const char* getName() override { return "load_ui"; }
 
 protected:
 	virtual void searchMemoryForBetterFile(int32_t offset, char* bestFilenameFound) {}

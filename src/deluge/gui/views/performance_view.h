@@ -67,7 +67,6 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::PERFORMANCE; }
-	const char* getName() override { return "performance_view"; }
 	[[nodiscard]] int32_t getNavSysId() const override;
 
 	// rendering

@@ -50,9 +50,6 @@ using encoders::EncoderName;
 
 LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
-LoadInstrumentPresetUI::LoadInstrumentPresetUI() {
-}
-
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	if (showingAuditionPads()) {
 		*cols = 0b10;

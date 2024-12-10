@@ -27,7 +27,8 @@ public:
 	bool opened() override;
 	void enterKeyPress() override;
 	Error getCurrentFilePath(String* path) override;
-	const char* getName() override { return "dx_browser"; }
+	// ui
+	UIType getUIType() override { return UIType::DX_BROWSER; }
 };
 
 extern DxSyxBrowser dxBrowser;
