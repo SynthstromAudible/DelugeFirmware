@@ -50,7 +50,7 @@ appreciated.
 * Please use the review and discussion functionality provided within GitHub.
 * Code reviews are intended to increase quality and should not go into nitpicking, please remember
   the [Code of Conduct](CODE_OF_CONDUCT.md).
-* Final decisions about merging of Pull requests is up to the code owners, see below and in [Governance](GOVERNANCE.md).
+* Final decisions about merging of Pull requests is up to the code owners, see [Governance](GOVERNANCE.md).
 * If you have a contribution to make then review the [Guidelines for Repository Contributions](/docs/dev/guidelines.md). 
 
 ## Additional Developer Resources
