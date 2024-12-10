@@ -153,10 +153,10 @@ TEST(Scheduler, yield) {
 
 TEST(Scheduler, removeWithPriZero) {
 	mock().clear();
-	mock().expectNCalls((0.01 - 0.002) / 0.001 - 1, "sleep_50ns");
+	mock().expectNCalls((0.01 - 0.002) / 0.001, "sleep_50ns");
 	mock().expectNCalls(2, "sleep_2ms");
 	// every 1ms sleep for 50ns and 10ns
-	addRepeatingTask(sleep_50ns, 0, 0.0099, 0.0099, 0.001, "sleep 50ns");
+	addRepeatingTask(sleep_50ns, 0, 0.00099, 0.00099, 0.001, "sleep 50ns");
 
 	addOnceTask(sleep_2ms, 11, 0.002, "sleep 2 ms");
 
