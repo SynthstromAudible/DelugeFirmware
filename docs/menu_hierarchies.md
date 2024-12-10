@@ -598,9 +598,9 @@ The Song menu contains the following menu hierarchy:
 </details>
 <details><summary>Configure Macros (MACR)</summary></details>
 <details><summary>Midi Learn (MIDI)</summary></details>
-<details><summary>Stem Export (STEM)</summary>
+<details><summary>Audio Export (EXPO)</summary>
 
-	- Start Export (STEM)
+	- Start Export (EXPO)
 	- Configure Export (CONF)
 		- Normalization (NORM)
 			- Disabled (OFF)
