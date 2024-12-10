@@ -28,7 +28,6 @@ Exported files are given a meaningful name in the following format:
 >
 > SYNTH_CLIP_PRESETNAME_000.WAV
 > SYNTH_TRACK_PRESETNAME_000.WAV
-> MIXDOWN.WAV
 
 ## Shortcuts to Start/Stop Exporting
 
@@ -77,9 +76,6 @@ Exported files are given a meaningful name in the following format:
 - By default, offline Rendering is enabled. Offline rendering enables you to render and export faster than if you recorded playback using live audio (e.g. resampling/online rendering). There are still improvements to be made to make offline rendering even faster, but it is significantly fast as is!
   - Offline rendering can be turned off in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\OFFLINE RENDERING`
 
-### Mixdown Export
-- Exporting all unmuted tracks as a single stereo file is disabled by default. This can be enabled in the export configuration menu located at: `SONG\EXPORT AUDIO\CONFIGURE EXPORT\EXPORT MIXDOWN`
-
 ## Audio Export Menu
 
 A new `EXPORT AUDIO` menu has been added to the `SONG` menu accessible in Song and Arranger Views.
@@ -94,7 +90,6 @@ This menu allows you to start an export and configure various settings related t
       - `EXPORT TO SILENCE`: Exports are rendered until silence is reached (mutable noise floor, ~70dB from peak) to allow for sound tails (e.g. delay, reverb) to be captured.
       - `SONG FX`: Exports are rendered with or without Song FX applied.
       - `OFFLINE RENDERING`: Exports are rendered offline. You will not hear any audio playback, as exports are rendered at a faster than real-time basis.
-      - `EXPORT MIXDOWN`: A single master mixdown track is exported for all unmuted tracks in Arranger View.
 
 ## Troubleshooting
 
