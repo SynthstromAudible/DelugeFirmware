@@ -121,4 +121,4 @@ Then run the command that Deluge Crash Reader Bot outputs. This outputs the late
 
 ## Additional Developer Resources
 
-* Access more developer resources in [Additional Information](/dev/additional_info.md).
+* Access more developer resources in [Additional Information](/docs/dev/additional_info.md).

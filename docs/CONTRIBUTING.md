@@ -41,7 +41,7 @@ which allows both creating discussion, ideas, polls and more as well as voting o
 * For more in-depth technical discussion you are welcome to join the #dev-chat channel in
   the [Deluge User Discord](https://discord.com/invite/gWaJEh6pPP).
 
-## Code review and testing
+## Repository Contributions
 
 Pull requests that are no longer marked as Draft and are open for merging should be ready to test and any help is
 appreciated.
@@ -51,7 +51,8 @@ appreciated.
 * Code reviews are intended to increase quality and should not go into nitpicking, please remember
   the [Code of Conduct](CODE_OF_CONDUCT.md).
 * Final decisions about merging of Pull requests is up to the code owners, see below and in [Governance](GOVERNANCE.md).
+* If you have a contribution to make then review the [Guidelines for Repository Contributions](/docs/dev/guidelines.md). 
 
 ## Additional Developer Resources
 
-* Access more developer resources in [Additional Information](/dev/additional_info.md).
+* Access more developer resources in [Additional Information](/docs/dev/additional_info.md).

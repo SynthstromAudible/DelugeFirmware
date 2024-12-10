@@ -82,4 +82,4 @@ Any additional arguments to CMake may be transparently passed via `dbt build`. P
 
 ## Additional Developer Resources
 
-* Access more developer resources in [Additional Information](/dev/additional_info.md).
+* Access more developer resources in [Additional Information](/docs/dev/additional_info.md).
