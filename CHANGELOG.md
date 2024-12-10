@@ -200,9 +200,9 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
 - Updated OLED display to stop scrolling text while playback is running.
 
-#### <ins>Stem Export</ins>
-- Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
-  - You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+#### <ins>Audio Export</ins>
+- Added `AUDIO EXPORT`, an automated process for exporting `CLIP`s while in `SONG VIEW` and `INSTRUMENT`s while in `ARRANGER VIEW` to individual files. Press `SAVE + RECORD` to start exporting clips/tracks. Press `BACK` to cancel exporting and stop recording and playback.
+  - You can also start audio export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
 #### <ins>Recording</ins>
 - Enabled toggling of `METRONOME` during `RECORD COUNT-IN`.

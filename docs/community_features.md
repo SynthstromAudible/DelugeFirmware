@@ -309,12 +309,12 @@ which track to record from. The source can also be selected by pressing a clip's
 
 - ([#2166]) Holding back will now fully exit your current menu
 
-#### 3.24 Automated Stem Exporting
+#### 3.24 Automated Audio Exporting
 
-- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Stem Export Documentation]
-- ([#2260]) Added `STEM EXPORT`, an automated process for exporting `CLIP STEMS` while in `SONG VIEW` and `INSTRUMENT STEMS` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting stems. Press `BACK` to cancel stem exporting and stop recording and playback.
-- ([#2327]) You can also start the stem export via a new `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the stem export by entering the `SONG\EXPORT STEMS\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
-- ([#2330]) You can configure settings for the stem export via the `EXPORT STEMS` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT STEMS\CONFIGURE EXPORT\` to configure various stem export settings.
+- For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Audio Export Documentation]
+- ([#2260]) Added `AUDIO EXPORT`, an automated process for exporting `CLIP`s while in `SONG VIEW` and `INSTRUMENT`s while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting audio. Press `BACK` to cancel the export and stop recording and playback.
+- ([#2327]) You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
+- ([#2330]) You can configure settings for the audio export via the `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT EXPORT\CONFIGURE EXPORT\` to configure various export settings.
 
 #### 3.25 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
 - ([#2315]) A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
@@ -1676,7 +1676,7 @@ different firmware
 
 [DX7 Synth Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/dx_synth.md
 
-[Stem Export Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/stem_export.md
+[Audio Export Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/audio_export.md
 
 [Chord Keyboard Documentation]: https://github.com/SynthstromAudible/DelugeFirmware/blob/community/docs/features/chord_keyboard.md
 
