@@ -602,6 +602,7 @@ currentClipSwitchedOver:
 	}
 
 	else if (whichAnimation == Animation::EXIT_AUTOMATION_VIEW) {
+		automationView.resetShortcutBlinking();
 		if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 			changeRootUI(&instrumentClipView);
 		}
