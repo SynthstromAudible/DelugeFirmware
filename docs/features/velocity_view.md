@@ -1,6 +1,6 @@
 ## **Feature: Automation View Note Velocity Editor**
 
-New Note Velocity Editing View that has been added as part of the existing Automation View implementation so that you can edit the velocities and other parameters of notes in a single note row. 
+New Note Velocity Editing View that has been added as part of the existing Automation View implementation so that you can edit the velocities and other parameters of notes in a single note row.
 
 <img width="605" alt="Screenshot 2024-06-05 at 11 34 47 AM" src="https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/c0a1577c-5a10-4511-ab2e-1c40b3cb3d64">
 
@@ -22,7 +22,7 @@ New Note Velocity Editing View that has been added as part of the existing Autom
 - Add Note / Adjust Velocity Using Grid:
   - Press grid to set/adjust velocities of existing notes and add note (if no note exists)
 - Set a Velocity Ramp:
-  - Press and hold two grid note pads to set a velocity ramp between the two notes. 
+  - Press and hold two grid note pads to set a velocity ramp between the two notes.
   - Note: for this to work, you must first press a pad that has a note in it and then press a second pad that has a note in it. if the second pad has no note already in it, it will set a tail instead for the first note pad pressed (or if it's a drum sound, like a kick, it will just add another note in the position of the second pad press).
 - Remove Note:
   - Short press top velocity pad in a note column to remove note
@@ -46,7 +46,7 @@ New Note Velocity Editing View that has been added as part of the existing Autom
 - Change selected note row length by:
    - Holding Audition pad + Turning horizontal encoder <>
    - Note: does not work if you have selected a note
-- Clear notes in selected note row by: 
+- Clear notes in selected note row by:
    - Holding horizontal encoder <> + pressing Back
    - Note: does not work if you have selected a note
 - Rotate Note Row by:
@@ -57,5 +57,5 @@ New Note Velocity Editing View that has been added as part of the existing Autom
    - Enabling Quantize community feature
    - Hold audition pad + press and turn tempo encoder to set quantize / humanize %
 - Cross Screen Editing:
-    - Press cross screen while in the Velocity Note Editor to edit notes across multiple screens. 
-    - Note: you can only toggle cross screen editing if the clip has multiple screens OR the current note row selected has multiple screens. 
+    - Press cross screen while in the Velocity Note Editor to edit notes across multiple screens.
+    - Note: you can only toggle cross screen editing if the clip has multiple screens OR the current note row selected has multiple screens.

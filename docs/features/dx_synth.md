@@ -57,9 +57,9 @@ unless it was manually set to something else.
 
 When the Keyboard view is active, the first 6 rows of the sidebar shows the operators as green for a carrier and blue for a modulator.
 
-1. Taping a single pad in isolation lets you switch an operator on or off. 
+1. Taping a single pad in isolation lets you switch an operator on or off.
 
-2. Pressing Shift+coloured pad opens the editor for that operator. 
+2. Pressing Shift+coloured pad opens the editor for that operator.
 - The first press of Shift+colored pad selects the level parameter.
 - Pressing Shift+coloured pad again select the COARSE tuning parameter.
 
