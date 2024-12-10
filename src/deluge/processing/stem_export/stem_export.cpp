@@ -725,7 +725,7 @@ Error StemExport::getUnusedStemRecordingFilePath(String* filePath, AudioRecordin
 /// after SAMPLES/STEMS/*SONG NAME*/ is created, it will try to create a folder for the type of export (ARRANGER or
 /// SONG). if it cannot create a folder of the name ARRANGER or SONG because it already exists, it will append an
 /// incremental number to the end of the ARRANGER or SONG folder name and try to create a folder with that new name thus
-/// we will end up with a folder path of SAMPLES/STEMS/*SONG NAME*/ARRANGER##/ or SAMPLES/STEMS/*SONG NAME*/SONG##/ this
+/// we will end up with a folder path of SAMPLES/STEMS/*SONG NAME*/TRACKS##/ or SAMPLES/STEMS/*SONG NAME*/CLIPS##/ this
 /// function gets called every time a stem recording is being written to a file to avoid unecessary file system calls,
 /// it will save the last song and arranger/song sub-folder name saved to a String including the last incremental folder
 /// number and use that to obtain the filePath for the next stem export job (e.g. if you are exporting the same song
@@ -781,12 +781,12 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 	RootUI* rootUI = getRootUI();
 	// concatenate stem export type to folder path
 	if (rootUI == &arrangerView) {
-		// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER
-		error = tempPath.concatenate("/ARRANGER");
+		// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/TRACKS
+		error = tempPath.concatenate("/TRACKS");
 	}
 	else {
-		// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG
-		error = tempPath.concatenate("/SONG");
+		// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/CLIPS
+		error = tempPath.concatenate("/CLIPS");
 	}
 	if (error != Error::NONE) {
 		return error;
@@ -804,8 +804,8 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		// if we're here we didn't just export this song
 		String tempPathForSearch;
 
-		// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER OR SONG
-		// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG
+		// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/TRACKS OR CLIPS
+		// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/CLIPS
 		error = tempPathForSearch.set(tempPath.get());
 		if (error != Error::NONE) {
 			return error;
@@ -828,22 +828,22 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 				// increment folder number so we can append it to the ARRANGER or SONG folder name
 				highestUsedStemFolderNumber++;
 
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER
-				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG
+				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/TRACKS
+				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/CLIPS
 				error = tempPathForSearch.set(tempPath.get());
 				if (error != Error::NONE) {
 					return error;
 				}
 
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-
-				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-
+				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/TRACKS-
+				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/CLIPS-
 				error = tempPathForSearch.concatenate("-");
 				if (error != Error::NONE) {
 					return error;
 				}
 
-				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-##
-				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-##
+				// tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/TRACKS-##
+				// or tempPathForSearch =  SAMPLES/STEMS/*INSERT SONG NAME*/CLIPS-##
 				error = tempPathForSearch.concatenateInt(highestUsedStemFolderNumber, 2);
 				if (error != Error::NONE) {
 					return error;
@@ -864,15 +864,15 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 		// if folder number is not -1, it means this is the second we're running the stem export process
 		// for this song, so we need to append a folder number to the SONG name
 		if (highestUsedStemFolderNumber != -1) {
-			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-
-			// or tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-
+			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/TRACKS-
+			// or tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/CLIPS-
 			error = tempPath.concatenate("-");
 			if (error != Error::NONE) {
 				return error;
 			}
 
-			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/ARRANGER-##
-			// or tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/SONG-##
+			// tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/TRACKS-##
+			// or tempPath =  SAMPLES/STEMS/*INSERT SONG NAME*/CLIPS-##
 			error = tempPath.concatenateInt(highestUsedStemFolderNumber, 2);
 			if (error != Error::NONE) {
 				return error;
