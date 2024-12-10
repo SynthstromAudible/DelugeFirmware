@@ -694,7 +694,7 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 			}
 
 			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-				nonAudioDrum->noteOnPostArp(instruction.noteCodeOffPostArp, instruction.arpNoteOn);
+				nonAudioDrum->noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
 			}
 		}
 	}
@@ -1047,7 +1047,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 				}
 
 				if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-					nonAudioDrum->noteOnPostArp(instruction.noteCodeOffPostArp, instruction.arpNoteOn);
+					nonAudioDrum->noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
 				}
 			}
 
