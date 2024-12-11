@@ -106,6 +106,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 ##### Kits
 - Added ability to change the pad size in the `KIT VELOCITY KEYBOARD VIEW` using the Zoom In/Out shortcut by `Pressing + Turning <>`
+- Midi and Gate kit rows now are arpeggiator-enabled, and they have a menu to set it up.
 
 ##### Layout
 - Added the classic piano keyboard layout.

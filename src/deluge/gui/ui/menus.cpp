@@ -1367,8 +1367,14 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
 };
 
 // Root menu for NonAudioDrums (MIDI and Gate drums)
-menu_item::Submenu soundEditorRootMenuNonAudioDrum{
-    STRING_FOR_MIDI_INST_MENU_TITLE,
+menu_item::Submenu soundEditorRootMenuMidiDrum{
+    STRING_FOR_MIDI,
+    {
+        &arpMenu,
+    },
+};
+menu_item::Submenu soundEditorRootMenuGateDrum{
+    STRING_FOR_GATE,
     {
         &arpMenu,
     },

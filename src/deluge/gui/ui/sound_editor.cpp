@@ -1462,9 +1462,14 @@ doMIDIOrCV:
 
 				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
 				         && ((Kit*)output)->selectedDrum != nullptr
-				         && (((Kit*)output)->selectedDrum->type == DrumType::MIDI
-				             || ((Kit*)output)->selectedDrum->type == DrumType::GATE)) {
-					newItem = &soundEditorRootMenuNonAudioDrum;
+				         && ((Kit*)output)->selectedDrum->type == DrumType::MIDI) {
+					newItem = &soundEditorRootMenuMidiDrum;
+				}
+
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
+				         && ((Kit*)output)->selectedDrum != nullptr
+				         && ((Kit*)output)->selectedDrum->type == DrumType::GATE) {
+					newItem = &soundEditorRootMenuGateDrum;
 				}
 
 				else {
