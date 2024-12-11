@@ -1796,13 +1796,6 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 		handleSelectEncoderButtonAction(on);
 	}
 
-	// when you press affect entire, the parameter selection needs to reset
-	else if (on && b == AFFECT_ENTIRE) {
-		initParameterSelection();
-		blinkShortcuts();
-		goto passToOthers;
-	}
-
 	else {
 passToOthers:
 		// if you're entering settings menu
@@ -1832,6 +1825,13 @@ passToOthers:
 		}
 		if (result == ActionResult::NOT_DEALT_WITH) {
 			result = ClipView::buttonAction(b, on, inCardRoutine);
+		}
+
+		// when you press affect entire, the parameter selection needs to reset
+		// do this here because affect entire state may have just changed
+		if (on && b == AFFECT_ENTIRE) {
+			initParameterSelection();
+			blinkShortcuts();
 		}
 
 		return result;
