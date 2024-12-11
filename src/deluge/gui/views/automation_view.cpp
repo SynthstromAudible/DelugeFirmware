@@ -2655,12 +2655,12 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
 	}
 	// expression params, so sounds or midi/cv, or a single drum
-	else if (util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
-	         // selected a single sound drum
-	         || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
-	              && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))) {
-		uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
-		clip->lastSelectedParamID = paramID;
+	else if ((util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
+	          // selected a single sound drum
+	          || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
+	               && ((Kit*)output)->selectedDrum->type == DrumType::SOUND)))
+	         && params::expressionParamFromShortcut(xDisplay, yDisplay) != kNoParamID) {
+		clip->lastSelectedParamID = params::expressionParamFromShortcut(xDisplay, yDisplay);
 		clip->lastSelectedParamKind = params::Kind::EXPRESSION;
 	}
 
