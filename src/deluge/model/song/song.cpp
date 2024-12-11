@@ -634,6 +634,7 @@ void Song::rotateMusicalMode(int8_t change) {
 		}
 	}
 
+	changes.target = changes.applyTo(changes.source);
 	replaceMusicalMode(changes, false);
 }
 
@@ -664,6 +665,7 @@ void Song::changeMusicalMode(uint8_t yVisualWithinOctave, int8_t change) {
 	ScaleChange changes;
 	changes.source = key.modeNotes;
 	changes[yVisualWithinOctave] += change;
+	changes.target = changes.applyTo(changes.source);
 
 	replaceMusicalMode(changes, true);
 }
