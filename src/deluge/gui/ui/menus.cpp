@@ -171,7 +171,6 @@
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
-#include "gui/menu_item/submenu/arpeggiator.h"
 #include "gui/menu_item/submenu/bend.h"
 #include "gui/menu_item/submenu/envelope.h"
 #include "gui/menu_item/submenu/modulator.h"
@@ -274,7 +273,7 @@ Submenu arpSpreadMenu{
      &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV},
 };
 
-submenu::Arpeggiator arpMenu{
+Submenu arpMenu{
     STRING_FOR_ARPEGGIATOR,
     {
         &arpModeMenu,
