@@ -24,6 +24,8 @@
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 	channel = 2;
+
+	arpSettings.numOctaves = 1;
 }
 
 void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
@@ -35,7 +37,7 @@ void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 		noteOffPostArp(instruction.noteCodeOffPostArp);
 	}
-	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
+	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) [[likely]] {
 		noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
 	}
 }

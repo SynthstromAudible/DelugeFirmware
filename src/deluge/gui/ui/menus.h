@@ -82,6 +82,7 @@ extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
 
 extern MenuItem* midiOrCVParamShortcuts[8];
+extern MenuItem* gateDrumParamShortcuts[8];
 extern MenuItem* paramShortcutsForSounds[15][8];
 extern MenuItem* paramShortcutsForAudioClips[15][8];
 extern MenuItem* paramShortcutsForSongView[15][8];

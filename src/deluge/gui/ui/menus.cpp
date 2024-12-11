@@ -169,6 +169,7 @@
 #include "gui/menu_item/source/patched_param/fm.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
+#include "gui/menu_item/submenu/arp_mpe_submenu.h"
 #include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
 #include "gui/menu_item/submenu/bend.h"
@@ -265,7 +266,7 @@ arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
 
 // Arp: MPE
 arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
-Submenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
+submenu::ArpMpeSubmenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
 
 Submenu arpSpreadMenu{
     STRING_FOR_SPREAD,
@@ -750,6 +751,17 @@ const MenuItem* midiOrCVParamShortcuts[8] = {
     &arpGateMenuMIDIOrCV,
     &arpOctavesMenu,
     &arpPresetModeMenu,
+    nullptr,
+    nullptr,
+    nullptr,
+};
+
+const MenuItem* gateDrumParamShortcuts[8] = {
+    &arpRateMenuMIDIOrCV,
+    &arpSyncMenu,
+    &arpGateMenuMIDIOrCV,
+    nullptr,
+    &arpModeMenu,
     nullptr,
     nullptr,
     nullptr,

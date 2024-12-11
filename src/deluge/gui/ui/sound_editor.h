@@ -130,6 +130,8 @@ public:
 	void markInstrumentAsEdited();
 	bool editingCVOrMIDIClip();
 	bool editingNonAudioDrumRow();
+	bool editingMidiDrumRow();
+	bool editingGateDrumRow();
 	bool isUntransposedNoteWithinRange(int32_t noteCode);
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();

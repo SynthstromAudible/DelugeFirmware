@@ -36,7 +36,7 @@ public:
 		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingKit();
+		return soundEditor.editingKit() && !soundEditor.editingGateDrumRow();
 	}
 
 	deluge::vector<std::string_view> getOptions() override {

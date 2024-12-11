@@ -15,19 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/integer.h"
-#include "gui/ui/sound_editor.h"
+#include "gui/menu_item/submenu.h"
 
-namespace deluge::gui::menu_item::arpeggiator {
-class Octaves final : public Integer {
+namespace deluge::gui::menu_item::submenu {
+class ArpMpeSubmenu final : public Submenu {
 public:
-	using Integer::Integer;
-	void readCurrentValue() override { this->setValue(soundEditor.currentArpSettings->numOctaves); }
-	void writeCurrentValue() override { soundEditor.currentArpSettings->numOctaves = this->getValue(); }
-	[[nodiscard]] int32_t getMinValue() const override { return 1; }
-	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
+	using Submenu::Submenu;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingGateDrumRow();
 	}
 };
-} // namespace deluge::gui::menu_item::arpeggiator
+
+} // namespace deluge::gui::menu_item::submenu
