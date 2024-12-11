@@ -98,9 +98,10 @@ public:
 		if (current_ == start_) {
 			current_ = end_ - 1; // wrap around to last element
 			return true;
-		} else {
-			--current_;          // move back
-			return false;        // no wrap
+		}
+		else {
+			--current_;   // move back
+			return false; // no wrap
 		}
 	}
 
