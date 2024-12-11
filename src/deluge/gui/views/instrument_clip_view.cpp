@@ -2969,23 +2969,20 @@ multiplePresses:
 void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
 
-	// Probability dependence
-	if (probability <= kNumProbabilityValues) {
-		if (display->haveOLED()) {
-			sprintf(buffer, "Probability %d%%", probability * 5);
-			if (prevBase) {
-				strcat(buffer, " latching");
-			}
-		}
-		if (display->have7SEG()) {
-			intToString(probability * 5, buffer);
-		}
+	// if it's a latching probability, remove latching from value
+	if (probability > kNumProbabilityValues) {
+		probability &= 127;
 	}
 
 	if (display->haveOLED()) {
+		sprintf(buffer, "Probability %d%%", probability * 5);
+		if (prevBase) {
+			strcat(buffer, " latching");
+		}
 		display->popupText(buffer, PopupType::PROBABILITY);
 	}
 	else {
+		intToString(probability * 5, buffer);
 		display->displayPopup(buffer, 0, true, prevBase ? 3 : 255, 1, PopupType::PROBABILITY);
 	}
 }

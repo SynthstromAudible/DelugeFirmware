@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "CppUTestExt/MockSupport.h"
-#include "OSLikeStuff/task_scheduler.cpp"
+#include "OSLikeStuff/task_scheduler/task_scheduler.cpp"
+#include "OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp"
 #include "cstdint"
 #include "mocks/timer_mocks.h"
 #include <iostream>
@@ -43,11 +44,11 @@ void sleep_2ms() {
 	passMockTime(0.002);
 }
 
-double started;
+Time started;
 void yield_2ms() {
 	mock().actualCall("yield_2ms");
 	started = getTimerValueSeconds(0);
-	yield([]() { return getTimerValueSeconds(0) > started + 0.002; });
+	yield([]() { return getTimerValueSeconds(0) > started + Time(0.002); });
 }
 
 TEST_GROUP(Scheduler){
@@ -118,7 +119,7 @@ TEST(Scheduler, backOffTime) {
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
 	mock().expectNCalls(9, "sleep_50ns");
-	addRepeatingTask(sleep_50ns, 1, 0.01, 0.001, 1, "sleep_50ns");
+	addRepeatingTask(sleep_50ns, 1, 0.01, 0.001, 1.0, "sleep_50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.1);
 	mock().checkExpectations();

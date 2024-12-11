@@ -69,8 +69,7 @@ public:
 
 	void checkIncomingUsbSysex(uint8_t const* message, int32_t ip, int32_t d, int32_t cable);
 
-	void sendMidi(MIDISource source, uint8_t statusType, uint8_t channel, uint8_t data1 = 0, uint8_t data2 = 0,
-	              int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
+	void sendMidi(MIDISource source, MIDIMessage message, int32_t filter = kMIDIOutputFilterNoMPE, bool sendUSB = true);
 	void sendClock(MIDISource source, bool sendUSB = true, int32_t howMany = 1);
 	void sendStart(MIDISource source);
 	void sendStop(MIDISource source);
@@ -78,14 +77,17 @@ public:
 	void sendContinue(MIDISource source);
 
 	void flushMIDI();
-	void sendUsbMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2, int32_t filter);
-	void sendSerialMidi(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
+	void sendUsbMidi(MIDIMessage message, int32_t filter);
+	void sendSerialMidi(MIDIMessage message);
 
 	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter);
 	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter);
 	void sendBank(MIDISource source, int32_t channel, int32_t num, int32_t filter);
 	void sendSubBank(MIDISource source, int32_t channel, int32_t num, int32_t filter);
-	void sendPitchBend(MIDISource source, int32_t channel, uint8_t lsbs, uint8_t msbs, int32_t filter);
+	/// Send pitch bend
+	///
+	/// @param bend Bend amount. Only the lower 14 bits are used
+	void sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter);
 	void sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter);
 	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
@@ -109,6 +111,25 @@ public:
 	// Not safe for use in interrupts.
 	uint8_t sysex_fmt_buffer[1024];
 
+	/// Inject a MIDI message for processing into the event stream
+	///
+	/// @param cable Source cable for MIDI message
+	/// @param statusType MIDI status byte
+	/// @param channel source MIDI channel
+	/// @param data1 Optional data byte. Validity depends on statusType
+	/// @param data2 Optional data byte. Validity depends on statusType
+	/// @param timer Timestamp corresponding to this byte reception. Null if the source device doesn't provide timing
+	/// data.
+	void midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
+	                         uint32_t* timer = nullptr);
+
+	/// Notify reception of a MIDI sysex block.
+	///
+	/// @param cable Source cable for the sysex data
+	/// @param data sysex data block, not including the start and stop bytes
+	/// @param len number of bytes in data
+	void midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len);
+
 private:
 	uint8_t serialMidiInput[3];
 	uint8_t numSerialMidiInput;
@@ -122,15 +143,10 @@ private:
 	/// Top of the event stack. If this is equal to eventStack_.begin(), the stack is empty.
 	EventStackStorage::iterator eventStackTop_;
 
-	int32_t getMidiMessageLength(uint8_t statusuint8_t);
-	void midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2,
-	                         uint32_t* timer = NULL);
-
-	void midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len);
 	int32_t getPotentialNumConnectedUSBMIDIDevices(int32_t ip);
 };
 
-uint32_t setupUSBMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2);
+uint32_t setupUSBMessage(MIDIMessage message);
 
 extern MidiEngine midiEngine;
 extern bool anythingInUSBOutputBuffer;

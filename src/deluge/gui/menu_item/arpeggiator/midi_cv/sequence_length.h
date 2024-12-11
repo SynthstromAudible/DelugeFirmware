@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/integer.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -25,12 +26,10 @@ class SequenceLength final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(
-		    computeCurrentValueForArpMidiCvRatchetsOrRhythm(getCurrentInstrumentClip()->arpeggiatorSequenceLength));
+		this->setValue(computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorSequenceLength));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorSequenceLength =
-		    computeFinalValueForArpMidiCvRatchetsOrRhythm(this->getValue());
+		getCurrentInstrumentClip()->arpeggiatorSequenceLength = computeFinalValueForUnsignedMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

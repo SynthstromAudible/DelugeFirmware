@@ -28,8 +28,8 @@ public:
 	void writeReferenceAttributesToFile(Serializer& writer) override;
 	void writeToFlash(uint8_t* memory) override;
 	char const* getDisplayName() override;
-	void sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) override;
 
+	void sendMessage(MIDIMessage message) override;
 	void sendSysex(const uint8_t* data, int32_t len) override;
-	int32_t sendBufferSpace() override;
+	size_t sendBufferSpace() override;
 };

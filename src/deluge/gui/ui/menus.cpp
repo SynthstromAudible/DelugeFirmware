@@ -1,11 +1,16 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/active_scales.h"
+#include "gui/menu_item/arpeggiator/chord_type.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
+#include "gui/menu_item/arpeggiator/midi_cv/note_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/rate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/rhythm.h"
 #include "gui/menu_item/arpeggiator/midi_cv/sequence_length.h"
+#include "gui/menu_item/arpeggiator/midi_cv/spread_gate.h"
+#include "gui/menu_item/arpeggiator/midi_cv/spread_octave.h"
+#include "gui/menu_item/arpeggiator/midi_cv/spread_velocity.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/menu_item/arpeggiator/mpe_velocity.h"
 #include "gui/menu_item/arpeggiator/note_mode.h"
@@ -14,6 +19,7 @@
 #include "gui/menu_item/arpeggiator/preset_mode.h"
 #include "gui/menu_item/arpeggiator/rate.h"
 #include "gui/menu_item/arpeggiator/rhythm.h"
+#include "gui/menu_item/arpeggiator/spread_lock.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
@@ -219,11 +225,16 @@ arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{STRIN
 arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{STRING_FOR_NOTE_MODE,
                                                                                STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+arpeggiator::ChordType arpChordTypeMenuKit{STRING_FOR_CHORD_TYPE, STRING_FOR_ARP_CHORD_TYPE_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE,
                                                     params::UNPATCHED_ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
 arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
 arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpNoteProbabilityMenu{
+    STRING_FOR_NOTE_PROBABILITY, STRING_FOR_ARP_NOTE_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_NOTE_PROBABILITY};
+arpeggiator::midi_cv::NoteProbability arpNoteProbabilityMenuMIDIOrCV{STRING_FOR_NOTE_PROBABILITY,
+                                                                     STRING_FOR_ARP_NOTE_PROBABILITY_MENU_TITLE};
 arpeggiator::Rhythm arpRhythmMenu{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE, params::UNPATCHED_ARP_RHYTHM};
 arpeggiator::midi_cv::Rhythm arpRhythmMenuMIDIOrCV{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpSequenceLengthMenu{
@@ -237,12 +248,31 @@ arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMB
 arpeggiator::OnlyForSoundUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
                                                                   STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
                                                                   params::UNPATCHED_ARP_RATCHET_PROBABILITY};
+arpeggiator::SpreadLock arpSpreadLockMenu{STRING_FOR_SPREAD_LOCK, STRING_FOR_ARP_SPREAD_LOCK_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpSpreadVelocityMenu{
+    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_VELOCITY};
+arpeggiator::OnlyForSoundUnpatchedParam arpSpreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
+                                                          params::UNPATCHED_ARP_SPREAD_GATE};
+arpeggiator::OnlyForSoundUnpatchedParam arpSpreadOctaveMenu{
+    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE};
+arpeggiator::midi_cv::SpreadVelocity arpSpreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
+                                                                   STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE};
+arpeggiator::midi_cv::SpreadGate arpSpreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE,
+                                                           STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
+arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
+                                                               STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 
 // Arp: MPE
 arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
 Submenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
+
+Submenu arpSpreadMenu{
+    STRING_FOR_SPREAD,
+    {&arpSpreadLockMenu, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV, &arpSpreadGateMenu,
+     &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV},
+};
 
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,
@@ -256,6 +286,9 @@ submenu::Arpeggiator arpMenu{
         &arpOctavesMenu,
         &arpOctaveModeMenu,
         &arpNoteModeMenu,
+        &arpChordTypeMenuKit,
+        &arpNoteProbabilityMenu,
+        &arpNoteProbabilityMenuMIDIOrCV,
         &arpRhythmMenu,
         &arpRhythmMenuMIDIOrCV,
         &arpSequenceLengthMenu,
@@ -264,6 +297,7 @@ submenu::Arpeggiator arpMenu{
         &arpRatchetAmountMenuMIDIOrCV,
         &arpRatchetProbabilityMenu,
         &arpRatchetProbabilityMenuMIDIOrCV,
+        &arpSpreadMenu,
         &arpMpeMenu,
     },
 };
@@ -1364,7 +1398,7 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
 };
 
 // Sub menu for Stem Export
-menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT_STEMS};
+menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT};
 
 ToggleBool configureNormalizationMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
                                       STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, stemExport.allowNormalization};
@@ -1387,7 +1421,7 @@ menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
                                            }};
 
 menu_item::Submenu stemExportMenu{
-    STRING_FOR_EXPORT_STEMS,
+    STRING_FOR_EXPORT_AUDIO,
     {
         &startStemExportMenu,
         &configureStemExportMenu,

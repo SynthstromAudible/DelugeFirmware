@@ -810,6 +810,7 @@ enum class AudioInputChannel {
 	MIX,
 	OUTPUT,
 	SPECIFIC_OUTPUT,
+	OFFLINE_OUTPUT, // special output only used with offline stem exporting
 };
 
 constexpr AudioInputChannel AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION = AudioInputChannel::MIX;
@@ -946,6 +947,7 @@ constexpr int32_t kTextHugeSizeY = 20;
 // submenu icons
 constexpr int32_t kSubmenuIconSpacingX = 7;
 
+// For kits
 constexpr int32_t kNoteForDrum = 60;
 
 enum BendRange {
@@ -1005,6 +1007,7 @@ constexpr int8_t kNumThresholdRecordingModes = kLastThresholdRecordingMode + 1;
 enum KeyboardLayoutType : uint8_t {
 	KeyboardLayoutTypeIsomorphic,
 	KeyboardLayoutTypeInKey,
+	KeyboardLayoutTypePiano,
 	KeyboardLayoutTypeChord,
 	KeyboardLayoutTypeChordLibrary,
 	KeyboardLayoutTypeDrums,

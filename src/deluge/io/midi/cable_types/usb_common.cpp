@@ -32,14 +32,14 @@ void MIDICableUSB::sendMCMsNowIfNeeded() {
 	}
 }
 
-void MIDICableUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data1, uint8_t data2) {
+void MIDICableUSB::sendMessage(MIDIMessage message) {
 	if (!connectionFlags) {
 		return;
 	}
 
 	int32_t ip = 0;
 
-	uint32_t fullMessage = setupUSBMessage(statusType, channel, data1, data2);
+	uint32_t fullMessage = setupUSBMessage(message);
 
 	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 		if (connectionFlags & (1 << d)) {
@@ -49,7 +49,7 @@ void MIDICableUSB::sendMessage(uint8_t statusType, uint8_t channel, uint8_t data
 	}
 }
 
-int32_t MIDICableUSB::sendBufferSpace() {
+size_t MIDICableUSB::sendBufferSpace() {
 	int32_t ip = 0;
 	ConnectedUSBMIDIDevice* connectedDevice = NULL;
 

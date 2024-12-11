@@ -164,10 +164,14 @@ void Sound::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
 
 	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_ARP_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_VELOCITY].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
 
@@ -660,6 +664,18 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 				}
 				reader.exitTag("noteMode");
 			}
+			else if (!strcmp(tagName, "chordType")) {
+				if (arpSettings) {
+					uint8_t chordTypeIndex = (uint8_t)reader.readTagOrAttributeValueInt();
+					char buffer[12];
+					intToString(chordTypeIndex, buffer + strlen(buffer));
+					display->displayPopup(buffer);
+					if (chordTypeIndex >= 0 && chordTypeIndex < MAX_CHORD_TYPES) {
+						arpSettings->chordTypeIndex = chordTypeIndex;
+					}
+				}
+				reader.exitTag("chordType");
+			}
 			else if (!strcmp(tagName, "mpeVelocity")) {
 				if (arpSettings) {
 					arpSettings->mpeVelocity = stringToArpMpeModSource(reader.readTagOrAttributeValue());
@@ -672,6 +688,69 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 					arpSettings->updatePresetFromCurrentSettings();
 				}
 				reader.exitTag("arpMode");
+			}
+			else if (!strcmp(tagName, "spreadLock")) {
+				if (arpSettings) {
+					arpSettings->spreadLock = reader.readTagOrAttributeValueInt();
+				}
+				reader.exitTag("spreadLock");
+			}
+			else if (!strcmp(tagName, "lockedSpreadVelocity")) {
+				if (arpSettings) {
+					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							if (hexChars) {
+								arpSettings->lastLockedSpreadVelocityParameterValue = hexToIntFixedLength(hexChars, 8);
+								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+									arpSettings->lockedSpreadVelocityValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+								}
+							}
+						}
+					}
+				}
+				reader.exitTag("lockedSpreadVelocity");
+			}
+			else if (!strcmp(tagName, "lockedSpreadGate")) {
+				if (arpSettings) {
+					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							if (hexChars) {
+								arpSettings->lastLockedSpreadGateParameterValue = hexToIntFixedLength(hexChars, 8);
+								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+									arpSettings->lockedSpreadGateValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+								}
+							}
+						}
+					}
+				}
+				reader.exitTag("lockedSpreadGate");
+			}
+			else if (!strcmp(tagName, "lockedSpreadOctave")) {
+				if (arpSettings) {
+					if (reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
+							char const* hexChars =
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * SPREAD_LOCK_MAX_SAVED_VALUES);
+							if (hexChars) {
+								arpSettings->lastLockedSpreadOctaveParameterValue = hexToIntFixedLength(hexChars, 8);
+								for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+									arpSettings->lockedSpreadOctaveValues[i] =
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+								}
+							}
+						}
+					}
+				}
+				reader.exitTag("lockedSpreadOctave");
 			}
 			else if (!strcmp(tagName, "mode")) {
 				if (song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
@@ -734,6 +813,13 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("ratchetProbability");
 	}
 
+	else if (!strcmp(tagName, "noteProbability")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_NOTE_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("noteProbability");
+	}
+
 	else if (!strcmp(tagName, "sequenceLength")) {
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SEQUENCE_LENGTH,
@@ -745,6 +831,27 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		ENSURE_PARAM_MANAGER_EXISTS
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
 		reader.exitTag("rhythm");
+	}
+
+	else if (!strcmp(tagName, "spreadVelocity")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_VELOCITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadVelocity");
+	}
+
+	else if (!strcmp(tagName, "spreadGate")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadGate");
+	}
+
+	else if (!strcmp(tagName, "spreadOctave")) {
+		ENSURE_PARAM_MANAGER_EXISTS
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadOctave");
 	}
 
 	else if (!strcmp(tagName,
@@ -1535,6 +1642,13 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.noteCodeOnPostArp, velocity,
 		                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate, fromMIDIChannel);
 	}
+	else {
+		// in the case of the arpeggiator not returning a note On (could happen if Note Probability evaluates to "don't
+		// play") we must at least evaluate the skipping if the arpeggiator is on
+		if (arpSettings != nullptr && getArp()->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
+			reassessRenderSkippingStatus(modelStackWithSoundFlags);
+		}
+	}
 }
 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
@@ -2248,11 +2362,18 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t sequenceLength =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SEQUENCE_LENGTH) + 2147483648;
 		uint32_t rhythm = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RHYTHM) + 2147483648;
+		uint32_t noteProbability =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_NOTE_PROBABILITY) + 2147483648;
+		uint32_t spreadVelocity =
+		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_VELOCITY) + 2147483648;
+		uint32_t spreadGate = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_GATE) + 2147483648;
+		uint32_t spreadOctave = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_SPREAD_OCTAVE) + 2147483648;
 
 		ArpReturnInstruction instruction;
 
-		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm, ratchetAmount,
-		                 ratchetProbability, &instruction);
+		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm,
+		                 noteProbability, ratchetAmount, ratchetProbability, spreadVelocity, spreadGate, spreadOctave,
+		                 &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 			noteOffPostArpeggiator(modelStackWithSoundFlags, instruction.noteCodeOffPostArp);
@@ -3646,6 +3767,11 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_GATE, readAutomationUpToPos);
 		reader.exitTag("arpeggiatorGate");
 	}
+	else if (!strcmp(tagName, "noteProbability")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_NOTE_PROBABILITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("noteProbability");
+	}
 	else if (!strcmp(tagName, "ratchetProbability")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 		                           readAutomationUpToPos);
@@ -3664,6 +3790,21 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 	else if (!strcmp(tagName, "rhythm")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RHYTHM, readAutomationUpToPos);
 		reader.exitTag("rhythm");
+	}
+	else if (!strcmp(tagName, "spreadVelocity")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_VELOCITY,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadVelocity");
+	}
+	else if (!strcmp(tagName, "spreadGate")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_GATE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadGate");
+	}
+	else if (!strcmp(tagName, "spreadOctave")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_SPREAD_OCTAVE,
+		                           readAutomationUpToPos);
+		reader.exitTag("spreadOctave");
 	}
 	else if (!strcmp(tagName, "portamento")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PORTAMENTO, readAutomationUpToPos);
@@ -3956,6 +4097,8 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 
 	patchedParams->writeParamAsAttribute(writer, "waveFold", params::LOCAL_FOLD, writeAutomation);
 
+	unpatchedParams->writeParamAsAttribute(writer, "noteProbability", params::UNPATCHED_ARP_NOTE_PROBABILITY,
+	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,
@@ -3963,6 +4106,11 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	unpatchedParams->writeParamAsAttribute(writer, "sequenceLength", params::UNPATCHED_ARP_SEQUENCE_LENGTH,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "rhythm", params::UNPATCHED_ARP_RHYTHM, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadVelocity", params::UNPATCHED_ARP_SPREAD_VELOCITY,
+	                                       writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadGate", params::UNPATCHED_ARP_SPREAD_GATE, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "spreadOctave", params::UNPATCHED_ARP_SPREAD_OCTAVE,
+	                                       writeAutomation);
 
 	writer.writeOpeningTagEnd();
 
@@ -4064,9 +4212,54 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.writeOpeningTagBeginning("arpeggiator");
 		writer.writeAttribute("mode", arpPresetToOldArpMode(arpSettings->preset)); // For backwards compatibility
 		writer.writeAttribute("numOctaves", arpSettings->numOctaves);
+		writer.writeAttribute("spreadLock", arpSettings->spreadLock);
+
+		// Write locked spread params
+		char buffer[9];
+		// Spread velocity
+		writer.insertCommaIfNeeded();
+		writer.write("\n");
+		writer.printIndents();
+		writer.writeTagNameAndSeperator("lockedSpreadVelocity");
+		writer.write("\"0x");
+		intToHex(arpSettings->lastLockedSpreadVelocityParameterValue, buffer);
+		writer.write(buffer);
+		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+			intToHex(arpSettings->lockedSpreadVelocityValues[i], buffer, 2);
+			writer.write(buffer);
+		}
+		writer.write("\"");
+		// Spread gate
+		writer.insertCommaIfNeeded();
+		writer.write("\n");
+		writer.printIndents();
+		writer.writeTagNameAndSeperator("lockedSpreadGate");
+		writer.write("\"0x");
+		intToHex(arpSettings->lastLockedSpreadGateParameterValue, buffer);
+		writer.write(buffer);
+		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+			intToHex(arpSettings->lockedSpreadGateValues[i], buffer, 2);
+			writer.write(buffer);
+		}
+		writer.write("\"");
+		// Spread octave
+		writer.insertCommaIfNeeded();
+		writer.write("\n");
+		writer.printIndents();
+		writer.writeTagNameAndSeperator("lockedSpreadOctave");
+		writer.write("\"0x");
+		intToHex(arpSettings->lastLockedSpreadOctaveParameterValue, buffer);
+		writer.write(buffer);
+		for (int i = 0; i < SPREAD_LOCK_MAX_SAVED_VALUES; i++) {
+			intToHex(arpSettings->lockedSpreadOctaveValues[i], buffer, 2);
+			writer.write(buffer);
+		}
+		writer.write("\"");
+
 		writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", arpSettings->syncLevel, true);
 		writer.writeSyncTypeToFile(currentSong, "syncType", arpSettings->syncType, true);
 		writer.writeAttribute("arpMode", arpModeToString(arpSettings->mode));
+		writer.writeAttribute("chordType", arpSettings->chordTypeIndex);
 		writer.writeAttribute("noteMode", arpNoteModeToString(arpSettings->noteMode));
 		writer.writeAttribute("octaveMode", arpOctaveModeToString(arpSettings->octaveMode));
 		writer.writeAttribute("mpeVelocity", arpMpeModSourceToString(arpSettings->mpeVelocity));

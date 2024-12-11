@@ -6,7 +6,7 @@ Goal of the DelugeFirmware community is to produce high quality firmware applica
 
 ## Development strategy
 
-In order to give everyone in the project clear expectations and transparency on what is going on, all development is organized in the form of Pull requests. This ensures visibility on the ongoing activities and prevents intransparent internal changes from disrupting community work. 
+In order to give everyone in the project clear expectations and transparency on what is going on, all development is organized in the form of Pull requests. This ensures visibility on the ongoing activities and prevents intransparent internal changes from disrupting community work.
 
 There is no official roamdap or project activities, instead all contributors are welcome to participate in the discussion and planning process as outlined in the [contribution guidelines](CONTRIBUTING.md). Members of the community can build informal working groups to achieve greater goals and work on them in the form of collaborative Pull requests.
 
@@ -21,7 +21,7 @@ There are `nightly` releases covering all changes of the day as well as stable `
 
 `community` (stable) releases:
 * Community releases will be done in a three months cycle at the end of January, April, July and October
-* Before every release a special release candidate branch is created from the community branch at that time. This branch only merges bugfixes and no new features from the community branch. 
+* Before every release a special release candidate branch is created from the community branch at that time. This branch only merges bugfixes and no new features from the community branch.
 * Until release, users and developers can test the release candidate and make sure it is of high quality for the final release on GitHub Releases tagged as `community`.
 
 ## What to expect and when to expect it

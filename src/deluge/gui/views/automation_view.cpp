@@ -121,7 +121,7 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 63;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 67;
 constexpr int32_t kNumGlobalParamsForAutomation = 26;
 constexpr int32_t kParamNodeWidth = 3;
 
@@ -195,13 +195,18 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_FEEDBACK},
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_DEPTH},
     {params::Kind::PATCHED, params::GLOBAL_MOD_FX_RATE},
-    // Arp Rate, Gate, Ratchet Prob, Ratchet Amount, Sequence Length, Rhythm
+    // Arp Rate, Gate, Ratchet Prob, Ratchet Amount, Sequence Length, Rhythm, Spread Velocity, Spread Gate, Spread Note,
+    // Spread Octave
     {params::Kind::PATCHED, params::GLOBAL_ARP_RATE},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GATE},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_NOTE_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_VELOCITY},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_GATE},
+    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_OCTAVE},
     // Noise
     {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},
     // Portamento
@@ -1839,13 +1844,6 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 		handleSelectEncoderButtonAction(on);
 	}
 
-	// when you press affect entire, the parameter selection needs to reset
-	else if (on && b == AFFECT_ENTIRE) {
-		initParameterSelection();
-		blinkShortcuts();
-		goto passToOthers;
-	}
-
 	else {
 passToOthers:
 		// if you're entering settings menu
@@ -1875,6 +1873,13 @@ passToOthers:
 		}
 		if (result == ActionResult::NOT_DEALT_WITH) {
 			result = ClipView::buttonAction(b, on, inCardRoutine);
+		}
+
+		// when you press affect entire, the parameter selection needs to reset
+		// do this here because affect entire state may have just changed
+		if (on && b == AFFECT_ENTIRE) {
+			initParameterSelection();
+			blinkShortcuts();
 		}
 
 		return result;
@@ -2650,12 +2655,12 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
 	}
 	// expression params, so sounds or midi/cv, or a single drum
-	else if (util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
-	         // selected a single sound drum
-	         || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
-	              && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))) {
-		uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
-		clip->lastSelectedParamID = paramID;
+	else if ((util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
+	          // selected a single sound drum
+	          || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
+	               && ((Kit*)output)->selectedDrum->type == DrumType::SOUND)))
+	         && params::expressionParamFromShortcut(xDisplay, yDisplay) != kNoParamID) {
+		clip->lastSelectedParamID = params::expressionParamFromShortcut(xDisplay, yDisplay);
 		clip->lastSelectedParamKind = params::Kind::EXPRESSION;
 	}
 

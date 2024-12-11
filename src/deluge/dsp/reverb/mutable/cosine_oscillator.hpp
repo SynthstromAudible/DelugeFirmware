@@ -12,7 +12,7 @@ public:
 	enum class Mode { APPROX, EXACT };
 
 	template <Mode mode = Mode::APPROX>
-	constexpr DualCosineOscillator(std::initializer_list<float> frequencies) : frequencies_(frequencies) {
+	constexpr DualCosineOscillator(std::array<float, 2> frequencies) : frequencies_(frequencies) {
 		Init<mode>();
 	}
 	~DualCosineOscillator() = default;
@@ -24,9 +24,9 @@ public:
 	}
 
 	inline void InitApproximate() {
-		argon::Neon64<float> sign = 16.0f;
-		argon::Neon64<float> frequencies = frequencies_;
-		frequencies.each_lane([&](float& frequency, int i) {
+		ArgonHalf<float> sign = 16.0f;
+		ArgonHalf<float> frequencies = frequencies_;
+		frequencies = frequencies.each_lane_with_index([&](float& frequency, int i) {
 			frequency -= 0.25f;
 			if (frequency < 0.0f) {
 				frequency = -frequency;
@@ -47,10 +47,10 @@ public:
 		y_1 = 0.5f;
 	}
 
-	[[nodiscard]] inline argon::Neon64<float> values() const { return y_0 + 0.5f; }
+	[[nodiscard]] inline ArgonHalf<float> values() const { return y_0 + 0.5f; }
 
-	inline argon::Neon64<float> Next() {
-		argon::Neon64<float> temp = y_1;
+	inline ArgonHalf<float> Next() {
+		ArgonHalf<float> temp = y_1;
 		y_1 = iir_coefficient_ * y_1 - y_0;
 		y_0 = temp;
 		return temp + 0.5f;
@@ -71,9 +71,9 @@ private:
 		Start();
 	}
 
-	argon::Neon64<float> frequencies_;
-	argon::Neon64<float> y_0;
-	argon::Neon64<float> y_1;
-	argon::Neon64<float> iir_coefficient_;
-	argon::Neon64<float> initial_amplitude_;
+	ArgonHalf<float> frequencies_;
+	ArgonHalf<float> y_0;
+	ArgonHalf<float> y_1;
+	ArgonHalf<float> iir_coefficient_;
+	ArgonHalf<float> initial_amplitude_;
 };

@@ -22,7 +22,7 @@
 
 #include "RZA1/sdhi/inc/sdif.h"
 #include "deluge.h"
-#include "task_scheduler.h"
+#include "scheduler_api.h"
 #include "util/cfunctions.h"
 
 uint16_t stopTime;

@@ -66,25 +66,20 @@ Built files output to subdirectories named after the configuration (e.g. `build/
 
 #### Build configurations:
 
-* `debug` - build selected target with debugging support (including debugging symbols and different optimizations) 
+* `debug` - build selected target with debugging support (including debugging symbols and different optimizations)
 * `release` - build selected target with optimizations for release.
 
-#### Build arguments: 
+#### Build arguments:
 
 * `-S` or `--no-status` - this disables the `ninja` status line while building. Output from compilation commands (such as warnings and errors) will still be printed.
 * `-v` or `--verbose` - this prints greater level of detail to the console (i.e. exactly the compiler/linker commands called)
-* `-c` or `--clean-first` - clean before building 
+* `-c` or `--clean-first` - clean before building
 
 #### CMake custom arguments
 
 Any additional arguments to CMake may be transparently passed via `dbt build`. Primarily this means `-j <jobs>` for limiting or defining the amount of parallelization. Most other relevant options are exposed via `dbt build`.
 
 
-## Futher reading
+## Additional Developer Resources
 
-There are a lot more resources that help you getting started in the repository [Wiki](https://github.com/SynthstromAudible/DelugeFirmware/wiki) including but not limited to:
-
-* [Firmware uploading and debugging](https://github.com/SynthstromAudible/DelugeFirmware/wiki/Uploading,-debugging,-and-RAM,-flash-operation-explanation)
-* [Codebase Introduction](https://github.com/SynthstromAudible/DelugeFirmware/wiki/Codebase-introduction)
-* [Hardware modification guide](https://github.com/SynthstromAudible/DelugeFirmware/wiki/Hardware-modification-guide)
-* [FAQ](https://github.com/SynthstromAudible/DelugeFirmware/wiki/FAQ)
+* Access more developer resources in [Additional Information](/docs/dev/additional_info.md).

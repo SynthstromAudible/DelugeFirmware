@@ -20,11 +20,7 @@
 #include "gui/menu_item/arpeggiator/note_mode.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
-#include "model/clip/clip.h"
-#include "model/clip/instrument_clip.h"
-#include "model/model_stack.h"
 #include "model/song/song.h"
-#include "processing/sound/sound.h"
 
 namespace deluge::gui::menu_item::arpeggiator {
 class OctaveMode : public Selection {

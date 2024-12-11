@@ -41,10 +41,10 @@ Specifications:
 
 > Enter using `SHIFT` + `KEYBOARD` button
 
-or 
+or
 
 > Enter using the menu
-> 
+>
 > - Enter `VALUE EDITING MODE` by pressing down on the `SELECT` Encoder to open up the Perform FX Menu
 > - In the Perform FX menu, select the `EDITING MODE` sub menu and press down on Select Encoder to enter the menu
 > - Change Editing Mode to `VALUE` and press down on the `SELECT` Encoder to enter `VALUE EDITING MODE`
@@ -63,10 +63,10 @@ Value Editing Mode:
 
 > Enter using `SHIFT` + `KEYBOARD` button. You will need to cycle passed the Value Editing Mode to enter the Param Editing Mode.
 
-or 
+or
 
 > Enter using the menu
-> 
+>
 > - Enter `PARAM EDITING MODE` by pressing down on the `SELECT` Encoder to open up the Perform FX Menu
 > - In the Perform FX menu, select the `EDITING MODE` sub menu and press down on Select Encoder to enter the menu
 > - Change Editing Mode to `PARAM`

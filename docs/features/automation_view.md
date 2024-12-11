@@ -1,6 +1,6 @@
 # Description
 
-Automation View is a new view that complements the existing Arranger and Clip Views. 
+Automation View is a new view that complements the existing Arranger and Clip Views.
 - The Automation Arranger View is accessed from within Arranger View by pressing the Shift + Song buttons
     - Note: the automation arranger view editor for a specific parameter can be accessed directly from the arranger song menu for that parameter (e.g. the one you would access by pressing on select encoder or by using the shift + shortcut buttom combo) by pressing the Song button while in the parameter value.
 - The Automation Clip View is accessed from within the Clip View by pressing the Clip button
@@ -12,7 +12,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 
 1. Automatable Clip View Parameters for Synths and Kits with a row selected and affect entire DISABLED
 
->The 63 parameters that can be edited are:
+>The 67 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -31,7 +31,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **LFO 1** Rate
 > - **LFO 2** Rate
 > - **Mod FX** Offset, Feedback, Depth, Rate
-> - **Arp** Rate, Gate, Ratchet Probability, Ratchet Amount, Sequence Length, Rhythm
+> - **Arp** Rate, Gate, Note Probability, Ratchet Probability, Ratchet Amount, Sequence Length, Rhythm, Spread Velocity, Spread Gate, Spread Octave
 > - **Noise** Level
 > - **Portamento**
 > - **Stutter** Rate
@@ -111,7 +111,7 @@ Automation View can also be accessed from the Sound menu for any automatable par
 
 Some additional things to note:
 
-- If you are in Automation Clip View and transition to Song/Arranger View, the Deluge will remember that on a per Clip basis. This means that when you transition back to a Clip it will re-load the Automation Clip View if you were in that view previously. 
+- If you are in Automation Clip View and transition to Song/Arranger View, the Deluge will remember that on a per Clip basis. This means that when you transition back to a Clip it will re-load the Automation Clip View if you were in that view previously.
 
 > **Note:** This information is saved with the song.
 
@@ -134,7 +134,7 @@ The Automation Overview **will:**
 > **Note:** While in the automation overview, if you hit play, record and then record in Master FX automations using the Mod Encoder (Gold Knobs), the automation overview grid will update to show you that those parameters are now automated by highlighted the corresponding pads on the grid white. Note: the update will happen after you turn record off.
 
 - be quickly accessible at any time from within the Automation Arranger View by pressing affect entire
-- be quickly accessible at any time from within the Automation Clip View by holding shift + clip, audition + clip, or affect entire. 
+- be quickly accessible at any time from within the Automation Clip View by holding shift + clip, audition + clip, or affect entire.
 
 > **Note 1:** The Automation Overview will also be displayed if you change clip types (e.g. from Synth to MIDI).
 
@@ -172,7 +172,7 @@ You can select the Parameter that you want to edit in four ways:
 3. From the menu by selecting a parameter for editing and then pressing song (if you're in arranger) or clip (if you're in a clip)
 4. By pressing shift + the shortcut pad corresponding to the parameter you want to edit
 
-Once you select a Parameter in the Automation Clip View, it will be remembered and stored on a per clip basis unless you go back to the Automation Overview. This means that if you are editing a Parameter and go back to the regular Clip View, Song View or Arranger View, when you transition back to the Automation Clip View it will open the last Parameter that you were editing in the Automation Editor. Similarly if you were last on the Automation Overview it will remember that. 
+Once you select a Parameter in the Automation Clip View, it will be remembered and stored on a per clip basis unless you go back to the Automation Overview. This means that if you are editing a Parameter and go back to the regular Clip View, Song View or Arranger View, when you transition back to the Automation Clip View it will open the last Parameter that you were editing in the Automation Editor. Similarly if you were last on the Automation Overview it will remember that.
 
 > **Note:** This information is saved with the song.
 
@@ -193,9 +193,9 @@ The Automation Editor **will:**
 - enable you to use either of the Mod Encoders (gold knobs) to quickly change the parameter value of the parameter in focus. The knobs automatically map to the selected parameter and you can use either knob (eliminating the guess work about which knob to turn).
 - enable you to quickly change parameters in focus for editing by turning select or using shift + shortcut pad or going back to automation overview using affect entire or shift/audition pad + clip
 - enable you to view the current parameter value setting for the parameters that are currently automatable.
-- illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128) 
+- illuminate each pad row according to the current value within the range of 0-128. E.g. bottom pad = 0-16, then 17-32, 33-48, 49-64, 65-80, 81-96, 97-112, 113-128)
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
-- edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18.29 (e.g. 0, 18, 37, 55, 73, 91, 110, 128). 
+- edit new or existing parameter automations on a per step basis, at any zoom level across the entire timeline. Each row in a step column corresponds to a range of values in the parameter value range (0-128) (see above). If you press the bottom row, the value will be set to 0. if you press the top row, the value will be set to 128. Pressing the rows in between increments/decrements the value by 18.29 (e.g. 0, 18, 37, 55, 73, 91, 110, 128).
 > **Update** The values displayed in automation view have been updated to display the same value range displayed in the menu's for consistency across the Deluge UI. So instead of displaying 0 - 128, it now displays 0 - 50. Calculations in automation view are still being done based on the 0 - 128 range, but the display converts it to the 0 - 50 range.
 
 <img width="297" alt="Screenshot 2024-03-16 at 5 13 50 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/3d5dded1-efc2-4cb6-ad07-df2942fdc66e">
@@ -207,7 +207,7 @@ The Automation Editor **will:**
 > You can set the value to 0 by pressing and holding the two middle pads.
 >
 > The LED indicators for the mod encoders have been updated to show the full -50 to +50 range as well.
-> 
+>
 > This diagram shows the updated value ranges for the pads when automating a patch cable / modulation depth.
 
 <img width="293" alt="Screenshot 2024-03-16 at 5 07 36 PM" src="https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/e6f853f7-56bc-4102-8cc3-9b5a86bd4bfb">
@@ -221,20 +221,20 @@ The Automation Editor **will:**
 
 ![IMG_5827](https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/890970a0-2496-40e9-926c-9a9bd5697c0a)
 
-- enable you to fine tune the parameter automation values set by pressing and holding on a pad (or multiple pads) in a grid column and turning either of the Mod Encoders (Gold Knobs) (the value will increase/decrease relative to the current parameter value corresponding to the pad(s) you are holding). 
+- enable you to fine tune the parameter automation values set by pressing and holding on a pad (or multiple pads) in a grid column and turning either of the Mod Encoders (Gold Knobs) (the value will increase/decrease relative to the current parameter value corresponding to the pad(s) you are holding).
 
 > **Note 1:** you can also fine tune your long multi-step automations with the Mod Encoders (Gold Knobs).
 >
-> You have the ability to fine tune a long press's start and end values which automatically adjusts the interpolation between those values (without needing to enter the pad selection mode). 
-> 
+> You have the ability to fine tune a long press's start and end values which automatically adjusts the interpolation between those values (without needing to enter the pad selection mode).
+>
 > Simply enter a long press and while continuing to hold the first pad in the long press, turn the gold knobs to adjust the start and end values of the long press.
-> 
-> When refining a long presses start/end values, each gold knob is used separately to adjust the start/end position values. 
-> 
-> The bottom left gold knob is used to adjust the start value. 
-> 
+>
+> When refining a long presses start/end values, each gold knob is used separately to adjust the start/end position values.
+>
+> The bottom left gold knob is used to adjust the start value.
+>
 > The top right gold knob is used to adjust the end value.
-> 
+>
 > In a long press, you will also note that the LED indicators change to show the current value of the start and end position. Once you've let go of the long press, the LED indicators reset back to the parameters overall current value.
 
 > **Note 2:** the existing master FX section is disabled in the automation editor and can only be accessed if you go back to the Automation Overview, Arranger View, Clip View, or open the keyboard screen. When you turn either of Mod Encoders (Gold Knobs) it will display the parameter value between 0 and 128 on the screen of the current parameter being edited (not the parameter selected in the master FX section).
@@ -245,31 +245,31 @@ The Automation Editor **will:**
 
 ![image](https://github.com/seangoodvibes/DelugeFirmware/assets/138174805/1e4b3653-c1a1-4d21-bfa0-826df378b063)
 
-> In pad selection mode, you cannot edit the automation grid by pressing on the pads. 
-> 
-> With a single or multi pad (long) press you select the pad(s) to edit. 
-> 
+> In pad selection mode, you cannot edit the automation grid by pressing on the pads.
+>
+> With a single or multi pad (long) press you select the pad(s) to edit.
+>
 > A cursor is displayed on the grid to identify the single or multiple pads you've selected. Seeing the cursor means you are in pad selection mode.
-> 
+>
 > Once you've made your pad selection, you can use the gold knobs to tweak the value of the singular pad or the value of the start/end pads in a long press.
-> 
+>
 > When one pad is selected, one cursor is displayed on the grid and both led indicators show the value for that pad (cursor position).
-> 
+>
 > When two pads are selected, two cursors are displayed on the grid and the lower led indicator shows the value of the left pad (left cursor), and the upper led indicator shows the value of the right pad (right cursor).
-> 
+>
 > With this mode you can also press on each pad to see its current value without changing its value.
 >
 > **Note 1:** if you've entered a long press and wish to see the value of each column in the long press, you will need to press and hold any pad in the column you wish to query.
 >
 > **Note 2:** if you've entered a long press and wish to switch back to a single press, you can do so by quickly pressing a pad in any column (e.g. don't hold it).
 
-- enable you to lay down longer automations with interpolation 
+- enable you to lay down longer automations with interpolation
 
 > **Note:** Interpolation only has an effect if you are entering a "long automation press." (see below). that is to say: you press and hold one pad and then press a second pad.
 
 > **Note:** If an automation value has been entered with the interpolation setting turned on and then subsequently the interpolation setting is turned off, the automation value will not be affected unless you to re-enter it.
 
-- enable you to lay down automations without interpolation (parameter values change in a step ladder fashion). 
+- enable you to lay down automations without interpolation (parameter values change in a step ladder fashion).
 
 > **Note:** If an automation value has been entered with the interpolation setting turned off and then subsequently the interpolation setting is turned on, the automation value will not be affected unless you to re-enter it.
 
@@ -323,9 +323,9 @@ These default settings are found in the `Settings` Menu under `Defaults/Automati
 
 ### Interpolation
 
-Interpolation does not change existing behaviour. This toggle is only used in the new Automation View. 
+Interpolation does not change existing behaviour. This toggle is only used in the new Automation View.
 
-This sets the default value for the Interpolation setting in the Automation View. 
+This sets the default value for the Interpolation setting in the Automation View.
 
 > **Note:** This default value is loaded every time you enter the Automation View.
 

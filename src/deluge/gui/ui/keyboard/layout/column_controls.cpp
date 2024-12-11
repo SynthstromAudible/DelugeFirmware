@@ -27,6 +27,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
+#include "util/lookuptables/lookuptables.h"
 #include <limits>
 
 #define LEFT_COL kDisplayWidth
@@ -53,7 +54,7 @@ void ColumnControlsKeyboard::enableNote(uint8_t note, uint8_t velocity) {
 
 	ColumnControlState& state = getState().columnControl;
 
-	for (int i = 0; i < MAX_CHORD_NOTES; i++) {
+	for (int i = 1; i < MAX_CHORD_NOTES; i++) {
 		auto offset = state.chordColumn.chordSemitoneOffsets[i];
 		if (!offset) {
 			break;

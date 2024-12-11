@@ -14,28 +14,22 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef DELUGE_TASK_SCHEDULER_H
-#define DELUGE_TASK_SCHEDULER_H
+#ifndef DELUGE_SCHEDULER_API_H
+#define DELUGE_SCHEDULER_API_H
 
+// this is the external API for the task scheduler. The internal implementation is in C++ but as the scheduler is
+// involved in the C portions of the codebase it needs a C api
 #ifdef __cplusplus
 extern "C" {
 #endif
 #include "stdint.h"
+#include "timers_interrupts/clock_type.h"
 
 /// void function with no arguments
 typedef void (*TaskHandle)();
 typedef bool (*RunCondition)();
 typedef int8_t TaskID;
-struct TaskSchedule {
-	// 0 is highest priority
-	uint8_t priority;
-	// time to wait between return and calling the function again
-	double backOffPeriod;
-	// target time between function calls
-	double targetInterval;
-	// maximum time between function calls
-	double maxInterval;
-};
+
 /// Schedule a task that will be called at a regular interval.
 ///
 /// The scheduler will try to run the task at a regular cadence such that the time between start of calls to the
@@ -60,7 +54,7 @@ uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const 
 /// interfere with scheduling
 uint8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name);
 void ignoreForStats();
-double getLastRunTimeforCurrentTask();
+double getAverageRunTimeforCurrentTask();
 double getSystemTime();
 void setNextRunTimeforCurrentTask(double seconds);
 void removeTask(TaskID id);
@@ -72,4 +66,4 @@ void startTaskManager();
 #ifdef __cplusplus
 }
 #endif
-#endif // DELUGE_TASK_SCHEDULER_H
+#endif // DELUGE_SCHEDULER_API_H

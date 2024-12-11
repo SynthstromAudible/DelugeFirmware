@@ -13,7 +13,7 @@
 #include "io/midi/sysex.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
-#include "task_scheduler.h"
+#include "scheduler_api.h"
 #include "util/containers.h"
 #include "util/pack.h"
 #include <cstring>
@@ -24,7 +24,7 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 DIR sxDIR;
-uint32_t offsetCounter;
+uint32_t dirOffsetCounter;
 
 JsonSerializer jWriter;
 String activeDirName;
@@ -36,12 +36,17 @@ const uint32_t MAX_OPEN_FILES = 4;
 
 struct FILdata {
 	String fName;
-	int32_t filID;
+	uint32_t fileID;
+	uint32_t LRUstamp = 0;
 	uint32_t fSize = 0;
+	uint32_t fPosition = 0; // file offset noted after last read/write operation.
 	bool fileOpen = false;
-	bool forWrite = false;
+	int forWrite = false;
 	FIL file;
 };
+
+int32_t FIDcounter = 1;
+uint32_t LRUcounter = 1;
 
 FILdata openFiles[MAX_OPEN_FILES];
 
@@ -57,12 +62,55 @@ struct SysExDataEntry {
 
 deluge::deque<SysExDataEntry> SysExQ;
 
+// The following constants assume that the messageID part ranges from 1 to SYSEX_MSGID_MAX
+// and that SYSEX_MSGID_MAX is 1 less than a power of 2.
+// It also assumes that MAX_SYSEX_SESSIONS is also 1 less than a power of 2.
+const uint32_t MAX_SYSEX_SESSIONS = 15;
+const uint32_t SYSEX_MSGID_MAX = 7;
+const uint32_t SYSEX_MSGID_MASK = 0x07;
+const uint32_t SYSEX_SESSION_MASK = 0x78;
+const uint32_t SYSEX_SESSION_SHIFT = 3;
+
+uint32_t session_mono_counter = 1;
+uint32_t sessionLRU_array[MAX_SYSEX_SESSIONS + 1] = {0};
+
+void smSysex::noteSessionIdUse(uint8_t msgId) {
+	uint32_t sessionNum = (msgId & SYSEX_SESSION_MASK) >> SYSEX_SESSION_SHIFT;
+	sessionLRU_array[sessionNum] = session_mono_counter++;
+}
+
+void smSysex::noteFileIdUse(FILdata* fp) {
+	fp->LRUstamp = LRUcounter++;
+}
+
+// Returns the entry in the FILdata array for the given fid
+FILdata* smSysex::entryForFID(uint32_t fid) {
+	for (int i = 0; i < MAX_OPEN_FILES; ++i) {
+		if (openFiles[i].fileID == fid) {
+			return openFiles + i;
+		}
+	}
+	return nullptr;
+}
+
 // Assign a FIL from our pool.
-int32_t smSysex::findEmptyFIL() {
-	for (int i = 0; i < MAX_OPEN_FILES; ++i)
-		if (!openFiles[i].fileOpen)
-			return i + 1;
-	return -1;
+FILdata* smSysex::findEmptyFIL() {
+	uint32_t LRUtime = 0xFFFFFFFF;
+	uint32_t LRUindex = 0;
+
+	for (int i = 0; i < MAX_OPEN_FILES; ++i) {
+		if (!openFiles[i].fileOpen) {
+			return openFiles + i;
+		}
+		else if (openFiles[i].LRUstamp < LRUtime) {
+			LRUtime = openFiles[i].LRUstamp;
+			LRUindex = i;
+		}
+	}
+	// Close the abandoned file before we reuse the entry.
+	FILdata* oldest = openFiles + LRUindex;
+	closeFIL(oldest);
+	return oldest;
 }
 
 void smSysex::startDirect(JsonSerializer& writer) {
@@ -85,36 +133,38 @@ void smSysex::sendMsg(MIDICable& cable, JsonSerializer& writer) {
 	char* bitz = writer.getBufferPtr();
 	int32_t bw = writer.bytesWritten();
 	cable.sendSysex((const uint8_t*)bitz, bw);
-}
+};
 
-int smSysex::openFIL(const char* fPath, bool forWrite, uint32_t* fsize, FRESULT* eCode) {
-	int32_t fx = findEmptyFIL();
-	if (fx == -1)
-		return -1;
-
-	FILdata* fp = openFiles + (fx - 1);
+FILdata* smSysex::openFIL(const char* fPath, int forWrite, uint32_t* fsize, FRESULT* eCode) {
+	FILdata* fp = findEmptyFIL();
 	fp->fName.set(fPath);
+	fp->fileID = FIDcounter++;
+	noteFileIdUse(fp);
 	BYTE mode = FA_READ;
-	if (forWrite)
-		mode = FA_CREATE_ALWAYS | FA_WRITE;
+	if (forWrite) {
+		mode = FA_WRITE;
+		if (forWrite == 1)
+			mode |= FA_CREATE_ALWAYS;
+	}
 	FRESULT err = f_open(&fp->file, fPath, mode);
 	*eCode = err;
 	if (err == FRESULT::FR_OK) {
 		fp->fileOpen = true;
 		fp->forWrite = forWrite;
 		fp->fSize = f_size(&fp->file);
-		return fx;
+		fp->fPosition = 0;
+		return fp;
 	}
-	return -1;
+	return nullptr;
 }
 
-FRESULT smSysex::closeFIL(int fx) {
-	if (fx < 0 || fx > MAX_OPEN_FILES)
+FRESULT smSysex::closeFIL(FILdata* fp) {
+	if (fp == nullptr)
 		return FRESULT::FR_INVALID_OBJECT;
-	FILdata* fp = openFiles + (fx - 1);
+
 	FRESULT err = f_close(&fp->file);
 	fp->fileOpen = false;
-	fp->forWrite = false;
+	fp->forWrite = 0;
 	fp->fSize = 0;
 	return err;
 }
@@ -123,7 +173,6 @@ FRESULT smSysex::closeFIL(int fx) {
 // Unless the last character in the path is a /, we assume the
 // path given ends with a filename (which we ignore).
 FRESULT smSysex::createPathDirectories(String& path, uint32_t date, uint32_t time) {
-
 	FRESULT errCode;
 	if (path.getLength() > 256) {
 		return FRESULT::FR_INVALID_PARAMETER;
@@ -207,11 +256,9 @@ retry:
 	FRESULT errCode;
 	uint32_t fSize = 0;
 
-	int fd = openFIL(path.get(), forWrite, &fSize, &errCode);
-	FILdata* fp = NULL;
-	if (fd > 0)
-		fp = openFiles + (fd - 1);
-	if (fp != NULL) {
+	FILdata* fp = openFIL(path.get(), forWrite, &fSize, &errCode);
+
+	if (fp != nullptr) {
 		fSize = fp->fSize;
 	}
 	if (forWrite && !pathCreateTried && errCode == FRESULT::FR_NO_PATH) { // was the path missing?
@@ -222,7 +269,7 @@ retry:
 
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^open", false, true);
-	jWriter.writeAttribute("fid", fd);
+	jWriter.writeAttribute("fid", fp != nullptr ? fp->fileID : 0);
 	jWriter.writeAttribute("size", fSize);
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
@@ -231,12 +278,12 @@ retry:
 }
 
 void smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
-	int32_t fd = 0;
+	int32_t fid = 0;
 	char const* tagName;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "fid")) {
-			fd = reader.readTagOrAttributeValueInt();
+			fid = reader.readTagOrAttributeValueInt();
 		}
 		else {
 			reader.exitTag();
@@ -244,11 +291,12 @@ void smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
+	FILdata* fd = entryForFID(fid);
 	FRESULT errCode = closeFIL(fd);
 
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^close", false, true);
-	jWriter.writeAttribute("fid", fd);
+	jWriter.writeAttribute("fid", (uint32_t)fid);
 	jWriter.writeAttribute("err", errCode);
 	jWriter.closeTag(true);
 
@@ -399,11 +447,11 @@ void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 
 	const char* pathVal = path.get();
 	const TCHAR* pathTC = (const TCHAR*)pathVal;
-	if (lineOffset == 0 || strcmp(activeDirName.get(), pathVal) || lineOffset != offsetCounter) {
+	if (lineOffset == 0 || strcmp(activeDirName.get(), pathVal) || lineOffset != dirOffsetCounter) {
 		errCode = f_opendir(&sxDIR, pathTC);
 		if (errCode != FRESULT::FR_OK)
 			goto errorFound;
-		offsetCounter = 0;
+		dirOffsetCounter = 0;
 		activeDirName.set(pathVal);
 		if (lineOffset > 0) {
 			FILINFO fno;
@@ -413,7 +461,7 @@ void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 					break;
 				if (fno.altname[0] == 0)
 					break;
-				offsetCounter++;
+				dirOffsetCounter++;
 			}
 		}
 	}
@@ -447,7 +495,7 @@ errorFound:;
 		jWriter.writeAttribute("attr", fno.fattrib);
 
 		jWriter.closeTag();
-		offsetCounter++;
+		dirOffsetCounter++;
 	}
 	jWriter.writeArrayEnding("list", true, false);
 	jWriter.writeAttribute("err", errCode);
@@ -481,12 +529,10 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	FILdata* fp = NULL;
+	FILdata* fp = entryForFID(fid);
 	FRESULT errCode = FR_OK;
-	if (fid > 0 && fid <= MAX_OPEN_FILES) {
-		fp = openFiles + (fid - 1);
-	}
-	if (fp == NULL) {
+
+	if (fp == nullptr) {
 		errCode = FRESULT::FR_NOT_ENABLED;
 	}
 	UINT actuallyRead = 0;
@@ -497,11 +543,16 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 		}
 
 		if (readBlockBuffer && fp) {
-			errCode = f_lseek(&fp->file, addr);
+			noteFileIdUse(fp);
+			// If file position requested is not what we expect, seek to requested.
+			if (fp->fPosition != addr) {
+				errCode = f_lseek(&fp->file, addr);
+			}
 			if (errCode == FRESULT::FR_OK) {
 				errCode = f_read(&fp->file, readBlockBuffer, size, &actuallyRead);
 				size = actuallyRead;
 				srcAddr = readBlockBuffer;
+				fp->fPosition = addr + actuallyRead;
 			}
 			else {
 				D_PRINTLN("lseek issue: %d", errCode);
@@ -584,20 +635,21 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 
 	// Here is where we actually write the buffer out.
 	FRESULT errCode = FRESULT::FR_OK;
-	FILdata* fp = NULL;
+	FILdata* fp = entryForFID(fileId);
 
-	if (fileId > 0 && fileId <= MAX_OPEN_FILES) {
-		fp = openFiles + (fileId - 1);
-	}
-	if (fp == NULL) {
+	if (fp == nullptr) {
 		errCode = FRESULT::FR_NOT_ENABLED;
 	}
-	if (writeBlockBuffer && fp) {
-		// errCode = f_lseek(&fp->file, addr);
+	if (writeBlockBuffer && (fp != nullptr)) {
+		if (addr != fp->fPosition) {
+			errCode = f_lseek(&fp->file, addr);
+		}
 		if (errCode == FRESULT::FR_OK) {
+			noteFileIdUse(fp);
 			UINT actuallyWritten = 0;
 			errCode = f_write(&fp->file, writeBlockBuffer, decodedSize, &actuallyWritten);
 			size = actuallyWritten;
+			fp->fPosition = addr + actuallyWritten;
 		}
 	}
 	startReply(jWriter, reader);
@@ -654,6 +706,47 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	sendMsg(cable, jWriter);
 }
 
+// A session ID or sid is a number used by clients to keep track of which messages belong to who.
+void smSysex::assignSession(MIDICable& cable, JsonDeserializer& reader) {
+	char const* tagName;
+	String tag;
+	reader.match('{');
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "tag")) {
+			reader.readTagOrAttributeValueString(&tag);
+		}
+		else {
+			reader.exitTag();
+		}
+	}
+	reader.match('}');
+
+	int sessionNum = 0;
+	uint32_t minSeen = session_mono_counter;
+	for (int i = 1; i <= MAX_SYSEX_SESSIONS; ++i) {
+		if (sessionLRU_array[i] == 0) {
+			sessionNum = i;
+			break;
+		}
+		if (sessionLRU_array[i] < minSeen) {
+			minSeen = sessionLRU_array[i];
+			sessionNum = i;
+		}
+	}
+	// Note the sessionNum as MRU to claim it.
+	sessionLRU_array[sessionNum] = session_mono_counter++;
+
+	startDirect(jWriter);
+	jWriter.writeOpeningTag("^session", false, true);
+	jWriter.writeAttribute("sid", sessionNum);
+	jWriter.writeAttribute("tag", tag.get());
+	jWriter.writeAttribute("midBase", sessionNum << SYSEX_SESSION_SHIFT);
+	jWriter.writeAttribute("midMin", (sessionNum << SYSEX_SESSION_SHIFT) + 1);
+	jWriter.writeAttribute("midMax", (sessionNum << SYSEX_SESSION_SHIFT) + SYSEX_MSGID_MAX);
+	jWriter.closeTag(true);
+	sendMsg(cable, jWriter);
+}
+
 void smSysex::doPing(MIDICable& cable, JsonDeserializer& reader) {
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^ping", false, true);
@@ -690,6 +783,7 @@ void smSysex::handleNextSysEx() {
 
 	char const* tagName;
 	uint8_t msgSeqNum = de.data[1];
+	noteSessionIdUse(msgSeqNum);
 	JsonDeserializer parser(de.data + 2, de.len - 2);
 	parser.setReplySeqNum(msgSeqNum);
 
@@ -729,6 +823,10 @@ void smSysex::handleNextSysEx() {
 		}
 		else if (!strcmp(tagName, "utime")) {
 			updateTime(de.cable, parser);
+			goto done;
+		}
+		else if (!strcmp(tagName, "session")) {
+			assignSession(de.cable, parser);
 			goto done;
 		}
 		else if (!strcmp(tagName, "ping")) {

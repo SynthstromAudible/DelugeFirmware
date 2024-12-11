@@ -49,7 +49,7 @@ extern "C" {
 #include "RZA1/oled/oled_low_level.h"
 #include "fatfs/diskio.h"
 #include "fatfs/ff.h"
-#include <task_scheduler.h>
+#include <scheduler_api.h>
 
 FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory object */
                                   FILINFO* fno, /* Pointer to file information to return */
