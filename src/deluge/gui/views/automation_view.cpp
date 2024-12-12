@@ -1844,13 +1844,6 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 		handleSelectEncoderButtonAction(on);
 	}
 
-	// when you press affect entire, the parameter selection needs to reset
-	else if (on && b == AFFECT_ENTIRE) {
-		initParameterSelection();
-		blinkShortcuts();
-		goto passToOthers;
-	}
-
 	else {
 passToOthers:
 		// if you're entering settings menu
@@ -1880,6 +1873,13 @@ passToOthers:
 		}
 		if (result == ActionResult::NOT_DEALT_WITH) {
 			result = ClipView::buttonAction(b, on, inCardRoutine);
+		}
+
+		// when you press affect entire, the parameter selection needs to reset
+		// do this here because affect entire state may have just changed
+		if (on && b == AFFECT_ENTIRE) {
+			initParameterSelection();
+			blinkShortcuts();
 		}
 
 		return result;
@@ -2655,12 +2655,12 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
 	}
 	// expression params, so sounds or midi/cv, or a single drum
-	else if (util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
-	         // selected a single sound drum
-	         || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
-	              && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))) {
-		uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
-		clip->lastSelectedParamID = paramID;
+	else if ((util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
+	          // selected a single sound drum
+	          || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
+	               && ((Kit*)output)->selectedDrum->type == DrumType::SOUND)))
+	         && params::expressionParamFromShortcut(xDisplay, yDisplay) != kNoParamID) {
+		clip->lastSelectedParamID = params::expressionParamFromShortcut(xDisplay, yDisplay);
 		clip->lastSelectedParamKind = params::Kind::EXPRESSION;
 	}
 
