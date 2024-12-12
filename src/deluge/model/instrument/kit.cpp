@@ -1043,26 +1043,15 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0);
 				}
 			}
-			else if (thisNoteRow->drum->type == DrumType::MIDI) {
-				MIDIDrum* midiDrum = (MIDIDrum*)thisNoteRow->drum;
+			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
+				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
 
 				if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-					midiDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
+					nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
 				}
 
 				if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-					midiDrum->noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
-				}
-			}
-			else if (thisNoteRow->drum->type == DrumType::GATE) {
-				GateDrum* midiDrum = (GateDrum*)thisNoteRow->drum;
-
-				if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-					midiDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
-				}
-
-				if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-					midiDrum->noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+					nonAudioDrum->noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
 				}
 			}
 

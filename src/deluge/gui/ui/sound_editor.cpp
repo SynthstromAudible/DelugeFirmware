@@ -968,7 +968,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 					if (x == 11) {
 						if (editingGateDrumRow()) {
 							item = gateDrumParamShortcuts[y];
-						} else {
+						}
+						else {
 							item = midiOrCVParamShortcuts[y];
 						}
 					}

@@ -36,8 +36,7 @@ public:
 			}
 		}
 		else if (currentClip->type == ClipType::INSTRUMENT) {
-			this->setValue(
-			    computeCurrentValueForStandardMenuItem(((InstrumentClip*)currentClip)->arpeggiatorRate));
+			this->setValue(computeCurrentValueForStandardMenuItem(((InstrumentClip*)currentClip)->arpeggiatorRate));
 		}
 	}
 	void writeCurrentValue() override {

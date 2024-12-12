@@ -169,9 +169,9 @@
 #include "gui/menu_item/source/patched_param/fm.h"
 #include "gui/menu_item/stem_export/start.h"
 #include "gui/menu_item/submenu.h"
-#include "gui/menu_item/submenu/arp_mpe_submenu.h"
 #include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
+#include "gui/menu_item/submenu/arp_mpe_submenu.h"
 #include "gui/menu_item/submenu/bend.h"
 #include "gui/menu_item/submenu/envelope.h"
 #include "gui/menu_item/submenu/modulator.h"
@@ -757,14 +757,7 @@ const MenuItem* midiOrCVParamShortcuts[8] = {
 };
 
 const MenuItem* gateDrumParamShortcuts[8] = {
-    &arpRateMenuMIDIOrCV,
-    &arpSyncMenu,
-    &arpGateMenuMIDIOrCV,
-    nullptr,
-    &arpModeMenu,
-    nullptr,
-    nullptr,
-    nullptr,
+    &arpRateMenuMIDIOrCV, &arpSyncMenu, &arpGateMenuMIDIOrCV, nullptr, &arpModeMenu, nullptr, nullptr, nullptr,
 };
 
 // Gate stuff
