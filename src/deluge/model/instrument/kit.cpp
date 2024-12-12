@@ -1006,6 +1006,22 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 
 			bool reversed = (clipIsActive && modelStackWithNoteRow->isCurrentlyPlayingReversed());
 
+			if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
+				MIDIDrum* nonAudioDrum = (MIDIDrum*)thisNoteRow->drum;
+
+				uint32_t sequenceLength = (uint32_t)nonAudioDrum->arpeggiatorSequenceLength;
+				uint32_t rhythm = (uint32_t)nonAudioDrum->arpeggiatorRhythm;
+				uint32_t noteProbability = (uint32_t)nonAudioDrum->arpeggiatorNoteProbability;
+				uint32_t ratchetAmount = (uint32_t)nonAudioDrum->arpeggiatorRatchetAmount;
+				uint32_t ratchetProbability = (uint32_t)nonAudioDrum->arpeggiatorRatchetProbability;
+				uint32_t spreadVelocity = (uint32_t)nonAudioDrum->arpeggiatorSpreadVelocity;
+				uint32_t spreadGate = (uint32_t)nonAudioDrum->arpeggiatorSpreadGate;
+				uint32_t spreadOctave = (uint32_t)nonAudioDrum->arpeggiatorSpreadOctave;
+
+				drum->arpeggiator.updateParams(sequenceLength, rhythm, noteProbability, ratchetAmount,
+				                               ratchetProbability, spreadVelocity, spreadGate, spreadOctave);
+			}
+
 			int32_t ticksTilNextArpEventThisDrum =
 			    drum->arpeggiator.doTickForward(&drum->arpSettings, &instruction, currentPosThisRow, reversed);
 
@@ -1027,27 +1043,26 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 					    instruction.arpNoteOn->mpeValues, instruction.sampleSyncLengthOn, 0, 0);
 				}
 			}
-			else if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
-				MIDIDrum* nonAudioDrum = (MIDIDrum*)thisNoteRow->drum;
-
-				uint32_t sequenceLength = (uint32_t)nonAudioDrum->arpeggiatorSequenceLength;
-				uint32_t rhythm = (uint32_t)nonAudioDrum->arpeggiatorRhythm;
-				uint32_t noteProbability = (uint32_t)nonAudioDrum->arpeggiatorNoteProbability;
-				uint32_t ratchetAmount = (uint32_t)nonAudioDrum->arpeggiatorRatchetAmount;
-				uint32_t ratchetProbability = (uint32_t)nonAudioDrum->arpeggiatorRatchetProbability;
-				uint32_t spreadVelocity = (uint32_t)nonAudioDrum->arpeggiatorSpreadVelocity;
-				uint32_t spreadGate = (uint32_t)nonAudioDrum->arpeggiatorSpreadGate;
-				uint32_t spreadOctave = (uint32_t)nonAudioDrum->arpeggiatorSpreadOctave;
-
-				drum->arpeggiator.updateParams(sequenceLength, rhythm, noteProbability, ratchetAmount,
-				                               ratchetProbability, spreadVelocity, spreadGate, spreadOctave);
+			else if (thisNoteRow->drum->type == DrumType::MIDI) {
+				MIDIDrum* midiDrum = (MIDIDrum*)thisNoteRow->drum;
 
 				if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-					nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
+					midiDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
 				}
 
 				if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-					nonAudioDrum->noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+					midiDrum->noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+				}
+			}
+			else if (thisNoteRow->drum->type == DrumType::GATE) {
+				GateDrum* midiDrum = (GateDrum*)thisNoteRow->drum;
+
+				if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
+					midiDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
+				}
+
+				if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
+					midiDrum->noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
 				}
 			}
 

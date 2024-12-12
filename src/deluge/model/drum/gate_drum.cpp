@@ -92,11 +92,11 @@ int32_t GateDrum::getNumChannels() {
 }
 
 void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
-	cvEngine.sendNote(true, channel);
+	cvEngine.sendNote(true, channel, kNoteForDrum);
 	state = true;
 }
 
 void GateDrum::noteOffPostArp(int32_t noteCodePostArp) {
-	cvEngine.sendNote(false, channel);
+	cvEngine.sendNote(false, channel, kNoteForDrum);
 	state = false;
 }

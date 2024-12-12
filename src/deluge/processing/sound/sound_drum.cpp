@@ -93,7 +93,6 @@ void SoundDrum::resetTimeEnteredState() {
 void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
                        int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
-	D_PRINTLN("SOUND pre arp noteOn");
 	// If part of a Kit, and in choke mode, choke other drums
 	if (polyphonic == PolyphonyMode::CHOKE) {
 		kit->choke();
@@ -103,7 +102,6 @@ void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t veloci
 	              fromMIDIChannel);
 }
 void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) {
-	D_PRINTLN("SOUND pre arp noteOff");
 	Sound::allNotesOff(modelStack, &arpeggiator);
 }
 
