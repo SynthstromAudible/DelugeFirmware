@@ -640,7 +640,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		else if (getCurrentClip()->type == ClipType::AUDIO) {
 			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForAudioClips);
 		}
-		// Or for MIDI or CV clips
+		// Or for Gate drums
 		else if (editingGateDrumRow()) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (gateDrumParamShortcuts[y] == currentItem) {
