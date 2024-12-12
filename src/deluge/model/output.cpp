@@ -53,6 +53,15 @@ Output::~Output() {
 	}
 }
 
+Clip* Output::getClipFromName(String* name) {
+	for (Clip* clip : AllClips::everywhere(currentSong)) {
+		if (clip->output == this && clip->clipName.equalsCaseIrrespective(name)) {
+			return clip;
+		}
+	}
+	return NULL;
+}
+
 void Output::setupWithoutActiveClip(ModelStack* modelStack) {
 	inValidState = true;
 }
