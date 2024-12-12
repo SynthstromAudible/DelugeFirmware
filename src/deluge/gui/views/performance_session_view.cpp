@@ -725,6 +725,12 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
+	// if we press keyboard button while in performance view, reset time keyboard shortcut was pressed
+	// so we don't accidentally leave performance view on release of keyboard button
+	if (b == KEYBOARD && on) {
+		timeKeyboardShortcutPress = 0;
+	}
+
 	// Clip-view button
 	if (b == CLIP_VIEW) {
 		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))
@@ -927,7 +933,7 @@ ActionResult PerformanceSessionView::buttonAction(deluge::hid::Button b, bool on
 				}
 			}
 		}
-		else {
+		else if (timeKeyboardShortcutPress != 0) {
 			// if you released the keyboard button and it was held for longer than hold time
 			// switch back to arranger or session view (it just peeks performance view)
 			if (((AudioEngine::audioSampleTimer - timeKeyboardShortcutPress) >= FlashStorage::holdTime)) {
@@ -1667,17 +1673,14 @@ void PerformanceSessionView::updateLayoutChangeStatus() {
 		}
 	}
 
-	if (defaultEditingMode) {
-		if (anyChangesToSave) {
-			indicator_leds::blinkLed(IndicatorLED::SAVE);
-		}
-		else {
-			indicator_leds::setLedState(IndicatorLED::SAVE, false);
-		}
+	if (defaultEditingMode && anyChangesToSave) {
+		indicator_leds::blinkLed(IndicatorLED::SAVE);
 	}
 	else {
 		indicator_leds::setLedState(IndicatorLED::SAVE, false);
 	}
+
+	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 
 	return;
 }
