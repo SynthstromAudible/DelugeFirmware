@@ -1007,7 +1007,7 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			bool reversed = (clipIsActive && modelStackWithNoteRow->isCurrentlyPlayingReversed());
 
 			if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
-				MIDIDrum* nonAudioDrum = (MIDIDrum*)thisNoteRow->drum;
+				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
 
 				uint32_t sequenceLength = (uint32_t)nonAudioDrum->arpeggiatorSequenceLength;
 				uint32_t rhythm = (uint32_t)nonAudioDrum->arpeggiatorRhythm;
