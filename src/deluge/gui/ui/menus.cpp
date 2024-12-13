@@ -249,8 +249,8 @@ arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMB
 arpeggiator::OnlyForSoundUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
                                                                   STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
                                                                   params::UNPATCHED_ARP_RATCHET_PROBABILITY};
-arpeggiator::OnlyForSoundUnpatchedParam arpBassChanceMenu{STRING_FOR_BASS_Chance, STRING_FOR_ARP_BASS_Chance_MENU_TITLE,
-                                                         params::UNPATCHED_ARP_BASS_Chance};
+arpeggiator::OnlyForSoundUnpatchedParam arpBassChanceMenu{STRING_FOR_BASS_CHANCE, STRING_FOR_ARP_BASS_CHANCE_MENU_TITLE,
+                                                         params::UNPATCHED_ARP_BASS_CHANCE};
 arpeggiator::SpreadLock arpSpreadLockMenu{STRING_FOR_SPREAD_LOCK, STRING_FOR_ARP_SPREAD_LOCK_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpSpreadVelocityMenu{
     STRING_FOR_SPREAD_VELOCITY, STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_VELOCITY};
@@ -266,7 +266,7 @@ arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD
                                                                STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
-arpeggiator::midi_cv::BassChance arpBassChanceMenuMIDIOrCV{STRING_FOR_BASS_Chance, STRING_FOR_ARP_BASS_Chance_MENU_TITLE};
+arpeggiator::midi_cv::BassChance arpBassChanceMenuMIDIOrCV{STRING_FOR_BASS_CHANCE, STRING_FOR_ARP_BASS_CHANCE_MENU_TITLE};
 
 // Arp: MPE
 arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
