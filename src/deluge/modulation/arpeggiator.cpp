@@ -384,6 +384,14 @@ bool ArpeggiatorBase::evaluateNoteProbability(bool isRatchet) {
 	return isRatchet ? lastNormalNotePlayedFromNoteProbability : calculatedNoteProbabilityShouldPlay;
 }
 
+// Returns if the arpeggiator should play the bass note instead of the normal note
+bool ArpeggiatorBase::evaluateBassProbability(bool isRatchet) {
+	// If it is a rachet, use the last value, but it it is not a ratchet, calculate a new probability
+	int32_t randomChance = random(65535);
+	bool calculatedNoteProbabilityShouldPlay = bassFocus >= randomChance;
+	return isRatchet ? lastNormalNotePlayedFromBassProbability : calculatedNoteProbabilityShouldPlay;
+}
+
 void ArpeggiatorBase::carryOnOctaveSequence(ArpeggiatorSettings* settings) {
 	if (settings->numOctaves == 1) {
 		currentOctave = 0;
@@ -475,6 +483,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 	bool shouldCarryOnRhythmNote = evaluateRhythm(isRatchet);
 	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
+	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
 
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
@@ -504,6 +513,9 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 
 			// Save last note played from probability
 			lastNormalNotePlayedFromNoteProbability = shouldPlayNote;
+
+			// Save last note played from probability
+			lastNormalNotePlayedFromBassProbability = shouldPlayBassNote;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
@@ -554,10 +566,12 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		}
 		arpNote.velocity = velocity;
 		// Get current sequence note
-		int16_t note =
-		    kNoteForDrum
-		    + chordTypeSemitoneOffsets[settings->chordTypeIndex][whichNoteCurrentlyOnPostArp % MAX_CHORD_NOTES]
-		    + (int16_t)currentOctave * 12;
+		int16_t note = shouldPlayBassNote
+		                   ? kNoteForDrum
+		                   : kNoteForDrum
+		                         + chordTypeSemitoneOffsets[settings->chordTypeIndex]
+		                                                   [whichNoteCurrentlyOnPostArp % MAX_CHORD_NOTES]
+		                         + (int16_t)currentOctave * 12;
 		// Fix base note if it's out of bounds
 		if (note > 127) {
 			note = 127;
@@ -828,6 +842,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 	bool shouldCarryOnRhythmNote = evaluateRhythm(isRatchet);
 	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
+	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
 
 	if (isRatchet) {
 		// Increment ratchet note index if we are ratcheting when entering switchNoteOn
@@ -857,6 +872,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 
 			// Save last note played from probability
 			lastNormalNotePlayedFromNoteProbability = shouldPlayNote;
+
+			// Save last note played from probability
+			lastNormalNotePlayedFromBassProbability = shouldPlayBassNote;
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
@@ -867,7 +885,10 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	whichNoteCurrentlyOnPostArp = std::clamp<int16_t>(whichNoteCurrentlyOnPostArp, 0, notes.getNumElements() - 1);
 
 	ArpNote* arpNote;
-	if (settings->noteMode == ArpNoteMode::AS_PLAYED) {
+	if (shouldPlayBassNote) {
+		arpNote = (ArpNote*)notes.getElementAddress(0);
+	}
+	else if (settings->noteMode == ArpNoteMode::AS_PLAYED) {
 		arpNote = (ArpNote*)notesAsPlayed.getElementAddress(whichNoteCurrentlyOnPostArp);
 	}
 	else {
@@ -916,8 +937,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		}
 		arpNote->velocity = velocity;
 		// Get current sequence note
-		int16_t note =
-		    arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + (int16_t)currentOctave * 12;
+		int16_t note = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)]
+		               + (shouldPlayBassNote ? 0 : ((int16_t)currentOctave * 12));
 		// Fix base note if it's out of bounds
 		if (note > 127) {
 			note = 127;
@@ -953,8 +974,8 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 }
 
 void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb,
-                                   uint32_t ratchAmount, uint32_t ratchProb, uint32_t spVelocity, uint32_t spGate,
-                                   uint32_t spOctave) {
+                                   uint32_t ratchAmount, uint32_t ratchProb, uint32_t bassFoc, uint32_t spVelocity,
+                                   uint32_t spGate, uint32_t spOctave) {
 	// Update live Sequence Length value with the most up to date value from automation
 	maxSequenceLength = computeCurrentValueForUnsignedMenuItem(sequenceLength);
 
@@ -963,6 +984,9 @@ void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue
 
 	// Update live noteProbability value with the most up to date value from automation
 	noteProbability = noteProb >> 16; // just 16 bits is enough resolution for probability
+
+	// Update live bassFocus value with the most up to date value from automation
+	bassFocus = bassFoc >> 16; // just 16 bits is enough resolution for probability
 
 	// Update live ratchetProbability value with the most up to date value from automation
 	ratchetProbability = ratchProb >> 16; // just 16 bits is enough resolution for probability
@@ -993,13 +1017,13 @@ void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
                              uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb,
-                             uint32_t ratchAmount, uint32_t ratchProb, uint32_t spreadVelocity, uint32_t spreadGate,
-                             uint32_t spreadOctave, ArpReturnInstruction* instruction) {
+                             uint32_t ratchAmount, uint32_t ratchProb, uint32_t bassFoc, uint32_t spreadVelocity,
+                             uint32_t spreadGate, uint32_t spreadOctave, ArpReturnInstruction* instruction) {
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
 		return;
 	}
 
-	updateParams(sequenceLength, rhythmValue, noteProb, ratchAmount, ratchProb, spreadVelocity, spreadGate,
+	updateParams(sequenceLength, rhythmValue, noteProb, ratchAmount, ratchProb, bassFoc, spreadVelocity, spreadGate,
 	             spreadOctave);
 
 	uint32_t maxGate = 1 << 24;

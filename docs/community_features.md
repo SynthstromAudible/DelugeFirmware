@@ -880,6 +880,10 @@ to each individual note onset. ([#1978])
           Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
     - **`Note Probability (PROB)`** (unpatchet parameter, assignable to golden knobs). This parameter will apply a probability to notes (after rhythm and sequence length conditions have been applied).
     - **`Chord Type (CHRD)`** (only for Kit Rows): This allows you to emulate a held chord so you can use `Note Mode` on the Kit Row.
+    - **`Bass Focus (BASS)`**  (unpatchet parameter, assignable to golden knobs):
+      This parameter will apply a chance of replacing the current note to be played with the lowest note of the played notes. The higher the
+      value, the more likely that the note played is the bass note of the arpeggiated chord. This can be used as a performance tool to open up
+      or close the arpeggio pitch range.
     - **`Rhythm (RHYT)`** (unpatchet parameter, assignable to golden knobs):
       This parameter will play silences in some of the steps. This menu option show zeroes
       and dashes, "0" means "play note", and "-" means "don't play note" (or play a silence).

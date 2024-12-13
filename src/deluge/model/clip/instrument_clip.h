@@ -103,6 +103,7 @@ public:
 	int32_t arpeggiatorRate;
 	int32_t arpeggiatorGate;
 
+	uint32_t arpeggiatorBassFocus;
 	uint32_t arpeggiatorRatchetProbability;
 	uint32_t arpeggiatorRatchetAmount;
 	uint32_t arpeggiatorSequenceLength;

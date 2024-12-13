@@ -1,6 +1,7 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/active_scales.h"
 #include "gui/menu_item/arpeggiator/chord_type.h"
+#include "gui/menu_item/arpeggiator/midi_cv/bass_focus.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/note_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
@@ -248,6 +249,8 @@ arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMB
 arpeggiator::OnlyForSoundUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
                                                                   STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
                                                                   params::UNPATCHED_ARP_RATCHET_PROBABILITY};
+arpeggiator::OnlyForSoundUnpatchedParam arpBassFocusMenu{STRING_FOR_BASS_FOCUS, STRING_FOR_ARP_BASS_FOCUS_MENU_TITLE,
+                                                         params::UNPATCHED_ARP_BASS_FOCUS};
 arpeggiator::SpreadLock arpSpreadLockMenu{STRING_FOR_SPREAD_LOCK, STRING_FOR_ARP_SPREAD_LOCK_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpSpreadVelocityMenu{
     STRING_FOR_SPREAD_VELOCITY, STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_VELOCITY};
@@ -263,6 +266,7 @@ arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD
                                                                STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
+arpeggiator::midi_cv::BassFocus arpBassFocusMenuMIDIOrCV{STRING_FOR_BASS_FOCUS, STRING_FOR_ARP_BASS_FOCUS_MENU_TITLE};
 
 // Arp: MPE
 arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
@@ -289,6 +293,8 @@ submenu::Arpeggiator arpMenu{
         &arpChordTypeMenuKit,
         &arpNoteProbabilityMenu,
         &arpNoteProbabilityMenuMIDIOrCV,
+        &arpBassFocusMenu,
+        &arpBassFocusMenuMIDIOrCV,
         &arpRhythmMenu,
         &arpRhythmMenuMIDIOrCV,
         &arpSequenceLengthMenu,

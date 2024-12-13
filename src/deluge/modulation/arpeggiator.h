@@ -174,11 +174,12 @@ public:
 	virtual void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
 	                    ArpReturnInstruction* instruction, int32_t fromMIDIChannel, int16_t const* mpeValues) = 0;
 	void updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb, uint32_t ratchAmount,
-	                  uint32_t ratchProb, uint32_t spreadVelocity, uint32_t spreadGate, uint32_t spreadOctave);
+	                  uint32_t ratchProb, uint32_t bassFoc, uint32_t spreadVelocity, uint32_t spreadGate,
+	                  uint32_t spreadOctave);
 	void render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold, uint32_t phaseIncrement,
 	            uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb, uint32_t ratchAmount,
-	            uint32_t ratchProb, uint32_t spreadVelocity, uint32_t spreadGate, uint32_t spreadOctave,
-	            ArpReturnInstruction* instruction);
+	            uint32_t ratchProb, uint32_t bassFoc, uint32_t spreadVelocity, uint32_t spreadGate,
+	            uint32_t spreadOctave, ArpReturnInstruction* instruction);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
 	void calculateSpreadAmounts(ArpeggiatorSettings* settings);
@@ -212,6 +213,9 @@ public:
 	// Note probability state
 	bool lastNormalNotePlayedFromNoteProbability = true;
 
+	// Bass probability state
+	bool lastNormalNotePlayedFromBassProbability = true;
+
 	// Ratcheting state
 	uint32_t ratchetNotesIndex = 0;
 	uint32_t ratchetNotesMultiplier = 0;
@@ -226,6 +230,7 @@ public:
 
 	// Unpatched Automated Params
 	uint16_t noteProbability = 0;
+	uint16_t bassFocus = 0;
 	uint16_t ratchetProbability = 0;
 	uint32_t maxSequenceLength = 0;
 	uint32_t rhythm = 0;
@@ -245,6 +250,7 @@ protected:
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	bool evaluateRhythm(bool isRatchet);
 	bool evaluateNoteProbability(bool isRatchet);
+	bool evaluateBassProbability(bool isRatchet);
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
