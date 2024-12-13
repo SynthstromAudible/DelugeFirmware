@@ -3577,17 +3577,6 @@ AudioOutput* Song::getAudioOutputFromName(String* name) {
 	return NULL;
 }
 
-// used with the renameClipUI class to check if you're trying to rename a clip to the same name
-// as another clip
-Clip* Song::getClipFromName(String* name) {
-	for (Clip* clip : AllClips::everywhere(this)) {
-		if (clip->name.equalsCaseIrrespective(name)) {
-			return clip;
-		}
-	}
-	return NULL;
-}
-
 // You can put name as NULL if it's MIDI or CV
 Instrument* Song::getInstrumentFromPresetSlot(OutputType outputType, int32_t channel, int32_t channelSuffix,
                                               char const* name, char const* dirPath, bool searchHibernating,

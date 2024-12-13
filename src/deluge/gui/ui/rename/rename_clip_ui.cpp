@@ -86,8 +86,7 @@ void RenameClipUI::enterKeyPress() {
 
 	// Don't allow duplicate names on clips of a single output.
 	if (!clip->name.equalsCaseIrrespective(&enteredText)) {
-		Clip* other = currentSong->getClipFromName(&enteredText);
-		if (other && other->output == clip->output) {
+		if (clip->output->getClipFromName(&enteredText)) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 			return;
 		}
