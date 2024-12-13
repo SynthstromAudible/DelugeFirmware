@@ -165,7 +165,7 @@ void Sound::initParams(ParamManager* paramManager) {
 
 	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
 	unpatchedParams->params[params::UNPATCHED_ARP_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_BASS_FOCUS].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_BASS_CHANCE].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
 	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
@@ -814,11 +814,11 @@ Error Sound::readTagFromFile(Deserializer& reader, char const* tagName, ParamMan
 		reader.exitTag("ratchetProbability");
 	}
 
-	else if (!strcmp(tagName, "bassFocus")) {
+	else if (!strcmp(tagName, "bassChance")) {
 		ENSURE_PARAM_MANAGER_EXISTS
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_BASS_FOCUS,
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_BASS_CHANCE,
 		                           readAutomationUpToPos);
-		reader.exitTag("bassFocus");
+		reader.exitTag("bassChance");
 	}
 
 	else if (!strcmp(tagName, "noteProbability")) {
@@ -2364,7 +2364,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
 		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
-		uint32_t bassFocus = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_FOCUS) + 2147483648;
+		uint32_t bassChance = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_BASS_CHANCE) + 2147483648;
 		uint32_t ratchetProbability =
 		    (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_PROBABILITY) + 2147483648;
 		uint32_t ratchetAmount = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_RATCHET_AMOUNT) + 2147483648;
@@ -2381,7 +2381,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, StereoSample* outp
 		ArpReturnInstruction instruction;
 
 		getArp()->render(arpSettings, numSamples, gateThreshold, phaseIncrement, sequenceLength, rhythm,
-		                 noteProbability, ratchetAmount, ratchetProbability, bassFocus, spreadVelocity, spreadGate,
+		                 noteProbability, ratchetAmount, ratchetProbability, bassChance, spreadVelocity, spreadGate,
 		                 spreadOctave, &instruction);
 
 		if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
@@ -3781,10 +3781,10 @@ bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, Para
 		                           readAutomationUpToPos);
 		reader.exitTag("noteProbability");
 	}
-	else if (!strcmp(tagName, "bassFocus")) {
-		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_BASS_FOCUS,
+	else if (!strcmp(tagName, "bassChance")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_BASS_CHANCE,
 		                           readAutomationUpToPos);
-		reader.exitTag("bassFocus");
+		reader.exitTag("bassChance");
 	}
 	else if (!strcmp(tagName, "ratchetProbability")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_ARP_RATCHET_PROBABILITY,
@@ -4113,7 +4113,7 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 
 	unpatchedParams->writeParamAsAttribute(writer, "noteProbability", params::UNPATCHED_ARP_NOTE_PROBABILITY,
 	                                       writeAutomation);
-	unpatchedParams->writeParamAsAttribute(writer, "bassFocus", params::UNPATCHED_ARP_BASS_FOCUS, writeAutomation);
+	unpatchedParams->writeParamAsAttribute(writer, "bassChance", params::UNPATCHED_ARP_BASS_CHANCE, writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "ratchetProbability", params::UNPATCHED_ARP_RATCHET_PROBABILITY,
 	                                       writeAutomation);
 	unpatchedParams->writeParamAsAttribute(writer, "ratchetAmount", params::UNPATCHED_ARP_RATCHET_AMOUNT,

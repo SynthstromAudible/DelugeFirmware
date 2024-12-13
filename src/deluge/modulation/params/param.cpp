@@ -264,7 +264,7 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		static l10n::String const NAMES[UNPATCHED_SOUND_MAX_NUM - unc] = {
 		    [UNPATCHED_ARP_GATE - unc] = STRING_FOR_ARP_GATE_MENU_TITLE,
 		    [UNPATCHED_ARP_NOTE_PROBABILITY - unc] = STRING_FOR_ARP_NOTE_PROBABILITY_MENU_TITLE,
-		    [UNPATCHED_ARP_BASS_FOCUS - unc] = STRING_FOR_ARP_BASS_FOCUS_MENU_TITLE,
+		    [UNPATCHED_ARP_BASS_CHANCE - unc] = STRING_FOR_ARP_BASS_CHANCE_MENU_TITLE,
 		    [UNPATCHED_ARP_RATCHET_PROBABILITY - unc] = STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
 		    [UNPATCHED_ARP_RATCHET_AMOUNT - unc] = STRING_FOR_ARP_RATCHETS_MENU_TITLE,
 		    [UNPATCHED_ARP_SEQUENCE_LENGTH - unc] = STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
@@ -348,8 +348,8 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case UNPATCHED_ARP_NOTE_PROBABILITY:
 			return "noteProbability";
 
-		case UNPATCHED_ARP_BASS_FOCUS:
-			return "bassFocus";
+		case UNPATCHED_ARP_BASS_CHANCE:
+			return "bassChance";
 
 		case UNPATCHED_ARP_RATCHET_PROBABILITY:
 			return "ratchetProbability";

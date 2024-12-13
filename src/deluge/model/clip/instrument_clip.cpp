@@ -59,7 +59,7 @@ namespace params = deluge::modulation::params;
 InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRows() {
 	arpeggiatorRate = 0;
 	arpeggiatorNoteProbability = 4294967295u; // Default to 50 if not set in XML
-	arpeggiatorBassFocus = 0;
+	arpeggiatorBassChance = 0;
 	arpeggiatorRatchetProbability = 0;
 	arpeggiatorRatchetAmount = 0;
 	arpeggiatorSequenceLength = 0;
@@ -155,7 +155,7 @@ void InstrumentClip::copyBasicsFrom(Clip const* otherClip) {
 	arpSettings.cloneFrom(&otherInstrumentClip->arpSettings);
 	arpeggiatorRate = otherInstrumentClip->arpeggiatorRate;
 	arpeggiatorNoteProbability = otherInstrumentClip->arpeggiatorNoteProbability;
-	arpeggiatorBassFocus = otherInstrumentClip->arpeggiatorBassFocus;
+	arpeggiatorBassChance = otherInstrumentClip->arpeggiatorBassChance;
 	arpeggiatorRatchetProbability = otherInstrumentClip->arpeggiatorRatchetProbability;
 	arpeggiatorRatchetAmount = otherInstrumentClip->arpeggiatorRatchetAmount;
 	arpeggiatorSequenceLength = otherInstrumentClip->arpeggiatorSequenceLength;
@@ -2442,7 +2442,7 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 			// Community Firmware parameters (always write them after the official ones, just before closing the parent
 			// tag)
 			writer.writeAttribute("noteProbability", arpeggiatorNoteProbability);
-			writer.writeAttribute("bassFocus", arpeggiatorBassFocus);
+			writer.writeAttribute("bassChance", arpeggiatorBassChance);
 			writer.writeAttribute("ratchetProbability", arpeggiatorRatchetProbability);
 			writer.writeAttribute("ratchetAmount", arpeggiatorRatchetAmount);
 			writer.writeAttribute("sequenceLength", arpeggiatorSequenceLength);
@@ -2737,9 +2737,9 @@ someError:
 					arpeggiatorNoteProbability = reader.readTagOrAttributeValueInt();
 					reader.exitTag("noteProbability");
 				}
-				else if (!strcmp(tagName, "bassFocus")) {
-					arpeggiatorBassFocus = reader.readTagOrAttributeValueInt();
-					reader.exitTag("bassFocus");
+				else if (!strcmp(tagName, "bassChance")) {
+					arpeggiatorBassChance = reader.readTagOrAttributeValueInt();
+					reader.exitTag("bassChance");
 				}
 				else if (!strcmp(tagName, "ratchetProbability")) {
 					arpeggiatorRatchetProbability = reader.readTagOrAttributeValueInt();

@@ -31,7 +31,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **LFO 1** Rate
 > - **LFO 2** Rate
 > - **Mod FX** Offset, Feedback, Depth, Rate
-> - **Arp** Rate, Gate, Note Probability, Ratchet Probability, Ratchet Amount, Sequence Length, Bass Focus, Rhythm, Spread Velocity, Spread Gate, Spread Octave
+> - **Arp** Rate, Gate, Note Probability, Ratchet Probability, Ratchet Amount, Sequence Length, Bass Chance, Rhythm, Spread Velocity, Spread Gate, Spread Octave
 > - **Noise** Level
 > - **Portamento**
 > - **Stutter** Rate

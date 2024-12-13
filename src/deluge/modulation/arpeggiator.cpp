@@ -388,7 +388,7 @@ bool ArpeggiatorBase::evaluateNoteProbability(bool isRatchet) {
 bool ArpeggiatorBase::evaluateBassProbability(bool isRatchet) {
 	// If it is a rachet, use the last value, but it it is not a ratchet, calculate a new probability
 	int32_t randomChance = random(65535);
-	bool calculatedNoteProbabilityShouldPlay = bassFocus >= randomChance;
+	bool calculatedNoteProbabilityShouldPlay = bassChance >= randomChance;
 	return isRatchet ? lastNormalNotePlayedFromBassProbability : calculatedNoteProbabilityShouldPlay;
 }
 
@@ -974,7 +974,7 @@ bool ArpeggiatorForDrum::hasAnyInputNotesActive() {
 }
 
 void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb,
-                                   uint32_t ratchAmount, uint32_t ratchProb, uint32_t bassFoc, uint32_t spVelocity,
+                                   uint32_t ratchAmount, uint32_t ratchProb, uint32_t bassCh, uint32_t spVelocity,
                                    uint32_t spGate, uint32_t spOctave) {
 	// Update live Sequence Length value with the most up to date value from automation
 	maxSequenceLength = computeCurrentValueForUnsignedMenuItem(sequenceLength);
@@ -985,8 +985,8 @@ void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue
 	// Update live noteProbability value with the most up to date value from automation
 	noteProbability = noteProb >> 16; // just 16 bits is enough resolution for probability
 
-	// Update live bassFocus value with the most up to date value from automation
-	bassFocus = bassFoc >> 16; // just 16 bits is enough resolution for probability
+	// Update live bassChance value with the most up to date value from automation
+	bassChance = bassCh >> 16; // just 16 bits is enough resolution for probability
 
 	// Update live ratchetProbability value with the most up to date value from automation
 	ratchetProbability = ratchProb >> 16; // just 16 bits is enough resolution for probability
@@ -1017,13 +1017,13 @@ void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue
 // May switch notes on and/or off.
 void ArpeggiatorBase::render(ArpeggiatorSettings* settings, int32_t numSamples, uint32_t gateThreshold,
                              uint32_t phaseIncrement, uint32_t sequenceLength, uint32_t rhythmValue, uint32_t noteProb,
-                             uint32_t ratchAmount, uint32_t ratchProb, uint32_t bassFoc, uint32_t spreadVelocity,
+                             uint32_t ratchAmount, uint32_t ratchProb, uint32_t bassCh, uint32_t spreadVelocity,
                              uint32_t spreadGate, uint32_t spreadOctave, ArpReturnInstruction* instruction) {
 	if (settings->mode == ArpMode::OFF || !hasAnyInputNotesActive()) {
 		return;
 	}
 
-	updateParams(sequenceLength, rhythmValue, noteProb, ratchAmount, ratchProb, bassFoc, spreadVelocity, spreadGate,
+	updateParams(sequenceLength, rhythmValue, noteProb, ratchAmount, ratchProb, bassCh, spreadVelocity, spreadGate,
 	             spreadOctave);
 
 	uint32_t maxGate = 1 << 24;
