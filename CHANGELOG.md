@@ -9,6 +9,7 @@
 - Added a boss/roland style Dimension effect
 - Made grain much faster and updated controls
 - Added LPF to Mutable Instruments Reverb
+- Added an option to reverse the stutter effect
 
 ### User Interface
 
