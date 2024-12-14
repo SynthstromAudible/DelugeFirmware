@@ -619,21 +619,7 @@ int8_t ArpeggiatorBase::getRandomSpreadOctaveAmount(ArpeggiatorSettings* setting
 	if (spreadOctave == 0) {
 		return 0;
 	}
-	int32_t maxOctave;
-	int32_t am = spreadOctave >> 16;
-	if (am > 45874) { // > 35 -> 50
-		maxOctave = 3;
-	}
-	else if (am > 26214) { // > 20 -> 34
-		maxOctave = 2;
-	}
-	else if (am > 6553) { // > 5 -> 19
-		maxOctave = 1;
-	}
-	else { // > 0 -> 4
-		maxOctave = 0;
-	}
-	int32_t amHalf = am >> 1;
+	int32_t maxOctave = computeFourWeightedValuesForStandardMenuItem(spreadOctave);
 	return random(maxOctave); // values go from 0 to 3 max
 }
 
@@ -993,19 +979,7 @@ void ArpeggiatorBase::updateParams(uint32_t sequenceLength, uint32_t rhythmValue
 
 	// Update live ratchetAmount value with the most up to date value from automation
 	// Convert ratchAmount to either 0, 1, 2 or 3 (equivalent to a number of ratchets: OFF, 2, 4, 8)
-	uint16_t amount = ratchAmount >> 16;
-	if (amount > 45874) { // > 35 -> 50
-		ratchetAmount = 3;
-	}
-	else if (amount > 26214) { // > 20 -> 34
-		ratchetAmount = 2;
-	}
-	else if (amount > 6553) { // > 5 -> 19
-		ratchetAmount = 1;
-	}
-	else { // > 0 -> 4
-		ratchetAmount = 0;
-	}
+	ratchetAmount = computeFourWeightedValuesForStandardMenuItem(ratchAmount);
 
 	// Spread values
 	spreadVelocity = spVelocity;

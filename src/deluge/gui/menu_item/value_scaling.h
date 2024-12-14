@@ -75,6 +75,11 @@
  */
 int32_t computeCurrentValueForStandardMenuItem(int32_t value);
 
+/** Scales INT32_MIN-INT32_MAX range to 0,1,2,3 for use with arpeggiator params:
+ *   Chord Polyphony, Ratchet Amount, Octave Spread
+ */
+int32_t computeFourWeightedValuesForStandardMenuItem(int32_t value);
+
 /** Scales 0-50 range to INT32_MIN-INT32_MAX for storage and use.
  */
 int32_t computeFinalValueForStandardMenuItem(int32_t value);
