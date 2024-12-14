@@ -113,9 +113,13 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>
-- The arpeggiator has now a new `NOTE PROBABILITY (PROB)` paramater that will apply a probability to notes (after rhythm and sequence length have been applied).
-- Added new `CHORD TYPE (CHRD)` paramater that will emulate a held chord so you can use `NOTE MODE` on the Kit Row.
-- The arpeggiator has now a new `SPREAD` submenu with up to 3 parameters that will allow you to control how those parameters of each arp step are deviated from its base value.
+- Added `NOTE PROBABILITY (PROB)` paramater that will apply a probability to be played or not to notes (after rhythm has been applied).
+- Added `CHORD TYPE (CHRD)` paramater to Kit Rows, that will emulate a held chord so you can use `NOTE MODE` on them.
+- Added `SPREAD` submenu with 3 parameters (Velocity, Gate, and Octave) that will allow you to control how those parameters of each arp step are deviated from its base value. Additionally, a `LOCK` parameter will allow you to lock the generated values to create a repeating pattern.
+- Added `BASS CHANCE (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
+- Added `STEP REPEAT (REPE)` paramater (with values 0 to 50) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
+- Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and the following notes in the held notes set, like a chord.
+- Added `CHORD NOTES AMOUNT (CHRD)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
 
 ### MIDI
 

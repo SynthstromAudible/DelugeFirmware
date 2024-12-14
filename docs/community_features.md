@@ -844,7 +844,7 @@ to each individual note onset. ([#1978])
 
 #### 4.3.8 - Advanced Arpeggiator
 
-- ([#1198] [#2978] [#2985] [#2990]) Added new features to the arpeggiator, which include:
+- ([#1198] [#2978] [#2985] [#2990]) The arpeggiator has been completely redesigned:
     - Splitted the old `Mode` setting into separate settings: `Mode` (Off or Arpeggiator), `Octave Mode` (Up, Down,
       Up&Down, Alternate or Random) and `Note Mode` (Up, Down, Up&Down, AsPlayed or Random), so you can setup
       individually how octaves are walked and how notes are walked in the sequence.
@@ -855,8 +855,17 @@ to each individual note onset. ([#1978])
         - `Both` will setup Mode to `Arpeggiator`, Octave Mode to `Alternate` and Note Mode to `Up`.
         - `Random` will setup Mode to `Arpeggiator`, Octave Mode to `Random` and Note Mode to `Random`.
         - `Custom` will setup Mode to `Arpeggiator`, and enter a submenu to let you edit Octave Mode and Note Mode.
-    - **`Enabled (ON):`**: enables the arpeggiator.
-    - **`Octave Mode (OMOD):`**
+
+    Now the menu options are the following:
+    - **`Enabled (ON)`**: enables the arpeggiator, that is, it internally sets `Mode` to `Arpeggiator`.
+
+    The following parameters define the rate, that is, the speed of the notes:
+    - **`Sync`**: allows you to set the synced rate between `Off`, `2-Bar`, ..., `128th` notes.
+    - **`Rate`**: manually sets a sync rate when `Sync` is set to `Off`.
+
+    The following parameters will define the note pattern for the arpeggio:
+    - **`Octaves (OCTA)`**: sets the number of octaves
+    - **`Octave Mode (OMOD)`**:
         - `Up` (UP) will walk the octaves up.
         - `Down` (DOWN) will walk the octaves down.
         - `Up & Down` (UPDN) will walk the octaves up and down, repeating the highest and lowest octaves.
@@ -865,7 +874,7 @@ to each individual note onset. ([#1978])
           the old `Both` mode.
         - `Random` (RAND) will choose a random octave every time the Notes pattern has played.
           Tip: Set also Note Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Note Mode (NMOD):`**
+    - **`Note Mode (NMOD)`**:
         - `Up` (UP) will walk the notes up.
         - `Down` (DOWN) will walk the notes down. Tip: this mode also works in conjunction with Octave Mode
           Alternate, which will walk all the notes and octaves all the way down, and then up reversing it.
@@ -878,16 +887,18 @@ to each individual note onset. ([#1978])
           different than Random, then the pattern will play, in the same octave, the same number of random
           notes as notes are in the held chord and then move to a different octave based on the Octave Mode.
           Tip: Set also Octave Mode to Random to have the equivalent to the old `Random` mode.
-    - **`Note Probability (PROB)`** (unpatchet parameter, assignable to golden knobs). This parameter will apply a probability to notes (after rhythm and sequence length conditions have been applied).
-    - **`Chord Type (CHRD)`** (only for Kit Rows): This allows you to emulate a held chord so you can use `Note Mode` on the Kit Row.
-    - **`Bass Chance (BASS)`**  (unpatchet parameter, assignable to golden knobs):
-      This parameter will apply a chance of replacing the current note to be played with the lowest note of the played notes. The higher the
-      value, the more likely that the note played is the bass note of the arpeggiated chord. This can be used as a performance tool to open up
-      or close the arpeggio pitch range.
-    - **`Rhythm (RHYT)`** (unpatchet parameter, assignable to golden knobs):
-      This parameter will play silences in some of the steps. This menu option show zeroes
-      and dashes, "0" means "play note", and "-" means "don't play note" (or play a silence).
-      The available options are:
+    - **`Chord Simulator (SIM)`**: is only for Kit Rows. This allows you to simulate a held chord so you
+      can use `Note Mode` on the Kit Row.
+    - **`Step Repeat (REPE)`**: allows you to set how many times the same note in the pattern is repeated
+      before moving on to the next note of the pattern.
+
+    The following parameters define other aspects of the notes and the rhythm of the pattern:
+    - **`Gate`**: (automatable and learnable to golden knobs and MIDI CC).
+      This changes the length of the note, as a relative percentage of the time window set between this note and the next.
+      A gate of 25 will make the notes last for 50% of the available time window.
+    - **`Rhythm (RHYT)`**: (automatable and learnable to golden knobs and MIDI CC).
+      This parameter will play silences in some of the steps. This menu option show zeroes and dashes,
+      "0" means "play note", and "-" means "don't play note" (or play a silence). The available options are:
       <details>
       <summary>Rhythm Options</summary>
         <ul>
@@ -944,37 +955,65 @@ to each individual note onset. ([#1978])
           <li>50: 00-0-0</li>
         </ul>
       </details>
-    - **`Sequence Length (LENG)`**  (unpatchet parameter, assignable to golden knobs):
-        - If set to zero, the arpeggiator pattern will play fully.
-        - If set to a value higher than zero, the pattern will play up to the set number of notes, and then
-          reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm parameter
-          to create longer and more complex rhythm patterns.
-    - **`Ratcheting:`** There are two new parameters (unpatched, assignable to golden knobs), to control how notes
-      are ratcheted. A ratchet is when a note repeats itself several times in the same time interval that the
-      original note has to play.
-        - `Ratchet Amount` (RATC): this will set the maximum number of ratchets that an arpeggiator step
-          could have (each step will randomize the number of ratchet notes between 1 and max value).
-            - From values 0 to 4, no ratchet notes
-            - From 5 to 19, up to 2 ratchet notes
-            - From 20 to 34, up to 4 ratchet notes
-            - From 35 to 50, up to 8 ratchet notes
-        - `Ratchet Probability` (RPRO): this sets how likely a step is to be ratcheted
-            - Being 0 (0%), no ratchets at all
-            - And 50 (100%), all notes will evaluate to be ratcheted.
-    - **`Spread (SPRE):`** There are three new parameters (unpatched, assignable to golden knobs), to control how the parameters
-      of each arp step are deviated from its base value. If spread is increased for a parameter, the arp steps will
-      get a random amount of deviation for that parameter, calculated on each iteration.
-        - `Lock`: this flag will lock the current sequence of generated random values so the sequence has a repeatable pattern. Make use of the `Sequence Length` parameter to further adjust the repeated sequence. To change the generated values, change the value of any of the parameters and the dice will be re-rolled for that parameter.
-        - `Velocity`: the velocity of the arp step will get a random decrease from the base velocity.
-        - `Gate`: the gate of the arp step will get a random positive or negative deviation of the base gate.
-        - `Octave`: the note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of 3 octaves.
-            - From values 0 to 4, no changes in octaves
-            - From 5 to 19, up to 1 octave changes
-            - From 20 to 34, up to 2 octave changes
-            - From 35 to 50, up to 3 octave changes
-    - **`MPE`** settings:
-      - `Velocity`: if you have an MPE keyboard you may want to enable this. It will allow you to control the
-      velocity of each new arpeggiated note by applying different pressure (aftertouch) or slide (Y) on the keys.
+    - **`Limits (LIMT)`**: is a group of parameters to define limitations for the sequence and for the randomizer.
+        - **`Sequence Length (SEQ)`**: (automatable and learnable to golden knobs and MIDI CC).
+          It defines the length of the pattern in number of steps.
+          - If set to zero, the arpeggiator pattern will play fully without restrictions.
+          - If set to a value higher than zero, the pattern will play up to the set number of steps, and then
+            reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm
+            parameter to create longer and more complex rhythm patterns.
+        - **`Chord Polyphony (POLY)`**: (automatable and learnable to golden knobs and MIDI CC).
+          This will set the maximum number of notes that will play at the same time when a step is played as a chord.
+          Increase parameter `Chord Probability` to make some steps play a chord instead of a single note.
+            - From values 0 to 4, just the root note, no chord.
+            - From 5 to 19, a 2-notes chord is played, using the 5th.
+            - From 20 to 34 a 3-notes chord is played, using a triad (3rd + 5th).
+            - From 35 to 50, a 4-notes chord is played, usign a seventh chord (3rd + 5th + 7th).
+        - **`Ratchet Amount (RATC)`**: (automatable and learnable to golden knobs and MIDI CC).
+          A ratchet is when a note repeats itself several times in the same time interval that the original note has to play.
+          This will set the maximum number of notes that a single tep can have (each step will
+          randomize the number of ratchet notes between 1 and this maximum value set).
+            - From values 0 to 4, no ratchet notes.
+            - From 5 to 19, up to 2 ratchet notes.
+            - From 20 to 34, up to 4 ratchet notes.
+            - From 35 to 50, up to 8 ratchet notes.
+    
+    The following parameters are for setting up the Randomizer:
+    - **`Randomizer (RAND)`**: is a group of parameters that define the probability of some parameters to vary.
+      - **`Lock`**: this flag will lock the current sequence of randomized values so the sequence has a repeatable pattern.
+        Make use of the `Sequence Length` parameter to further adjust the repeated sequence.
+        If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
+        generated and locked.
+      - **`Note Probability (NOTE)`**: (automatable and learnable to golden knobs and MIDI CC).
+        It applies a probability for notes to play or not (after Rhythm has been evalutated,
+        that is, only for note steps, not for silent steps).
+      - **`Bass Probability (BASS)`**: (automatable and learnable to golden knobs and MIDI CC).
+        It applies a chance of replacing the current note to be played with the lowest note of the played notes.
+        The higher the value, the more likely that the note played is the bass note of the arpeggiated chord.
+        This can be used as a performance tool to open up or close the arpeggio pitch range.
+      - **`Chord Probability (CHRD)`**: (automatable and learnable to golden knobs and MIDI CC).
+        This paramater will allow you to control the chance of a note to play, at the same time, itself and the following notes in the available
+        notes set, like a chord.
+      - **`Ratchet Probability (RATC)`**: (automatable and learnable to golden knobs and MIDI CC).
+        This sets how likely a step is to be ratcheted. The ratchet amount is randomized on each step between 1 and
+        the maximum value set with the `Ratchet Amount` parameter within the `Limits` group.
+      - **`Velocity Spread (VELO)`**: (automatable and learnable to golden knobs and MIDI CC).
+        The velocity of the arp step will get a random **negative** deviation from the base velocity.
+      - **`Gate Spread (GATE)`**: (automatable and learnable to golden knobs and MIDI CC).
+        The gate of the arp step will get a random **positive** or **negative** deviation from the base gate.
+      - **`Octave Spread (OCTA)`**: (automatable and learnable to golden knobs and MIDI CC).
+        The note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of +3 octaves.
+          - From values 0 to 4, no changes in octaves.
+          - From 5 to 19, up to +1 octave changes.
+          - From 20 to 34, up to +2 octave changes.
+          - From 35 to 50, up to +3 octave changes.
+        
+    The following parameters are useful if you have an MPE controller connected to the Deluge:
+    - **`MPE`**:
+      - **`Velocity`**: It will allow you to control the velocity of each new arpeggiated note.
+        - `Off`: This disables control of velocity with MPE.
+        - `Aftertouch (AFTE)`: The pressure applied to the key sets the velocity of the note.
+        - `MPE Y (Y)`: The Y position on the MPE controller sets the velocity of the note.
 
 #### 4.3.9 - Velocity View
 
