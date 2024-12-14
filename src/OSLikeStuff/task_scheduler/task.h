@@ -46,6 +46,7 @@ struct StatBlock {
 struct TaskSchedule {
 	// 0 is highest priority
 	uint8_t priority;
+	bool reentrant;
 	// time to wait between return and calling the function again
 	Time backOffPeriod;
 	// target time between function calls
@@ -67,7 +68,7 @@ struct Task {
 	Task(TaskHandle _handle, uint8_t _priority, Time timeNow, Time _timeToWait, const char* _name)
 	    : handle(_handle), lastCallTime(timeNow), removeAfterUse(true), name(_name) {
 
-		schedule = TaskSchedule{_priority, _timeToWait, _timeToWait, _timeToWait * 2};
+		schedule = TaskSchedule{_priority, false, _timeToWait, _timeToWait, _timeToWait * 2};
 	}
 	// makes a repeating task
 	Task(TaskHandle task, TaskSchedule _schedule, const char* _name) : handle(task), schedule(_schedule), name(_name) {}
@@ -76,7 +77,7 @@ struct Task {
 	    : handle(task), state(State::BLOCKED), condition(_condition), removeAfterUse(true), name(_name) {
 
 		// good to go as soon as it's marked as runnable
-		schedule = {priority, 0, 0, 0};
+		schedule = {priority, false, 0, 0, 0};
 	}
 
 	void updateNextTimes(Time startTime, Time runtime) {

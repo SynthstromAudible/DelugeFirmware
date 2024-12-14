@@ -23,9 +23,9 @@ void setNextRunTimeforCurrentTask(double seconds) {
 }
 
 uint8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
-                         double maxTimeBetweenCalls, const char* name) {
+                         double maxTimeBetweenCalls, const char* name, bool reentrant) {
 	return taskManager.addRepeatingTask(
-	    task, TaskSchedule{priority, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls}, name);
+	    task, TaskSchedule{priority, reentrant, backOffTime, targetTimeBetweenCalls, maxTimeBetweenCalls}, name);
 }
 uint8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name) {
 	return taskManager.addOnceTask(task, priority, timeToWait, name);

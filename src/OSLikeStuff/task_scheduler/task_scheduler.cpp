@@ -177,8 +177,11 @@ void TaskManager::runTask(TaskID id) {
 	overhead += timeNow - lastFinishTime;
 	currentID = id;
 	auto currentTask = &list[currentID];
-
+	if (!currentTask->schedule.reentrant) {
+		currentTask->state = State::QUEUED;
+	}
 	currentTask->handle();
+	currentTask->state = State::READY;
 	timeNow = getSecondsFromStart();
 	Time runtime = (timeNow - startTime);
 	cpuTime += runtime;

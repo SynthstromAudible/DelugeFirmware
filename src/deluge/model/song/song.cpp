@@ -2419,6 +2419,7 @@ void Song::renderAudio(StereoSample* outputBuffer, int32_t numSamples, int32_t* 
 			                     volumePostFX >> 1, sideChainHitPending, !isClipActiveNow, isClipActiveNow);
 		}
 		ENABLE_INTERRUPTS();
+		yield([]() { return true; });
 #if DO_AUDIO_LOG
 		char buf[64];
 		snprintf(buf, sizeof(buf), "complete: %s", output->name.get());
