@@ -955,7 +955,7 @@ to each individual note onset. ([#1978])
           <li>50: 00-0-0</li>
         </ul>
       </details>
-    - **`Limits (LIMT)`**: is a group of parameters to define limitations for the sequence and for the randomizer.
+    - **`Limits (LIMI)`**: is a group of parameters to define limitations for the sequence and for the randomizer.
         - **`Sequence Length (SEQ)`**: (automatable and learnable to golden knobs and MIDI CC).
           It defines the length of the pattern in number of steps.
           - If set to zero, the arpeggiator pattern will play fully without restrictions.

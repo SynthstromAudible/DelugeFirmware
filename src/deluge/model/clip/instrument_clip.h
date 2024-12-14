@@ -103,12 +103,16 @@ public:
 	int32_t arpeggiatorRate;
 	int32_t arpeggiatorGate;
 
-	uint32_t arpeggiatorBassChance;
-	uint32_t arpeggiatorRatchetProbability;
-	uint32_t arpeggiatorRatchetAmount;
-	uint32_t arpeggiatorSequenceLength;
+	// Rhythm
 	uint32_t arpeggiatorRhythm;
+	uint32_t arpeggiatorSequenceLength;
+	uint32_t arpeggiatorChordPolyphony;
+	uint32_t arpeggiatorRatchetAmount;
+	// Randomizer
 	uint32_t arpeggiatorNoteProbability;
+	uint32_t arpeggiatorBassProbability;
+	uint32_t arpeggiatorChordProbability;
+	uint32_t arpeggiatorRatchetProbability;
 	uint32_t arpeggiatorSpreadVelocity;
 	uint32_t arpeggiatorSpreadGate;
 	uint32_t arpeggiatorSpreadOctave;
