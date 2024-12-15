@@ -174,6 +174,7 @@ This submenu contains parameters that are useful if you have an MPE controller c
     - `Off`: This disables control of velocity with MPE.
     - `Aftertouch (AFTE)`: The pressure applied to the key sets the velocity of the note.
     - `MPE Y (Y)`: The Y position on the MPE controller sets the velocity of the note.
+
 Tip: For the synth preset to play correctly, it is recommended to disable the modulation of `Master Volume` with `Velocity`, that is,
 bring the value to zero (which is normally set by default to 50), and add a modulation of `Master Volume` with `Aftertouch` or `MPE Y`
 (depending on your MPE controller).
