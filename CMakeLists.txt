@@ -12,7 +12,7 @@ include(ProcessorCount)
 ProcessorCount(HOST_NUM_CORES)
 
 # Create our version string
-set(RELEASE_TYPE "dev" CACHE STRING "The type of releasepack to build")
+set(RELEASE_TYPE "release" CACHE STRING "The type of releasepack to build")
 set_property(CACHE RELEASE_TYPE PROPERTY STRINGS dev nightly alpha beta rc release)
 
 if(RELEASE_TYPE STREQUAL "release")
