@@ -54,10 +54,10 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, StereoSample* star
 
 			ArpReturnInstruction instruction;
 
-			arpeggiator.render(&activeInstrumentClip->arpSettings, &instruction, numSamples, gateThreshold, phaseIncrement,
-			                   rhythm, sequenceLength, chordPolyphony, ratchetAmount, noteProbability,
-							   bassProbability, chordProbability, ratchetProbability,
-			                   spreadVelocity, spreadGate, spreadOctave);
+			arpeggiator.render(&activeInstrumentClip->arpSettings, &instruction, numSamples, gateThreshold,
+			                   phaseIncrement, rhythm, sequenceLength, chordPolyphony, ratchetAmount, noteProbability,
+			                   bassProbability, chordProbability, ratchetProbability, spreadVelocity, spreadGate,
+			                   spreadOctave);
 
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 				noteOffPostArp(instruction.noteCodeOffPostArp, instruction.outputMIDIChannelOff,
@@ -217,8 +217,8 @@ int32_t NonAudioInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t 
 		uint32_t spreadGate = activeInstrumentClip->arpeggiatorSpreadGate;
 		uint32_t spreadOctave = activeInstrumentClip->arpeggiatorSpreadOctave;
 		arpeggiator.updateParams(rhythm, sequenceLength, chordPolyphony, ratchetAmount, noteProbability,
-							   bassProbability, chordProbability, ratchetProbability,
-			                   spreadVelocity, spreadGate, spreadOctave);
+		                         bassProbability, chordProbability, ratchetProbability, spreadVelocity, spreadGate,
+		                         spreadOctave);
 	}
 
 	ArpReturnInstruction instruction;

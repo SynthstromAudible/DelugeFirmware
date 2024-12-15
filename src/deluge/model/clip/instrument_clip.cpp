@@ -2853,12 +2853,12 @@ someError:
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
 							char const* hexChars =
-								reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings.lastLockedNoteProbabilityParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings.lockedNoteProbabilityValues[i] =
-										hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
 						}
@@ -2870,12 +2870,12 @@ someError:
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
 							char const* hexChars =
-								reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings.lastLockedBassProbabilityParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings.lockedBassProbabilityValues[i] =
-										hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
 						}
@@ -2887,12 +2887,12 @@ someError:
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
 							char const* hexChars =
-								reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
 								arpSettings.lastLockedChordProbabilityParameterValue = hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings.lockedChordProbabilityValues[i] =
-										hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
 						}
@@ -2904,12 +2904,13 @@ someError:
 						char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
 						if (firstChars && *(uint16_t*)firstChars == charsToIntegerConstant('0', 'x')) {
 							char const* hexChars =
-								reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
+							    reader.readNextCharsOfTagOrAttributeValue(8 + 2 * RANDOMIZER_LOCK_MAX_SAVED_VALUES);
 							if (hexChars) {
-								arpSettings.lastLockedRatchetProbabilityParameterValue = hexToIntFixedLength(hexChars, 8);
+								arpSettings.lastLockedRatchetProbabilityParameterValue =
+								    hexToIntFixedLength(hexChars, 8);
 								for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
 									arpSettings.lockedRatchetProbabilityValues[i] =
-										hexToIntFixedLength(&hexChars[8 + i * 2], 2);
+									    hexToIntFixedLength(&hexChars[8 + i * 2], 2);
 								}
 							}
 						}

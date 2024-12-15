@@ -231,6 +231,9 @@ public:
 	// Chord probability state
 	bool lastNormalNotePlayedFromChordProbability = true;
 
+	// Step repeat state
+	int32_t stepRepeatIndex = 0;
+
 	// Ratcheting state
 	uint32_t ratchetNotesIndex = 0;
 	uint32_t ratchetNotesMultiplier = 0;

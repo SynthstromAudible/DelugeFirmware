@@ -29,7 +29,7 @@ public:
 		this->setValue(computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorChordPolyphony));
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorChordPoplyphony = computeFinalValueForUnsignedMenuItem(this->getValue());
+		getCurrentInstrumentClip()->arpeggiatorChordPolyphony = computeFinalValueForUnsignedMenuItem(this->getValue());
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

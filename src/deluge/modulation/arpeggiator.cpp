@@ -461,6 +461,9 @@ void ArpeggiatorBase::increaseIndexes(bool hasPlayedRhythmNote) {
 		// Only increase notesPlayedFromLockedRandomizer if we've played a rhythm note,
 		// so we effectively have more slots available and not waste them with silent notes
 		notesPlayedFromLockedRandomizer = (notesPlayedFromLockedRandomizer + 1) % RANDOMIZER_LOCK_MAX_SAVED_VALUES;
+
+		// Only increase stepRepeatIndex if we've played a rhythm note
+		stepRepeatIndex++;
 	}
 }
 
@@ -486,6 +489,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		notesPlayedFromLockedRandomizer = 0;
 		lastNormalNotePlayedFromLockedRandomizer = 0;
 		randomNotesPlayedFromOctave = 0;
+		stepRepeatIndex = 0;
 		whichNoteCurrentlyOnPostArp = 0;
 	}
 
@@ -506,7 +510,10 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			maybeSetupNewRatchet(settings);
 
 			// Move indexes to the next note in the sequence
-			calculateNextNoteAndOrOctave(settings, chordTypeNoteCount[settings->chordTypeIndex]);
+			if (stepRepeatIndex >= settings->numStepRepeats) {
+				calculateNextNoteAndOrOctave(settings, chordTypeNoteCount[settings->chordTypeIndex]);
+				stepRepeatIndex = -1; // it will be increased to 0 on the increaseIndexes call
+			}
 
 			// Calculate randomizer amounts
 			calculateRandomizerAmounts(settings);
@@ -517,7 +524,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			// Save last note played from rhythm
 			lastNormalNotePlayedFromRhythm = notesPlayedFromRhythm;
 
-			// Save last note played from locked spread
+			// Save last note played from locked randomizer
 			lastNormalNotePlayedFromLockedRandomizer = notesPlayedFromLockedRandomizer;
 
 			// Save last note played from probability
@@ -619,13 +626,12 @@ int8_t ArpeggiatorBase::getRandomUnipolarProbabilityAmount(ArpeggiatorSettings* 
 }
 
 int8_t ArpeggiatorBase::getRandomBipolarProbabilityAmount(ArpeggiatorSettings* settings, uint32_t value) {
-	if (uint32_t == 0) {
+	if (value == 0) {
 		return 0;
 	}
-	int32_t am = uint32_t >> 24; // 256 values
+	int32_t am = value >> 24; // 256 values
 	int32_t amHalf = am >> 1;
-	return random(am)
-	       - amHalf; // values go from -128 to 127 (8bits)
+	return random(am) - amHalf; // values go from -128 to 127 (8bits)
 }
 int8_t ArpeggiatorBase::getRandomFourWeightedAmount(ArpeggiatorSettings* settings, uint32_t value) {
 	if (value == 0) {
@@ -637,50 +643,55 @@ int8_t ArpeggiatorBase::getRandomFourWeightedAmount(ArpeggiatorSettings* setting
 
 void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) {
 	if (settings->randomizerLock) {
-		// Store generated spread values in an array so we can repeat the sequence
+		// Store generated randomized values in an array so we can repeat the sequence
 		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedNoteProbabilityParameterValue != noteProbability) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedNoteProbabilityValues[i] = getRandomUnipolarProbabilityAmount(settings);
+				settings->lockedNoteProbabilityValues[i] =
+				    getRandomUnipolarProbabilityAmount(settings, noteProbability);
 			}
 			settings->lastLockedNoteProbabilityParameterValue = noteProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedBassProbabilityParameterValue != bassProbability) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedBassProbabilityValues[i] = getRandomUnipolarProbabilityAmount(settings);
+				settings->lockedBassProbabilityValues[i] =
+				    getRandomUnipolarProbabilityAmount(settings, bassProbability);
 			}
 			settings->lastLockedBassProbabilityParameterValue = bassProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedChordProbabilityParameterValue != chordProbability) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedChordProbabilityValues[i] = getRandomUnipolarProbabilityAmount(settings);
+				settings->lockedChordProbabilityValues[i] =
+				    getRandomUnipolarProbabilityAmount(settings, chordProbability);
 			}
 			settings->lastLockedChordProbabilityParameterValue = chordProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedRatchetProbabilityParameterValue != ratchetProbability) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedRatchetProbabilityValues[i] = getRandomUnipolarProbabilityAmount(settings);
+				settings->lockedRatchetProbabilityValues[i] =
+				    getRandomUnipolarProbabilityAmount(settings, ratchetProbability);
 			}
 			settings->lastLockedRatchetProbabilityParameterValue = ratchetProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime || settings->lastLockedSpreadVelocityParameterValue != spreadVelocity) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedSpreadVelocityValues[i] = -getRandomUnipolarProbabilityAmount(settings); // negative
+				settings->lockedSpreadVelocityValues[i] =
+				    -getRandomUnipolarProbabilityAmount(settings, spreadVelocity); // negative
 			}
 			settings->lastLockedSpreadVelocityParameterValue = spreadVelocity;
 		}
 		if (resetLockedRandomizerValuesNextTime || settings->lastLockedSpreadGateParameterValue != spreadGate) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedSpreadGateValues[i] = getRandomBipolarProbabilityAmount(settings);
+				settings->lockedSpreadGateValues[i] = getRandomBipolarProbabilityAmount(settings, spreadGate);
 			}
 			settings->lastLockedSpreadGateParameterValue = spreadGate;
 		}
 		if (resetLockedRandomizerValuesNextTime || settings->lastLockedSpreadOctaveParameterValue != spreadOctave) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedSpreadOctaveValues[i] = getRandomFourWeightedAmount(settings);
+				settings->lockedSpreadOctaveValues[i] = getRandomFourWeightedAmount(settings, spreadOctave);
 			}
 			settings->lastLockedSpreadOctaveParameterValue = spreadOctave;
 		}
@@ -693,7 +704,8 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		chordProbabilityAmount =
 		    settings->lockedChordProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
 		ratchetProbabilityAmount =
-		    settings->lockedRatchetProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
+		    settings
+		        ->lockedRatchetProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
 		spreadVelocityAmount =
 		    settings->lockedSpreadVelocityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
 		spreadGateAmount =
@@ -703,13 +715,13 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 	}
 	else {
 		// Lively create new randomized values on the fly each time a note is played
-		noteProbabilityAmount = getRandomUnipolarProbabilityAmount(settings);
-		bassProbabilityAmount = getRandomUnipolarProbabilityAmount(settings);
-		chordProbabilityAmount = getRandomUnipolarProbabilityAmount(settings);
-		ratchetProbabilityAmount = getRandomUnipolarProbabilityAmount(settings);
-		spreadVelocityAmount = -getRandomUnipolarProbabilityAmount(settings);
-		spreadGateAmount = getRandomBipolarProbabilityAmount(settings);
-		spreadOctaveAmount = getRandomFourWeightedAmount(settings);
+		noteProbabilityAmount = getRandomUnipolarProbabilityAmount(settings, noteProbability);
+		bassProbabilityAmount = getRandomUnipolarProbabilityAmount(settings, bassProbability);
+		chordProbabilityAmount = getRandomUnipolarProbabilityAmount(settings, chordProbability);
+		ratchetProbabilityAmount = getRandomUnipolarProbabilityAmount(settings, ratchetProbability);
+		spreadVelocityAmount = -getRandomUnipolarProbabilityAmount(settings, spreadVelocity);
+		spreadGateAmount = getRandomBipolarProbabilityAmount(settings, spreadGate);
+		spreadOctaveAmount = getRandomFourWeightedAmount(settings, spreadOctave);
 		// Rest locked values
 		resetLockedRandomizerValuesNextTime = true;
 	}
@@ -876,6 +888,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		notesPlayedFromLockedRandomizer = 0;
 		lastNormalNotePlayedFromLockedRandomizer = 0;
 		randomNotesPlayedFromOctave = 0;
+		stepRepeatIndex = 0;
 		whichNoteCurrentlyOnPostArp = 0;
 	}
 
@@ -896,7 +909,10 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			maybeSetupNewRatchet(settings);
 
 			// Move indexes to the next note in the sequence
-			calculateNextNoteAndOrOctave(settings, (uint8_t)notes.getNumElements());
+			if (stepRepeatIndex >= settings->numStepRepeats) {
+				calculateNextNoteAndOrOctave(settings, (uint8_t)notes.getNumElements());
+				stepRepeatIndex = -1; // it will be increased to 0 on the increaseIndexes call
+			}
 
 			// Calculate randomizer amounts
 			calculateRandomizerAmounts(settings);

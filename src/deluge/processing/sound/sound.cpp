@@ -4360,10 +4360,10 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.printIndents();
 		writer.writeTagNameAndSeperator("lockedNoteProb");
 		writer.write("\"0x");
-		intToHex(arpSettings.lastLockedNoteProbabilityParameterValue, buffer);
+		intToHex(arpSettings->lastLockedNoteProbabilityParameterValue, buffer);
 		writer.write(buffer);
 		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings.lockedNoteProbabilityValues[i], buffer, 2);
+			intToHex(arpSettings->lockedNoteProbabilityValues[i], buffer, 2);
 			writer.write(buffer);
 		}
 		writer.write("\"");
@@ -4373,10 +4373,10 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.printIndents();
 		writer.writeTagNameAndSeperator("lockedBassProb");
 		writer.write("\"0x");
-		intToHex(arpSettings.lastLockedBassProbabilityParameterValue, buffer);
+		intToHex(arpSettings->lastLockedBassProbabilityParameterValue, buffer);
 		writer.write(buffer);
 		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings.lockedBassProbabilityValues[i], buffer, 2);
+			intToHex(arpSettings->lockedBassProbabilityValues[i], buffer, 2);
 			writer.write(buffer);
 		}
 		writer.write("\"");
@@ -4386,10 +4386,10 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.printIndents();
 		writer.writeTagNameAndSeperator("lockedChordProb");
 		writer.write("\"0x");
-		intToHex(arpSettings.lastLockedChordProbabilityParameterValue, buffer);
+		intToHex(arpSettings->lastLockedChordProbabilityParameterValue, buffer);
 		writer.write(buffer);
 		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings.lockedChordProbabilityValues[i], buffer, 2);
+			intToHex(arpSettings->lockedChordProbabilityValues[i], buffer, 2);
 			writer.write(buffer);
 		}
 		writer.write("\"");
@@ -4399,10 +4399,10 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.printIndents();
 		writer.writeTagNameAndSeperator("lockedRatchetProb");
 		writer.write("\"0x");
-		intToHex(arpSettings.lastLockedRatchetProbabilityParameterValue, buffer);
+		intToHex(arpSettings->lastLockedRatchetProbabilityParameterValue, buffer);
 		writer.write(buffer);
 		for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-			intToHex(arpSettings.lockedRatchetProbabilityValues[i], buffer, 2);
+			intToHex(arpSettings->lockedRatchetProbabilityValues[i], buffer, 2);
 			writer.write(buffer);
 		}
 		writer.write("\"");
