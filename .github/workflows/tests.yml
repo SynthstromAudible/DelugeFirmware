@@ -96,6 +96,37 @@ jobs:
           name: Test Results ARMv7
           path: build/spec/results/**/*.xml
 
+  test-build-arm:
+    name: Build test binary for ARMv8
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Set GCC to 14
+        run: |
+          echo "CC=gcc-14" >> $GITHUB_ENV
+          echo "CXX=g++-14" >> $GITHUB_ENV        
+
+      - name: Configure
+        run: cmake -B build -S tests/arm -G Ninja
+
+      - name: Run build
+        run: cmake --build build
+
+      - name: Run CTest
+        run: ctest --output-on-failure --test-dir build --output-junit results/ctest_results.xml
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Test Results ARMv8
+          path: build/results/**/*.xml
+
   event_file:
     name: "Event File"
     runs-on: ubuntu-latest

@@ -46,6 +46,7 @@
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include "util/functions.h"
+#include <utility>
 
 extern "C" {}
 
@@ -1062,7 +1063,8 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 						sessionView.gridHandlePads(xDisplay, yDisplay, on);
 					}
 					// if you pressed the green or blue mode pads, go back to grid view and change mode
-					else if ((yDisplay == GridMode::GREEN) || (yDisplay == GridMode::BLUE)) {
+					else if ((yDisplay == std::to_underlying(GridMode::GREEN))
+					         || (yDisplay == std::to_underlying(GridMode::BLUE))) {
 						releaseViewOnExit(modelStack);
 						changeRootUI(&sessionView);
 						sessionView.gridHandlePads(xDisplay, yDisplay, on);

@@ -98,7 +98,7 @@ struct Processor<StereoSample<Argon<T>>> : SampleProcessor<StereoSample<Argon<T>
 		auto input_it = input_view.begin();
 		auto output_it = output_view.begin();
 		for (; input_it != input_view.end() && output_it != output_view.end(); ++input_it, ++output_it) {
-			auto [left, right] = Argon<T>::LoadInterleaved<2>(&*input_it);
+			auto [left, right] = Argon<T>::template LoadInterleaved<2>(&*input_it);
 			auto [left_out, right_out] = render({left, right});
 			argon::store_interleaved<2>(&*output_it, left_out, right_out);
 		}

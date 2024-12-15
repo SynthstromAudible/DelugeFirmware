@@ -6,7 +6,7 @@
 /.settings/*
 /Deluge.jlink
 /JLinkLog.log
-/build*
+build*
 /e2-build*
 /dbt-build*
 *.launch

@@ -28,9 +28,9 @@ constexpr ptrdiff_t delaySpaceBetweenReadAndWrite = 20;
 
 class DelayBuffer {
 public:
-	constexpr static size_t kMaxSize = 88200;
+	constexpr static size_t kMaxSize = 88200; // 2 seconds
 	constexpr static size_t kMinSize = 1;
-	constexpr static size_t kNeutralSize = 16384;
+	constexpr static size_t kNeutralSize = 16384; // (1 << 14) ??
 
 	DelayBuffer() = default;
 	~DelayBuffer() { discard(); }

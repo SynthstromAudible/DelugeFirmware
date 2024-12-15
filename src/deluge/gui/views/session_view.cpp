@@ -84,6 +84,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <new>
+#include <utility>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -3079,10 +3080,10 @@ void SessionView::selectLayout(int8_t offset) {
 	bool keepFirst = matrixDriver.isPadPressed(gridFirstPressedX, gridFirstPressedY);
 	gridResetPresses(!keepFirst);
 	gridModeActive = gridModeSelected;
-	if (matrixDriver.isPadPressed(kDisplayWidth + 1, GREEN)) {
+	if (matrixDriver.isPadPressed(kDisplayWidth + 1, std::to_underlying(GridMode::GREEN))) {
 		gridModeActive = SessionGridMode::SessionGridModeLaunch;
 	}
-	else if (matrixDriver.isPadPressed(kDisplayWidth + 1, BLUE)) {
+	else if (matrixDriver.isPadPressed(kDisplayWidth + 1, std::to_underlying(GridMode::BLUE))) {
 		gridModeActive = SessionGridMode::SessionGridModeEdit;
 	}
 	// Layout change
@@ -3218,7 +3219,7 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 	bool enableLoopPads =
 	    runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGridViewLoopPads) == RuntimeFeatureStateToggle::On;
 
-	switch (y) {
+	switch (GridMode(y)) {
 	case GridMode::GREEN: {
 		modeActive = (gridModeActive == SessionGridModeLaunch);
 		modeColour = colours::green; // Green
@@ -3231,14 +3232,14 @@ void SessionView::gridRenderActionModes(int32_t y, RGB image[][kDisplayWidth + k
 	}
 	case GridMode::RED: {
 		if (enableLoopPads) {
-			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, RED);
+			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, std::to_underlying(GridMode::RED));
 			modeColour = colours::red; // Red
 		}
 		break;
 	}
 	case GridMode::MAGENTA: {
 		if (enableLoopPads) {
-			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, MAGENTA);
+			modeActive = matrixDriver.isPadPressed(kDisplayWidth + 1, std::to_underlying(GridMode::MAGENTA));
 			modeColour = colours::magenta; // Magenta
 		}
 		break;
@@ -3853,7 +3854,7 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 			gridActiveModeUsed = false;
 			bool enableLoopPads = runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableGridViewLoopPads)
 			                      == RuntimeFeatureStateToggle::On;
-			switch (y) {
+			switch (GridMode(y)) {
 			case GridMode::GREEN: {
 				gridModeActive = SessionGridModeLaunch;
 				break;
@@ -3874,6 +3875,8 @@ ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 				}
 				break;
 			}
+			default:
+				break;
 			}
 		}
 		else {

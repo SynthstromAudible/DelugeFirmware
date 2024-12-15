@@ -1061,7 +1061,7 @@ enum GridDefaultActiveMode : uint8_t {
 };
 
 // mapping of grid modes to y axis
-enum GridMode : uint8_t {
+enum class GridMode : uint8_t {
 	Unassigned0,
 	Unassigned1,
 	Unassigned2,

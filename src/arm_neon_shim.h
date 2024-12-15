@@ -24,7 +24,7 @@
 #define ARM_NEON_SHIM_H
 // this exists to make clang happy because it doesn't use the same types as gcc neon.
 // clangd defins __GNUC__ for us so can't check on that
-#ifndef __clang__
+#if !defined(__clang__)
 #include "arm_neon.h" // IWYU pragma: export
 #else
 

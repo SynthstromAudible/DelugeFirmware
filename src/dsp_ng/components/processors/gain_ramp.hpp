@@ -16,6 +16,9 @@ struct GainRamp : BlockProcessor<T> {
 		}
 	}
 
+	[[nodiscard]] GainType start() const { return start_; }
+	[[nodiscard]] GainType end() const { return end_; }
+
 private:
 	GainType start_;
 	GainType end_;
