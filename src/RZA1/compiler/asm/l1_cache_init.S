@@ -50,6 +50,7 @@ R_CACHE_L1Init:
 	MRC  p15, 0, r0, c1, c0, 0			              /* Read CP15 register 1 */
 	ORR  r0, r0, #(0x1 << 12)			                    /* Enable I Cache */
 	ORR  r0, r0, #(0x1 << 2)			                    /* Enable D Cache */
+	ORR  r0, r0, #(0x1 << 11)                            /* branch prediction */
 	MCR  p15, 0, r0, c1, c0, 0			             /* Write CP15 register 1 */
 
 
