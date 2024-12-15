@@ -1328,7 +1328,7 @@ Error Song::readFromFile(Deserializer& reader) {
 
 	// reverb mode is freeverb for songs that predate having multiple options. New songs will set it to mutable anyway
 	// so this is only used as a fallback
-	AudioEngine::reverb.setModel(deluge::dsp::Reverb::Model::FREEVERB);
+	model = deluge::dsp::Reverb::Model::FREEVERB;
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
