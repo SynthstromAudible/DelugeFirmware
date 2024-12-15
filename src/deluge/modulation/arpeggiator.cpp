@@ -639,11 +639,11 @@ int8_t ArpeggiatorBase::getRandomBipolarProbabilityAmount(ArpeggiatorSettings* s
 	int32_t amHalf = am >> 1;
 	return random(am) - amHalf; // values go from -128 to 127 (8bits)
 }
-int8_t ArpeggiatorBase::getRandomFourWeightedAmount(ArpeggiatorSettings* settings, uint32_t value) {
+int8_t ArpeggiatorBase::getRandomWeightedFourAmount(ArpeggiatorSettings* settings, uint32_t value) {
 	if (value == 0) {
 		return 0;
 	}
-	int32_t maxValue = computeFourWeightedValuesForUnsignedMenuItem(value);
+	int32_t maxValue = computeWeightedFourValuesForUnsignedMenuItem(value);
 	return random(maxValue); // values go from 0 to 3 max
 }
 
@@ -693,7 +693,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		}
 		if (resetLockedRandomizerValuesNextTime || settings->lastLockedSpreadOctaveParameterValue != spreadOctave) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedSpreadOctaveValues[i] = getRandomFourWeightedAmount(settings, spreadOctave);
+				settings->lockedSpreadOctaveValues[i] = getRandomWeightedFourAmount(settings, spreadOctave);
 			}
 			settings->lastLockedSpreadOctaveParameterValue = spreadOctave;
 		}
@@ -726,7 +726,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		isPlayRatchetForCurrentStep = getRandomProbabilityResult(settings, ratchetProbability);
 		spreadVelocityForCurrentStep = -getRandomUnipolarProbabilityAmount(settings, spreadVelocity);
 		spreadGateForCurrentStep = getRandomBipolarProbabilityAmount(settings, spreadGate);
-		spreadOctaveForCurrentStep = getRandomFourWeightedAmount(settings, spreadOctave);
+		spreadOctaveForCurrentStep = getRandomWeightedFourAmount(settings, spreadOctave);
 		// Rest locked values
 		resetLockedRandomizerValuesNextTime = true;
 	}
@@ -1056,11 +1056,11 @@ void ArpeggiatorBase::updateParams(uint32_t rhythmValue, uint32_t sequenceLength
 	// Update live ratchetAmount value with the most up to date value from automation
 	// Convert chordPoly to either 0, 1, 2 or 3 (equivalent to the number of additional chord notes, apart from root
 	// note)
-	chordPolyphony = computeFourWeightedValuesForUnsignedMenuItem(chordPoly);
+	chordPolyphony = computeWeightedFourValuesForUnsignedMenuItem(chordPoly);
 
 	// Update live ratchetAmount value with the most up to date value from automation
 	// Convert ratchAmount to either 0, 1, 2 or 3 (equivalent to a number of ratchets: OFF, 2, 4, 8)
-	ratchetAmount = computeFourWeightedValuesForUnsignedMenuItem(ratchAmount);
+	ratchetAmount = computeWeightedFourValuesForUnsignedMenuItem(ratchAmount);
 
 	// RANDOMIZER
 

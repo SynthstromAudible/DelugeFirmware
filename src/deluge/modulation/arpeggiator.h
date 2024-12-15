@@ -284,7 +284,7 @@ protected:
 	bool getRandomProbabilityResult(ArpeggiatorSettings* settings, uint32_t value);
 	int8_t getRandomUnipolarProbabilityAmount(ArpeggiatorSettings* settings, uint32_t value);
 	int8_t getRandomBipolarProbabilityAmount(ArpeggiatorSettings* settings, uint32_t value);
-	int8_t getRandomFourWeightedAmount(ArpeggiatorSettings* settings, uint32_t value);
+	int8_t getRandomWeightedFourAmount(ArpeggiatorSettings* settings, uint32_t value);
 };
 
 class ArpeggiatorForDrum final : public ArpeggiatorBase {
