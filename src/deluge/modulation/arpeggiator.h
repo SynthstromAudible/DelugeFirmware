@@ -244,13 +244,13 @@ public:
 	uint32_t chordNotesCount = 0;
 
 	// Calculated spread amounts
-	int32_t noteProbabilityAmount = 0;
-	int32_t bassProbabilityAmount = 0;
-	int32_t chordProbabilityAmount = 0;
-	int32_t ratchetProbabilityAmount = 0;
-	int32_t spreadVelocityAmount = 0;
-	int32_t spreadGateAmount = 0;
-	int32_t spreadOctaveAmount = 0;
+	bool isPlayNoteForCurrentStep = true;
+	bool isPlayBassForCurrentStep = false;
+	bool isPlayChordForCurrentStep = false;
+	bool isPlayRatchetForCurrentStep = false;
+	int32_t spreadVelocityForCurrentStep = 0;
+	int32_t spreadGateForCurrentStep = 0;
+	int32_t spreadOctaveForCurrentStep = 0;
 	bool resetLockedRandomizerValuesNextTime = false;
 
 	// Unpatched Automated Params
@@ -281,6 +281,7 @@ protected:
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
+	bool getRandomProbabilityResult(ArpeggiatorSettings* settings, uint32_t value);
 	int8_t getRandomUnipolarProbabilityAmount(ArpeggiatorSettings* settings, uint32_t value);
 	int8_t getRandomBipolarProbabilityAmount(ArpeggiatorSettings* settings, uint32_t value);
 	int8_t getRandomFourWeightedAmount(ArpeggiatorSettings* settings, uint32_t value);

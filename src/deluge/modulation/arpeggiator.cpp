@@ -72,7 +72,6 @@ void ArpeggiatorBase::resetRatchet() {
 	ratchetNotesMultiplier = 0;
 	ratchetNotesCount = 0;
 	ratchetNotesIndex = 0;
-
 }
 void ArpeggiatorBase::resetBase() {
 	// Ratchets
@@ -342,8 +341,7 @@ void ArpeggiatorBase::switchAnyNoteOff(ArpReturnInstruction* instruction) {
 
 // Sets up the ratchet state if the probability is met
 void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
-	int32_t randomChance = random(65535);
-	isRatcheting = (ratchetProbability >> 16) >= randomChance
+	isRatcheting = isPlayRatchetForCurrentStep
 	               && ratchetAmount > 0
 	               // For the highest sync we can't divide the time any more, so not possible to ratchet
 	               && !(settings->syncType == SYNC_TYPE_EVEN && settings->syncLevel == SyncLevel::SYNC_LEVEL_256TH);
@@ -379,26 +377,20 @@ bool ArpeggiatorBase::evaluateRhythm(bool isRatchet) {
 
 // Returns if the arpeggiator should play the next note or not
 bool ArpeggiatorBase::evaluateNoteProbability(bool isRatchet) {
-	// If it is a rachet, use the last value, but it it is not a ratchet, calculate a new probability
-	uint32_t randomChance = random(65535);
-	bool calculatedNoteProbabilityShouldPlay = (noteProbability >> 16) >= randomChance;
-	return isRatchet ? lastNormalNotePlayedFromNoteProbability : calculatedNoteProbabilityShouldPlay;
+	// If it is a rachet, use the last value, but it it is not a ratchet, use the calculated value
+	return isRatchet ? lastNormalNotePlayedFromNoteProbability : isPlayNoteForCurrentStep;
 }
 
 // Returns if the arpeggiator should play the bass note instead of the normal note
 bool ArpeggiatorBase::evaluateBassProbability(bool isRatchet) {
-	// If it is a rachet, use the last value, but it it is not a ratchet, calculate a new probability
-	int32_t randomChance = random(65535);
-	bool calculatedBassProbabilityShouldPlay = (bassProbability >> 16) >= randomChance;
-	return isRatchet ? lastNormalNotePlayedFromBassProbability : calculatedBassProbabilityShouldPlay;
+	// If it is a rachet, use the last value, but it it is not a ratchet, use the calculated value
+	return isRatchet ? lastNormalNotePlayedFromBassProbability : isPlayBassForCurrentStep;
 }
 
 // Returns if the arpeggiator should play a chord instead of the normal note
 bool ArpeggiatorBase::evaluateChordProbability(bool isRatchet) {
-	// If it is a rachet, use the last value, but it it is not a ratchet, calculate a new probability
-	int32_t randomChance = random(65535);
-	bool calculatedChordProbabilityShouldPlay = (chordProbability >> 16) >= randomChance;
-	return isRatchet ? lastNormalNotePlayedFromChordProbability : calculatedChordProbabilityShouldPlay;
+	// If it is a rachet, use the last value, but it it is not a ratchet, use the calculated value
+	return isRatchet ? lastNormalNotePlayedFromChordProbability : isPlayChordForCurrentStep;
 }
 
 void ArpeggiatorBase::carryOnOctaveSequence(ArpeggiatorSettings* settings) {
@@ -498,6 +490,12 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 	}
 
 	bool shouldCarryOnRhythmNote = evaluateRhythm(isRatchet);
+
+	if (shouldCarryOnRhythmNote) {
+		// Calculate randomizer amounts
+		calculateRandomizerAmounts(settings);
+	}
+
 	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
 	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
 	bool shouldPlayChordNote = evaluateChordProbability(isRatchet);
@@ -517,9 +515,6 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			if (stepRepeatIndex == 0) {
 				calculateNextNoteAndOrOctave(settings, chordTypeNoteCount[settings->chordTypeIndex]);
 			}
-
-			// Calculate randomizer amounts
-			calculateRandomizerAmounts(settings);
 
 			// As we have set a note and an octave, we can say we have played a note
 			playedFirstArpeggiatedNoteYet = true;
@@ -572,10 +567,10 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			}
 		}
 		arpNote.baseVelocity = velocity;
-		if (spreadVelocityAmount != 0) {
+		if (spreadVelocityForCurrentStep != 0) {
 			// Now apply velocity spread to the base velocity
 			int32_t signedVelocity = (int32_t)velocity;
-			signedVelocity = signedVelocity + spreadVelocityAmount;
+			signedVelocity = signedVelocity + spreadVelocityForCurrentStep;
 			// And fix it if out of bounds
 			if (signedVelocity < 1) {
 				signedVelocity = 1;
@@ -598,9 +593,9 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		if (note > 127) {
 			note = 127;
 		}
-		if (spreadOctaveAmount != 0) {
+		if (spreadOctaveForCurrentStep != 0) {
 			// Now apply note & octave spread to the base note
-			note = note + spreadOctaveAmount * 12;
+			note = note + spreadOctaveForCurrentStep * 12;
 			// And fix it if out of bounds
 			if (note < 0) {
 				note = 0;
@@ -618,6 +613,14 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		// Rhythm silence: Don't play the note
 		instruction->noteCodeOnPostArp = ARP_NOTE_NONE;
 	}
+}
+
+bool ArpeggiatorBase::getRandomProbabilityResult(ArpeggiatorSettings* settings, uint32_t value) {
+	if (value == 0) {
+		return false;
+	}
+	uint32_t randomChance = random(65535);
+	return (value >> 16) >= randomChance;
 }
 
 int8_t ArpeggiatorBase::getRandomUnipolarProbabilityAmount(ArpeggiatorSettings* settings, uint32_t value) {
@@ -640,7 +643,7 @@ int8_t ArpeggiatorBase::getRandomFourWeightedAmount(ArpeggiatorSettings* setting
 	if (value == 0) {
 		return 0;
 	}
-	int32_t maxValue = computeFourWeightedValuesForStandardMenuItem(value);
+	int32_t maxValue = computeFourWeightedValuesForUnsignedMenuItem(value);
 	return random(maxValue); // values go from 0 to 3 max
 }
 
@@ -650,32 +653,28 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedNoteProbabilityParameterValue != noteProbability) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedNoteProbabilityValues[i] =
-				    getRandomUnipolarProbabilityAmount(settings, noteProbability);
+				settings->lockedNoteProbabilityValues[i] = getRandomProbabilityResult(settings, noteProbability);
 			}
 			settings->lastLockedNoteProbabilityParameterValue = noteProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedBassProbabilityParameterValue != bassProbability) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedBassProbabilityValues[i] =
-				    getRandomUnipolarProbabilityAmount(settings, bassProbability);
+				settings->lockedBassProbabilityValues[i] = getRandomProbabilityResult(settings, bassProbability);
 			}
 			settings->lastLockedBassProbabilityParameterValue = bassProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedChordProbabilityParameterValue != chordProbability) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedChordProbabilityValues[i] =
-				    getRandomUnipolarProbabilityAmount(settings, chordProbability);
+				settings->lockedChordProbabilityValues[i] = getRandomProbabilityResult(settings, chordProbability);
 			}
 			settings->lastLockedChordProbabilityParameterValue = chordProbability;
 		}
 		if (resetLockedRandomizerValuesNextTime
 		    || settings->lastLockedRatchetProbabilityParameterValue != ratchetProbability) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedRatchetProbabilityValues[i] =
-				    getRandomUnipolarProbabilityAmount(settings, ratchetProbability);
+				settings->lockedRatchetProbabilityValues[i] = getRandomProbabilityResult(settings, ratchetProbability);
 			}
 			settings->lastLockedRatchetProbabilityParameterValue = ratchetProbability;
 		}
@@ -700,31 +699,34 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		}
 		resetLockedRandomizerValuesNextTime = false;
 
-		noteProbabilityAmount =
-		    settings->lockedNoteProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
-		bassProbabilityAmount =
-		    settings->lockedBassProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
-		chordProbabilityAmount =
-		    settings->lockedChordProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
-		ratchetProbabilityAmount =
-		    settings
-		        ->lockedRatchetProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
-		spreadVelocityAmount =
+		isPlayNoteForCurrentStep =
+		    settings->lockedNoteProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
+		    != 0;
+		isPlayBassForCurrentStep =
+		    settings->lockedBassProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
+		    != 0;
+		isPlayChordForCurrentStep =
+		    settings->lockedChordProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
+		    != 0;
+		isPlayRatchetForCurrentStep =
+		    settings->lockedRatchetProbabilityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES]
+		    != 0;
+		spreadVelocityForCurrentStep =
 		    settings->lockedSpreadVelocityValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
-		spreadGateAmount =
+		spreadGateForCurrentStep =
 		    settings->lockedSpreadGateValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
-		spreadOctaveAmount =
+		spreadOctaveForCurrentStep =
 		    settings->lockedSpreadOctaveValues[notesPlayedFromLockedRandomizer % RANDOMIZER_LOCK_MAX_SAVED_VALUES];
 	}
 	else {
 		// Lively create new randomized values on the fly each time a note is played
-		noteProbabilityAmount = getRandomUnipolarProbabilityAmount(settings, noteProbability);
-		bassProbabilityAmount = getRandomUnipolarProbabilityAmount(settings, bassProbability);
-		chordProbabilityAmount = getRandomUnipolarProbabilityAmount(settings, chordProbability);
-		ratchetProbabilityAmount = getRandomUnipolarProbabilityAmount(settings, ratchetProbability);
-		spreadVelocityAmount = -getRandomUnipolarProbabilityAmount(settings, spreadVelocity);
-		spreadGateAmount = getRandomBipolarProbabilityAmount(settings, spreadGate);
-		spreadOctaveAmount = getRandomFourWeightedAmount(settings, spreadOctave);
+		isPlayNoteForCurrentStep = getRandomProbabilityResult(settings, noteProbability);
+		isPlayBassForCurrentStep = getRandomProbabilityResult(settings, bassProbability);
+		isPlayChordForCurrentStep = getRandomProbabilityResult(settings, chordProbability);
+		isPlayRatchetForCurrentStep = getRandomProbabilityResult(settings, ratchetProbability);
+		spreadVelocityForCurrentStep = -getRandomUnipolarProbabilityAmount(settings, spreadVelocity);
+		spreadGateForCurrentStep = getRandomBipolarProbabilityAmount(settings, spreadGate);
+		spreadOctaveForCurrentStep = getRandomFourWeightedAmount(settings, spreadOctave);
 		// Rest locked values
 		resetLockedRandomizerValuesNextTime = true;
 	}
@@ -896,6 +898,12 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 	}
 
 	bool shouldCarryOnRhythmNote = evaluateRhythm(isRatchet);
+
+	if (shouldCarryOnRhythmNote) {
+		// Calculate randomizer amounts
+		calculateRandomizerAmounts(settings);
+	}
+
 	bool shouldPlayNote = evaluateNoteProbability(isRatchet);
 	bool shouldPlayBassNote = evaluateBassProbability(isRatchet);
 	bool shouldPlayChordNote = evaluateChordProbability(isRatchet);
@@ -915,9 +923,6 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			if (stepRepeatIndex == 0) {
 				calculateNextNoteAndOrOctave(settings, (uint8_t)notes.getNumElements());
 			}
-
-			// Calculate randomizer amounts
-			calculateRandomizerAmounts(settings);
 
 			// As we have set a note and an octave, we can say we have played a note
 			playedFirstArpeggiatedNoteYet = true;
@@ -982,10 +987,10 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			}
 		}
 		arpNote->baseVelocity = velocity;
-		if (spreadVelocityAmount != 0) {
+		if (spreadVelocityForCurrentStep != 0) {
 			// Now apply velocity spread to the base velocity
 			int32_t signedVelocity = (int32_t)velocity;
-			signedVelocity = signedVelocity + spreadVelocityAmount;
+			signedVelocity = signedVelocity + spreadVelocityForCurrentStep;
 			// And fix it if out of bounds
 			if (signedVelocity < 1) {
 				signedVelocity = 1;
@@ -1004,9 +1009,9 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		if (note > 127) {
 			note = 127;
 		}
-		if (spreadOctaveAmount != 0) {
+		if (spreadOctaveForCurrentStep != 0) {
 			// Now apply note & octave spread to the base note
-			note = note + spreadOctaveAmount * 12;
+			note = note + spreadOctaveForCurrentStep * 12;
 			// And fix it if out of bounds
 			if (note < 0) {
 				note = 0;
@@ -1051,11 +1056,11 @@ void ArpeggiatorBase::updateParams(uint32_t rhythmValue, uint32_t sequenceLength
 	// Update live ratchetAmount value with the most up to date value from automation
 	// Convert chordPoly to either 0, 1, 2 or 3 (equivalent to the number of additional chord notes, apart from root
 	// note)
-	chordPolyphony = computeFourWeightedValuesForStandardMenuItem(chordPoly);
+	chordPolyphony = computeFourWeightedValuesForUnsignedMenuItem(chordPoly);
 
 	// Update live ratchetAmount value with the most up to date value from automation
 	// Convert ratchAmount to either 0, 1, 2 or 3 (equivalent to a number of ratchets: OFF, 2, 4, 8)
-	ratchetAmount = computeFourWeightedValuesForStandardMenuItem(ratchAmount);
+	ratchetAmount = computeFourWeightedValuesForUnsignedMenuItem(ratchAmount);
 
 	// RANDOMIZER
 
@@ -1099,21 +1104,23 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 		// shorten gate in case we are ratcheting (with the calculated number of ratchet notes)
 		gateThresholdSmall = gateThresholdSmall >> ratchetNotesMultiplier;
 	}
-	if (spreadGateAmount != 0) {
+	if (spreadGateForCurrentStep != 0) {
 		// Apply spread to gate threshold
 		int32_t signedGateThreshold = (int32_t)gateThresholdSmall;
 		if (isRatcheting) {
 			// Need to reduce the spread amount by the same ratchet multiplier
-			if (spreadGateAmount < 0) {
+			if (spreadGateForCurrentStep < 0) {
 				// If amount negative, do the correct math
-				signedGateThreshold = signedGateThreshold - (((-spreadGateAmount) << 17) >> ratchetNotesMultiplier);
+				signedGateThreshold =
+				    signedGateThreshold - (((-spreadGateForCurrentStep) << 17) >> ratchetNotesMultiplier);
 			}
 			else {
-				signedGateThreshold = signedGateThreshold + ((spreadGateAmount << 17) >> ratchetNotesMultiplier);
+				signedGateThreshold =
+				    signedGateThreshold + ((spreadGateForCurrentStep << 17) >> ratchetNotesMultiplier);
 			}
 		}
 		else {
-			signedGateThreshold = signedGateThreshold + (spreadGateAmount << 17);
+			signedGateThreshold = signedGateThreshold + (spreadGateForCurrentStep << 17);
 		}
 		// And fix it if out of bounds
 		if (signedGateThreshold < 0) {
