@@ -240,9 +240,10 @@ void L2CacheFlushAll(void)
 void L2CacheEnable(void)
 {
     L2C.REG2_INT_CLEAR   = 0x000001FFuL; /* Clear the reg2_int_raw_status register */
-    L2C.REG9_D_LOCKDOWN0 = 0x00000000uL;
-
-    L2C.REG1_CONTROL = 0x00000001uL; /* Enable L2 cache */
+    L2C.REG9_D_LOCKDOWN0 = 0xFFFFFFFFuL; // lock the data cache - we need a lot of work around invalidating it with DMA
+                                         // before it can be used
+    L2C.REG9_I_LOCKDOWN0 = 0x00000000uL; // unlock the instruction cache
+    L2C.REG1_CONTROL     = 0x00000001uL; /* Enable L2 cache */
 }
 
 /******************************************************************************
@@ -254,6 +255,13 @@ void L2CacheEnable(void)
 void L2CacheDisable(void)
 {
     L2C.REG1_CONTROL = 0x00000000uL; /* Disable L2 cache */
+}
+
+void L2CacheInit(void)
+{
+    L2CacheDisable();
+    L2CacheFlushAll();
+    L2CacheEnable();
 }
 
 /* End of File */

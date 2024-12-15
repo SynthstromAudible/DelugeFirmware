@@ -130,6 +130,7 @@ enable_mmu:
     MRC  p15, 0, r0, c1, c0, 0     /* Read CP15 System Control register (SCTLR) */
     BIC  r0, r0, #(0x1 << 12)             /* Clear I bit 12 to disable I Cache */
     BIC  r0, r0, #(0x1 <<  2)             /* Clear C bit  2 to disable D Cache */
+    BIC  r0, r0, #(0x1 <<  1)          /* Clear C bit  1 to disable btac Cache */
     BIC  r0, r0, #0x2       /* Clear A bit 1 to disable alignment fault check */
     ORR  r0, r0, #0x1      /* Set M bit 1 to enable MMU before scatter loading */
     MCR  p15, 0, r0, c1, c0, 0            /* Write CP15 System Control register */
