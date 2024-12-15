@@ -269,11 +269,10 @@ public:
 protected:
 	void calculateNextNoteAndOrOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
 	void setInitialNoteAndOctave(ArpeggiatorSettings* settings, uint8_t numActiveNotes);
+	void resetBase();
 	void resetRatchet();
-	void resetRhythm();
-	void resetLockedRandomizer();
 	void carryOnOctaveSequence(ArpeggiatorSettings* settings);
-	void increaseIndexes(bool hasPlayedRhythmNote);
+	void increaseIndexes(bool hasPlayedRhythmNote, uint8_t numStepRepeats);
 	void maybeSetupNewRatchet(ArpeggiatorSettings* settings);
 	bool evaluateRhythm(bool isRatchet);
 	bool evaluateNoteProbability(bool isRatchet);

@@ -1887,7 +1887,6 @@ justUnassign:
 }
 
 void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator) {
-
 	arpeggiator->reset();
 
 #if ALPHA_OR_BETA_VERSION

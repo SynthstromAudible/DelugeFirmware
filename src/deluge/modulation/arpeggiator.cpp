@@ -56,31 +56,35 @@ Arpeggiator::Arpeggiator() : notes(sizeof(ArpNote), 16, 0, 8, 8), notesAsPlayed(
 	notesAsPlayed.emptyingShouldFreeMemory = false;
 }
 
+void Arpeggiator::reset() {
+	notes.empty();
+	notesAsPlayed.empty();
+}
+
 // Surely this shouldn't be quite necessary?
 void ArpeggiatorForDrum::reset() {
 	arpNote.velocity = 0;
 }
 
 void ArpeggiatorBase::resetRatchet() {
+	// Ratchets
 	isRatcheting = false;
 	ratchetNotesMultiplier = 0;
 	ratchetNotesCount = 0;
 	ratchetNotesIndex = 0;
-}
 
-void ArpeggiatorBase::resetRhythm() {
+}
+void ArpeggiatorBase::resetBase() {
+	// Ratchets
+	resetRatchet();
+	// Rhythm
 	notesPlayedFromRhythm = 0;
 	lastNormalNotePlayedFromRhythm = 0;
-}
-
-void ArpeggiatorBase::resetLockedRandomizer() {
+	// Randomizer
 	notesPlayedFromLockedRandomizer = 0;
 	lastNormalNotePlayedFromLockedRandomizer = 0;
-}
-
-void Arpeggiator::reset() {
-	notes.empty();
-	notesAsPlayed.empty();
+	// Step repeat
+	stepRepeatIndex = 0;
 }
 
 void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity,
@@ -315,7 +319,6 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 			if (isRatcheting && (ratchetNotesIndex >= ratchetNotesCount || !playbackHandler.isEitherClockActive())) {
 				// If it was ratcheting but it reached the last note in the ratchet or play was stopped
 				// then we can reset the ratchet temp values in advance
-
 				resetRatchet();
 			}
 		}
@@ -324,9 +327,7 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 	if (notes.getNumElements() == 0) {
 		// Playback was stopped, or, at least, all notes have been released
 		// so we can reset the ratchet temp values and the rhythm temp values
-		resetRatchet();
-		resetRhythm();
-		resetLockedRandomizer();
+		resetBase();
 		playedFirstArpeggiatedNoteYet = false;
 	}
 }
@@ -446,7 +447,7 @@ void ArpeggiatorBase::carryOnOctaveSequence(ArpeggiatorSettings* settings) {
 }
 
 // Increase random, sequence, rhythm and spread indexes
-void ArpeggiatorBase::increaseIndexes(bool hasPlayedRhythmNote) {
+void ArpeggiatorBase::increaseIndexes(bool hasPlayedRhythmNote, uint8_t numStepRepeats) {
 	// Randome Notes
 	randomNotesPlayedFromOctave++;
 	// Sequence Length
@@ -464,6 +465,9 @@ void ArpeggiatorBase::increaseIndexes(bool hasPlayedRhythmNote) {
 
 		// Only increase stepRepeatIndex if we've played a rhythm note
 		stepRepeatIndex++;
+		if (stepRepeatIndex >= numStepRepeats) {
+			stepRepeatIndex = 0;
+		}
 	}
 }
 
@@ -510,9 +514,8 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			maybeSetupNewRatchet(settings);
 
 			// Move indexes to the next note in the sequence
-			if (stepRepeatIndex >= settings->numStepRepeats) {
+			if (stepRepeatIndex == 0) {
 				calculateNextNoteAndOrOctave(settings, chordTypeNoteCount[settings->chordTypeIndex]);
-				stepRepeatIndex = -1; // it will be increased to 0 on the increaseIndexes call
 			}
 
 			// Calculate randomizer amounts
@@ -538,7 +541,7 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
-		increaseIndexes(shouldCarryOnRhythmNote);
+		increaseIndexes(shouldCarryOnRhythmNote, settings->numStepRepeats);
 	}
 
 	if (shouldCarryOnRhythmNote && shouldPlayNote) {
@@ -937,7 +940,7 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		}
 
 		// Increase steps played from the sequence or rhythm for both silent and non-silent notes
-		increaseIndexes(shouldCarryOnRhythmNote);
+		increaseIndexes(shouldCarryOnRhythmNote, settings->numStepRepeats);
 	}
 
 	// Clamp the index to real range
