@@ -912,9 +912,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			maybeSetupNewRatchet(settings);
 
 			// Move indexes to the next note in the sequence
-			if (stepRepeatIndex >= settings->numStepRepeats) {
+			if (stepRepeatIndex == 0) {
 				calculateNextNoteAndOrOctave(settings, (uint8_t)notes.getNumElements());
-				stepRepeatIndex = -1; // it will be increased to 0 on the increaseIndexes call
 			}
 
 			// Calculate randomizer amounts
