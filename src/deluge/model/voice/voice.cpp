@@ -3259,9 +3259,9 @@ storePhase:
 	}
 }
 
-bool Voice::doFastRelease(uint32_t releaseIncrement) {
+bool Voice::forceNormalRelease() {
 	if (doneFirstRender) {
-		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, releaseIncrement);
+		envelopes[0].unconditionalRelease(EnvelopeStage::RELEASE);
 		return true;
 	}
 
@@ -3271,9 +3271,9 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	}
 }
 
-bool Voice::forceNormalRelease() {
+bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	if (doneFirstRender) {
-		envelopes[0].unconditionalRelease();
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, releaseIncrement);
 		return true;
 	}
 

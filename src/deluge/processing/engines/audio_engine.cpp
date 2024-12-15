@@ -485,9 +485,9 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
 		// If it's real dire, do a proper immediate cull
-		if (numSamplesOverLimit >= 20) {
+		if (numSamplesOverLimit >= 32) {
 
-			numToCull = (numSamplesOverLimit >> 3);
+			numToCull = (numSamplesOverLimit / 32);
 
 			// leave at least 7 - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
@@ -689,7 +689,7 @@ void renderAudio(size_t numSamples) {
 
 		currentSong->renderAudio(renderingBuffer.data(), numSamples, reverbBuffer.data(), sideChainHitPending);
 	}
-
+	yield([]() { return true; }); // let something else run if it needs to
 	renderReverb(numSamples);
 
 	renderSamplePreview(numSamples);
@@ -1098,6 +1098,7 @@ void routine() {
 			}
 		}
 	}
+	bypassCulling = false;
 	audioRoutineLocked = false;
 }
 

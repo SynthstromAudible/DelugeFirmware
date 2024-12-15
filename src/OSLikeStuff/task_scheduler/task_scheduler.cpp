@@ -161,7 +161,7 @@ void TaskManager::ignoreForStats() {
 
 Time TaskManager::getAverageRunTimeForCurrentTask() {
 	auto currentTask = &list[currentID];
-	return currentTask->durationStats.average;
+	return currentTask->durationStatsTotalTime.average;
 }
 
 void TaskManager::setNextRunTimeforCurrentTask(Time seconds) {
@@ -173,13 +173,16 @@ void TaskManager::runTask(TaskID id) {
 	countThisTask = true;
 	auto timeNow = getSecondsFromStart();
 	Time startTime = timeNow;
+
 	// this includes ISR time as well as the scheduler's own time, such as calculating and printing stats
 	overhead += timeNow - lastFinishTime;
 	currentID = id;
 	auto currentTask = &list[currentID];
+	currentTask->lastCallTime = timeNow;
 	if (!currentTask->schedule.reentrant) {
-		currentTask->state = State::QUEUED;
+		currentTask->state = State::RUNNING;
 	}
+	currentTask->lastRunTime = 0; // this is added to in order to properly account for time spent yielding
 	currentTask->handle();
 	currentTask->state = State::READY;
 	timeNow = getSecondsFromStart();
@@ -189,12 +192,11 @@ void TaskManager::runTask(TaskID id) {
 		removeTask(id);
 	}
 	else {
-		if (countThisTask) {
+
 #if SCHEDULER_DETAILED_STATS
-			currentTask->latency.update(startTime - currentTask->lastCallTime);
+		currentTask->latency.update(startTime - currentTask->lastCallTime);
 #endif
-			currentTask->updateNextTimes(startTime, runtime);
-		}
+		currentTask->updateNextTimes(startTime, runtime, countThisTask);
 	}
 	currentTask->lastFinishTime = timeNow;
 	lastFinishTime = timeNow;
@@ -225,9 +227,10 @@ bool TaskManager::yield(RunCondition until, Time timeout) {
 	else {
 		yieldingTask->lastFinishTime = timeNow; // update this so it's in its back off window
 		if (countThisTask) {
-			yieldingTask->durationStats.update(runtime);
+			yieldingTask->durationStats.update(
+			    runtime); // time from start to yield is more relevant for scheduling than total runtime
 			yieldingTask->totalTime += runtime;
-			yieldingTask->lastRunTime = runtime;
+			yieldingTask->lastRunTime += runtime;
 			yieldingTask->timesCalled += 1;
 		}
 	}

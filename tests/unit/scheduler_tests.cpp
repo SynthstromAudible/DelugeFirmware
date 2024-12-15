@@ -63,7 +63,7 @@ TEST(Scheduler, schedule) {
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
-	addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sleep_50ns");
+	addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sleep_50ns", true);
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
 	mock().checkExpectations();
@@ -72,7 +72,7 @@ TEST(Scheduler, schedule) {
 TEST(Scheduler, remove) {
 	static SelfRemoving selfRemoving;
 
-	TaskID id = addRepeatingTask([]() { selfRemoving.runFiveTimes(); }, 0, 0.001, 0.001, 0.001, "run five times");
+	TaskID id = addRepeatingTask([]() { selfRemoving.runFiveTimes(); }, 0, 0.001, 0.001, 0.001, "run five times", true);
 	selfRemoving.id = id;
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
@@ -97,8 +97,7 @@ TEST(Scheduler, scheduleConditional) {
 	mock().clear();
 	mock().expectNCalls(1, "sleep_50ns");
 	// will load as blocked but immediately pass condition
-	addConditionalTask(
-	    sleep_50ns, 0, []() { return true; }, "sleep 50ns");
+	addConditionalTask(sleep_50ns, 0, []() { return true; }, "sleep 50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
 	mock().checkExpectations();
@@ -108,8 +107,7 @@ TEST(Scheduler, scheduleConditionalDoesntRun) {
 	mock().clear();
 	mock().expectNCalls(0, "sleep_50ns");
 	// will load as blocked but immediately pass condition
-	addConditionalTask(
-	    sleep_50ns, 0, []() { return false; }, "sleep 50ns");
+	addConditionalTask(sleep_50ns, 0, []() { return false; }, "sleep 50ns");
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.0095);
 	mock().checkExpectations();
@@ -119,7 +117,7 @@ TEST(Scheduler, backOffTime) {
 	mock().clear();
 	// will be called one less time due to the time the sleep takes not being zero
 	mock().expectNCalls(9, "sleep_50ns");
-	addRepeatingTask(sleep_50ns, 1, 0.01, 0.001, 1.0, "sleep_50ns");
+	addRepeatingTask(sleep_50ns, 1, 0.01, 0.001, 1.0, "sleep_50ns", true);
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
 	taskManager.start(0.1);
 	mock().checkExpectations();
@@ -131,7 +129,7 @@ TEST(Scheduler, scheduleOnceWithRepeating) {
 	mock().expectNCalls(0.01 / 0.001 - 2, "sleep_50ns");
 	mock().expectNCalls(1, "sleep_2ms");
 	// every 1ms sleep for 50ns and 10ns
-	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep_50ns");
+	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep_50ns", true);
 	addOnceTask(sleep_2ms, 11, 0, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.01);
@@ -144,7 +142,7 @@ TEST(Scheduler, yield) {
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_50ns");
 	mock().expectNCalls(1, "yield_2ms");
 	// every 1ms sleep for 50ns and 10ns
-	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep_50ns");
+	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep_50ns", true);
 	addOnceTask(yield_2ms, 2, 0, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.01);
@@ -156,7 +154,7 @@ TEST(Scheduler, removeWithPriZero) {
 	mock().expectNCalls((0.01 - 0.002) / 0.001, "sleep_50ns");
 	mock().expectNCalls(2, "sleep_2ms");
 	// every 1ms sleep for 50ns and 10ns
-	addRepeatingTask(sleep_50ns, 0, 0.00099, 0.00099, 0.001, "sleep 50ns");
+	addRepeatingTask(sleep_50ns, 0, 0.00099, 0.00099, 0.001, "sleep 50ns", true);
 
 	addOnceTask(sleep_2ms, 11, 0.002, "sleep 2 ms");
 
@@ -207,8 +205,8 @@ TEST(Scheduler, scheduleMultiple) {
 	mock().expectNCalls(0.01 / 0.001 - 1, "sleep_20ns");
 	mock().expectNCalls(1, "sleep_2ms");
 	// every 1ms sleep for 50ns and 10ns
-	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep 50ns");
-	addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001, "sleep 20ns");
+	addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep 50ns", true);
+	addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001, "sleep 20ns", true);
 	addOnceTask(sleep_2ms, 11, 0.0094, "sleep 2ms");
 	// run the scheduler for 10ms
 	taskManager.start(0.0095);
@@ -225,9 +223,9 @@ TEST(Scheduler, overSchedule) {
 	mock().expectNCalls(0.006 / 0.001, "sleep_20ns");
 
 	// every 1ms sleep for 50ns and 10ns
-	auto fiftynshandle = addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep 50ns");
-	auto tennshandle = addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001, "sleep 20ns");
-	auto twomsHandle = addRepeatingTask(sleep_2ms, 100, 0.001, 0.002, 0.005, "sleep 2ms");
+	auto fiftynshandle = addRepeatingTask(sleep_50ns, 10, 0.001, 0.001, 0.001, "sleep 50ns", true);
+	auto tennshandle = addRepeatingTask(sleep_20ns, 0, 0.001, 0.001, 0.001, "sleep 20ns", true);
+	auto twomsHandle = addRepeatingTask(sleep_2ms, 100, 0.001, 0.002, 0.005, "sleep 2ms", true);
 	// run the scheduler for 10ms
 	taskManager.start(0.0099);
 

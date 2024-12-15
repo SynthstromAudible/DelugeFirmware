@@ -1331,6 +1331,7 @@ void AudioFileManager::loadAnyEnqueuedClusters(int32_t maxNum, bool mayProcessUs
 		        // the card right now
 	}
 	if (AudioEngine::audioRoutineLocked) {
+		ignoreForStats();
 		return; // Not sure if this should be neccesary?
 	}
 

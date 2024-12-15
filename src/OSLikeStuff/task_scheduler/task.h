@@ -58,6 +58,7 @@ struct TaskSchedule {
 enum class State {
 	BLOCKED,
 	QUEUED,
+	RUNNING,
 	READY,
 };
 
@@ -80,17 +81,21 @@ struct Task {
 		schedule = {priority, false, 0, 0, 0};
 	}
 
-	void updateNextTimes(Time startTime, Time runtime) {
+	void updateNextTimes(Time startTime, Time runtime, bool updateDurations) {
 
 		lastCallTime = startTime;
 
-		durationStats.update(runtime);
 		totalTime += runtime;
-		lastRunTime = runtime;
-		timesCalled += 1;
+		lastRunTime += runtime;
+		if (updateDurations) {
+			durationStats.update(runtime);
+			durationStatsTotalTime.update(lastRunTime);
+			idealCallTime = startTime + schedule.targetInterval - durationStatsTotalTime.average;
+			latestCallTime = startTime + schedule.maxInterval - durationStatsTotalTime.average;
+		}
 
-		idealCallTime = startTime + schedule.targetInterval - durationStats.average;
-		latestCallTime = startTime + schedule.maxInterval - durationStats.average;
+		lastRunTime = 0;
+		timesCalled += 1;
 	}
 	// returns true if the task becomes runnable
 	bool checkCondition() {
@@ -115,7 +120,8 @@ struct Task {
 	Time lastCallTime{-1};
 	Time lastFinishTime{0};
 
-	StatBlock durationStats;
+	StatBlock durationStats;          // tracks average runtime or time  between yields
+	StatBlock durationStatsTotalTime; // tracks average runtime only
 #if SCHEDULER_DETAILED_STATS
 	StatBlock latency;
 #endif
