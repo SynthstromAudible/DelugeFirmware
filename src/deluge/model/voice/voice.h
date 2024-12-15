@@ -116,6 +116,10 @@ public:
 	/// Returns whether voice should still be left active
 	bool doImmediateRelease();
 
+	bool forceNormalRelease();
+
+	bool speedUpRelease();
+
 private:
 	// inline int32_t doFM(uint32_t *carrierPhase, uint32_t* lastShiftedPhase, uint32_t carrierPhaseIncrement, uint32_t
 	// phaseShift);

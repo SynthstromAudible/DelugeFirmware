@@ -3271,6 +3271,37 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	}
 }
 
+bool Voice::forceNormalRelease() {
+	if (doneFirstRender) {
+		envelopes[0].unconditionalRelease();
+		return true;
+	}
+
+	// Or if first render not done yet, we actually don't want to hear anything at all, so just unassign it
+	else {
+		return false;
+	}
+}
+
+bool Voice::speedUpRelease() {
+	auto stage = envelopes[0].state;
+	if (stage == EnvelopeStage::RELEASE) {
+		auto currentRelease = paramFinalValues[params::LOCAL_ENV_0_RELEASE];
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, currentRelease * 2);
+		return true;
+	}
+	else if (stage == EnvelopeStage::FAST_RELEASE) {
+		auto currentRelease = envelopes[0].fastReleaseIncrement;
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, currentRelease * 2);
+		return true;
+	}
+
+	// Or if we're not releasing just start the release
+	else {
+		return forceNormalRelease();
+	}
+}
+
 bool Voice::doImmediateRelease() {
 	if (doneFirstRender) {
 		envelopes[0].unconditionalOff();

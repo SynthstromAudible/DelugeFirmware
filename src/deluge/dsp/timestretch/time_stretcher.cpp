@@ -356,7 +356,7 @@ bool TimeStretcher::hopEnd(SamplePlaybackGuide* guide, VoiceSample* voiceSample,
 		// lookahead = interpolateTableSigned(position, 27, lookaheadCoarse, 2) >> 16;
 	}
 
-	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
+	//	D_PRINTLN("maxBeamWidth:  %d", maxBeamWidth);
 
 	/*
 	minBeamWidth = StorageManager::devVarA * 10;
@@ -659,7 +659,7 @@ skipPercStuff:
 		// for searching in one direction, and we're going to do both directions.
 		int32_t limit = (sample->sampleRate / 45) >> 1;
 		maxSearchSize = std::min(maxSearchSize, limit);
-		D_PRINTLN("max search length:  %d", maxSearchSize);
+		//		D_PRINTLN("max search length:  %d", maxSearchSize);
 
 		int32_t numFullDirectionsSearched = 0;
 		int32_t timesSignFlipped = 0;
