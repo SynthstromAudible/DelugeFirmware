@@ -15,10 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
+#include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/non_audio_drum.h"
+#include "model/instrument/kit.h"
 #include "model/song/song.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
@@ -26,14 +30,38 @@ class SpreadOctave final : public Integer {
 public:
 	using Integer::Integer;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForUnsignedMenuItem(getCurrentInstrumentClip()->arpeggiatorSpreadOctave));
+		Clip* currentClip = getCurrentInstrumentClip();
+		if (currentClip->output->type == OutputType::KIT) {
+			Drum* currentDrum = ((Kit*)currentClip->output)->selectedDrum;
+			if (currentDrum != nullptr
+			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
+				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
+				this->setValue(computeCurrentValueForUnsignedMenuItem(nonAudioDrum->arpeggiatorSpreadOctave));
+			}
+		}
+		else if (currentClip->type == ClipType::INSTRUMENT) {
+			this->setValue(
+			    computeCurrentValueForUnsignedMenuItem(((InstrumentClip*)currentClip)->arpeggiatorSpreadOctave));
+		}
 	}
 	void writeCurrentValue() override {
-		getCurrentInstrumentClip()->arpeggiatorSpreadOctave = computeFinalValueForUnsignedMenuItem(this->getValue());
+		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
+		Clip* currentClip = getCurrentClip();
+		if (currentClip->output->type == OutputType::KIT) {
+			Drum* currentDrum = ((Kit*)currentClip->output)->selectedDrum;
+			if (currentDrum != nullptr
+			    && (currentDrum->type == DrumType::MIDI || currentDrum->type == DrumType::GATE)) {
+				auto* nonAudioDrum = (NonAudioDrum*)currentDrum;
+				nonAudioDrum->arpeggiatorSpreadOctave = value;
+			}
+		}
+		else if (currentClip->type == ClipType::INSTRUMENT) {
+			((InstrumentClip*)currentClip)->arpeggiatorSpreadOctave = value;
+		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return soundEditor.editingCVOrMIDIClip();
+		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow();
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

@@ -26,6 +26,23 @@ class NonAudioDrum : public Drum, public ModControllable {
 public:
 	NonAudioDrum(DrumType newType);
 
+	int32_t arpeggiatorRate;
+	int32_t arpeggiatorGate;
+
+	// Rhythm
+	uint32_t arpeggiatorRhythm;
+	uint32_t arpeggiatorSequenceLength;
+	uint32_t arpeggiatorChordPolyphony;
+	uint32_t arpeggiatorRatchetAmount;
+	// Randomizer
+	uint32_t arpeggiatorNoteProbability;
+	uint32_t arpeggiatorBassProbability;
+	uint32_t arpeggiatorChordProbability;
+	uint32_t arpeggiatorRatchetProbability;
+	uint32_t arpeggiatorSpreadVelocity;
+	uint32_t arpeggiatorSpreadGate;
+	uint32_t arpeggiatorSpreadOctave;
+
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final;
 	bool anyNoteIsOn() final;
 	bool hasAnyVoices() final;
@@ -43,6 +60,14 @@ public:
 
 	uint8_t channel;
 	int8_t channelEncoderCurrentOffset;
+
+	ArpeggiatorBase* getArp() { return &arpeggiator; }
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
+
+	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) = 0;
+	virtual void noteOffPostArp(int32_t noteCodePostArp) = 0;
+
+	void writeArpeggiatorToFile(Serializer& writer);
 
 protected:
 	void modChange(ModelStackWithThreeMainThings* modelStack, int32_t offset, int8_t* encoderOffset, uint8_t* value,

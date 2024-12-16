@@ -175,7 +175,7 @@
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/MPE.h"
 #include "gui/menu_item/submenu/actual_source.h"
-#include "gui/menu_item/submenu/arpeggiator.h"
+#include "gui/menu_item/submenu/arp_mpe_submenu.h"
 #include "gui/menu_item/submenu/bend.h"
 #include "gui/menu_item/submenu/envelope.h"
 #include "gui/menu_item/submenu/modulator.h"
@@ -253,9 +253,6 @@ arpeggiator::OnlyForSoundUnpatchedParam arpRatchetAmountMenu{
     STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE, params::UNPATCHED_ARP_RATCHET_AMOUNT};
 arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMBER_OF_RATCHETS,
                                                                  STRING_FOR_ARP_RATCHETS_MENU_TITLE};
-Submenu arpLimitsMenu{STRING_FOR_LIMITS,
-                      {&arpSequenceLengthMenu, &arpSequenceLengthMenuMIDIOrCV, &arpChordPolyphonyMenu,
-                       &arpChordPolyphonyMenuMIDIOrCV, &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV}};
 // Randomizer
 arpeggiator::RandomizerLock arpRandomizerLockMenu{STRING_FOR_RANDOMIZER_LOCK, STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpNoteProbabilityMenu{
@@ -290,17 +287,16 @@ arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD
 
 // Arp: Randomizer
 Submenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
-                          {&arpRandomizerLockMenu, &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
-                           &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV, &arpChordProbabilityMenu,
-                           &arpChordProbabilityMenuMIDIOrCV, &arpRatchetProbabilityMenu,
-                           &arpRatchetProbabilityMenuMIDIOrCV, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV,
-                           &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu,
-                           &arpSpreadOctaveMenuMIDIOrCV}};
+                          {&arpRandomizerLockMenu, &arpRatchetProbabilityMenu, &arpRatchetProbabilityMenuMIDIOrCV,
+                           &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV, &arpBassProbabilityMenu,
+                           &arpBassProbabilityMenuMIDIOrCV, &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV,
+                           &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV, &arpSpreadGateMenu,
+                           &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV}};
 // Arp: MPE
 arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
-Submenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
+submenu::ArpMpeSubmenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
 
-submenu::Arpeggiator arpMenu{
+Submenu arpMenu{
     STRING_FOR_ARPEGGIATOR,
     {
         // Mode
@@ -320,7 +316,12 @@ submenu::Arpeggiator arpMenu{
         &arpGateMenuMIDIOrCV,
         &arpRhythmMenu,
         &arpRhythmMenuMIDIOrCV,
-        &arpLimitsMenu,
+        &arpSequenceLengthMenu,
+        &arpSequenceLengthMenuMIDIOrCV,
+        &arpChordPolyphonyMenu,
+        &arpChordPolyphonyMenuMIDIOrCV,
+        &arpRatchetAmountMenu,
+        &arpRatchetAmountMenuMIDIOrCV,
         // Randomizer
         &arpRandomizerMenu,
         // MPE
@@ -780,6 +781,10 @@ const MenuItem* midiOrCVParamShortcuts[8] = {
     nullptr,
     nullptr,
     nullptr,
+};
+
+const MenuItem* gateDrumParamShortcuts[8] = {
+    &arpRateMenuMIDIOrCV, &arpSyncMenu, &arpGateMenuMIDIOrCV, nullptr, &arpModeMenu, nullptr, nullptr, nullptr,
 };
 
 // Gate stuff
@@ -1389,6 +1394,20 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &mpeyToModWheelMenu,
         &midiMPEMenu,
         &sequenceDirectionMenu,
+    },
+};
+
+// Root menu for NonAudioDrums (MIDI and Gate drums)
+menu_item::Submenu soundEditorRootMenuMidiDrum{
+    STRING_FOR_MIDI,
+    {
+        &arpMenu,
+    },
+};
+menu_item::Submenu soundEditorRootMenuGateDrum{
+    STRING_FOR_GATE,
+    {
+        &arpMenu,
     },
 };
 

@@ -38,7 +38,14 @@ public:
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
-				if (soundEditor.editingCVOrMIDIClip()) {
+				if (soundEditor.editingNonAudioDrumRow()) {
+					// Midi or CV drum
+					Drum* currentDrum = ((Kit*)getCurrentClip()->output)->selectedDrum;
+					if (currentDrum != nullptr) {
+						currentDrum->unassignAllVoices();
+					}
+				}
+				else if (soundEditor.editingCVOrMIDIClip()) {
 					getCurrentInstrumentClip()->stopAllNotesForMIDIOrCV(modelStack->toWithTimelineCounter());
 				}
 				else {

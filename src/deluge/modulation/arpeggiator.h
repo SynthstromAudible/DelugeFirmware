@@ -198,7 +198,6 @@ public:
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
 
-	bool ratchetingIsAvailable = true;
 	bool gateCurrentlyActive = false;
 	uint32_t gatePos = 0;
 	int8_t currentOctave = 0;

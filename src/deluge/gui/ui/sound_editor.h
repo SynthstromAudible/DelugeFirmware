@@ -129,6 +129,9 @@ public:
 	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) override;
 	void markInstrumentAsEdited();
 	bool editingCVOrMIDIClip();
+	bool editingNonAudioDrumRow();
+	bool editingMidiDrumRow();
+	bool editingGateDrumRow();
 	bool isUntransposedNoteWithinRange(int32_t noteCode);
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();

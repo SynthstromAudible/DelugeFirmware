@@ -32,6 +32,9 @@ public:
 		soundEditor.currentArpSettings->updatePresetFromCurrentSettings();
 		soundEditor.currentArpSettings->flagForceArpRestart = true;
 	}
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return !soundEditor.editingGateDrumRow();
+	}
 
 	deluge::vector<std::string_view> getOptions() override {
 		using enum l10n::String;

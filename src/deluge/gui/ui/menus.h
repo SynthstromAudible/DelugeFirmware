@@ -40,6 +40,8 @@ extern deluge::gui::menu_item::stem_export::Start startStemExportMenu;
 extern deluge::gui::menu_item::firmware::Version firmwareVersionMenu;
 extern deluge::gui::menu_item::sequence::Direction sequenceDirectionMenu;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuMIDIOrCV;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuMidiDrum;
+extern deluge::gui::menu_item::Submenu soundEditorRootMenuGateDrum;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuAudioClip;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuPerformanceView;
 extern deluge::gui::menu_item::Submenu soundEditorRootMenuSongView;
@@ -80,6 +82,7 @@ extern deluge::gui::menu_item::PatchCables patchCablesMenu;
 extern deluge::gui::menu_item::source::patched_param::FM modulatorVolume;
 
 extern MenuItem* midiOrCVParamShortcuts[8];
+extern MenuItem* gateDrumParamShortcuts[8];
 extern MenuItem* paramShortcutsForSounds[15][8];
 extern MenuItem* paramShortcutsForAudioClips[15][8];
 extern MenuItem* paramShortcutsForSongView[15][8];

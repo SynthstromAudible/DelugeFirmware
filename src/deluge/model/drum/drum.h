@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include "modulation/arpeggiator.h"
 #include <cstdint>
 
 class Clip;
@@ -60,6 +61,9 @@ public:
 
 	LearnedMIDI midiInput;
 	LearnedMIDI muteMIDICommand;
+
+	ArpeggiatorForDrum arpeggiator;
+	ArpeggiatorSettings arpSettings;
 
 	virtual void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
 	                    int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0,

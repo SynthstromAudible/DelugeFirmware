@@ -47,7 +47,6 @@ ArpeggiatorSettings::ArpeggiatorSettings() {
 }
 
 ArpeggiatorForDrum::ArpeggiatorForDrum() {
-	ratchetingIsAvailable = false;
 	arpNote.velocity = 0;
 }
 

@@ -38,6 +38,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/drum/non_audio_drum.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -139,6 +140,22 @@ bool SoundEditor::editingKit() {
 
 bool SoundEditor::editingCVOrMIDIClip() {
 	return (getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::CV);
+}
+
+bool SoundEditor::editingNonAudioDrumRow() {
+	return getCurrentOutputType() == OutputType::KIT && getCurrentKit()->selectedDrum
+	       && (getCurrentKit()->selectedDrum->type == DrumType::MIDI
+	           || getCurrentKit()->selectedDrum->type == DrumType::GATE);
+}
+
+bool SoundEditor::editingMidiDrumRow() {
+	return getCurrentOutputType() == OutputType::KIT && getCurrentKit()->selectedDrum
+	       && getCurrentKit()->selectedDrum->type == DrumType::MIDI;
+}
+
+bool SoundEditor::editingGateDrumRow() {
+	return getCurrentOutputType() == OutputType::KIT && getCurrentKit()->selectedDrum
+	       && getCurrentKit()->selectedDrum->type == DrumType::GATE;
 }
 
 bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -623,8 +640,17 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		else if (getCurrentClip()->type == ClipType::AUDIO) {
 			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForAudioClips);
 		}
-		// Or for MIDI or CV clips
-		else if (editingCVOrMIDIClip()) {
+		// Or for Gate drums
+		else if (editingGateDrumRow()) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				if (gateDrumParamShortcuts[y] == currentItem) {
+					setupShortcutBlink(11, y, 0);
+					break;
+				}
+			}
+		}
+		// Or for MIDI or CV clips, or MIDI drums
+		else if (editingCVOrMIDIClip() || editingMidiDrumRow()) {
 			for (int32_t y = 0; y < kDisplayHeight; y++) {
 				if (midiOrCVParamShortcuts[y] == currentItem) {
 					setupShortcutBlink(11, y, 0);
@@ -938,9 +964,14 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			// Shortcut to edit a parameter
 			if (x < 14 || (x == 14 && y < 5)) {
 
-				if (editingCVOrMIDIClip()) {
+				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
 					if (x == 11) {
-						item = midiOrCVParamShortcuts[y];
+						if (editingGateDrumRow()) {
+							item = gateDrumParamShortcuts[y];
+						}
+						else {
+							item = midiOrCVParamShortcuts[y];
+						}
 					}
 					else if (x == 4) {
 						if (y == 7) {
@@ -1386,16 +1417,8 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 						newParamManager = &noteRow->paramManager;
 						newArpSettings = &((SoundDrum*)selectedDrum)->arpSettings;
 					}
-					else {
-						if (item != &sequenceDirectionMenu) {
-							if (selectedDrum->type == DrumType::MIDI) {
-								indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI);
-							}
-							else { // GATE
-								indicator_leds::indicateAlertOnLed(IndicatorLED::CV);
-							}
-							return false;
-						}
+					else if (selectedDrum->type == DrumType::MIDI || selectedDrum->type == DrumType::GATE) {
+						newArpSettings = &((NonAudioDrum*)selectedDrum)->arpSettings;
 					}
 				}
 
@@ -1459,6 +1482,18 @@ doMIDIOrCV:
 
 				else if ((outputType == OutputType::KIT) && instrumentClip->affectEntire) {
 					newItem = &soundEditorRootMenuKitGlobalFX;
+				}
+
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
+				         && ((Kit*)output)->selectedDrum != nullptr
+				         && ((Kit*)output)->selectedDrum->type == DrumType::MIDI) {
+					newItem = &soundEditorRootMenuMidiDrum;
+				}
+
+				else if ((outputType == OutputType::KIT) && !instrumentClip->affectEntire
+				         && ((Kit*)output)->selectedDrum != nullptr
+				         && ((Kit*)output)->selectedDrum->type == DrumType::GATE) {
+					newItem = &soundEditorRootMenuGateDrum;
 				}
 
 				else {

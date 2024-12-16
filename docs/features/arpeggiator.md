@@ -122,34 +122,35 @@ All the following parameters define other aspects of the arpeggiator and can be 
       <li>50: 00-0-0</li>
     </ul>
   </details>
-- **`Limits (LIMI)`**: is a group of parameters to define limitations for the sequence and for the randomizer.
-    - **`Sequence Length (SEQ)`**: It defines the length of the pattern in number of steps.
-      - If set to zero, the arpeggiator pattern will play fully without restrictions.
-      - If set to a value higher than zero, the pattern will play up to the set number of steps, and then
-        reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm
-        parameter to create longer and more complex rhythm patterns.
-    - **`Chord Polyphony (POLY)`**: This will set the maximum number of notes that will play at the same time when a
-      step is played as a chord. Increase parameter `Chord Probability` to make some steps play a chord instead
-      of a single note.
-        - From values 0 to 4, just the root note, no chord.
-        - From 5 to 19, a 2-notes chord is played, using the 5th.
-        - From 20 to 34 a 3-notes chord is played, using a triad (3rd + 5th).
-        - From 35 to 50, a 4-notes chord is played, usign a seventh chord (3rd + 5th + 7th).
-    - **`Ratchet Amount (RATC)`**: A ratchet is when a note repeats itself several times in the same time interval
-      that the original note has to play. This will set the maximum number of notes that a single tep can have (each step will
-      randomize the number of ratchet notes between 1 and this maximum value set).
-        - From values 0 to 4, no ratchet notes.
-        - From 5 to 19, up to 2 ratchet notes.
-        - From 20 to 34, up to 4 ratchet notes.
-        - From 35 to 50, up to 8 ratchet notes.
+- **`Sequence Length (LENG)`**: It defines the length of the pattern in number of steps.
+  - If set to zero, the arpeggiator pattern will play fully without restrictions.
+  - If set to a value higher than zero, the pattern will play up to the set number of steps, and then
+    reset itself to start from the beginning. Tip: You can use this in combination with the Rhythm
+    parameter to create longer and more complex rhythm patterns.
+- **`Chord Polyphony (POLY)`**: This will set the maximum number of notes that will play at the same time when a
+  step is played as a chord. Increase parameter `Chord Probability` to make some steps play a chord instead
+  of a single note.
+    - From values 0 to 4, just the root note, no chord.
+    - From 5 to 19, a 2-notes chord is played, using the 5th.
+    - From 20 to 34 a 3-notes chord is played, using a triad (3rd + 5th).
+    - From 35 to 50, a 4-notes chord is played, usign a seventh chord (3rd + 5th + 7th).
+- **`Ratchet Amount (RATC)`**: A ratchet is when a note repeats itself several times in the same time interval
+  that the original note has to play. This will set the maximum number of notes that a single tep can have (each step will
+  randomize the number of ratchet notes between 1 and this maximum value set).
+    - From values 0 to 4, no ratchet notes.
+    - From 5 to 19, up to 2 ratchet notes.
+    - From 20 to 34, up to 4 ratchet notes.
+    - From 35 to 50, up to 8 ratchet notes.
 
 ### Randomizer
 The following parameters are also automatable and learnable to golden knobs and MIDI CC:
 - **`Randomizer (RAND)`**: this group of parameters define the probability of some parameters to vary.
-  - **`Lock`**: this flag will lock the current sequence of randomized values so the sequence has a repeatable pattern.
+  - **`Lock (LOCK)`**: this flag will lock the current sequence of randomized values so the sequence has a repeatable pattern.
     Tip: In case you have drone notes, make use of the `Sequence Length` parameter to further adjust the repeated sequence.
     If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
     generated and locked.
+  - **`Ratchet Probability (RATC)`**: This sets how likely a step is to be ratcheted. The ratchet amount is randomized on each step between 1 and
+    the maximum value set with the `Ratchet Amount` parameter within the `Limits` group.
   - **`Note Probability (NOTE)`**: It applies a probability for notes to play or not (after Rhythm has been evalutated,
     that is, only for note steps, not for silent steps).
   - **`Bass Probability (BASS)`**: It applies a chance of replacing the current note to be played with the lowest note of the played notes.
@@ -157,8 +158,6 @@ The following parameters are also automatable and learnable to golden knobs and 
     This can be used as a performance tool to open up or close the arpeggio pitch range.
   - **`Chord Probability (CHRD)`**: This paramater will allow you to control the chance of a note to play, at the same time, itself and the following notes in the available
     notes set, like a chord.
-  - **`Ratchet Probability (RATC)`**: This sets how likely a step is to be ratcheted. The ratchet amount is randomized on each step between 1 and
-    the maximum value set with the `Ratchet Amount` parameter within the `Limits` group.
   - **`Velocity Spread (VELO)`**: The velocity of the arp step will get a random **negative** deviation from the base velocity.
   - **`Gate Spread (GATE)`**: The gate of the arp step will get a random **positive** or **negative** deviation from the base gate.
   - **`Octave Spread (OCTA)`**: The note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of +3 octaves.

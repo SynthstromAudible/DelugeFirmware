@@ -184,6 +184,8 @@ as the micromonsta and the dreadbox nymphes.
 - ([#395]) Load synth presets into kit rows by holding the row's `AUDITION` + `SYNTH`. Saving can be done by holding the
   audition pad and pressing save.
 
+- ([#3062]) Midi and Gate kit rows now are arpeggiator-enabled, and they have each a menu to set it up.
+
 #### 3.7 - Global Interface
 
 - ([#118]) Sticky Shift - When enabled, tapping `SHIFT` will lock shift `ON` unless another button is also pressed
