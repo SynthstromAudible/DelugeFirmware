@@ -163,7 +163,9 @@ if(DOXYGEN_FOUND)
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/html/)
 
-    doxygen_add_docs(doxygen ${markdown_SOURCES} docs src/deluge build/src/deluge)
+    # Removed 'docs' directory to exclude user facing documentation
+    # leaving doxygen to generate just the API documentation
+    doxygen_add_docs(doxygen ${markdown_SOURCES} src/deluge build/src/deluge)
 else(DOXYGEN_FOUND)
     message(WARNING
         "Doxygen needs to be installed to generate documentation."
