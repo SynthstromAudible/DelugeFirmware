@@ -1,6 +1,9 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/active_scales.h"
 #include "gui/menu_item/arpeggiator/chord_type.h"
+#include "gui/menu_item/arpeggiator/midi_cv/bass_probability.h"
+#include "gui/menu_item/arpeggiator/midi_cv/chord_polyphony.h"
+#include "gui/menu_item/arpeggiator/midi_cv/chord_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/gate.h"
 #include "gui/menu_item/arpeggiator/midi_cv/note_probability.h"
 #include "gui/menu_item/arpeggiator/midi_cv/ratchet_amount.h"
@@ -17,9 +20,10 @@
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/octaves.h"
 #include "gui/menu_item/arpeggiator/preset_mode.h"
+#include "gui/menu_item/arpeggiator/randomizer_lock.h"
 #include "gui/menu_item/arpeggiator/rate.h"
 #include "gui/menu_item/arpeggiator/rhythm.h"
-#include "gui/menu_item/arpeggiator/spread_lock.h"
+#include "gui/menu_item/arpeggiator/step_repeat.h"
 #include "gui/menu_item/arpeggiator/sync.h"
 #include "gui/menu_item/audio_clip/attack.h"
 #include "gui/menu_item/audio_clip/audio_source_selector.h"
@@ -216,8 +220,12 @@ unison::CountToStereoSpread numUnisonToStereoSpreadMenu{STRING_FOR_UNISON_NUMBER
 
 // Arp --------------------------------------------------------------------------------------
 arpeggiator::PresetMode arpPresetModeMenu{STRING_FOR_PRESET, STRING_FOR_ARP_PRESET_MENU_TITLE};
+// Rate
 arpeggiator::Mode arpModeMenu{STRING_FOR_ENABLED, STRING_FOR_ARP_MODE_MENU_TITLE};
 arpeggiator::Sync arpSyncMenu{STRING_FOR_SYNC, STRING_FOR_ARP_SYNC_MENU_TITLE};
+arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
+arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
+// Pattern
 arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP_OCTAVES_MENU_TITLE};
 arpeggiator::OctaveMode arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
 arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{STRING_FOR_OCTAVE_MODE,
@@ -225,18 +233,18 @@ arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{STRIN
 arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
 arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{STRING_FOR_NOTE_MODE,
                                                                                STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
-arpeggiator::ChordType arpChordTypeMenuKit{STRING_FOR_CHORD_TYPE, STRING_FOR_ARP_CHORD_TYPE_MENU_TITLE};
+arpeggiator::ChordType arpChordSimulatorMenuKit{STRING_FOR_CHORD_SIMULATOR, STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE};
+arpeggiator::StepRepeat arpStepRepeatMenu{STRING_FOR_STEP_REPEAT, STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE};
+// Note and rhythm settings
 arpeggiator::OnlyForSoundUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE,
                                                     params::UNPATCHED_ARP_GATE};
 arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
-arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
-arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
-arpeggiator::OnlyForSoundUnpatchedParam arpNoteProbabilityMenu{
-    STRING_FOR_NOTE_PROBABILITY, STRING_FOR_ARP_NOTE_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_NOTE_PROBABILITY};
-arpeggiator::midi_cv::NoteProbability arpNoteProbabilityMenuMIDIOrCV{STRING_FOR_NOTE_PROBABILITY,
-                                                                     STRING_FOR_ARP_NOTE_PROBABILITY_MENU_TITLE};
 arpeggiator::Rhythm arpRhythmMenu{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE, params::UNPATCHED_ARP_RHYTHM};
 arpeggiator::midi_cv::Rhythm arpRhythmMenuMIDIOrCV{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpChordPolyphonyMenu{
+    STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_POLYPHONY};
+arpeggiator::midi_cv::ChordPolyphony arpChordPolyphonyMenuMIDIOrCV{STRING_FOR_CHORD_POLYPHONY,
+                                                                   STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpSequenceLengthMenu{
     STRING_FOR_SEQUENCE_LENGTH, STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE, params::UNPATCHED_ARP_SEQUENCE_LENGTH};
 arpeggiator::midi_cv::SequenceLength arpSequenceLengthMenuMIDIOrCV{STRING_FOR_SEQUENCE_LENGTH,
@@ -245,59 +253,77 @@ arpeggiator::OnlyForSoundUnpatchedParam arpRatchetAmountMenu{
     STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE, params::UNPATCHED_ARP_RATCHET_AMOUNT};
 arpeggiator::midi_cv::RatchetAmount arpRatchetAmountMenuMIDIOrCV{STRING_FOR_NUMBER_OF_RATCHETS,
                                                                  STRING_FOR_ARP_RATCHETS_MENU_TITLE};
+Submenu arpLimitsMenu{STRING_FOR_LIMITS,
+                      {&arpSequenceLengthMenu, &arpSequenceLengthMenuMIDIOrCV, &arpChordPolyphonyMenu,
+                       &arpChordPolyphonyMenuMIDIOrCV, &arpRatchetAmountMenu, &arpRatchetAmountMenuMIDIOrCV}};
+// Randomizer
+arpeggiator::RandomizerLock arpRandomizerLockMenu{STRING_FOR_RANDOMIZER_LOCK, STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpNoteProbabilityMenu{
+    STRING_FOR_NOTE_PROBABILITY, STRING_FOR_ARP_NOTE_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_NOTE_PROBABILITY};
+arpeggiator::midi_cv::NoteProbability arpNoteProbabilityMenuMIDIOrCV{STRING_FOR_NOTE_PROBABILITY,
+                                                                     STRING_FOR_ARP_NOTE_PROBABILITY_MENU_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpBassProbabilityMenu{
+    STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_BASS_PROBABILITY};
+arpeggiator::midi_cv::BassProbability arpBassProbabilityMenuMIDIOrCV{STRING_FOR_BASS_PROBABILITY,
+                                                                     STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpChordProbabilityMenu{
+    STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_PROBABILITY};
+arpeggiator::midi_cv::ChordProbability arpChordProbabilityMenuMIDIOrCV{STRING_FOR_CHORD_PROBABILITY,
+                                                                       STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
                                                                   STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
                                                                   params::UNPATCHED_ARP_RATCHET_PROBABILITY};
-arpeggiator::SpreadLock arpSpreadLockMenu{STRING_FOR_SPREAD_LOCK, STRING_FOR_ARP_SPREAD_LOCK_TITLE};
-arpeggiator::OnlyForSoundUnpatchedParam arpSpreadVelocityMenu{
-    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_VELOCITY};
-arpeggiator::OnlyForSoundUnpatchedParam arpSpreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
-                                                          params::UNPATCHED_ARP_SPREAD_GATE};
-arpeggiator::OnlyForSoundUnpatchedParam arpSpreadOctaveMenu{
-    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE};
-arpeggiator::midi_cv::SpreadVelocity arpSpreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
-                                                                   STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE};
-arpeggiator::midi_cv::SpreadGate arpSpreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE,
-                                                           STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
-arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
-                                                               STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpSpreadVelocityMenu{
+    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_VELOCITY};
+arpeggiator::midi_cv::SpreadVelocity arpSpreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
+                                                                   STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpSpreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
+                                                          params::UNPATCHED_ARP_SPREAD_GATE};
+arpeggiator::midi_cv::SpreadGate arpSpreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE,
+                                                           STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
+arpeggiator::OnlyForSoundUnpatchedParam arpSpreadOctaveMenu{
+    STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE};
+arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
+                                                               STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
 
+// Arp: Randomizer
+Submenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
+                          {&arpRandomizerLockMenu, &arpNoteProbabilityMenu, &arpNoteProbabilityMenuMIDIOrCV,
+                           &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV, &arpChordProbabilityMenu,
+                           &arpChordProbabilityMenuMIDIOrCV, &arpRatchetProbabilityMenu,
+                           &arpRatchetProbabilityMenuMIDIOrCV, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV,
+                           &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu,
+                           &arpSpreadOctaveMenuMIDIOrCV}};
 // Arp: MPE
 arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
 Submenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
 
-Submenu arpSpreadMenu{
-    STRING_FOR_SPREAD,
-    {&arpSpreadLockMenu, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV, &arpSpreadGateMenu,
-     &arpSpreadGateMenuMIDIOrCV, &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV},
-};
-
 submenu::Arpeggiator arpMenu{
     STRING_FOR_ARPEGGIATOR,
     {
+        // Mode
         &arpModeMenu,
+        // Sync
         &arpSyncMenu,
         &arpRateMenu,
         &arpRateMenuMIDIOrCV,
-        &arpGateMenu,
-        &arpGateMenuMIDIOrCV,
+        // Pattern
         &arpOctavesMenu,
         &arpOctaveModeMenu,
         &arpNoteModeMenu,
-        &arpChordTypeMenuKit,
-        &arpNoteProbabilityMenu,
-        &arpNoteProbabilityMenuMIDIOrCV,
+        &arpChordSimulatorMenuKit,
+        &arpStepRepeatMenu,
+        // Note and rhythm settings
+        &arpGateMenu,
+        &arpGateMenuMIDIOrCV,
         &arpRhythmMenu,
         &arpRhythmMenuMIDIOrCV,
-        &arpSequenceLengthMenu,
-        &arpSequenceLengthMenuMIDIOrCV,
-        &arpRatchetAmountMenu,
-        &arpRatchetAmountMenuMIDIOrCV,
-        &arpRatchetProbabilityMenu,
-        &arpRatchetProbabilityMenuMIDIOrCV,
-        &arpSpreadMenu,
+        &arpLimitsMenu,
+        // Randomizer
+        &arpRandomizerMenu,
+        // MPE
         &arpMpeMenu,
     },
 };

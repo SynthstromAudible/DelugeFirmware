@@ -12,7 +12,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 
 1. Automatable Clip View Parameters for Synths and Kits with a row selected and affect entire DISABLED
 
->The 67 parameters that can be edited are:
+>The 70 parameters that can be edited are:
 >
 > - **Master** Level, Pitch, Pan
 > - **LPF** Frequency, Resonance, Morph
@@ -31,7 +31,7 @@ Automatable Parameters are broken down into four categories for Automation View 
 > - **LFO 1** Rate
 > - **LFO 2** Rate
 > - **Mod FX** Offset, Feedback, Depth, Rate
-> - **Arp** Rate, Gate, Note Probability, Ratchet Probability, Ratchet Amount, Sequence Length, Rhythm, Spread Velocity, Spread Gate, Spread Octave
+> - **Arp** Rate, Gate, Note Probability, Ratchet Probability, Ratchet Amount, Sequence Length, Bass Probability, ChordProbability, Rhythm, Chord Polyphony, Spread Velocity, Spread Gate, Spread Octave
 > - **Noise** Level
 > - **Portamento**
 > - **Stutter** Rate
