@@ -4,9 +4,9 @@ https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/044efe71-ac
 
 ## Description
 
-Added `AUDIO EXPORT`, an automated process for exporting `CLIP`s while in `SONG VIEW` and `INSTRUMENT`s while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting.
+Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SONG VIEW` and `TRACK's` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting.
 
-Now with one quick action you can start an export job, walk away from your Deluge and come back to a collection of renders from all your clips and arranger instruments.
+Now with one quick action you can start an export job, walk away from your Deluge and come back to a collection of renders from all your clips and arranger tracks.
 
 ## Exports Folder
 
@@ -37,9 +37,9 @@ Exported files are given a meaningful name in the following format:
 - Hold `SAVE` + Press `RECORD` while Playback and Record are disabled to launch the export process
 - When the export is finished, a dialog will appear on the display that tells you that the export process has finished. Press `SELECT`, `BACK` or any `PAD` on the grid to exit the dialog.
 - Note 1: Master (Song) FX are excluded from the export by default (but can be included - see below)
-- Note 2: MIDI and CV Instruments and Clips are excluded from the export
-- Note 3: Instruments and Clips that are `EMPTY` (e.g. they have no Notes or Audio Files) are excluded from the export
-- Note 4: In Arranger View, any Instruments that are `MUTED` are excluded from the export
+- Note 2: MIDI and CV Tracks and Clips are excluded from the export
+- Note 3: Tracks and Clips that are `EMPTY` (e.g. they have no Notes or Audio Files) are excluded from the export
+- Note 4: In Arranger View, any Tracks that are `MUTED` are excluded from the export
 
 - You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
