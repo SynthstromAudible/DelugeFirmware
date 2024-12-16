@@ -162,9 +162,10 @@ The following parameters are also automatable and learnable to golden knobs and 
       - From 20 to 34, up to +2 octave changes.
       - From 35 to 50, up to +3 octave changes.
   - **`Lock (LOCK)`**: this flag will lock the current sequence of randomized values so the sequence has a repeatable pattern.
-    Tip 1: In case you have drone notes, make use of the `Sequence Length` parameter to further adjust the repeated sequence.
-    Tip 2: If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
-    generated and locked. Tip 3: If you want some parameters to be locked, but not others, add some automation variation in the clip to those,
+    - Tip 1: In case you have drone notes, make use of the `Sequence Length` parameter to further adjust the repeated sequence.
+    - Tip 2: If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
+    generated and locked.
+    - Tip 3: If you want some parameters to be locked, but not others, add some automation variation in the clip to those,
     so the dice is re-rolled and hence you always get fresh new random values for them.
 
 ### MPE
