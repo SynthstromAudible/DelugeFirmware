@@ -672,11 +672,14 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 			NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
 
 			uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpeggiatorGate + 2147483648;
-			uint32_t noteProbability = nonAudioDrum->arpeggiatorNoteProbability;
-			uint32_t ratchetProbability = nonAudioDrum->arpeggiatorRatchetProbability;
-			uint32_t ratchetAmount = nonAudioDrum->arpeggiatorRatchetAmount;
-			uint32_t sequenceLength = nonAudioDrum->arpeggiatorSequenceLength;
 			uint32_t rhythm = nonAudioDrum->arpeggiatorRhythm;
+			uint32_t sequenceLength = nonAudioDrum->arpeggiatorSequenceLength;
+			uint32_t chordPolyphony = nonAudioDrum->arpeggiatorChordPolyphony;
+			uint32_t ratchetAmount = nonAudioDrum->arpeggiatorRatchetAmount;
+			uint32_t noteProbability = nonAudioDrum->arpeggiatorNoteProbability;
+			uint32_t bassProbability = nonAudioDrum->arpeggiatorBassProbability;
+			uint32_t chordProbability = nonAudioDrum->arpeggiatorChordProbability;
+			uint32_t ratchetProbability = nonAudioDrum->arpeggiatorRatchetProbability;
 			uint32_t spreadVelocity = nonAudioDrum->arpeggiatorSpreadVelocity;
 			uint32_t spreadGate = nonAudioDrum->arpeggiatorSpreadGate;
 			uint32_t spreadOctave = nonAudioDrum->arpeggiatorSpreadOctave;
@@ -686,9 +689,10 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 			                              cableToExpParamShortcut(nonAudioDrum->arpeggiatorRate)));
 
 			ArpReturnInstruction instruction;
-			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, numSamples, gateThreshold, phaseIncrement,
-			                                 sequenceLength, rhythm, noteProbability, ratchetAmount, ratchetProbability,
-			                                 spreadVelocity, spreadGate, spreadOctave, &instruction);
+			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, numSamples, gateThreshold,
+			                                 phaseIncrement, rhythm, sequenceLength, chordPolyphony, ratchetAmount,
+			                                 noteProbability, bassProbability, chordProbability, ratchetProbability,
+			                                 spreadVelocity, spreadGate, spreadOctave);
 			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 				nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
 			}
@@ -1009,17 +1013,21 @@ int32_t Kit::doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) {
 			if (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE) {
 				NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
 
-				uint32_t sequenceLength = nonAudioDrum->arpeggiatorSequenceLength;
 				uint32_t rhythm = nonAudioDrum->arpeggiatorRhythm;
-				uint32_t noteProbability = nonAudioDrum->arpeggiatorNoteProbability;
+				uint32_t sequenceLength = nonAudioDrum->arpeggiatorSequenceLength;
+				uint32_t chordPolyphony = nonAudioDrum->arpeggiatorChordPolyphony;
 				uint32_t ratchetAmount = nonAudioDrum->arpeggiatorRatchetAmount;
+				uint32_t noteProbability = nonAudioDrum->arpeggiatorNoteProbability;
+				uint32_t bassProbability = nonAudioDrum->arpeggiatorBassProbability;
+				uint32_t chordProbability = nonAudioDrum->arpeggiatorChordProbability;
 				uint32_t ratchetProbability = nonAudioDrum->arpeggiatorRatchetProbability;
 				uint32_t spreadVelocity = nonAudioDrum->arpeggiatorSpreadVelocity;
 				uint32_t spreadGate = nonAudioDrum->arpeggiatorSpreadGate;
 				uint32_t spreadOctave = nonAudioDrum->arpeggiatorSpreadOctave;
 
-				drum->arpeggiator.updateParams(sequenceLength, rhythm, noteProbability, ratchetAmount,
-				                               ratchetProbability, spreadVelocity, spreadGate, spreadOctave);
+				drum->arpeggiator.updateParams(rhythm, sequenceLength, chordPolyphony, ratchetAmount, noteProbability,
+				                               bassProbability, chordProbability, ratchetProbability, spreadVelocity,
+				                               spreadGate, spreadOctave);
 			}
 
 			int32_t ticksTilNextArpEventThisDrum =
