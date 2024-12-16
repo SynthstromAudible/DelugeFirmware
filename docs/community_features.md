@@ -295,7 +295,7 @@ which track to record from. To run the instrument through the audio clip's FX ch
 #### 3.24 Automated Audio Exporting
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Audio Export Documentation]
-- ([#2260]) Added `AUDIO EXPORT`, an automated process for exporting `CLIP`s while in `SONG VIEW` and `INSTRUMENT`s while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting audio. Press `BACK` to cancel the export and stop recording and playback.
+- ([#2260]) Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SONG VIEW` and `TRACK's` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting audio. Press `BACK` to cancel the export and stop recording and playback.
 - ([#2327]) You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 - ([#2330]) You can configure settings for the audio export via the `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT EXPORT\CONFIGURE EXPORT\` to configure various export settings.
 
