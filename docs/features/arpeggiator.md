@@ -143,8 +143,8 @@ All the following parameters define other aspects of the arpeggiator and can be 
     - From 35 to 50, up to 8 ratchet notes.
 
 ### Randomizer
-The following parameters are also automatable and learnable to golden knobs and MIDI CC:
-- **`Randomizer (RAND)`**: this group of parameters define the probability of some parameters to vary.
+The following parameters are also automatable and learnable to golden knobs and MIDI CC, and they define how probable a value is to change on each step:
+- **`Randomizer (RAND)`**:
   - **`Ratchet Probability (RATC)`**: This sets how likely a step is to be ratcheted. The ratchet amount is randomized on each step between 1 and
     the maximum value set with the `Ratchet Amount` parameter within the `Limits` group.
   - **`Note Probability (NOTE)`**: It applies a probability for notes to play or not (after Rhythm has been evalutated,
@@ -162,9 +162,10 @@ The following parameters are also automatable and learnable to golden knobs and 
       - From 20 to 34, up to +2 octave changes.
       - From 35 to 50, up to +3 octave changes.
   - **`Lock (LOCK)`**: this flag will lock the current sequence of randomized values so the sequence has a repeatable pattern.
-    Tip: In case you have drone notes, make use of the `Sequence Length` parameter to further adjust the repeated sequence.
-    If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
-    generated and locked.
+    Tip 1: In case you have drone notes, make use of the `Sequence Length` parameter to further adjust the repeated sequence.
+    Tip 2: If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
+    generated and locked. Tip 3: If you want some parameters to be locked, but not others, add some automation variation in the clip to those,
+    so the dice is re-rolled and hence you always get fresh new random values for them.
 
 ### MPE
 This submenu contains parameters that are useful if you have an MPE controller connected to the Deluge:
@@ -173,7 +174,3 @@ This submenu contains parameters that are useful if you have an MPE controller c
     - `Off`: This disables control of velocity with MPE.
     - `Aftertouch (AFTE)`: The pressure applied to the key sets the velocity of the note.
     - `MPE Y (Y)`: The Y position on the MPE controller sets the velocity of the note.
-
-Tip: For the synth preset to play correctly, it is recommended to disable the modulation of `Master Volume` with `Velocity`, that is,
-bring the value to zero (which is normally set by default to 50), and add a modulation of `Master Volume` with `Aftertouch` or `MPE Y`
-(depending on your MPE controller).
