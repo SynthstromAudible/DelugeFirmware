@@ -51,8 +51,8 @@ appreciated.
 * Code reviews are intended to increase quality and should not go into nitpicking, please remember
   the [Code of Conduct](CODE_OF_CONDUCT.md).
 * Final decisions about merging of Pull requests is up to the code owners, see [Governance](GOVERNANCE.md).
-* If you have a contribution to make then review the [Guidelines for Repository Contributions](/docs/dev/guidelines.md). 
+* If you have a contribution to make then review the [Guidelines for Repository Contributions](dev/guidelines.md). 
 
 ## Additional Developer Resources
 
-* Access more developer resources in [Additional Information](/docs/dev/additional_info.md).
+* Access more developer resources in [Additional Information](dev/additional_info.md).

@@ -47,4 +47,4 @@ This is a subset of issues where the current UX does not fully align with the pr
 
 ## Additional Information
 
-* Access more developer resources in [Additional Information](/docs/dev/additional_info.md)
+* Access more developer resources in [Additional Information](additional_info.md).
