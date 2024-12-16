@@ -145,10 +145,6 @@ All the following parameters define other aspects of the arpeggiator and can be 
 ### Randomizer
 The following parameters are also automatable and learnable to golden knobs and MIDI CC:
 - **`Randomizer (RAND)`**: this group of parameters define the probability of some parameters to vary.
-  - **`Lock (LOCK)`**: this flag will lock the current sequence of randomized values so the sequence has a repeatable pattern.
-    Tip: In case you have drone notes, make use of the `Sequence Length` parameter to further adjust the repeated sequence.
-    If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
-    generated and locked.
   - **`Ratchet Probability (RATC)`**: This sets how likely a step is to be ratcheted. The ratchet amount is randomized on each step between 1 and
     the maximum value set with the `Ratchet Amount` parameter within the `Limits` group.
   - **`Note Probability (NOTE)`**: It applies a probability for notes to play or not (after Rhythm has been evalutated,
@@ -165,6 +161,10 @@ The following parameters are also automatable and learnable to golden knobs and 
       - From 5 to 19, up to +1 octave changes.
       - From 20 to 34, up to +2 octave changes.
       - From 35 to 50, up to +3 octave changes.
+  - **`Lock (LOCK)`**: this flag will lock the current sequence of randomized values so the sequence has a repeatable pattern.
+    Tip: In case you have drone notes, make use of the `Sequence Length` parameter to further adjust the repeated sequence.
+    If you want to re-roll the dice for a parameter, slightly change its value and a new set of random values will be
+    generated and locked.
 
 ### MPE
 This submenu contains parameters that are useful if you have an MPE controller connected to the Deluge:
