@@ -1747,7 +1747,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
 	if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) [[likely]] {
-		noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.noteCodeOnPostArp, velocity,
+		noteOnPostArpeggiator(modelStackWithSoundFlags, noteCodePreArp, instruction.noteCodeOnPostArp, instruction.arpNoteOn->velocity,
 		                      mpeValues, instruction.sampleSyncLengthOn, ticksLate, samplesLate, fromMIDIChannel);
 	}
 	else {

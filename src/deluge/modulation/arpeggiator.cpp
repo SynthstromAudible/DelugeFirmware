@@ -126,11 +126,11 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 	}
 }
 
-void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
+void ArpeggiatorForDrum::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction) {
 
 	// If no arpeggiation...
 	if ((settings == nullptr) || settings->mode == ArpMode::OFF) {
-		instruction->noteCodeOffPostArp = kNoteForDrum;
+		instruction->noteCodeOffPostArp = noteCodePreArp;
 		instruction->outputMIDIChannelOff = arpNote.outputMemberChannel;
 	}
 
@@ -583,8 +583,8 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		arpNote.velocity = velocity;
 		// Get current sequence note
 		int16_t note = shouldPlayBassNote
-		                   ? kNoteForDrum
-		                   : kNoteForDrum
+		                   ? noteForDrum
+		                   : noteForDrum
 		                         + chordTypeSemitoneOffsets[settings->chordTypeIndex]
 		                                                   [whichNoteCurrentlyOnPostArp % MAX_CHORD_NOTES]
 		                         + (int16_t)currentOctave * 12;

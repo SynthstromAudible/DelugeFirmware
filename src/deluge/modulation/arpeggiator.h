@@ -291,9 +291,10 @@ public:
 	ArpeggiatorForDrum();
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
 	            int32_t fromMIDIChannel, int16_t const* mpeValues);
-	void noteOff(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction);
+	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction);
 	void reset();
 	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
+	int16_t noteForDrum;
 
 protected:
 	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);

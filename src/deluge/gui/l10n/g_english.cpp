@@ -370,7 +370,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CHORD_PROBABILITY, "Chord Probability"},
         {STRING_FOR_RATCHET_PROBABILITY, "Ratchet Probability"},
         {STRING_FOR_SEQUENCE_LENGTH, "Sequence Length"},
-        {STRING_FOR_RANDOMIZER_LOCK, "Lock"},
+        {STRING_FOR_RANDOMIZER_LOCK, "Lock Randomizer"},
         {STRING_FOR_SPREAD_VELOCITY, "Velocity Spread"},
         {STRING_FOR_SPREAD_GATE, "Gate Spread"},
         {STRING_FOR_SPREAD_OCTAVE, "Octave Spread"},

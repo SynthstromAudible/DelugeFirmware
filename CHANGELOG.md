@@ -116,11 +116,13 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 #### <ins>Arpeggiator</ins>
 - Added `NOTE PROBABILITY (PROB)` paramater that will apply a probability to be played or not to notes (after rhythm has been applied).
 - Added `CHORD TYPE (CHRD)` paramater to Kit Rows, that will emulate a held chord so you can use `NOTE MODE` on them.
-- Added `SPREAD` submenu with 3 parameters (Velocity, Gate, and Octave) that will allow you to control how those parameters of each arp step are deviated from its base value. Additionally, a `LOCK` parameter will allow you to lock the generated values to create a repeating pattern.
-- Added `BASS CHANCE (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
-- Added `STEP REPEAT (REPE)` paramater (with values 0 to 50) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
-- Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and the following notes in the held notes set, like a chord.
-- Added `CHORD NOTES AMOUNT (CHRD)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
+- Added `SPREAD` parameters (Velocity, Gate, and Octave) that will allow you to control how those parameters of each arp step are deviated from its base value. Additionally, a `LOCK` parameter will allow you to lock the generated values to create a repeating pattern. Velocity and Octave Spreads
+also affect normal sequenced notes while arpeggiator is Off.
+- Added `BASS PROBABILITY (BASS)` paramater that will allow you to control the chance of a note being replaced the bass (lowest) note of the inputted notes.
+- Added `STEP REPEAT (REPE)` paramater (with values 1 to 8) that makes walked notes in the pattern be repeated X times before moving to the next note+octave in the pattern.
+- Added `CHORD PROBABILITY (CHRD)` paramater that will allow you to control the chance of a note to play, at the same time, itself and other notes to form a chord (5th, 3rd and 7th).
+- Added `CHORD POLYPHONY (POLY)` paramater that works together with the previous parameter, and this one will dictate how big is the chord, that is, how many notes will be played at the same time.
+- Added `LOCK` parameter to allow you to freeze the current set of randomized values so the sequence has a repeatable pattern.
 
 ### MIDI
 

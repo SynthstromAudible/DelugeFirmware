@@ -289,8 +289,8 @@ arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD
 Submenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
                           {&arpRatchetProbabilityMenu, &arpRatchetProbabilityMenuMIDIOrCV, &arpNoteProbabilityMenu,
                            &arpNoteProbabilityMenuMIDIOrCV, &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
-                           &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV, &arpSpreadVelocityMenu,
-                           &arpSpreadVelocityMenuMIDIOrCV, &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV,
+                           &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV, &arpSpreadGateMenu,
+                           &arpSpreadGateMenuMIDIOrCV, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV,
                            &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV, &arpRandomizerLockMenu}};
 // Arp: MPE
 arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};

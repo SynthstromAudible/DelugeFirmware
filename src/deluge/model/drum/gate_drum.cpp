@@ -46,7 +46,7 @@ void GateDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	ArpeggiatorSettings* arpSettings = getArpSettings(nullptr);
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
-	arpeggiator.noteOff(arpSettings, &instruction);
+	arpeggiator.noteOff(arpSettings, kNoteForDrum, &instruction);
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 		noteOffPostArp(instruction.noteCodeOffPostArp);
 	}

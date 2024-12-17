@@ -46,7 +46,7 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	ArpeggiatorSettings* arpSettings = getArpSettings(nullptr);
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
-	arpeggiator.noteOff(arpSettings, &instruction);
+	arpeggiator.noteOff(arpSettings, note, &instruction);
 	if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
 		noteOffPostArp(instruction.noteCodeOffPostArp);
 	}
