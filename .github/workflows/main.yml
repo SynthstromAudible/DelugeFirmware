@@ -36,6 +36,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Fetch container image
+        run: |
+          docker pull ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
+      - name: Run build
+        run: |
+          docker run --rm \
+            --user=$(id --user):$(id --group) \
+            -e DBT_NO_PYTHON_UPGRADE=1 \
+            -v $(pwd):/src \
+            ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
+            docs
+      - name: Genfile check
+        run: |
+          git diff --exit-code        
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
