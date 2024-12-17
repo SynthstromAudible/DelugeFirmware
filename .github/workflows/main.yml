@@ -28,37 +28,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:    
-  build:
-    name: Build Doxygen Documentation
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout branch
-        uses: actions/checkout@v4
-      - name: Fetch container image
-        run: |
-          docker pull ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION)
-      - name: Run build
-        run: |
-          docker run --rm \
-            --user=$(id --user):$(id --group) \
-            -e DBT_NO_PYTHON_UPGRADE=1 \
-            -v $(pwd):/src \
-            ghcr.io/synthstromaudible/dbt-toolchain:v$(cat toolchain/REQUIRED_VERSION) \
-            docs
-      - name: Genfile check
-        run: |
-          git diff --exit-code
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./build/html
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-  
   deploy:
     environment:
       name: github-pages
