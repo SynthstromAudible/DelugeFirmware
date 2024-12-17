@@ -159,8 +159,7 @@ if(DOXYGEN_FOUND)
 
     set(DOXYGEN_USE_MDFILE_AS_MAINPAGE README.md)
 
-    # Only including readme.md in API documentation
-    # file(GLOB markdown_SOURCES *.md)
+    file(GLOB markdown_SOURCES *.md)
 
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/html/)
