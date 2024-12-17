@@ -27,6 +27,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
+#include "task_scheduler.h"
 #include <optional>
 #include <string.h>
 
@@ -554,8 +555,8 @@ cantReadData:
 			if (nextCluster) {
 				audioFileManager.removeReasonFromCluster(nextCluster, "9700");
 			}
-
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 	}
 
