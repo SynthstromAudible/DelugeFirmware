@@ -359,20 +359,17 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String& filePath, String
 
 // Returns false if exists but can't be deleted
 bool AudioFileManager::releaseSampleFilePath(String& filePath) {
-	if (!sampleFiles.contains(&filePath)) {
-		return true;
+	if (auto search = sampleFiles.find(&filePath); search != sampleFiles.end()) {
+		Sample& sample = *search->second;
+
+		// Ok, it's in memory. Can we delete it - is it unused?
+		if (sample.numReasonsToBeLoaded > 0) {
+			return false; // Alert - not only is it in memory, but it also can't be deleted
+		}
+
+		// Ok, it's unused. Delete it.
+		releaseSample(sample);
 	}
-
-	Sample& sample = *sampleFiles[&filePath];
-
-	// Ok, it's in memory. Can we delete it - is it unused?
-	if (sample.numReasonsToBeLoaded > 0) {
-		return false; // Alert - not only is it in memory, but it also can't be deleted
-	}
-
-	// Ok, it's unused. Delete it.
-	releaseSample(sample);
-
 	return true; // We're fine - it got deleted
 }
 
@@ -460,8 +457,8 @@ AudioFileManager::getAudioFileFromFilename(String& filePath, bool mayReadCard, F
 
 	// See if it's already in memory.
 	if (type == AudioFileType::SAMPLE) {
-		if (sampleFiles.contains(&filePath)) {
-			return sampleFiles[&filePath];
+		if (auto search = sampleFiles.find(&filePath); search != sampleFiles.end()) {
+			return search->second;
 		}
 		// If we want Sample but got Wavetable, can't convert, so we'll have to load from file after all. Reset
 		// filePath if needed (pretty unlikely scenario).
@@ -473,13 +470,13 @@ AudioFileManager::getAudioFileFromFilename(String& filePath, bool mayReadCard, F
 		}
 	}
 	else if (type == AudioFileType::WAVETABLE) {
-		if (wavetableFiles.contains(&filePath)) {
-			return wavetableFiles[&filePath];
+		if (auto search = wavetableFiles.find(&filePath); search != wavetableFiles.end()) {
+			return search->second;
 		}
 
 		// If we want WaveTable but got Sample, we can convert. (Otherwise, we can't.)
-		if (sampleFiles.contains(&filePath)) {
-			Sample* foundSample = sampleFiles[&filePath];
+		if (auto search = sampleFiles.find(&filePath); search != sampleFiles.end()) {
+			Sample* foundSample = search->second;
 
 			// Stereo files can never be WaveTables
 			if (foundSample->numChannels != 1) {
@@ -554,11 +551,15 @@ AudioFileManager::getAudioFileFromFilename(String& filePath, bool mayReadCard, F
 				}
 
 				std::optional<AudioFile*> foundAudioFile{};
-				if (type == AudioFileType::WAVETABLE && wavetableFiles.contains(&alternateFilePath)) {
-					foundAudioFile = wavetableFiles[&alternateFilePath];
+				if (type == AudioFileType::WAVETABLE) {
+					if (auto search = wavetableFiles.find(&alternateFilePath); search != wavetableFiles.end()) {
+						foundAudioFile = search->second;
+					}
 				}
-				else if (type == AudioFileType::SAMPLE && sampleFiles.contains(&alternateFilePath)) {
-					foundAudioFile = sampleFiles[&alternateFilePath];
+				else if (type == AudioFileType::SAMPLE) {
+					if (auto search = sampleFiles.find(&alternateFilePath); search != sampleFiles.end()) {
+						foundAudioFile = search->second;
+					}
 				}
 
 				if (foundAudioFile) {
