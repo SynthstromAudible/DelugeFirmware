@@ -1369,10 +1369,12 @@ performActionsAndGetOut:
 			playbackHandler.slowRoutine();
 		}
 
-		Cluster* cluster = loadingQueue.grabHead();
-		if (!cluster) {
+		if (loadingQueue.empty()) {
 			break;
 		}
+
+		Cluster* cluster = &loadingQueue.front();
+		loadingQueue.pop();
 
 		// cluster has at least 1 "reason". If it didn't, it would have been removed from the load-queue
 
@@ -1424,7 +1426,7 @@ performActionsAndGetOut:
 // Currently there's no risk of trying to enqueue a cluster multiple times, because this function only gets called
 // after it's freshly allocated
 Error AudioFileManager::enqueueCluster(Cluster* cluster, uint32_t priorityRating) {
-	return loadingQueue.add(cluster, priorityRating);
+	return loadingQueue.push(*cluster, priorityRating);
 }
 
 void AudioFileManager::addReasonToCluster(Cluster* cluster) {
@@ -1455,7 +1457,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being
 		// loaded right now because that would have added a "reason", so we wouldn't be here.) also do this on song
 		// swap
-		if (loadingQueue.removeIfPresent(cluster) || deletingSong) {
+		if (loadingQueue.erase(*cluster) || deletingSong) {
 
 			// Tell its Cluster to forget it exists
 			cluster->sample->clusters.getElement(cluster->clusterIndex)->cluster = NULL;
@@ -1485,10 +1487,7 @@ void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* err
 }
 
 bool AudioFileManager::loadingQueueHasAnyLowestPriorityElements() {
-	int32_t numElements = loadingQueue.getNumElements();
-	return (numElements
-	        && ((PriorityQueueElement*)audioFileManager.loadingQueue.getElementAddress(numElements - 1))->priorityRating
-	               == 0xFFFFFFFF);
+	return loadingQueue.hasAnyLowestPriority();
 }
 
 // Caller must also set alternateAudioFileLoadPath.
