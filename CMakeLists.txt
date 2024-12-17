@@ -165,12 +165,7 @@ if(DOXYGEN_FOUND)
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets
         DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/html/)
 
-    # Removed 'docs' directory to exclude user facing documentation
-    # leaving doxygen to generate just the API documentation
-    # Removed ${markdown_SOURCES} as only the README.md file is included
-    # and it has absolute links into 
-    # https://github.com/SynthstromAudible/DelugeFirmware/blob/community
-    doxygen_add_docs(doxygen README.md src/deluge build/src/deluge)
+    doxygen_add_docs(doxygen ${markdown_SOURCES} docs src/deluge build/src/deluge)
 else(DOXYGEN_FOUND)
     message(WARNING
         "Doxygen needs to be installed to generate documentation."
