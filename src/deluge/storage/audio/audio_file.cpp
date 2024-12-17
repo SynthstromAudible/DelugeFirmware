@@ -27,6 +27,8 @@
 #include "util/misc.h"
 #include <cstring>
 
+#include <algorithm>
+
 #define MAX_NUM_MARKERS 8
 
 Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTableWorkAtAllCosts) {
@@ -525,16 +527,12 @@ bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
 
 void AudioFile::steal(char const* errorCode) {
 	// The destructor is about to be called too, so we don't have to do too much.
-
-	int32_t i = audioFileManager.audioFiles.searchForExactObject(this);
-	if (i < 0) {
 #if ALPHA_OR_BETA_VERSION
+	if (!audioFileManager.audioFiles.contains(this)) {
 		display->displayPopup(errorCode); // Jensg still getting.
+	}
 #endif
-	}
-	else {
-		audioFileManager.audioFiles.removeElement(i);
-	}
+	audioFileManager.audioFiles.erase(this);
 }
 
 StealableQueue AudioFile::getAppropriateQueue() {

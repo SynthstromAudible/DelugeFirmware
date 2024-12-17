@@ -30,7 +30,8 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
-#include <string.h>
+#include "util/try.h"
+#include <cstring>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -165,11 +166,12 @@ gotError:
 		goto gotError;
 	}
 
-	error =
-	    audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(), filenameWithoutExtension);
-	if (error != Error::NONE) {
-		goto gotError;
-	}
+	D_TRY_CATCH(
+	    audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(), filenameWithoutExtension),
+	    local_error, {
+		    error = local_error;
+		    goto gotError;
+	    });
 	error = newSongAlternatePath.concatenate("/");
 	if (error != Error::NONE) {
 		goto gotError;
@@ -179,9 +181,7 @@ gotError:
 	bool anyErrorMovingTempFiles = false;
 
 	// Go through each AudioFile we have a record of in RAM.
-	for (int32_t i = 0; i < audioFileManager.audioFiles.getNumElements(); i++) {
-		AudioFile* audioFile = (AudioFile*)audioFileManager.audioFiles.getElement(i);
-
+	for (AudioFile* audioFile : audioFileManager.audioFiles) {
 		// If this AudioFile is used in this Song...
 		if (audioFile->numReasonsToBeLoaded) {
 
@@ -312,13 +312,13 @@ gotError:
 					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was
 					// designed for...
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
-						error = audioFileManager.setupAlternateAudioFilePath(newSongAlternatePath, dirPathLengthNew,
-						                                                     audioFile->filePath);
-						if (error != Error::NONE) {
-failAfterOpeningSourceFile:
-							activeDeserializer->closeWriter();
-							goto gotError;
-						}
+						D_TRY_CATCH(audioFileManager.setupAlternateAudioFilePath(
+						                newSongAlternatePath, dirPathLengthNew, audioFile->filePath),
+						            local_error, {
+							            error = local_error;
+							            activeDeserializer->closeWriter();
+							            goto gotError;
+						            });
 					}
 
 					// Or, if it wasn't in the SAMPLES folder, e.g. if it was in a dedicated SYNTH folder, then we have
@@ -327,7 +327,8 @@ failAfterOpeningSourceFile:
 						char const* fileName = getFileNameFromEndOfPath(audioFile->filePath.get());
 						error = newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew);
 						if (error != Error::NONE) {
-							goto failAfterOpeningSourceFile;
+							activeDeserializer->closeWriter();
+							goto gotError;
 						}
 					}
 
@@ -350,7 +351,8 @@ failAfterOpeningSourceFile:
 					}
 					else {
 						error = created.error();
-						goto failAfterOpeningSourceFile;
+						activeDeserializer->closeWriter();
+						goto gotError;
 					}
 				}
 
@@ -366,7 +368,8 @@ failAfterOpeningSourceFile:
 							D_PRINTLN("read fail");
 fail3:
 							error = Error::UNSPECIFIED;
-							goto failAfterOpeningSourceFile;
+							activeDeserializer->closeWriter();
+							goto gotError;
 						}
 						if (!bytesRead) {
 							break; // Stop, on rare case where file ended right at end of last cluster

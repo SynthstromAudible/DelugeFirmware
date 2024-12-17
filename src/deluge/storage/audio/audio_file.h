@@ -48,6 +48,8 @@ public:
 	                                // the name took.
 	int32_t numReasonsToBeLoaded{}; // This functionality should probably be merged between AudioFile and Cluster.
 
+	constexpr static bool isSample(const AudioFile* file) { return file->type == AudioFileType::SAMPLE; }
+	constexpr static bool isWaveTable(const AudioFile* file) { return file->type == AudioFileType::WAVETABLE; }
 protected:
 	virtual void numReasonsIncreasedFromZero() {}
 	virtual void numReasonsDecreasedToZero(char const* errorCode) {}
