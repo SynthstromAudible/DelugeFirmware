@@ -1695,7 +1695,7 @@ void Sample::convertDataOnAnyClustersIfNecessary() {
 			if (cluster) {
 
 				// Add reason in case it would get stolen
-				audioFileManager.addReasonToCluster(cluster);
+				cluster->addReason();
 
 				cluster->convertDataIfNecessary();
 

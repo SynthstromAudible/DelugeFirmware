@@ -960,7 +960,7 @@ Cluster* AudioFileManager::allocateCluster(ClusterType type, bool shouldAddReaso
 	cluster->type = type;
 
 	if (shouldAddReasons) {
-		addReasonToCluster(cluster);
+		cluster->addReason();
 	}
 
 	return cluster;
@@ -1008,8 +1008,8 @@ bool AudioFileManager::loadCluster(Cluster* cluster, int32_t minNumReasonsAfter)
 	}
 #endif
 
-	addReasonToCluster(cluster); // So that it can't accidentally hit 0 reasons while we're loading it, cos then it
-	                             // might get deallocated.
+	cluster->addReason(); // So that it can't accidentally hit 0 reasons while we're loading it, cos then it
+	                      // might get deallocated.
 
 	if (false) {
 getOutEarly:
@@ -1376,8 +1376,8 @@ performActionsAndGetOut:
 			cluster = &loadingQueue.front();
 			loadingQueue.pop();
 			if (cluster->numReasonsToBeLoaded > 0) {
-			break;
-		}
+				break;
+			}
 			cluster->~Cluster();
 			deallocateCluster(cluster);
 		}
@@ -1438,16 +1438,6 @@ performActionsAndGetOut:
 // after it's freshly allocated
 Error AudioFileManager::enqueueCluster(Cluster* cluster, uint32_t priorityRating) {
 	return loadingQueue.push(*cluster, priorityRating);
-}
-
-void AudioFileManager::addReasonToCluster(Cluster* cluster) {
-	// If it's going to cease to be zero, it's become unavailable
-	if (cluster->numReasonsToBeLoaded == 0) {
-		cluster->remove();
-		//*cluster->getAnyReasonsPointer() = reasonType;
-	}
-
-	cluster->numReasonsToBeLoaded++;
 }
 
 void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* errorCode, bool deletingSong) {

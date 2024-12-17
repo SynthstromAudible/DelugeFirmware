@@ -232,3 +232,12 @@ bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
 	}
 	return true;
 }
+
+void Cluster::addReason() {
+	// If it's going to cease to be zero, it's become unavailable
+	if (this->numReasonsToBeLoaded == 0) {
+		this->remove();
+	}
+
+	this->numReasonsToBeLoaded++;
+}
