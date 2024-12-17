@@ -1369,12 +1369,23 @@ performActionsAndGetOut:
 			playbackHandler.slowRoutine();
 		}
 
-		if (loadingQueue.empty()) {
+		// pop clusters until we get one that has reasonsToBeLoaded
+		// this prevents loading clusters that have been quickly culled after they were enqueued
+		Cluster* cluster = nullptr;
+		while (!loadingQueue.empty()) {
+			cluster = &loadingQueue.front();
+			loadingQueue.pop();
+			if (cluster->numReasonsToBeLoaded > 0) {
 			break;
 		}
+			cluster->~Cluster();
+			deallocateCluster(cluster);
+		}
 
-		Cluster* cluster = &loadingQueue.front();
-		loadingQueue.pop();
+		// no more clusters to load, so exit
+		if (cluster == nullptr) {
+			return;
+		}
 
 		// cluster has at least 1 "reason". If it didn't, it would have been removed from the load-queue
 
