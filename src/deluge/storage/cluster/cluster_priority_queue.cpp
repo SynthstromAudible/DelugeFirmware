@@ -31,15 +31,7 @@ Error ClusterPriorityQueue::push(Cluster& cluster, uint32_t priority) {
 
 	try {
 		priority_map_.insert({priority, &cluster});
-	} catch (deluge::exception e) {
-		if (e == deluge::exception::BAD_ALLOC) {
-			return Error::INSUFFICIENT_RAM;
-		}
-		freezeWithError("EXPQ");
-	}
-
-	try {
-		queued_clusters_.insert({&cluster, priority});
+		queued_clusters_[&cluster] = priority;
 	} catch (deluge::exception e) {
 		if (e == deluge::exception::BAD_ALLOC) {
 			return Error::INSUFFICIENT_RAM;
