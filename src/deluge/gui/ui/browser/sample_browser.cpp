@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "hid/button.h"
 #include "model/sample/sample.h"
+#include <ranges>
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
 #include "extern.h"
@@ -423,7 +424,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 						return ActionResult::DEALT_WITH;
 					}
 
-					bool allFine = audioFileManager.releaseAudioFilePath(filePath.get());
+					bool allFine = audioFileManager.releaseSampleFilePath(filePath);
 
 					if (!allFine) {
 						display->displayPopup(
@@ -1205,8 +1206,7 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	if (false) {
 removeReasonsFromSamplesAndGetOut:
 		// Remove reasons from any samples we loaded in just before
-		for (AudioFile* audioFile : audioFileManager.audioFiles | std::views::filter(AudioFile::isSample)) {
-			auto* thisSample = static_cast<Sample*>(audioFile);
+		for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
 
 			// If this sample is one of the ones we loaded a moment ago...
 			if (thisSample->partOfFolderBeingLoaded) {
@@ -1329,8 +1329,7 @@ removeReasonsFromSamplesAndGetOut:
 
 	// Go through each sample in memory that was from the folder in question, adding them to our pointer list
 	int32_t sampleI = 0;
-	for (AudioFile* audioFile : audioFileManager.audioFiles | std::views::filter(AudioFile::isSample)) {
-		auto* thisSample = static_cast<Sample*>(audioFile);
+	for (Sample* thisSample : audioFileManager.sampleFiles | std::views::values) {
 		// If this sample is one of the ones we loaded a moment ago...
 		if (thisSample->partOfFolderBeingLoaded) {
 			thisSample->partOfFolderBeingLoaded = false;

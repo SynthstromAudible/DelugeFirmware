@@ -343,7 +343,7 @@ Error SampleRecorder::cardRoutine() {
 	if (status == RecorderStatus::ABORTED) {
 
 aborted:
-		if (sample) { // This might get called multiple times, so check we haven't already detached it.
+		if (sample != nullptr) { // This might get called multiple times, so check we haven't already detached it.
 
 			// Note: if this abort() is due to a song-swap (loading a different song),
 			// then samples is about to be searched for temp ones to delete, and we'll need to have deleted it here
@@ -362,10 +362,10 @@ aborted:
 #endif
 
 			if (haveAddedSampleToArray) { // We only add it to the array when the file is created.
-				audioFileManager.releaseAudioFile(*sample);
+				audioFileManager.releaseSample(*sample);
 			}
 
-			sample = NULL; // So we don't try to detach it again when we're destructed
+			sample = nullptr; // So we don't try to detach it again when we're destructed
 		}
 
 		// Delete the file if one was created
@@ -484,8 +484,8 @@ aborted:
 			sample->tempFilePathForRecording.set(&tempFilePathForRecording); // Can't fail!
 
 			try {
-				audioFileManager.audioFiles.insert(sample);
-			} catch (deluge::exception e){
+				audioFileManager.sampleFiles[&sample->filePath] = sample;
+			} catch (deluge::exception e) {
 				if (e == deluge::exception::BAD_ALLOC) {
 					error = Error::INSUFFICIENT_RAM;
 					goto gotError;

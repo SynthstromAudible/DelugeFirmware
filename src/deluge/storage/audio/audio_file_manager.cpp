@@ -36,8 +36,10 @@
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 #include "storage/wave_table/wave_table_reader.h"
+#include "util/containers.h"
 #include "util/exceptions.h"
 #include "util/try.h"
+#include <algorithm>
 #include <cstring>
 #include <new>
 #include <ranges>
@@ -125,17 +127,12 @@ clusterSizeChangedButItsOk:
 		D_PRINTLN("cluster size changed, and smaller than original so it's ok");
 		AudioEngine::unassignAllVoices(); // Will also stop synth voices - too bad.
 
-		for (AudioFile* thisAudioFile : audioFiles) {
-			// If AudioFile isn't used currently, take this opportunity to remove it from memory
-			if (!thisAudioFile->numReasonsToBeLoaded) {
-				this->releaseAudioFile(*thisAudioFile);
-				continue;
-			}
+		// If any files aren't currently used, take this opportunity to remove them from memory
+		releaseAllUnused();
 
-			// Otherwise, mark the sample as unplayable
-			if (thisAudioFile->type == AudioFileType::SAMPLE) {
-				static_cast<Sample*>(thisAudioFile)->unplayable = true;
-			}
+		// Otherwise, mark all remaining samples as unplayable
+		for (Sample* sample : sampleFiles | std::views::values) {
+			sample->unplayable = true;
 		}
 
 		// That was all a pain, but now we can update the cluster size
@@ -144,51 +141,42 @@ clusterSizeChangedButItsOk:
 
 	// Or if cluster size stayed the same...
 	else {
-		// Go through every Sample in memory
-		for (AudioFile* thisAudioFile : audioFiles) {
+		// If any files aren't currently used, take this opportunity to remove them from memory
+		releaseAllUnused();
 
-			// If Sample isn't used currently, take this opportunity to remove it from memory
-			if (thisAudioFile->numReasonsToBeLoaded == 0) {
-				releaseAudioFile(*thisAudioFile);
+		// Go through every Sample in memory
+		for (Sample* thisSample : sampleFiles | std::views::values) {
+			// Check the Sample's file still exists
+			FIL sampleFile;
+			char const* filePath = thisSample->tempFilePathForRecording.get();
+			if (!*filePath) {
+				filePath = thisSample->filePath.get();
+			}
+
+			FRESULT result = f_open(&sampleFile, filePath, FA_READ);
+			if (result != FR_OK) {
+				D_PRINTLN("couldn't open file");
+				thisSample->markAsUnloadable();
 				continue;
 			}
 
-			// Or if it is still used by someone...
-			if (thisAudioFile->type == AudioFileType::SAMPLE) {
-				auto* thisSample = static_cast<Sample*>(thisAudioFile);
+			uint32_t firstSector = clst2sect(&fileSystem, sampleFile.obj.sclust);
 
-				// Check the Sample's file still exists
-				FIL sampleFile;
-				char const* filePath = thisSample->tempFilePathForRecording.get();
-				if (!*filePath) {
-					filePath = thisAudioFile->filePath.get();
-				}
+			f_close(&sampleFile);
 
-				FRESULT result = f_open(&sampleFile, filePath, FA_READ);
-				if (result != FR_OK) {
-					D_PRINTLN("couldn't open file");
-					thisSample->markAsUnloadable();
-					continue;
-				}
+			// If address of first sector remained unchanged, we can be sure enough that the file hasn't been
+			// changed
+			if (firstSector == thisSample->clusters.getElement(0)->sdAddress) {}
 
-				uint32_t firstSector = clst2sect(&fileSystem, sampleFile.obj.sclust);
-
-				f_close(&sampleFile);
-
-				// If address of first sector remained unchanged, we can be sure enough that the file hasn't been
-				// changed
-				if (firstSector == thisSample->clusters.getElement(0)->sdAddress) {}
-
-				// Otherwise
-				else {
-					thisSample->markAsUnloadable();
-					continue;
-				}
-
-				// Or if we're still here, the file's fine - who knows, maybe it's even fine again after it wasn't
-				// for a while (e.g. if the user temporarily had a different card inserted)
-				thisSample->unloadable = false;
+			// Otherwise
+			else {
+				thisSample->markAsUnloadable();
+				continue;
 			}
+
+			// Or if we're still here, the file's fine - who knows, maybe it's even fine again after it wasn't
+			// for a while (e.g. if the user temporarily had a different card inserted)
+			thisSample->unloadable = false;
 		}
 	}
 
@@ -206,9 +194,9 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 	// SampleRecorder::cardRoutine() gets called first to "detach" the Sample from the recorder. So, do this:
 	AudioEngine::doRecorderCardRoutines();
 
-	for (AudioFile* audioFile : audioFiles | std::views::filter(AudioFile::isSample)) {
+	for (Sample* sample : sampleFiles | std::views::values) {
 		// If it's a temp-recorded one
-		if (!static_cast<Sample*>(audioFile)->tempFilePathForRecording.isEmpty()) {
+		if (!sample->tempFilePathForRecording.isEmpty()) {
 
 			// if (ALPHA_OR_BETA_VERSION && audioFile->numReasons) FREEZE_WITH_ERROR("E281"); // It definitely
 			// shouldn't still have any reasons
@@ -226,7 +214,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 			// We may have deleted several, so do make sure we go and re-check from 0
 			highestUsedAudioRecordingNumber[util::to_underlying(AudioRecordingFolder::CLIPS)] = -1;
 
-			releaseAudioFile(*audioFile);
+			releaseSample(*sample);
 		}
 	}
 }
@@ -370,29 +358,49 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String& filePath, String
 }
 
 // Returns false if exists but can't be deleted
-bool AudioFileManager::releaseAudioFilePath(char const* filePath) {
-	// Note(Kate): This is O(N). Could be improved to O(logN) if audioFiles was a multimap
-	// with the path as the key, but probably not worth it considering it's only called from the
-	// SampleBrowser
-
-	auto filePathFilter = [=](auto file) { return file->filePath.equals(filePath); };
-
-	for (AudioFile* audioFile : audioFiles | std::views::filter(filePathFilter)) {
-		// Ok, it's in memory. Can we delete it - is it unused?
-		if (audioFile->numReasonsToBeLoaded) {
-			return false; // Alert - not only is it in memory, but it also can't be deleted
-		}
-
-		// Ok, it's unused. Delete it.
-		releaseAudioFile(*audioFile);
+bool AudioFileManager::releaseSampleFilePath(String& filePath) {
+	if (!sampleFiles.contains(&filePath)) {
+		return true;
 	}
+
+	Sample& sample = *sampleFiles[&filePath];
+
+	// Ok, it's in memory. Can we delete it - is it unused?
+	if (sample.numReasonsToBeLoaded > 0) {
+		return false; // Alert - not only is it in memory, but it also can't be deleted
+	}
+
+	// Ok, it's unused. Delete it.
+	releaseSample(sample);
+
 	return true; // We're fine - it got deleted
 }
 
-void AudioFileManager::releaseAudioFile(AudioFile& audioFile) {
-	audioFiles.erase(&audioFile);
-	audioFile.~AudioFile();
-	delugeDealloc(&audioFile);
+///@brief release unused sapmles and wavetables
+void AudioFileManager::releaseAllUnused() {
+	for (Sample* sample : sampleFiles | std::views::values) {
+		if (sample->numReasonsToBeLoaded <= 0) {
+			releaseSample(*sample);
+		}
+	}
+
+	for (WaveTable* wavetable : wavetableFiles | std::views::values) {
+		if (wavetable->numReasonsToBeLoaded <= 0) {
+			releaseWaveTable(*wavetable);
+		}
+	}
+}
+
+void AudioFileManager::releaseSample(Sample& sample) {
+	sampleFiles.erase(&sample.filePath);
+	sample.~Sample();
+	delugeDealloc(&sample);
+}
+
+void AudioFileManager::releaseWaveTable(WaveTable& wavetable) {
+	wavetableFiles.erase(&wavetable.filePath);
+	wavetable.~WaveTable();
+	delugeDealloc(&wavetable);
 }
 
 std::expected<void, Error> AudioFileManager::setupAlternateAudioFileDir(String& newPath, char const* rootDir,
@@ -448,30 +456,30 @@ AudioFileManager::getAudioFileFromFilename(String& filePath, bool mayReadCard, F
 	Error error = Error::NONE;
 	String backedUpFilePath;
 
+	std::optional<AudioFile*> foundAudioFile{};
+
 	// See if it's already in memory.
-	auto matches = //
-	    audioFiles | std::views::filter([&filePath](AudioFile* file) {
-		    return file->filePath.equals(&filePath); //
-	    });
-
-	// If that basic search by the file's "normal" path already found it, then great.
-	if (!matches.empty()) {
-		for (AudioFile* foundAudioFile : matches) {
-successfullyFoundInMemory:
-
-			// If correct type...
-			if (foundAudioFile->type == type) {
-				return foundAudioFile;
+	if (type == AudioFileType::SAMPLE) {
+		if (sampleFiles.contains(&filePath)) {
+			return sampleFiles[&filePath];
+		}
+		// If we want Sample but got Wavetable, can't convert, so we'll have to load from file after all. Reset
+		// filePath if needed (pretty unlikely scenario).
+		if (wavetableFiles.contains(&filePath)) {
+			if (!backedUpFilePath.isEmpty()) {
+				filePath.set(&backedUpFilePath);
 			}
+			goto tryLoadingFromCard;
+		}
+	}
+	else if (type == AudioFileType::WAVETABLE) {
+		if (wavetableFiles.contains(&filePath)) {
+			return wavetableFiles[&filePath];
 		}
 
-		// If here, we didn't find the correct type, but we did find an AudioFile for the correct filePath, just the
-		// wrong type.
-		AudioFile* foundAudioFile = matches.front();
-
 		// If we want WaveTable but got Sample, we can convert. (Otherwise, we can't.)
-		if (foundAudioFile->type == AudioFileType::SAMPLE && type == AudioFileType::WAVETABLE) {
-			Sample* foundSample = static_cast<Sample*>(foundAudioFile);
+		if (sampleFiles.contains(&filePath)) {
+			Sample* foundSample = sampleFiles[&filePath];
 
 			// Stereo files can never be WaveTables
 			if (foundSample->numChannels != 1) {
@@ -481,7 +489,7 @@ successfullyFoundInMemory:
 			// And if the user isn't insisting, then some other signs show that we probably don't want to load this
 			// as a WaveTable
 			if (!makeWaveTableWorkAtAllCosts) {
-				if (isAiffFilename(foundAudioFile->filePath.get())) {
+				if (isAiffFilename(foundSample->filePath.get())) {
 					return std::unexpected(Error::FILE_NOT_LOADABLE_AS_WAVETABLE);
 				}
 
@@ -497,12 +505,12 @@ successfullyFoundInMemory:
 				return std::unexpected(Error::INSUFFICIENT_RAM);
 			}
 
-			WaveTable* newWaveTable = new (waveTableMemory) WaveTable;
+			auto* newWaveTable = new (waveTableMemory) WaveTable;
 
 			newWaveTable->addReason(); // So it's protected while setting up.
-			foundAudioFile->addReason();
+			foundSample->addReason();
 
-			error = newWaveTable->setup((Sample*)foundAudioFile);
+			error = newWaveTable->setup(foundSample);
 			if (error != Error::NONE) {
 				newWaveTable->~WaveTable();
 				delugeDealloc(waveTableMemory);
@@ -510,7 +518,7 @@ successfullyFoundInMemory:
 			}
 
 			try {
-				audioFiles.insert(newWaveTable);
+				wavetableFiles[&newWaveTable->filePath] = newWaveTable;
 			} catch (deluge::exception e) {
 				if (e == deluge::exception::BAD_ALLOC) {
 					newWaveTable->~WaveTable();
@@ -520,19 +528,12 @@ successfullyFoundInMemory:
 				freezeWithError("EXAM");
 			}
 			newWaveTable->removeReason("E397");
-			foundAudioFile->removeReason("E398");
+			foundSample->removeReason("E398");
 			return newWaveTable;
 		}
-
-		// Or if we want Sample but got Wavetable, can't convert, so we'll have to load from file after all. Reset
-		// filePath if needed (pretty unlikely scenario).
-		if (!backedUpFilePath.isEmpty()) {
-			filePath.set(&backedUpFilePath);
-		}
-		goto tryLoadingFromCard;
 	}
 
-	// Or, if that didn't find the audio file in memory...
+	// If we didn't find the audio file in memory...
 	else {
 
 		// If we're loading a preset (not a Song, and not just browsing audio files), we should search in memory for
@@ -551,20 +552,21 @@ successfullyFoundInMemory:
 				if (error != Error::NONE) {
 					goto tryLoadingFromCard;
 				}
-				auto altMatches = //
-				    audioFiles | std::views::filter([&alternateFilePath](AudioFile* file) {
-					    return file->filePath.equals(&alternateFilePath); //
-				    });
-				if (!altMatches.empty()) {
-					for (AudioFile* foundAudioFile : altMatches) {
-						// Tiny bit cheeky, but we're going to update the file path actually stored in the AudioFile to
-						// reflect this alternate location, which will no longer be considered alternate.
-						backedUpFilePath.set(&filePath); // First we back up the original filePath.
-						filePath.set(&alternateFilePath);
-						if (foundAudioFile->type == type) {
-							return foundAudioFile;
-						}
-					}
+
+				std::optional<AudioFile*> foundAudioFile{};
+				if (type == AudioFileType::WAVETABLE && wavetableFiles.contains(&alternateFilePath)) {
+					foundAudioFile = wavetableFiles[&alternateFilePath];
+				}
+				else if (type == AudioFileType::SAMPLE && sampleFiles.contains(&alternateFilePath)) {
+					foundAudioFile = sampleFiles[&alternateFilePath];
+				}
+
+				if (foundAudioFile) {
+					// Tiny bit cheeky, but we're going to update the file path actually stored in the AudioFile to
+					// reflect this alternate location, which will no longer be considered alternate.
+					backedUpFilePath.set(&filePath); // First we back up the original filePath.
+					filePath.set(&alternateFilePath);
+					return foundAudioFile.value();
 				}
 			}
 		}
@@ -833,7 +835,13 @@ audioFileError:
 	}
 
 	try {
-		audioFiles.insert(audioFile);
+		if (audioFile->type == AudioFileType::SAMPLE) {
+			sampleFiles[&audioFile->filePath] = static_cast<Sample*>(audioFile);
+		}
+		else if (audioFile->type == AudioFileType::WAVETABLE) {
+			wavetableFiles[&audioFile->filePath] = static_cast<WaveTable*>(audioFile);
+		}
+
 	} catch (deluge::exception e) {
 		if (e == deluge::exception::BAD_ALLOC) {
 			audioFile->~AudioFile(); // Have to call this! This removes the pointers back to the Sample / SampleClusters

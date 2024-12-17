@@ -511,30 +511,6 @@ void AudioFile::removeReason(char const* errorCode) {
 	}
 }
 
-bool AudioFile::mayBeStolen(void* thingNotToStealFrom) {
-
-	if (numReasonsToBeLoaded) {
-		return false;
-	}
-
-	// If we were stolen, sampleManager.audioFiles would get an entry deleted from it, and that's not allowed while it's
-	// being inserted to, which is when we'd be provided it as the thingNotToStealFrom.
-	return (thingNotToStealFrom != &audioFileManager.audioFiles);
-
-	// We don't have to worry about e.g. a Sample being stolen as we try to allocate a Cluster for it in the same way as
-	// we do with SampleCaches - because in a case like this, the Sample would have a reason and so not be stealable.
-}
-
-void AudioFile::steal(char const* errorCode) {
-	// The destructor is about to be called too, so we don't have to do too much.
-#if ALPHA_OR_BETA_VERSION
-	if (!audioFileManager.audioFiles.contains(this)) {
-		display->displayPopup(errorCode); // Jensg still getting.
-	}
-#endif
-	audioFileManager.audioFiles.erase(this);
-}
-
 StealableQueue AudioFile::getAppropriateQueue() {
 	return StealableQueue::NO_SONG_AUDIO_FILE_OBJECTS;
 }

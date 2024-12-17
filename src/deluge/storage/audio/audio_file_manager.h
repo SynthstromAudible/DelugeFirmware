@@ -23,6 +23,7 @@
 #include <array>
 #include <cstdint>
 #include <expected>
+#include <strings.h>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -33,6 +34,7 @@ class SampleCache;
 class String;
 class SampleRecorder;
 class Output;
+class WaveTable;
 
 enum class AlternateLoadDirStatus {
 	NONE_SET,
@@ -81,10 +83,15 @@ char const* const audioRecordingFolderNames[] = {
  */
 
 class AudioFileManager {
+	struct StringLessThan {
+		bool operator()(String* const& lhs, String* const& rhs) const { return strcasecmp(lhs->get(), rhs->get()) < 0; }
+	};
+
 public:
 	AudioFileManager();
 
-	deluge::fast_set<AudioFile*> audioFiles;
+	deluge::fast_map<String*, Sample*, StringLessThan> sampleFiles;
+	deluge::fast_map<String*, WaveTable*, StringLessThan> wavetableFiles;
 
 	void init();
 	std::expected<AudioFile*, Error> getAudioFileFromFilename(String& fileName, bool mayReadCard,
@@ -106,8 +113,11 @@ public:
 	                                      AudioRecordingFolder folder, uint32_t* getNumber, const char* channelName,
 	                                      String* songName);
 	void deleteAnyTempRecordedSamplesFromMemory();
-	void releaseAudioFile(AudioFile& audioFile);
-	bool releaseAudioFilePath(char const* filePath);
+
+	void releaseSample(Sample& sample);
+	void releaseWaveTable(WaveTable& wavetable);
+	bool releaseSampleFilePath(String& filePath);
+	void releaseAllUnused();
 
 	void thingBeginningLoading(ThingType newThingType);
 	void thingFinishedLoading();

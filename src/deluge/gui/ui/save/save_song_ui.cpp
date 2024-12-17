@@ -29,6 +29,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "storage/wave_table/wave_table.h"
 #include "util/functions.h"
 #include "util/try.h"
 #include <cstring>
@@ -181,25 +182,25 @@ gotError:
 	bool anyErrorMovingTempFiles = false;
 
 	// Go through each AudioFile we have a record of in RAM.
-	for (AudioFile* audioFile : audioFileManager.audioFiles) {
+	auto saveAudioFile = [&](AudioFile* audioFile) {
 		// If this AudioFile is used in this Song...
 		if (audioFile->numReasonsToBeLoaded) {
 
 			if (audioFile->type == AudioFileType::SAMPLE) {
+				Sample& sample = *static_cast<Sample*>(audioFile);
 				// If this is a recording which still exists at its temporary location, move the file
-				if (!((Sample*)audioFile)->tempFilePathForRecording.isEmpty()) {
+				if (!sample.tempFilePathForRecording.isEmpty()) {
 					StorageManager::buildPathToFile(audioFile->filePath.get());
-					FRESULT result =
-					    f_rename(((Sample*)audioFile)->tempFilePathForRecording.get(), audioFile->filePath.get());
+					FRESULT result = f_rename(sample.tempFilePathForRecording.get(), audioFile->filePath.get());
 					if (result == FR_OK) {
-						((Sample*)audioFile)->tempFilePathForRecording.clear();
+						sample.tempFilePathForRecording.clear();
 					}
 					else {
 						// We at least need to warn the user that although the main file save was (hopefully soon to be)
 						// successful, something's gone wrong
 						anyErrorMovingTempFiles = true;
-						D_PRINTLN("rename failed.  %d %s %s", result,
-						          ((Sample*)audioFile)->tempFilePathForRecording.get(), audioFile->filePath.get());
+						D_PRINTLN("rename failed.  %d %s %s", result, sample.tempFilePathForRecording.get(),
+						          audioFile->filePath.get());
 					}
 				}
 			}
@@ -214,7 +215,7 @@ gotError:
 				if (collectingSamples && !audioFile->loadedFromAlternatePath.isEmpty()) {
 					if (currentDir.equalsCaseIrrespective(&currentSong->dirPath)) {
 						if (enteredText.equalsCaseIrrespective(&currentSong->name)) {
-							continue;
+							return true;
 						}
 					}
 				}
@@ -249,7 +250,9 @@ gotError:
 				if (result != FR_OK) {
 					D_PRINTLN("open fail %s", sourceFilePath);
 					error = Error::UNSPECIFIED;
-					goto gotError;
+					display->removeLoadingAnimation();
+					display->displayError(error);
+					return false;
 				}
 
 				char const* destFilePath;
@@ -317,7 +320,9 @@ gotError:
 						            local_error, {
 							            error = local_error;
 							            activeDeserializer->closeWriter();
-							            goto gotError;
+							            display->removeLoadingAnimation();
+							            display->displayError(error);
+							            return false;
 						            });
 					}
 
@@ -328,7 +333,9 @@ gotError:
 						error = newSongAlternatePath.concatenateAtPos(fileName, dirPathLengthNew);
 						if (error != Error::NONE) {
 							activeDeserializer->closeWriter();
-							goto gotError;
+							display->removeLoadingAnimation();
+							display->displayError(error);
+							return false;
 						}
 					}
 
@@ -352,7 +359,9 @@ gotError:
 					else {
 						error = created.error();
 						activeDeserializer->closeWriter();
-						goto gotError;
+						display->removeLoadingAnimation();
+						display->displayError(error);
+						return false;
 					}
 				}
 
@@ -366,10 +375,11 @@ gotError:
 						                Cluster::size, &bytesRead);
 						if (result) {
 							D_PRINTLN("read fail");
-fail3:
 							error = Error::UNSPECIFIED;
 							activeDeserializer->closeWriter();
-							goto gotError;
+							display->removeLoadingAnimation();
+							display->displayError(error);
+							return false;
 						}
 						if (!bytesRead) {
 							break; // Stop, on rare case where file ended right at end of last cluster
@@ -379,7 +389,11 @@ fail3:
 						    created.value().write({(std::byte*)activeDeserializer->fileClusterBuffer, bytesRead});
 						if (!written || written.value() != bytesRead) {
 							D_PRINTLN("write fail %d", result);
-							goto fail3;
+							error = Error::UNSPECIFIED;
+							activeDeserializer->closeWriter();
+							display->removeLoadingAnimation();
+							display->displayError(error);
+							return false;
 						}
 
 						if (bytesRead < Cluster::size) {
@@ -397,6 +411,19 @@ fail3:
 					audioFile->loadedFromAlternatePath.clear();
 				}
 			}
+		}
+		return true;
+	};
+
+	for (Sample* sample : audioFileManager.sampleFiles | std::views::values) {
+		if (!saveAudioFile(sample)) {
+			return false;
+		}
+	}
+
+	for (WaveTable* wavetable : audioFileManager.wavetableFiles | std::views::values) {
+		if (!saveAudioFile(wavetable)) {
+			return false;
 		}
 	}
 
