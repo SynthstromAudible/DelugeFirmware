@@ -30,25 +30,21 @@ public:
 
 	Error push(Cluster& cluster, uint32_t priorityRating);
 	constexpr Cluster& front() const { return *priority_map_.begin()->second; }
-	constexpr Cluster& back() const { return *priority_map_.rbegin()->second; }
 
 	constexpr void pop() {
 		auto it = priority_map_.begin();
-		Cluster* cluster = it->second;
 		priority_map_.erase(it);
-		queued_clusters_.erase(cluster);
+		queued_clusters_.erase(it->second);
 	}
 
 	constexpr bool empty() const { return queued_clusters_.empty() || priority_map_.empty(); }
-	constexpr bool contains(Cluster& cluster) const { return queued_clusters_.contains(&cluster); }
 	constexpr size_t erase(Cluster& cluster) {
-		if (!queued_clusters_.contains(&cluster)) {
-			return 0;
+		if (auto search = queued_clusters_.find(&cluster); search != queued_clusters_.end()) {
+			priority_map_.erase({search->second, &cluster});
+			queued_clusters_.erase(&cluster);
+			return 1;
 		}
-		Priority priority = queued_clusters_[&cluster];
-		priority_map_.erase({priority, &cluster});
-		queued_clusters_.erase(&cluster);
-		return 1;
+		return 0;
 	}
 
 	/* This is currently a consequence of how priorities are calculated (using full 32bits) next-gen getPriorityRating

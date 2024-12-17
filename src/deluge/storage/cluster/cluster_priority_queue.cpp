@@ -36,7 +36,7 @@ Error ClusterPriorityQueue::push(Cluster& cluster, uint32_t priority) {
 		if (e == deluge::exception::BAD_ALLOC) {
 			return Error::INSUFFICIENT_RAM;
 		}
-		freezeWithError("EXPQ");
+		FREEZE_WITH_ERROR("EXPQ");
 	}
 	return Error::NONE;
 }
