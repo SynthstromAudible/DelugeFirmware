@@ -229,47 +229,6 @@ char const* sourceToStringShort(PatchSource source);
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 
-[[gnu::always_inline]] constexpr void convertFloatToIntAtMemoryLocation(uint32_t* pos) {
-
-	//*(int32_t*)pos = *(float*)pos * 2147483648;
-
-	uint32_t readValue = *(uint32_t*)pos;
-	int32_t exponent = (int32_t)((readValue >> 23) & 255) - 127;
-
-	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
-
-	// Sign bit
-	if (readValue >> 31)
-		outputValue = -outputValue;
-
-	*pos = outputValue;
-}
-
-[[gnu::always_inline]] constexpr int32_t floatToInt(float theFloat) {
-	uint32_t readValue = std::bit_cast<uint32_t>(theFloat);
-	int32_t exponent = (int32_t)((readValue >> 23) & 255) - 127;
-
-	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
-
-	// Sign bit
-	if (readValue >> 31)
-		outputValue = -outputValue;
-
-	return outputValue;
-}
-
-[[gnu::always_inline]] constexpr int32_t floatBitPatternToInt(uint32_t readValue) {
-	int32_t exponent = (int32_t)((readValue >> 23) & 255) - 127;
-
-	int32_t outputValue = (exponent >= 0) ? 2147483647 : (uint32_t)((readValue << 8) | 0x80000000) >> (-exponent);
-
-	// Sign bit
-	if (readValue >> 31)
-		outputValue = -outputValue;
-
-	return outputValue;
-}
-
 int32_t interpolateTable(uint32_t input, int32_t numBitsInInput, const uint16_t* table, int32_t numBitsInTableSize = 8);
 uint32_t interpolateTableInverse(int32_t tableValueBig, int32_t numBitsInLookupOutput, const uint16_t* table,
                                  int32_t numBitsInTableSize = 8);

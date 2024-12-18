@@ -23,6 +23,7 @@
 #include "storage/audio/audio_file.h"
 #include "util/container/array/ordered_resizeable_array.h"
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
+#include "util/fixedpoint.h"
 #include "util/functions.h"
 
 #define SAMPLE_DO_LOCKS (ALPHA_OR_BETA_VERSION)
@@ -76,7 +77,7 @@ public:
 	inline void convertOneData(int32_t* value) {
 		// Floating point
 		if (rawDataFormat == RAW_DATA_FLOAT)
-			convertFloatToIntAtMemoryLocation((uint32_t*)value);
+			*value = q31_from_float(std::bit_cast<float>(value));
 
 		// Or endianness swap
 		else if (rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_32) {

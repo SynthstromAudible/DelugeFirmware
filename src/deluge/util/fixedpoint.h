@@ -16,7 +16,9 @@
  */
 #pragma once
 
+#include <bit>
 #include <cstdint>
+#include <limits>
 // signed 31 fractional bits (e.g. one would be 1<<31 but can't be represented)
 using q31_t = int32_t;
 
@@ -108,6 +110,16 @@ inline int32_t clz(uint32_t input) {
 	asm("clz %0, %1" : "=r"(out) : "r"(input));
 	return out;
 }
+
+static inline q31_t q31_from_float(float value) {
+	asm("vcvt.f32.s32 %0, %0, #31" : "=t"(value) : "t"(value));
+	return std::bit_cast<q31_t>(value);
+}
+
+static inline float q31_to_float(q31_t value) {
+	asm("vcvt.s32.f32 %0, %0, #31" : "=t"(value) : "t"(value));
+	return std::bit_cast<float>(value);
+}
 #else
 
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
@@ -145,5 +157,34 @@ static inline int32_t add_saturation(int32_t a, int32_t b) {
 
 inline int32_t clz(uint32_t input) {
 	return __builtin_clz(input);
+}
+
+[[gnu::always_inline]] constexpr q31_t q31_from_float(float value) {
+	// A float is represented as 32 bits:
+	// 1-bit sign, 8-bit exponent, 24-bit mantissa
+
+	auto bits = std::bit_cast<uint32_t>(value);
+
+	// Sign bit being 1 indicates negative value
+	bool negative = bits & 0x80000000;
+
+	// Extract exponent and adjust for bias (IEEE 754)
+	int32_t exponent = static_cast<int32_t>((bits >> 23) & 0xFF) - 127;
+
+	q31_t output_value = 0;
+
+	// saturate if above 1.f
+	if (exponent >= 0) {
+		output_value = std::numeric_limits<q31_t>::max();
+	}
+
+	// extract mantissa
+	else {
+		uint32_t mantissa = (bits << 8) | 0x80000000;
+		output_value = static_cast<q31_t>(mantissa >> -exponent);
+	}
+
+	// Sign bit
+	return (negative) ? -output_value : output_value;
 }
 #endif
