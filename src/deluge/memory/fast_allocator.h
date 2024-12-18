@@ -28,9 +28,6 @@ public:
 			return nullptr;
 		}
 		void* addr = GeneralMemoryAllocator::get().allocMaxSpeed(n * sizeof(T));
-		// cpp specifies we should throw. Given that we don't have excpetions
-		// we are obligated to freeze
-		// c++ wil NOT check for nullptr before calling constructors on the return address
 		if (addr != nullptr) {
 			return static_cast<T*>(addr);
 		}
