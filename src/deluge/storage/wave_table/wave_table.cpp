@@ -30,6 +30,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table_reader.h"
+#include "util/fixedpoint.h"
 #include <new>
 
 extern int32_t oscSyncRenderingBuffer[];
@@ -420,7 +421,7 @@ gotError5:
 #define CONVERT_AND_STORE_SAMPLE                                                                                       \
 	{                                                                                                                  \
 		if (rawDataFormat == RAW_DATA_FLOAT) {                                                                         \
-			value32 = floatBitPatternToInt(value32);                                                                   \
+			value32 = q31_from_float(std::bit_cast<float>(value32));                                                   \
 		}                                                                                                              \
 		else {                                                                                                         \
 			if (swappingEndianness) {                                                                                  \
