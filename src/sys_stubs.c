@@ -1,15 +1,17 @@
+#include "definitions.h"
 #include <sys/stat.h>
 
 // this stub fails to allocate - needed for libc malloc
 // Take advantage of that to ensure anything which allocates will fail to link
 void* _sbrk(int incr) {
+	FREEZE_WITH_ERROR("SBRK");
 	return (void*)-1;
 }
 
 // needed for libc abort, raise, return from main
 void _exit(int status) {
 	// halt execution
-	__asm("BKPT #0");
+	FREEZE_WITH_ERROR("EXIT");
 	__builtin_unreachable();
 }
 
