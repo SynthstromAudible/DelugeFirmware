@@ -24,6 +24,7 @@
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 #include "util/functions.h"
+#include <cstdint>
 
 #define MIN_MPE_MODULATED_VELOCITY 10
 
@@ -130,7 +131,15 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 		if (spreadVelocityForCurrentStep != 0) {
 			// Now apply velocity spread to the base velocity
 			int32_t signedVelocity = (int32_t)velocity;
-			signedVelocity = signedVelocity + spreadVelocityForCurrentStep;
+			int32_t diff = 0;
+			if (spreadVelocityForCurrentStep < 0) {
+				// Reducing velocity
+				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
+			} else {
+				// Increasing velocity
+				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
+			}
+			signedVelocity = signedVelocity + diff;
 			// And fix it if out of bounds
 			if (signedVelocity < 1) {
 				signedVelocity = 1;
@@ -291,7 +300,15 @@ noteInserted:
 		if (spreadVelocityForCurrentStep != 0) {
 			// Now apply velocity spread to the base velocity
 			int32_t signedVelocity = (int32_t)velocity;
-			signedVelocity = signedVelocity + spreadVelocityForCurrentStep;
+			int32_t diff = 0;
+			if (spreadVelocityForCurrentStep < 0) {
+				// Reducing velocity
+				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
+			} else {
+				// Increasing velocity
+				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
+			}
+			signedVelocity = signedVelocity + diff;
 			// And fix it if out of bounds
 			if (signedVelocity < 1) {
 				signedVelocity = 1;
@@ -615,7 +632,15 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		if (spreadVelocityForCurrentStep != 0) {
 			// Now apply velocity spread to the base velocity
 			int32_t signedVelocity = (int32_t)velocity;
-			signedVelocity = signedVelocity + spreadVelocityForCurrentStep;
+			int32_t diff = 0;
+			if (spreadVelocityForCurrentStep < 0) {
+				// Reducing velocity
+				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
+			} else {
+				// Increasing velocity
+				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
+			}
+			signedVelocity = signedVelocity + diff;
 			// And fix it if out of bounds
 			if (signedVelocity < 1) {
 				signedVelocity = 1;
@@ -1027,7 +1052,16 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		if (spreadVelocityForCurrentStep != 0) {
 			// Now apply velocity spread to the base velocity
 			int32_t signedVelocity = (int32_t)velocity;
-			signedVelocity = signedVelocity + spreadVelocityForCurrentStep;
+
+			int32_t diff = 0;
+			if (spreadVelocityForCurrentStep < 0) {
+				// Reducing velocity
+				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
+			} else {
+				// Increasing velocity
+				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
+			}
+			signedVelocity = signedVelocity + diff;
 			// And fix it if out of bounds
 			if (signedVelocity < 1) {
 				signedVelocity = 1;
@@ -1138,20 +1172,20 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 	if (spreadGateForCurrentStep != 0) {
 		// Apply spread to gate threshold
 		int32_t signedGateThreshold = (int32_t)gateThresholdSmall;
+		int32_t diff = 0;
+		if (spreadGateForCurrentStep < 0) {
+			// Reducing velocity
+			diff = -(multiply_32x32_rshift32((-spreadGateForCurrentStep) << 24, signedGateThreshold) << 1);
+		} else {
+			// Increasing velocity
+			diff = (multiply_32x32_rshift32(spreadGateForCurrentStep << 24, maxGate - signedGateThreshold) << 1);
+		}
 		if (isRatcheting) {
 			// Need to reduce the spread amount by the same ratchet multiplier
-			if (spreadGateForCurrentStep < 0) {
-				// If amount negative, do the correct math
-				signedGateThreshold =
-				    signedGateThreshold - (((-spreadGateForCurrentStep) << 17) >> ratchetNotesMultiplier);
-			}
-			else {
-				signedGateThreshold =
-				    signedGateThreshold + ((spreadGateForCurrentStep << 17) >> ratchetNotesMultiplier);
-			}
+			signedGateThreshold = signedGateThreshold + (diff >> ratchetNotesMultiplier);
 		}
 		else {
-			signedGateThreshold = signedGateThreshold + (spreadGateForCurrentStep << 17);
+			signedGateThreshold = signedGateThreshold + diff;
 		}
 		// And fix it if out of bounds
 		if (signedGateThreshold < 0) {
