@@ -375,6 +375,9 @@ NOTE: These options can change depending on how your default resolution is set
 	- Stutter Rate Quantize (STUT)
 		- OFF
 		- ON
+  	- Reverse Stutter Rate (RSTUT)
+		- OFF
+		- ON
 	- Allow Insecure Develop Sysex Messages (SYSX)
 		- OFF
 		- ON

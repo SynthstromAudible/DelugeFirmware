@@ -35,6 +35,7 @@ SettingToggle menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 SettingToggle menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 SettingToggle menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 SettingToggle menuQuantizedStutterRate(RuntimeFeatureSettingType::QuantizedStutterRate);
+SettingToggle menuReverseStutterRate(RuntimeFeatureSettingType::ReverseStutterRate);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 SettingToggle menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
@@ -59,6 +60,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,
     &menuQuantizedStutterRate,
+    &menuReverseStutterRate,
     &menuDevSysexAllowed,
     &menuSyncScalingAction,
     &menuHighlightIncomingNotes,
