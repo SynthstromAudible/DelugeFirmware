@@ -123,7 +123,7 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 	// Or otherwise, just switch the note on.
 	else {
 		// Apply spread to non-arpeggiator notes
-		int32_t spreadVelocityForCurrentStep = -getRandomUnipolarProbabilityAmount(spreadVelocity);
+		int32_t spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(spreadVelocity);
 
 		arpNote.baseVelocity = originalVelocity;
 		uint8_t velocity = originalVelocity;
@@ -284,7 +284,7 @@ noteInserted:
 	}
 	else {
 		// Apply spread to non-arpegg notes
-		int32_t spreadVelocityForCurrentStep = -getRandomUnipolarProbabilityAmount(spreadVelocity);
+		int32_t spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(spreadVelocity);
 
 		arpNote->baseVelocity = originalVelocity;
 		uint8_t velocity = originalVelocity;
@@ -668,14 +668,6 @@ bool ArpeggiatorBase::getRandomProbabilityResult(uint32_t value) {
 	return (value >> 16) >= randomChance;
 }
 
-int8_t ArpeggiatorBase::getRandomUnipolarProbabilityAmount(uint32_t value) {
-	if (value == 0) {
-		return 0;
-	}
-	int32_t am = value >> 25;
-	return random(am); // values go from 0 to 127 max (7 bits)
-}
-
 int8_t ArpeggiatorBase::getRandomBipolarProbabilityAmount(uint32_t value) {
 	if (value == 0) {
 		return 0;
@@ -726,7 +718,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		if (resetLockedRandomizerValuesNextTime || settings->lastLockedSpreadVelocityParameterValue != spreadVelocity) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
 				settings->lockedSpreadVelocityValues[i] =
-				    -getRandomUnipolarProbabilityAmount(spreadVelocity); // negative
+				    getRandomBipolarProbabilityAmount(spreadVelocity); // negative
 			}
 			settings->lastLockedSpreadVelocityParameterValue = spreadVelocity;
 		}
@@ -769,7 +761,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		isPlayBassForCurrentStep = getRandomProbabilityResult(bassProbability);
 		isPlayChordForCurrentStep = getRandomProbabilityResult(chordProbability);
 		isPlayRatchetForCurrentStep = getRandomProbabilityResult(ratchetProbability);
-		spreadVelocityForCurrentStep = -getRandomUnipolarProbabilityAmount(spreadVelocity);
+		spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(spreadVelocity);
 		spreadGateForCurrentStep = getRandomBipolarProbabilityAmount(spreadGate);
 		spreadOctaveForCurrentStep = getRandomWeightedFourAmount(spreadOctave);
 		// Rest locked values

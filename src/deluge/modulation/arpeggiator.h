@@ -279,7 +279,6 @@ protected:
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
 	bool getRandomProbabilityResult(uint32_t value);
-	int8_t getRandomUnipolarProbabilityAmount(uint32_t value);
 	int8_t getRandomBipolarProbabilityAmount(uint32_t value);
 	int8_t getRandomWeightedFourAmount(uint32_t value);
 };

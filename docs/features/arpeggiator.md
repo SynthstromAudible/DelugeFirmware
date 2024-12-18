@@ -160,7 +160,7 @@ The following parameters are also automatable and learnable to golden knobs and 
       - From 20 to 34, up to +2 octave changes.
       - From 35 to 50, up to +3 octave changes.
   - **`Gate Spread (GATE)`**: The gate of the arp step will get a random **positive** or **negative** deviation from the base gate.
-  - **`Velocity Spread (VELO)`**: The velocity of the arp step will get a random **negative** deviation from the base velocity.
+  - **`Velocity Spread (VELO)`**: The velocity of the arp step will get a random **positive** or **negative** deviation from the base velocity.
     Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because this parameter affects
     both sequenced notes and arpeggiated notes.
   - **`Lock (LOCK)`**: this flag will lock the current set of randomized values for the arpeggiator, so the sequence has a repeatable pattern.
