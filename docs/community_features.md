@@ -1311,6 +1311,8 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
 * `Stutter Rate Quantize (STUT)`
     * When On, the ability to set the stutterer effect to be quantized to 4th, 8th, 16th, 32nd, and 64th rate when
       selecting it is enabled.
+* `Reverse Stutter Rate (RSTUT)`
+    * When On, the stutter buffer is reversed.
 * `Allow Insecure Develop Sysex Messages (SYSX)`
     * When On, the ability to load firmware over USB is enabled.
 * `Sync Scaling Action (SCAL)`
@@ -1661,6 +1663,8 @@ different firmware
 [#2985]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2985
 
 [#2990]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2990
+
+[#2958]: https://github.com/SynthstromAudible/DelugeFirmware/pull/2958
 
 [Automation View Documentation]: features/automation_view.md
 
