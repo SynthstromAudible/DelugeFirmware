@@ -234,7 +234,8 @@ bool Cluster::mayBeStolen(void* thingNotToStealFrom) {
 }
 
 void Cluster::addReason() {
-	// If it's going to cease to be zero, it's become unavailable
+	// If it's going to cease to be zero, it's become unavailable,
+	// so remove it from the stealables queue
 	if (this->numReasonsToBeLoaded == 0) {
 		this->remove();
 	}

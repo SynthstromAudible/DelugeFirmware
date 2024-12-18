@@ -4,7 +4,7 @@
 extern void* delugeAlloc(unsigned int requiredSize, bool mayUseOnChipRam);
 extern void delugeDealloc(void* address);
 
-void *malloc(size_t size){
+void* malloc(size_t size) {
 	return delugeAlloc(size, true);
 }
 

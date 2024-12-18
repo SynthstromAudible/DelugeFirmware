@@ -19,6 +19,7 @@
 
 #include "util/containers.h"
 #include <cstdint>
+#include <limits>
 
 class Cluster;
 
@@ -50,7 +51,7 @@ public:
 	/* This is currently a consequence of how priorities are calculated (using full 32bits) next-gen getPriorityRating
 	 * should return an int32_t */
 	constexpr bool hasAnyLowestPriority() const {
-		return !priority_map_.empty() && priority_map_.rbegin()->first == static_cast<uint32_t>(-1);
+		return !priority_map_.empty() && priority_map_.rbegin()->first == std::numeric_limits<uint32_t>::max();
 	}
 
 private:
