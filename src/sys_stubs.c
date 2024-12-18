@@ -1,6 +1,10 @@
 #include "definitions.h"
 #include <sys/stat.h>
 
+// this is not included in the build but remains as a repo of information for implementing these in the future,
+// and to help troubleshoot link failures in the future - e.g. if _sbrk is required, it can be added to
+// finish compilation and find out what's including it
+
 // this stub fails to allocate - needed for libc malloc
 // Take advantage of that to ensure anything which allocates will fail to link
 void* _sbrk(int incr) {
