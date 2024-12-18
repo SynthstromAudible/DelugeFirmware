@@ -280,7 +280,7 @@ protected:
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
 	bool getRandomProbabilityResult(uint32_t value);
 	int8_t getRandomBipolarProbabilityAmount(uint32_t value);
-	int8_t getRandomWeightedFourAmount(uint32_t value);
+	int8_t getRandomWeighted2BitsAmount(uint32_t value);
 };
 
 class ArpeggiatorForDrum final : public ArpeggiatorBase {

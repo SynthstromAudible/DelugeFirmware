@@ -135,7 +135,8 @@ void ArpeggiatorForDrum::noteOn(ArpeggiatorSettings* settings, int32_t noteCode,
 			if (spreadVelocityForCurrentStep < 0) {
 				// Reducing velocity
 				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
-			} else {
+			}
+			else {
 				// Increasing velocity
 				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
 			}
@@ -304,7 +305,8 @@ noteInserted:
 			if (spreadVelocityForCurrentStep < 0) {
 				// Reducing velocity
 				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
-			} else {
+			}
+			else {
 				// Increasing velocity
 				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
 			}
@@ -408,7 +410,7 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	               // For the highest sync we can't divide the time any more, so not possible to ratchet
 	               && !(settings->syncType == SYNC_TYPE_EVEN && settings->syncLevel == SyncLevel::SYNC_LEVEL_256TH);
 	if (isRatcheting) {
-		ratchetNotesMultiplier = random(65535) % (ratchetAmount + 1);
+		ratchetNotesMultiplier = getRandomWeighted2BitsAmount(ratchetAmount);
 		ratchetNotesCount = 1 << ratchetNotesMultiplier;
 		if (settings->syncLevel == SyncLevel::SYNC_LEVEL_128TH) {
 			// If the sync level is 128th, we can't have a ratchet of more than 2 notes, so we set it to the minimum
@@ -636,7 +638,8 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 			if (spreadVelocityForCurrentStep < 0) {
 				// Reducing velocity
 				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
-			} else {
+			}
+			else {
 				// Increasing velocity
 				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
 			}
@@ -653,26 +656,26 @@ void ArpeggiatorForDrum::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnIn
 		}
 		arpNote.velocity = velocity;
 		// Get current sequence note
-		int16_t note = shouldPlayBassNote
-		                   ? noteForDrum
-		                   : noteForDrum
-		                         + chordTypeSemitoneOffsets[settings->chordTypeIndex]
-		                                                   [whichNoteCurrentlyOnPostArp % MAX_CHORD_NOTES]
-		                         + (int16_t)currentOctave * 12;
-		// Fix base note if it's out of bounds
-		if (note > 127) {
-			note = 127;
+		int16_t note;
+		if (shouldPlayBassNote) {
+			note = noteForDrum;
 		}
-		if (spreadOctaveForCurrentStep != 0) {
-			// Now apply octave spread to the base note
-			note = note + spreadOctaveForCurrentStep * 12;
-			// And fix it if out of bounds
-			if (note < 0) {
-				note = 0;
+		else {
+			int16_t diff = (int16_t)currentOctave * 12;
+			if (spreadOctaveForCurrentStep != 0) {
+				// Now apply octave spread to the base note
+				diff = diff + spreadOctaveForCurrentStep * 12;
 			}
-			else if (note > 127) {
-				note = 127;
-			}
+			note = noteForDrum
+			       + chordTypeSemitoneOffsets[settings->chordTypeIndex][whichNoteCurrentlyOnPostArp % MAX_CHORD_NOTES]
+			       + diff;
+		}
+		// And fix it if out of bounds
+		if (note < 0) {
+			note = 0;
+		}
+		else if (note > 127) {
+			note = 127;
 		}
 		// Set the note to be played
 		noteCodeCurrentlyOnPostArp = note;
@@ -697,16 +700,20 @@ int8_t ArpeggiatorBase::getRandomBipolarProbabilityAmount(uint32_t value) {
 	if (value == 0) {
 		return 0;
 	}
-	int32_t am = value >> 24; // 256 values
-	int32_t amHalf = am >> 1;
-	return random(am) - amHalf; // values go from -128 to 127 (8bits)
+	int32_t randValue = multiply_32x32_rshift32(q31_mult(sampleTriangleDistribution(), value >> 1), 255);
+	if (randValue < -127) {
+		return -127;
+	}
+	else if (randValue > 127) {
+		return 127;
+	}
+	return randValue;
 }
-int8_t ArpeggiatorBase::getRandomWeightedFourAmount(uint32_t value) {
+int8_t ArpeggiatorBase::getRandomWeighted2BitsAmount(uint32_t value) {
 	if (value == 0) {
 		return 0;
 	}
-	int32_t maxValue = computeWeightedFourValuesForUnsignedMenuItem(value);
-	return random(maxValue); // values go from 0 to 3 max
+	return std::abs(multiply_32x32_rshift32(q31_mult(sampleTriangleDistribution(), value >> 1), 5));
 }
 
 void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) {
@@ -742,8 +749,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		}
 		if (resetLockedRandomizerValuesNextTime || settings->lastLockedSpreadVelocityParameterValue != spreadVelocity) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedSpreadVelocityValues[i] =
-				    getRandomBipolarProbabilityAmount(spreadVelocity); // negative
+				settings->lockedSpreadVelocityValues[i] = getRandomBipolarProbabilityAmount(spreadVelocity); // negative
 			}
 			settings->lastLockedSpreadVelocityParameterValue = spreadVelocity;
 		}
@@ -755,7 +761,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		}
 		if (resetLockedRandomizerValuesNextTime || settings->lastLockedSpreadOctaveParameterValue != spreadOctave) {
 			for (int i = 0; i < RANDOMIZER_LOCK_MAX_SAVED_VALUES; i++) {
-				settings->lockedSpreadOctaveValues[i] = getRandomWeightedFourAmount(spreadOctave);
+				settings->lockedSpreadOctaveValues[i] = getRandomWeighted2BitsAmount(spreadOctave);
 			}
 			settings->lastLockedSpreadOctaveParameterValue = spreadOctave;
 		}
@@ -788,7 +794,7 @@ void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) 
 		isPlayRatchetForCurrentStep = getRandomProbabilityResult(ratchetProbability);
 		spreadVelocityForCurrentStep = getRandomBipolarProbabilityAmount(spreadVelocity);
 		spreadGateForCurrentStep = getRandomBipolarProbabilityAmount(spreadGate);
-		spreadOctaveForCurrentStep = getRandomWeightedFourAmount(spreadOctave);
+		spreadOctaveForCurrentStep = getRandomWeighted2BitsAmount(spreadOctave);
 		// Rest locked values
 		resetLockedRandomizerValuesNextTime = true;
 	}
@@ -1057,7 +1063,8 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 			if (spreadVelocityForCurrentStep < 0) {
 				// Reducing velocity
 				diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
-			} else {
+			}
+			else {
 				// Increasing velocity
 				diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
 			}
@@ -1074,22 +1081,24 @@ void Arpeggiator::switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstructi
 		}
 		arpNote->velocity = velocity;
 		// Get current sequence note
-		int16_t note = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)]
-		               + (shouldPlayBassNote ? 0 : ((int16_t)currentOctave * 12));
-		// Fix base note if it's out of bounds
-		if (note > 127) {
-			note = 127;
+		int16_t note;
+		if (shouldPlayBassNote) {
+			note = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)];
 		}
-		if (spreadOctaveForCurrentStep != 0) {
-			// Now apply octave spread to the base note
-			note = note + spreadOctaveForCurrentStep * 12;
-			// And fix it if out of bounds
-			if (note < 0) {
-				note = 0;
+		else {
+			int16_t diff = (int16_t)currentOctave * 12;
+			if (spreadOctaveForCurrentStep != 0) {
+				// Now apply octave spread to the base note
+				diff = diff + spreadOctaveForCurrentStep * 12;
 			}
-			else if (note > 127) {
-				note = 127;
-			}
+			note = arpNote->inputCharacteristics[util::to_underlying(MIDICharacteristic::NOTE)] + diff;
+		}
+		// And fix it if out of bounds
+		if (note < 0) {
+			note = 0;
+		}
+		else if (note > 127) {
+			note = 127;
 		}
 		// Set the note to be played
 		noteCodeCurrentlyOnPostArp = note;
@@ -1125,13 +1134,10 @@ void ArpeggiatorBase::updateParams(uint32_t rhythmValue, uint32_t sequenceLength
 	maxSequenceLength = computeCurrentValueForUnsignedMenuItem(sequenceLength);
 
 	// Update live ratchetAmount value with the most up to date value from automation
-	// Convert chordPoly to either 0, 1, 2 or 3 (equivalent to the number of additional chord notes, apart from root
-	// note)
-	chordPolyphony = computeWeightedFourValuesForUnsignedMenuItem(chordPoly);
+	chordPolyphony = chordPoly;
 
 	// Update live ratchetAmount value with the most up to date value from automation
-	// Convert ratchAmount to either 0, 1, 2 or 3 (equivalent to a number of ratchets: OFF, 2, 4, 8)
-	ratchetAmount = computeWeightedFourValuesForUnsignedMenuItem(ratchAmount);
+	ratchetAmount = ratchAmount;
 
 	// RANDOMIZER
 
@@ -1176,7 +1182,8 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 		if (spreadGateForCurrentStep < 0) {
 			// Reducing velocity
 			diff = -(multiply_32x32_rshift32((-spreadGateForCurrentStep) << 24, signedGateThreshold) << 1);
-		} else {
+		}
+		else {
 			// Increasing velocity
 			diff = (multiply_32x32_rshift32(spreadGateForCurrentStep << 24, maxGate - signedGateThreshold) << 1);
 		}
