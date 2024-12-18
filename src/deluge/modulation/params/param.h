@@ -189,9 +189,9 @@ enum UnpatchedSound : ParamType {
 	UNPATCHED_ARP_BASS_PROBABILITY,
 	UNPATCHED_ARP_CHORD_PROBABILITY,
 	UNPATCHED_ARP_RATCHET_PROBABILITY,
-	UNPATCHED_ARP_SPREAD_VELOCITY,
 	UNPATCHED_ARP_SPREAD_GATE,
 	UNPATCHED_ARP_SPREAD_OCTAVE,
+	UNPATCHED_SPREAD_VELOCITY,
 	UNPATCHED_PORTAMENTO,
 	UNPATCHED_SOUND_MAX_NUM,
 };
@@ -320,7 +320,7 @@ const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] =
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, UNPATCHED_MOD_FX_OFFSET   , UNPATCHED_MOD_FX_FEEDBACK      , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID}
+    {kNoParamID          , UNPATCHED_SPREAD_VELOCITY, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID}
 };
 // clang-format on
 

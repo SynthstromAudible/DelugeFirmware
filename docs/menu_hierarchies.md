@@ -725,15 +725,20 @@ The Sound menu contains the following menu hierarchy:
 		- Note Probability (PROB)
 		- Bass Probability (BASS)
 		- Chord Probability (CHRD)
+		- Octave Spread (OCTA)
 		- Gate Spread (GATE)
 		- Velocity Spread (VELO)
-		- Octave Spread (OCTA)
-		- Lock Randomizer (LOCK)
+		- Lock (LOCK)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+</details>
+
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
 </details>
 <details><summary>Compressor (COMP)</summary>
 
@@ -1318,15 +1323,19 @@ The MIDI menu contains the following menu hierarchy:
 		- Note Probability (PROB)
 		- Bass Probability (BASS)
 		- Chord Probability (CHRD)
+		- Octave Spread (OCTA)
 		- Gate Spread (GATE)
 		- Velocity Spread (VELO)
-		- Octave Spread (OCTA)
-		- Lock Randomizer (LOCK)
+		- Lock (LOCK)
 	- MPE
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+</details>
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 
@@ -1419,15 +1428,19 @@ The CV menu contains the following menu hierarchy:
 		- Note Probability (PROB)
 		- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
 		- Chord Probability (CHRD) (NOTE: NOT available for Gate Kit Rows)
+		- Octave Spread (OCTA) (NOTE: NOT available for Gate Kit Rows)
 		- Gate Spread (GATE)
 		- Velocity Spread (VELO) (NOTE: NOT available for Gate Kit Rows)
-		- Octave Spread (OCTA) (NOTE: NOT available for Gate Kit Rows)
-		- Lock Randomizer (LOCK)
+		- Lock (LOCK)
 	- MPE (NOTE: NOT available for Gate Kit Rows)
 		- Velocity (VELO)
 			- Disabled (OFF)
 			- Aftertouch
 			- MPE Y (Y)
+</details>
+<details><summary>Randomizer (RAND)</summary>
+
+	- Velocity Spread (VELO)
 </details>
 <details><summary>Bend Range (BEND) </summary>
 

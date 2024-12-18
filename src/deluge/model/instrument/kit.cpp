@@ -671,7 +671,6 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 		    && (thisNoteRow->drum->type == DrumType::MIDI || thisNoteRow->drum->type == DrumType::GATE)) {
 			NonAudioDrum* nonAudioDrum = (NonAudioDrum*)thisNoteRow->drum;
 
-			uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpeggiatorGate + 2147483648;
 			uint32_t rhythm = nonAudioDrum->arpeggiatorRhythm;
 			uint32_t sequenceLength = nonAudioDrum->arpeggiatorSequenceLength;
 			uint32_t chordPolyphony = nonAudioDrum->arpeggiatorChordPolyphony;
@@ -684,21 +683,26 @@ void Kit::renderOutput(ModelStack* modelStack, StereoSample* outputBuffer, Stere
 			uint32_t spreadGate = nonAudioDrum->arpeggiatorSpreadGate;
 			uint32_t spreadOctave = nonAudioDrum->arpeggiatorSpreadOctave;
 
-			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(
-			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
-			                              cableToExpParamShortcut(nonAudioDrum->arpeggiatorRate)));
+			nonAudioDrum->arpeggiator.updateParams(rhythm, sequenceLength, chordPolyphony, ratchetAmount,
+			                                       noteProbability, bassProbability, chordProbability,
+			                                       ratchetProbability, spreadVelocity, spreadGate, spreadOctave);
 
-			ArpReturnInstruction instruction;
-			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, numSamples, gateThreshold,
-			                                 phaseIncrement, rhythm, sequenceLength, chordPolyphony, ratchetAmount,
-			                                 noteProbability, bassProbability, chordProbability, ratchetProbability,
-			                                 spreadVelocity, spreadGate, spreadOctave);
-			if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
-				nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
-			}
+			if (nonAudioDrum->arpSettings.mode != ArpMode::OFF) {
+				uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpeggiatorGate + 2147483648;
+				uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(
+				    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
+				                              cableToExpParamShortcut(nonAudioDrum->arpeggiatorRate)));
 
-			if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
-				nonAudioDrum->noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+				ArpReturnInstruction instruction;
+				nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, numSamples, gateThreshold,
+				                                 phaseIncrement);
+				if (instruction.noteCodeOffPostArp != ARP_NOTE_NONE) {
+					nonAudioDrum->noteOffPostArp(instruction.noteCodeOffPostArp);
+				}
+
+				if (instruction.noteCodeOnPostArp != ARP_NOTE_NONE) {
+					nonAudioDrum->noteOnPostArp(instruction.noteCodeOnPostArp, instruction.arpNoteOn);
+				}
 			}
 		}
 	}

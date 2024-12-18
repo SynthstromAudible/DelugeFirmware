@@ -189,9 +189,7 @@ public:
 	                  uint32_t noteProb, uint32_t bassProb, uint32_t chordProb, uint32_t ratchProb, uint32_t spVelocity,
 	                  uint32_t spGate, uint32_t spOctave);
 	void render(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, int32_t numSamples,
-	            uint32_t gateThreshold, uint32_t phaseIncrement, uint32_t rhythmValue, uint32_t sequenceLength,
-	            uint32_t chordPoly, uint32_t ratchAmount, uint32_t noteProb, uint32_t bassProb, uint32_t chordProb,
-	            uint32_t ratchProb, uint32_t spVelocity, uint32_t spGate, uint32_t spOctave);
+	            uint32_t gateThreshold, uint32_t phaseIncrement);
 	int32_t doTickForward(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, uint32_t ClipCurrentPos,
 	                      bool currentlyPlayingReversed);
 	void calculateRandomizerAmounts(ArpeggiatorSettings* settings);
@@ -280,10 +278,10 @@ protected:
 	int32_t getOctaveDirection(ArpeggiatorSettings* settings);
 	virtual void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) = 0;
 	void switchAnyNoteOff(ArpReturnInstruction* instruction);
-	bool getRandomProbabilityResult(ArpeggiatorSettings* settings, uint32_t value);
-	int8_t getRandomUnipolarProbabilityAmount(ArpeggiatorSettings* settings, uint32_t value);
-	int8_t getRandomBipolarProbabilityAmount(ArpeggiatorSettings* settings, uint32_t value);
-	int8_t getRandomWeightedFourAmount(ArpeggiatorSettings* settings, uint32_t value);
+	bool getRandomProbabilityResult(uint32_t value);
+	int8_t getRandomUnipolarProbabilityAmount(uint32_t value);
+	int8_t getRandomBipolarProbabilityAmount(uint32_t value);
+	int8_t getRandomWeightedFourAmount(uint32_t value);
 };
 
 class ArpeggiatorForDrum final : public ArpeggiatorBase {

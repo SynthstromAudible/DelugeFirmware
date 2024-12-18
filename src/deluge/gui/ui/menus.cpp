@@ -273,7 +273,7 @@ arpeggiator::OnlyForSoundUnpatchedParam arpRatchetProbabilityMenu{STRING_FOR_RAT
 arpeggiator::midi_cv::RatchetProbability arpRatchetProbabilityMenuMIDIOrCV{
     STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpSpreadVelocityMenu{
-    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_VELOCITY};
+    STRING_FOR_SPREAD_VELOCITY, STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_SPREAD_VELOCITY};
 arpeggiator::midi_cv::SpreadVelocity arpSpreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
                                                                    STRING_FOR_ARP_SPREAD_VELOCITY_MENU_TITLE};
 arpeggiator::OnlyForSoundUnpatchedParam arpSpreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
@@ -289,9 +289,11 @@ arpeggiator::midi_cv::SpreadOctave arpSpreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD
 Submenu arpRandomizerMenu{STRING_FOR_RANDOMIZER,
                           {&arpRatchetProbabilityMenu, &arpRatchetProbabilityMenuMIDIOrCV, &arpNoteProbabilityMenu,
                            &arpNoteProbabilityMenuMIDIOrCV, &arpBassProbabilityMenu, &arpBassProbabilityMenuMIDIOrCV,
-                           &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV, &arpSpreadGateMenu,
-                           &arpSpreadGateMenuMIDIOrCV, &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV,
-                           &arpSpreadOctaveMenu, &arpSpreadOctaveMenuMIDIOrCV, &arpRandomizerLockMenu}};
+                           &arpChordProbabilityMenu, &arpChordProbabilityMenuMIDIOrCV, &arpSpreadOctaveMenu,
+                           &arpSpreadOctaveMenuMIDIOrCV, &arpSpreadGateMenu, &arpSpreadGateMenuMIDIOrCV,
+                           &arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV, &arpRandomizerLockMenu}};
+// Global: Randomizer
+Submenu globalRandomizerMenu{STRING_FOR_RANDOMIZER, {&arpSpreadVelocityMenu, &arpSpreadVelocityMenuMIDIOrCV}};
 // Arp: MPE
 arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
 submenu::ArpMpeSubmenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
@@ -1261,6 +1263,7 @@ menu_item::Submenu soundEditorRootMenu{
     {
         &soundMasterMenu,
         &arpMenu,
+        &globalRandomizerMenu,
         &audioCompMenu,
         &soundFiltersMenu,
         &soundFXMenu,
@@ -1389,6 +1392,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &midiBankMenu,
         &midiSubMenu,
         &arpMenu,
+        &globalRandomizerMenu,
         &bendMenu,
         &cv2SourceMenu,
         &mpeyToModWheelMenu,
@@ -1402,6 +1406,7 @@ menu_item::Submenu soundEditorRootMenuMidiDrum{
     STRING_FOR_MIDI,
     {
         &arpMenu,
+        &globalRandomizerMenu,
     },
 };
 menu_item::Submenu soundEditorRootMenuGateDrum{
@@ -1552,6 +1557,7 @@ MenuItem* paramShortcutsForSounds[][8] = {
     {&lfo1RateMenu,           &lfo1SyncMenu,           &lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,     &modFXFeedbackMenu,     &modFXDepthMenu,          &modFXRateMenu                     },
     {&lfo2RateMenu,           &lfo2SyncMenu,           &lfo2TypeMenu,                  &reverbAmountMenu,              &reverbPanMenu,       &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&delayRateMenu,          &delaySyncMenu,          &delayAnalogMenu,               &delayFeedbackMenu,             &delayPingPongMenu,   nullptr,                nullptr,                  nullptr                            },
+    {nullptr,          	  &arpSpreadVelocityMenu,  nullptr,                  nullptr,                  nullptr,                  nullptr,                  nullptr,                  nullptr                            },
 };
 
 MenuItem* paramShortcutsForAudioClips[][8] = {
