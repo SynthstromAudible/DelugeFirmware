@@ -93,7 +93,6 @@ public:
 	Error enqueueCluster(Cluster* cluster, uint32_t priorityRating = 0xFFFFFFFF);
 	bool loadCluster(Cluster* cluster, int32_t minNumReasonsAfter = 0);
 	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
-	void addReasonToCluster(Cluster* cluster);
 	void removeReasonFromCluster(Cluster* cluster, char const* errorCode, bool deletingSong = false);
 	void testQueue();
 

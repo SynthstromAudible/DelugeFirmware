@@ -198,7 +198,6 @@ add_compile_options(
 
     # C++ stuff
     $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
-    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
     $<$<COMPILE_LANGUAGE:CXX>:-fno-use-cxa-atexit>
     $<$<COMPILE_LANGUAGE:CXX>:-fno-threadsafe-statics>
 
@@ -269,9 +268,6 @@ set(NMDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.nmdump)
 
 # add link options to generate memory map
 target_link_options(deluge PUBLIC
-
-    # use newlib nano
-    --specs=nano.specs
 
     -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld
     LINKER:-Map=${MAP_FILE}

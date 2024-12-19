@@ -1284,7 +1284,7 @@ void SampleLowLevelReader::cloneFrom(SampleLowLevelReader* other, bool stealReas
 				other->clusters[l] = NULL;
 			}
 			else {
-				audioFileManager.addReasonToCluster(clusters[l]);
+				clusters[l]->addReason();
 			}
 		}
 	}

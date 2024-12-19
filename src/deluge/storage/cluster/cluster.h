@@ -34,6 +34,7 @@ public:
 	bool mayBeStolen(void* thingNotToStealFrom);
 	void steal(char const* errorCode);
 	StealableQueue getAppropriateQueue();
+	void addReason();
 
 	ClusterType type;
 	int8_t numReasonsHeldBySampleRecorder;
