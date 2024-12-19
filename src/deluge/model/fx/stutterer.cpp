@@ -108,132 +108,138 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 
 void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamManager* paramManager, int32_t magnitude,
                                uint32_t timePerTickInverse, bool reverse, bool pingPong) {
-    StereoSample* audioEnd = audio + numSamples;
-    StereoSample* thisSample = audio;
+	StereoSample* audioEnd = audio + numSamples;
+	StereoSample* thisSample = audio;
 
-    int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
+	int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
 
-    buffer.setupForRender(rate);
+	buffer.setupForRender(rate);
 
 	// These check if the buffer has been fully passed, before reversing
-    static int32_t bufferPosition = 0;
-    static bool currentReverse = reverse;
+	static int32_t bufferPosition = 0;
+	static bool currentReverse = reverse;
 
-    if (status == Status::RECORDING) {
-        do {
-            int32_t strength1;
-            int32_t strength2;
+	if (status == Status::RECORDING) {
+		do {
+			int32_t strength1;
+			int32_t strength2;
 
-            if (buffer.isNative()) {
-                buffer.clearAndMoveOn();
-                sizeLeftUntilRecordFinished--;
-            } else {
-                strength2 = buffer.advance([&] {
-                    buffer.clearAndMoveOn();
-                    sizeLeftUntilRecordFinished--;
-                });
-                strength1 = 65536 - strength2;
-            }
-
-            buffer.write(*thisSample, strength1, strength2);
-        } while (++thisSample != audioEnd);
-
-        if (sizeLeftUntilRecordFinished < 0) {
-            status = Status::PLAYING;
-        }
-    } else { // PLAYING
-        do {
-            int32_t strength1;
-            int32_t strength2;
-
-
-            if (buffer.isNative()) {
-				if (currentReverse == false) {
-					buffer.moveOn(); // move forward in the buffer
-				}
-				else {
-
-            if (buffer.isNative()) {
-				if (currentReverse == false) {
-					buffer.moveOn(); // move forward in the buffer
-					bufferPosition++;
-				} else {
-					buffer.moveBack(); // move backward in the buffer
-					bufferPosition--;
-				}
-				thisSample->l = buffer.current().l;
-				thisSample->r = buffer.current().r;
+			if (buffer.isNative()) {
+				buffer.clearAndMoveOn();
+				sizeLeftUntilRecordFinished--;
 			}
 			else {
-				if (reverse == false) {
-					strength2 = buffer.advance([&] { buffer.moveOn(); });
-				}
-				else {
-					strength2 = buffer.retreat([&] { buffer.moveBack(); });
-				}
-
+				strength2 = buffer.advance([&] {
+					buffer.clearAndMoveOn();
+					sizeLeftUntilRecordFinished--;
+				});
 				strength1 = 65536 - strength2;
-				if (reverse == false) {
-                thisSample->l = buffer.current().l;
-                thisSample->r = buffer.current().r;
-            } else {
-				if (currentReverse == false) {
-					strength2 = buffer.advance([&] {
-						buffer.moveOn();
-						bufferPosition++;
-					});
-				} else {
-					strength2 = buffer.retreat([&] {
-						buffer.moveBack();
-						bufferPosition--;
-					});
-				}
+			}
 
-                strength1 = 65536 - strength2;
+			buffer.write(*thisSample, strength1, strength2);
+		} while (++thisSample != audioEnd);
+
+		if (sizeLeftUntilRecordFinished < 0) {
+			status = Status::PLAYING;
+		}
+	}
+	else { // PLAYING
+		do {
+			int32_t strength1;
+			int32_t strength2;
+
+			if (buffer.isNative()) {
 				if (currentReverse == false) {
-					StereoSample* nextPos = &buffer.current() + 1;
-					if (nextPos == buffer.end()) {
-						nextPos = buffer.begin();
-					}
-					StereoSample& fromDelay1 = buffer.current();
-					StereoSample& fromDelay2 = *nextPos;
-					thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
-					                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
-					                << 2;
-					thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
-					                << 2;
+					buffer.moveOn(); // move forward in the buffer
 				}
 				else {
-					StereoSample* prevPos = &buffer.current() - 1;
-					if (prevPos < buffer.begin()) {
-						prevPos = buffer.end() - 1; // Wrap around to the end of the buffer
+
+					if (buffer.isNative()) {
+						if (currentReverse == false) {
+							buffer.moveOn(); // move forward in the buffer
+							bufferPosition++;
+						}
+						else {
+							buffer.moveBack(); // move backward in the buffer
+							bufferPosition--;
+						}
+						thisSample->l = buffer.current().l;
+						thisSample->r = buffer.current().r;
 					}
-					StereoSample& fromDelay1 = buffer.current();
-					StereoSample& fromDelay2 = *prevPos;
-					thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
-					                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
-					                << 2;
-					thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
-					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
-					                << 2;
+					else {
+						if (reverse == false) {
+							strength2 = buffer.advance([&] { buffer.moveOn(); });
+						}
+						else {
+							strength2 = buffer.retreat([&] { buffer.moveBack(); });
+						}
+
+						strength1 = 65536 - strength2;
+						if (reverse == false) {
+							thisSample->l = buffer.current().l;
+							thisSample->r = buffer.current().r;
+						}
+						else {
+							if (currentReverse == false) {
+								strength2 = buffer.advance([&] {
+									buffer.moveOn();
+									bufferPosition++;
+								});
+							}
+							else {
+								strength2 = buffer.retreat([&] {
+									buffer.moveBack();
+									bufferPosition--;
+								});
+							}
+
+							strength1 = 65536 - strength2;
+							if (currentReverse == false) {
+								StereoSample* nextPos = &buffer.current() + 1;
+								if (nextPos == buffer.end()) {
+									nextPos = buffer.begin();
+								}
+								StereoSample& fromDelay1 = buffer.current();
+								StereoSample& fromDelay2 = *nextPos;
+								thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+								                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
+								                << 2;
+								thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+								                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+								                << 2;
+							}
+							else {
+								StereoSample* prevPos = &buffer.current() - 1;
+								if (prevPos < buffer.begin()) {
+									prevPos = buffer.end() - 1; // Wrap around to the end of the buffer
+								}
+								StereoSample& fromDelay1 = buffer.current();
+								StereoSample& fromDelay2 = *prevPos;
+								thisSample->l = (multiply_32x32_rshift32(fromDelay1.l, strength1 << 14)
+								                 + multiply_32x32_rshift32(fromDelay2.l, strength2 << 14))
+								                << 2;
+								thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
+								                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
+								                << 2;
+							}
+						}
+					}
+					while (++thisSample != audioEnd)
+						;
+				}
+			}
+			if (pingPong) {
+				if (bufferPosition >= buffer.size()) {
+					currentReverse = !currentReverse;
+					bufferPosition = buffer.size() - 1;
+				}
+				else if (bufferPosition < 0) {
+					currentReverse = !currentReverse;
+					bufferPosition = 0;
 				}
 			}
 		} while (++thisSample != audioEnd);
 	}
-
-            }
-			if (pingPong) {
-                if (bufferPosition >= buffer.size()) {
-                    currentReverse = !currentReverse;
-                    bufferPosition = buffer.size() - 1;
-                } else if (bufferPosition < 0) {
-                    currentReverse = !currentReverse;
-                    bufferPosition = 0;
-                }
-            }
-        } while (++thisSample != audioEnd);
-    }
 }
 
 // paramManager is optional - if you don't send it, it won't change the stutter rate

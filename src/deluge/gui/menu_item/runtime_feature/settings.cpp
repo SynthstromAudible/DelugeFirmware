@@ -62,10 +62,8 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuAltGoldenKnobDelayParams,
     &menuQuantizedStutterRate,
 
-
-
-	&menuReverseStutterRate,
-	&menuPingPongStutter,
+    &menuReverseStutterRate,
+    &menuPingPongStutter,
 
     &menuDevSysexAllowed,
     &menuSyncScalingAction,
