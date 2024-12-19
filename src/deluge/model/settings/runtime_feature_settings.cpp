@@ -132,6 +132,10 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::QuantizedStutterRate],
 	                  STRING_FOR_COMMUNITY_FEATURE_QUANTIZED_STUTTER, "quantizedStutterRate",
 	                  RuntimeFeatureStateToggle::Off);
+	// ReverseStutterRate
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ReverseStutterRate],
+	                  STRING_FOR_COMMUNITY_FEATURE_REVERSE_STUTTER, "reverseStutterRate",
+	                  RuntimeFeatureStateToggle::Off);
 	// devSysexAllowed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX,
 	                  "devSysexAllowed", RuntimeFeatureStateToggle::Off);

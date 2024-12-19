@@ -1365,8 +1365,8 @@ void PerformanceView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, i
 /// reset press info and stutter when exiting performance view
 /// exit out of default editing mode
 void PerformanceView::releaseViewOnExit(ModelStackWithThreeMainThings* modelStack) {
-	resetPadPressInfo();
 	releaseStutter(modelStack);
+	resetPadPressInfo();
 	defaultEditingMode = false;
 	editingParam = false;
 }

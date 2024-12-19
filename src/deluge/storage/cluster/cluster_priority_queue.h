@@ -17,21 +17,44 @@
 
 #pragma once
 
-#include "util/container/array/ordered_resizeable_array.h"
+#include "util/containers.h"
+#include <cstdint>
+#include <limits>
 
 class Cluster;
 
-struct PriorityQueueElement {
-	uint32_t priorityRating;
-	Cluster* cluster;
-};
+class ClusterPriorityQueue {
+	using Priority = uint32_t;
 
-class ClusterPriorityQueue final : public OrderedResizeableArrayWith32bitKey {
 public:
-	ClusterPriorityQueue();
+	ClusterPriorityQueue() = default;
 
-	Error add(Cluster* cluster, uint32_t priorityRating);
-	Cluster* grabHead();
-	bool removeIfPresent(Cluster* cluster);
-	bool checkPresent(Cluster* cluster);
+	Error push(Cluster& cluster, uint32_t priorityRating);
+	constexpr Cluster& front() const { return *priority_map_.begin()->second; }
+
+	constexpr void pop() {
+		auto it = priority_map_.begin();
+		priority_map_.erase(it);
+		queued_clusters_.erase(it->second);
+	}
+
+	constexpr bool empty() const { return queued_clusters_.empty() || priority_map_.empty(); }
+	constexpr size_t erase(Cluster& cluster) {
+		if (auto search = queued_clusters_.find(&cluster); search != queued_clusters_.end()) {
+			priority_map_.erase({search->second, &cluster});
+			queued_clusters_.erase(&cluster);
+			return 1;
+		}
+		return 0;
+	}
+
+	/* This is currently a consequence of how priorities are calculated (using full 32bits) next-gen getPriorityRating
+	 * should return an int32_t */
+	constexpr bool hasAnyLowestPriority() const {
+		return !priority_map_.empty() && priority_map_.rbegin()->first == std::numeric_limits<uint32_t>::max();
+	}
+
+private:
+	deluge::fast_set<std::pair<Priority, Cluster*>> priority_map_;
+	deluge::fast_unordered_map<Cluster*, Priority> queued_clusters_;
 };

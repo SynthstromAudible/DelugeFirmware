@@ -191,7 +191,7 @@ justEnqueue:
 			}
 		}
 
-		audioFileManager.addReasonToCluster(cluster);
+		cluster->addReason();
 
 #if 1 || ALPHA_OR_BETA_VERSION // Switching permanently on for now, as users on V4.0.x have been getting E341.
 		if (cluster && cluster->numReasonsToBeLoaded <= 0) {

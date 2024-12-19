@@ -16,56 +16,27 @@
  */
 
 #include "storage/cluster/cluster_priority_queue.h"
+#include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "util/exceptions.h"
+#include <cstdlib>
 
 class Cluster;
 
-ClusterPriorityQueue::ClusterPriorityQueue()
-    : OrderedResizeableArrayWith32bitKey(sizeof(PriorityQueueElement), 32, 31) {
-}
-
 // Returns error
-Error ClusterPriorityQueue::add(Cluster* cluster, uint32_t priorityRating) {
-	int32_t i = insertAtKey((int32_t)cluster);
-	if (i == -1) {
-		return Error::INSUFFICIENT_RAM;
+Error ClusterPriorityQueue::push(Cluster& cluster, uint32_t priority) {
+	if (auto search = queued_clusters_.find(&cluster); search != queued_clusters_.end()) {
+		priority_map_.erase({search->second, &cluster});
 	}
 
-	PriorityQueueElement* element = (PriorityQueueElement*)getElementAddress(i);
-	element->priorityRating = priorityRating;
-	element->cluster = cluster;
+	try {
+		priority_map_.insert({priority, &cluster});
+		queued_clusters_[&cluster] = priority;
+	} catch (deluge::exception e) {
+		if (e == deluge::exception::BAD_ALLOC) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		FREEZE_WITH_ERROR("EXPQ");
+	}
 	return Error::NONE;
-}
-
-Cluster* ClusterPriorityQueue::grabHead() {
-	if (!numElements) {
-		return NULL;
-	}
-	Cluster* toReturn = ((PriorityQueueElement*)getElementAddress(0))->cluster;
-	deleteAtIndex(0);
-	return toReturn;
-}
-
-// Returns whether it was present
-bool ClusterPriorityQueue::removeIfPresent(Cluster* cluster) {
-	for (int32_t i = 0; i < numElements; i++) {
-		PriorityQueueElement* element = (PriorityQueueElement*)getElementAddress(i);
-		if (element->cluster == cluster) {
-			deleteAtIndex(i);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool ClusterPriorityQueue::checkPresent(Cluster* cluster) {
-	for (int32_t i = 0; i < numElements; i++) {
-		PriorityQueueElement* element = (PriorityQueueElement*)getElementAddress(i);
-		if (element->cluster == cluster) {
-			return true;
-		}
-	}
-
-	return false;
 }
