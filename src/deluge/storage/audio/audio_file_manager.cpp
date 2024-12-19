@@ -214,7 +214,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 			// We may have deleted several, so do make sure we go and re-check from 0
 			highestUsedAudioRecordingNumber[util::to_underlying(AudioRecordingFolder::CLIPS)] = -1;
 
-			releaseSample(*sample);
+			releaseFile(*sample);
 		}
 	}
 }
@@ -358,7 +358,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String& filePath, String
 }
 
 // Returns false if exists but can't be deleted
-bool AudioFileManager::releaseSampleFilePath(String& filePath) {
+bool AudioFileManager::releaseSampleAtFilePath(String& filePath) {
 	if (auto search = sampleFiles.find(&filePath); search != sampleFiles.end()) {
 		Sample& sample = *search->second;
 
@@ -368,7 +368,7 @@ bool AudioFileManager::releaseSampleFilePath(String& filePath) {
 		}
 
 		// Ok, it's unused. Delete it.
-		releaseSample(sample);
+		releaseFile(sample);
 	}
 	return true; // We're fine - it got deleted
 }
@@ -377,24 +377,24 @@ bool AudioFileManager::releaseSampleFilePath(String& filePath) {
 void AudioFileManager::releaseAllUnused() {
 	for (Sample* sample : sampleFiles | std::views::values) {
 		if (sample->numReasonsToBeLoaded <= 0) {
-			releaseSample(*sample);
+			releaseFile(*sample);
 		}
 	}
 
 	for (WaveTable* wavetable : wavetableFiles | std::views::values) {
 		if (wavetable->numReasonsToBeLoaded <= 0) {
-			releaseWaveTable(*wavetable);
+			releaseFile(*wavetable);
 		}
 	}
 }
 
-void AudioFileManager::releaseSample(Sample& sample) {
+void AudioFileManager::releaseFile(Sample& sample) {
 	sampleFiles.erase(&sample.filePath);
 	sample.~Sample();
 	delugeDealloc(&sample);
 }
 
-void AudioFileManager::releaseWaveTable(WaveTable& wavetable) {
+void AudioFileManager::releaseFile(WaveTable& wavetable) {
 	wavetableFiles.erase(&wavetable.filePath);
 	wavetable.~WaveTable();
 	delugeDealloc(&wavetable);

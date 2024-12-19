@@ -114,9 +114,9 @@ public:
 	                                      String* songName);
 	void deleteAnyTempRecordedSamplesFromMemory();
 
-	void releaseSample(Sample& sample);
-	void releaseWaveTable(WaveTable& wavetable);
-	bool releaseSampleFilePath(String& filePath);
+	void releaseFile(Sample& sample);
+	void releaseFile(WaveTable& wavetable);
+	bool releaseSampleAtFilePath(String& filePath);
 	void releaseAllUnused();
 
 	void thingBeginningLoading(ThingType newThingType);

@@ -362,7 +362,7 @@ aborted:
 #endif
 
 			if (haveAddedSampleToArray) { // We only add it to the array when the file is created.
-				audioFileManager.releaseSample(*sample);
+				audioFileManager.releaseFile(*sample);
 			}
 
 			sample = nullptr; // So we don't try to detach it again when we're destructed

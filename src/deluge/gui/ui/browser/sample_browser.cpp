@@ -424,7 +424,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 						return ActionResult::DEALT_WITH;
 					}
 
-					bool allFine = audioFileManager.releaseSampleFilePath(filePath);
+					bool allFine = audioFileManager.releaseSampleAtFilePath(filePath);
 
 					if (!allFine) {
 						display->displayPopup(
