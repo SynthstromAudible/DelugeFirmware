@@ -1134,7 +1134,8 @@ void ModControllableAudio::processStutter(StereoSample* buffer, int32_t numSampl
 	if (stutterer.isStuttering(this)) {
 		stutterer.processStutter(buffer, numSamples, paramManager, currentSong->getInputTickMagnitude(),
 		                         playbackHandler.getTimePerInternalTickInverse(),
-		                         runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ReverseStutterRate));
+		                         runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ReverseStutterRate),
+		                         runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::PingPongStutter));
 	}
 }
 

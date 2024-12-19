@@ -107,13 +107,17 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 }
 
 void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamManager* paramManager, int32_t magnitude,
-                               uint32_t timePerTickInverse, bool reverse) {
+                               uint32_t timePerTickInverse, bool reverse, bool pingPong) {
 	StereoSample* audioEnd = audio + numSamples;
 	StereoSample* thisSample = audio;
 
 	int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
 
 	buffer.setupForRender(rate);
+
+	// These check if the buffer has been fully passed, before reversing
+	static int32_t bufferPosition = 0;
+	static bool currentReverse = reverse;
 
 	if (status == Status::RECORDING) {
 		do {
@@ -145,7 +149,7 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 			int32_t strength2;
 
 			if (buffer.isNative()) {
-				if (reverse == false) {
+				if (currentReverse == false) {
 					buffer.moveOn(); // move forward in the buffer
 				}
 				else {
@@ -155,7 +159,7 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 				thisSample->r = buffer.current().r;
 			}
 			else {
-				if (reverse == false) {
+				if (currentReverse == false) {
 					strength2 = buffer.advance([&] { buffer.moveOn(); });
 				}
 				else {
@@ -163,7 +167,7 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 				}
 
 				strength1 = 65536 - strength2;
-				if (reverse == false) {
+				if (currentReverse == false) {
 					StereoSample* nextPos = &buffer.current() + 1;
 					if (nextPos == buffer.end()) {
 						nextPos = buffer.begin();
@@ -190,6 +194,16 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 					thisSample->r = (multiply_32x32_rshift32(fromDelay1.r, strength1 << 14)
 					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
 					                << 2;
+				}
+			}
+			if (pingPong) {
+				if (bufferPosition >= buffer.size()) {
+					currentReverse = !currentReverse;
+					bufferPosition = buffer.size() - 1;
+				}
+				else if (bufferPosition < 0) {
+					currentReverse = !currentReverse;
+					bufferPosition = 0;
 				}
 			}
 		} while (++thisSample != audioEnd);

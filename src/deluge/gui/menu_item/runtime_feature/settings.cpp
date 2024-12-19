@@ -36,6 +36,7 @@ SettingToggle menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKit
 SettingToggle menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 SettingToggle menuQuantizedStutterRate(RuntimeFeatureSettingType::QuantizedStutterRate);
 SettingToggle menuReverseStutterRate(RuntimeFeatureSettingType::ReverseStutterRate);
+SettingToggle menuPingPongStutter(RuntimeFeatureSettingType::PingPongStutter);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 SettingToggle menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
@@ -61,6 +62,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuAltGoldenKnobDelayParams,
     &menuQuantizedStutterRate,
     &menuReverseStutterRate,
+	&menuPingPongStutter,
     &menuDevSysexAllowed,
     &menuSyncScalingAction,
     &menuHighlightIncomingNotes,

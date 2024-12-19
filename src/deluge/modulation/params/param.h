@@ -247,6 +247,7 @@ bool isParamArpRhythm(Kind kind, int32_t paramID);
 bool isParamStutter(Kind kind, int32_t paramID);
 bool isParamQuantizedStutter(Kind kind, int32_t paramID);
 bool isParamReverseStutter(Kind kind, int32_t paramID);
+bool isParamPingPongStutter(Kind kind, int32_t paramID);
 
 bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
 bool isSidechainPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
