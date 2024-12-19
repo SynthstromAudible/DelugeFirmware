@@ -25,15 +25,18 @@
 #include "util/container/array/ordered_resizeable_array_with_multi_word_key.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
+#include <bit>
 
 #define SAMPLE_DO_LOCKS (ALPHA_OR_BETA_VERSION)
 
-#define RAW_DATA_FINE 0
-#define RAW_DATA_FLOAT 1
-#define RAW_DATA_UNSIGNED_8 2
-#define RAW_DATA_ENDIANNESS_WRONG_16 3
-#define RAW_DATA_ENDIANNESS_WRONG_24 4
-#define RAW_DATA_ENDIANNESS_WRONG_32 5
+enum class RawDataFormat {
+	NATIVE = 0,
+	FLOAT = 1,
+	UNSIGNED_8 = 2,
+	ENDIANNESS_WRONG_16 = 3,
+	ENDIANNESS_WRONG_24 = 4,
+	ENDIANNESS_WRONG_32 = 5,
+};
 
 #define MIDI_NOTE_UNSET -999
 #define MIDI_NOTE_ERROR -1000
@@ -72,25 +75,34 @@ public:
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
 	int32_t getValueSpan();
-	void finalizeAfterLoad(uint32_t fileSize);
+	void finalizeAfterLoad(uint32_t fileSize) override;
 
-	inline q31_t convertOneData(int32_t value) {
-		// Floating point
-		if (rawDataFormat == RAW_DATA_FLOAT)
+	// Floating point
+	[[nodiscard]] q31_t convertToNative(float value) const { return q31_from_float(value); }
+
+	[[nodiscard]] q31_t convertToNative(int32_t value) const {
+		switch (rawDataFormat) {
+		case RawDataFormat::FLOAT:
 			return q31_from_float(std::bit_cast<float>(value));
 
-		// Or endianness swap
-		else if (rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_32) {
+		case RawDataFormat::ENDIANNESS_WRONG_32: // Or endianness swap
 			return swapEndianness32(value);
-		}
 
-		else if (rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_16) {
+		case RawDataFormat::ENDIANNESS_WRONG_16:
 			return swapEndianness2x16(value);
-		}
 
-		else if (rawDataFormat == RAW_DATA_UNSIGNED_8) {
+		case RawDataFormat::UNSIGNED_8:
 			return value ^ 0x80808080;
+
+		case RawDataFormat::ENDIANNESS_WRONG_24:
+			// handled by caller
+			[[fallthrough]];
+
+		case RawDataFormat::NATIVE:
+			// nothing to be done
+			break;
 		}
+		return value;
 	}
 
 	String tempFilePathForRecording;
@@ -109,7 +121,7 @@ public:
 
 	float midiNoteFromFile; // -1 means none
 
-	uint8_t rawDataFormat;
+	RawDataFormat rawDataFormat;
 
 	bool unloadable; // Only gets set to true if user has re-inserted the card and the sample appears to have been
 	                 // deleted / moved / modified

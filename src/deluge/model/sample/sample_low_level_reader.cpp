@@ -15,21 +15,16 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model/sample/sample_low_level_reader.h"
 #include "dsp/interpolate/interpolate.h"
-#pragma GCC push_options
-#pragma GCC target("fpu=neon")
-
 #include "dsp/timestretch/time_stretcher.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "model/sample/sample.h"
-#include "model/sample/sample_low_level_reader.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
-
-#include "arm_neon.h"
 
 SampleLowLevelReader::SampleLowLevelReader() {
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {

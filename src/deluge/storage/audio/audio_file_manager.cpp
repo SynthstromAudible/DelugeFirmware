@@ -1037,7 +1037,7 @@ getOutEarly:
 			memcpy(&prevCluster->data[Cluster::size], cluster.data, 7);
 
 			// If 24-bit wrong-endian data...
-			if (sample->rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24) {
+			if (sample->rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_24) {
 
 				// If we hadn't previously written the "extra" bytes to the end of the prev Cluster and converted
 				// them, do so now...
@@ -1066,7 +1066,7 @@ getOutEarly:
 			}
 
 			// Or, all other types of raw data conversion
-			else if (sample->rawDataFormat) {
+			else if (sample->rawDataFormat != RawDataFormat::NATIVE) {
 
 				// If we haven't previously written the "extra" bytes to the end of the prev Cluster and converted
 				// them, do so now...
@@ -1078,7 +1078,8 @@ getOutEarly:
 						// There'll be one word in there which hasn't yet been converted. Do it now. (We've probably
 						// also just moved over the next one too, which already was converted)
 						int32_t startPos = Cluster::size - 4 + misalignment;
-						sample->convertOneData(prevCluster->data[startPos]);
+						auto& thisNumber = reinterpret_cast<int32_t&>(prevCluster->data[startPos]);
+						thisNumber = sample->convertToNative(thisNumber);
 
 						// And now, copy 3 bytes back to this Cluster (that's the maximum that the float could have
 						// been overhanging the boundary)
@@ -1100,7 +1101,7 @@ getOutEarly:
 		if (nextCluster && nextCluster->loaded) {
 
 			// If 24-bit wrong-endian data...
-			if (sample->rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24) {
+			if (sample->rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_24) {
 
 				uint32_t bytesBeforeStartOfNextCluster =
 				    (clusterIndex + 1) * Cluster::size - sample->audioDataStartPosBytes;
@@ -1153,12 +1154,12 @@ getOutEarly:
 			}
 
 			// Or, all other types of raw data conversion
-			else if (sample->rawDataFormat) {
+			else if (sample->rawDataFormat != RawDataFormat::NATIVE) {
 
 				// If one word missed conversion...
 				if (misalignment) {
 					int32_t startPos = Cluster::size - 4 + misalignment;
-					int32_t& thisNumber = *reinterpret_cast<int32_t*>(&cluster.data[startPos]);
+					auto& thisNumber = reinterpret_cast<int32_t&>(cluster.data[startPos]);
 
 					// If we had't previously converted the first couple of bytes of the next Cluster, do so now...
 					if (!nextCluster->extraBytesAtStartConverted) {
@@ -1167,7 +1168,7 @@ getOutEarly:
 						memcpy(&cluster.data[Cluster::size], nextCluster->data, 7);
 
 						// There'll be one word in there which hasn't yet been converted from float. Do it now
-						sample->convertOneData(thisNumber);
+						thisNumber = sample->convertToNative(thisNumber);
 
 						// And now, copy 3 bytes back to the next Cluster (that's the maximum that the float could
 						// have been overhanging the boundary)
@@ -1183,7 +1184,7 @@ getOutEarly:
 						memcpy(&cluster.data[Cluster::size], nextCluster->firstThreeBytesPreDataConversion, 3);
 
 						// There'll be one word in there which hasn't yet been converted from float. Do it now
-						sample->convertOneData(thisNumber);
+						thisNumber = sample->convertToNative(thisNumber);
 
 						// And now just copy the converted-from-float first bytes from the next Cluster to the end
 						// of this one

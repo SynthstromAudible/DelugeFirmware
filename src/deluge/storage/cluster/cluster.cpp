@@ -65,14 +65,13 @@ void Cluster::dealloc(Cluster& cluster) {
  *        and converts them to the Deluge's native PCM 24-bit format if needed
  */
 void Cluster::convertDataIfNecessary() {
-
-	if (!sample->audioDataStartPosBytes) {
-		return; // Or maybe we haven't yet figured out where the audio data starts
+	// We haven't yet figured out where the audio data starts
+	if (sample->audioDataStartPosBytes == 0) {
+		return;
 	}
 
-	if (sample->rawDataFormat) {
-
-		memcpy(firstThreeBytesPreDataConversion, data, 3);
+	if (sample->rawDataFormat != RawDataFormat::NATIVE) {
+		std::copy(data, &data[3], firstThreeBytesPreDataConversion);
 
 		int32_t startPos = sample->audioDataStartPosBytes;
 		int32_t startCluster = startPos >> Cluster::size_magnitude;
@@ -82,7 +81,7 @@ void Cluster::convertDataIfNecessary() {
 		}
 
 		// Special case for 24-bit with its uneven number of bytes
-		if (sample->rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24) {
+		if (sample->rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_24) {
 			char* pos;
 
 			if (clusterIndex == startCluster) {
@@ -109,9 +108,7 @@ void Cluster::convertDataIfNecessary() {
 
 			while (true) {
 				char const* endPosNow = pos + 1024; // Every this many bytes, we'll pause and do an audio routine
-				if (endPosNow > endPos) {
-					endPosNow = endPos;
-				}
+				endPosNow = std::min(endPosNow, endPos);
 
 				while (pos < endPosNow) {
 					uint8_t temp = pos[0];
@@ -150,8 +147,6 @@ void Cluster::convertDataIfNecessary() {
 				endPos = (int32_t*)&data[Cluster::size - 3];
 			}
 
-			// uint16_t startTime = MTU2.TCNT_0;
-
 			for (; pos < endPos; pos++) {
 
 				if (!((uint32_t)pos & 0b1111111100)) {
@@ -159,16 +154,8 @@ void Cluster::convertDataIfNecessary() {
 					AudioEngine::routine(); // ----------------------------------------------------
 				}
 
-				sample->convertOneData(*pos);
+				*pos = sample->convertToNative(*pos);
 			}
-
-			/*
-			uint16_t endTime = MTU2.TCNT_0;
-
-			if (clusterIndex != startCluster) {
-			    D_PRINTLN("time to convert:  %d", (uint16_t)(endTime - startTime));
-			}
-			*/
 		}
 	}
 }
@@ -193,7 +180,7 @@ StealableQueue Cluster::getAppropriateQueue() {
 		q = sample->numReasonsToBeLoaded ? StealableQueue::CURRENT_SONG_SAMPLE_DATA
 		                                 : StealableQueue::NO_SONG_SAMPLE_DATA;
 
-		if (sample->rawDataFormat) {
+		if (sample->rawDataFormat != RawDataFormat::NATIVE) {
 			q = static_cast<StealableQueue>(util::to_underlying(q) + 1); // next queue
 		}
 	}
@@ -207,14 +194,14 @@ void Cluster::steal(char const* errorCode) {
 	switch (type) {
 
 	case Type::SAMPLE:
-		if (ALPHA_OR_BETA_VERSION && !sample) {
+		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
 			FREEZE_WITH_ERROR("E181");
 		}
 		sample->clusters.getElement(clusterIndex)->cluster = NULL;
 		break;
 
 	case Type::SAMPLE_CACHE:
-		if (ALPHA_OR_BETA_VERSION && !sampleCache) {
+		if (ALPHA_OR_BETA_VERSION && sampleCache == nullptr) {
 			FREEZE_WITH_ERROR("E183");
 		}
 		sampleCache->clusterStolen(clusterIndex);
@@ -229,7 +216,7 @@ void Cluster::steal(char const* errorCode) {
 
 	case Type::PERC_CACHE_FORWARDS:
 	case Type::PERC_CACHE_REVERSED:
-		if (ALPHA_OR_BETA_VERSION && !sample) {
+		if (ALPHA_OR_BETA_VERSION && sample == nullptr) {
 			FREEZE_WITH_ERROR("E184");
 		}
 		sample->percCacheClusterStolen(this);

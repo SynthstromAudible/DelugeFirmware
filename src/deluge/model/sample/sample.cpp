@@ -65,7 +65,7 @@ Sample::Sample()
 	audioDataLengthBytes = 0;
 	audioDataStartPosBytes = 0;
 	lengthInSamples = 0;
-	rawDataFormat = RAW_DATA_FINE;
+	rawDataFormat = RawDataFormat::NATIVE;
 	midiNote = MIDI_NOTE_UNSET;
 	partOfFolderBeingLoaded = false;
 
@@ -1681,7 +1681,7 @@ doneReading:
 }
 
 void Sample::convertDataOnAnyClustersIfNecessary() {
-	if (rawDataFormat) {
+	if (rawDataFormat != RawDataFormat::NATIVE) {
 		for (int32_t c = getFirstClusterIndexWithAudioData(); c < getFirstClusterIndexWithNoAudioData(); c++) {
 			Cluster* cluster = clusters.getElement(c)->cluster;
 			if (cluster != nullptr) {

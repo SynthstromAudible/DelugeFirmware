@@ -137,7 +137,7 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 #define SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT 0
 
 Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
-                       uint32_t audioDataLengthBytes, int32_t byteDepth, int32_t rawDataFormat,
+                       uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat,
                        WaveTableReader* reader) {
 	AudioEngine::logAction("WaveTable::setup");
 
@@ -360,10 +360,10 @@ gotError5:
 	uint32_t startedBandsYet = 0;
 
 	bool swappingEndianness =
-	    (rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_32 || rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24
-	     || rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_16);
+	    (rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_32 || rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_24
+	     || rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_16);
 
-	bool needToMisalignData = (rawDataFormat == RAW_DATA_FINE || rawDataFormat == RAW_DATA_UNSIGNED_8);
+	bool needToMisalignData = (rawDataFormat == RawDataFormat::NATIVE || rawDataFormat == RawDataFormat::UNSIGNED_8);
 
 	// For each wave cycle...
 	for (int32_t cycleIndex = 0; cycleIndex < numCycles; cycleIndex++) {
@@ -420,7 +420,7 @@ gotError5:
 			// Macro setup for below
 #define CONVERT_AND_STORE_SAMPLE                                                                                       \
 	{                                                                                                                  \
-		if (rawDataFormat == RAW_DATA_FLOAT) {                                                                         \
+		if (rawDataFormat == RawDataFormat::FLOAT) {                                                                   \
 			value32 = q31_from_float(std::bit_cast<float>(value32));                                                   \
 		}                                                                                                              \
 		else {                                                                                                         \
@@ -428,7 +428,7 @@ gotError5:
 				value32 = swapEndianness32(value32);                                                                   \
 			}                                                                                                          \
 			value32 &= bitMask;                                                                                        \
-			if (rawDataFormat == RAW_DATA_UNSIGNED_8) {                                                                \
+			if (rawDataFormat == RawDataFormat::UNSIGNED_8) {                                                          \
 				value32 += (1 << 31);                                                                                  \
 			}                                                                                                          \
 		}                                                                                                              \
