@@ -152,18 +152,15 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 					buffer.moveOn(); // move forward in the buffer
 				}
 				else {
-=======
 
             if (buffer.isNative()) {
 				if (currentReverse == false) {
 					buffer.moveOn(); // move forward in the buffer
 					bufferPosition++;
 				} else {
->>>>>>> 965c67d6 (add pingpong stutter)
 					buffer.moveBack(); // move backward in the buffer
 					bufferPosition--;
 				}
-<<<<<<< HEAD
 				thisSample->l = buffer.current().l;
 				thisSample->r = buffer.current().r;
 			}
@@ -177,7 +174,6 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 
 				strength1 = 65536 - strength2;
 				if (reverse == false) {
-=======
                 thisSample->l = buffer.current().l;
                 thisSample->r = buffer.current().r;
             } else {
@@ -195,7 +191,6 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 
                 strength1 = 65536 - strength2;
 				if (currentReverse == false) {
->>>>>>> 965c67d6 (add pingpong stutter)
 					StereoSample* nextPos = &buffer.current() + 1;
 					if (nextPos == buffer.end()) {
 						nextPos = buffer.begin();
@@ -223,25 +218,22 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
 					                << 2;
 				}
-<<<<<<< HEAD
 			}
 		} while (++thisSample != audioEnd);
 	}
-=======
 
             }
 			if (pingPong) {
                 if (bufferPosition >= buffer.size()) {
-                    currentReverse = !currentReverse; 
-                    bufferPosition = buffer.size() - 1; 
+                    currentReverse = !currentReverse;
+                    bufferPosition = buffer.size() - 1;
                 } else if (bufferPosition < 0) {
-                    currentReverse = !currentReverse; 
+                    currentReverse = !currentReverse;
                     bufferPosition = 0;
                 }
             }
         } while (++thisSample != audioEnd);
     }
->>>>>>> 965c67d6 (add pingpong stutter)
 }
 
 // paramManager is optional - if you don't send it, it won't change the stutter rate
