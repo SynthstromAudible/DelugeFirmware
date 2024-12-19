@@ -135,7 +135,7 @@ All the following parameters define other aspects of the arpeggiator and can be 
   randomize the number of ratchet notes between 1 and this maximum value set). Ratchet bursts can contain 2, 4 or 8 notes.
 
 ### Randomizer
-The following parameters are also automatable and learnable to golden knobs and MIDI CC, and they define how probable a value is to change on each step:
+The following parameters are also **automatable** and **learnable** to golden knobs and MIDI CC, and they define how probable a value is to change on each step:
 - **`Randomizer (RAND)`**:
   - **`Ratchet Probability (RATC)`**: This sets how likely a step is to be ratcheted. The ratchet amount is randomized on each step between 1 and
     the maximum value set with the `Ratchet Amount` parameter within the `Limits` group.
