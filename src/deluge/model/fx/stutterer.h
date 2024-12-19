@@ -34,7 +34,7 @@ public:
 	[[nodiscard]] Error beginStutter(void* source, ParamManagerForTimeline* paramManager, bool quantize,
 	                                 int32_t magnitude, uint32_t timePerTickInverse);
 	void processStutter(StereoSample* buffer, int32_t numSamples, ParamManager* paramManager, int32_t magnitude,
-	                    uint32_t timePerTickInverse, bool reverse);
+	                    uint32_t timePerTickInverse, bool reverse, bool pingPong);
 	void endStutter(ParamManagerForTimeline* paramManager = nullptr);
 
 private:

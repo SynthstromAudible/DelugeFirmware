@@ -107,50 +107,63 @@ Error Stutterer::beginStutter(void* source, ParamManagerForTimeline* paramManage
 }
 
 void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamManager* paramManager, int32_t magnitude,
-                               uint32_t timePerTickInverse, bool reverse) {
-	StereoSample* audioEnd = audio + numSamples;
-	StereoSample* thisSample = audio;
+                               uint32_t timePerTickInverse, bool reverse, bool pingPong) {
+    StereoSample* audioEnd = audio + numSamples;
+    StereoSample* thisSample = audio;
 
-	int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
+    int32_t rate = getStutterRate(paramManager, magnitude, timePerTickInverse);
 
-	buffer.setupForRender(rate);
+    buffer.setupForRender(rate);
 
-	if (status == Status::RECORDING) {
-		do {
-			int32_t strength1;
-			int32_t strength2;
+	// These check if the buffer has been fully passed, before reversing
+    static int32_t bufferPosition = 0;
+    static bool currentReverse = reverse;
 
-			if (buffer.isNative()) {
-				buffer.clearAndMoveOn();
-				sizeLeftUntilRecordFinished--;
-			}
-			else {
-				strength2 = buffer.advance([&] {
-					buffer.clearAndMoveOn();
-					sizeLeftUntilRecordFinished--;
-				});
-				strength1 = 65536 - strength2;
-			}
+    if (status == Status::RECORDING) {
+        do {
+            int32_t strength1;
+            int32_t strength2;
 
-			buffer.write(*thisSample, strength1, strength2);
-		} while (++thisSample != audioEnd);
+            if (buffer.isNative()) {
+                buffer.clearAndMoveOn();
+                sizeLeftUntilRecordFinished--;
+            } else {
+                strength2 = buffer.advance([&] {
+                    buffer.clearAndMoveOn();
+                    sizeLeftUntilRecordFinished--;
+                });
+                strength1 = 65536 - strength2;
+            }
 
-		if (sizeLeftUntilRecordFinished < 0) {
-			status = Status::PLAYING;
-		}
-	}
-	else { // PLAYING
-		do {
-			int32_t strength1;
-			int32_t strength2;
+            buffer.write(*thisSample, strength1, strength2);
+        } while (++thisSample != audioEnd);
 
-			if (buffer.isNative()) {
-				if (reverse == false) {
+        if (sizeLeftUntilRecordFinished < 0) {
+            status = Status::PLAYING;
+        }
+    } else { // PLAYING
+        do {
+            int32_t strength1;
+            int32_t strength2;
+
+
+            if (buffer.isNative()) {
+				if (currentReverse == false) {
 					buffer.moveOn(); // move forward in the buffer
 				}
 				else {
+=======
+
+            if (buffer.isNative()) {
+				if (currentReverse == false) {
+					buffer.moveOn(); // move forward in the buffer
+					bufferPosition++;
+				} else {
+>>>>>>> 965c67d6 (add pingpong stutter)
 					buffer.moveBack(); // move backward in the buffer
+					bufferPosition--;
 				}
+<<<<<<< HEAD
 				thisSample->l = buffer.current().l;
 				thisSample->r = buffer.current().r;
 			}
@@ -164,6 +177,25 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 
 				strength1 = 65536 - strength2;
 				if (reverse == false) {
+=======
+                thisSample->l = buffer.current().l;
+                thisSample->r = buffer.current().r;
+            } else {
+				if (currentReverse == false) {
+					strength2 = buffer.advance([&] {
+						buffer.moveOn();
+						bufferPosition++;
+					});
+				} else {
+					strength2 = buffer.retreat([&] {
+						buffer.moveBack();
+						bufferPosition--;
+					});
+				}
+
+                strength1 = 65536 - strength2;
+				if (currentReverse == false) {
+>>>>>>> 965c67d6 (add pingpong stutter)
 					StereoSample* nextPos = &buffer.current() + 1;
 					if (nextPos == buffer.end()) {
 						nextPos = buffer.begin();
@@ -191,9 +223,25 @@ void Stutterer::processStutter(StereoSample* audio, int32_t numSamples, ParamMan
 					                 + multiply_32x32_rshift32(fromDelay2.r, strength2 << 14))
 					                << 2;
 				}
+<<<<<<< HEAD
 			}
 		} while (++thisSample != audioEnd);
 	}
+=======
+
+            }
+			if (pingPong) {
+                if (bufferPosition >= buffer.size()) {
+                    currentReverse = !currentReverse; 
+                    bufferPosition = buffer.size() - 1; 
+                } else if (bufferPosition < 0) {
+                    currentReverse = !currentReverse; 
+                    bufferPosition = 0;
+                }
+            }
+        } while (++thisSample != audioEnd);
+    }
+>>>>>>> 965c67d6 (add pingpong stutter)
 }
 
 // paramManager is optional - if you don't send it, it won't change the stutter rate

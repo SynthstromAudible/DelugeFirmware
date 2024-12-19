@@ -52,6 +52,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	AltGoldenKnobDelayParams,
 	QuantizedStutterRate,
 	ReverseStutterRate,
+	PingPongStutter,
 	DevSysexAllowed,
 	SyncScalingAction,
 	HighlightIncomingNotes,
