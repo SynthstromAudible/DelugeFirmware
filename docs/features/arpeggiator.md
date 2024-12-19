@@ -129,18 +129,10 @@ All the following parameters define other aspects of the arpeggiator and can be 
     parameter to create longer and more complex rhythm patterns.
 - **`Chord Polyphony (POLY)`**: This will set the maximum number of notes that will play at the same time when a
   step is played as a chord. Increase parameter `Chord Probability` to make some steps play a chord instead
-  of a single note.
-    - From values 0 to 4, just the root note, no chord.
-    - From 5 to 19, a 2-notes chord is played, using the 5th.
-    - From 20 to 34 a 3-notes chord is played, using a triad (3rd + 5th).
-    - From 35 to 50, a 4-notes chord is played, usign a seventh chord (3rd + 5th + 7th).
+  of a single note. Values range from no chord, to 5th, to triad (3rd + 5th), to seventh chord (3rd + 5th + 7th).
 - **`Ratchet Amount (RATC)`**: A ratchet is when a note repeats itself several times in the same time interval
-  that the original note has to play. This will set the maximum number of notes that a single tep can have (each step will
-  randomize the number of ratchet notes between 1 and this maximum value set).
-    - From values 0 to 4, no ratchet notes.
-    - From 5 to 19, up to 2 ratchet notes.
-    - From 20 to 34, up to 4 ratchet notes.
-    - From 35 to 50, up to 8 ratchet notes.
+  that the original note has to play. This will set the maximum number of notes that a single step can have (each step will
+  randomize the number of ratchet notes between 1 and this maximum value set). Ratchet bursts can contain 2, 4 or 8 notes.
 
 ### Randomizer
 The following parameters are also automatable and learnable to golden knobs and MIDI CC, and they define how probable a value is to change on each step:
@@ -155,10 +147,6 @@ The following parameters are also automatable and learnable to golden knobs and 
   - **`Chord Probability (CHRD)`**: This paramater will allow you to control the chance of a note to play, at the same time, itself and the following notes in the available
     notes set, like a chord.
   - **`Octave Spread (OCTA)`**: The note will get a change in pitch of a random amount of octaves, going from 0 up to a maximum of +3 octaves.
-      - From values 0 to 4, no changes in octaves.
-      - From 5 to 19, up to +1 octave changes.
-      - From 20 to 34, up to +2 octave changes.
-      - From 35 to 50, up to +3 octave changes.
   - **`Gate Spread (GATE)`**: The gate of the arp step will get a random **positive** or **negative** deviation from the base gate.
   - **`Velocity Spread (VELO)`**: The velocity of the arp step will get a random **positive** or **negative** deviation from the base velocity.
     Note: you can find this parameter also at the root level of the sound menu, under `Randomizer`, because this parameter affects
