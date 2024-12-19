@@ -138,8 +138,7 @@ void RuntimeFeatureSettings::init() {
 	                  RuntimeFeatureStateToggle::Off);
 	// PingPongStutter
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::PingPongStutter],
-	                  STRING_FOR_COMMUNITY_FEATURE_PINGPONG_STUTTER, "pingPongStutter",
-	                  RuntimeFeatureStateToggle::Off);
+	                  STRING_FOR_COMMUNITY_FEATURE_PINGPONG_STUTTER, "pingPongStutter", RuntimeFeatureStateToggle::Off);
 	// devSysexAllowed
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX,
 	                  "devSysexAllowed", RuntimeFeatureStateToggle::Off);
