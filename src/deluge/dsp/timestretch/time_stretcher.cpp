@@ -1096,7 +1096,7 @@ void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 		return;
 	}
 
-	audioFileManager.addReasonToCluster(cluster);
+	cluster->addReason();
 
 	if (percCacheClustersNearby[0]) {
 		audioFileManager.removeReasonFromCluster(percCacheClustersNearby[0],
