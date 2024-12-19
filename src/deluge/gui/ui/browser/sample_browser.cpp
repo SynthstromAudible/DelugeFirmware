@@ -1276,9 +1276,9 @@ removeReasonsFromSamplesAndGetOut:
 
 		filePath.concatenateAtPos(staticFNO.fname, dirWithSlashLength);
 
-		Sample* newSample = (Sample*)audioFileManager.getAudioFileFromFilename(
-		    &filePath, true, &error, &thisFilePointer,
-		    AudioFileType::SAMPLE); // We really want to be able to pass a file pointer in here
+		// We really want to be able to pass a file pointer in here
+		auto* newSample = static_cast<Sample*>(
+		    audioFileManager.getAudioFileFromFilename(filePath, true, &error, &thisFilePointer, AudioFileType::SAMPLE));
 		if (error != Error::NONE || !newSample) {
 			f_closedir(&staticDIR);
 			goto removeReasonsFromSamplesAndGetOut;

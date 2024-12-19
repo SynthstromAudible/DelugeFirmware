@@ -46,7 +46,7 @@ Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayAc
 
 	Error error;
 	AudioFile* newAudioFile = audioFileManager.getAudioFileFromFilename(
-	    &filePath, mayActuallyReadFile, &error, filePointer, audioFileType, makeWaveTableWorkAtAllCosts);
+	    filePath, mayActuallyReadFile, &error, filePointer, audioFileType, makeWaveTableWorkAtAllCosts);
 
 	// If we found it...
 	if (newAudioFile) {

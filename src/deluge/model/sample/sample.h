@@ -74,22 +74,22 @@ public:
 	int32_t getValueSpan();
 	void finalizeAfterLoad(uint32_t fileSize);
 
-	inline void convertOneData(int32_t* value) {
+	inline q31_t convertOneData(int32_t value) {
 		// Floating point
 		if (rawDataFormat == RAW_DATA_FLOAT)
-			*value = q31_from_float(std::bit_cast<float>(value));
+			return q31_from_float(std::bit_cast<float>(value));
 
 		// Or endianness swap
 		else if (rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_32) {
-			*value = swapEndianness32(*value);
+			return swapEndianness32(value);
 		}
 
 		else if (rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_16) {
-			*value = swapEndianness2x16(*value);
+			return swapEndianness2x16(value);
 		}
 
 		else if (rawDataFormat == RAW_DATA_UNSIGNED_8) {
-			*value ^= 0x80808080;
+			return value ^ 0x80808080;
 		}
 	}
 

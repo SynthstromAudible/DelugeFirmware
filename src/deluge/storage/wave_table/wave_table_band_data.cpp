@@ -43,7 +43,7 @@ void WaveTableBandData::steal(char const* errorCode) {
 	waveTable->bandDataBeingStolen(this);
 
 	// Delete the WaveTable from memory - deallocating all other BandDatas and everything.
-	audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(waveTable);
+	audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(*waveTable);
 }
 
 StealableQueue WaveTableBandData::getAppropriateQueue() {

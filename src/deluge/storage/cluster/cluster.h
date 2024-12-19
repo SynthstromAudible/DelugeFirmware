@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
 #include <cstdint>
 
@@ -29,14 +30,36 @@ class SampleCache;
 
 class Cluster final : public Stealable {
 public:
-	Cluster();
+	constexpr static size_t kSizeFAT16Max = 32768;
+	enum class Type {
+		EMPTY,
+		SAMPLE,
+		GENERAL_MEMORY,
+		SAMPLE_CACHE,
+		PERC_CACHE_FORWARDS,
+		PERC_CACHE_REVERSED,
+		OTHER,
+	};
+
+	static Cluster* alloc(Cluster::Type type = Cluster::Type::SAMPLE, bool shouldAddReasons = true,
+	                      void* dontStealFromThing = nullptr);
+
+	static void dealloc(Cluster& cluster);
+
+	static size_t size;
+	static size_t size_magnitude;
+	static void setSize(size_t size);
+
+	/// Warning! do not call this constructor directly! It must be called via placement `new`
+	/// after allocating a region with the General Memory Allocator!
+	Cluster() = default;
 	void convertDataIfNecessary();
-	bool mayBeStolen(void* thingNotToStealFrom);
-	void steal(char const* errorCode);
-	StealableQueue getAppropriateQueue();
+	bool mayBeStolen(void* thingNotToStealFrom) override;
+	void steal(char const* errorCode) override;
+	StealableQueue getAppropriateQueue() override;
 	void addReason();
 
-	ClusterType type;
+	Cluster::Type type;
 	int8_t numReasonsHeldBySampleRecorder;
 	bool extraBytesAtStartConverted;
 	bool extraBytesAtEndConverted;
@@ -47,7 +70,7 @@ public:
 	char firstThreeBytesPreDataConversion[3];
 	bool loaded;
 
+	// MUST BE THE LAST TWO MEMBERS
 	char dummy[CACHE_LINE_SIZE];
-
 	char data[CACHE_LINE_SIZE];
 };

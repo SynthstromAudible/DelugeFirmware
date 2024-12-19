@@ -338,8 +338,8 @@ gotError5:
 	// will be overwritten, just since we're using the same code as for power-of-two.
 	int16_t* __restrict__ initialBandWritePos = initialBand->dataAccessAddress;
 
-	int32_t clusterIndex = audioDataStartPosBytes >> audioFileManager.clusterSizeMagnitude;
-	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (audioFileManager.clusterSize - 1);
+	int32_t clusterIndex = audioDataStartPosBytes >> Cluster::size_magnitude;
+	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (Cluster::size - 1);
 
 	if (!sample) {
 		reader->jumpForwardToBytePos(audioDataStartPosBytes); // In case reader wasn't quite up to here yet! Can happen
@@ -390,7 +390,7 @@ gotError5:
 
 					// First, unload the old Cluster if there was one
 					if (cluster) {
-						audioFileManager.removeReasonFromCluster(cluster, "E385");
+						audioFileManager.removeReasonFromCluster(*cluster, "E385");
 					}
 
 					cluster = sample->clusters.getElement(clusterIndex)
@@ -478,7 +478,7 @@ gotError5:
 			}
 
 			const char* source = &sourceBuffer[byteIndexWithinCluster];
-			const char* sourceStopAt = &sourceBuffer[audioFileManager.clusterSize];
+			const char* sourceStopAt = &sourceBuffer[Cluster::size];
 
 			// Stop before we get to the final sample that overlaps the end of the cluster, if that happens.
 			sourceStopAt = sourceStopAt - byteDepth + 1;
@@ -514,10 +514,10 @@ gotError5:
 			}
 
 			// If we're less than one sample from the end of the cluster...
-			if (byteIndexWithinCluster > audioFileManager.clusterSize - byteDepth) {
+			if (byteIndexWithinCluster > Cluster::size - byteDepth) {
 				bytesOverlappingFromLastCluster = *(uint32_t*)source;
-				byteIndexWithinCluster -= audioFileManager.clusterSize; // Might end up negative, indicating that we've
-				                                                        // got a sample overlapping the cluster boundary
+				byteIndexWithinCluster -= Cluster::size; // Might end up negative, indicating that we've
+				                                         // got a sample overlapping the cluster boundary
 				clusterIndex++;
 			}
 		} while (sourceBytesLeftToCopyThisCycle > 0);
@@ -737,8 +737,8 @@ transformBandToTimeDomain:
 	// Ok, we've now processed all Cycles.
 
 	// There could be a Cluster with a reason we still need to remove.
-	if (cluster) {
-		audioFileManager.removeReasonFromCluster(cluster, "E385");
+	if (cluster != nullptr) {
+		audioFileManager.removeReasonFromCluster(*cluster, "E385");
 	}
 
 	if (numCycles > 1) {

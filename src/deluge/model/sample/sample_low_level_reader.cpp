@@ -45,7 +45,7 @@ SampleLowLevelReader::~SampleLowLevelReader() {
 void SampleLowLevelReader::unassignAllReasons(bool wontBeUsedAgain) {
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
-			audioFileManager.removeReasonFromCluster(clusters[l], "E027", wontBeUsedAgain);
+			audioFileManager.removeReasonFromCluster(*clusters[l], "E027", wontBeUsedAgain);
 			clusters[l] = NULL;
 		}
 	}
@@ -65,7 +65,7 @@ int32_t SampleLowLevelReader::getPlayByteLowLevel(Sample* sample, SamplePlayback
 			// the new hop, in time stretching
 			withinCluster += extraSamples * sample->numChannels * sample->byteDepth * guide->playDirection;
 		}
-		return (clusters[0]->clusterIndex << audioFileManager.clusterSizeMagnitude) + withinCluster;
+		return (clusters[0]->clusterIndex << Cluster::size_magnitude) + withinCluster;
 	}
 	else {
 		return (int32_t)guide->endPlaybackAtByte
@@ -128,7 +128,7 @@ bool SampleLowLevelReader::reassessReassessmentLocation(SamplePlaybackGuide* gui
 		}
 
 		int32_t bytePosWithinCluster = (uint32_t)currentPlayPos - (uint32_t)clusters[0]->data;
-		bytePosWithinCluster += (clusterIndex - finalClusterIndex) * audioFileManager.clusterSize;
+		bytePosWithinCluster += (clusterIndex - finalClusterIndex) * Cluster::size;
 
 		currentPlayPos = finalCluster->data + bytePosWithinCluster;
 		clusterIndex = finalClusterIndex;
@@ -166,16 +166,16 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 
 	// Is this the final Cluster?
 	if (currentClusterIndex == finalClusterIndex) {
-		int32_t bytePosWithinClusterToStopAt = endPlaybackAtByte & (audioFileManager.clusterSize - 1);
+		int32_t bytePosWithinClusterToStopAt = endPlaybackAtByte & (Cluster::size - 1);
 		if (guide->playDirection == 1) {
 			if (bytePosWithinClusterToStopAt == 0) {
-				bytePosWithinClusterToStopAt = audioFileManager.clusterSize;
+				bytePosWithinClusterToStopAt = Cluster::size;
 			}
 		}
 
 		else {
-			if (bytePosWithinClusterToStopAt > audioFileManager.clusterSize - bytesPerSample) {
-				bytePosWithinClusterToStopAt -= audioFileManager.clusterSize;
+			if (bytePosWithinClusterToStopAt > Cluster::size - bytesPerSample) {
+				bytePosWithinClusterToStopAt -= Cluster::size;
 			}
 		}
 
@@ -191,16 +191,15 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 		if (guide->playDirection == 1) {
 
 			uint32_t bytesBeforeCurrentClusterEnd =
-			    (currentClusterIndex + 1) * audioFileManager.clusterSize - sample->audioDataStartPosBytes;
+			    (currentClusterIndex + 1) * Cluster::size - sample->audioDataStartPosBytes;
 			int32_t excess = bytesBeforeCurrentClusterEnd % (uint8_t)bytesPerSample;
 			if (excess == 0) {
 				excess = bytesPerSample;
 			}
-			uint32_t endPosWithinCurrentCluster = audioFileManager.clusterSize + bytesPerSample - excess;
+			uint32_t endPosWithinCurrentCluster = Cluster::size + bytesPerSample - excess;
 
 #if ALPHA_OR_BETA_VERSION
-			if ((endPosWithinCurrentCluster + currentClusterIndex * audioFileManager.clusterSize
-			     - sample->audioDataStartPosBytes)
+			if ((endPosWithinCurrentCluster + currentClusterIndex * Cluster::size - sample->audioDataStartPosBytes)
 			    % bytesPerSample) {
 				FREEZE_WITH_ERROR("E163");
 			}
@@ -212,7 +211,7 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 		else {
 
 			uint32_t bytesBeforeCurrentClusterEnd =
-			    currentClusterIndex * audioFileManager.clusterSize
+			    currentClusterIndex * Cluster::size
 			    - sample->audioDataStartPosBytes; // Well, it's really the "start" - the left-most edge
 			int32_t excess = bytesBeforeCurrentClusterEnd % (uint8_t)bytesPerSample;
 			if (excess == 0) {
@@ -229,8 +228,7 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 	if (guide->playDirection == 1) {
 		int32_t firstClusterWithData = sample->getFirstClusterIndexWithAudioData();
 		if (currentClusterIndex == firstClusterWithData) {
-			clusterStartLocation =
-			    &clusters[0]->data[sample->audioDataStartPosBytes & (audioFileManager.clusterSize - 1)];
+			clusterStartLocation = &clusters[0]->data[sample->audioDataStartPosBytes & (Cluster::size - 1)];
 		}
 		else {
 			clusterStartLocation = clusters[0]->data;
@@ -240,16 +238,16 @@ void SampleLowLevelReader::setupReassessmentLocation(SamplePlaybackGuide* guide,
 	// Playing backwards
 	else {
 		int32_t audioDataStopPos = sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
-		int32_t highestClusterIndex =
-		    audioDataStopPos
-		    >> audioFileManager
-		           .clusterSizeMagnitude; // There may actually be 1 less Cluster than this if the audio data ends right
-		                                  // at the Cluster end, but that won't cause problems
+
+		// There may actually be 1 less Cluster than this if the audio data ends right
+		// at the Cluster end, but that won't cause problems
+		int32_t highestClusterIndex = audioDataStopPos >> Cluster::size_magnitude;
+
 		if (currentClusterIndex == highestClusterIndex) {
-			clusterStartLocation = &clusters[0]->data[(audioDataStopPos - 1) & (audioFileManager.clusterSize - 1)];
+			clusterStartLocation = &clusters[0]->data[(audioDataStopPos - 1) & (Cluster::size - 1)];
 		}
 		else {
-			clusterStartLocation = &clusters[0]->data[audioFileManager.clusterSize - 1];
+			clusterStartLocation = &clusters[0]->data[Cluster::size - 1];
 		}
 	}
 
@@ -292,7 +290,7 @@ bool SampleLowLevelReader::setupClustersForPlayFromByte(SamplePlaybackGuide* gui
 		return false;
 	}
 
-	int32_t clusterIndex = startPlaybackAtByte >> audioFileManager.clusterSizeMagnitude;
+	int32_t clusterIndex = startPlaybackAtByte >> Cluster::size_magnitude;
 
 	bool success = assignClusters(guide, sample, clusterIndex, priorityRating);
 	if (!success) {
@@ -301,7 +299,7 @@ bool SampleLowLevelReader::setupClustersForPlayFromByte(SamplePlaybackGuide* gui
 		return false;
 	}
 
-	int32_t bytePosWithinNewCluster = startPlaybackAtByte - clusterIndex * audioFileManager.clusterSize;
+	int32_t bytePosWithinNewCluster = startPlaybackAtByte - clusterIndex * Cluster::size;
 
 	setupForPlayPosMovedIntoNewCluster(guide, sample, bytePosWithinNewCluster, sample->byteDepth);
 
@@ -354,7 +352,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 	int32_t oldClusterIndex = clusters[0]->clusterIndex;
 
 	int32_t bytePosWithinOldCluster = (uint32_t)currentPlayPos - (uint32_t)&clusters[0]->data;
-	audioFileManager.removeReasonFromCluster(clusters[0], "E035");
+	audioFileManager.removeReasonFromCluster(*clusters[0], "E035");
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead - 1; l++) {
 		clusters[l] = clusters[l + 1];
@@ -404,8 +402,7 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 		}
 	}
 
-	setupForPlayPosMovedIntoNewCluster(guide, sample,
-	                                   bytePosWithinOldCluster - audioFileManager.clusterSize * guide->playDirection,
+	setupForPlayPosMovedIntoNewCluster(guide, sample, bytePosWithinOldCluster - Cluster::size * guide->playDirection,
 	                                   sample->byteDepth);
 
 	return true;
@@ -1274,7 +1271,7 @@ void SampleLowLevelReader::cloneFrom(SampleLowLevelReader* other, bool stealReas
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clusters[l]) {
-			audioFileManager.removeReasonFromCluster(clusters[l], "E131", false);
+			audioFileManager.removeReasonFromCluster(*clusters[l], "E131", false);
 		}
 
 		clusters[l] = other->clusters[l];
