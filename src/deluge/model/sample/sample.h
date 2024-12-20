@@ -26,10 +26,11 @@
 #include "util/fixedpoint.h"
 #include "util/functions.h"
 #include <bit>
+#include <cstdint>
 
 #define SAMPLE_DO_LOCKS (ALPHA_OR_BETA_VERSION)
 
-enum class RawDataFormat {
+enum class RawDataFormat : uint8_t {
 	NATIVE = 0,
 	FLOAT = 1,
 	UNSIGNED_8 = 2,
