@@ -178,7 +178,7 @@ void TimeStretcher::beenUnassigned() {
 void TimeStretcher::unassignAllReasonsForPercLookahead() {
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 		if (clustersForPercLookahead[l]) {
-			audioFileManager.removeReasonFromCluster(clustersForPercLookahead[l], "E130");
+			audioFileManager.removeReasonFromCluster(*clustersForPercLookahead[l], "E130");
 			clustersForPercLookahead[l] = NULL;
 		}
 	}
@@ -187,7 +187,7 @@ void TimeStretcher::unassignAllReasonsForPercLookahead() {
 void TimeStretcher::unassignAllReasonsForPercCacheClusters() {
 	for (int32_t l = 0; l < 2; l++) {
 		if (percCacheClustersNearby[l]) {
-			audioFileManager.removeReasonFromCluster(percCacheClustersNearby[l], "E132");
+			audioFileManager.removeReasonFromCluster(*percCacheClustersNearby[l], "E132");
 			percCacheClustersNearby[l] = NULL;
 		}
 	}
@@ -713,18 +713,17 @@ startSearch:
 					goto searchNextDirection;
 				}
 
-				int32_t whichCluster = readByte[i] >> audioFileManager.clusterSizeMagnitude;
+				int32_t whichCluster = readByte[i] >> Cluster::size_magnitude;
 				Cluster* cluster = sample->clusters.getElement(whichCluster)->cluster;
 				if (!cluster || !cluster->loaded) {
 					goto skipSearch;
 				}
 
-				int32_t bytePosWithinCluster = readByte[i] & (audioFileManager.clusterSize - 1);
+				int32_t bytePosWithinCluster = readByte[i] & (Cluster::size - 1);
 
-				int32_t bytesLeftThisCluster =
-				    (searchDirection == -1)
-				        ? (bytePosWithinCluster + bytesPerSample)
-				        : (audioFileManager.clusterSize - bytePosWithinCluster + bytesPerSample - 1);
+				int32_t bytesLeftThisCluster = (searchDirection == -1)
+				                                   ? (bytePosWithinCluster + bytesPerSample)
+				                                   : (Cluster::size - bytePosWithinCluster + bytesPerSample - 1);
 
 				int32_t bytesWeMayRead = std::min(bytesTilWaveformEnd, bytesLeftThisCluster);
 
@@ -1099,8 +1098,8 @@ void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 	cluster->addReason();
 
 	if (percCacheClustersNearby[0]) {
-		audioFileManager.removeReasonFromCluster(percCacheClustersNearby[0],
-		                                         "E133"); // Steven G got this on V3.1.5, Feb 2021!
+		// Steven G got this on V3.1.5, Feb 2021!
+		audioFileManager.removeReasonFromCluster(*percCacheClustersNearby[0], "E133");
 	}
 	percCacheClustersNearby[0] = percCacheClustersNearby[1];
 
@@ -1111,7 +1110,7 @@ void TimeStretcher::rememberPercCacheCluster(Cluster* cluster) {
 // going to need in the next little while, to reserve it and hopefully make sure it's loaded and in memory when we need
 // it.
 void TimeStretcher::updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection) {
-	int32_t clusterIndex = sourceBytePos >> audioFileManager.clusterSizeMagnitude;
+	int32_t clusterIndex = sourceBytePos >> Cluster::size_magnitude;
 
 	if (!clustersForPercLookahead[0] || clustersForPercLookahead[0]->clusterIndex != clusterIndex) {
 		unassignAllReasonsForPercLookahead();
@@ -1146,8 +1145,8 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 		return;
 	}
 
-	int32_t cachedClusterIndex = cacheBytePos >> audioFileManager.clusterSizeMagnitude;
-	int32_t bytePosWithinCluster = cacheBytePos & (audioFileManager.clusterSize - 1);
+	int32_t cachedClusterIndex = cacheBytePos >> Cluster::size_magnitude;
+	int32_t bytePosWithinCluster = cacheBytePos & (Cluster::size - 1);
 
 	Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
 	if (ALPHA_OR_BETA_VERSION && !cacheCluster) { // If it got stolen - but we should have already detected this above
@@ -1156,7 +1155,7 @@ void TimeStretcher::setupCrossfadeFromCache(SampleCache* cache, int32_t cacheByt
 	int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];
 
 	int32_t bytesTilCacheClusterEnd =
-	    audioFileManager.clusterSize - bytePosWithinCluster
+	    Cluster::size - bytePosWithinCluster
 	    + (kCacheByteDepth * numChannels - 1); // Add one-byte-less-than-a-sample to it, so it'll round up
 	if (bytesTilCacheClusterEnd <= kCacheByteDepth * numChannels) {
 		return; // TODO: allow it go to the next Cluster

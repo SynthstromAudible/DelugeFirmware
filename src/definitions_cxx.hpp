@@ -746,16 +746,6 @@ constexpr int32_t kDifferenceLPFPoles = 2;
 constexpr int32_t kInterpolationMaxNumSamples = 16;
 constexpr int32_t kInterpolationMaxNumSamplesMagnitude = 4;
 
-enum class ClusterType {
-	EMPTY,
-	Sample,
-	GENERAL_MEMORY,
-	SAMPLE_CACHE,
-	PERC_CACHE_FORWARDS,
-	PERC_CACHE_REVERSED,
-	OTHER,
-};
-
 enum PlayHead {
 	PLAY_HEAD_OLDER,
 	PLAY_HEAD_NEWER,

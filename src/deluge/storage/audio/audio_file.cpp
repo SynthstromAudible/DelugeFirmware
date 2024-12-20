@@ -24,7 +24,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/audio_file_reader.h"
 #include "storage/wave_table/wave_table.h"
-#include <string.h>
+#include "util/misc.h"
+#include <cstring>
 
 #define MAX_NUM_MARKERS 8
 
@@ -46,7 +47,7 @@ Error AudioFile::loadFile(AudioFileReader* reader, bool isAiff, bool makeWaveTab
 	bool foundFmtChunk = false;  // Also applies to AIFF file's COMM chunk
 	bool fileExplicitlySpecifiesSelfAsWaveTable = false;
 	uint8_t byteDepth = 255; // 255 means no "fmt " or "COMM" chunk seen yet.
-	uint8_t rawDataFormat = RAW_DATA_FINE;
+	RawDataFormat rawDataFormat = RawDataFormat::NATIVE;
 	uint32_t audioDataStartPosBytes;
 	uint32_t audioDataLengthBytes;
 	uint32_t waveTableCycleSize = 2048;
@@ -139,7 +140,7 @@ doSetupWaveTable:
 				uint16_t bits = header[3] >> 16;
 				switch (bits) {
 				case 8:
-					rawDataFormat = RAW_DATA_UNSIGNED_8;
+					rawDataFormat = RawDataFormat::UNSIGNED_8;
 					// No break
 				case 16:
 				case 24:
@@ -156,7 +157,7 @@ doSetupWaveTable:
 				uint16_t format = header[0];
 				if (format == WAV_FORMAT_PCM) {}
 				else if (format == WAV_FORMAT_FLOAT && byteDepth == 4) {
-					rawDataFormat = RAW_DATA_FLOAT;
+					rawDataFormat = RawDataFormat::FLOAT;
 				}
 				else {
 					return Error::FILE_UNSUPPORTED;
@@ -334,7 +335,8 @@ doSetupWaveTable:
 				byteDepth = bits >> 3;
 
 				if (byteDepth > 1) {
-					rawDataFormat = RAW_DATA_ENDIANNESS_WRONG_16 + byteDepth - 2;
+					rawDataFormat = static_cast<RawDataFormat>(util::to_underlying(RawDataFormat::ENDIANNESS_WRONG_16)
+					                                           + byteDepth - 2);
 				}
 
 				if (type == AudioFileType::SAMPLE) {
