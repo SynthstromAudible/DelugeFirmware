@@ -183,7 +183,7 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 		FREEZE_WITH_ERROR("E439"); // Chasing "E366".
 	}
 
-	uint32_t startAtClusterIndex = startAtByte >> audioFileManager.clusterSizeMagnitude;
+	uint32_t startAtClusterIndex = startAtByte >> Cluster::size_magnitude;
 	if (startAtClusterIndex >= sample->getFirstClusterIndexWithNoAudioData()) {
 		// This can occur if some overflowing happened on the previous check due to an
 		// insanely high rawSamplesSinceStart being supplied due to some other bug.
@@ -232,7 +232,7 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 	// If the first Cluster has loaded...
 	if (clusters[0]->loaded) {
 
-		uint32_t bytesPosWithinCluster = startAtByte & (audioFileManager.clusterSize - 1);
+		uint32_t bytesPosWithinCluster = startAtByte & (Cluster::size - 1);
 
 		// If there's no second Cluster, or it's fully loaded... we're good to go!
 		if (!clusters[1] || clusters[1]->loaded) {
@@ -252,10 +252,10 @@ goodToGo:
 				numBytesIn = bytesPosWithinCluster;
 			}
 			else {
-				numBytesIn = audioFileManager.clusterSize - bytesPosWithinCluster;
+				numBytesIn = Cluster::size - bytesPosWithinCluster;
 			}
 
-			if (numBytesIn < (audioFileManager.clusterSize >> 1)) {
+			if (numBytesIn < (Cluster::size >> 1)) {
 				goto goodToGo;
 			}
 		}
@@ -708,8 +708,8 @@ readCachedWindow:
 			FREEZE_WITH_ERROR("E164");
 		}
 
-		int32_t cachedClusterIndex = cacheBytePos >> audioFileManager.clusterSizeMagnitude;
-		int32_t bytePosWithinCluster = cacheBytePos & (audioFileManager.clusterSize - 1);
+		int32_t cachedClusterIndex = cacheBytePos >> Cluster::size_magnitude;
+		int32_t bytePosWithinCluster = cacheBytePos & (Cluster::size - 1);
 
 		Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
 		if (ALPHA_OR_BETA_VERSION
@@ -722,7 +722,7 @@ readCachedWindow:
 
 		sampleRead[0] = *readPos; // Do first read up here so there's time for the processor to access the memory
 
-		int32_t bytesTilCacheClusterEnd = audioFileManager.clusterSize - bytePosWithinCluster;
+		int32_t bytesTilCacheClusterEnd = Cluster::size - bytePosWithinCluster;
 
 		int32_t bytesTilThisWindowEnd = std::min(bytesTilCacheClusterEnd, bytesTilCacheEnd);
 		bytesTilThisWindowEnd = std::min(bytesTilThisWindowEnd, bytesTilLoopEndPoint);
@@ -818,7 +818,7 @@ readCachedWindow:
 		                              : sample->audioDataStartPosBytes + sample->audioDataLengthBytes
 		                                    - (uncachedSamplePos + 1) * bytesPerSample;
 
-		int32_t uncachedClusterIndex = uncachedBytePos >> audioFileManager.clusterSizeMagnitude;
+		int32_t uncachedClusterIndex = uncachedBytePos >> Cluster::size_magnitude;
 
 		// Sometimes our cache will extend a little beyond the end of the waveform (to capture the interpolation or
 		// time-stretching ring-out). It's basically ok for our current Cluster index and currentPlayPos to sit outside
@@ -863,8 +863,7 @@ readCachedWindow:
 
 			if (clusters[0]) {
 				oscPos = uncachedSamplePosBig & 16777215;
-				int32_t uncachedBytePosWithinCluster =
-				    uncachedBytePos - uncachedClusterIndex * audioFileManager.clusterSize;
+				int32_t uncachedBytePosWithinCluster = uncachedBytePos - uncachedClusterIndex * Cluster::size;
 				currentPlayPos = &clusters[0]->data[uncachedBytePosWithinCluster];
 				currentPlayPos = currentPlayPos - 4 + sample->byteDepth;
 			}
@@ -909,8 +908,8 @@ uncachedPlayback:
 				return false;
 			}
 
-			int32_t cacheClusterIndex = cache->writeBytePos >> audioFileManager.clusterSizeMagnitude;
-			int32_t bytePosWithinCluster = cache->writeBytePos & (audioFileManager.clusterSize - 1);
+			int32_t cacheClusterIndex = cache->writeBytePos >> Cluster::size_magnitude;
+			int32_t bytePosWithinCluster = cache->writeBytePos & (Cluster::size - 1);
 
 			// If just entering brand new Cluster, we need to allocate it first
 			const bool condition = kCacheByteDepth == 3
@@ -939,7 +938,7 @@ uncachedPlayback:
 			}
 			cacheWritePos = &cacheCluster->data[bytePosWithinCluster];
 
-			int32_t cachingBytesTilClusterEnd = audioFileManager.clusterSize - bytePosWithinCluster;
+			int32_t cachingBytesTilClusterEnd = Cluster::size - bytePosWithinCluster;
 			int32_t cachingBytesTilUncachedReadEnd = std::min(cachingBytesTilClusterEnd, cachingBytesTilLoopEnd);
 			cachingBytesTilUncachedReadEnd = std::min(cachingBytesTilUncachedReadEnd, cachingBytesTilWaveformEnd);
 

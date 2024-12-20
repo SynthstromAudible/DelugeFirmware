@@ -58,14 +58,8 @@ extern uint8_t currentlyAccessingCard;
 AudioFileManager audioFileManager{};
 
 AudioFileManager::AudioFileManager() {
-	cardDisabled = false;
-	alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
-	thingTypeBeingLoaded = ThingType::NONE;
-
-	for (int32_t i = 0; i < kNumAudioRecordingFolders; i++) {
-		highestUsedAudioRecordingNumber[i] = -1;
-		highestUsedAudioRecordingNumberNeedsReChecking[i] = true;
-	}
+	highestUsedAudioRecordingNumber.fill(-1);
+	highestUsedAudioRecordingNumberNeedsReChecking.set();
 }
 
 void AudioFileManager::firstCardRead() {
@@ -79,34 +73,23 @@ void AudioFileManager::firstCardRead() {
 
 void AudioFileManager::init() {
 
-	clusterBeingLoaded = NULL;
+	clusterBeingLoaded = nullptr;
 
 	Error error = StorageManager::initSD();
 	if (error == Error::NONE) {
-		setClusterSize(fileSystem.csize * 512);
+		Cluster::setSize(fileSystem.csize * 512);
 
-		D_PRINTLN("clusterSize  %d clusterSizeMagnitude  %d", clusterSize, clusterSizeMagnitude);
+		D_PRINTLN("Cluster::size  %d clusterSizeMagnitude  %d", Cluster::size, Cluster::size_magnitude);
 		cardEjected = false;
 		cardReadOnce = true;
 	}
 
 	else {
-		clusterSize = 32768;
-		clusterSizeMagnitude = 15;
+		Cluster::setSize(Cluster::kSizeFAT16Max);
 		cardEjected = true;
 	}
 
-	clusterSizeAtBoot = clusterSize;
-
-	clusterObjectSize = sizeof(Cluster) + clusterSize;
-}
-
-void AudioFileManager::setClusterSize(uint32_t newSize) {
-	clusterSize = newSize;
-	clusterSizeMagnitude = 9;
-	while ((clusterSize >> clusterSizeMagnitude) > 1) {
-		clusterSizeMagnitude++;
-	}
+	clusterSizeAtBoot = Cluster::size;
 }
 
 void AudioFileManager::cardReinserted() {
@@ -117,7 +100,7 @@ void AudioFileManager::cardReinserted() {
 	}
 
 	// If cluster size has increased, we're in trouble
-	if (fileSystem.csize * 512 > clusterSize) {
+	if (fileSystem.csize * 512 > Cluster::size) {
 
 		// But, if it's still not as big as it was when we booted up, that's still manageable
 		if (fileSystem.csize * 512 <= clusterSizeAtBoot) {
@@ -131,7 +114,7 @@ void AudioFileManager::cardReinserted() {
 
 	// If cluster size decreased, we have to stop all current samples from ever sounding again. Pretty big trouble
 	// really...
-	else if (fileSystem.csize * 512 < clusterSize) {
+	else if (fileSystem.csize * 512 < Cluster::size) {
 
 clusterSizeChangedButItsOk:
 		D_PRINTLN("cluster size changed, and smaller than original so it's ok");
@@ -142,7 +125,7 @@ clusterSizeChangedButItsOk:
 
 			// If AudioFile isn't used currently, take this opportunity to remove it from memory
 			if (!thisAudioFile->numReasonsToBeLoaded) {
-				deleteUnusedAudioFileFromMemory(thisAudioFile, e);
+				deleteUnusedAudioFileFromMemory(*thisAudioFile, e);
 				e--;
 			}
 
@@ -155,7 +138,7 @@ clusterSizeChangedButItsOk:
 		}
 
 		// That was all a pain, but now we can update the cluster size
-		setClusterSize(fileSystem.csize * 512);
+		Cluster::setSize(fileSystem.csize * 512);
 	}
 
 	// Or if cluster size stayed the same...
@@ -167,7 +150,7 @@ clusterSizeChangedButItsOk:
 
 			// If Sample isn't used currently, take this opportunity to remove it from memory
 			if (!thisAudioFile->numReasonsToBeLoaded) {
-				deleteUnusedAudioFileFromMemory(thisAudioFile, e);
+				deleteUnusedAudioFileFromMemory(*thisAudioFile, e);
 				e--;
 			}
 
@@ -247,7 +230,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 				// We may have deleted several, so do make sure we go and re-check from 0
 				highestUsedAudioRecordingNumber[util::to_underlying(AudioRecordingFolder::CLIPS)] = -1;
 
-				deleteUnusedAudioFileFromMemory(audioFile, e);
+				deleteUnusedAudioFileFromMemory(*audioFile, e);
 				e--;
 			}
 		}
@@ -256,7 +239,7 @@ void AudioFileManager::deleteAnyTempRecordedSamplesFromMemory() {
 
 // Oi, don't even think about modifying this to take a Sample* pointer - cos the whole Sample could get deleted during
 // the card access.
-Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String* tempFilePathForRecording,
+Error AudioFileManager::getUnusedAudioRecordingFilePath(String& filePath, String* tempFilePathForRecording,
                                                         AudioRecordingFolder folder, uint32_t* getNumber,
                                                         const char* channelName, String* songName) {
 	const auto folderID = util::to_underlying(folder);
@@ -307,7 +290,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 
 	D_PRINTLN("new file: --------------  %d", highestUsedAudioRecordingNumber[folderID]);
 
-	error = filePath->set(audioRecordingFolderNames[folderID]);
+	error = filePath.set(audioRecordingFolderNames[folderID]);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -326,22 +309,21 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 
 	// default to putting it in the main folder if the song isn't named
 	if (songName->isEmpty()) {
-		error = filePath->concatenate("/REC");
+		error = filePath.concatenate("/REC");
 		if (error != Error::NONE) {
 			return error;
 		}
-		error = filePath->concatenateInt(highestUsedAudioRecordingNumber[folderID], 5);
+		error = filePath.concatenateInt(highestUsedAudioRecordingNumber[folderID], 5);
 		if (error != Error::NONE) {
 			return error;
 		}
-		error = filePath->concatenate(".WAV");
+		error = filePath.concatenate(".WAV");
 		if (error != Error::NONE) {
 			return error;
 		}
 
 		if (doingTempFolder) {
-			error =
-			    tempFilePathForRecording->concatenate(&filePath->get()[strlen(audioRecordingFolderNames[folderID])]);
+			error = tempFilePathForRecording->concatenate(&filePath.get()[strlen(audioRecordingFolderNames[folderID])]);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -356,10 +338,10 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 		// iterate through the main and temp folders until we find a path that's free in both
 		while (changed) {
 			changed = false;
-			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath->get(), songName->get(), channelName,
+			snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath.get(), songName->get(), channelName,
 			         i);
 			while (StorageManager::fileExists(namedPath)) {
-				snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath->get(), songName->get(),
+				snprintf(namedPath, sizeof(namedPath), "%s/%s/%s_%03d.wav", filePath.get(), songName->get(),
 				         channelName, i);
 				i++;
 				changed = true;
@@ -376,7 +358,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(String* filePath, String
 				}
 			}
 		}
-		error = filePath->set(namedPath);
+		error = filePath.set(namedPath);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -411,13 +393,13 @@ bool AudioFileManager::tryToDeleteAudioFileFromMemoryIfItExists(char const* file
 		}
 
 		// Ok, it's unused. Delete it.
-		deleteUnusedAudioFileFromMemory(audioFile, i);
+		deleteUnusedAudioFileFromMemory(*audioFile, i);
 	}
 	return true; // We're fine - it got deleted
 }
 
-void AudioFileManager::deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* audioFile) {
-	int32_t i = audioFiles.searchForExactObject(audioFile);
+void AudioFileManager::deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile& audioFile) {
+	int32_t i = audioFiles.searchForExactObject(&audioFile);
 	if (i < 0) {
 #if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("E401"); // Leo got. And me! But now I've solved.
@@ -428,14 +410,14 @@ void AudioFileManager::deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile* au
 	}
 }
 
-void AudioFileManager::deleteUnusedAudioFileFromMemory(AudioFile* audioFile, int32_t i) {
+void AudioFileManager::deleteUnusedAudioFileFromMemory(AudioFile& audioFile, int32_t i) {
 
 	// Remove AudioFile from memory
 	audioFiles.removeElement(i);
 	// audioFile->remove(); // Remove from the unused AudioFiles list, where this already must have been. Actually
 	// no, the destructor does this anyway.
-	audioFile->~AudioFile();
-	delugeDealloc(audioFile);
+	audioFile.~AudioFile();
+	delugeDealloc(&audioFile);
 }
 
 bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
@@ -443,20 +425,20 @@ bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
 	return audioFiles.ensureEnoughSpaceAllocated(1);
 }
 
-Error AudioFileManager::setupAlternateAudioFileDir(String* newPath, char const* rootDir,
-                                                   String* songFilenameWithoutExtension) {
+Error AudioFileManager::setupAlternateAudioFileDir(String& newPath, char const* rootDir,
+                                                   String& songFilenameWithoutExtension) {
 
-	Error error = newPath->set(rootDir);
+	Error error = newPath.set(rootDir);
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	error = newPath->concatenate("/");
+	error = newPath.concatenate("/");
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	error = newPath->concatenate(songFilenameWithoutExtension);
+	error = newPath.concatenate(&songFilenameWithoutExtension);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -464,8 +446,8 @@ Error AudioFileManager::setupAlternateAudioFileDir(String* newPath, char const* 
 	return Error::NONE;
 }
 
-Error AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t dirPathLength, String* oldPath) {
-	Error error = newPath->concatenateAtPos(&oldPath->get()[8], dirPathLength); // The [8] skips us past "SAMPLES/"
+Error AudioFileManager::setupAlternateAudioFilePath(String& newPath, int32_t dirPathLength, String& oldPath) {
+	Error error = newPath.concatenateAtPos(&oldPath.get()[8], dirPathLength); // The [8] skips us past "SAMPLES/"
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -473,13 +455,13 @@ Error AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t dir
 	int32_t pos = dirPathLength;
 
 	while (true) {
-		char const* newPathChars = newPath->get();
+		char const* newPathChars = newPath.get();
 		char const* slashAddress = strchr(&newPathChars[pos], '/');
 		if (!slashAddress) {
 			break;
 		}
 		int32_t slashPos = (uint32_t)slashAddress - (uint32_t)newPathChars;
-		Error error = newPath->setChar('_', slashPos);
+		Error error = newPath.setChar('_', slashPos);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -489,7 +471,7 @@ Error AudioFileManager::setupAlternateAudioFilePath(String* newPath, int32_t dir
 	return Error::NONE;
 }
 
-AudioFile* AudioFileManager::getAudioFileFromFilename(String* filePath, bool mayReadCard, Error* error,
+AudioFile* AudioFileManager::getAudioFileFromFilename(String& filePath, bool mayReadCard, Error* error,
                                                       FilePointer* suppliedFilePointer, AudioFileType type,
                                                       bool makeWaveTableWorkAtAllCosts) {
 
@@ -499,7 +481,7 @@ AudioFile* AudioFileManager::getAudioFileFromFilename(String* filePath, bool may
 
 	// See if it's already in memory.
 	bool foundExact;
-	int32_t audioFileI = audioFiles.search(filePath->get(), GREATER_OR_EQUAL, &foundExact);
+	int32_t audioFileI = audioFiles.search(filePath.get(), GREATER_OR_EQUAL, &foundExact);
 
 	// If that basic search by the file's "normal" path already found it, then great.
 	if (foundExact) {
@@ -518,7 +500,7 @@ successfullyFoundInMemory:
 doTryOffset:
 			AudioFile* foundAudioFile2 = (AudioFile*)audioFiles.getElement(audioFileI + tryOffset);
 
-			if (foundAudioFile2->type == type && !strcasecmp(filePath->get(), foundAudioFile2->filePath.get())) {
+			if (foundAudioFile2->type == type && !strcasecmp(filePath.get(), foundAudioFile2->filePath.get())) {
 				return foundAudioFile2;
 			}
 		}
@@ -593,7 +575,7 @@ waveTableCloneError:
 		// filePath if needed (pretty unlikely scenario).
 		else {
 			if (!backedUpFilePath.isEmpty()) {
-				filePath->set(&backedUpFilePath);
+				filePath.set(&backedUpFilePath);
 			}
 		}
 	}
@@ -612,7 +594,7 @@ waveTableCloneError:
 				if (*error != Error::NONE) {
 					goto tryLoadingFromCard;
 				}
-				char const* fileName = getFileNameFromEndOfPath(filePath->get());
+				char const* fileName = getFileNameFromEndOfPath(filePath.get());
 				*error = searchPath.concatenate(fileName);
 				if (*error != Error::NONE) {
 					goto tryLoadingFromCard;
@@ -622,8 +604,8 @@ waveTableCloneError:
 				if (foundExact) {
 					// Tiny bit cheeky, but we're going to update the file path actually stored in the AudioFile to
 					// reflect this alternate location, which will no longer be considered alternate.
-					backedUpFilePath.set(filePath); // First we back up the original filePath.
-					filePath->set(&searchPath);
+					backedUpFilePath.set(&filePath); // First we back up the original filePath.
+					filePath.set(&searchPath);
 					goto successfullyFoundInMemory;
 				}
 			}
@@ -676,11 +658,11 @@ tryAlternateDoesExist:
 			// We'll first try the long file name, which contains all the folder names from the original path. This
 			// is how collect-media saves look - for Songs. But, if that original path didn't begin with "SAMPLES/",
 			// we can't do that.
-			if (memcasecmp(filePath->get(), "SAMPLES/", 8)) {
+			if (memcasecmp(filePath.get(), "SAMPLES/", 8)) {
 				goto tryNextAlternate;
 			}
 
-			*error = setupAlternateAudioFilePath(&proposedFileName, 0, filePath);
+			*error = setupAlternateAudioFilePath(proposedFileName, 0, filePath);
 			if (*error != Error::NONE) {
 				return nullptr; // This is to generate just the name of the file - not an entire path with folders -
 				                // despite the function being called ...Path.
@@ -705,7 +687,7 @@ tryNextAlternate:
 					// folder names. This allows users to copy files into folders for instruments more easily, and
 					// have them load.
 					alreadyTriedSecondAlternate = true;
-					char const* fileName = getFileNameFromEndOfPath(filePath->get());
+					char const* fileName = getFileNameFromEndOfPath(filePath.get());
 					*error = proposedFileName.set(fileName);
 					if (*error != Error::NONE) {
 						return NULL;
@@ -738,7 +720,7 @@ tryNextAlternate:
 				// Special rule for loading presets with files in their dedicated "alternate" folder: must update
 				// the AudioFile's filePath to point to that alternate location - and then treat them as normal (not
 				// alternate).
-				filePath->set(&usingAlternateLocation);
+				filePath.set(&usingAlternateLocation);
 				usingAlternateLocation.clear();
 			}
 		}
@@ -746,7 +728,7 @@ tryNextAlternate:
 		// Otherwise, try the regular file path
 		else {
 tryRegular:
-			result = f_open(&smDeserializer.readFIL, filePath->get(), FA_READ);
+			result = f_open(&smDeserializer.readFIL, filePath.get(), FA_READ);
 
 			// If that didn't work, try the alternate load directory, if we didn't already and it potentially exists
 			if (result != FR_OK) {
@@ -790,7 +772,7 @@ cantLoadFile:
 		goto cantLoadFile;
 	}
 
-	uint32_t numClusters = ((effectiveFilePointer.objsize - 1) >> clusterSizeMagnitude) + 1;
+	uint32_t numClusters = ((effectiveFilePointer.objsize - 1) >> Cluster::size_magnitude) + 1;
 
 	int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
 
@@ -823,13 +805,13 @@ ramError:
 		reader = new (readerMemory) WaveTableReader;
 	}
 
-	audioFile->filePath.set(filePath);
+	audioFile->filePath.set(&filePath);
 	audioFile->loadedFromAlternatePath.set(&usingAlternateLocation);
 
 	reader->currentClusterIndex = -1;
 	reader->audioFile = audioFile;
 	reader->fileSize = effectiveFilePointer.objsize;
-	reader->byteIndexWithinCluster = clusterSize;
+	reader->byteIndexWithinCluster = Cluster::size;
 
 	// If Sample, we go directly to god-mode and get the cluster addresses.
 	if (type == AudioFileType::SAMPLE) {
@@ -887,8 +869,9 @@ ramError:
 
 ensureSafeThenCheckError:
 	if (type == AudioFileType::SAMPLE) {
-		if (((SampleReader*)reader)->currentCluster) {
-			removeReasonFromCluster(((SampleReader*)reader)->currentCluster, "E030");
+		auto& sampleReader = static_cast<SampleReader&>(*reader);
+		if (sampleReader.currentCluster) {
+			removeReasonFromCluster(*sampleReader.currentCluster, "E030");
 		}
 	}
 	else {
@@ -915,65 +898,9 @@ audioFileError:
 	return audioFile;
 }
 
-void AudioFileManager::testQueue() {
-
-	/*
-	Cluster* loadedSampleChunk = queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].first;
-	while (loadedSampleChunk != &queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].endNode) {
-
-
-	    if (loadedSampleChunk->nextAvailableLoadedSampleChunk ==
-	&queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].endNode
-	            && queues[LOADED_SAMPLE_CHUNK_ALLOCATION_QUEUE_NORMAL].endNode.prevAvailableLoadedSampleChunkPointer
-	!= &loadedSampleChunk->nextAvailableLoadedSampleChunk) { D_PRINTLN("error ---------------------------------");
-	        D_PRINT(loadedSampleChunk->sample->fileName);
-	        D_PRINT(", part ");
-	        D_PRINTLN(loadedSampleChunk->chunkIndex);
-	        return;
-	    }
-
-	    if (loadedSampleChunk->nextAvailableLoadedSampleChunk->prevAvailableLoadedSampleChunkPointer !=
-	&loadedSampleChunk->nextAvailableLoadedSampleChunk) { D_PRINTLN("abc ---------------------------------");
-	        D_PRINT(loadedSampleChunk->sample->fileName);
-	        D_PRINT(", part ");
-	        D_PRINTLN(loadedSampleChunk->chunkIndex);
-	        return;
-	    }
-
-	    loadedSampleChunk = loadedSampleChunk->nextAvailableLoadedSampleChunk;
-	}
-
-	D_PRINTLN("queue ok -----------------------");
-	*/
-}
-
-// Caller must initialize() the Cluster after getting it from this function
-Cluster* AudioFileManager::allocateCluster(ClusterType type, bool shouldAddReasons, void* dontStealFromThing) {
-	cardReadOnce = true; // even if it hasn't been we're now commited to the cluster size
-	void* clusterMemory = GeneralMemoryAllocator::get().allocStealable(clusterObjectSize, dontStealFromThing);
-	if (!clusterMemory) {
-		return NULL;
-	}
-
-	Cluster* cluster = new (clusterMemory) Cluster();
-
-	cluster->type = type;
-
-	if (shouldAddReasons) {
-		cluster->addReason();
-	}
-
-	return cluster;
-}
-
-void AudioFileManager::deallocateCluster(Cluster* cluster) {
-	cluster->~Cluster(); // Removes reasons, and / or from stealable list
-	delugeDealloc(cluster);
-}
-
 #define REPORT_LOAD_TIME 0
 
-bool AudioFileManager::loadCluster(Cluster* cluster, int32_t minNumReasonsAfter) {
+bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter) {
 
 	if (currentlyAccessingCard) {
 		return false; // Could happen if we're trying to render a waveform but we're actually already inside the SD
@@ -981,24 +908,25 @@ bool AudioFileManager::loadCluster(Cluster* cluster, int32_t minNumReasonsAfter)
 	}
 
 	// I don't think these should happen...
-	if (clusterBeingLoaded) {
+	if (clusterBeingLoaded != nullptr) {
 		return false;
 	}
+
 	if (AudioEngine::audioRoutineLocked) {
 		return false;
 	}
 
-	clusterBeingLoaded = cluster;
+	clusterBeingLoaded = &cluster;
 	minNumReasonsForClusterBeingLoaded = minNumReasonsAfter + 1;
 
-	Sample* sample = cluster->sample;
+	Sample* sample = cluster.sample;
 
-	if (cluster->type != ClusterType::Sample) {
+	if (cluster.type != Cluster::Type::SAMPLE) {
 		FREEZE_WITH_ERROR("E205"); // Chris F got this, so gonna leave checking in release build
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster->numReasonsToBeLoaded <= 0) {
+	if (cluster.numReasonsToBeLoaded <= 0) {
 		// Ok, I think we know there's at least 1 reason at the point this function's called, because
 		FREEZE_WITH_ERROR("E204");
 	}
@@ -1008,38 +936,39 @@ bool AudioFileManager::loadCluster(Cluster* cluster, int32_t minNumReasonsAfter)
 	}
 #endif
 
-	cluster->addReason(); // So that it can't accidentally hit 0 reasons while we're loading it, cos then it
-	                      // might get deallocated.
+	// So that it can't accidentally hit 0 reasons while we're loading it,
+	// cos then it might get deallocated.
+	cluster.addReason();
 
 	if (false) {
 getOutEarly:
-		clusterBeingLoaded = NULL;
+		clusterBeingLoaded = nullptr;
 		removeReasonFromCluster(cluster, "E033");
 		return false;
 	}
 
-	int32_t clusterIndex = cluster->clusterIndex;
+	int32_t clusterIndex = cluster.clusterIndex;
 
-	int32_t numSectors = clusterSize >> 9;
+	int32_t numSectors = Cluster::size >> 9;
 
 	// If this is the last Cluster, and we do know what the audio data length is...
 	if (sample->audioDataLengthBytes && sample->audioDataLengthBytes != 0x8FFFFFFFFFFFFFFF) {
 		uint32_t audioDataEndPosBytes = sample->audioDataLengthBytes + sample->audioDataStartPosBytes;
-		uint32_t startByteThisCluster = clusterIndex << clusterSizeMagnitude;
+		uint32_t startByteThisCluster = clusterIndex << Cluster::size_magnitude;
 		int32_t bytesToRead = audioDataEndPosBytes - startByteThisCluster;
 		if (bytesToRead <= 0) {
 			D_PRINTLN("fail thing"); // Shouldn't really still happen
 			goto getOutEarly;
 		}
-		if (bytesToRead < clusterSize) {
+		if (bytesToRead < Cluster::size) {
 			numSectors = ((bytesToRead - 1) >> 9) + 1;
 		}
 		// Otherwise, just leave it at the normal number of sectors
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	if ((uint32_t)cluster->data & 0b11) {
-		D_PRINTLN("SD read address misaligned by  %d", (int32_t)((uint32_t)cluster->data & 0b11));
+	if ((uint32_t)cluster.data & 0b11) {
+		D_PRINTLN("SD read address misaligned by  %d", (int32_t)((uint32_t)cluster.data & 0b11));
 	}
 #endif
 
@@ -1050,17 +979,17 @@ getOutEarly:
 #endif
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster->type != ClusterType::Sample) {
+	if (cluster.type != Cluster::Type::SAMPLE) {
 		FREEZE_WITH_ERROR("i023"); // Happened to me while thrash testing with reduced RAM
 	}
 
-	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter + 1) {
+	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i039"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
 
 	DRESULT result = disk_read_without_streaming_first(
-	    SD_PORT, (BYTE*)cluster->data, sample->clusters.getElement(cluster->clusterIndex)->sdAddress, numSectors);
+	    SD_PORT, (BYTE*)cluster.data, sample->clusters.getElement(cluster.clusterIndex)->sdAddress, numSectors);
 
 #if REPORT_LOAD_TIME
 	uint16_t endTime = MTU2.TCNT_0;
@@ -1072,27 +1001,27 @@ getOutEarly:
 #endif
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster->type != ClusterType::Sample) {
+	if (cluster.type != Cluster::Type::SAMPLE) {
 		FREEZE_WITH_ERROR("E207");
 	}
-	if (!cluster->sample) {
+	if (cluster.sample == nullptr) {
 		FREEZE_WITH_ERROR("E208");
 	}
 
-	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter + 1) {
+	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i038"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
 
 	// If that failed, get out
-	if (result) {
+	if (result != 0u) {
 		goto getOutEarly;
 	}
 
-	cluster->convertDataIfNecessary();
+	cluster.convertDataIfNecessary();
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter + 1) {
+	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter + 1) {
 		FREEZE_WITH_ERROR("i040"); // It's +1 because we haven't removed this function's "reason" yet.
 	}
 #endif
@@ -1101,27 +1030,27 @@ getOutEarly:
 
 	// Give extra bytes to previous Cluster
 	if (clusterIndex > 0) {
-		Cluster* prevCluster = sample->clusters.getElement(cluster->clusterIndex - 1)->cluster;
+		Cluster* prevCluster = sample->clusters.getElement(cluster.clusterIndex - 1)->cluster;
 
 		if (prevCluster && prevCluster->loaded) {
 
 			// We first copy our first 7 bytes from here to the end of the prev Cluster...
-			memcpy(&prevCluster->data[clusterSize], cluster->data, 7);
+			memcpy(&prevCluster->data[Cluster::size], cluster.data, 7);
 
 			// If 24-bit wrong-endian data...
-			if (sample->rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24) {
+			if (sample->rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_24) {
 
 				// If we hadn't previously written the "extra" bytes to the end of the prev Cluster and converted
 				// them, do so now...
 				if (!prevCluster->extraBytesAtEndConverted) {
 
-					uint32_t bytesBeforeStartOfCluster = clusterIndex * clusterSize - sample->audioDataStartPosBytes;
+					uint32_t bytesBeforeStartOfCluster = clusterIndex * Cluster::size - sample->audioDataStartPosBytes;
 					int32_t bytesUnconvertedBeforeCluster = bytesBeforeStartOfCluster % 3;
 					if (bytesUnconvertedBeforeCluster) {
 
 						// There'll be one word in there which hasn't yet been converted. Do it now. (We've probably
 						// just copied over the next one and a bit, which already was converted)
-						int32_t startPos = clusterSize - bytesUnconvertedBeforeCluster;
+						int32_t startPos = Cluster::size - bytesUnconvertedBeforeCluster;
 						uint8_t* thisNumber = (uint8_t*)&prevCluster->data[startPos];
 
 						uint8_t temp = thisNumber[0];
@@ -1130,7 +1059,7 @@ getOutEarly:
 
 						// And now, copy 2 bytes back to this Cluster (that's the maximum that the float could have
 						// been overhanging the boundary)
-						memcpy(cluster->data, &prevCluster->data[clusterSize], 2);
+						memcpy(cluster.data, &prevCluster->data[Cluster::size], 2);
 					}
 
 					prevCluster->extraBytesAtEndConverted = true;
@@ -1138,7 +1067,7 @@ getOutEarly:
 			}
 
 			// Or, all other types of raw data conversion
-			else if (sample->rawDataFormat) {
+			else if (sample->rawDataFormat != RawDataFormat::NATIVE) {
 
 				// If we haven't previously written the "extra" bytes to the end of the prev Cluster and converted
 				// them, do so now...
@@ -1149,34 +1078,34 @@ getOutEarly:
 
 						// There'll be one word in there which hasn't yet been converted. Do it now. (We've probably
 						// also just moved over the next one too, which already was converted)
-						int32_t startPos = clusterSize - 4 + misalignment;
-						int32_t* thisNumber = (int32_t*)&prevCluster->data[startPos];
-						sample->convertOneData(thisNumber);
+						int32_t startPos = Cluster::size - 4 + misalignment;
+						auto& thisNumber = reinterpret_cast<int32_t&>(prevCluster->data[startPos]);
+						thisNumber = sample->convertToNative(thisNumber);
 
 						// And now, copy 3 bytes back to this Cluster (that's the maximum that the float could have
 						// been overhanging the boundary)
-						memcpy(cluster->data, &prevCluster->data[clusterSize], 3);
+						memcpy(cluster.data, &prevCluster->data[Cluster::size], 3);
 					}
 
 					prevCluster->extraBytesAtEndConverted = true;
 				}
 			}
 
-			cluster->extraBytesAtStartConverted = true;
+			cluster.extraBytesAtStartConverted = true;
 		}
 	}
 
 	// Grab extra bytes from next Cluster
 	if (clusterIndex < sample->clusters.getNumElements() - 1) {
-		Cluster* nextCluster = sample->clusters.getElement(cluster->clusterIndex + 1)->cluster;
+		Cluster* nextCluster = sample->clusters.getElement(cluster.clusterIndex + 1)->cluster;
 
 		if (nextCluster && nextCluster->loaded) {
 
 			// If 24-bit wrong-endian data...
-			if (sample->rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24) {
+			if (sample->rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_24) {
 
 				uint32_t bytesBeforeStartOfNextCluster =
-				    (clusterIndex + 1) * clusterSize - sample->audioDataStartPosBytes;
+				    (clusterIndex + 1) * Cluster::size - sample->audioDataStartPosBytes;
 				int32_t bytesUnconvertedBeforeNextCluster = bytesBeforeStartOfNextCluster % 3;
 
 				// If one word missed conversion...
@@ -1186,19 +1115,19 @@ getOutEarly:
 					if (!nextCluster->extraBytesAtStartConverted) {
 
 						// We first copy the next Cluster first 7 bytes to the end of this Cluster
-						memcpy(&cluster->data[clusterSize], nextCluster->data, 7);
+						memcpy(&cluster.data[Cluster::size], nextCluster->data, 7);
 					}
 
 					// Or, if we *had* previously converted the first bytes of the next Cluster...
 					else {
 
 						// Grab the unconverted bytes back from where we backed them up to
-						memcpy(&cluster->data[clusterSize], nextCluster->firstThreeBytesPreDataConversion, 2);
+						memcpy(&cluster.data[Cluster::size], nextCluster->firstThreeBytesPreDataConversion, 2);
 					}
 
 					// There'll be one word in there which hasn't yet been converted. Do it now. (We've probably
 					// just copied over the next one and a bit, which already was converted)
-					uint8_t* thisNumber = (uint8_t*)&cluster->data[clusterSize - bytesUnconvertedBeforeNextCluster];
+					uint8_t* thisNumber = (uint8_t*)&cluster.data[Cluster::size - bytesUnconvertedBeforeNextCluster];
 
 					uint8_t temp = thisNumber[0];
 					thisNumber[0] = thisNumber[2];
@@ -1210,7 +1139,7 @@ getOutEarly:
 
 						// And now, copy 2 bytes back to the next Cluster (that's the maximum that the 24-bit
 						// int32_t could have been overhanging the boundary)
-						memcpy(nextCluster->data, &cluster->data[clusterSize], 2);
+						memcpy(nextCluster->data, &cluster.data[Cluster::size], 2);
 					}
 
 					// Or, if we *had* previously converted the first bytes of the next Cluster...
@@ -1226,25 +1155,25 @@ getOutEarly:
 			}
 
 			// Or, all other types of raw data conversion
-			else if (sample->rawDataFormat) {
+			else if (sample->rawDataFormat != RawDataFormat::NATIVE) {
 
 				// If one word missed conversion...
 				if (misalignment) {
-					int32_t startPos = clusterSize - 4 + misalignment;
-					int32_t* thisNumber = (int32_t*)&cluster->data[startPos];
+					int32_t startPos = Cluster::size - 4 + misalignment;
+					auto& thisNumber = reinterpret_cast<int32_t&>(cluster.data[startPos]);
 
 					// If we had't previously converted the first couple of bytes of the next Cluster, do so now...
 					if (!nextCluster->extraBytesAtStartConverted) {
 
 						// We first copy the next Cluster first 7 bytes to the end of this Cluster
-						memcpy(&cluster->data[clusterSize], nextCluster->data, 7);
+						memcpy(&cluster.data[Cluster::size], nextCluster->data, 7);
 
 						// There'll be one word in there which hasn't yet been converted from float. Do it now
-						sample->convertOneData(thisNumber);
+						thisNumber = sample->convertToNative(thisNumber);
 
 						// And now, copy 3 bytes back to the next Cluster (that's the maximum that the float could
 						// have been overhanging the boundary)
-						memcpy(nextCluster->data, &cluster->data[clusterSize], 3);
+						memcpy(nextCluster->data, &cluster.data[Cluster::size], 3);
 
 						nextCluster->extraBytesAtStartConverted = true;
 					}
@@ -1253,10 +1182,10 @@ getOutEarly:
 					else {
 
 						// Grab the unconverted bytes back from where we backed them up to
-						memcpy(&cluster->data[clusterSize], nextCluster->firstThreeBytesPreDataConversion, 3);
+						memcpy(&cluster.data[Cluster::size], nextCluster->firstThreeBytesPreDataConversion, 3);
 
 						// There'll be one word in there which hasn't yet been converted from float. Do it now
-						sample->convertOneData(thisNumber);
+						thisNumber = sample->convertToNative(thisNumber);
 
 						// And now just copy the converted-from-float first bytes from the next Cluster to the end
 						// of this one
@@ -1271,23 +1200,23 @@ getOutEarly:
 			else {
 copy7ToMe:
 				// We copy the next Cluster's first 7 bytes to the end of this Cluster
-				memcpy(&cluster->data[clusterSize], nextCluster->data, 7);
+				memcpy(&cluster.data[Cluster::size], nextCluster->data, 7);
 			}
 
-			cluster->extraBytesAtEndConverted = true;
+			cluster.extraBytesAtEndConverted = true;
 		}
 	}
 
-	cluster->loaded = true;
+	cluster.loaded = true;
 
 	clusterBeingLoaded = NULL;
 	removeReasonFromCluster(cluster, "E034");
 
 #if ALPHA_OR_BETA_VERSION
-	if (cluster->numReasonsToBeLoaded < minNumReasonsAfter) {
+	if (cluster.numReasonsToBeLoaded < minNumReasonsAfter) {
 		FREEZE_WITH_ERROR("i037");
 	}
-	if (cluster->sample->clusters.getElement(cluster->clusterIndex)->cluster != cluster) {
+	if (cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster != &cluster) {
 		FREEZE_WITH_ERROR("E438");
 	}
 #endif
@@ -1378,8 +1307,7 @@ performActionsAndGetOut:
 			if (cluster->numReasonsToBeLoaded > 0) {
 				break;
 			}
-			cluster->~Cluster();
-			deallocateCluster(cluster);
+			cluster->destroy();
 		}
 
 		// no more clusters to load, so exit
@@ -1390,12 +1318,12 @@ performActionsAndGetOut:
 		// cluster has at least 1 "reason". If it didn't, it would have been removed from the load-queue
 
 		// Do the actual loading
-		if (cluster->type != ClusterType::Sample) {
+		if (cluster->type != Cluster::Type::SAMPLE) {
 			FREEZE_WITH_ERROR("E235"); // Cos Chris F got an E205
 		}
 
 		allowSomeUserActionsEvenWhenInCardRoutine = true; // Sorry!!
-		bool success = loadCluster(cluster);
+		bool success = loadCluster(*cluster);
 		allowSomeUserActionsEvenWhenInCardRoutine = false;
 
 		// If that didn't work, presumably because the SD card got ejected...
@@ -1411,11 +1339,12 @@ performActionsAndGetOut:
 			// re-inserts the card
 			else {
 
-				if (cluster->type != ClusterType::Sample) {
+				if (cluster->type != Cluster::Type::SAMPLE) {
 					FREEZE_WITH_ERROR("E237"); // Cos Chris F got an E205
 				}
 
-				enqueueCluster(cluster); // TODO: If that fails, it'll just get awkwardly forgotten about
+				// TODO: If that fails, it'll just get awkwardly forgotten about
+				loadingQueue.push(*cluster, 0xFFFFFFFF); // lowest priority
 
 				// Also, return now. Normally we stay here til there's nothing left in the load-queue, but now that
 				// would leave us in an infinite loop!
@@ -1434,50 +1363,44 @@ performActionsAndGetOut:
 #endif
 }
 
-// Currently there's no risk of trying to enqueue a cluster multiple times, because this function only gets called
-// after it's freshly allocated
-Error AudioFileManager::enqueueCluster(Cluster* cluster, uint32_t priorityRating) {
-	return loadingQueue.push(*cluster, priorityRating);
-}
+void AudioFileManager::removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong) {
+	cluster.numReasonsToBeLoaded--;
 
-void AudioFileManager::removeReasonFromCluster(Cluster* cluster, char const* errorCode, bool deletingSong) {
-	cluster->numReasonsToBeLoaded--;
-
-	if (cluster == clusterBeingLoaded && cluster->numReasonsToBeLoaded < minNumReasonsForClusterBeingLoaded) {
+	if (&cluster == clusterBeingLoaded && cluster.numReasonsToBeLoaded < minNumReasonsForClusterBeingLoaded) {
 		FREEZE_WITH_ERROR("E041"); // Sven got this!
 	}
 
 	// If it's now zero, it's become available
-	if (cluster->numReasonsToBeLoaded == 0) {
+	if (cluster.numReasonsToBeLoaded == 0) {
 
 		// Bug hunting
-		if (ALPHA_OR_BETA_VERSION && cluster->numReasonsHeldBySampleRecorder) {
+		if (ALPHA_OR_BETA_VERSION && cluster.numReasonsHeldBySampleRecorder) {
 			FREEZE_WITH_ERROR("E364");
 		}
 
 		// If it's still in the load queue, remove it from there. (We know that it isn't in the process of being
 		// loaded right now because that would have added a "reason", so we wouldn't be here.) also do this on song
 		// swap
-		if (loadingQueue.erase(*cluster) || deletingSong) {
+		if (loadingQueue.erase(cluster) || deletingSong) {
 
 			// Tell its Cluster to forget it exists
-			cluster->sample->clusters.getElement(cluster->clusterIndex)->cluster = NULL;
+			cluster.sample->clusters.getElement(cluster.clusterIndex)->cluster = NULL;
 
-			deallocateCluster(cluster); // It contains nothing, so completely recycle it
+			delete &cluster; // It contains nothing, so completely recycle it
 		}
 
 		else {
-			GeneralMemoryAllocator::get().putStealableInAppropriateQueue(
-			    cluster); // It contains data we may want at some future point, so file it away
+			// It contains data we may want at some future point, so file it away
+			GeneralMemoryAllocator::get().putStealableInAppropriateQueue(&cluster);
 		}
 
 		//*cluster->getAnyReasonsPointer() = ANY_REASONS_NO;
 	}
 
-	else if (cluster->numReasonsToBeLoaded < 0) {
+	else if (cluster.numReasonsToBeLoaded < 0) {
 #if ALPHA_OR_BETA_VERSION
-		if (cluster->sample) { // "Should" always be true...
-			D_PRINTLN("reason remains on cluster of sample:  %d", cluster->sample->filePath.get());
+		if (cluster.sample != nullptr) { // "Should" always be true...
+			D_PRINTLN("reason remains on cluster of sample:  %d", cluster.sample->filePath.get());
 		}
 		FREEZE_WITH_ERROR(errorCode);
 #else

@@ -166,7 +166,7 @@ gotError:
 	}
 
 	error =
-	    audioFileManager.setupAlternateAudioFileDir(&newSongAlternatePath, currentDir.get(), &filenameWithoutExtension);
+	    audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.get(), filenameWithoutExtension);
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -312,8 +312,8 @@ gotError:
 					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was
 					// designed for...
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
-						error = audioFileManager.setupAlternateAudioFilePath(&newSongAlternatePath, dirPathLengthNew,
-						                                                     &audioFile->filePath);
+						error = audioFileManager.setupAlternateAudioFilePath(newSongAlternatePath, dirPathLengthNew,
+						                                                     audioFile->filePath);
 						if (error != Error::NONE) {
 failAfterOpeningSourceFile:
 							activeDeserializer->closeWriter();
@@ -361,7 +361,7 @@ failAfterOpeningSourceFile:
 					while (true) {
 						UINT bytesRead;
 						result = f_read(&activeDeserializer->readFIL, activeDeserializer->fileClusterBuffer,
-						                audioFileManager.clusterSize, &bytesRead);
+						                Cluster::size, &bytesRead);
 						if (result) {
 							D_PRINTLN("read fail");
 fail3:
@@ -379,7 +379,7 @@ fail3:
 							goto fail3;
 						}
 
-						if (bytesRead < audioFileManager.clusterSize) {
+						if (bytesRead < Cluster::size) {
 							break; // Stop - file clearly ended part-way through cluster
 						}
 					}

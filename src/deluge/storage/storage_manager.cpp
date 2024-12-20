@@ -731,8 +731,8 @@ FileReader::~FileReader() {
 
 void FileReader::resetReader() {
 	if (!memoryBased) {
-		fileReadBufferCurrentPos = audioFileManager.clusterSize;
-		currentReadBufferEndPos = audioFileManager.clusterSize;
+		fileReadBufferCurrentPos = Cluster::size;
+		currentReadBufferEndPos = Cluster::size;
 	}
 	else {
 		fileReadBufferCurrentPos = 0;
@@ -751,7 +751,7 @@ bool FileReader::readFileClusterIfNecessary() {
 		return !reachedBufferEnd;
 	}
 	// Load next Cluster if necessary
-	if (fileReadBufferCurrentPos >= audioFileManager.clusterSize) {
+	if (fileReadBufferCurrentPos >= Cluster::size) {
 		readCount = 0;
 		bool result = readFileCluster();
 		if (!result) {
@@ -775,7 +775,7 @@ bool FileReader::readFileCluster() {
 		return true;
 	}
 
-	FRESULT result = f_read(&readFIL, (UINT*)fileClusterBuffer, audioFileManager.clusterSize, &currentReadBufferEndPos);
+	FRESULT result = f_read(&readFIL, (UINT*)fileClusterBuffer, Cluster::size, &currentReadBufferEndPos);
 	if (result) {
 		return false;
 	}

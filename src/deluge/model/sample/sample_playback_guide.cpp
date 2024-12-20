@@ -56,7 +56,7 @@ int32_t SamplePlaybackGuide::getFinalClusterIndex(Sample* sample, bool obeyMarke
 		finalBytePos = endPlaybackAtByteNow + sample->byteDepth * sample->numChannels;
 	}
 
-	return finalBytePos >> audioFileManager.clusterSizeMagnitude;
+	return finalBytePos >> Cluster::size_magnitude;
 }
 
 void SamplePlaybackGuide::setupPlaybackBounds(bool reversed) {

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/sample/sample.h"
 #include "storage/audio/audio_file.h"
 #include "storage/wave_table/wave_table_band_data.h"
 #include "util/container/array/ordered_resizeable_array.h"
@@ -48,8 +49,8 @@ public:
 	                int32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
 	                int32_t waveIndexIncrement);
 	Error setup(Sample* sample, int32_t nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
-	            uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0, int32_t rawDataFormat = 0,
-	            WaveTableReader* reader = NULL);
+	            uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0,
+	            RawDataFormat rawDataFormat = RawDataFormat::NATIVE, WaveTableReader* reader = nullptr);
 	void deleteAllBandsAndData();
 	void bandDataBeingStolen(WaveTableBandData* bandData);
 

@@ -18,6 +18,7 @@
 #include "model/sample/sample_reader.h"
 #include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
+#include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 
@@ -38,14 +39,15 @@ Error SampleReader::readBytesPassedErrorChecking(char* outputBuffer, int32_t num
 }
 
 Error SampleReader::readNewCluster() {
-	if (currentCluster) {
-		audioFileManager.removeReasonFromCluster(currentCluster, "E031");
+	if (currentCluster != nullptr) {
+		audioFileManager.removeReasonFromCluster(*currentCluster, "E031");
 	}
 
-	currentCluster = ((Sample*)audioFile)
-	                     ->clusters.getElement(currentClusterIndex)
-	                     ->getCluster((Sample*)audioFile, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
-	if (!currentCluster) {
+	auto& sampleFile = static_cast<Sample&>(*audioFile);
+
+	currentCluster = sampleFile.clusters.getElement(currentClusterIndex)
+	                     ->getCluster(&sampleFile, currentClusterIndex, CLUSTER_LOAD_IMMEDIATELY);
+	if (currentCluster == nullptr) {
 		return Error::SD_CARD; // Failed to load cluster from card
 	}
 	return Error::NONE;

@@ -137,7 +137,7 @@ void dft_r2c(ne10_fft_cpx_int32_t* __restrict__ out, int32_t const* __restrict__
 #define SHOULD_DISCARD_WAVETABLE_DATA_WITH_INSUFFICIENT_HF_CONTENT 0
 
 Error WaveTable::setup(Sample* sample, int32_t rawFileCycleSize, uint32_t audioDataStartPosBytes,
-                       uint32_t audioDataLengthBytes, int32_t byteDepth, int32_t rawDataFormat,
+                       uint32_t audioDataLengthBytes, int32_t byteDepth, RawDataFormat rawDataFormat,
                        WaveTableReader* reader) {
 	AudioEngine::logAction("WaveTable::setup");
 
@@ -338,8 +338,8 @@ gotError5:
 	// will be overwritten, just since we're using the same code as for power-of-two.
 	int16_t* __restrict__ initialBandWritePos = initialBand->dataAccessAddress;
 
-	int32_t clusterIndex = audioDataStartPosBytes >> audioFileManager.clusterSizeMagnitude;
-	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (audioFileManager.clusterSize - 1);
+	int32_t clusterIndex = audioDataStartPosBytes >> Cluster::size_magnitude;
+	int32_t byteIndexWithinCluster = audioDataStartPosBytes & (Cluster::size - 1);
 
 	if (!sample) {
 		reader->jumpForwardToBytePos(audioDataStartPosBytes); // In case reader wasn't quite up to here yet! Can happen
@@ -360,10 +360,10 @@ gotError5:
 	uint32_t startedBandsYet = 0;
 
 	bool swappingEndianness =
-	    (rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_32 || rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_24
-	     || rawDataFormat == RAW_DATA_ENDIANNESS_WRONG_16);
+	    (rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_32 || rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_24
+	     || rawDataFormat == RawDataFormat::ENDIANNESS_WRONG_16);
 
-	bool needToMisalignData = (rawDataFormat == RAW_DATA_FINE || rawDataFormat == RAW_DATA_UNSIGNED_8);
+	bool needToMisalignData = (rawDataFormat == RawDataFormat::NATIVE || rawDataFormat == RawDataFormat::UNSIGNED_8);
 
 	// For each wave cycle...
 	for (int32_t cycleIndex = 0; cycleIndex < numCycles; cycleIndex++) {
@@ -390,7 +390,7 @@ gotError5:
 
 					// First, unload the old Cluster if there was one
 					if (cluster) {
-						audioFileManager.removeReasonFromCluster(cluster, "E385");
+						audioFileManager.removeReasonFromCluster(*cluster, "E385");
 					}
 
 					cluster = sample->clusters.getElement(clusterIndex)
@@ -420,7 +420,7 @@ gotError5:
 			// Macro setup for below
 #define CONVERT_AND_STORE_SAMPLE                                                                                       \
 	{                                                                                                                  \
-		if (rawDataFormat == RAW_DATA_FLOAT) {                                                                         \
+		if (rawDataFormat == RawDataFormat::FLOAT) {                                                                   \
 			value32 = q31_from_float(std::bit_cast<float>(value32));                                                   \
 		}                                                                                                              \
 		else {                                                                                                         \
@@ -428,7 +428,7 @@ gotError5:
 				value32 = swapEndianness32(value32);                                                                   \
 			}                                                                                                          \
 			value32 &= bitMask;                                                                                        \
-			if (rawDataFormat == RAW_DATA_UNSIGNED_8) {                                                                \
+			if (rawDataFormat == RawDataFormat::UNSIGNED_8) {                                                          \
 				value32 += (1 << 31);                                                                                  \
 			}                                                                                                          \
 		}                                                                                                              \
@@ -478,7 +478,7 @@ gotError5:
 			}
 
 			const char* source = &sourceBuffer[byteIndexWithinCluster];
-			const char* sourceStopAt = &sourceBuffer[audioFileManager.clusterSize];
+			const char* sourceStopAt = &sourceBuffer[Cluster::size];
 
 			// Stop before we get to the final sample that overlaps the end of the cluster, if that happens.
 			sourceStopAt = sourceStopAt - byteDepth + 1;
@@ -514,10 +514,12 @@ gotError5:
 			}
 
 			// If we're less than one sample from the end of the cluster...
-			if (byteIndexWithinCluster > audioFileManager.clusterSize - byteDepth) {
+			if (byteIndexWithinCluster > Cluster::size - byteDepth) {
 				bytesOverlappingFromLastCluster = *(uint32_t*)source;
-				byteIndexWithinCluster -= audioFileManager.clusterSize; // Might end up negative, indicating that we've
-				                                                        // got a sample overlapping the cluster boundary
+
+				// A negative value here indicates that the start of the next sample is within the current cluster
+				byteIndexWithinCluster -= Cluster::size;
+
 				clusterIndex++;
 			}
 		} while (sourceBytesLeftToCopyThisCycle > 0);
@@ -737,8 +739,8 @@ transformBandToTimeDomain:
 	// Ok, we've now processed all Cycles.
 
 	// There could be a Cluster with a reason we still need to remove.
-	if (cluster) {
-		audioFileManager.removeReasonFromCluster(cluster, "E385");
+	if (cluster != nullptr) {
+		audioFileManager.removeReasonFromCluster(*cluster, "E385");
 	}
 
 	if (numCycles > 1) {

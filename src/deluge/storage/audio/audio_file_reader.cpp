@@ -41,19 +41,19 @@ void AudioFileReader::jumpForwardToBytePos(uint32_t newPos) {
 }
 
 uint32_t AudioFileReader::getBytePos() {
-	return byteIndexWithinCluster + currentClusterIndex * audioFileManager.clusterSize;
+	return byteIndexWithinCluster + currentClusterIndex * Cluster::size;
 }
 
 Error AudioFileReader::advanceClustersIfNecessary() {
 
-	int32_t numClustersToAdvance = byteIndexWithinCluster >> audioFileManager.clusterSizeMagnitude;
+	int32_t numClustersToAdvance = byteIndexWithinCluster >> Cluster::size_magnitude;
 
 	if (!numClustersToAdvance) {
 		return Error::NONE;
 	}
 
 	currentClusterIndex += numClustersToAdvance;
-	byteIndexWithinCluster &= audioFileManager.clusterSize - 1;
+	byteIndexWithinCluster &= Cluster::size - 1;
 
 	return readNewCluster();
 }

@@ -401,8 +401,8 @@ fail:
 			goto gotErrorAfterCreatingSong;
 		}
 
-		error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath,
-		                                                    currentDir.get(), &currentFilenameWithoutExtension);
+		error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath,
+		                                                    currentDir.get(), currentFilenameWithoutExtension);
 		if (error != Error::NONE) {
 			goto gotErrorAfterCreatingSong;
 		}
@@ -464,8 +464,8 @@ gotErrorAfterCreatingSong:
 		goto gotErrorAfterCreatingSong;
 	}
 
-	error = audioFileManager.setupAlternateAudioFileDir(&audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
-	                                                    &currentFilenameWithoutExtension);
+	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.get(),
+	                                                    currentFilenameWithoutExtension);
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}
