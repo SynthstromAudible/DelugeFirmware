@@ -1050,7 +1050,7 @@ const int16_t* getKernel(int32_t phaseIncrement, int32_t bandMaxPhaseIncrement) 
 // waveIndex comes in as a 31-bit number
 uint32_t WaveTable::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, uint32_t phaseIncrement,
                            uint32_t phase, bool doOscSync, uint32_t resetterPhaseThisCycle,
-                           uint32_t resetterPhaseIncrement, uint32_t resetterDivideByPhaseIncrement,
+                           uint32_t resetterPhaseIncrement, int32_t resetterDivideByPhaseIncrement,
                            uint32_t retriggerPhase, int32_t waveIndex, int32_t waveIndexIncrement) {
 
 	// Decide on ideal band

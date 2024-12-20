@@ -45,7 +45,7 @@ public:
 	int32_t cloneFromSample(Sample* sample);
 	uint32_t render(int32_t* outputBuffer, int32_t numSamples, uint32_t phaseIncrementNow, uint32_t phase,
 	                bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
-	                uint32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
+	                int32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
 	                int32_t waveIndexIncrement);
 	Error setup(Sample* sample, int32_t nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
 	            uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0, int32_t rawDataFormat = 0,
