@@ -315,8 +315,8 @@ gotError:
 					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was
 					// designed for...
 					if (!memcasecmp(audioFile->filePath.get(), "SAMPLES/", 8)) {
-						D_TRY_CATCH(audioFileManager.setupAlternateAudioFilePath(
-						                newSongAlternatePath, dirPathLengthNew, audioFile->filePath),
+						D_TRY_CATCH(audioFileManager.setupAlternateAudioFilePath(newSongAlternatePath, dirPathLengthNew,
+						                                                         audioFile->filePath),
 						            local_error, {
 							            error = local_error;
 							            activeDeserializer->closeWriter();
