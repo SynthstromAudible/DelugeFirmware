@@ -2657,82 +2657,71 @@ void renderPDWave(const int16_t* table, const int16_t* secondTable, int32_t numB
 	} while (++thisSample != bufferEnd);
 }
 
-void getTableNumber(uint32_t phaseIncrementForCalculations, int32_t* tableNumber, int32_t* tableSize) {
-
-	if (phaseIncrementForCalculations <= 1247086) {
-		{
-			*tableNumber = 0;
-		}
-		*tableSize = 13;
+/**
+ * @brief Get a table number and size, depending on the increment
+ *
+ * @return table_number, table_size
+ */
+std::pair<int32_t, int32_t> getTableNumber(uint32_t phaseIncrement) {
+	if (phaseIncrement <= 1247086) {
+		return {0, 13};
 	}
-	else if (phaseIncrementForCalculations <= 2494173) {
-		if (phaseIncrementForCalculations <= 1764571) {
-			*tableNumber = 1;
-		}
-		else {
-			*tableNumber = 2;
-		}
-		*tableSize = 12;
+	else if (phaseIncrement <= 1764571) {
+		return {1, 12};
 	}
-	else if (phaseIncrementForCalculations <= 113025455) {
-		if (phaseIncrementForCalculations <= 3526245) {
-			*tableNumber = 3;
-		}
-		else if (phaseIncrementForCalculations <= 4982560) {
-			*tableNumber = 4;
-		}
-		else if (phaseIncrementForCalculations <= 7040929) {
-			*tableNumber = 5;
-		}
-		else if (phaseIncrementForCalculations <= 9988296) {
-			*tableNumber = 6;
-		}
-		else if (phaseIncrementForCalculations <= 14035840) {
-			*tableNumber = 7;
-		}
-		else if (phaseIncrementForCalculations <= 19701684) {
-			*tableNumber = 8;
-		}
-		else if (phaseIncrementForCalculations <= 28256363) {
-			*tableNumber = 9;
-		}
-		else if (phaseIncrementForCalculations <= 40518559) {
-			*tableNumber = 10;
-		}
-		else if (phaseIncrementForCalculations <= 55063683) {
-			*tableNumber = 11;
-		}
-		else if (phaseIncrementForCalculations <= 79536431) {
-			*tableNumber = 12;
-		}
-		else {
-			*tableNumber = 13;
-		}
-		*tableSize = 11;
+	else if (phaseIncrement <= 2494173) {
+		return {2, 12};
 	}
-	else if (phaseIncrementForCalculations <= 429496729) {
-		if (phaseIncrementForCalculations <= 165191049) {
-			*tableNumber = 14;
-		}
-		else if (phaseIncrementForCalculations <= 238609294) {
-			*tableNumber = 15;
-		}
-		else if (phaseIncrementForCalculations <= 306783378) {
-			*tableNumber = 16;
-		}
-		else {
-			*tableNumber = 17;
-		}
-		*tableSize = 10;
+	else if (phaseIncrement <= 3526245) {
+		return {3, 11};
+	}
+	else if (phaseIncrement <= 4982560) {
+		return {4, 11};
+	}
+	else if (phaseIncrement <= 7040929) {
+		return {5, 11};
+	}
+	else if (phaseIncrement <= 9988296) {
+		return {6, 11};
+	}
+	else if (phaseIncrement <= 14035840) {
+		return {7, 11};
+	}
+	else if (phaseIncrement <= 19701684) {
+		return {8, 11};
+	}
+	else if (phaseIncrement <= 28256363) {
+		return {9, 11};
+	}
+	else if (phaseIncrement <= 40518559) {
+		return {10, 11};
+	}
+	else if (phaseIncrement <= 55063683) {
+		return {11, 11};
+	}
+	else if (phaseIncrement <= 79536431) {
+		return {12, 11};
+	}
+	else if (phaseIncrement <= 113025455) {
+		return {13, 11};
+	}
+	else if (phaseIncrement <= 165191049) {
+		return {14, 10};
+	}
+	else if (phaseIncrement <= 238609294) {
+		return {15, 10};
+	}
+	else if (phaseIncrement <= 306783378) {
+		return {16, 10};
+	}
+	else if (phaseIncrement <= 429496729) {
+		return {17, 10};
+	}
+	else if (phaseIncrement <= 715827882) {
+		return {18, 9};
 	}
 	else {
-		if (phaseIncrementForCalculations <= 715827882) {
-			*tableNumber = 18;
-		}
-		else {
-			*tableNumber = 19;
-		}
-		*tableSize = 9;
+		return {19, 9};
 	}
 }
 
@@ -2790,13 +2779,13 @@ Voice::renderOsc(int32_t s, OscType type, int32_t amplitude, int32_t* bufferStar
 			doPulseWave = (pulseWidth != 0);
 			pulseWidth += 2147483648u;
 			if (doPulseWave) {
-				phaseIncrementForCalculations =
-				    phaseIncrement * 0.6; // Mildly band limit the square waves before they get ringmodded to create the
-				                          // pulse wave. *0.5 would be no band limiting
+				// Mildly band limit the square waves before they get ringmodded to create the
+				// pulse wave. *0.5 would be no band limiting
+				phaseIncrementForCalculations = phaseIncrement * 0.6;
 			}
 		}
 
-		getTableNumber(phaseIncrementForCalculations, &tableNumber, &tableSizeMagnitude);
+		std::tie(tableNumber, tableSizeMagnitude) = getTableNumber(phaseIncrementForCalculations);
 		// TODO: that should really take into account the phaseIncrement (pitch) after it's potentially been altered for
 		// non-square PW below.
 
@@ -3152,7 +3141,6 @@ doSaw:
 					if (doOscSync) {
 						int32_t* bufferStartThisSync = applyAmplitude ? oscSyncRenderingBuffer : bufferStart;
 						int32_t numSamplesThisOscSyncSession = numSamples;
-						int16x4_t const32767 = vdup_n_s16(32767); // The pulse rendering function needs this.
 						auto storeVectorWaveForOneSync = [&](int32_t const* const bufferEndThisSyncRender,
 						                                     uint32_t phase, int32_t* __restrict__ writePos) {
 							int32x4_t valueVector;
