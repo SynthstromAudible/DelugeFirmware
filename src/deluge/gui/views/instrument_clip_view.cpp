@@ -3045,7 +3045,7 @@ bool InstrumentClipView::enterNoteEditor() {
 		dontDeleteNotesOnDepress();
 		display->setNextTransitionDirection(1);
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		if (soundEditor.setup(clip)) {
+		if (soundEditor.setup(clip, &noteEditorRootMenu)) {
 			// if it's a kit with affect entire enabled, toggle it off when entering note editor
 			if (clip->output->type == OutputType::KIT) {
 				if (clip->affectEntire) {
@@ -3203,7 +3203,7 @@ bool InstrumentClipView::enterNoteRowEditor() {
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			display->setNextTransitionDirection(1);
 			InstrumentClip* clip = getCurrentInstrumentClip();
-			if (soundEditor.setup(clip)) {
+			if (soundEditor.setup(clip, &noteRowEditorRootMenu)) {
 				// if it's a kit with affect entire enabled, toggle it off when entering note row editor
 				if (clip->output->type == OutputType::KIT) {
 					if (clip->affectEntire) {
