@@ -459,9 +459,6 @@ int32_t getNumVoices() {
 }
 
 void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
-	// just yield to run some stuff (probably audio and cluster loading based on their priorities)
-	yieldWithTimeout([]() { return false; }, 0.0002);
-	return;
 	logAction("AudioDriver::routineWithClusterLoading");
 
 	routineBeenCalled = false;
