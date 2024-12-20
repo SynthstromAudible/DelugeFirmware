@@ -47,11 +47,12 @@ NamedThingVector hostedMIDIDevices{__builtin_offsetof(MIDIDeviceUSBHosted, name)
 
 bool differentiatingInputsByDevice = true;
 
-struct {
+struct USBDev {
 	String name{};
 	uint16_t vendorId;
 	uint16_t productId;
-} usbDeviceCurrentlyBeingSetUp[USB_NUM_USBIP] = {};
+};
+std::array<USBDev, USB_NUM_USBIP> usbDeviceCurrentlyBeingSetUp{};
 
 // This class represents a thing you can send midi too,
 // the virtual cable is an implementation detail
