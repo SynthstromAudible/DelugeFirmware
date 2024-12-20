@@ -199,14 +199,13 @@ MonitoringAction monitoringAction;
 
 uint32_t saddr;
 
-VoiceSample voiceSamples[kNumVoiceSamplesStatic] = {};
-VoiceSample* firstUnassignedVoiceSample = voiceSamples;
+std::array<VoiceSample, kNumVoiceSamplesStatic> voiceSamples{};
+VoiceSample* firstUnassignedVoiceSample = voiceSamples.begin();
 
-TimeStretcher timeStretchers[kNumTimeStretchersStatic] = {};
-TimeStretcher* firstUnassignedTimeStretcher = timeStretchers;
-Voice staticVoices[kNumVoicesStatic] = {};
-/// will be garbage, reconstruct when used
-Voice* firstUnassignedVoice = staticVoices;
+std::array<TimeStretcher, kNumTimeStretchersStatic> timeStretchers{};
+TimeStretcher* firstUnassignedTimeStretcher = timeStretchers.begin();
+std::array<Voice, kNumVoicesStatic> staticVoices{};
+Voice* firstUnassignedVoice = staticVoices.begin();
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
@@ -1495,7 +1494,7 @@ void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelSt
 	}
 
 	if (shouldDispose) {
-		if (voice >= staticVoices && voice < &staticVoices[kNumVoicesStatic]) {
+		if (voice >= staticVoices.begin() && voice < staticVoices.end()) {
 			voice->nextUnassigned = firstUnassignedVoice;
 			firstUnassignedVoice = voice;
 		}
@@ -1526,7 +1525,7 @@ VoiceSample* solicitVoiceSample() {
 }
 
 void voiceSampleUnassigned(VoiceSample* voiceSample) {
-	if (voiceSample >= voiceSamples && voiceSample < &voiceSamples[kNumVoiceSamplesStatic]) {
+	if (voiceSample >= voiceSamples.begin() && voiceSample < voiceSamples.end()) {
 		voiceSample->nextUnassigned = firstUnassignedVoiceSample;
 		firstUnassignedVoiceSample = voiceSample;
 	}
@@ -1555,7 +1554,7 @@ TimeStretcher* solicitTimeStretcher() {
 
 // There are no destructors. You gotta clean it up before you call this
 void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
-	if (timeStretcher >= timeStretchers && timeStretcher < &timeStretchers[kNumTimeStretchersStatic]) {
+	if (timeStretcher >= timeStretchers.begin() && timeStretcher < timeStretchers.end()) {
 		timeStretcher->nextUnassigned = firstUnassignedTimeStretcher;
 		firstUnassignedTimeStretcher = timeStretcher;
 	}
