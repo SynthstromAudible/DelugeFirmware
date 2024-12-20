@@ -37,7 +37,7 @@ void Cluster::setSize(size_t size) {
 	Cluster::size_magnitude = 32 - __builtin_clz(size) - 1;
 }
 
-Cluster* Cluster::alloc(Cluster::Type type, bool shouldAddReasons, void* dontStealFromThing) {
+Cluster* Cluster::create(Cluster::Type type, bool shouldAddReasons, void* dontStealFromThing) {
 	audioFileManager.setCardRead(); // even if it hasn't been we're now commited to the cluster size
 	void* memory = GeneralMemoryAllocator::get().allocStealable(sizeof(Cluster) + Cluster::size, dontStealFromThing);
 	if (memory == nullptr) {
@@ -55,9 +55,9 @@ Cluster* Cluster::alloc(Cluster::Type type, bool shouldAddReasons, void* dontSte
 	return cluster;
 }
 
-void Cluster::dealloc(Cluster& cluster) {
-	cluster.~Cluster(); // Removes reasons, and / or from stealable list
-	delugeDealloc(&cluster);
+void Cluster::destroy() {
+	this->~Cluster(); // Removes reasons, and / or from stealable list
+	delugeDealloc(this);
 }
 
 /**

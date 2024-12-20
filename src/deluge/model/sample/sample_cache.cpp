@@ -96,7 +96,7 @@ void SampleCache::unlinkClusters(int32_t startAtIndex, bool beingDestructed) {
 			FREEZE_WITH_ERROR("E167");
 		}
 
-		Cluster::dealloc(*clusters[i]);
+		clusters[i]->destroy();
 
 		if (ALPHA_OR_BETA_VERSION && !beingDestructed) {
 			clusters[i] = nullptr;
@@ -149,7 +149,7 @@ bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 #endif
 
 	// Do not add reasons, and don't steal from this SampleCache
-	clusters[clusterIndex] = Cluster::alloc(Cluster::Type::SAMPLE_CACHE, false, this);
+	clusters[clusterIndex] = Cluster::create(Cluster::Type::SAMPLE_CACHE, false, this);
 	if (!clusters[clusterIndex]) { // If that allocation failed...
 		D_PRINTLN("allocation fail");
 		return false;

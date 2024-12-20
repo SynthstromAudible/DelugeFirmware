@@ -936,8 +936,9 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 	}
 #endif
 
-	cluster.addReason(); // So that it can't accidentally hit 0 reasons while we're loading it, cos then it
-	                     // might get deallocated.
+	// So that it can't accidentally hit 0 reasons while we're loading it,
+	// cos then it might get deallocated.
+	cluster.addReason();
 
 	if (false) {
 getOutEarly:
@@ -1306,7 +1307,7 @@ performActionsAndGetOut:
 			if (cluster->numReasonsToBeLoaded > 0) {
 				break;
 			}
-			Cluster::dealloc(*cluster);
+			cluster->destroy();
 		}
 
 		// no more clusters to load, so exit

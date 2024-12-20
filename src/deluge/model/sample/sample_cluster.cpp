@@ -41,7 +41,7 @@ SampleCluster::~SampleCluster() {
 			FREEZE_WITH_ERROR("E036");
 		}
 #endif
-		Cluster::dealloc(*cluster);
+		cluster->destroy();
 	}
 }
 
@@ -83,7 +83,7 @@ Cluster* SampleCluster::getCluster(Sample* sample, uint32_t clusterIndex, int32_
 		}
 
 		// D_PRINTLN("loading");
-		cluster = Cluster::alloc(); // Adds 1 reason
+		cluster = Cluster::create(); // Adds 1 reason
 
 		if (!cluster) {
 			D_PRINTLN("couldn't allocate");
@@ -151,7 +151,7 @@ justEnqueue:
 				// Or if it was a must-load-now...
 				// Free and remove our link to the unloaded Cluster - otherwise the next time we try to load it, it'd
 				// still exist but never get enqueued for loading
-				Cluster::dealloc(*cluster); // This removes the 1 reason that it'd still have
+				cluster->destroy(); // This removes the 1 reason that it'd still have
 
 				if (error != nullptr) {
 					// TODO: get actual error. Although sometimes it'd just be a "can't do it now

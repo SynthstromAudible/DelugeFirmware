@@ -135,7 +135,7 @@ void Sample::deletePercCache(bool beingDestructed) {
 						FREEZE_WITH_ERROR("E137");
 					}
 
-					Cluster::dealloc(*percCacheClusters[reversed][c]);
+					percCacheClusters[reversed][c]->destroy();
 					// Don't bother actually setting our pointer to NULL, cos we're about to deallocate that memory
 					// anyway
 				}
@@ -542,7 +542,7 @@ doLoading:
 				//  are definitely a high priority to keep, but because doing so would probably alter our
 				//  percCacheZones, which we're currently working with, which could really muck things up. Scenario only
 				//  discovered Jan 2021.
-				percCacheClusters[reversed][percClusterIndex] = Cluster::alloc(
+				percCacheClusters[reversed][percClusterIndex] = Cluster::create(
 				    reversed ? Cluster::Type::PERC_CACHE_REVERSED : Cluster::Type::PERC_CACHE_FORWARDS, false,
 				    this); // Doesn't add reason. Call to rememberPercCacheCluster() below will
 				if (!percCacheClusters[reversed][percClusterIndex]) {

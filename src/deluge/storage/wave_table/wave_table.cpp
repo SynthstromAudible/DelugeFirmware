@@ -516,8 +516,10 @@ gotError5:
 			// If we're less than one sample from the end of the cluster...
 			if (byteIndexWithinCluster > Cluster::size - byteDepth) {
 				bytesOverlappingFromLastCluster = *(uint32_t*)source;
-				byteIndexWithinCluster -= Cluster::size; // Might end up negative, indicating that we've
-				                                         // got a sample overlapping the cluster boundary
+
+				// A negative value here indicates that the start of the next sample is within the current cluster
+				byteIndexWithinCluster -= Cluster::size;
+
 				clusterIndex++;
 			}
 		} while (sourceBytesLeftToCopyThisCycle > 0);

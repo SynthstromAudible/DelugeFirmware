@@ -28,8 +28,9 @@ class Sample;
 class SampleCluster;
 class SampleCache;
 
-// Please see explanation of Clusters and SD card streaming at the top of AudioFileManager.h
-
+/// Header data for a cluster. The actual cluster data is expected to be in the same allocation, after this class
+/// member. To correctly allocate an instance of this class, you must also allocate Cluster::size bytes with enough
+/// padding to safely absorb an offset of at least CACHE_LINE_SIZE.
 class Cluster final : public Stealable {
 public:
 	constexpr static size_t kSizeFAT16Max = 32768;
@@ -43,10 +44,9 @@ public:
 		OTHER,
 	};
 
-	static Cluster* alloc(Cluster::Type type = Cluster::Type::SAMPLE, bool shouldAddReasons = true,
-	                      void* dontStealFromThing = nullptr);
-
-	static void dealloc(Cluster& cluster);
+	static Cluster* create(Cluster::Type type = Cluster::Type::SAMPLE, bool shouldAddReasons = true,
+	                       void* dontStealFromThing = nullptr);
+	void destroy();
 
 	static size_t size;
 	static size_t size_magnitude;
