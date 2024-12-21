@@ -27,7 +27,7 @@ StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uin
 	std::array<Argon<int16_t>, kInterpolationMaxNumSamples / 8> kernelVector;
 
 	for (size_t i = 0; i < kernelVector.size(); ++i) {
-		auto value1 = Argon<int16_t>::Load(&windowedSincKernel[whichKernel][progressSmall][i * 8]);
+		auto value1 = Argon<int16_t>::Load(&windowedSincKernel[whichKernel][progressSmall][i * 8]); // 8 lanes
 		auto value2 = Argon<int16_t>::Load(&windowedSincKernel[whichKernel][progressSmall + 1][i * 8]);
 
 		// standard linear a + (b - a) * fractional
@@ -36,25 +36,33 @@ StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uin
 
 	Argon<int32_t> multiplied = 0;
 	for (size_t i = 0; i < kernelVector.size(); ++i) {
-		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), ArgonHalf<int16_t>::Load(&interpolation_buffer_l_[i * 8]));
-		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), ArgonHalf<int16_t>::Load(&interpolation_buffer_l_[(i * 8) + 4]));
+		size_t idx = i * decltype(kernelVector)::value_type::lanes;
+		// TODO: auto [low, high] = ArgonHalf<int16_t>::LoadMulti<2>(&buffer_l[idx]);
+		auto low = ArgonHalf<int16_t>::Load(&buffer_l[idx]);
+		auto high = ArgonHalf<int16_t>::Load(&buffer_l[idx + ArgonHalf<int16_t>::lanes]);
+
+		multiplied = multiplied
+		                 .MultiplyAddLong(kernelVector[i].GetLow(), low)    // low half
+		                 .MultiplyAddLong(kernelVector[i].GetHigh(), high); // high half
 	}
 
-	ArgonHalf<int32_t> twosies = multiplied.GetHigh() + multiplied.GetLow();
-
-	output.l = twosies[0] + twosies[1];
+	output.l = multiplied.ReduceAdd();
 
 	if (channels == 2) {
 
 		Argon<int32_t> multiplied = 0;
 		for (size_t i = 0; i < kernelVector.size(); ++i) {
-			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), ArgonHalf<int16_t>::Load(&interpolation_buffer_r_[i * 8]));
-			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), ArgonHalf<int16_t>::Load(&interpolation_buffer_r_[(i * 8) + 4]));
+			size_t idx = i * decltype(kernelVector)::value_type::lanes;
+			// TODO: auto [low, high] = ArgonHalf<int16_t>::LoadMulti<2>(&buffer_l[idx]);
+			auto low = ArgonHalf<int16_t>::Load(&buffer_l[idx]);
+			auto high = ArgonHalf<int16_t>::Load(&buffer_l[idx + ArgonHalf<int16_t>::lanes]);
+
+			multiplied = multiplied
+			                 .MultiplyAddLong(kernelVector[i].GetLow(), low)    // low half
+			                 .MultiplyAddLong(kernelVector[i].GetHigh(), high); // high half
 		}
 
-		ArgonHalf<int32_t> twosies = multiplied.GetHigh() + multiplied.GetLow();
-
-		output.r = twosies[0] + twosies[1];
+		output.r = multiplied.ReduceAdd();
 	}
 	return output;
 }
@@ -64,9 +72,9 @@ StereoSample Interpolator::interpolateLinear(size_t channels, uint32_t phase) {
 	int16_t strength2 = phase >> 9;
 	int16_t strength1 = std::numeric_limits<int16_t>::max() - strength2; // inverse
 
-	output.l = (interpolation_buffer_l_[1] * strength1) + (interpolation_buffer_l_[0] * strength2);
+	output.l = (buffer_l[1] * strength1) + (buffer_l[0] * strength2);
 	if (channels == 2) {
-		output.r = (interpolation_buffer_r_[1] * strength1) + (interpolation_buffer_r_[0] * strength2);
+		output.r = (buffer_r[1] * strength1) + (buffer_r[0] * strength2);
 	}
 	return output;
 }
