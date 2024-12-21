@@ -17,6 +17,7 @@
 
 #include "model/sample/sample_low_level_reader.h"
 #include "dsp/interpolate/interpolate.h"
+#include "dsp/stereo_sample.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
@@ -1072,21 +1073,20 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 			}
 
 skipFirstSmooth:
-			int32_t sampleRead[2];
-			deluge::dsp::interpolate(sampleRead, numChannels, whichKernel, oscPos, interpolationBuffer);
+			StereoSample sampleRead = deluge::dsp::interpolate(numChannels, whichKernel, oscPos, interpolationBuffer);
 
 			int32_t existingValueL = *oscBufferPosNow;
 
 			// If caching, do that now
 			if (writingCache) {
 				for (int32_t i = 4 - kCacheByteDepth; i < 4; i++) {
-					*cacheWritePosNow = ((char*)&sampleRead[0])[i];
+					*cacheWritePosNow = ((char*)&sampleRead.l)[i];
 					cacheWritePosNow++;
 				}
 
 				if (numChannels == 2) {
 					for (int32_t i = 4 - kCacheByteDepth; i < 4; i++) {
-						*cacheWritePosNow = ((char*)&sampleRead[1])[i];
+						*cacheWritePosNow = ((char*)&sampleRead.r)[i];
 						cacheWritePosNow++;
 					}
 				}
@@ -1094,22 +1094,19 @@ skipFirstSmooth:
 
 			// If condensing to mono, do that now
 			if (numChannels == 2 && numChannelsAfterCondensing == 1) {
-				sampleRead[0] = ((sampleRead[0] >> 1) + (sampleRead[1] >> 1));
+				sampleRead.l = ((sampleRead.l >> 1) + (sampleRead.r >> 1));
 			}
 
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(
-			    existingValueL, sampleRead[0],
-			    *amplitude); // sourceAmplitude is modified above; using accumulate made no difference
+			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead.l, *amplitude);
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
 				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow =
-				    multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead[1], *amplitude);
+				*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead.r, *amplitude);
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);
@@ -1133,29 +1130,26 @@ skipFirstSmooth:
 			}
 
 skipFirstLinear:
-			int32_t sampleRead[2];
-			deluge::dsp::interpolateLinear(sampleRead, numChannels, whichKernel, oscPos, interpolationBuffer);
+			StereoSample sampleRead =
+			    deluge::dsp::interpolateLinear(numChannels, whichKernel, oscPos, interpolationBuffer);
 
 			int32_t existingValueL = *oscBufferPosNow;
 
 			// If condensing to mono, do that now
 			if (numChannels == 2 && numChannelsAfterCondensing == 1) {
-				sampleRead[0] = ((sampleRead[0] >> 1) + (sampleRead[1] >> 1));
+				sampleRead.l = ((sampleRead.l >> 1) + (sampleRead.r >> 1));
 			}
 
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(
-			    existingValueL, sampleRead[0],
-			    *amplitude); // sourceAmplitude is modified above; using accumulate made no difference
+			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead.l, *amplitude);
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
 				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow =
-				    multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead[1], *amplitude);
+				*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead.r, *amplitude);
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);

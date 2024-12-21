@@ -1,14 +1,16 @@
 #include "interpolate.h"
 #include "definitions_cxx.hpp"
+#include "deluge/dsp/stereo_sample.h"
 #include <argon.hpp>
 #include <limits>
 
 namespace deluge::dsp {
-void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel, uint32_t oscPos,
-                 std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer) {
+StereoSample interpolate(int32_t numChannelsNow, int32_t whichKernel, uint32_t oscPos,
+                         std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer) {
 	constexpr size_t numBitsInTableSize = 8;
-
 	constexpr size_t rshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize + 1);
+
+	StereoSample output;
 
 	uint32_t rshifted;
 	if constexpr (rshiftAmount >= 0) {
@@ -41,7 +43,7 @@ void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKerne
 
 	ArgonHalf<int32_t> twosies = multiplied.GetHigh() + multiplied.GetLow();
 
-	sampleRead[0] = twosies[0] + twosies[1];
+	output.l = twosies[0] + twosies[1];
 
 	if (numChannelsNow == 2) {
 
@@ -54,19 +56,24 @@ void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKerne
 
 		ArgonHalf<int32_t> twosies = multiplied.GetHigh() + multiplied.GetLow();
 
-		sampleRead[1] = twosies[0] + twosies[1];
+		output.r = twosies[0] + twosies[1];
 	}
+	return output;
 }
 
-void interpolateLinear(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel, uint32_t oscPos,
-                       std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer) {
+StereoSample
+interpolateLinear(int32_t numChannelsNow, int32_t whichKernel, uint32_t oscPos,
+                  std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer) {
 	int16_t strength2 = oscPos >> 9;
 	int16_t strength1 = 32767 - strength2;
 
-	sampleRead[0] = (interpolationBuffer[0][0][1] * strength1) + (interpolationBuffer[0][0][0] * strength2);
+	StereoSample output;
+
+	output.l = (interpolationBuffer[0][0][1] * strength1) + (interpolationBuffer[0][0][0] * strength2);
 	if (numChannelsNow == 2) {
-		sampleRead[1] = (interpolationBuffer[1][0][1] * strength1) + (interpolationBuffer[1][0][0] * strength2);
+		output.r = (interpolationBuffer[1][0][1] * strength1) + (interpolationBuffer[1][0][0] * strength2);
 	}
+	return output;
 }
 } // namespace deluge::dsp
 
