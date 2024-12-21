@@ -27,10 +27,7 @@ struct VoiceVectorElement {
 	Voice* voice;
 };
 
-class VoiceVector : public OrderedResizeableArrayWithMultiWordKey {
-public:
-	VoiceVector();
-
+struct VoiceVector : OrderedResizeableArrayWithMultiWordKey {
 	void getRangeForSound(Sound* sound, int32_t* __restrict__ ends);
 	void checkVoiceExists(Voice* voice, Sound* sound, char const* errorCode);
 
