@@ -36,8 +36,8 @@ StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uin
 
 	Argon<int32_t> multiplied = 0;
 	for (size_t i = 0; i < kernelVector.size(); ++i) {
-		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), interpolation_buffer_l_[i * 2]);
-		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), interpolation_buffer_l_[(i * 2) + 1]);
+		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), ArgonHalf<int16_t>::Load(&interpolation_buffer_l_[i * 8]));
+		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), ArgonHalf<int16_t>::Load(&interpolation_buffer_l_[(i * 8) + 4]));
 	}
 
 	ArgonHalf<int32_t> twosies = multiplied.GetHigh() + multiplied.GetLow();
@@ -48,8 +48,8 @@ StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uin
 
 		Argon<int32_t> multiplied = 0;
 		for (size_t i = 0; i < kernelVector.size(); ++i) {
-			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), interpolation_buffer_r_[i * 2]);
-			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), interpolation_buffer_r_[(i * 2) + 1]);
+			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), ArgonHalf<int16_t>::Load(&interpolation_buffer_r_[i * 8]));
+			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), ArgonHalf<int16_t>::Load(&interpolation_buffer_r_[(i * 8) + 4]));
 		}
 
 		ArgonHalf<int32_t> twosies = multiplied.GetHigh() + multiplied.GetLow();
@@ -64,9 +64,9 @@ StereoSample Interpolator::interpolateLinear(size_t channels, uint32_t phase) {
 	int16_t strength2 = phase >> 9;
 	int16_t strength1 = std::numeric_limits<int16_t>::max() - strength2; // inverse
 
-	output.l = (interpolation_buffer_l_[0][1] * strength1) + (interpolation_buffer_l_[0][0] * strength2);
+	output.l = (interpolation_buffer_l_[1] * strength1) + (interpolation_buffer_l_[0] * strength2);
 	if (channels == 2) {
-		output.r = (interpolation_buffer_r_[0][1] * strength1) + (interpolation_buffer_r_[0][0] * strength2);
+		output.r = (interpolation_buffer_r_[1] * strength1) + (interpolation_buffer_r_[0] * strength2);
 	}
 	return output;
 }
