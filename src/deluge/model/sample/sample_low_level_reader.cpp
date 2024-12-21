@@ -992,7 +992,8 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 					if (numChannels == 2) {
 						while (true) {
 							interpolator_.buffer_l[numSamplesToJumpForward] = sourceL;
-							interpolator_.buffer_r[numSamplesToJumpForward] = *(int16_t*)(currentPlayPosNow + byteDepth);
+							interpolator_.buffer_r[numSamplesToJumpForward] =
+							    *(int16_t*)(currentPlayPosNow + byteDepth);
 							currentPlayPosNow += jumpAmount;
 							if (!numSamplesToJumpForward) {
 								goto skipFirstSmooth;

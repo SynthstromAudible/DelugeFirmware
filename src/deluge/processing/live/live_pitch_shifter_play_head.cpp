@@ -185,8 +185,8 @@ void LivePitchShifterPlayHead::fillInterpolationBuffer(LiveInputBuffer* liveInpu
 			int32_t pos = (uint32_t)(rawBufferReadPos - i) & (kInputRawBufferSize - 1);
 
 			interpolator_.buffer_r[i - 1] = (pos < liveInputBuffer->numRawSamplesProcessed)
-			                                   ? liveInputBuffer->rawBuffer[pos * numChannels + 1] >> 16
-			                                   : 0;
+			                                    ? liveInputBuffer->rawBuffer[pos * numChannels + 1] >> 16
+			                                    : 0;
 		}
 	}
 }
