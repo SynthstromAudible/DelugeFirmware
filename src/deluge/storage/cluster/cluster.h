@@ -17,37 +17,66 @@
 
 #pragma once
 
+#include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "memory/general_memory_allocator.h"
 #include "memory/stealable.h"
+#include <array>
 #include <cstdint>
 
 class Sample;
 class SampleCluster;
 class SampleCache;
 
-// Please see explanation of Clusters and SD card streaming at the top of AudioFileManager.h
-
+/// Header data for a cluster. The actual cluster data is expected to be in the same allocation, after this class
+/// member. To correctly allocate an instance of this class, you must also allocate Cluster::size bytes with enough
+/// padding to safely absorb an offset of at least CACHE_LINE_SIZE.
 class Cluster final : public Stealable {
 public:
-	Cluster();
+	constexpr static size_t kSizeFAT16Max = 32768;
+	enum class Type {
+		EMPTY,
+		SAMPLE,
+		GENERAL_MEMORY,
+		SAMPLE_CACHE,
+		PERC_CACHE_FORWARDS,
+		PERC_CACHE_REVERSED,
+		OTHER,
+	};
+
+	static Cluster* create(Cluster::Type type = Cluster::Type::SAMPLE, bool shouldAddReasons = true,
+	                       void* dontStealFromThing = nullptr);
+	void destroy();
+
+	static size_t size;
+	static size_t size_magnitude;
+	static void setSize(size_t size);
+
+	/// Warning! do not call this constructor directly! It must be called via placement `new`
+	/// after allocating a region with the General Memory Allocator!
+	Cluster() = default;
 	void convertDataIfNecessary();
-	bool mayBeStolen(void* thingNotToStealFrom);
-	void steal(char const* errorCode);
-	StealableQueue getAppropriateQueue();
+	bool mayBeStolen(void* thingNotToStealFrom) override;
+	void steal(char const* errorCode) override;
+	StealableQueue getAppropriateQueue() override;
 	void addReason();
 
-	ClusterType type;
-	int8_t numReasonsHeldBySampleRecorder;
-	bool extraBytesAtStartConverted;
-	bool extraBytesAtEndConverted;
-	int32_t numReasonsToBeLoaded;
-	Sample* sample;
-	uint32_t clusterIndex;
-	SampleCache* sampleCache;
+	Cluster::Type type;
+	uint32_t clusterIndex = 0;
+
+	int32_t numReasonsToBeLoaded = 0;
+	int8_t numReasonsHeldBySampleRecorder = 0;
+
+	bool extraBytesAtStartConverted = false;
+	bool extraBytesAtEndConverted = false;
+
+	Sample* sample = nullptr;
+	SampleCache* sampleCache = nullptr;
+
 	char firstThreeBytesPreDataConversion[3];
-	bool loaded;
+	bool loaded = false;
 
+	// MUST BE THE LAST TWO MEMBERS
 	char dummy[CACHE_LINE_SIZE];
-
 	char data[CACHE_LINE_SIZE];
 };

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/sample/sample.h"
 #include "storage/audio/audio_file.h"
 #include "storage/wave_table/wave_table_band_data.h"
 #include "util/container/array/ordered_resizeable_array.h"
@@ -45,13 +46,17 @@ public:
 	int32_t cloneFromSample(Sample* sample);
 	uint32_t render(int32_t* outputBuffer, int32_t numSamples, uint32_t phaseIncrementNow, uint32_t phase,
 	                bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
-	                uint32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
+	                int32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
 	                int32_t waveIndexIncrement);
 	Error setup(Sample* sample, int32_t nativeNumSamplesPerCycle = 0, uint32_t audioDataStartPosBytes = 0,
-	            uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0, int32_t rawDataFormat = 0,
-	            WaveTableReader* reader = NULL);
+	            uint32_t audioDataLengthBytes = 0, int32_t byteDepth = 0,
+	            RawDataFormat rawDataFormat = RawDataFormat::NATIVE, WaveTableReader* reader = nullptr);
 	void deleteAllBandsAndData();
 	void bandDataBeingStolen(WaveTableBandData* bandData);
+
+	// Stealable Implementation
+	bool mayBeStolen(void* thingNotToStealFrom = nullptr) override;
+	void steal(char const* errorCode) override;
 
 	int32_t numCycles;
 	int32_t numCyclesMagnitude;

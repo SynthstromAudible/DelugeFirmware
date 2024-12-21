@@ -288,8 +288,8 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		    colStartSample * sample->numChannels * sample->byteDepth + sample->audioDataStartPosBytes;
 		int32_t colEndByte = colEndSample * sample->numChannels * sample->byteDepth + sample->audioDataStartPosBytes;
 
-		int32_t colStartCluster = colStartByte >> audioFileManager.clusterSizeMagnitude;
-		int32_t colEndCluster = colEndByte >> audioFileManager.clusterSizeMagnitude;
+		int32_t colStartCluster = colStartByte >> Cluster::size_magnitude;
+		int32_t colEndCluster = colEndByte >> Cluster::size_magnitude;
 
 		int32_t clusterIndexToDo;
 		int32_t startByteWithinCluster;
@@ -302,15 +302,15 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		// If both same cluster...
 		if (numClustersSpan == 0) {
 			clusterIndexToDo = colStartCluster;
-			startByteWithinCluster = colStartByte & (audioFileManager.clusterSize - 1);
-			endByteWithinCluster = colEndByte & (audioFileManager.clusterSize - 1);
+			startByteWithinCluster = colStartByte & (Cluster::size - 1);
+			endByteWithinCluster = colEndByte & (Cluster::size - 1);
 		}
 
 		// Special case to make sure we get initial transient (we know there's more than 1 cluster)
-		else if (colStartSample == 0 && colStartByte < (audioFileManager.clusterSize >> 1)) {
+		else if (colStartSample == 0 && colStartByte < (Cluster::size >> 1)) {
 			clusterIndexToDo = colStartCluster;
-			startByteWithinCluster = colStartByte & (audioFileManager.clusterSize - 1);
-			endByteWithinCluster = audioFileManager.clusterSize;
+			startByteWithinCluster = colStartByte & (Cluster::size - 1);
+			endByteWithinCluster = Cluster::size;
 			investigatingAWholeCluster = true;
 		}
 
@@ -318,10 +318,10 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		else if (numClustersSpan >= 2) {
 			clusterIndexToDo = colStartCluster + 1;
 
-			int32_t startByteWithinFirstCluster = colStartByte & (audioFileManager.clusterSize - 1);
+			int32_t startByteWithinFirstCluster = colStartByte & (Cluster::size - 1);
 
-			int32_t unusedBytesAtEndOfPrevCluster = (audioFileManager.clusterSize - startByteWithinFirstCluster)
-			                                        % (sample->numChannels * sample->byteDepth);
+			int32_t unusedBytesAtEndOfPrevCluster =
+			    (Cluster::size - startByteWithinFirstCluster) % (sample->numChannels * sample->byteDepth);
 			if (unusedBytesAtEndOfPrevCluster == 0) {
 				startByteWithinCluster = 0;
 			}
@@ -329,31 +329,31 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 				startByteWithinCluster = (sample->numChannels * sample->byteDepth) - unusedBytesAtEndOfPrevCluster;
 			}
 
-			endByteWithinCluster = audioFileManager.clusterSize;
+			endByteWithinCluster = Cluster::size;
 			investigatingAWholeCluster = true;
 		}
 
 		// If 2 cluster..
 		else if (numClustersSpan == 1) {
 
-			int32_t startByteWithinFirstCluster = colStartByte & (audioFileManager.clusterSize - 1);
-			int32_t bytesInFirstCluster = audioFileManager.clusterSize - startByteWithinFirstCluster;
+			int32_t startByteWithinFirstCluster = colStartByte & (Cluster::size - 1);
+			int32_t bytesInFirstCluster = Cluster::size - startByteWithinFirstCluster;
 
-			int32_t bytesInSecondCluster = colEndByte & (audioFileManager.clusterSize - 1);
+			int32_t bytesInSecondCluster = colEndByte & (Cluster::size - 1);
 
 			// If more in first cluster...
 			if (bytesInFirstCluster >= bytesInSecondCluster) {
 				clusterIndexToDo = colStartCluster;
 				startByteWithinCluster = startByteWithinFirstCluster;
-				endByteWithinCluster = audioFileManager.clusterSize;
+				endByteWithinCluster = Cluster::size;
 			}
 
 			// Or if more in second cluster...
 			else {
 				clusterIndexToDo = colEndCluster;
 
-				int32_t unusedBytesAtEndOfPrevCluster = (audioFileManager.clusterSize - startByteWithinFirstCluster)
-				                                        % (sample->numChannels * sample->byteDepth);
+				int32_t unusedBytesAtEndOfPrevCluster =
+				    (Cluster::size - startByteWithinFirstCluster) % (sample->numChannels * sample->byteDepth);
 				if (unusedBytesAtEndOfPrevCluster == 0) {
 					startByteWithinCluster = 0;
 				}
@@ -372,7 +372,7 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 		else if (clusterIndexToDo == endClusters - 1) {
 
-			int32_t limit = (numValidBytes + sample->audioDataStartPosBytes) & (audioFileManager.clusterSize - 1);
+			int32_t limit = (numValidBytes + sample->audioDataStartPosBytes) & (Cluster::size - 1);
 
 			if (endByteWithinCluster > limit) {
 				endByteWithinCluster = limit;
@@ -430,11 +430,11 @@ cantReadData:
 
 			// However, if that's reduced us to 0 bytes to read, we know we're gonna have to load in the next Cluster to
 			// get its sample that's on the boundary
-			Cluster* nextCluster = NULL;
+			Cluster* nextCluster = nullptr;
 			if (endByteWithinCluster <= startByteWithinCluster && clusterIndexToDo < endClusters - 1) {
 				endByteWithinCluster += overshoot;
 				SampleCluster* nextSampleCluster = sample->clusters.getElement(clusterIndexToDo + 1);
-				if (nextSampleCluster->cluster && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
+				if ((nextSampleCluster->cluster != nullptr) && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
 					FREEZE_WITH_ERROR("E450"); // Trying to catch errer before i028, which users have gotten.
 				}
 				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
@@ -443,8 +443,8 @@ cantReadData:
 					FREEZE_WITH_ERROR("E342"); // Trying to catch E340 below, which Ron R got while recording
 				}
 
-				if (!nextCluster) {
-					audioFileManager.removeReasonFromCluster(cluster, "po8w");
+				if (nextCluster == nullptr) {
+					audioFileManager.removeReasonFromCluster(*cluster, "po8w");
 					goto cantReadData;
 				}
 			}
@@ -551,16 +551,16 @@ cantReadData:
 			data->maxPerCol[col] = maxThisCol;
 			data->minPerCol[col] = minThisCol;
 
-			audioFileManager.removeReasonFromCluster(cluster, "E340"); // Ron R got this, when error was "iiuh"
-			if (nextCluster) {
-				audioFileManager.removeReasonFromCluster(nextCluster, "9700");
+			audioFileManager.removeReasonFromCluster(*cluster, "E340"); // Ron R got this, when error was "iiuh"
+			if (nextCluster != nullptr) {
+				audioFileManager.removeReasonFromCluster(*nextCluster, "9700");
 			}
 			// just yield to run a single thing (probably audio)
 			yield([]() { return true; });
 		}
 	}
 
-	if (recorder) {
+	if (recorder != nullptr) {
 		sample->maxValueFound = recorder->recordMax;
 		sample->minValueFound = recorder->recordMin;
 	}

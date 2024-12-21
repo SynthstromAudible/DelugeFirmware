@@ -1387,7 +1387,8 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 						newArpSettings = &((SoundDrum*)selectedDrum)->arpSettings;
 					}
 					else {
-						if (item != &sequenceDirectionMenu) {
+						if (item != &sequenceDirectionMenu && item != &noteEditorRootMenu
+						    && item != &noteRowEditorRootMenu) {
 							if (selectedDrum->type == DrumType::MIDI) {
 								indicator_leds::indicateAlertOnLed(IndicatorLED::MIDI);
 							}
@@ -1441,13 +1442,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 			actionLogger.deleteAllLogs();
 
 			if (clip->type == ClipType::INSTRUMENT) {
-				if (currentUIMode == UI_MODE_NOTES_PRESSED) {
-					newItem = &noteEditorRootMenu;
-				}
-				else if (currentUIMode == UI_MODE_AUDITIONING) {
-					newItem = &noteRowEditorRootMenu;
-				}
-				else if (outputType == OutputType::MIDI_OUT) {
+				if (outputType == OutputType::MIDI_OUT) {
 					soundEditorRootMenuMIDIOrCV.title = l10n::String::STRING_FOR_MIDI_INST_MENU_TITLE;
 doMIDIOrCV:
 					newItem = &soundEditorRootMenuMIDIOrCV;
@@ -1471,11 +1466,8 @@ doMIDIOrCV:
 			}
 		}
 		else {
-			if ((currentUI == &performanceView) && !Buttons::isShiftButtonPressed()) {
-				newItem = &soundEditorRootMenuPerformanceView;
-			}
-			else if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
-			         && !Buttons::isShiftButtonPressed()) {
+			if ((currentUI == &sessionView || currentUI == &arrangerView || currentUI == &automationView)
+			    && !Buttons::isShiftButtonPressed()) {
 				newItem = &soundEditorRootMenuSongView;
 			}
 			else {

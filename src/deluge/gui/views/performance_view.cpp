@@ -869,8 +869,9 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 
 			if (!defaultEditingMode) {
 				display->setNextTransitionDirection(1);
-				soundEditor.setup();
-				openUI(&soundEditor);
+				if (soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)) {
+					openUI(&soundEditor);
+				}
 			}
 		}
 	}

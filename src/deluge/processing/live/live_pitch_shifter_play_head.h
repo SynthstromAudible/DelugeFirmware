@@ -19,6 +19,7 @@
 
 #include "arm_neon_shim.h"
 #include "definitions_cxx.hpp"
+#include "dsp/interpolate/interpolate.h"
 #include <array>
 
 class LivePitchShifter;
@@ -30,10 +31,7 @@ enum class PlayHeadMode {
 	RAW_DIRECT,
 };
 
-class LivePitchShifterPlayHead {
-public:
-	LivePitchShifterPlayHead();
-	~LivePitchShifterPlayHead();
+struct LivePitchShifterPlayHead {
 	void render(int32_t* outputBuffer, int32_t numSamples, int32_t numChannels, int32_t phaseIncrement,
 	            int32_t amplitude, int32_t amplitudeIncrement, int32_t* repitchedBuffer, int32_t* rawBuffer,
 	            int32_t whichKernel, int32_t interpolationBufferSize);
@@ -52,7 +50,7 @@ public:
 	int32_t rawBufferReadPos;
 	uint32_t oscPos;
 
-	std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2> interpolationBuffer;
+	deluge::dsp::Interpolator interpolator_;
 
 	uint32_t percPos;
 };
