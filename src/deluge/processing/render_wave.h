@@ -23,8 +23,8 @@
 [[gnu::always_inline]] static inline void //<
 renderOscSync(auto storageFunction, auto extraInstructionsForCrossoverSampleRedo,
               // Params
-              uint32_t phase, uint32_t phaseIncrement, uint32_t& resetterPhase, uint32_t resetterPhaseIncrement,
-              uint32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t numSamplesThisOscSyncSession,
+              uint32_t& phase, uint32_t phaseIncrement, uint32_t& resetterPhase, uint32_t resetterPhaseIncrement,
+              int32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t& numSamplesThisOscSyncSession,
               int32_t*& bufferStartThisSync) {
 
 	bool renderedASyncFromItsStartYet = false;
@@ -94,25 +94,11 @@ auto renderWavetableLoop(auto bufferStartThisSync, auto firstCycleNumber, auto b
 	};
 }
 
-auto storeVectorWaveForOneSync(auto vectorValueFunction) {
-	return [&](int32_t const* const bufferEndThisSyncRender, uint32_t phaseTemp, int32_t* __restrict__ writePos) {
-		do {
-			int32x4_t valueVector;
-			vectorValueFunction();
-			vst1q_s32(writePos, valueVector);
-			writePos += 4;
-		} while (writePos < bufferEndThisSyncRender);
-	};
-}
-
 /// @note amplitude and amplitudeIncrement multiplied by two before being passed to this function
-inline int32x4_t createAmplitudeVector(int32_t amplitude, int32_t amplitudeIncrement) {
-	int32x4_t amplitudeVector = vld1q_dup_s32(&amplitude);
-	int32x4_t incrementVector = vld1q_dup_s32(&amplitudeIncrement);
-
+inline Argon<int32_t> createAmplitudeVector(int32_t amplitude, int32_t amplitudeIncrement) {
 	// amplitude + amplitudeIncrement * lane_n
-	amplitudeVector = vmlaq_s32(amplitudeVector, incrementVector, int32x4_t{1, 2, 3, 4});
+	auto amplitudeVector = Argon<int32_t>{amplitude}.MultiplyAdd(amplitudeIncrement, int32x4_t{1, 2, 3, 4});
 
 	// TODO(@stellar-aria): investigate where the doubling comes from (likely an unshifted smmul)
-	return vshrq_n_s32(amplitudeVector, 1); // halve amplitude
+	return amplitudeVector >> 1; // halve amplitude
 }

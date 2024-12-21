@@ -1035,7 +1035,7 @@ extern "C" void sdCardInserted(void) {
 }
 
 extern "C" void sdCardEjected(void) {
-	audioFileManager.cardEjected = true;
+	audioFileManager.setCardEjected();
 }
 
 extern "C" void loadAnyEnqueuedClustersRoutine() {
