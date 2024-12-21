@@ -24,7 +24,7 @@ class WaveTable;
 
 class WaveTableBandData final : public Stealable {
 public:
-	WaveTableBandData(WaveTable* newWaveTable);
+	WaveTableBandData(WaveTable* newWaveTable) : waveTable(newWaveTable){};
 
 	bool mayBeStolen(void* thingNotToStealFrom = nullptr);
 	void steal(char const* errorCode);
