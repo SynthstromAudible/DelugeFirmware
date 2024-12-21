@@ -96,10 +96,8 @@ auto renderWavetableLoop(auto bufferStartThisSync, auto firstCycleNumber, auto b
 
 /// @note amplitude and amplitudeIncrement multiplied by two before being passed to this function
 inline Argon<int32_t> createAmplitudeVector(int32_t amplitude, int32_t amplitudeIncrement) {
-	Argon<int32_t> amplitudeVector = amplitude;
-
 	// amplitude + amplitudeIncrement * lane_n
-	amplitudeVector = amplitudeVector.MultiplyAdd(amplitudeIncrement, int32x4_t{1, 2, 3, 4});
+	auto amplitudeVector = Argon<int32_t>{amplitude}.MultiplyAdd(amplitudeIncrement, int32x4_t{1, 2, 3, 4});
 
 	// TODO(@stellar-aria): investigate where the doubling comes from (likely an unshifted smmul)
 	return amplitudeVector >> 1; // halve amplitude
