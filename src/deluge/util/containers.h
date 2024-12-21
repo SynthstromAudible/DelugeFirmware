@@ -69,4 +69,7 @@ using fast_multimap = std::multimap<Key, T, Compare, memory::fast_allocator<std:
 template <typename Key, typename T, class Compare = std::equal_to<Key>>
 using fast_unordered_map =
     std::unordered_map<Key, T, std::hash<Key>, Compare, memory::fast_allocator<std::pair<const Key, T>>>;
+
+template <typename Key, typename T, class Compare = std::less<Key>>
+using fast_map = std::map<Key, T, Compare, memory::fast_allocator<std::pair<const Key, T>>>;
 } // namespace deluge

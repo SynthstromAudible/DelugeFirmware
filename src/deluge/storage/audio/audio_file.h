@@ -34,10 +34,9 @@ public:
 	void addReason();
 	void removeReason(char const* errorCode);
 
-	// Stealable implementation
-	bool mayBeStolen(void* thingNotToStealFrom = NULL);
-	void steal(char const* errorCode);
-	StealableQueue getAppropriateQueue();
+	// Stealable implementation (partial)
+	// Also implemented by children (WaveTable/Sample)
+	StealableQueue getAppropriateQueue() override;
 
 	String filePath;
 
@@ -47,6 +46,9 @@ public:
 	                                // filename (in special folder) as the original. So we need to remember which format
 	                                // the name took.
 	int32_t numReasonsToBeLoaded{}; // This functionality should probably be merged between AudioFile and Cluster.
+
+	constexpr static bool isSample(const AudioFile* file) { return file->type == AudioFileType::SAMPLE; }
+	constexpr static bool isWaveTable(const AudioFile* file) { return file->type == AudioFileType::WAVETABLE; }
 
 protected:
 	virtual void numReasonsIncreasedFromZero() {}
