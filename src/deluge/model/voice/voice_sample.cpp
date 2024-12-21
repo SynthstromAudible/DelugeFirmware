@@ -199,8 +199,7 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 
 	// We load our new Clusters into a secondary array first, to preserve the reason-holding power of whatever is
 	// already in our main one until we unassign them below
-	Cluster* newClusters[kNumClustersLoadedAhead];
-	memset(newClusters, 0, sizeof(newClusters));
+	std::array<Cluster*, kNumClustersLoadedAhead> newClusters{};
 
 	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
 
@@ -225,7 +224,7 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 	unassignAllReasons(false);
 
 	// Copy in the new reasons we just made
-	memcpy(clusters, newClusters, sizeof(clusters));
+	std::ranges::copy(newClusters, clusters.begin());
 
 	// TODO: lots of this code is kinda tied to there being just two clusters looked-ahead (wait, not any more right?)
 

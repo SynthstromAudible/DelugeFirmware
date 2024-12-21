@@ -1,14 +1,16 @@
 #include "interpolate.h"
 #include "definitions_cxx.hpp"
+#include "deluge/dsp/stereo_sample.h"
 #include <argon.hpp>
+#include <cstdint>
+#include <limits>
 
 namespace deluge::dsp {
-void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel, uint32_t oscPos,
-                 std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer) {
+StereoSample Interpolator::interpolate(size_t channels, int32_t whichKernel, uint32_t oscPos) {
 	constexpr size_t numBitsInTableSize = 8;
-
-	// that's (numBitsInInput - 16 - numBitsInTableSize); = 4 for now
 	constexpr size_t rshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize + 1);
+
+	StereoSample output;
 
 	uint32_t rshifted;
 	if constexpr (rshiftAmount >= 0) {
@@ -18,74 +20,60 @@ void interpolate(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKerne
 		rshifted = oscPos << (-rshiftAmount);
 	}
 
-	int16_t strength2 = rshifted & 32767;
+	int16_t strength2 = rshifted & std::numeric_limits<int16_t>::max();
 
 	int32_t progressSmall = oscPos >> (24 + kInterpolationMaxNumSamplesMagnitude - numBitsInTableSize);
 
-	int16x8_t kernelVector[kInterpolationMaxNumSamples >> 3];
+	std::array<Argon<int16_t>, kInterpolationMaxNumSamples / 8> kernelVector;
 
-	for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-		int16x8_t value1 = vld1q_s16(&windowedSincKernel[whichKernel][progressSmall][i << 3]);
-		int16x8_t value2 = vld1q_s16(&windowedSincKernel[whichKernel][progressSmall + 1][i << 3]);
-		int16x8_t difference = vsubq_s16(value2, value1);
-		int16x8_t multipliedDifference = vqdmulhq_n_s16(difference, strength2);
-		kernelVector[i] = vaddq_s16(value1, multipliedDifference);
+	for (size_t i = 0; i < kernelVector.size(); ++i) {
+		auto value1 = Argon<int16_t>::Load(&windowedSincKernel[whichKernel][progressSmall][i * 8]);
+		auto value2 = Argon<int16_t>::Load(&windowedSincKernel[whichKernel][progressSmall + 1][i * 8]);
+
+		// standard linear a + (b - a) * fractional
+		kernelVector[i] = value1.MultiplyAddFixedPoint((value2 - value1), strength2);
 	}
 
-	int32x4_t multiplied;
-
-	for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-
-		if (i == 0) {
-			multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
-		}
-		else {
-			multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), interpolationBuffer[0][i << 1]);
-		}
-
-		multiplied = vmlal_s16(multiplied, vget_high_s16(kernelVector[i]), interpolationBuffer[0][(i << 1) + 1]);
+	Argon<int32_t> multiplied = 0;
+	for (size_t i = 0; i < kernelVector.size(); ++i) {
+		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), interpolation_buffer_l_[i * 2]);
+		multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), interpolation_buffer_l_[(i * 2) + 1]);
 	}
 
-	int32x2_t twosies = vadd_s32(vget_high_s32(multiplied), vget_low_s32(multiplied));
+	ArgonHalf<int32_t> twosies = multiplied.GetHigh() + multiplied.GetLow();
 
-	sampleRead[0] = vget_lane_s32(twosies, 0) + vget_lane_s32(twosies, 1);
+	output.l = twosies[0] + twosies[1];
 
-	if (numChannelsNow == 2) {
+	if (channels == 2) {
 
-		int32x4_t multiplied;
-
-		for (int32_t i = 0; i < (kInterpolationMaxNumSamples >> 3); i++) {
-
-			if (i == 0) {
-				multiplied = vmull_s16(vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);
-			}
-			else {
-				multiplied = vmlal_s16(multiplied, vget_low_s16(kernelVector[i]), interpolationBuffer[1][i << 1]);
-			}
-
-			multiplied = vmlal_s16(multiplied, vget_high_s16(kernelVector[i]), interpolationBuffer[1][(i << 1) + 1]);
+		Argon<int32_t> multiplied = 0;
+		for (size_t i = 0; i < kernelVector.size(); ++i) {
+			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetLow(), interpolation_buffer_r_[i * 2]);
+			multiplied = multiplied.MultiplyAddLong(kernelVector[i].GetHigh(), interpolation_buffer_r_[(i * 2) + 1]);
 		}
 
-		int32x2_t twosies = vadd_s32(vget_high_s32(multiplied), vget_low_s32(multiplied));
+		ArgonHalf<int32_t> twosies = multiplied.GetHigh() + multiplied.GetLow();
 
-		sampleRead[1] = vget_lane_s32(twosies, 0) + vget_lane_s32(twosies, 1);
+		output.r = twosies[0] + twosies[1];
 	}
+	return output;
 }
 
-void interpolateLinear(int32_t* sampleRead, int32_t numChannelsNow, int32_t whichKernel, uint32_t oscPos,
-                       std::array<std::array<int16x4_t, kInterpolationMaxNumSamples / 4>, 2>& interpolationBuffer) {
-	int16_t strength2 = oscPos >> 9;
-	int16_t strength1 = 32767 - strength2;
+StereoSample Interpolator::interpolateLinear(size_t channels, uint32_t phase) {
+	StereoSample output;
+	int16_t strength2 = phase >> 9;
+	int16_t strength1 = std::numeric_limits<int16_t>::max() - strength2; // inverse
 
-	sampleRead[0] = (interpolationBuffer[0][0][1] * strength1) + (interpolationBuffer[0][0][0] * strength2);
-	if (numChannelsNow == 2) {
-		sampleRead[1] = (interpolationBuffer[1][0][1] * strength1) + (interpolationBuffer[1][0][0] * strength2);
+	output.l = (interpolation_buffer_l_[0][1] * strength1) + (interpolation_buffer_l_[0][0] * strength2);
+	if (channels == 2) {
+		output.r = (interpolation_buffer_r_[0][1] * strength1) + (interpolation_buffer_r_[0][0] * strength2);
 	}
+	return output;
 }
 } // namespace deluge::dsp
 
 // clang-format off
-const int16_t windowedSincKernel[][17][16] __attribute__ ((aligned (CACHE_LINE_SIZE))) = {
+const int16_t windowedSincKernel[7][17][16] __attribute__ ((aligned (CACHE_LINE_SIZE))) = {
 	{
 		{0, 0, 0, 0, 0, 0, 0, -1, 32767, -1, 0, 0, 0, 0, 0, 0, },
 		{-2, 7, -28, 80, -188, 400, -831, 2056, 32548, -1784, 754, -363, 168, -70, 24, -6, },
