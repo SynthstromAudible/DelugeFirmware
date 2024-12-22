@@ -23,7 +23,7 @@ class GlobalEffectableForSong final : public GlobalEffectable {
 public:
 	GlobalEffectableForSong();
 
-	uint8_t* getModKnobMode() { return &modKnobMode; }
+	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
 	uint8_t modKnobMode;
 };

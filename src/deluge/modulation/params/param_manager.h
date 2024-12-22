@@ -200,7 +200,7 @@ public:
 	bool mightContainAutomation();
 
 #if ALPHA_OR_BETA_VERSION
-	ParamManagerForTimeline* toForTimeline();
+	ParamManagerForTimeline* toForTimeline() override;
 #endif
 
 	int32_t ticksTilNextEvent;

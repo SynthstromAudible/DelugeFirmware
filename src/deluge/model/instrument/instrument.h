@@ -72,15 +72,15 @@ public:
 
 	// virtual void writeInstrumentDataToFile(bool savingSong, char const* slotName = "presetSlot", char const*
 	// subSlotName = "presetSubSlot");
-	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
-	bool readTagFromFile(Deserializer& reader, char const* tagName);
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
+	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
 	virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}
 	virtual bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) = 0;
 	virtual void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,
 	                                              ModelStackWithTimelineCounter* modelStack) = 0;
 
-	char const* getNameXMLTag() { return "presetName"; }
+	char const* getNameXMLTag() override { return "presetName"; }
 	virtual char const* getSlotXMLTag() { return "presetSlot"; }
 	virtual char const* getSubSlotXMLTag() { return "presetSubSlot"; }
 

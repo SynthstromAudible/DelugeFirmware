@@ -25,12 +25,12 @@ class Modulator final : public SubmenuReferringToOneThing {
 public:
 	using SubmenuReferringToOneThing::SubmenuReferringToOneThing;
 
-	void beginSession(MenuItem* navigatedBackwardFrom) {
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		setModulatorNumberForTitles(this->thingIndex);
 		SubmenuReferringToOneThing::beginSession(navigatedBackwardFrom);
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->synthMode == SynthMode::FM);
 	}

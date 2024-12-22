@@ -32,7 +32,7 @@ public:
 
 	void focusRegained() override;
 	void selectEncoderAction(int8_t offset) override;
-	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void drawCurrentOption();
 	virtual bool isCurrentOptionAvailable() { return true; }
 	virtual bool acceptCurrentOption() { return false; } // If returns false, will cause UI to exit
@@ -52,7 +52,7 @@ public:
 	virtual char const* getTitle() = 0;
 
 	// ui
-	UIType getUIType() { return UIType::CONTEXT_MENU; }
+	UIType getUIType() override { return UIType::CONTEXT_MENU; }
 };
 
 class ContextMenuForSaving : public ContextMenu {

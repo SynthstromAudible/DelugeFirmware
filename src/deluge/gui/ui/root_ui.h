@@ -38,6 +38,6 @@ public:
 	virtual void sampleNeedsReRendering(Sample* sample) {}
 	virtual void midiLearnFlash() {}
 	// ui
-	virtual UIType getUIType() { return UIType::NONE; }
-	const char* getName() { return "root_ui"; }
+	UIType getUIType() override { return UIType::NONE; }
+	const char* getName() override { return "root_ui"; }
 };

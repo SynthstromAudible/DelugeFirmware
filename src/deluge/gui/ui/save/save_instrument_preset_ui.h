@@ -25,17 +25,17 @@ class SaveInstrumentPresetUI final : public SaveUI {
 public:
 	SaveInstrumentPresetUI();
 
-	bool opened();
+	bool opened() override;
 	// void selectEncoderAction(int8_t offset);
 	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed){};
 	void endSession(){};
-	bool performSave(bool mayOverwrite);
+	bool performSave(bool mayOverwrite) override;
 
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) {
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) override {
 		return true;
 	}
-	const char* getName() { return "save_instrument_preset_ui"; }
+	const char* getName() override { return "save_instrument_preset_ui"; }
 
 protected:
 	// int32_t arrivedInNewFolder(int32_t direction);

@@ -38,35 +38,35 @@ class Sample;
 class SampleBrowser final : public Browser {
 public:
 	SampleBrowser();
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
-	bool opened();
-	void focusRegained();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	ActionResult horizontalEncoderAction(int32_t offset);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	bool canSeeViewUnderneath();
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
+	bool opened() override;
+	void focusRegained() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	bool canSeeViewUnderneath() override;
 	Error claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
 	Error claimAudioFileForAudioClip();
-	void scrollFinished();
+	void scrollFinished() override;
 	bool importFolderAsKit();
 	bool importFolderAsMultisamples();
-	ActionResult timerCallback();
+	ActionResult timerCallback() override;
 	bool claimCurrentFile(int32_t mayDoPitchDetection = 1, int32_t mayDoSingleCycle = 1, int32_t mayDoWaveTable = 1,
 	                      bool loadWithoutExiting = false); // 0 means no. 1 means auto. 2 means yes definitely
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true);
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void exitAndNeverDeleteDrum();
 
-	const char* getName() { return "sample_browser"; }
+	const char* getName() override { return "sample_browser"; }
 	String lastFilePathLoaded;
 
 protected:
-	void enterKeyPress();
-	void exitAction();
-	ActionResult backButtonAction();
-	void folderContentsReady(int32_t entryDirection);
-	void currentFileChanged(int32_t movementDirection);
+	void enterKeyPress() override;
+	void exitAction() override;
+	ActionResult backButtonAction() override;
+	void folderContentsReady(int32_t entryDirection) override;
+	void currentFileChanged(int32_t movementDirection) override;
 
 private:
 	void displayCurrentFilename();
@@ -75,7 +75,7 @@ private:
 	bool canImportWholeKit();
 	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
 	                            bool* getDoingSingleCycle = NULL, int32_t* getNumCharsInPrefix = NULL);
-	Error getCurrentFilePath(String* path);
+	Error getCurrentFilePath(String* path) override;
 	void drawKeysOverWaveform();
 	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	void possiblySetUpBlinking();

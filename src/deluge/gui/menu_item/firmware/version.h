@@ -26,7 +26,7 @@ class Version final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 
-	void drawPixelsForOled() {
+	void drawPixelsForOled() override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		canvas.drawStringCentredShrinkIfNecessary(kFirmwareVersionString, 22, 18, 20);
 	}

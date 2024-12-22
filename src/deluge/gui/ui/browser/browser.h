@@ -71,11 +71,11 @@ public:
 
 	void close();
 	virtual Error getCurrentFilePath(String* path) = 0;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void currentFileDeleted();
 	Error goIntoFolder(char const* folderName);
 	Error createFolder();
-	void selectEncoderAction(int8_t offset);
+	void selectEncoderAction(int8_t offset) override;
 	static FileItem* getCurrentFileItem();
 	Error readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
 	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
@@ -86,7 +86,7 @@ public:
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
 	Error getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
-	bool opened();
+	bool opened() override;
 	void cullSomeFileItems();
 	bool checkFP();
 
@@ -103,8 +103,8 @@ public:
 	static char const* filenameToStartSearchAt;
 
 	// ui
-	UIType getUIType() { return UIType::BROWSER; }
-	const char* getName() { return "browser"; }
+	UIType getUIType() override { return UIType::BROWSER; }
+	const char* getName() override { return "browser"; }
 	bool exitUI() override {
 		Browser::close();
 		return true;
@@ -115,14 +115,14 @@ protected:
 	Error goUpOneDirectoryLevel();
 	virtual Error arrivedInNewFolder(int32_t direction, char const* filenameToStartAt = nullptr,
 	                                 char const* defaultDir = nullptr);
-	bool predictExtendedText();
+	bool predictExtendedText() override;
 	void goIntoDeleteFileContextMenu();
 	ActionResult mainButtonAction(bool on);
 	virtual void exitAction();
 	virtual ActionResult backButtonAction();
 	virtual void folderContentsReady(int32_t entryDirection) {}
 	virtual void currentFileChanged(int32_t movementDirection) {}
-	void displayText(bool blinkImmediately = false);
+	void displayText(bool blinkImmediately = false) override;
 	static Slot getSlot(char const* displayName);
 	Error readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
 	                                       char const* filenameToStartAt, char const* defaultDirToAlsoTry,

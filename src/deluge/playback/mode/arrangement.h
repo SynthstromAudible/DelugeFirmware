@@ -29,18 +29,18 @@ public:
 	Arrangement();
 
 	// PlaybackMode implementation
-	void setupPlayback();
-	bool endPlayback(); // Returns whether to do an instant song swap
-	void doTickForward(int32_t posIncrement);
-	void resetPlayPos(int32_t newPos, bool doingComplete = true, int32_t buttonPressLatency = 0);
-	void resyncToSongTicks(Song* song);
-	void reversionDone();
-	bool isOutputAvailable(Output* output);
-	void stopOutputRecordingAtLoopEnd();
-	int32_t getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack);
-	bool willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* modelStack);
-	bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack);
-	void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething, bool mayResumeClip);
+	void setupPlayback() override;
+	bool endPlayback() override; // Returns whether to do an instant song swap
+	void doTickForward(int32_t posIncrement) override;
+	void resetPlayPos(int32_t newPos, bool doingComplete = true, int32_t buttonPressLatency = 0) override;
+	void resyncToSongTicks(Song* song) override;
+	void reversionDone() override;
+	bool isOutputAvailable(Output* output) override;
+	void stopOutputRecordingAtLoopEnd() override;
+	int32_t getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack) override;
+	bool willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* modelStack) override;
+	bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack) override;
+	void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething, bool mayResumeClip) override;
 
 	// Clips remain "active" even after playback has stopped, or after they've finished playing but the next Clip for
 	// the Instrument / row hasn't started yet. It'll also become active if the user starts editing one

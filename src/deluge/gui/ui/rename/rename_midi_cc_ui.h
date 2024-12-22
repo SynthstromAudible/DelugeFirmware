@@ -26,19 +26,19 @@ class Clip;
 class RenameMidiCCUI final : public RenameUI {
 public:
 	RenameMidiCCUI();
-	bool opened();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
+	bool opened() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 
 	// ui
-	UIType getUIType() { return UIType::RENAME_MIDI_CC; }
-	const char* getName() { return "rename_midi_cc_ui"; }
+	UIType getUIType() override { return UIType::RENAME_MIDI_CC; }
+	const char* getName() override { return "rename_midi_cc_ui"; }
 	bool exitUI() override;
 
 protected:
-	void enterKeyPress();
+	void enterKeyPress() override;
 };
 
 extern RenameMidiCCUI renameMidiCCUI;

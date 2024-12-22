@@ -157,7 +157,7 @@ public:
 	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
 
-	ModFXType getModFXType();
+	ModFXType getModFXType() override;
 	bool setModFXType(ModFXType newType) final;
 
 	void patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
@@ -195,7 +195,7 @@ public:
 	                   ArpeggiatorSettings* arpSettings);
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager, ArpeggiatorSettings* arpSettings,
 	                 const char* pathAttribute = NULL);
-	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
+	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
 
 	void voiceUnassigned(ModelStackWithVoice* modelStack);
 	bool isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager);
@@ -273,7 +273,7 @@ public:
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
 	void deleteMultiRange(int32_t s, int32_t r);
 	void prepareForHibernation();
-	void wontBeRenderedForAWhile();
+	void wontBeRenderedForAWhile() override;
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob* knob, ModelStackWithThreeMainThings* modelStack) final;
 	virtual ArpeggiatorBase* getArp() = 0;
 	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);
