@@ -28,7 +28,8 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult timerCallback() override;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true) override {
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL,
+	                    bool drawUndefinedArea = true) override {
 		return true;
 	}
 

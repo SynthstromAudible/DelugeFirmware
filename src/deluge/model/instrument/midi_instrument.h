@@ -115,7 +115,9 @@ public:
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];
 
 	char const* getXMLTag() override { return "midi"; }
-	char const* getSlotXMLTag() override { return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel"; }
+	char const* getSlotXMLTag() override {
+		return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel";
+	}
 	char const* getSubSlotXMLTag() override { return "suffix"; }
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,

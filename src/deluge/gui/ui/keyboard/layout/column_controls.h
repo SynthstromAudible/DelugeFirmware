@@ -59,9 +59,8 @@ public:
 
 	// in a child, call horizontalEncoderHandledByColumns and ignore the encoder input if it returns
 	// true
-	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-	                                     PressedPad presses[kMaxNumKeyboardPadPresses],
-	                                     bool encoderPressed = false) override;
+	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses],
+	                             bool encoderPressed = false) override;
 
 	bool verticalEncoderHandledByColumns(int32_t offset);
 	bool horizontalEncoderHandledByColumns(int32_t offset, bool shiftEnabled);

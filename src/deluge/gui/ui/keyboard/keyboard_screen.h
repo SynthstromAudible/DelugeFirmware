@@ -43,7 +43,8 @@ public:
 	void selectEncoderAction(int8_t offset) override;
 
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = false) override;
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	                    bool drawUndefinedArea = false) override;
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 

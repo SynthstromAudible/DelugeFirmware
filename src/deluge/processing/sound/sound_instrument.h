@@ -58,7 +58,8 @@ public:
 
 	void deleteBackedUpParamManagers(Song* song) override;
 	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic) override;
+	                                              int32_t channelOrNoteNumber,
+	                                              MIDICharacteristic whichCharacteristic) override;
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) override;
 
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,

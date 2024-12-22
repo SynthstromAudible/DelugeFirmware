@@ -38,7 +38,8 @@ public:
 	void expressionEvent(int32_t newValue, int32_t expressionDimension) override;
 
 	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic) override;
+	                                              int32_t channelOrNoteNumber,
+	                                              MIDICharacteristic whichCharacteristic) override;
 
 	uint8_t note;
 	int8_t noteEncoderCurrentOffset;
