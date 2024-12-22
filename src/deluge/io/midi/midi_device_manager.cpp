@@ -428,29 +428,24 @@ void writeDevicesToFile() {
 	}
 	anyChangesToSave = false;
 
-	// First, see if it's even worth writing anything
-	if (dinMIDIPorts.worthWritingToFile()) {
-		goto worthIt;
-	}
-	if (upstreamUSBMIDICable1.worthWritingToFile()) {
-		goto worthIt;
-	}
-	if (upstreamUSBMIDICable2.worthWritingToFile()) {
-		goto worthIt;
-	}
-
-	for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-		MIDICableUSBHosted* device = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
-		if (device->worthWritingToFile()) {
-			goto worthIt;
+	bool anyWorthWritting = dinMIDIPorts.worthWritingToFile() || upstreamUSBMIDICable1.worthWritingToFile()
+	                        || upstreamUSBMIDICable2.worthWritingToFile();
+	if (!anyWorthWritting) {
+		for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
+			MIDICableUSBHosted* device = (MIDICableUSBHosted*)hostedMIDIDevices.getElement(d);
+			if (device->worthWritingToFile()) {
+				anyWorthWritting = true;
+				break;
+			}
 		}
 	}
 
-	// If still here, nothing worth writing. Delete the file if there was one.
-	f_unlink(MIDI_DEVICES_XML); // May give error, but no real consequence from that.
-	return;
+	if (!anyWorthWritting) {
+		// If still here, nothing worth writing. Delete the file if there was one.
+		f_unlink(MIDI_DEVICES_XML); // May give error, but no real consequence from that.
+		return;
+	}
 
-worthIt:
 	Error error = StorageManager::createXMLFile(MIDI_DEVICES_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
