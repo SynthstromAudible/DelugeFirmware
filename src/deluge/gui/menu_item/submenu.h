@@ -28,14 +28,16 @@ namespace deluge::gui::menu_item {
 
 class Submenu : public MenuItem {
 public:
-	Submenu(l10n::String newName, std::initializer_list<MenuItem*> newItems) : MenuItem(newName), items{newItems} {}
-	Submenu(l10n::String newName, std::span<MenuItem*> newItems)
-	    : MenuItem(newName), items{newItems.begin(), newItems.end()} {}
-	Submenu(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems)
-	    : MenuItem(newName, title), items{newItems} {}
+	enum RenderingStyle { VERTICAL, HORIZONTAL };
 
+	Submenu(l10n::String newName, std::initializer_list<MenuItem*> newItems)
+	    : MenuItem(newName), items{newItems}, current_item_{items.end()} {}
+	Submenu(l10n::String newName, std::span<MenuItem*> newItems)
+	    : MenuItem(newName), items{newItems.begin(), newItems.end()}, current_item_{items.end()} {}
+	Submenu(l10n::String newName, l10n::String title, std::initializer_list<MenuItem*> newItems)
+	    : MenuItem(newName, title), items{newItems}, current_item_{items.end()} {}
 	Submenu(l10n::String newName, l10n::String title, std::span<MenuItem*> newItems)
-	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()} {}
+	    : MenuItem(newName, title), items{newItems.begin(), newItems.end()}, current_item_{items.end()} {}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void updateDisplay();
@@ -52,8 +54,19 @@ public:
 	/// @brief 	Indicates if the menu-like object should wrap-around. Destined to be virtualized.
 	///         At the moment implements the legacy behaviour of wrapping on 7seg but not on OLED.
 	bool wrapAround();
-	bool ensureCurrentItemIsRelevant();
+	bool isSubmenu() override { return true; }
+	virtual bool focusChild(const MenuItem* child);
+	/// Submenus which support horizontal rendering need to override this.
+	virtual bool supportsHorizontalRendering() { return false; }
+	RenderingStyle renderingStyle();
+	void updatePadLights() override;
+	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive = false) override;
 
+protected:
+	void drawVerticalMenu();
+	void drawHorizontalMenu();
+
+private:
 	deluge::vector<MenuItem*> items;
 	typename decltype(items)::iterator current_item_;
 };

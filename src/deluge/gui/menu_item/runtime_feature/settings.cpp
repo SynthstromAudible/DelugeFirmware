@@ -50,6 +50,7 @@ SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyb
 SettingToggle menuAlternativePlaybackStartBehaviour(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour);
 SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridViewLoopPads);
 SettingToggle menuAlternativeTapTempoBehaviour(RuntimeFeatureSettingType::AlternativeTapTempoBehaviour);
+SettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -74,7 +75,8 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuDisplayChordLayout,
     &menuAlternativePlaybackStartBehaviour,
     &menuEnableGridViewLoopPads,
-    &menuAlternativeTapTempoBehaviour};
+    &menuAlternativeTapTempoBehaviour,
+    &menuHorizontalMenus};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }

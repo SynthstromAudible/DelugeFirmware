@@ -63,7 +63,7 @@ public:
 	ParamManagerForTimeline* currentParamManager;
 	SideChain* currentSidechain;
 	ArpeggiatorSettings* currentArpSettings;
-	MultiRange* currentMultiRange;
+	::MultiRange* currentMultiRange;
 	SampleControls* currentSampleControls;
 	VoicePriority* currentPriority;
 	int16_t currentMultiRangeIndex;
@@ -133,7 +133,7 @@ public:
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();
 	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
-	                                                                  MultiRange** previouslySelectedRange);
+	                                                                  ::MultiRange** previouslySelectedRange);
 	void setupExclusiveShortcutBlink(int32_t x, int32_t y);
 	void setShortcutsVersion(int32_t newVersion);
 	ModelStackWithThreeMainThings* getCurrentModelStack(void* memory);
@@ -154,6 +154,7 @@ public:
 	bool inNoteEditor();
 	bool inNoteRowEditor();
 	void toggleNoteEditorParamMenu(int32_t on);
+	void updatePadLightsFor(MenuItem* item);
 
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map

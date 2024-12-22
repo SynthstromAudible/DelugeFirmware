@@ -31,6 +31,9 @@ back up your SD card!
 now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official,
 at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
 
+#### 2.2 Horizontal Menus
+- Following items display in horizontal menus on OLED, with multiple values visible and editable at the same time. Hold `SHIFT` and turn `SELECT` to edit them. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+  - Envelope 1 & 2.
 
 ## 3. General Improvements
 
@@ -1354,6 +1357,8 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
     * When On, two pads (Red and Magenta) in the `GRID VIEW` sidebar will be illuminated and enable you to trigger the `LOOP` (Red) and `LAYERING LOOP` (Magenta) global MIDI commands to make it easier for you to loop in `GRID VIEW` without a MIDI controller.
 * `Alternative Tap Tempo Behaviour (TAPT)`
     * When On, the number of `TAP TEMPO` button presses to engage `TAP TEMPO` is changed to `FOUR (4)` to avoid mistakingly changing tempo.
+* `Horizontal menus (HORI)`
+    * When On, some menu items render in horizontal menus, with multiple items visible and editable at the same time.
 
 ## 6. Sysex Handling
 

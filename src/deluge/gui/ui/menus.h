@@ -85,6 +85,8 @@ extern MenuItem* paramShortcutsForAudioClips[15][8];
 extern MenuItem* paramShortcutsForSongView[15][8];
 extern MenuItem* paramShortcutsForKitGlobalFX[15][8];
 
+extern deluge::gui::menu_item::Submenu* parentsForSoundShortcuts[15][8];
+
 void setOscillatorNumberForTitles(int32_t);
 void setModulatorNumberForTitles(int32_t);
 void setEnvelopeNumberForTitles(int32_t);

@@ -66,6 +66,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	AlternativePlaybackStartBehaviour,
 	EnableGridViewLoopPads,
 	AlternativeTapTempoBehaviour,
+	HorizontalMenus,
 	MaxElement // Keep as boundary
 };
 
