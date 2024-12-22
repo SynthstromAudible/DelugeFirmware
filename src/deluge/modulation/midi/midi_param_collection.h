@@ -70,5 +70,5 @@ public:
 	MIDIParamVector params;
 
 private:
-	void deleteAllParams(Action* action = NULL, bool deleteStorageToo = true);
+	void deleteAllParams(Action* action = nullptr, bool deleteStorageToo = true);
 };

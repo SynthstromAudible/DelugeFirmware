@@ -24,7 +24,7 @@ class CStringArray : public ResizeableArray {
 public:
 	CStringArray(int32_t newElementSize) : ResizeableArray(newElementSize) {}
 	void sortForStrings();
-	int32_t search(char const* searchString, bool* foundExact = NULL);
+	int32_t search(char const* searchString, bool* foundExact = nullptr);
 
 private:
 	int32_t partitionForStrings(int32_t low, int32_t high);

@@ -61,7 +61,7 @@ inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 		if (destinations[g]) {
 			delugeDealloc(destinations[g]);
 			if (!destructing) {
-				destinations[g] = NULL;
+				destinations[g] = nullptr;
 			}
 		}
 	}
@@ -70,8 +70,8 @@ inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 PatchCableSet::PatchCableSet(ParamCollectionSummary* summary) : ParamCollection(sizeof(PatchCableSet), summary) {
 	numUsablePatchCables = 0;
 	numPatchCables = 0;
-	destinations[GLOBALITY_LOCAL] = NULL;
-	destinations[GLOBALITY_GLOBAL] = NULL;
+	destinations[GLOBALITY_LOCAL] = nullptr;
+	destinations[GLOBALITY_GLOBAL] = nullptr;
 }
 
 PatchCableSet::~PatchCableSet() {
@@ -112,7 +112,7 @@ Destination* PatchCableSet::getDestinationForParam(int32_t p) {
 
 	// Special case - no Destinations at all
 	if (!destinations[globality]) {
-		return NULL;
+		return nullptr;
 	}
 
 	ParamDescriptor destinationParamDescriptor;
@@ -124,7 +124,7 @@ Destination* PatchCableSet::getDestinationForParam(int32_t p) {
 			return destination;
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 const int32_t neutralRangeAdjustmentValue = 536870912;
@@ -146,7 +146,7 @@ void PatchCableSet::setupPatching(ModelStackWithParamCollection const* modelStac
 			// If we'd got the first one successfully, deallocate it again
 			if (g == 1) {
 				delugeDealloc(destinations[0]);
-				destinations[0] = NULL;
+				destinations[0] = nullptr;
 			}
 
 			// And get out
@@ -191,7 +191,7 @@ goAgainWithoutIncrement:
 
 			// Find the range-adjust*ed* cable, whose range/depth we're adjusting.
 			int32_t destinationCableIndex =
-			    getPatchCableIndex(ourDescriptor->getBottomLevelSource(), ourDescriptor->getDestination(), NULL, false);
+			    getPatchCableIndex(ourDescriptor->getBottomLevelSource(), ourDescriptor->getDestination(), nullptr, false);
 
 			// If doesn't exist, make this range-adjust*ing* cable "unusable".
 			if (destinationCableIndex == 255) {
@@ -254,7 +254,7 @@ goAgainWithoutIncrement:
 		// If no Destinations here at all, free memory
 		if (!numDestinations[globality]) {
 			delugeDealloc(destinations[globality]);
-			destinations[globality] = NULL;
+			destinations[globality] = nullptr;
 		}
 
 		// Otherwise...
@@ -692,7 +692,7 @@ AutoParam* PatchCableSet::getParam(ModelStackWithParamCollection const* modelSta
                                    ParamDescriptor destinationParamDescriptor, bool allowCreation) {
 	int32_t index = getPatchCableIndex(s, destinationParamDescriptor, modelStack, allowCreation);
 	if (index == 255) {
-		return NULL;
+		return nullptr;
 	}
 	return &patchCables[index].param;
 }
@@ -749,8 +749,8 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 	// set these pointers to NULL. But this doesn't always happen.
 
 	Destination* newDestinations[2];
-	newDestinations[GLOBALITY_LOCAL] = NULL;
-	newDestinations[GLOBALITY_GLOBAL] = NULL;
+	newDestinations[GLOBALITY_LOCAL] = nullptr;
+	newDestinations[GLOBALITY_GLOBAL] = nullptr;
 
 	// Allocate new memory - max size we might need
 	for (int32_t g = 0; g < 2; g++) {
@@ -768,7 +768,7 @@ void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWith
 			// If we'd got the first one successfully, deallocate it again
 			if (g == 1) {
 				delugeDealloc(newDestinations[0]);
-				newDestinations[0] = NULL;
+				newDestinations[0] = nullptr;
 			}
 
 			// And get out
@@ -921,7 +921,7 @@ abandonThisCable:
 			}
 		}
 
-		reader.exitTag(NULL, true); // exit outer patchCable element.
+		reader.exitTag(nullptr, true); // exit outer patchCable element.
 		reader.match('}');          // leave box.
 	}
 	reader.match(']');
@@ -1182,10 +1182,10 @@ PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
 	paramDescriptor.setToHaveParamOnly(params::LOCAL_VOLUME);
 
 	int32_t i = getPatchCableIndex(
-	    PatchSource::VELOCITY, paramDescriptor, NULL,
+	    PatchSource::VELOCITY, paramDescriptor, nullptr,
 	    true); // Uh... ok this could create a cable but won't setupPatching() for it... was that intentional?
 	if (i == 255) {
-		return NULL;
+		return nullptr;
 	}
 	return &patchCables[i];
 }

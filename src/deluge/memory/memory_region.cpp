@@ -387,7 +387,7 @@ noEmptySpace:
 			}
 #endif
 
-			return NULL;
+			return nullptr;
 		}
 
 		// D_PRINTLN("Reclaimed");
@@ -528,7 +528,7 @@ uint32_t MemoryRegion::extendRightAsMuchAsEasilyPossible(void* address) {
 
 	if (spaceType == SPACE_HEADER_STEALABLE) {
 		Stealable* stealable = (Stealable*)(void*)spaceHereAddress;
-		if (!stealable->mayBeStolen(NULL)) {
+		if (!stealable->mayBeStolen(nullptr)) {
 			goto finished;
 		}
 		stealable->steal("E446");

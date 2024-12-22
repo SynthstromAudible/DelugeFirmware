@@ -171,7 +171,7 @@ void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32
 		return;
 	}
 
-	int32_t* valueForOverride = valuesForOverride ? &valuesForOverride[p] : NULL;
+	int32_t* valueForOverride = valuesForOverride ? &valuesForOverride[p] : nullptr;
 	writer.insertCommaIfNeeded();
 	writer.write("\n");
 	writer.printIndents();

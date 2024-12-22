@@ -746,7 +746,7 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	MarkerColumn* colsToSend = NULL;
+	MarkerColumn* colsToSend = nullptr;
 	MarkerColumn cols[kNumMarkerTypes];
 	if (markerType != MarkerType::NONE) {
 		getColsOnScreen(cols);
@@ -1008,15 +1008,15 @@ void SampleMarkerEditor::graphicsRoutine() {
 
 	int32_t newTickSquare = 255;
 
-	VoiceSample* voiceSample = NULL;
-	SamplePlaybackGuide* guide = NULL;
+	VoiceSample* voiceSample = nullptr;
+	SamplePlaybackGuide* guide = nullptr;
 
 	// InstrumentClips / Samples
 	if (getCurrentClip()->type == ClipType::INSTRUMENT) {
 
 		if (soundEditor.currentSound->hasAnyVoices(false)) {
 
-			Voice* assignedVoice = NULL;
+			Voice* assignedVoice = nullptr;
 
 			int32_t ends[2];
 			AudioEngine::activeVoices.getRangeForSound(soundEditor.currentSound, ends);

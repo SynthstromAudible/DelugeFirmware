@@ -49,12 +49,12 @@ extern uint8_t currentlyAccessingCard;
 
 AudioClip::AudioClip() : Clip(ClipType::AUDIO) {
 	overdubsShouldCloneOutput = true;
-	voiceSample = NULL;
+	voiceSample = nullptr;
 	guide.audioFileHolder = &sampleHolder; // It needs to permanently point here
 
 	sampleControls.pitchAndSpeedAreIndependent = true;
 
-	recorder = NULL;
+	recorder = nullptr;
 
 	renderData.xScroll = -1;
 
@@ -125,7 +125,7 @@ void AudioClip::abortRecording() {
 
 	recorder->abort();
 
-	recorder = NULL;
+	recorder = nullptr;
 
 	session.justAbortedSomeLinearRecording();
 
@@ -240,7 +240,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 
 	isUnfinishedAutoOverdub = false;
 
-	recorder = NULL;
+	recorder = nullptr;
 
 	name.set(sampleHolder.filePath.get());
 }
@@ -251,7 +251,7 @@ Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldC
 	if (!clipMemory) {
 ramError:
 		display->displayError(Error::INSUFFICIENT_RAM);
-		return NULL;
+		return nullptr;
 	}
 
 	AudioClip* newClip = new (clipMemory) AudioClip();
@@ -533,7 +533,7 @@ void AudioClip::sampleZoneChanged(ModelStackWithTimelineCounter const* modelStac
 
 int64_t AudioClip::getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStack) {
 
-	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
+	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
 	int32_t cutPos = modelStackWithNoteRow->getPosAtWhichPlaybackWillCut();
 	int32_t loopPosWithinClip = std::min(cutPos, loopLength);
@@ -728,7 +728,7 @@ justDontTimeStretch:
 		// margin.
 		if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 
-			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, NULL);
+			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
 			int32_t cutPos = modelStackWithNoteRow->getPosAtWhichPlaybackWillCut();
 			if (cutPos < 2147483647) {
@@ -799,7 +799,7 @@ void AudioClip::unassignVoiceSample(bool wontBeUsedAgain) {
 	if (voiceSample) {
 		voiceSample->beenUnassigned(wontBeUsedAgain);
 		AudioEngine::voiceSampleUnassigned(voiceSample);
-		voiceSample = NULL;
+		voiceSample = nullptr;
 	}
 }
 
@@ -879,7 +879,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
 		newClip->beingRecordedFromClip = beingRecordedFromClip;
-		beingRecordedFromClip = NULL;
+		beingRecordedFromClip = nullptr;
 
 		newClip->section = 255;
 
@@ -942,7 +942,7 @@ doNormal:
 				goto doNormal; // If out of RAM, leave ParamManager behind
 			}
 
-			song->backUpParamManager((ModControllableAudio*)output->toModControllable(), NULL, &newParamManager);
+			song->backUpParamManager((ModControllableAudio*)output->toModControllable(), nullptr, &newParamManager);
 			// Obscure bug fixed, Oct 2022. Previously, we filed it away under not just the ModControllable, but also
 			// this Clip. Perhaps that's still theoretically what we'd like to do? But, it caused an E170 because when
 			// we do a song swap and call Song::deleteSoundsWhichWontSound(), that calls
@@ -952,7 +952,7 @@ doNormal:
 	}
 
 	if (!shouldRetainLinksToOutput) {
-		output = NULL;
+		output = nullptr;
 	}
 }
 
@@ -1008,7 +1008,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	Sample* sample;
 	if (recorder) {
 		sample =
-		    ((recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize) ? NULL : recorder->sample);
+		    ((recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize) ? nullptr : recorder->sample);
 	}
 	else {
 		sample = ((Sample*)sampleHolder.audioFile);
@@ -1234,7 +1234,7 @@ Error AudioClip::changeOutput(ModelStackWithTimelineCounter* modelStack, Output*
 Error AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* newOutput,
                            AudioClip* favourClipForCloningParamManager) {
 	output = newOutput;
-	Error error = solicitParamManager(modelStack->song, NULL, favourClipForCloningParamManager);
+	Error error = solicitParamManager(modelStack->song, nullptr, favourClipForCloningParamManager);
 	if (error != Error::NONE) {
 		return error;
 	}
@@ -1262,7 +1262,7 @@ void AudioClip::quantizeLengthForArrangementRecording(ModelStackWithTimelineCoun
 	int32_t oldLength = loopLength;
 	loopLength = suggestedLength;
 	originalLength = loopLength;
-	lengthChanged(modelStack, oldLength, NULL);
+	lengthChanged(modelStack, oldLength, nullptr);
 }
 
 bool AudioClip::currentlyScrollableAndZoomable() {
@@ -1295,7 +1295,7 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 			}
 
 			sampleHolder.filePath.clear();
-			sampleHolder.setAudioFile(NULL);
+			sampleHolder.setAudioFile(nullptr);
 			name.set("");
 		}
 

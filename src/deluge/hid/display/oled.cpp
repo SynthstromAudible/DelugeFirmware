@@ -413,7 +413,7 @@ void OLED::removePopup() {
 
 	oledPopupWidth = 0;
 	popupType = PopupType::NONE;
-	workingAnimationText = NULL;
+	workingAnimationText = nullptr;
 	uiTimerManager.unsetTimer(TimerName::DISPLAY);
 	markChanged();
 }
@@ -806,7 +806,7 @@ void OLED::removeWorkingAnimation() {
 		removePopup();
 	}
 	else if (workingAnimationText) {
-		workingAnimationText = NULL;
+		workingAnimationText = nullptr;
 	}
 }
 
@@ -971,7 +971,7 @@ void OLED::stopScrollingAnimation() {
 		sideScrollerDirection = 0;
 		for (int32_t s = 0; s < NUM_SIDE_SCROLLERS; s++) {
 			SideScroller* scroller = &sideScrollers[s];
-			scroller->text = NULL;
+			scroller->text = nullptr;
 		}
 		uiTimerManager.unsetTimer(TimerName::OLED_SCROLLING_AND_BLINKING);
 	}

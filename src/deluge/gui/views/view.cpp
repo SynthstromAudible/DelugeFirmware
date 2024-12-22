@@ -100,7 +100,7 @@ View::View() {
 
 	deleteMidiCommandOnRelease = false;
 
-	learnedThing = NULL;
+	learnedThing = nullptr;
 
 	memset(&activeModControllableModelStack, 0, sizeof(activeModControllableModelStack));
 
@@ -366,7 +366,7 @@ cant:
 
 			// Or if scaling already, stop it
 			else {
-				currentSong->setInputTickScaleClip(NULL);
+				currentSong->setInputTickScaleClip(nullptr);
 			}
 
 			actionLogger.deleteAllLogs(); // Can't undo past this.
@@ -484,7 +484,7 @@ void View::setTimeBaseScaleLedState() {
 
 	// Otherwise, just light it solidly on or off
 	else {
-		indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, currentSong->getSyncScalingClip() != NULL);
+		indicator_leds::setLedState(IndicatorLED::SYNC_SCALING, currentSong->getSyncScalingClip() != nullptr);
 	}
 }
 
@@ -581,7 +581,7 @@ void View::endMidiLearnPressSession(MidiLearn newThingPressed) {
 		break;
 	}
 
-	learnedThing = NULL;
+	learnedThing = nullptr;
 
 	// And, store the actual change
 	thingPressedForMidiLearn = newThingPressed;
@@ -887,7 +887,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			    && !modelStackWithParam->paramCollection->doesParamIdAllowAutomation(modelStackWithParam)) {
 				copyModelStack(newModelStackMemory, modelStackWithParam, sizeof(ModelStackWithAutoParam));
 				modelStackWithParam = (ModelStackWithAutoParam*)newModelStackMemory;
-				modelStackWithParam->setTimelineCounter(NULL);
+				modelStackWithParam->setTimelineCounter(nullptr);
 			}
 
 			int32_t newValue =
@@ -1780,7 +1780,7 @@ void View::setActiveModControllableTimelineCounter(TimelineCounter* timelineCoun
 	}
 
 	else {
-		modelStack->addOtherTwoThingsButNoNoteRow(NULL, NULL);
+		modelStack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr);
 	}
 
 	setModLedStates();
@@ -1805,7 +1805,7 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 	pretendModKnobsUntouchedForAWhile(); // Why again?
 
 	setupModelStackWithSong(&activeModControllableModelStack, currentSong)
-	    ->addTimelineCounter(NULL)
+	    ->addTimelineCounter(nullptr)
 	    ->addOtherTwoThingsButNoNoteRow(modControllable, paramManager);
 
 	setModLedStates();
@@ -1957,7 +1957,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 			blinkLed(led);
 		}
 
-		InstrumentClip* clip = NULL;
+		InstrumentClip* clip = nullptr;
 		if (clip && clip->type == ClipType::INSTRUMENT) {
 			clip = (InstrumentClip*)clip;
 		}
@@ -2217,7 +2217,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, NULL, NULL, false)) {
+					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr, false)) {
 						break;
 					}
 				}
@@ -2283,8 +2283,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, NULL,
-					                                                   NULL, false)) {
+					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
+					                                                   nullptr, false)) {
 						break;
 					}
 				}
@@ -2294,7 +2294,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		}
 
 		newInstrument =
-		    modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, NULL, NULL, false);
+		    modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr, nullptr, false);
 
 		shouldReplaceWholeInstrument = (oldInstrumentCanBeReplaced && !newInstrument);
 
@@ -2322,7 +2322,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		// Otherwise...
 		else {
 
-			bool instrumentAlreadyInSong = (newInstrument != NULL);
+			bool instrumentAlreadyInSong = (newInstrument != nullptr);
 
 			// If an Instrument doesn't yet exist for the new channel we're gonna use...
 			if (!newInstrument) {
@@ -2353,8 +2353,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			}
 gotAnInstrument:
 
-			Error error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			Error error = clip->changeInstrument(modelStack, newInstrument, nullptr,
+			                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, nullptr, true);
 			// TODO: deal with errors
 
 			if (!instrumentAlreadyInSong) {
@@ -2447,8 +2447,8 @@ getOut:
 			// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in
 			// there)
 
-			Error error = clip->changeInstrument(modelStack, newInstrument, NULL,
-			                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, NULL, true);
+			Error error = clip->changeInstrument(modelStack, newInstrument, nullptr,
+			                                     InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, nullptr, true);
 			// TODO: deal with errors!
 
 			if (!instrumentAlreadyInSong) {
@@ -2459,7 +2459,7 @@ getOut:
 		// Kit-specific stuff
 		if (outputType == OutputType::KIT) {
 			clip->ensureScrollWithinKitBounds();
-			((Kit*)newInstrument)->selectedDrum = NULL;
+			((Kit*)newInstrument)->selectedDrum = nullptr;
 		}
 
 		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
@@ -2650,7 +2650,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
 			context_menu::clip_settings::clipSettings.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
-			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+			session.toggleClipStatus(clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		else {
 			exitUIMode(UI_MODE_HOLDING_STATUS_PAD);
@@ -2663,7 +2663,7 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		// this is because it gets stuck in the stuttering UI mode and can't get out
 		if (on) {
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
-			session.toggleClipStatus(clip, NULL, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+			session.toggleClipStatus(clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
 

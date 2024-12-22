@@ -29,7 +29,7 @@
 #include <string.h>
 
 Drum::Drum(DrumType newType) : type(newType) {
-	next = NULL;
+	next = nullptr;
 
 	earlyNoteVelocity = 0;
 	earlyNoteStillActive = false;
@@ -37,7 +37,7 @@ Drum::Drum(DrumType newType) : type(newType) {
 	auditioned = false;
 	lastMIDIChannelAuditioned = MIDI_CHANNEL_NONE;
 
-	kit = NULL;
+	kit = nullptr;
 
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }

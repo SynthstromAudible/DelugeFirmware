@@ -175,7 +175,7 @@ doCull:
 	Error error = fileItems.insertAtIndex(newIndex);
 	if (error != Error::NONE) {
 		if (alreadyCulled) {
-			return NULL;
+			return nullptr;
 		}
 		else {
 			goto doCull;
@@ -282,8 +282,8 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	numFileItemsDeletedAtStart = 0;
 	numFileItemsDeletedAtEnd = 0;
-	firstFileItemRemaining = NULL;
-	lastFileItemRemaining = NULL;
+	firstFileItemRemaining = nullptr;
+	lastFileItemRemaining = nullptr;
 	catalogSearchDirection = newCatalogSearchDirection;
 	maxNumFileItemsNow = newMaxNumFileItems;
 	filenameToStartSearchAt = filenameToStartAt;
@@ -1500,7 +1500,7 @@ void Browser::displayText(bool blinkImmediately) {
 
 FileItem* Browser::getCurrentFileItem() {
 	if (fileIndexSelected == -1) {
-		return NULL;
+		return nullptr;
 	}
 	return (FileItem*)fileItems.getElementAddress(fileIndexSelected);
 }

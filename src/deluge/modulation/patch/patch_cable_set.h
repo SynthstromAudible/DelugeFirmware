@@ -46,7 +46,7 @@ public:
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
 	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,
-	                           ModelStackWithParamCollection const* modelStack = NULL, bool createIfNotFound = false);
+	                           ModelStackWithParamCollection const* modelStack = nullptr, bool createIfNotFound = false);
 	void deletePatchCable(ModelStackWithParamCollection const* modelStack, uint8_t c);
 	bool patchCableIsUsable(uint8_t c, ModelStackWithThreeMainThings const* modelStack);
 	int32_t getModifiedPatchCableAmount(int32_t c, int32_t p);

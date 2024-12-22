@@ -113,7 +113,7 @@ public:
 	void notifyPlaybackBegun() override;
 
 	// used to identify the UI as a clip UI or not.
-	ClipMinder* toClipMinder() override { return getAutomationSubType() == AutomationSubType::ARRANGER ? NULL : this; }
+	ClipMinder* toClipMinder() override { return getAutomationSubType() == AutomationSubType::ARRANGER ? nullptr : this; }
 
 	void setAutomationParamType();
 

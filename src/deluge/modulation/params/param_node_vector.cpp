@@ -26,7 +26,7 @@ ParamNodeVector::ParamNodeVector() : OrderedResizeableArrayWith32bitKey(sizeof(P
 
 ParamNode* ParamNodeVector::getElement(int32_t index) {
 	if (index < 0 || index >= getNumElements()) {
-		return NULL;
+		return nullptr;
 	}
 	return (ParamNode*)getElementAddress(index);
 }

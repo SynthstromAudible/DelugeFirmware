@@ -30,12 +30,12 @@
 #include <new>
 
 ParamManager::ParamManager() {
-	summaries[0] = {0};
+	summaries[0] = {nullptr};
 #if ALPHA_OR_BETA_VERSION
-	summaries[1] = {0};
-	summaries[2] = {0};
-	summaries[3] = {0};
-	summaries[4] = {0};
+	summaries[1] = {nullptr};
+	summaries[2] = {nullptr};
+	summaries[3] = {nullptr};
+	summaries[4] = {nullptr};
 #endif
 	expressionParamSetOffset = 0;
 
@@ -49,7 +49,7 @@ ParamManager::~ParamManager() {
 #if ALPHA_OR_BETA_VERSION
 ParamManagerForTimeline* ParamManager::toForTimeline() {
 	FREEZE_WITH_ERROR("E407");
-	return NULL;
+	return nullptr;
 }
 
 ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
@@ -65,7 +65,7 @@ Error ParamManager::setupMIDI() {
 
 	summaries[1] = summaries[0]; // Potentially shuffle the expression params over.
 	summaries[0].paramCollection = new (memory) MIDIParamCollection(&summaries[0]);
-	summaries[2] = {0};
+	summaries[2] = {nullptr};
 	expressionParamSetOffset = 1;
 	return Error::NONE;
 }
@@ -77,7 +77,7 @@ Error ParamManager::setupUnpatched() {
 	}
 
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
-	summaries[1] = {0};
+	summaries[1] = {nullptr};
 	expressionParamSetOffset = 1;
 	return Error::NONE;
 }
@@ -104,7 +104,7 @@ ramError2:
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
 	summaries[1].paramCollection = new (memoryPatched) PatchedParamSet(&summaries[1]);
 	summaries[2].paramCollection = new (memoryPatchCables) PatchCableSet(&summaries[2]);
-	summaries[3] = {0};
+	summaries[3] = {nullptr};
 	expressionParamSetOffset = 3;
 	return Error::NONE;
 }
@@ -128,7 +128,7 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 		if (summaries[mpeParamsOffsetHere].paramCollection) {
 			other->summaries[stopAtOther].paramCollection->~ParamCollection();
 			delugeDealloc(other->summaries[stopAtOther].paramCollection);
-			other->summaries[stopAtOther] = {0};
+			other->summaries[stopAtOther] = {nullptr};
 		}
 
 		// Otherwise, yup, proceed to steal them
@@ -146,17 +146,17 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 
 	summaries[stopAtOther] = hereMpeParamsOrNull; // Could the expression params, or NULL
 	if (hereMpeParamsOrNull.paramCollection) {
-		summaries[stopAtOther + 1] = {0}; // If that was expression params, write the actual terminating NULL here
+		summaries[stopAtOther + 1] = {nullptr}; // If that was expression params, write the actual terminating NULL here
 	}
 	// - but not otherwise, cos we could have overflowed past the array's size!
 	expressionParamSetOffset = mpeParamsOffsetOther;
 
 	other->summaries[0] = other->summaries[stopAtOther];
-	other->summaries[1] = {0};
+	other->summaries[1] = {nullptr};
 #if ALPHA_OR_BETA_VERSION
-	other->summaries[2] = {0};
-	other->summaries[3] = {0};
-	other->summaries[4] = {0};
+	other->summaries[2] = {nullptr};
+	other->summaries[3] = {nullptr};
+	other->summaries[4] = {nullptr};
 #endif
 	other->expressionParamSetOffset = 0;
 }
@@ -201,7 +201,7 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 
 			// Mark that there's nothing here
 			summaries[0] = mpeParamsOrNullHere;
-			summaries[1] = {0};
+			summaries[1] = {nullptr};
 			return Error::INSUFFICIENT_RAM;
 		}
 
@@ -228,13 +228,13 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 	// Paul: If we move allocation position of the same clip mpe data was allocated above and doesn't require special
 	// treatment
 	if (this == other) {
-		*newSummary = {0}; // Mark end of list
+		*newSummary = {nullptr}; // Mark end of list
 	}
 	else {
 		*newSummary = mpeParamsOrNullHere;
 		if (mpeParamsOrNullHere.paramCollection) { // Check first, otherwise we'll overflow the array, I think...
 			newSummary++;
-			*newSummary = {0}; // Mark end of list
+			*newSummary = {nullptr}; // Mark end of list
 		}
 	}
 
@@ -263,12 +263,12 @@ Error ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
 // Does *not* forget MPE params
 void ParamManager::forgetParamCollections() {
 	summaries[0].paramCollection = getExpressionParamSet();
-	summaries[1] = {0};
+	summaries[1] = {nullptr};
 	expressionParamSetOffset = 0;
 #if ALPHA_OR_BETA_VERSION
-	summaries[2] = {0};
-	summaries[3] = {0};
-	summaries[4] = {0};
+	summaries[2] = {nullptr};
+	summaries[3] = {nullptr};
+	summaries[4] = {nullptr};
 #endif
 }
 
@@ -281,7 +281,7 @@ void ParamManager::destructAndForgetParamCollections() {
 		summary++;
 	}
 
-	summaries[0] = {0};
+	summaries[0] = {nullptr};
 	expressionParamSetOffset = 0;
 }
 
@@ -296,14 +296,14 @@ bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 		}
 
 		summaries[offset].paramCollection = new (memory) ExpressionParamSet(&summaries[offset], forDrum);
-		summaries[offset + 1] = {0};
+		summaries[offset + 1] = {nullptr};
 	}
 	return true;
 }
 
 ExpressionParamSet* ParamManager::getOrCreateExpressionParamSet(bool forDrum) {
 	if (!ensureExpressionParamSetExists(forDrum)) {
-		return NULL;
+		return nullptr;
 	}
 
 	return getExpressionParamSet();

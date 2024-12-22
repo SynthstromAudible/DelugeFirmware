@@ -79,8 +79,8 @@ void ResizeableArray::init() {
 	LOCK_ENTRY
 
 	numElements = 0;
-	memory = NULL;
-	memoryAllocationStart = NULL;
+	memory = nullptr;
+	memoryAllocationStart = nullptr;
 	memorySize = 0;
 	memoryStart = 0;
 
@@ -99,8 +99,8 @@ void ResizeableArray::empty() {
 			delugeDealloc(memoryAllocationStart);
 		}
 
-		memory = NULL;
-		memoryAllocationStart = NULL;
+		memory = nullptr;
+		memoryAllocationStart = nullptr;
 		memorySize = 0;
 	}
 
@@ -142,8 +142,8 @@ Error ResizeableArray::copyElementsFromOldMemory(void* __restrict__ otherMemory,
 	memoryStart = 0;
 
 	if (!numElements) {
-		memoryAllocationStart = NULL;
-		memory = NULL;
+		memoryAllocationStart = nullptr;
+		memory = nullptr;
 		memorySize = 0;
 	}
 

@@ -88,7 +88,7 @@ public:
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void midiLearnFlash() override;
 
-	void transitionToViewForClip(Clip* clip = NULL);
+	void transitionToViewForClip(Clip* clip = nullptr);
 	void transitionToSessionView();
 	void finishedTransitioningHere();
 	void playbackEnded() override;

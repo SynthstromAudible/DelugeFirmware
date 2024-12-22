@@ -40,7 +40,7 @@ public:
 
 	bool renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
 	                      RGB thisImage[][kDisplayWidth + kSideBarWidth], WaveformRenderData* data,
-	                      SampleRecorder* recorder = NULL, std::optional<RGB> rgb = std::nullopt, bool reversed = false,
+	                      SampleRecorder* recorder = nullptr, std::optional<RGB> rgb = std::nullopt, bool reversed = false,
 	                      int32_t xEnd = kDisplayWidth);
 	bool renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage, WaveformRenderData* data,
 	                       SampleRecorder* recorder, RGB rgb, bool reversed, int32_t xStart, int32_t xEnd);
@@ -56,7 +56,7 @@ public:
 	                                               WaveformRenderData* data, std::optional<RGB> rgb, bool reversed,
 	                                               int32_t valueCentrePoint, int32_t valueSpan);
 	bool findPeaksPerCol(Sample* sample, int64_t xScroll, uint64_t xZoom, WaveformRenderData* data,
-	                     SampleRecorder* recorder = NULL, int32_t xStart = 0, int32_t xEnd = kDisplayWidth);
+	                     SampleRecorder* recorder = nullptr, int32_t xStart = 0, int32_t xEnd = kDisplayWidth);
 
 	int8_t collapseAnimationToWhichRow;
 

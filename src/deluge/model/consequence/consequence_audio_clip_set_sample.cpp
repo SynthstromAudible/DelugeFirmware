@@ -43,7 +43,7 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 
 	if (filePathToRevertTo.isEmpty()) {
 
-		clip->sampleHolder.setAudioFile(NULL);
+		clip->sampleHolder.setAudioFile(nullptr);
 
 		// Deactivate Clip if it'd otherwise suddenly start recording again
 		if (playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL) {

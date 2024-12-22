@@ -47,7 +47,7 @@ public:
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) final;
 	void writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
-	                           bool onlyIfContainsSomething = false, int32_t* valuesForOverride = NULL);
+	                           bool onlyIfContainsSomething = false, int32_t* valuesForOverride = nullptr);
 	void readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p, int32_t readAutomationUpToPos);
 	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) final;
 	void setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) final;

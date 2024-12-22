@@ -651,7 +651,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 			audioFileManager.removeReasonFromCluster(*currentRecordCluster, "E047");
 		}
 		currentRecordClusterIndex++; // We've finished with that cluster
-		currentRecordCluster = NULL; // But currentRecordClusterIndex now refers to a cluster that'll never exist
+		currentRecordCluster = nullptr; // But currentRecordClusterIndex now refers to a cluster that'll never exist
 	}
 
 	uint32_t idealFileSizeBeforeAction = sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
@@ -836,7 +836,7 @@ Error SampleRecorder::createNextCluster() {
 
 	currentRecordClusterIndex++; // Mark record-cluster we were on as finished
 
-	currentRecordCluster = NULL; // Note that we haven't yet created our next record-cluster - we'll do that below
+	currentRecordCluster = nullptr; // Note that we haven't yet created our next record-cluster - we'll do that below
 	                             // if no error first; and if there is an error and we don't create one, this has to
 	                             // remain NULL to indicate that we never created one
 
@@ -1244,7 +1244,7 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 		FREEZE_WITH_ERROR("E286");
 	}
 
-	Cluster* nextReadCluster = NULL;
+	Cluster* nextReadCluster = nullptr;
 
 	if (numClustersBeforeAction >= 2) {
 		nextReadCluster = sample->clusters.getElement(1)->getCluster(
@@ -1383,7 +1383,7 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 			currentWriteCluster->numReasonsHeldBySampleRecorder--;
 
 			audioFileManager.removeReasonFromCluster(*currentWriteCluster, "E023");
-			currentWriteCluster = NULL;
+			currentWriteCluster = nullptr;
 
 			// If write operation failed, now's the time to get out
 			if (result) {
@@ -1486,7 +1486,7 @@ writeFailed:
 					currentWriteCluster->numReasonsHeldBySampleRecorder--;
 
 					audioFileManager.removeReasonFromCluster(*currentWriteCluster, "E022");
-					currentWriteCluster = NULL;
+					currentWriteCluster = nullptr;
 					return Error::SD_CARD;
 				}
 
@@ -1494,7 +1494,7 @@ writeFailed:
 				nextReadCluster->numReasonsHeldBySampleRecorder++;
 			}
 			else { // Not sure these are strictly necessary...
-				nextReadCluster = NULL;
+				nextReadCluster = nullptr;
 			}
 
 			readPos = &currentReadCluster->data[overshot];
@@ -1581,7 +1581,7 @@ writeFailed:
 		currentWriteCluster->numReasonsHeldBySampleRecorder--;
 
 		audioFileManager.removeReasonFromCluster(*currentWriteCluster, "E238");
-		currentWriteCluster = NULL;
+		currentWriteCluster = nullptr;
 	}
 
 	return Error::NONE;

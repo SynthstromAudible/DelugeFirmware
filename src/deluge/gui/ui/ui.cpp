@@ -138,7 +138,7 @@ UI* getCurrentUI() {
 // the result!
 RootUI* getRootUI() {
 	if (numUIsOpen == 0) {
-		return NULL;
+		return nullptr;
 	}
 	return (RootUI*)uiNavigationHierarchy[0];
 }
@@ -159,7 +159,7 @@ void swapOutRootUILowLevel(UI* newUI) {
 
 UI* getUIUpOneLevel(int32_t numLevelsUp) {
 	if (numUIsOpen < (1 + numLevelsUp)) {
-		return NULL;
+		return nullptr;
 	}
 	else {
 		return uiNavigationHierarchy[numUIsOpen - 1 - numLevelsUp];

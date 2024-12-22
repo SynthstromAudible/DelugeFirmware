@@ -44,8 +44,8 @@ public:
 	constexpr virtual size_t getNumBrowserAndMenuLines() = 0;
 
 	virtual void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
-	                     uint8_t* newBlinkMask = NULL, bool blinkImmediately = false, bool shouldBlinkFast = false,
-	                     int32_t scrollPos = 0, uint8_t* blinkAddition = NULL, bool justReplaceBottomLayer = false){};
+	                     uint8_t* newBlinkMask = nullptr, bool blinkImmediately = false, bool shouldBlinkFast = false,
+	                     int32_t scrollPos = 0, uint8_t* blinkAddition = nullptr, bool justReplaceBottomLayer = false){};
 
 	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false,
 	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) = 0;

@@ -328,7 +328,7 @@ moveAfterClipInstance:
 				newInstance->pos = proposedStartPos;
 				newInstance->clip = clip;
 				newInstance->length = clip->loopLength;
-				arrangement.rowEdited(output, proposedStartPos, proposedStartPos + clip->loopLength, NULL, newInstance);
+				arrangement.rowEdited(output, proposedStartPos, proposedStartPos + clip->loopLength, nullptr, newInstance);
 
 				int32_t howMuchLater = proposedStartPos - posPressed;
 
@@ -1580,7 +1580,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 		String newPresetName;
 		result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
 		result.error =
-		    StorageManager::loadInstrumentFromFile(currentSong, NULL, outputType, false, &newInstrument,
+		    StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &newInstrument,
 		                                           &result.fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
 
@@ -1606,7 +1606,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 	display->removeWorkingAnimation();
 
 	if (copyDrumsFromClip) {
-		result.error = clip->setAudioInstrument(newInstrument, currentSong, true, NULL); // Does a setupPatching()
+		result.error = clip->setAudioInstrument(newInstrument, currentSong, true, nullptr); // Does a setupPatching()
 		if (result.error != Error::NONE) {
 			// TODO: needs more thought - we'd want to deallocate the Instrument...
 			return result.error;
@@ -1625,7 +1625,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
-		Error error = clip->changeInstrument(modelStack, newInstrument, NULL, InstrumentRemoval::NONE);
+		Error error = clip->changeInstrument(modelStack, newInstrument, nullptr, InstrumentRemoval::NONE);
 		if (error != Error::NONE) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));
 		}
@@ -1853,7 +1853,7 @@ Clip* SessionView::getClipOnScreen(int32_t yDisplay) {
 	int32_t index = yDisplay + currentSong->songViewYScroll;
 
 	if (index < 0 || index >= currentSong->sessionClips.getNumElements()) {
-		return NULL;
+		return nullptr;
 	}
 
 	return currentSong->sessionClips.getClipAtIndex(index);
@@ -2262,7 +2262,7 @@ void SessionView::graphicsRoutine() {
 				}
 			}
 
-			newTickSquare = getSquareFromPos(livePos, NULL, localScroll);
+			newTickSquare = getSquareFromPos(livePos, nullptr, localScroll);
 
 			// Linearly recording
 			if (clip->getCurrentlyRecordingLinearly()) {
@@ -3656,7 +3656,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 
 			// Different instrument, switch the cloned clip to it
 			else if (targetOutput != sourceClip->output) {
-				Error error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, NULL,
+				Error error = newInstrumentClip->changeInstrument(modelStack, (Instrument*)targetOutput, nullptr,
 				                                                  InstrumentRemoval::NONE);
 				if (error != Error::NONE) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_SWITCHING_TO_TRACK_FAILED));

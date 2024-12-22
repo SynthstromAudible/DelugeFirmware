@@ -37,7 +37,7 @@ MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
 }
 
 MIDIParamCollection::~MIDIParamCollection() {
-	deleteAllParams(NULL, false);
+	deleteAllParams(nullptr, false);
 }
 
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {
@@ -179,7 +179,7 @@ ModelStackWithAutoParam* MIDIParamCollection::getAutoParamFromId(ModelStackWithP
                                                                  bool allowCreation) {
 	int32_t defaultValue = 0;
 	MIDIParam* midiParam = params.getOrCreateParamFromCC(modelStack->paramId, defaultValue, allowCreation);
-	AutoParam* param = NULL;
+	AutoParam* param = nullptr;
 	if (midiParam) {
 		param = &midiParam->param;
 	}

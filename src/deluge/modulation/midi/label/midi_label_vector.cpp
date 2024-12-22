@@ -25,7 +25,7 @@ MIDILabelVector::MIDILabelVector() : OrderedResizeableArray(sizeof(MIDILabel), 8
 MIDILabel* MIDILabelVector::getLabelFromCC(int32_t cc) {
 	int32_t i = searchExact(cc);
 	if (i == -1) {
-		return NULL;
+		return nullptr;
 	}
 	else {
 		return getElement(i);
@@ -59,7 +59,7 @@ doesntExistYet:
 MIDILabel* MIDILabelVector::insertLabel(int32_t i) {
 	Error error = insertAtIndex(i);
 	if (error != Error::NONE) {
-		return NULL;
+		return nullptr;
 	}
 	else {
 		void* address = getElementAddress(i);

@@ -191,7 +191,7 @@ void MIDICable::readFromFile(Deserializer& reader) {
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 
 		if (!strcmp(tagName, "input")) {
-			ports[MIDI_DIRECTION_INPUT_TO_DELUGE].readFromFile(reader, NULL);
+			ports[MIDI_DIRECTION_INPUT_TO_DELUGE].readFromFile(reader, nullptr);
 		}
 		else if (!strcmp(tagName, "output")) {
 			ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE].readFromFile(reader, this);

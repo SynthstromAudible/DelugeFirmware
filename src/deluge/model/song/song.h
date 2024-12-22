@@ -117,7 +117,7 @@ public:
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key);
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
-	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
+	ParamManagerForTimeline* findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = nullptr);
 	void setupPatchingForAllParamManagersForDrum(SoundDrum* drum);
 	void setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound);
 	void grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersForInstrument(MIDICable& cable,
@@ -146,7 +146,7 @@ public:
 	bool hasUserScale();
 	/// Sets root note of key. If the previous scale no longer fits, changes to a new implied scale, which
 	/// can result in a new user scale being set.
-	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = NULL);
+	void setRootNote(int32_t newRootNote, InstrumentClip* clipToAvoidAdjustingScrollFor = nullptr);
 	/// Returns a NoteSet with all notes currently in used in scale mdoe clips.
 	NoteSet notesInScaleModeClips();
 
@@ -272,8 +272,8 @@ public:
 	void changeFillMode(bool on);
 	void loadNextSong();
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
-	void doubleClipLength(InstrumentClip* clip, Action* action = NULL);
-	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = NULL);
+	void doubleClipLength(InstrumentClip* clip, Action* action = nullptr);
+	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = nullptr);
 	Error readFromFile(Deserializer& reader);
 	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true);
@@ -296,9 +296,9 @@ public:
 	bool anyClipsSoloing;
 
 	ParamManager* getBackedUpParamManagerForExactClip(ModControllableAudio* modControllable, Clip* clip,
-	                                                  ParamManager* stealInto = NULL);
+	                                                  ParamManager* stealInto = nullptr);
 	ParamManager* getBackedUpParamManagerPreferablyWithClip(ModControllableAudio* modControllable, Clip* clip,
-	                                                        ParamManager* stealInto = NULL);
+	                                                        ParamManager* stealInto = nullptr);
 	void backUpParamManager(ModControllableAudio* modControllable, Clip* clip, ParamManagerForTimeline* paramManager,
 	                        bool shouldStealExpressionParamsToo = false);
 	void moveInstrumentToHibernationList(Instrument* instrument);
@@ -311,8 +311,8 @@ public:
 	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);
 	void deleteHibernatingInstrumentWithSlot(OutputType outputType, char const* name);
 	void loadCrucialSamplesOnly();
-	Clip* getSessionClipWithOutput(Output* output, int32_t requireSection = -1, Clip* excludeClip = NULL,
-	                               int32_t* clipIndex = NULL, bool excludePendingOverdubs = false);
+	Clip* getSessionClipWithOutput(Output* output, int32_t requireSection = -1, Clip* excludeClip = nullptr,
+	                               int32_t* clipIndex = nullptr, bool excludePendingOverdubs = false);
 	void restoreClipStatesBeforeArrangementPlay();
 	void deleteOrAddToHibernationListOutput(Output* output);
 	int32_t getLowestSectionWithNoSessionClipForOutput(Output* output);
@@ -323,12 +323,12 @@ public:
 	void deactivateAnyArrangementOnlyClips();
 	Clip* getLongestClip(bool includePlayDisabled, bool includeArrangementOnly);
 	Clip* getLongestActiveClipWithMultipleOrFactorLength(int32_t targetLength, bool revertToAnyActiveClipIfNone = true,
-	                                                     Clip* excludeClip = NULL);
+	                                                     Clip* excludeClip = nullptr);
 	int32_t getOutputIndex(Output* output);
 	void setHibernatingMIDIInstrument(MIDIInstrument* newInstrument);
 	void deleteHibernatingMIDIInstrument();
 	MIDIInstrument* grabHibernatingMIDIInstrument(int32_t newSlot, int32_t newSubSlot);
-	NoteRow* findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = NULL);
+	NoteRow* findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = nullptr);
 
 	bool anyOutputsSoloingInArrangement;
 	bool getAnyOutputsSoloingInArrangement();
@@ -344,18 +344,18 @@ public:
 	bool arrangementHasAnyClipInstances();
 	void resumeClipsClonedForArrangementRecording();
 	void setParamsInAutomationMode(bool newState);
-	bool shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = NULL);
+	bool shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = nullptr);
 	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset);
 	void instrumentSwapped(Instrument* newInstrument);
 	Instrument* changeOutputType(Instrument* oldInstrument, OutputType newOutputType);
 	AudioOutput* getFirstAudioOutput();
-	AudioOutput* createNewAudioOutput(Output* replaceOutput = NULL);
+	AudioOutput* createNewAudioOutput(Output* replaceOutput = nullptr);
 	/// buffer must have at least 5 characters on 7seg, or 30 for OLED
 	void getNoteLengthName(StringBuf& buffer, uint32_t noteLength, char const* notesString = "-notes",
 	                       bool clarifyPerColumn = false) const;
 	void replaceOutputLowLevel(Output* newOutput, Output* oldOutput);
 	void removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAboveToMoveVertically = false);
-	bool deletePendingOverdubs(Output* onlyWithOutput = NULL, int32_t* originalClipIndex = NULL,
+	bool deletePendingOverdubs(Output* onlyWithOutput = nullptr, int32_t* originalClipIndex = nullptr,
 	                           bool createConsequencesForOtherLinearlyRecordingClips = false);
 	Clip* getPendingOverdubWithOutput(Output* output);
 	Clip* getClipWithOutputAboutToBeginLinearRecording(Output* output);
