@@ -23,10 +23,10 @@
 #include <array>
 // #include <vector>
 
-constexpr int32_t kMaxChordKeyboardSize = 7;
-constexpr int32_t kUniqueVoicings = 4;
-constexpr int32_t kUniqueChords = 33;
-constexpr int32_t kOffScreenChords = kUniqueChords - kDisplayHeight;
+constexpr int8_t kMaxChordKeyboardSize = 7;
+constexpr int8_t kUniqueVoicings = 4;
+constexpr int8_t kUniqueChords = 33;
+constexpr int8_t kOffScreenChords = kUniqueChords - kDisplayHeight;
 
 namespace deluge::gui::ui::keyboard {
 
@@ -44,40 +44,40 @@ enum class ChordQuality {
 ChordQuality getChordQuality(NoteSet& notes);
 
 // Interval offsets for convenience
-const int32_t NONE = INT32_MAX;
-const int32_t ROOT = 0;
-const int32_t MIN2 = 1;
-const int32_t MAJ2 = 2;
-const int32_t MIN3 = 3;
-const int32_t MAJ3 = 4;
-const int32_t P4 = 5;
-const int32_t AUG4 = 6;
-const int32_t DIM5 = 6;
-const int32_t P5 = 7;
-const int32_t AUG5 = 8;
-const int32_t MIN6 = 8;
-const int32_t MAJ6 = 9;
-const int32_t DIM7 = 9;
-const int32_t MIN7 = 10;
-const int32_t DOM7 = 10;
-const int32_t MAJ7 = 11;
-const int32_t OCT = kOctaveSize;
-const int32_t MIN9 = MIN2 + OCT;
-const int32_t MAJ9 = MAJ2 + OCT;
-const int32_t MIN10 = MIN3 + OCT;
-const int32_t MAJ10 = MAJ3 + OCT;
-const int32_t P11 = P4 + OCT;
-const int32_t AUG11 = AUG4 + OCT;
-const int32_t DIM12 = DIM5 + OCT;
-const int32_t P12 = P5 + OCT;
-const int32_t MIN13 = MIN6 + OCT;
-const int32_t MAJ13 = MAJ6 + OCT;
-const int32_t MIN14 = MIN7 + OCT;
-const int32_t MAJ14 = MAJ7 + OCT;
+const int8_t NONE = INT8_MAX;
+const int8_t ROOT = 0;
+const int8_t MIN2 = 1;
+const int8_t MAJ2 = 2;
+const int8_t MIN3 = 3;
+const int8_t MAJ3 = 4;
+const int8_t P4 = 5;
+const int8_t AUG4 = 6;
+const int8_t DIM5 = 6;
+const int8_t P5 = 7;
+const int8_t AUG5 = 8;
+const int8_t MIN6 = 8;
+const int8_t MAJ6 = 9;
+const int8_t DIM7 = 9;
+const int8_t MIN7 = 10;
+const int8_t DOM7 = 10;
+const int8_t MAJ7 = 11;
+const int8_t OCT = kOctaveSize;
+const int8_t MIN9 = MIN2 + OCT;
+const int8_t MAJ9 = MAJ2 + OCT;
+const int8_t MIN10 = MIN3 + OCT;
+const int8_t MAJ10 = MAJ3 + OCT;
+const int8_t P11 = P4 + OCT;
+const int8_t AUG11 = AUG4 + OCT;
+const int8_t DIM12 = DIM5 + OCT;
+const int8_t P12 = P5 + OCT;
+const int8_t MIN13 = MIN6 + OCT;
+const int8_t MAJ13 = MAJ6 + OCT;
+const int8_t MIN14 = MIN7 + OCT;
+const int8_t MAJ14 = MAJ7 + OCT;
 
 /// @brief A voicing is a set of offsets from the root note of a chord
 struct Voicing {
-	int32_t offsets[kMaxChordKeyboardSize];
+	int8_t offsets[kMaxChordKeyboardSize];
 	const char* supplementalName = "";
 };
 
@@ -147,17 +147,17 @@ public:
 	 * @param chordNo The index of the chord
 	 * @return The voicing
 	 */
-	Voicing getChordVoicing(int32_t chordNo);
+	Voicing getChordVoicing(int8_t chordNo);
 
-	void adjustChordRowOffset(int32_t offset);
-	void adjustVoicingOffset(int32_t chordNo, int32_t offset);
+	void adjustChordRowOffset(int8_t offset);
+	void adjustVoicingOffset(int8_t chordNo, int8_t offset);
 
 	Chord chords[kUniqueChords];
-	int32_t voicingOffset[kUniqueChords] = {0};
-	uint32_t chordRowOffset = 0;
+	int8_t voicingOffset[kUniqueChords] = {0};
+	uint8_t chordRowOffset = 0;
 
 private:
-	int32_t validateChordNo(int32_t chordNo);
+	int8_t validateChordNo(int8_t chordNo);
 };
 
 } // namespace deluge::gui::ui::keyboard
