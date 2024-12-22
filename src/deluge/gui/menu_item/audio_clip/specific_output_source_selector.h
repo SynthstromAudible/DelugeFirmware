@@ -27,7 +27,7 @@ class SpecificSourceOutputSelector final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 
-	void beginSession(MenuItem* navigatedBackwardFrom) {
+	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		audioOutputBeingEdited = (AudioOutput*)getCurrentOutput();
 		if (audioOutputBeingEdited->getOutputRecordingFrom()) {
 			outputIndex = currentSong->getOutputIndex(audioOutputBeingEdited->getOutputRecordingFrom());

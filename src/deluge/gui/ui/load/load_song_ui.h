@@ -23,14 +23,14 @@
 class LoadSongUI final : public LoadUI {
 public:
 	LoadSongUI();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult timerCallback();
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	void graphicsRoutine() {}
-	void scrollFinished();
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	bool opened();
-	void selectEncoderAction(int8_t offset);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult timerCallback() override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	void graphicsRoutine() override {}
+	void scrollFinished() override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	bool opened() override;
+	void selectEncoderAction(int8_t offset) override;
 	void queueLoadNextSongIfAvailable(int8_t offset);
 	void performLoad();
 	void displayLoopsRemainingPopup();
@@ -39,15 +39,15 @@ public:
 	bool deletedPartsOfOldSong;
 
 	// ui
-	UIType getUIType() { return UIType::LOAD_SONG; }
-	const char* getName() { return "load_song_ui"; }
+	UIType getUIType() override { return UIType::LOAD_SONG; }
+	const char* getName() override { return "load_song_ui"; }
 
 protected:
-	void displayText(bool blinkImmediately = false);
-	void enterKeyPress();
-	void folderContentsReady(int32_t entryDirection);
-	void currentFileChanged(int32_t movementDirection);
-	void exitAction();
+	void displayText(bool blinkImmediately = false) override;
+	void enterKeyPress() override;
+	void folderContentsReady(int32_t entryDirection) override;
+	void currentFileChanged(int32_t movementDirection) override;
+	void exitAction() override;
 
 private:
 	void drawSongPreview(bool toStore = true);

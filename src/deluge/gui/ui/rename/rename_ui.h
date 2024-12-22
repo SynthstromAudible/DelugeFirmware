@@ -23,7 +23,7 @@ class RenameUI : public QwertyUI {
 public:
 	RenameUI();
 
-	void displayText(bool blinkImmediately = false);
+	void displayText(bool blinkImmediately = false) override;
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
-	const char* getName() { return "rename_ui"; }
+	const char* getName() override { return "rename_ui"; }
 };

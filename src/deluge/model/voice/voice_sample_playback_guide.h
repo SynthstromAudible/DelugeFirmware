@@ -28,10 +28,10 @@ class SampleCache;
 class VoiceSamplePlaybackGuide final : public SamplePlaybackGuide {
 public:
 	VoiceSamplePlaybackGuide();
-	void setupPlaybackBounds(bool reversed);
+	void setupPlaybackBounds(bool reversed) override;
 	bool shouldObeyLoopEndPointNow();
-	int32_t getBytePosToStartPlayback(bool justLooped);
-	int32_t getBytePosToEndOrLoopPlayback();
+	int32_t getBytePosToStartPlayback(bool justLooped) override;
+	int32_t getBytePosToEndOrLoopPlayback() override;
 	LoopType getLoopingType(const Source& source) const;
 
 	uint32_t getLoopStartPlaybackAtByte() const { return loopStartPlaybackAtByte; }

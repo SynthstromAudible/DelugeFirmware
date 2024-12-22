@@ -25,11 +25,11 @@ class LoadMidiDeviceDefinitionUI final : public LoadUI {
 public:
 	LoadMidiDeviceDefinitionUI();
 
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
-	bool opened();
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
+	bool opened() override;
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
@@ -37,19 +37,19 @@ public:
 		return true;
 	}
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override {
 		return true;
 	}
 
 	Error performLoad(bool doClone = false);
 
 	// ui
-	UIType getUIType() { return UIType::LOAD_MIDI_DEVICE_DEFINITION; }
-	const char* getName() { return "load_midi_device_definition_ui"; }
+	UIType getUIType() override { return UIType::LOAD_MIDI_DEVICE_DEFINITION; }
+	const char* getName() override { return "load_midi_device_definition_ui"; }
 
 protected:
-	void folderContentsReady(int32_t entryDirection);
-	void enterKeyPress();
+	void folderContentsReady(int32_t entryDirection) override;
+	void enterKeyPress() override;
 
 private:
 	Error setupForLoadingMidiDeviceDefinition();

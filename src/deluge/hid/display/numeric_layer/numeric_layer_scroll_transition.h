@@ -22,10 +22,10 @@
 class NumericLayerScrollTransition final : public NumericLayer {
 public:
 	NumericLayerScrollTransition();
-	virtual ~NumericLayerScrollTransition();
-	bool callBack();
-	void render(uint8_t* returnSegments);
-	void isNowOnTop();
+	~NumericLayerScrollTransition() override;
+	bool callBack() override;
+	void render(uint8_t* returnSegments) override;
+	void isNowOnTop() override;
 
 	uint8_t segments[kNumericDisplayLength];
 

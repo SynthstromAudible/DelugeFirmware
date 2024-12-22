@@ -41,7 +41,7 @@ struct Destination {
 class PatchCableSet final : public ParamCollection {
 public:
 	PatchCableSet(ParamCollectionSummary* summary);
-	~PatchCableSet();
+	~PatchCableSet() override;
 
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
@@ -101,7 +101,7 @@ public:
 
 	Destination* getDestinationForParam(int32_t p);
 
-	deluge::modulation::params::Kind getParamKind() { return deluge::modulation::params::Kind::PATCH_CABLE; }
+	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCH_CABLE; }
 
 	uint32_t sourcesPatchedToAnything[2]; // Only valid after setupPatching()
 
@@ -111,7 +111,7 @@ public:
 
 	Destination* destinations[2];
 
-	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) { return true; };
+	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override { return true; };
 
 	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
 

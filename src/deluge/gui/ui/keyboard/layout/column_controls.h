@@ -51,15 +51,15 @@ public:
 	void enableNote(uint8_t note, uint8_t velocity);
 
 	// should be called by any children that override
-	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
+	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 
 	// in a child, call verticalEncoderHandledByColumns and ignore the encoder input if it returns
 	// true
-	virtual void handleVerticalEncoder(int32_t offset) override;
+	void handleVerticalEncoder(int32_t offset) override;
 
 	// in a child, call horizontalEncoderHandledByColumns and ignore the encoder input if it returns
 	// true
-	virtual void handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
+	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
 	                                     PressedPad presses[kMaxNumKeyboardPadPresses],
 	                                     bool encoderPressed = false) override;
 
@@ -70,7 +70,7 @@ public:
 	ColumnControlFunction prevControlFunction(ColumnControlFunction cur, ColumnControlFunction skip);
 	ColumnControlFunction stepControlFunction(int32_t offset, ColumnControlFunction cur, ColumnControlFunction skip);
 
-	virtual void renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
+	void renderSidebarPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
 
 	void checkNewInstrument(Instrument* newInstrument) override;
 

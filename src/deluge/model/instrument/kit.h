@@ -34,11 +34,11 @@ public:
 	Kit();
 	Drum* getNextDrum(Drum* fromSoundSource);
 	Drum* getPrevDrum(Drum* fromSoundSource);
-	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	void addDrum(Drum* newDrum);
-	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
+	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	Drum* getFirstUnassignedDrum(InstrumentClip* clip);
-	~Kit();
+	~Kit() override;
 	int32_t getDrumIndex(Drum* drum);
 	Drum* getDrumFromIndex(int32_t index);
 	Drum* getDrumFromIndexAllowNull(int32_t index);
@@ -98,31 +98,31 @@ public:
 	                                      ModelStackWithTimelineCounter* modelStack) override {}
 
 	void choke();
-	void resyncLFOs();
+	void resyncLFOs() override;
 	void removeDrum(Drum* drum);
-	ModControllable* toModControllable();
+	ModControllable* toModControllable() override;
 	SoundDrum* getDrumFromName(char const* name, bool onlyIfNoNoteRow = false);
 	Error makeDrumNameUnique(String* name, int32_t startAtNumber);
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
-	void setupPatching(ModelStackWithTimelineCounter* modelStack);
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
+	void setupPatching(ModelStackWithTimelineCounter* modelStack) override;
 	void compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramManager, Song* song);
-	void deleteBackedUpParamManagers(Song* song);
-	void prepareForHibernationOrDeletion();
-	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos);
-	void loadCrucialAudioFilesOnly();
+	void deleteBackedUpParamManagers(Song* song) override;
+	void prepareForHibernationOrDeletion() override;
+	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;
+	void loadCrucialAudioFilesOnly() override;
 	GateDrum* getGateDrumForChannel(int32_t gateChannel);
 	void resetDrumTempValues();
-	void setupWithoutActiveClip(ModelStack* modelStack);
+	void setupWithoutActiveClip(ModelStack* modelStack) override;
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound);
-	uint8_t* getModKnobMode() { return &modKnobMode; }
-	Output* toOutput() { return this; }
+	                            int32_t* highestReverbAmountFound) override;
+	uint8_t* getModKnobMode() override { return &modKnobMode; }
+	Output* toOutput() override { return this; }
 
-	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow);
+	bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) override;
 	bool allowNoteTails(NoteRow* noteRow);
-	void stopAnyAuditioning(ModelStack* modelStack);
-	bool isAnyAuditioningHappening();
+	void stopAnyAuditioning(ModelStack* modelStack) override;
+	bool isAnyAuditioningHappening() override;
 	void beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity,
 	                             int16_t const* mpeValues, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
 	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
@@ -133,9 +133,9 @@ public:
 	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
 	                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
 
-	char const* getXMLTag() { return "kit"; }
+	char const* getXMLTag() override { return "kit"; }
 
 	Drum* firstDrum;
 	Drum* selectedDrum;
@@ -144,7 +144,7 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack);
+	                                                bool affectEntire, bool useMenuStack) override;
 	ModelStackWithAutoParam* getModelStackWithParamForKit(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                      int32_t paramID, deluge::modulation::params::Kind paramKind,
 	                                                      bool useMenuStack);
@@ -156,7 +156,7 @@ public:
 	Drum* getDrumFromNoteCode(InstrumentClip* clip, int32_t noteCode);
 
 protected:
-	bool isKit() { return true; }
+	bool isKit() override { return true; }
 
 private:
 	Error readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumType drumType,

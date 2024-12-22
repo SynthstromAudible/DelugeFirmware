@@ -36,18 +36,18 @@ char const* aoModeToString(AudioOutputMode mode);
 class AudioOutput final : public Output, public GlobalEffectableForClip {
 public:
 	AudioOutput();
-	virtual ~AudioOutput();
-	void cloneFrom(ModControllableAudio* other);
+	~AudioOutput() override;
+	void cloneFrom(ModControllableAudio* other) override;
 
 	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                  bool shouldLimitDelayFeedback, bool isClipActive);
+	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
 
 	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack, StereoSample* globalEffectableBuffer,
 	                                   int32_t* bufferToTransferTo, int32_t numSamples, int32_t* reverbBuffer,
 	                                   int32_t reverbAmountAdjust, int32_t sideChainHitPending,
 	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
 
 	void resetEnvelope();
 	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
@@ -122,7 +122,7 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack);
+	                                                bool affectEntire, bool useMenuStack) override;
 	void scrollAudioOutputMode(int offset) {
 		auto modeInt = util::to_underlying(mode);
 		modeInt = (modeInt + offset) % kNumAudioOutputModes;
@@ -135,9 +135,9 @@ public:
 	}
 
 protected:
-	Clip* createNewClipForArrangementRecording(ModelStack* modelStack);
-	bool wantsToBeginArrangementRecording();
-	bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
+	Clip* createNewClipForArrangementRecording(ModelStack* modelStack) override;
+	bool wantsToBeginArrangementRecording() override;
+	bool willRenderAsOneChannelOnlyWhichWillNeedCopying() override;
 
 	/// Which output to record from. Only valid when inputChannel is AudioInputChannel::SPECIFIC_OUTPUT.
 	Output* outputRecordingFrom{nullptr};

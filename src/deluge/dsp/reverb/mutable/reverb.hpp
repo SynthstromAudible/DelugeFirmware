@@ -140,19 +140,19 @@ public:
 	void setWidth(float value) override { diffusion_ = util::map(value, 0.f, 1.f, kWidthMin, kWidthMax); }
 	[[nodiscard]] float getWidth() const override { return util::map(diffusion_, kWidthMin, kWidthMax, 0.f, 1.f); };
 
-	void setHPF(float f) {
+	void setHPF(float f) override {
 		hp_cutoff_val_ = f;
 		hp_cutoff_ = calcFilterCutoff<FilterType::HighPass>(f);
 	}
 
-	[[nodiscard]] float getHPF() const { return hp_cutoff_val_; }
+	[[nodiscard]] float getHPF() const override { return hp_cutoff_val_; }
 
-	void setLPF(float f) {
+	void setLPF(float f) override {
 		lp_cutoff_val_ = f;
 		lp_cutoff_ = calcFilterCutoff<FilterType::LowPass>(f);
 	}
 
-	[[nodiscard]] float getLPF() const { return lp_cutoff_val_; }
+	[[nodiscard]] float getLPF() const override { return lp_cutoff_val_; }
 
 private:
 	static constexpr float sample_rate = kSampleRate;

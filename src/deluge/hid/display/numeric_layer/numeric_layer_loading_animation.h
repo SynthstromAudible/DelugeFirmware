@@ -22,10 +22,10 @@
 class NumericLayerLoadingAnimation final : public NumericLayer {
 public:
 	NumericLayerLoadingAnimation();
-	virtual ~NumericLayerLoadingAnimation();
-	bool callBack();
-	void render(uint8_t* returnSegments);
-	void isNowOnTop();
+	~NumericLayerLoadingAnimation() override;
+	bool callBack() override;
+	void render(uint8_t* returnSegments) override;
+	void isNowOnTop() override;
 
 	int8_t loadingAnimationPos;
 	bool animationIsTransparent;

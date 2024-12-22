@@ -36,16 +36,16 @@ class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:
 	KeyboardScreen();
 
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	ActionResult horizontalEncoderAction(int32_t offset);
-	void selectEncoderAction(int8_t offset);
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
+	void selectEncoderAction(int8_t offset) override;
 
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = false);
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = false) override;
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 
 	void flashDefaultRootNote();
 	void openedInBackground();
@@ -59,13 +59,13 @@ public:
 	void killColumnSwitchKey(int32_t column);
 
 	// ui
-	UIType getUIType() { return UIType::KEYBOARD_SCREEN; }
-	const char* getName() { return "keyboard_screen"; }
+	UIType getUIType() override { return UIType::KEYBOARD_SCREEN; }
+	const char* getName() override { return "keyboard_screen"; }
 	void checkNewInstrument(Instrument* newInstrument);
 
 private:
-	bool opened();
-	void focusRegained();
+	bool opened() override;
+	void focusRegained() override;
 	void displayOrLanguageChanged() final;
 
 	void evaluateActiveNotes();
@@ -73,10 +73,10 @@ private:
 
 	void noteOff(ModelStack& modelStack, Instrument& activeInstrument, bool clipIsActiveOnInstrument, int32_t note);
 
-	ClipMinder* toClipMinder() { return this; }
+	ClipMinder* toClipMinder() override { return this; }
 	void setLedStates();
-	void graphicsRoutine();
-	bool getAffectEntire();
+	void graphicsRoutine() override;
+	bool getAffectEntire() override;
 
 	void unscrolledPadAudition(int32_t velocity, int32_t note, bool shiftButtonDown);
 

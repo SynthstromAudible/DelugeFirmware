@@ -58,7 +58,7 @@ struct ParamsForPerformance {
 class PerformanceView final : public ClipNavigationTimelineView {
 public:
 	PerformanceView();
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool opened() override;
 	void focusRegained() override;
 
@@ -66,8 +66,8 @@ public:
 	ActionResult timerCallback() override;
 
 	// ui
-	UIType getUIType() { return UIType::PERFORMANCE; }
-	const char* getName() { return "performance_view"; }
+	UIType getUIType() override { return UIType::PERFORMANCE; }
+	const char* getName() override { return "performance_view"; }
 	[[nodiscard]] int32_t getNavSysId() const override;
 
 	// rendering

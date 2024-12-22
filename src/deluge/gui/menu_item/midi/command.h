@@ -38,7 +38,7 @@ public:
 	void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) override;
 	void learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value) override;
 
-	void drawPixelsForOled();
+	void drawPixelsForOled() override;
 
 	GlobalMIDICommand commandNumber;
 };
