@@ -374,33 +374,36 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 	return nullptr;
 }
 
-void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory) {
-
+static MIDICable* readCableFromFlash(uint8_t const* memory) {
 	uint16_t vendorId = *(uint16_t const*)memory;
 
-	MIDICable* device;
+	MIDICable* cable;
 
 	if (vendorId == VENDOR_ID_NONE) {
-		device = nullptr;
+		cable = nullptr;
 	}
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB) {
-		device = &upstreamUSBMIDICable1;
+		cable = &upstreamUSBMIDICable1;
 	}
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB2) {
-		device = &upstreamUSBMIDICable2;
+		cable = &upstreamUSBMIDICable2;
 	}
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
-		device = &upstreamUSBMIDICable3;
+		cable = &upstreamUSBMIDICable3;
 	}
 	else if (vendorId == VENDOR_ID_DIN) {
-		device = &dinMIDIPorts;
+		cable = &dinMIDIPorts;
 	}
 	else {
 		uint16_t productId = *(uint16_t const*)(memory + 2);
-		device = getOrCreateHostedMIDIDeviceFromDetails(nullptr, vendorId, productId);
+		cable = getOrCreateHostedMIDIDeviceFromDetails(nullptr, vendorId, productId);
 	}
 
-	midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].cable = device;
+	return cable;
+}
+
+void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory) {
+	midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].cable = readCableFromFlash(memory);
 }
 
 void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory) {
@@ -410,32 +413,7 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 }
 
 void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory) {
-
-	uint16_t vendorId = *(uint16_t const*)memory;
-
-	MIDICable* device;
-
-	if (vendorId == VENDOR_ID_NONE) {
-		device = nullptr;
-	}
-	else if (vendorId == VENDOR_ID_UPSTREAM_USB) {
-		device = &upstreamUSBMIDICable1;
-	}
-	else if (vendorId == VENDOR_ID_UPSTREAM_USB2) {
-		device = &upstreamUSBMIDICable2;
-	}
-	else if (vendorId == VENDOR_ID_UPSTREAM_USB3) {
-		device = &upstreamUSBMIDICable3;
-	}
-	else if (vendorId == VENDOR_ID_DIN) {
-		device = &dinMIDIPorts;
-	}
-	else {
-		uint16_t productId = *(uint16_t const*)(memory + 2);
-		device = getOrCreateHostedMIDIDeviceFromDetails(nullptr, vendorId, productId);
-	}
-
-	midiEngine.midiFollowChannelType[util::to_underlying(whichType)].cable = device;
+	midiEngine.midiFollowChannelType[util::to_underlying(whichType)].cable = readCableFromFlash(memory);
 }
 
 void writeMidiFollowDeviceReferenceToFlash(MIDIFollowChannelType whichType, uint8_t* memory) {
@@ -478,7 +456,7 @@ worthIt:
 		return;
 	}
 
-(??)	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
+	MIDICableUSBHosted* specificMIDIDevice = NULL;
 	Serializer& writer = GetSerializer();
 	writer.writeOpeningTagBeginning("midiDevices");
 	writer.writeFirmwareVersion();
@@ -577,7 +555,7 @@ void readDevicesFromFile() {
 }
 
 void readAHostedDeviceFromFile(Deserializer& reader) {
-(??)	MIDIDeviceUSBHosted* device = NULL;
+	MIDICableUSBHosted* device = nullptr;
 
 	String name;
 	uint16_t vendorId;
