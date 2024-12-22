@@ -51,17 +51,17 @@ ChordQuality getChordQuality(NoteSet& notes) {
 
 ChordList::ChordList()
     : chords{
-        kEmptyChord, kMajor,  kMinor,  k6,      k2,   k69,      kSus2,    kSus4,   k7,         k7Sus4,      k7Sus2,
-        kM7,         kMinor7, kMinor2, kMinor4, kDim, kFullDim, kAug,     kMinor6, kMinorMaj7, kMinor7b5,   kMinor9b5,
-        kMinor7b5b9, k9,      kM9,     kMinor9, k11,  kM11,     kMinor11, k13,     kM13,       kM13Sharp11, kMinor13,
-    } {
+          kEmptyChord, kMajor,  kMinor,  k6,      k2,   k69,      kSus2,    kSus4,   k7,         k7Sus4,      k7Sus2,
+          kM7,         kMinor7, kMinor2, kMinor4, kDim, kFullDim, kAug,     kMinor6, kMinorMaj7, kMinor7b5,   kMinor9b5,
+          kMinor7b5b9, k9,      kM9,     kMinor9, k11,  kM11,     kMinor11, k13,     kM13,       kM13Sharp11, kMinor13,
+      } {
 }
 
-Voicing ChordList::getChordVoicing(int32_t chordNo) {
+Voicing ChordList::getChordVoicing(int8_t chordNo) {
 	// Check if chord number is valid
 	chordNo = validateChordNo(chordNo);
 
-	int32_t voicingNo = voicingOffset[chordNo];
+	int8_t voicingNo = voicingOffset[chordNo];
 	bool valid;
 	if (voicingNo <= 0) {
 		return chords[chordNo].voicings[0];
@@ -91,28 +91,28 @@ Voicing ChordList::getChordVoicing(int32_t chordNo) {
 	return chords[chordNo].voicings[0];
 }
 
-void ChordList::adjustChordRowOffset(int32_t offset) {
+void ChordList::adjustChordRowOffset(int8_t offset) {
 	if (offset > 0) {
-		chordRowOffset = std::min<int32_t>(kOffScreenChords, chordRowOffset + offset);
+		chordRowOffset = std::min<int8_t>(kOffScreenChords, chordRowOffset + offset);
 	}
 	else {
-		chordRowOffset = std::max<int32_t>(0, chordRowOffset + offset);
+		chordRowOffset = std::max<int8_t>(0, chordRowOffset + offset);
 	}
 }
 
-void ChordList::adjustVoicingOffset(int32_t chordNo, int32_t offset) {
+void ChordList::adjustVoicingOffset(int8_t chordNo, int8_t offset) {
 	// Check if chord number is valid
 	chordNo = validateChordNo(chordNo);
 
 	if (offset > 0) {
-		voicingOffset[chordNo] = std::min<int32_t>(kUniqueVoicings - 1, voicingOffset[chordNo] + offset);
+		voicingOffset[chordNo] = std::min<int8_t>(kUniqueVoicings - 1, voicingOffset[chordNo] + offset);
 	}
 	else {
-		voicingOffset[chordNo] = std::max<int32_t>(0, voicingOffset[chordNo] + offset);
+		voicingOffset[chordNo] = std::max<int8_t>(0, voicingOffset[chordNo] + offset);
 	}
 }
 
-int32_t ChordList::validateChordNo(int32_t chordNo) {
+int8_t ChordList::validateChordNo(int8_t chordNo) {
 	if (chordNo < 0) {
 		D_PRINTLN("Chord number is negative, returning chord 0");
 		chordNo = 0;
