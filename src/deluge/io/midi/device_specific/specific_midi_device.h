@@ -24,9 +24,6 @@ enum class SpecificMidiDeviceType { NONE = 0, LUMI_KEYS = 1 };
 
 SpecificMidiDeviceType getSpecificMidiDeviceType(uint16_t vendorId, uint16_t productId);
 
-MIDICableUSBHosted* recastSpecificMidiDevice(void* sourceDevice);
-MIDICableUSBHosted* recastSpecificMidiDevice(MIDICableUSBHosted* sourceDevice);
-
 MIDICableUSBHosted* getSpecificDeviceFromMIDICable(MIDICable& sourceDevice);
 
 void iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook hook);

@@ -26,54 +26,13 @@ SpecificMidiDeviceType getSpecificMidiDeviceType(uint16_t vendorId, uint16_t pro
 	return SpecificMidiDeviceType::NONE;
 }
 
-MIDICableUSBHosted* recastSpecificMidiDevice(void* sourceDevice) {
-	return recastSpecificMidiDevice((MIDICableUSBHosted*)sourceDevice);
-}
-
-/// @brief Recasts a MIDIDeviceUSBHosted pointer to a specific child device and back, to take advantage of virtual
-/// functions
-/// @param sourceDevice The known MIDIDeviceUSBHosted
-/// @return A MIDIDeviceUSBHosted pointer, cast from Specific MIDI devices if found.
-MIDICableUSBHosted* recastSpecificMidiDevice(MIDICableUSBHosted* sourceDevice) {
-	if (MIDIDeviceLumiKeys::matchesVendorProduct(sourceDevice->vendorId, sourceDevice->productId)) {
-		MIDIDeviceLumiKeys* targetDevice = (MIDIDeviceLumiKeys*)sourceDevice;
-		return targetDevice;
-	}
-
-	MIDICableUSBHosted* targetDevice = sourceDevice;
-	return targetDevice;
-}
-
-/// @brief When a MIDIDevice is known, this locates the matching MIDIDeviceUSBHosted based on connectionFlags
-/// @param sourceDevice The known MIDIDevice
-/// @return A MIDIDeviceUSBHosted pointer, cast from Specific MIDI devices if found.
-MIDICableUSBHosted* getSpecificDeviceFromMIDICable(MIDICable& cable) {
-	using namespace MIDIDeviceManager;
-	// This depends on the MIDIDevice having been originally cast as something with a name
-	const char* sourceName = cable.getDisplayName();
-
-	if (cable.connectionFlags && sourceName) {
-		for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
-			MIDICableUSBHosted* candidate = recastSpecificMidiDevice(hostedMIDIDevices.getElement(i));
-
-			const char* candidateName = candidate->getDisplayName();
-
-			if (sourceName == candidateName && candidate->connectionFlags == cable.connectionFlags) {
-				return candidate;
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 /// @brief Space-saving function to call a specific Hosted USB MIDI device's hook from any entry point
 /// @param hook
 void iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook hook) {
 	using namespace MIDIDeviceManager;
 
 	for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
-		MIDICableUSBHosted* specificDevice = recastSpecificMidiDevice(hostedMIDIDevices.getElement(i));
+		auto* specificDevice = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
 
 		specificDevice->callHook(hook);
 	}

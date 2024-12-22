@@ -118,7 +118,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 
 		// If we'd already seen it before...
 		if (foundExact) {
-			MIDICableUSBHosted* device = recastSpecificMidiDevice(hostedMIDIDevices.getElement(i));
+			auto* device = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
 
 			// Update vendor and product id, if we have those
 			if (vendorId) {
@@ -132,7 +132,7 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 
 	// Ok, try searching by vendor / product id
 	for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
-		MIDICableUSBHosted* candidate = recastSpecificMidiDevice(hostedMIDIDevices.getElement(i));
+		auto* candidate = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
 
 		if (candidate->vendorId == vendorId && candidate->productId == productId) {
 			// Update its name - if we got one and it's different
@@ -451,7 +451,6 @@ void writeDevicesToFile() {
 		return;
 	}
 
-	MIDICableUSBHosted* specificMIDIDevice = NULL;
 	Serializer& writer = GetSerializer();
 	writer.writeOpeningTagBeginning("midiDevices");
 	writer.writeFirmwareVersion();
@@ -474,17 +473,12 @@ void writeDevicesToFile() {
 			device->writeToFile(writer, "hostedUSBDevice");
 		}
 		// Stow this for the hook  point later
-		specificMIDIDevice = recastSpecificMidiDevice(device);
+		device->hookOnWriteHostedDeviceToFile();
 	}
 
 	writer.writeClosingTag("midiDevices");
 
 	writer.closeFileAfterWriting();
-
-	// Hook point for Hosted USB MIDI Device
-	if (specificMIDIDevice != nullptr) {
-		specificMIDIDevice->hookOnWriteHostedDeviceToFile();
-	}
 }
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
