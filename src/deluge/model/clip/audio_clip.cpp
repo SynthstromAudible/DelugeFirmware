@@ -1007,8 +1007,8 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 	Sample* sample;
 	if (recorder) {
-		sample =
-		    ((recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize) ? nullptr : recorder->sample);
+		sample = ((recorder->status == RecorderStatus::ABORTED || recorder->reachedMaxFileSize) ? nullptr
+		                                                                                        : recorder->sample);
 	}
 	else {
 		sample = ((Sample*)sampleHolder.audioFile);

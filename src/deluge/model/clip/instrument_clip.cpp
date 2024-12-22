@@ -334,7 +334,8 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 
 			if (newLength > oldLengthHere) {
 				int32_t numRepeatsRounded = (uint32_t)(newLength + (oldLengthHere >> 1)) / (uint32_t)oldLengthHere;
-				thisNoteRow->generateRepeats(modelStackWithNoteRow, oldLengthHere, newLength, numRepeatsRounded, nullptr);
+				thisNoteRow->generateRepeats(modelStackWithNoteRow, oldLengthHere, newLength, numRepeatsRounded,
+				                             nullptr);
 			}
 
 			else {
@@ -365,8 +366,8 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 	loopLength = newLength;
 
 	Clip::lengthChanged(modelStack, oldLength,
-	                    nullptr); // Call this on Clip::, not us InstrumentClip, because we've done our own version above
-	                           // of what that call would do.
+	                    nullptr); // Call this on Clip::, not us InstrumentClip, because we've done our own version
+	                              // above of what that call would do.
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
 		resumePlayback(modelStack);
@@ -3038,7 +3039,7 @@ createNewParamManager:
 						goto someError;
 					}
 				}
-				reader.match('}');          // leave value object.
+				reader.match('}');             // leave value object.
 				reader.exitTag(nullptr, true); // leave box.
 			}
 			reader.match(']');

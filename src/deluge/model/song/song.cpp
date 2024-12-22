@@ -2288,7 +2288,7 @@ readClip:
 			clipArray->insertClipAtIndex(newClip, clipArray->getNumElements()); // We made sure enough space, above
 
 			reader.exitTag(nullptr, true); // exit value object
-			reader.match('}');          // exit box.
+			reader.match('}');             // exit box.
 		}
 		else if (!strcmp(tagName, "audioClip")) {
 			allocationSize = sizeof(AudioClip);
@@ -4719,8 +4719,8 @@ cantDoIt:
 					goto cantDoIt;
 				}
 
-			} while (
-			    currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr, nullptr, false));
+			} while (currentSong->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
+			                                                  nullptr, false));
 
 			oldNonAudioInstrument->setChannel(oldChannel); // Put it back, before switching notes off etc
 		}
@@ -5244,7 +5244,8 @@ lookAtNextOne:
 				if (deletedAnyElements) {
 					int32_t oldLength = clipInstance->length;
 					clipInstance->length = lengthGotUpTo;
-					arrangement.rowEdited(output, startPos + oldLength, startPos + lengthGotUpTo, nullptr, clipInstance);
+					arrangement.rowEdited(output, startPos + oldLength, startPos + lengthGotUpTo, nullptr,
+					                      clipInstance);
 				}
 			}
 

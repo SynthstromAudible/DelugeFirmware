@@ -328,7 +328,8 @@ moveAfterClipInstance:
 				newInstance->pos = proposedStartPos;
 				newInstance->clip = clip;
 				newInstance->length = clip->loopLength;
-				arrangement.rowEdited(output, proposedStartPos, proposedStartPos + clip->loopLength, nullptr, newInstance);
+				arrangement.rowEdited(output, proposedStartPos, proposedStartPos + clip->loopLength, nullptr,
+				                      newInstance);
 
 				int32_t howMuchLater = proposedStartPos - posPressed;
 

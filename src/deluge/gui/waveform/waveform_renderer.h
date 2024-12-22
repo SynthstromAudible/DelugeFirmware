@@ -40,8 +40,8 @@ public:
 
 	bool renderFullScreen(Sample* sample, uint64_t xScroll, uint64_t xZoom,
 	                      RGB thisImage[][kDisplayWidth + kSideBarWidth], WaveformRenderData* data,
-	                      SampleRecorder* recorder = nullptr, std::optional<RGB> rgb = std::nullopt, bool reversed = false,
-	                      int32_t xEnd = kDisplayWidth);
+	                      SampleRecorder* recorder = nullptr, std::optional<RGB> rgb = std::nullopt,
+	                      bool reversed = false, int32_t xEnd = kDisplayWidth);
 	bool renderAsSingleRow(Sample* sample, int64_t xScroll, uint64_t xZoom, RGB* thisImage, WaveformRenderData* data,
 	                       SampleRecorder* recorder, RGB rgb, bool reversed, int32_t xStart, int32_t xEnd);
 	void renderOneCol(Sample* sample, int32_t xDisplay, RGB thisImage[][kDisplayWidth + kSideBarWidth],

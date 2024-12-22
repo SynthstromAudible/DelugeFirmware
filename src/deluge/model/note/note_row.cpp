@@ -1426,7 +1426,7 @@ Error NoteRow::nudgeNotesAcrossAllScreens(int32_t editPos, ModelStackWithNoteRow
 				}
 			}
 
-			destNote = nullptr;     // We don't want to do anything further to this Note below like we normally would after
+			destNote = nullptr;  // We don't want to do anything further to this Note below like we normally would after
 			                     // copying a nudge one
 			numSourceNotes--;    // Don't copy the last one when we get to it - we've just done it
 			nextIndexToCopyTo++; // We've now copied our first destination note

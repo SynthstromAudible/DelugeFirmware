@@ -273,7 +273,7 @@ doReadDrum:
 					if (error != Error::NONE) {
 						return error;
 					}
-					reader.match('}');          // Exit value.
+					reader.match('}');             // Exit value.
 					reader.exitTag(nullptr, true); // Exit box.
 				}
 				else if (!strcmp(tagName, "midiOutput")) {
@@ -835,8 +835,8 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 
 				SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
-				ParamManager* paramManager =
-				    modelStack->song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)soundDrum, nullptr);
+				ParamManager* paramManager = modelStack->song->getBackedUpParamManagerPreferablyWithClip(
+				    (ModControllableAudio*)soundDrum, nullptr);
 				if (!paramManager) {
 					FREEZE_WITH_ERROR("E172");
 				}

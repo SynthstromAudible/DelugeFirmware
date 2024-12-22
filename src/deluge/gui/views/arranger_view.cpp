@@ -1609,8 +1609,8 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y
 			Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 
 			clipInstance->change(action, output, clipInstance->pos, newLength, clipInstance->clip);
-			arrangement.rowEdited(output, clipInstance->pos + oldLength, clipInstance->pos + clipInstance->length, nullptr,
-			                      clipInstance);
+			arrangement.rowEdited(output, clipInstance->pos + oldLength, clipInstance->pos + clipInstance->length,
+			                      nullptr, clipInstance);
 		}
 	}
 
@@ -2142,7 +2142,8 @@ itsInvalid:
 	}
 
 	if (clip) {
-		arrangement.rowEdited(newOutputToDragInto, clipInstance->pos, clipInstance->pos + length, nullptr, clipInstance);
+		arrangement.rowEdited(newOutputToDragInto, clipInstance->pos, clipInstance->pos + length, nullptr,
+		                      clipInstance);
 	}
 
 	pressedClipInstanceXScrollWhenLastInValidPosition = xScroll;
@@ -2516,7 +2517,8 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 		clipInstance->change(action, output, clipInstance->pos, newLength, newClip);
 		// notify the arrangement that this clip instance will be added
-		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr, clipInstance);
+		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr,
+		                      clipInstance);
 
 		interactWithClipInstance(output, yPressedEffective, clipInstance);
 

@@ -1320,8 +1320,9 @@ LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, 
 	bool shouldJustGrabLeftmost = false;
 
 doReadFiles:
-	toReturn.error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType),
-	                                                  searchNameLocalCopy.get(), nullptr, false, availabilityRequirement);
+	toReturn.error =
+	    readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), searchNameLocalCopy.get(),
+	                                     nullptr, false, availabilityRequirement);
 
 	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
 
@@ -1583,9 +1584,9 @@ doPendingPresetNavigation:
 	// TODO: This isn't true, it's an argument so that must have changed at some point. This logic will create a clone
 	// if anything other than unused is passed in
 	if (!toReturn.fileItem->instrument) {
-		toReturn.error =
-		    StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &toReturn.fileItem->instrument,
-		                                           &toReturn.fileItem->filePointer, &newName, &Browser::currentDir);
+		toReturn.error = StorageManager::loadInstrumentFromFile(
+		    currentSong, nullptr, outputType, false, &toReturn.fileItem->instrument, &toReturn.fileItem->filePointer,
+		    &newName, &Browser::currentDir);
 		if (toReturn.error != Error::NONE) {
 			goto emptyFileItemsAndReturn;
 		}

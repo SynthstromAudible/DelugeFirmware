@@ -39,8 +39,9 @@ inline int32_t Patcher::getSourceValue(PatchSource s) {
 void Patcher::recalculateFinalValueForParamWithNoCables(int32_t p, Sound* sound,
                                                         ParamManagerForTimeline* paramManager) {
 
-	int32_t cableCombination = (p < patchableInfo->firstHybridParam) ? combineCablesLinear(nullptr, p, sound, paramManager)
-	                                                                 : combineCablesExp(nullptr, p, sound, paramManager);
+	int32_t cableCombination = (p < patchableInfo->firstHybridParam)
+	                               ? combineCablesLinear(nullptr, p, sound, paramManager)
+	                               : combineCablesExp(nullptr, p, sound, paramManager);
 
 	int32_t finalValue;
 	int32_t paramNeutralValue = paramNeutralValues[p];

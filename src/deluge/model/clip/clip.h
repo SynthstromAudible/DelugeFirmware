@@ -81,7 +81,8 @@ public:
 	}
 	virtual void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                                       IndependentNoteRowLengthIncrease independentNoteRowInstruction,
-	                                       bool completelyRenderOutIterationDependence = false, Action* action = nullptr) {
+	                                       bool completelyRenderOutIterationDependence = false,
+	                                       Action* action = nullptr) {
 	} // This is not implemented for AudioClips - because in the cases where we call this, we don't want it to happen
 	  // for AudioClips
 	virtual void lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action = nullptr);

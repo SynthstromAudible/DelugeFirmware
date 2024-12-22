@@ -608,8 +608,8 @@ checkDevice:
 			}
 
 			if (device) {
-				device->ports[whichPort].readFromFile(reader,
-				                                      (whichPort == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) ? device : nullptr);
+				device->ports[whichPort].readFromFile(
+				    reader, (whichPort == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) ? device : nullptr);
 			}
 		}
 		else if (!strcmp(tagName, "output")) {

@@ -2217,7 +2217,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr, false)) {
+					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr,
+					                                                   false)) {
 						break;
 					}
 				}
@@ -2283,8 +2284,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 					}
 				}
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
-					                                                   nullptr, false)) {
+					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix,
+					                                                   nullptr, nullptr, false)) {
 						break;
 					}
 				}
@@ -2293,8 +2294,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			oldNonAudioInstrument->setChannel(oldChannel); // Put it back
 		}
 
-		newInstrument =
-		    modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr, nullptr, false);
+		newInstrument = modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, newChannelSuffix, nullptr,
+		                                                              nullptr, false);
 
 		shouldReplaceWholeInstrument = (oldInstrumentCanBeReplaced && !newInstrument);
 

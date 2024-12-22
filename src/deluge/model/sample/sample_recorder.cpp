@@ -650,7 +650,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 
 			audioFileManager.removeReasonFromCluster(*currentRecordCluster, "E047");
 		}
-		currentRecordClusterIndex++; // We've finished with that cluster
+		currentRecordClusterIndex++;    // We've finished with that cluster
 		currentRecordCluster = nullptr; // But currentRecordClusterIndex now refers to a cluster that'll never exist
 	}
 
@@ -837,8 +837,8 @@ Error SampleRecorder::createNextCluster() {
 	currentRecordClusterIndex++; // Mark record-cluster we were on as finished
 
 	currentRecordCluster = nullptr; // Note that we haven't yet created our next record-cluster - we'll do that below
-	                             // if no error first; and if there is an error and we don't create one, this has to
-	                             // remain NULL to indicate that we never created one
+	                                // if no error first; and if there is an error and we don't create one, this has to
+	                                // remain NULL to indicate that we never created one
 
 	// If this new cluster would actually put us past the 4GB limit...
 	if (currentRecordClusterIndex >= (1 << (MAX_FILE_SIZE_MAGNITUDE - Cluster::size_magnitude))) {

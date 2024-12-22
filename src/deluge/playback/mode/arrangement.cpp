@@ -537,7 +537,8 @@ Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32
 	// Add to Song
 	currentSong->arrangementOnlyClips.insertClipAtIndex(newClip, 0);
 
-	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip, nullptr);
+	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip,
+	          nullptr);
 
 	clipInstance->clip = newClip;
 	if (newLength != -1) {

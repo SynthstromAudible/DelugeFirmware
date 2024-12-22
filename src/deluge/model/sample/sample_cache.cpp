@@ -83,8 +83,8 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 	if (numExistentClusters != clusterIndex) {
 		FREEZE_WITH_ERROR("E295");
 	}
-	clusters[clusterIndex] = nullptr; // No need to remove this first Cluster from a queue or anything - that's already all
-	                               // done by the thing that's stealing it
+	clusters[clusterIndex] = nullptr; // No need to remove this first Cluster from a queue or anything - that's already
+	                                  // all done by the thing that's stealing it
 #endif
 }
 

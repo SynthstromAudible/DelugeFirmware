@@ -190,8 +190,8 @@ goAgainWithoutIncrement:
 		if (!ourDescriptor->isJustAParam()) {
 
 			// Find the range-adjust*ed* cable, whose range/depth we're adjusting.
-			int32_t destinationCableIndex =
-			    getPatchCableIndex(ourDescriptor->getBottomLevelSource(), ourDescriptor->getDestination(), nullptr, false);
+			int32_t destinationCableIndex = getPatchCableIndex(ourDescriptor->getBottomLevelSource(),
+			                                                   ourDescriptor->getDestination(), nullptr, false);
 
 			// If doesn't exist, make this range-adjust*ing* cable "unusable".
 			if (destinationCableIndex == 255) {
@@ -922,7 +922,7 @@ abandonThisCable:
 		}
 
 		reader.exitTag(nullptr, true); // exit outer patchCable element.
-		reader.match('}');          // leave box.
+		reader.match('}');             // leave box.
 	}
 	reader.match(']');
 

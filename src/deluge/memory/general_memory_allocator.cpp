@@ -87,7 +87,7 @@ void* GeneralMemoryAllocator::allocExternal(uint32_t requiredSize) {
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
-		             // could extend the stack an unspecified amount
+		                // could extend the stack an unspecified amount
 	}
 
 	lock = true;
@@ -111,7 +111,7 @@ void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam,
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in freeSomeStealableMemory(), which mostly would only be bad cos they
-		             // could extend the stack an unspecified amount
+		                // could extend the stack an unspecified amount
 	}
 
 	void* address = nullptr;
