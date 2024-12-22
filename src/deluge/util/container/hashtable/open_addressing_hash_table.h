@@ -50,23 +50,23 @@ public:
 class OpenAddressingHashTableWith32bitKey final : public OpenAddressingHashTable {
 public:
 	OpenAddressingHashTableWith32bitKey();
-	uint32_t getKeyFromAddress(void* address);
-	void setKeyAtAddress(uint32_t key, void* address);
-	bool doesKeyIndicateEmptyBucket(uint32_t key);
+	uint32_t getKeyFromAddress(void* address) override;
+	void setKeyAtAddress(uint32_t key, void* address) override;
+	bool doesKeyIndicateEmptyBucket(uint32_t key) override;
 };
 
 class OpenAddressingHashTableWith16bitKey final : public OpenAddressingHashTable {
 public:
 	OpenAddressingHashTableWith16bitKey();
-	uint32_t getKeyFromAddress(void* address);
-	void setKeyAtAddress(uint32_t key, void* address);
-	bool doesKeyIndicateEmptyBucket(uint32_t key);
+	uint32_t getKeyFromAddress(void* address) override;
+	void setKeyAtAddress(uint32_t key, void* address) override;
+	bool doesKeyIndicateEmptyBucket(uint32_t key) override;
 };
 
 class OpenAddressingHashTableWith8bitKey final : public OpenAddressingHashTable {
 public:
 	OpenAddressingHashTableWith8bitKey();
-	uint32_t getKeyFromAddress(void* address);
-	void setKeyAtAddress(uint32_t key, void* address);
-	bool doesKeyIndicateEmptyBucket(uint32_t key);
+	uint32_t getKeyFromAddress(void* address) override;
+	void setKeyAtAddress(uint32_t key, void* address) override;
+	bool doesKeyIndicateEmptyBucket(uint32_t key) override;
 };

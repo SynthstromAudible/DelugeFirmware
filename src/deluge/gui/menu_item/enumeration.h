@@ -17,7 +17,7 @@ public:
 	bool wrapAround();
 
 protected:
-	virtual void drawPixelsForOled() override = 0;
+	void drawPixelsForOled() override = 0;
 	void drawValue() override;
 };
 

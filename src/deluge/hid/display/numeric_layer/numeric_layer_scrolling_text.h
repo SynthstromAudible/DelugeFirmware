@@ -22,10 +22,10 @@
 class NumericLayerScrollingText final : public NumericLayer {
 public:
 	NumericLayerScrollingText(uint8_t fixedDot_);
-	virtual ~NumericLayerScrollingText();
-	void render(uint8_t* returnSegments);
-	bool callBack();
-	void isNowOnTop();
+	~NumericLayerScrollingText() override;
+	void render(uint8_t* returnSegments) override;
+	bool callBack() override;
+	void isNowOnTop() override;
 
 	uint8_t text[256];
 	uint16_t length;

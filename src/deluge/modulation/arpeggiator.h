@@ -257,26 +257,26 @@ class ArpeggiatorForDrum final : public ArpeggiatorBase {
 public:
 	ArpeggiatorForDrum();
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
-	            int32_t fromMIDIChannel, int16_t const* mpeValues);
+	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
 	void noteOff(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction);
-	void reset();
+	void reset() override;
 	ArpNote arpNote; // For the one note. noteCode will always be 60. velocity will be 0 if off.
 
 protected:
-	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);
-	bool hasAnyInputNotesActive();
+	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
+	bool hasAnyInputNotesActive() override;
 };
 
 class Arpeggiator final : public ArpeggiatorBase {
 public:
 	Arpeggiator();
 
-	void reset();
+	void reset() override;
 
 	void noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_t velocity, ArpReturnInstruction* instruction,
-	            int32_t fromMIDIChannel, int16_t const* mpeValues);
+	            int32_t fromMIDIChannel, int16_t const* mpeValues) override;
 	void noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp, ArpReturnInstruction* instruction);
-	bool hasAnyInputNotesActive();
+	bool hasAnyInputNotesActive() override;
 
 	// This array tracks the notes ordered by noteCode
 	OrderedResizeableArray notes;
@@ -284,5 +284,5 @@ public:
 	ResizeableArray notesAsPlayed;
 
 protected:
-	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet);
+	void switchNoteOn(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction, bool isRatchet) override;
 };

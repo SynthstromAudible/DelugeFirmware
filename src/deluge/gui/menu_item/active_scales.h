@@ -14,12 +14,12 @@ class ActiveScaleMenu : public MenuItem {
 public:
 	enum Kind { SONG, DEFAULT };
 	ActiveScaleMenu(deluge::l10n::String newName, Kind kind_) : MenuItem(newName), currentPos(0), kind(kind_) {}
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final override;
-	void drawPixelsForOled() final override;
-	void readValueAgain() final override;
-	void selectEncoderAction(int32_t offset) final override;
-	MenuItem* selectButtonPress() final override;
-	void drawName() final override;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final;
+	void drawPixelsForOled() final;
+	void readValueAgain() final;
+	void selectEncoderAction(int32_t offset) final;
+	MenuItem* selectButtonPress() final;
+	void drawName() final;
 
 private:
 	void drawSubmenuItemsForOled(std::span<uint8_t> scales, const uint8_t selected);

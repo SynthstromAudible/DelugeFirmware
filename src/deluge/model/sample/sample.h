@@ -51,7 +51,7 @@ class SampleHolder;
 class Sample final : public AudioFile {
 public:
 	Sample();
-	~Sample();
+	~Sample() override;
 
 	void workOutBitMask();
 	Error initialize(int32_t numClusters);
@@ -161,7 +161,7 @@ public:
 
 protected:
 #if ALPHA_OR_BETA_VERSION
-	void numReasonsDecreasedToZero(char const* errorCode);
+	void numReasonsDecreasedToZero(char const* errorCode) override;
 #endif
 
 private:

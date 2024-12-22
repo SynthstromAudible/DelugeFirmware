@@ -52,10 +52,10 @@ enum class RangeEdit : uint8_t;
 class SoundEditor final : public UI {
 public:
 	SoundEditor();
-	bool opened();
-	void focusRegained();
+	bool opened() override;
+	void focusRegained() override;
 	void displayOrLanguageChanged() final;
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	Sound* currentSound;
 	ModControllableAudio* currentModControllable;
 	int8_t currentSourceIndex;
@@ -70,13 +70,13 @@ public:
 	MIDICable* currentMIDICable;
 	deluge::gui::menu_item::RangeEdit editingRangeEdge;
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
-	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
-	ActionResult horizontalEncoderAction(int32_t offset);
-	void scrollFinished();
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
+	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
+	ActionResult horizontalEncoderAction(int32_t offset) override;
+	void scrollFinished() override;
 	bool editingKit();
 
 	ActionResult timerCallback() override;
@@ -108,8 +108,8 @@ public:
 	bool programChangeReceived(MIDICable& cable, uint8_t channel, uint8_t program) { return false; }
 	bool midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value);
 	bool pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2);
-	void selectEncoderAction(int8_t offset);
-	bool canSeeViewUnderneath() { return true; }
+	void selectEncoderAction(int8_t offset) override;
+	bool canSeeViewUnderneath() override { return true; }
 	bool setup(Clip* clip = NULL, const MenuItem* item = NULL, int32_t sourceIndex = 0);
 	void enterOrUpdateSoundEditor(bool on);
 	void blinkShortcut();
@@ -142,11 +142,11 @@ public:
 	AudioFileHolder* getCurrentAudioFileHolder();
 	void mpeZonesPotentiallyUpdated();
 
-	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas);
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
 	// ui
-	UIType getUIType() { return UIType::SOUND_EDITOR; }
-	const char* getName() { return "sound_editor"; }
+	UIType getUIType() override { return UIType::SOUND_EDITOR; }
+	const char* getName() override { return "sound_editor"; }
 
 	bool selectedNoteRow;
 
