@@ -34,6 +34,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
+#include "task_scheduler.h"
 #include "util/functions.h"
 #include <cstring>
 #include <new>
@@ -131,7 +132,8 @@ void Browser::emptyFileItems() {
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
 			AudioEngine::logAction("emptyFileItems in loop");
-			AudioEngine::routineWithClusterLoading();
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 	}
 
@@ -151,7 +153,8 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 
 		i++;
 		if (!(i & 63)) { //  &127 was even fine, even with only -Og compiler optimization.
-			AudioEngine::routineWithClusterLoading();
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 	}
 

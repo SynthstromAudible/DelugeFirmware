@@ -83,6 +83,7 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "task_scheduler.h"
 
 namespace params = deluge::modulation::params;
 namespace encoders = deluge::hid::encoders;
@@ -2408,7 +2409,8 @@ getOut:
 		}
 
 		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 			instrumentClipView.recalculateColours();
 		}
 

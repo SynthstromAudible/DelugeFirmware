@@ -48,6 +48,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "task_scheduler.h"
 #include "util/firmware_version.h"
 #include <cmath>
 #include <new>
@@ -1450,7 +1451,8 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!(i & 15)) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 			AudioEngine::logAction("renderAsSingleRow still");
 		}
 
@@ -1691,7 +1693,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	Instrument* oldInstrument = (Instrument*)output;
 	int32_t oldYScroll = yScroll;
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 
 	AudioEngine::audioRoutineLocked = true;
 
@@ -1752,7 +1755,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	AudioEngine::audioRoutineLocked = false;
 	AudioEngine::bypassCulling = true;
 	AudioEngine::logAction("bypassing culling in change instrument");
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 
 	// If now a Kit, match NoteRows back up to Drums
 	if (newInstrument->type == OutputType::KIT) {
@@ -1786,8 +1790,9 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 				}
 			}
 
-			// TODO: we surely don't need to call this every time through
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Rohan TODO: we surely don't need to call this every time through
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 
 		int32_t numNoteRowsDeletedFromBottom = (oldInstrument->type == OutputType::KIT) ? oldYScroll - yScroll : 0;

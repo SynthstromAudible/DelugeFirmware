@@ -37,6 +37,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
+#include "task_scheduler.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/try.h"
@@ -1180,7 +1181,8 @@ void XMLDeserializer::xmlReadDone() {
 	xmlReadCount++; // Increment first, cos we don't want to call SD routine immediately when it's 0
 
 	if (!(xmlReadCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
-		AudioEngine::routineWithClusterLoading();
+		// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 
 		uiTimerManager.routine();
 

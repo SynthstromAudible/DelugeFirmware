@@ -75,6 +75,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
+#include "task_scheduler.h"
 #include "util/d_string.h"
 #include "util/functions.h"
 #include <cstdint>
@@ -2548,7 +2549,8 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 	view.setActiveModControllableTimelineCounter(output->getActiveClip());
 
-	AudioEngine::routineWithClusterLoading();
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 
 	beginAudition(output);
 }

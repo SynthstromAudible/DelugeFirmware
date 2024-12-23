@@ -57,6 +57,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/storage_manager.h"
+#include "task_scheduler.h"
 #include "util/lookuptables/lookuptables.h"
 #include <cstring>
 #include <new>
@@ -3754,7 +3755,8 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
 		if (backedUp->clip == clip) {
 
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 
 			// We ideally want to just set the Clip to NULL. We can just do this if the previous element didn't have
 			// the same ModControllable
@@ -3820,7 +3822,8 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 	// Test that everything's still in order
 
 #if ALPHA_OR_BETA_VERSION
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 
 	Clip* lastClip;
 	ModControllableAudio* lastModControllable;
@@ -4323,7 +4326,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 			continue;
 		}
 
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 
 		// If has Clip, that's fine
 		if (getClipWithOutput(thisOutput)) {}
@@ -4343,7 +4347,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 			continue;
 		}
 
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {

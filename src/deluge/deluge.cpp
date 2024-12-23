@@ -1040,7 +1040,8 @@ extern "C" void setNumericNumber(int32_t number) {
 }
 
 extern "C" void routineWithClusterLoading() {
-	AudioEngine::routineWithClusterLoading(false);
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 }
 
 void deleteOldSongBeforeLoadingNew() {

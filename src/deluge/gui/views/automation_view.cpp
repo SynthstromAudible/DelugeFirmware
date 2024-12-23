@@ -87,6 +87,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
+#include "task_scheduler.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
 #include <new>
@@ -546,7 +547,8 @@ void AutomationView::openedInBackground() {
 
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 	AudioEngine::logAction("AutomationView::beginSession 2");
 
 	if (renderingToStore) {

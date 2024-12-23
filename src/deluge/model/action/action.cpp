@@ -36,6 +36,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
+#include "task_scheduler.h"
 #include "util/functions.h"
 #include <cstdint>
 #include <new>
@@ -66,7 +67,8 @@ void Action::prepareForDestruction(int32_t whichQueueActionIn, Song* song) {
 void Action::deleteAllConsequences(int32_t whichQueueActionIn, Song* song, bool destructing) {
 	Consequence* currentConsequence = firstConsequence;
 	while (currentConsequence) {
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 		Consequence* toDelete = currentConsequence;
 		currentConsequence = currentConsequence->next;
 		toDelete->prepareForDestruction(whichQueueActionIn, song);
