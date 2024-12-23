@@ -2463,7 +2463,8 @@ getOut:
 		}
 
 		if (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 			instrumentClipView.recalculateColours();
 		}
 

@@ -1464,7 +1464,8 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!(i & 15)) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 			AudioEngine::logAction("renderAsSingleRow still");
 		}
 
@@ -1705,7 +1706,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	Instrument* oldInstrument = (Instrument*)output;
 	int32_t oldYScroll = yScroll;
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 
 	AudioEngine::audioRoutineLocked = true;
 
@@ -1766,7 +1768,8 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	AudioEngine::audioRoutineLocked = false;
 	AudioEngine::bypassCulling = true;
 	AudioEngine::logAction("bypassing culling in change instrument");
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 
 	// If now a Kit, match NoteRows back up to Drums
 	if (newInstrument->type == OutputType::KIT) {
@@ -1800,8 +1803,9 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 				}
 			}
 
-			// TODO: we surely don't need to call this every time through
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Rohan TODO: we surely don't need to call routineWithClusterLoading every time through
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 
 		int32_t numNoteRowsDeletedFromBottom = (oldInstrument->type == OutputType::KIT) ? oldYScroll - yScroll : 0;
@@ -2131,7 +2135,8 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 				thisNoteRow->rememberDrumName();
 			}
 			AudioEngine::logAction("InstrumentClip::unassignAllNoteRowsFromDrums");
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 
 			// If we're retaining links to Sounds, like if we're undo-ably "deleting" a Clip, just backup (and remove
 			// link to) the paramManager
@@ -3452,7 +3457,8 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 
 				noteRows.deleteNoteRowAtIndex(i);
 
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+				yield([]() { return true; });
 			}
 			else {
 				i++;
@@ -4113,7 +4119,8 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
 
 			if (!(noteRowCount & 15)) {
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+				yield([]() { return true; });
 				AudioEngine::logAction("nlkr");
 			}
 

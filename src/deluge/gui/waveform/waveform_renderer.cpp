@@ -555,7 +555,7 @@ cantReadData:
 			if (nextCluster != nullptr) {
 				audioFileManager.removeReasonFromCluster(*nextCluster, "9700");
 			}
-			// just yield to run a single thing (probably audio)
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
 			yield([]() { return true; });
 		}
 	}

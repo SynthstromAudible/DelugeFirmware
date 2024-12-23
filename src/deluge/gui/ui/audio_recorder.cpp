@@ -189,7 +189,8 @@ void AudioRecorder::slowRoutine() {
 void AudioRecorder::process() {
 	while (true) {
 
-		AudioEngine::routineWithClusterLoading();
+		// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 
 		uiTimerManager.routine();
 

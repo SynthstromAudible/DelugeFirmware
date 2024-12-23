@@ -18,6 +18,7 @@
 #include "model/note/note_row_vector.h"
 #include "model/note/note_row.h"
 #include "processing/engines/audio_engine.h"
+#include "scheduler_api.h"
 #include <new>
 
 NoteRowVector::NoteRowVector() : OrderedResizeableArray(sizeof(NoteRow), 16, 0, 16, 7) {
@@ -25,7 +26,8 @@ NoteRowVector::NoteRowVector() : OrderedResizeableArray(sizeof(NoteRow), 16, 0, 
 
 NoteRowVector::~NoteRowVector() {
 	for (int32_t i = 0; i < numElements; i++) {
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 
 		getElement(i)->~NoteRow();
 	}

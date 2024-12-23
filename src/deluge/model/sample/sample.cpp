@@ -25,6 +25,7 @@
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_perc_cache_zone.h"
 #include "processing/engines/audio_engine.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
@@ -1375,7 +1376,8 @@ continueWhileLoop:
 		for (int32_t i = 0; i < (1 << lengthDoublingsNow); i++) {
 
 			if (!(count & 255)) {
-				AudioEngine::routineWithClusterLoading(); // --------------------------------------
+				// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+				yield([]() { return true; });
 			}
 			count++;
 
@@ -1475,7 +1477,8 @@ doneReading:
 		writeIndex++;
 	}
 
-	AudioEngine::routineWithClusterLoading(); // --------------------------------------------------
+	// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 
 	/*
 	D_PRINTLN("doing fft ---------------- %d", PITCH_DETECT_WINDOW_SIZE_MAGNITUDE);
@@ -1494,14 +1497,16 @@ doneReading:
 	*/
 	AudioEngine::logAction("bypassing culling in pitch detection");
 	AudioEngine::bypassCulling = true;
-	AudioEngine::routineWithClusterLoading();
+	// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 
 	// Go through complex-number FFT result, converting to positive (pythagorassed) heights
 	int32_t biggestValue = 0;
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
 		if (!(i & 1023)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 
 		int32_t thisValue = fastPythag(fftOutput[i].r, fftOutput[i].i);
@@ -1537,7 +1542,8 @@ doneReading:
 	for (int32_t i = 0; i < (kPitchDetectWindowSize >> 1); i++) {
 
 		if (!(i & 255)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 
 		int32_t thisValue = fftHeights[i];
@@ -1597,8 +1603,9 @@ doneReading:
 		// We're at a peak!
 
 		if (!(peakCount & 7)) {
-			AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 15 works. 7 is extra
-			                                          // safe
+			// Rohan: 15 works. 7 is extra safe
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 		peakCount++;
 

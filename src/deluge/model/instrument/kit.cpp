@@ -55,7 +55,8 @@ Kit::~Kit() {
 	// Delete all Drums
 	while (firstDrum) {
 		AudioEngine::logAction("~Kit");
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 		Drum* toDelete = firstDrum;
 		firstDrum = firstDrum->next;
 
@@ -772,7 +773,8 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 		if (thisDrum->type == DrumType::SOUND) {
 
 			if (!(count & 7)) {
-				AudioEngine::routineWithClusterLoading(); // -----------------------------------
+				// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+				yield([]() { return true; });
 			}
 			count++;
 
@@ -804,7 +806,8 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
-					AudioEngine::routineWithClusterLoading(); // -----------------------------------
+					// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+					yield([]() { return true; });
 				}
 				count++;
 
@@ -829,7 +832,8 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 			if (thisDrum->type == DrumType::SOUND) {
 
 				if (!(count & 7)) {
-					AudioEngine::routineWithClusterLoading(); // -----------------------------------
+					// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+					yield([]() { return true; });
 				}
 				count++;
 
@@ -877,9 +881,10 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 					if (thisNoteRow->drum->type == DrumType::SOUND) {
 
 						if (!(count & 7)) {
-							AudioEngine::routineWithClusterLoading(); // ----------------------------------- I guess
-							                                          // very often this wouldn't work cos the audio
-							                                          // routine would be locked
+							// Rohan: I guess very often this wouldn't work cos the audio routine would be locked
+							// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably
+							// audio)
+							yield([]() { return true; });
 						}
 						count++;
 
@@ -938,7 +943,8 @@ void Kit::deleteBackedUpParamManagers(Song* song) {
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 			song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
 		}
 	}

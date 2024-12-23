@@ -536,7 +536,8 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 		// Bit sneaky - we want to call the audio routine one last time, but need it to think that playback's not
 		// happening so it doesn't do the first tick yet
 		playbackState = 0;
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 		playbackState = newPlaybackState;
 	}
 

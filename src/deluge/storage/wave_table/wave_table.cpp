@@ -26,6 +26,7 @@
 #include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_wave.h"
+#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
@@ -255,8 +256,9 @@ gotError2:
 	numCyclesMagnitude = getMagnitude(numCycles);
 
 	AudioEngine::logAction("just started wavetable");
-	AudioEngine::routineWithClusterLoading(); // TODO: the routine calls in this function might be more than needed - I
-	                                          // didn't profile very closely.
+	// Rohan TODO: the routine calls in this function might be more than needed - I didn't profile very closely.
+	// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 	AudioEngine::logAction("about to set up bands");
 
 	for (int32_t b = 0; b < bands.getNumElements(); b++) {
@@ -294,7 +296,8 @@ gotError2:
 	}
 
 	AudioEngine::logAction("bands set up");
-	AudioEngine::routineWithClusterLoading();
+	// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 	AudioEngine::logAction("allocating working memory");
 
 	// Create the temporary memory where we'll store the 32-bit int32_t version of the current cycle being read, to
@@ -330,7 +333,8 @@ gotError5:
 	}
 
 	AudioEngine::logAction("working memory allocated");
-	AudioEngine::routineWithClusterLoading();
+	// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 	AudioEngine::logAction("finalizing vars");
 
 	WaveTableBand* initialBand = (WaveTableBand*)bands.getElementAddress(0);
@@ -369,7 +373,8 @@ gotError5:
 	for (int32_t cycleIndex = 0; cycleIndex < numCycles; cycleIndex++) {
 
 		AudioEngine::logAction("new cycle began");
-		AudioEngine::routineWithClusterLoading();
+		// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 		AudioEngine::logAction("new cycle beginning");
 
 		int16_t* nativeBandCycleStartPos =
@@ -525,7 +530,8 @@ gotError5:
 		} while (sourceBytesLeftToCopyThisCycle > 0);
 
 		AudioEngine::logAction("cycle been read");
-		AudioEngine::routineWithClusterLoading();
+		// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 		AudioEngine::logAction("analyzing cycle");
 
 		// Ok, we've finished reading one wave cycle (which potentially spanned multiple file clusters).
@@ -580,7 +586,8 @@ gotError5:
 		}
 
 		AudioEngine::logAction("got freq domain data");
-		AudioEngine::routineWithClusterLoading();
+		// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 		AudioEngine::logAction("scanning freq data");
 
 		int32_t biggestValue = 0;
@@ -705,7 +712,8 @@ transformBandToTimeDomain:
 			}
 
 			AudioEngine::logAction("started band");
-			AudioEngine::routineWithClusterLoading();
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 			AudioEngine::logAction("doing FFT to time domain");
 
 			// Do the FFT, putting the output, time-domain data back in the temp currentCycleInt32 buffer.
@@ -731,7 +739,8 @@ transformBandToTimeDomain:
 	}
 
 	AudioEngine::logAction("finished all cycles");
-	AudioEngine::routineWithClusterLoading();
+	// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 	AudioEngine::logAction("finalizing wavetable");
 
 	D_PRINTLN("initial num bands:  %d", bands.getNumElements());

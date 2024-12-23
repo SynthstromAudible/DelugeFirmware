@@ -825,7 +825,8 @@ void FileReader::readDone() {
 	if (!callRoutines)
 		return;
 	if (!(readCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
-		AudioEngine::routineWithClusterLoading();
+		// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 
 		uiTimerManager.routine();
 

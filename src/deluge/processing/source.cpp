@@ -55,7 +55,8 @@ Source::~Source() {
 void Source::destructAllMultiRanges() {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("destructAllMultiRanges()");
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 		ranges.getElement(e)->~MultiRange();
 	}
 }
@@ -96,8 +97,8 @@ bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
 void Source::detachAllAudioFiles() {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		if (!(e & 7)) {
-			AudioEngine::routineWithClusterLoading(); // --------------------------------------- // 7 works, 15
-			                                          // occasionally drops voices - for multisampled synths
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(NULL);
 	}
@@ -107,8 +108,8 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 	for (int32_t e = 0; e < ranges.getNumElements(); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
 		if (!(e & 3)) {
-			AudioEngine::routineWithClusterLoading(); // -------------------------------------- // 3 works, 7
-			                                          // occasionally drops voices - for multisampled synths
+			// Sean: replace, routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 		}
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
 			return Error::ABORTED_BY_USER;
