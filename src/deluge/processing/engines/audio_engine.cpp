@@ -382,6 +382,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	routineBeenCalled = false;
 	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
 	if (!routineBeenCalled) {
+		bypassCulling = true; // yolo?
 		logAction("from routineWithClusterLoading()");
 		routine(); // -----------------------------------
 	}
