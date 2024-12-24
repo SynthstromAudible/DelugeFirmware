@@ -31,7 +31,9 @@ struct KeyboardStateIsomorphic {
 
 struct KeyboardStateDrums {
 	int32_t scrollOffset = 0;
-	int32_t edgeSize = 4;
+	int32_t edgeSizeX = 4;
+	int32_t edgeSizeY = 4;
+	int32_t zoomLevel = 9;
 };
 
 constexpr int32_t kDefaultInKeyRowInterval = 3;
