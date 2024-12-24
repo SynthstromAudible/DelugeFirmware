@@ -21,8 +21,6 @@
 
 namespace deluge::gui::ui::keyboard::layout {
 
-// constexpr int32_t kMinDrumPadEdgeSize = 1;
-// constexpr int32_t kMaxDrumPadEdgeSize = 8;
 constexpr int32_t kMinZoomLevel = 1;
 constexpr int32_t kMaxZoomLevel = 12;
 
@@ -60,27 +58,26 @@ public:
 	bool supportsKit() override { return true; }
 
 private:
-	inline uint8_t noteFromCoords(int32_t x, int32_t y) {
-		uint8_t edgeSizeX = (uint32_t)getState().drums.edgeSizeX;
-		uint8_t edgeSizeY = (uint32_t)getState().drums.edgeSizeY;
-		uint8_t zoomLevel = (uint32_t)getState().drums.zoomLevel;
-		// uint8_t padsPerRow = std::floor(kDisplayWidth / edgeSizeX);
+	inline uint8_t noteFromCoords(int32_t x, int32_t y, uint8_t edgeSizeX, uint8_t edgeSizeY) {
 		uint8_t padsPerRow = kDisplayWidth / edgeSizeX;
-		// uint8_t padsPerCol = kDisplayHeight / edgeSizeY;
 		return (x / edgeSizeX) + ((y / edgeSizeY) * padsPerRow) + getState().drums.scrollOffset;
 	}
 
-	inline uint8_t intensityFromCoords(int32_t x, int32_t y) {
-		uint8_t edgeSizeX = getState().drums.edgeSizeX;
-		uint8_t edgeSizeY = getState().drums.edgeSizeY;
+	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint8_t edgeSizeX, uint8_t edgeSizeY) {
 		uint8_t localX = (x % edgeSizeX);
 		uint8_t localY = (y % edgeSizeY);
 		uint8_t position = localX + (localY * edgeSizeX) + 1;
 
-		// We use two bytes to increase accuracy and shift it down to one byte later
-		uint32_t stepSize = 0xFFFF / (edgeSizeX * edgeSizeY);
-
-		return (position * stepSize) >> 8;
+		uint8_t zoomLevel = getState().drums.zoomLevel;
+		if(zoomLevel == 1){
+			// No need to use max velocity for the only option.
+			return FlashStorage::defaultVelocity;
+		}
+		else{
+			// We use two bytes to keep the precision of the calculations high, then shift it down to one byte at the end
+			uint32_t stepSize = 0xFFFF / (edgeSizeX * edgeSizeY);
+			return (position * stepSize) >> 8;
+		}
 	}
 
 	RGB noteColours[kDisplayHeight * kDisplayWidth];
