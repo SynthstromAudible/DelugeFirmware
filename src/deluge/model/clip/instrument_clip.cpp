@@ -50,6 +50,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
+#include "util/try.h"
 #include <cmath>
 #include <new>
 #include <ranges>
@@ -3962,42 +3963,42 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 	// Synth / Kit
 	else {
 		String newName;
-		ReturnOfConfirmPresetOrNextUnlaunchedOne result;
+		Error error;
 
 		newName.set(&backedUpInstrumentName[newOutputTypeAsIdx]);
 		Browser::currentDir.set(&backedUpInstrumentDirPath[newOutputTypeAsIdx]);
 
 		if (Browser::currentDir.isEmpty()) {
-			result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-			if (result.error != Error::NONE) {
-				display->displayError(result.error);
+			error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
+			if (error != Error::NONE) {
+				display->displayError(error);
 				return nullptr;
 			}
 		}
 
-		result =
-		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newOutputType, &newName, availabilityRequirement);
-		if (result.error != Error::NONE) {
-			display->displayError(result.error);
-			return nullptr;
-		}
+		FileItem* fileItem = D_TRY_CATCH(
+		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newOutputType, &newName, availabilityRequirement),
+		    error, {
+			    display->displayError(error);
+			    return nullptr;
+		    });
 
-		newInstrument = result.fileItem->instrument;
-		bool isHibernating = newInstrument && !result.fileItem->instrumentAlreadyInSong;
-		instrumentAlreadyInSong = newInstrument && result.fileItem->instrumentAlreadyInSong;
+		newInstrument = fileItem->instrument;
+		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
+		instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
 
 		if (!newInstrument) {
 			String newPresetName;
-			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = StorageManager::loadInstrumentFromFile(modelStack->song, NULL, newOutputType, false,
-			                                                      &newInstrument, &result.fileItem->filePointer,
-			                                                      &newPresetName, &Browser::currentDir);
+			fileItem->getDisplayNameWithoutExtension(&newPresetName);
+			error =
+			    StorageManager::loadInstrumentFromFile(modelStack->song, NULL, newOutputType, false, &newInstrument,
+			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 		}
 
 		Browser::emptyFileItems();
 
-		if (result.error != Error::NONE) {
-			display->displayError(result.error);
+		if (error != Error::NONE) {
+			display->displayError(error);
 			return nullptr;
 		}
 
