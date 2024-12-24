@@ -29,6 +29,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include <cstdint>
 #include <cstring>
 #include <ranges>
 
@@ -506,7 +507,7 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(toModControllable(), getParamManager(modelStack->song));
 
-	for (auto [note, noteInfo] : notesAuditioned | std::views::values) {
+	for (int16_t note : notesAuditioned | std::views::keys) {
 		sendNote(modelStackWithThreeMainThings, false, note, NULL);
 	}
 
