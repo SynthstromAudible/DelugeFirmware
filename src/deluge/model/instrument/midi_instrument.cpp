@@ -1238,7 +1238,7 @@ void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity,
 }
 
 std::string_view MIDIInstrument::getNameFromCC(int32_t cc) {
-	if (cc >= 0 && cc < kNumRealCCNumbers) {
+	if (cc < 0 || cc >= kNumRealCCNumbers) {
 		// out of range
 		return std::string_view{};
 	}
