@@ -1647,10 +1647,10 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 			bool appendedName = false;
 
 			if (clip->lastSelectedParamID >= 0 && clip->lastSelectedParamID < kNumRealCCNumbers) {
-				String* name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
+				std::string_view name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
 				// if we have a name for this midi cc set by the user, display that instead of the cc number
-				if (name && !name->isEmpty()) {
-					parameterName.append(name->get());
+				if (!name.empty()) {
+					parameterName.append(name.data());
 					appendedName = true;
 				}
 			}
