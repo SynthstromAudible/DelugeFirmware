@@ -52,6 +52,7 @@
 #include "util/firmware_version.h"
 #include <cmath>
 #include <new>
+#include <ranges>
 
 namespace params = deluge::modulation::params;
 
@@ -491,24 +492,23 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 
 	else {
 		MelodicInstrument* melodicInstrument = (MelodicInstrument*)output;
-		if (melodicInstrument->earlyNotes.getNumElements()) {
+		if (!melodicInstrument->earlyNotes.empty()) {
 
 			Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 			bool scaleAltered = false;
 
-			for (int32_t i = 0; i < melodicInstrument->earlyNotes.getNumElements(); i++) {
-				EarlyNote* basicNote = (EarlyNote*)melodicInstrument->earlyNotes.getElementAddress(i);
+			for (auto [note, noteInfo] : melodicInstrument->earlyNotes) {
+				const auto [velocity, stillActive] = noteInfo;
 
 				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getOrCreateNoteRowForYNote(basicNote->note, modelStack, action, &scaleAltered);
+				    getOrCreateNoteRowForYNote(note, modelStack, action, &scaleAltered);
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
 					int32_t probability = noteRow->getDefaultProbability();
 					Iterance iterance = noteRow->getDefaultIterance();
 					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
-					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, probability, iterance, fill,
-					                        modelStackWithNoteRow, action);
-					if (!basicNote->stillActive) {
+					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action);
+					if (!stillActive) {
 						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
 						// note-ons until at least tick 1 to avoid double-playing that note
 						noteRow->ignoreNoteOnsBefore_ = 1;
@@ -522,7 +522,7 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 			}
 		}
 
-		melodicInstrument->earlyNotes.empty();
+		melodicInstrument->earlyNotes.clear();
 	}
 
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
@@ -4879,7 +4879,7 @@ void InstrumentClip::yDisplayNoLongerAuditioning(int32_t yDisplay, Song* song) {
 
 	else {
 		int32_t yNote = getYNoteFromYDisplay(yDisplay, song);
-		((MelodicInstrument*)output)->notesAuditioned.deleteAtKey(yNote);
+		((MelodicInstrument*)output)->notesAuditioned.erase(yNote);
 	}
 
 	expectEvent();
