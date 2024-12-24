@@ -3470,9 +3470,10 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 					// NoteRow is allowed to be NULL in this case.
 					int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
 					((MelodicInstrument*)output)
-					    ->earlyNotes.insertElementIfNonePresent(
-					        yNote, ((Instrument*)output)->defaultVelocity,
-					        clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+					    ->earlyNotes.emplace(yNote, MelodicInstrument::EarlyNoteInfo{
+					                                    ((Instrument*)output)->defaultVelocity,
+					                                    clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
+					                                });
 				}
 			}
 

@@ -20,7 +20,7 @@
 #include "io/midi/learned_midi.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
-#include "util/container/array/early_note_array.h"
+#include "util/containers.h"
 
 class PostArpTriggerable;
 class NoteRow;
@@ -29,7 +29,7 @@ class ModelStackWithThreeMainThings;
 
 class MelodicInstrument : public Instrument {
 public:
-	explicit MelodicInstrument(OutputType newType) : Instrument(newType), earlyNotes(), notesAuditioned() {}
+	explicit MelodicInstrument(OutputType newType) : Instrument(newType) {}
 
 	// Check activeClip before you call!
 	// mpeValues must be provided for a note-on (can be 0s). Otherwise, can be NULL pointer
@@ -87,8 +87,13 @@ public:
 
 	Arpeggiator arpeggiator;
 
-	EarlyNoteArray earlyNotes;
-	EarlyNoteArray notesAuditioned;
+	struct EarlyNoteInfo {
+		uint8_t velocity;
+		bool stillActive = false;
+	};
+
+	deluge::fast_map<int16_t, EarlyNoteInfo> earlyNotes; // note value, velocity, still_active
+	deluge::fast_map<int16_t, EarlyNoteInfo> notesAuditioned;
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

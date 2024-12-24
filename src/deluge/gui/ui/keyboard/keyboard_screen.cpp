@@ -33,6 +33,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -330,9 +331,10 @@ void KeyboardScreen::updateActiveNotes() {
 			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) { // It definitely will be auditioning if we're here
 				ModelStackWithNoteRow* modelStackWithNoteRow = modelStackWithTimelineCounter->addNoteRow(0, NULL);
 				((MelodicInstrument*)activeInstrument)
-				    ->earlyNotes.insertElementIfNonePresent(
-				        newNote, currentNotesState.notes[idx].velocity,
-				        getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRow));
+				    ->earlyNotes.emplace(newNote,
+				                         MelodicInstrument::EarlyNoteInfo{
+				                             static_cast<uint8_t>(currentNotesState.notes[idx].velocity),
+				                             getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRow)});
 			}
 
 			else {

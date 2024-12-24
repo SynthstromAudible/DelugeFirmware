@@ -4663,9 +4663,11 @@ void InstrumentClipView::recordNoteOnEarly(int32_t velocity, int32_t yDisplay, I
 		// NoteRow is allowed to be NULL in this case.
 		int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
 		((MelodicInstrument*)instrument)
-		    ->earlyNotes.insertElementIfNonePresent(
-		        yNote, instrument->defaultVelocity,
-		        getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+		    ->earlyNotes.emplace(yNote,
+		                         MelodicInstrument::EarlyNoteInfo{
+		                             instrument->defaultVelocity,
+		                             getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
+		                         });
 	}
 }
 
