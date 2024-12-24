@@ -4378,7 +4378,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 			continue;
 		}
 
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 
 		// If has Clip, that's fine
 		if (getClipWithOutput(thisOutput)) {}
@@ -4398,7 +4399,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 			continue;
 		}
 
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {
