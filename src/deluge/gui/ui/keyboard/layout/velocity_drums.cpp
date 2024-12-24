@@ -72,28 +72,32 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 
 void KeyboardLayoutVelocityDrums::handleVerticalEncoder(int32_t offset) {
 	PressedPad pressedPad{};
-	handleHorizontalEncoder(offset * (kDisplayWidth / getState().drums.edgeSize), false, &pressedPad, false);
+	handleHorizontalEncoder(offset * (kDisplayWidth / getState().drums.edgeSizeX), false, &pressedPad, false);
 }
 
 void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-                                                          PressedPad presses[kMaxNumKeyboardPadPresses],
-                                                          bool encoderPressed) {
+  PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
 	KeyboardStateDrums& state = getState().drums;
 
 	if (shiftEnabled || Buttons::isButtonPressed(hid::button::X_ENC)) {
-		state.edgeSize += offset;
-		state.edgeSize = std::clamp(state.edgeSize, kMinDrumPadEdgeSize, kMaxDrumPadEdgeSize);
+		state.zoomLevel += offset;
+		if(state.zoomLevel >= kMinZoomLevel && state.zoomLevel <= kMaxZoomLevel) {
+			state.edgeSizeX = zoomArr[state.zoomLevel - 1][0];
+			state.edgeSizeY = zoomArr[state.zoomLevel - 1][1];
+		}
 
-		char buffer[13] = "Pad size:   ";
-		auto displayOffset = (display->haveOLED() ? 10 : 0);
-		intToString(state.edgeSize, buffer + displayOffset, 1);
+		state.zoomLevel = std::clamp(state.zoomLevel, kMinZoomLevel, kMaxZoomLevel);
+
+		char buffer[16] = "Zoom level:   ";
+		auto displayOffset = (display->haveOLED() ? 11 : 0);
+		intToString(state.zoomLevel, buffer + displayOffset, 1);
 		display->displayPopup(buffer);
 
 		offset = 0; // Reset offset variable for processing scroll calculation without actually shifting
 	}
 
 	// Calculate highest possible displayable note with current edgeSize
-	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSize) * (kDisplayWidth / state.edgeSize));
+	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSizeY) * (kDisplayWidth / state.edgeSizeX));
 	int32_t highestScrolledNote = std::max<int32_t>(0, (getHighestClipNote() + 1 - displayedfullPadsCount));
 
 	// Make sure current value is in bounds
@@ -112,7 +116,7 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 	KeyboardStateDrums& state = getState().drums;
 
 	// Pre-Buffer colours for next renderings
-	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSize) * (kDisplayWidth / state.edgeSize));
+	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSizeY) * (kDisplayWidth / state.edgeSizeX));
 	for (int32_t i = 0; i < displayedfullPadsCount; ++i) {
 		noteColours[i] = getNoteColour(state.scrollOffset + i);
 	}

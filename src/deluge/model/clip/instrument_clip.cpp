@@ -2376,7 +2376,9 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeAttribute("keyboardLayout", keyboardState.currentLayout);
 	writer.writeAttribute("keyboardRowInterval", keyboardState.isomorphic.rowInterval);
 	writer.writeAttribute("drumsScrollOffset", keyboardState.drums.scrollOffset);
-	writer.writeAttribute("drumsEdgeSize", keyboardState.drums.edgeSize);
+	writer.writeAttribute("drumsEdgeSizeX", keyboardState.drums.edgeSizeX);
+	writer.writeAttribute("drumsEdgeSizeY", keyboardState.drums.edgeSizeY);
+	writer.writeAttribute("drumsZoomLevel", keyboardState.drums.zoomLevel);
 	writer.writeAttribute("inKeyScrollOffset", keyboardState.inKey.scrollOffset);
 	writer.writeAttribute("inKeyRowInterval", keyboardState.inKey.rowInterval);
 
@@ -2632,8 +2634,14 @@ someError:
 			keyboardState.drums.scrollOffset = reader.readTagOrAttributeValueInt();
 		}
 
-		else if (!strcmp(tagName, "drumsEdgeSize")) {
-			keyboardState.drums.edgeSize = reader.readTagOrAttributeValueInt();
+		else if (!strcmp(tagName, "drumsEdgeSizeX")) {
+			keyboardState.drums.edgeSizeX = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "drumsEdgeSizeY")) {
+			keyboardState.drums.edgeSizeY = reader.readTagOrAttributeValueInt();
+		}
+		else if (!strcmp(tagName, "drumsZoomLevel")) {
+			keyboardState.drums.zoomLevel = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "inKeyScrollOffset")) {
