@@ -44,7 +44,10 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 		if (connectionFlags & (1 << d)) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
-			connectedDevice->bufferMessage(fullMessage);
+			if (connectedDevice->canHaveMIDISent) {
+				uint32_t channeledMessage = fullMessage | (portNumber << 4);
+				connectedDevice->bufferMessage(fullMessage);
+			}
 		}
 	}
 }
