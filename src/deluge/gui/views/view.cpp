@@ -1079,9 +1079,9 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 				}
 			}
 			else if (paramID >= 0 && paramID < kNumRealCCNumbers) {
-				String* name = midiInstrument->getNameFromCC(paramID);
-				if (name && !name->isEmpty()) {
-					popupMsg.append(name->get());
+				std::string_view name = midiInstrument->getNameFromCC(paramID);
+				if (!name.empty()) {
+					popupMsg.append(name.data());
 				}
 				else {
 					popupMsg.append("CC ");
