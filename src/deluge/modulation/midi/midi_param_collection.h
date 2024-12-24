@@ -68,7 +68,7 @@ public:
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::MIDI; }
 
 	/// A map between the CC value and the Automatable Param
-	deluge::fast_map<int32_t, AutoParam> params;
+	deluge::fast_map<uint8_t, AutoParam> params;
 
 	std::expected<typename decltype(params)::iterator, Error> getOrCreateParamFromCC(int32_t cc);
 
