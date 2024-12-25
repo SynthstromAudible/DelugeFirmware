@@ -122,8 +122,11 @@ void KeyboardLayoutVelocityDrums::precalculate() {
 
 	// Pre-Buffer colours for next renderings
 	int32_t displayedfullPadsCount = ((kDisplayHeight / state.edgeSizeY) * (kDisplayWidth / state.edgeSizeX));
+	// uint8_t hue_step = 100 / std::floor(kDisplayWidth / state.edgeSizeX);
 	for (int32_t i = 0; i < displayedfullPadsCount; ++i) {
-		noteColours[i] = getNoteColour(state.scrollOffset + i);
+		// noteColours[i] = getNoteColour(state.scrollOffset + i);
+		uint8_t i2 = state.scrollOffset + i;
+		noteColours[i] = RGB::fromHue((i2 * 7 + (i2 % 2 == 0) * 127) % 255);
 	}
 }
 
