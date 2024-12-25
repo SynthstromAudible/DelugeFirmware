@@ -42,7 +42,6 @@
 #include "model/scale/scale_change.h"
 #include "model/scale/utils.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
@@ -3271,12 +3270,12 @@ expressionParam:
 									goto expressionParam;
 								}
 							}
-							MIDIParam* midiParam =
-							    paramManager.getMIDIParamCollection()->params.getOrCreateParamFromCC(paramId, 0);
-							if (!midiParam) {
-								return Error::INSUFFICIENT_RAM;
+							auto maybeMidiParam =
+							    paramManager.getMIDIParamCollection()->getOrCreateParamFromCC(paramId);
+							if (!maybeMidiParam) {
+								return maybeMidiParam.error();
 							}
-							param = &midiParam->param;
+							param = &maybeMidiParam.value()->second;
 						}
 					}
 					reader.exitTag("cc");
