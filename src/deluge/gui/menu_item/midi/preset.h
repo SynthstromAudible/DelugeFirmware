@@ -30,7 +30,7 @@ public:
 
 	[[nodiscard]] int32_t getMaxValue() const override { return 128; } // Probably not needed cos we override below...
 
-	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) {
+	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		char buffer[12];
 		char const* text;

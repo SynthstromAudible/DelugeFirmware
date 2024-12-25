@@ -46,14 +46,14 @@ public:
 	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) final;
 	bool anyNoteIsOn() final;
 	bool hasAnyVoices() final;
-	void unassignAllVoices();
+	void unassignAllVoices() override;
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 
 	virtual int32_t getNumChannels() = 0;
 
 	virtual int8_t modEncoderAction(ModelStackWithThreeMainThings* modelStack, int8_t offset, uint8_t whichModEncoder);
 
-	ModControllable* toModControllable() { return this; }
+	ModControllable* toModControllable() override { return this; }
 
 	bool state;
 	uint8_t lastVelocity;

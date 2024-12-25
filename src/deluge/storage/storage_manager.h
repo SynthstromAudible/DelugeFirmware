@@ -155,12 +155,12 @@ public:
 class XMLSerializer : public Serializer, public FileWriter {
 public:
 	XMLSerializer();
-	~XMLSerializer() = default;
+	~XMLSerializer() override = default;
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
 	void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true) override;
-	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
+	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true) override;
 	void writeTagNameAndSeperator(char const* tag) override;
 	void writeTag(char const* tag, int32_t number, bool box = false) override;
 	void writeTag(char const* tag, char const* contents, bool box = false, bool quote = true) override;
@@ -171,7 +171,7 @@ public:
 	void writeClosingTag(char const* tag, bool shouldPrintIndents = true, bool box = false) override;
 	void writeArrayStart(char const* tag, bool shouldPrintIndents = true, bool box = true) override;
 	void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = true) override;
-	void insertCommaIfNeeded() {}
+	void insertCommaIfNeeded() override {}
 	void printIndents() override;
 	void write(char const* output) override;
 	Error closeFileAfterWriting(char const* path = nullptr, char const* beginningString = nullptr,
@@ -212,7 +212,7 @@ public:
 class XMLDeserializer : public FileDeserializer {
 public:
 	XMLDeserializer();
-	~XMLDeserializer() = default;
+	~XMLDeserializer() override = default;
 
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
 	char const* readNextTagOrAttributeName() override;
@@ -264,12 +264,12 @@ private:
 class JsonSerializer : public Serializer, public FileWriter {
 public:
 	JsonSerializer();
-	~JsonSerializer() = default;
+	~JsonSerializer() override = default;
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
 	void writeAttributeHex(char const* name, int32_t number, int32_t numChars, bool onNewLine = true) override;
-	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true);
+	void writeAttributeHexBytes(char const* name, uint8_t* data, int32_t numBytes, bool onNewLine = true) override;
 	void writeTagNameAndSeperator(char const* tag) override;
 	void writeTag(char const* tag, int32_t number, bool box = false) override;
 	void writeTag(char const* tag, char const* contents, bool box = false, bool quote = true) override;
@@ -297,7 +297,7 @@ class JsonDeserializer : public FileDeserializer {
 public:
 	JsonDeserializer();
 	JsonDeserializer(uint8_t* inbuf, size_t buflen);
-	~JsonDeserializer() = default;
+	~JsonDeserializer() override = default;
 
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
 	char const* readNextTagOrAttributeName() override;

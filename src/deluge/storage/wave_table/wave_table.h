@@ -42,7 +42,7 @@ public:
 class WaveTable final : public AudioFile {
 public:
 	WaveTable();
-	~WaveTable();
+	~WaveTable() override;
 	int32_t cloneFromSample(Sample* sample);
 	uint32_t render(int32_t* outputBuffer, int32_t numSamples, uint32_t phaseIncrementNow, uint32_t phase,
 	                bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
@@ -67,8 +67,8 @@ public:
 	OrderedResizeableArrayWith32bitKey bands;
 
 protected:
-	void numReasonsIncreasedFromZero();
-	void numReasonsDecreasedToZero(char const* errorCode);
+	void numReasonsIncreasedFromZero() override;
+	void numReasonsDecreasedToZero(char const* errorCode) override;
 
 private:
 	void doRenderingLoop(int32_t* __restrict__ thisSample, int32_t const* bufferEnd, int32_t firstCycleNumber,

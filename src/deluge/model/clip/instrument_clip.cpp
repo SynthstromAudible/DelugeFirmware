@@ -50,8 +50,10 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 #include "util/firmware_version.h"
+#include "util/try.h"
 #include <cmath>
 #include <new>
+#include <ranges>
 
 namespace params = deluge::modulation::params;
 
@@ -497,24 +499,23 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 
 	else {
 		MelodicInstrument* melodicInstrument = (MelodicInstrument*)output;
-		if (melodicInstrument->earlyNotes.getNumElements()) {
+		if (!melodicInstrument->earlyNotes.empty()) {
 
 			Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
 			bool scaleAltered = false;
 
-			for (int32_t i = 0; i < melodicInstrument->earlyNotes.getNumElements(); i++) {
-				EarlyNote* basicNote = (EarlyNote*)melodicInstrument->earlyNotes.getElementAddress(i);
+			for (auto [note, noteInfo] : melodicInstrument->earlyNotes) {
+				const auto [velocity, stillActive] = noteInfo;
 
 				ModelStackWithNoteRow* modelStackWithNoteRow =
-				    getOrCreateNoteRowForYNote(basicNote->note, modelStack, action, &scaleAltered);
+				    getOrCreateNoteRowForYNote(note, modelStack, action, &scaleAltered);
 				NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 				if (noteRow) {
 					int32_t probability = noteRow->getDefaultProbability();
 					Iterance iterance = noteRow->getDefaultIterance();
 					int32_t fill = noteRow->getDefaultFill(modelStackWithNoteRow);
-					noteRow->attemptNoteAdd(0, 1, basicNote->velocity, probability, iterance, fill,
-					                        modelStackWithNoteRow, action);
-					if (!basicNote->stillActive) {
+					noteRow->attemptNoteAdd(0, 1, velocity, probability, iterance, fill, modelStackWithNoteRow, action);
+					if (!stillActive) {
 						// We just inserted a note-on for an "early" note that is still sounding at time 0, so ignore
 						// note-ons until at least tick 1 to avoid double-playing that note
 						noteRow->ignoreNoteOnsBefore_ = 1;
@@ -528,7 +529,7 @@ Error InstrumentClip::beginLinearRecording(ModelStackWithTimelineCounter* modelS
 			}
 		}
 
-		melodicInstrument->earlyNotes.empty();
+		melodicInstrument->earlyNotes.clear();
 	}
 
 	return Clip::beginLinearRecording(modelStack, buttonPressLatency);
@@ -1470,7 +1471,8 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
 		if (!(i & 15)) {
-			AudioEngine::routineWithClusterLoading(); // -----------------------------------
+			// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+			yield([]() { return true; });
 			AudioEngine::logAction("renderAsSingleRow still");
 		}
 
@@ -4109,42 +4111,42 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 	// Synth / Kit
 	else {
 		String newName;
-		ReturnOfConfirmPresetOrNextUnlaunchedOne result;
+		Error error;
 
 		newName.set(&backedUpInstrumentName[newOutputTypeAsIdx]);
 		Browser::currentDir.set(&backedUpInstrumentDirPath[newOutputTypeAsIdx]);
 
 		if (Browser::currentDir.isEmpty()) {
-			result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-			if (result.error != Error::NONE) {
-				display->displayError(result.error);
+			error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
+			if (error != Error::NONE) {
+				display->displayError(error);
 				return nullptr;
 			}
 		}
 
-		result =
-		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newOutputType, &newName, availabilityRequirement);
-		if (result.error != Error::NONE) {
-			display->displayError(result.error);
-			return nullptr;
-		}
+		FileItem* fileItem = D_TRY_CATCH(
+		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newOutputType, &newName, availabilityRequirement),
+		    error, {
+			    display->displayError(error);
+			    return nullptr;
+		    });
 
-		newInstrument = result.fileItem->instrument;
-		bool isHibernating = newInstrument && !result.fileItem->instrumentAlreadyInSong;
-		instrumentAlreadyInSong = newInstrument && result.fileItem->instrumentAlreadyInSong;
+		newInstrument = fileItem->instrument;
+		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
+		instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
 
 		if (!newInstrument) {
 			String newPresetName;
-			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = StorageManager::loadInstrumentFromFile(modelStack->song, NULL, newOutputType, false,
-			                                                      &newInstrument, &result.fileItem->filePointer,
-			                                                      &newPresetName, &Browser::currentDir);
+			fileItem->getDisplayNameWithoutExtension(&newPresetName);
+			error =
+			    StorageManager::loadInstrumentFromFile(modelStack->song, NULL, newOutputType, false, &newInstrument,
+			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 		}
 
 		Browser::emptyFileItems();
 
-		if (result.error != Error::NONE) {
-			display->displayError(result.error);
+		if (error != Error::NONE) {
+			display->displayError(error);
 			return nullptr;
 		}
 
@@ -5027,7 +5029,7 @@ void InstrumentClip::yDisplayNoLongerAuditioning(int32_t yDisplay, Song* song) {
 
 	else {
 		int32_t yNote = getYNoteFromYDisplay(yDisplay, song);
-		((MelodicInstrument*)output)->notesAuditioned.deleteAtKey(yNote);
+		((MelodicInstrument*)output)->notesAuditioned.erase(yNote);
 	}
 
 	expectEvent();

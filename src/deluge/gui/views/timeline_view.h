@@ -28,11 +28,11 @@ class TimelineView : public RootUI {
 public:
 	TimelineView() {}
 
-	void scrollFinished();
+	void scrollFinished() override;
 
 	TimelineView* toTimelineView() final { return this; }
 
-	const char* getName() { return "timeline_view"; }
+	const char* getName() override { return "timeline_view"; }
 	virtual uint32_t getMaxZoom() = 0;
 	virtual bool calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScroll, uint32_t newZoom,
 	                                     uint32_t oldZoom); // Returns false if no animation needed
@@ -52,7 +52,7 @@ public:
 	void initiateXScroll(uint32_t newXScroll, int32_t numSquaresToScroll = kDisplayWidth);
 	bool zoomToMax(bool inOnly = false);
 	void initiateXZoom(int32_t zoomMagnitude, int32_t newScroll, uint32_t oldZoom);
-	void midiLearnFlash();
+	void midiLearnFlash() override;
 
 	bool scrollRightToEndOfLengthIfNecessary(int32_t maxLength);
 
@@ -72,7 +72,7 @@ public:
 	[[nodiscard]] bool inTripletsView() const;
 
 	// ui
-	UIType getUIType() { return UIType::TIMELINE; }
+	UIType getUIType() override { return UIType::TIMELINE; }
 
 private:
 	/// Used when scrolling horizontally to briefly catch on clip's max zoom

@@ -62,6 +62,7 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/try.h"
 #include <cstring>
 #include <new>
 #include <stdint.h>
@@ -373,94 +374,95 @@ bool Song::mayDoubleTempo() {
 // Returns true if a Clip created
 bool Song::ensureAtLeastOneSessionClip() {
 	// If no Clips added, make just one blank one - we can't have none!
-	if (!sessionClips.getNumElements()) {
-
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
-		InstrumentClip* firstClip = new (memory) InstrumentClip(this);
-
-		sessionClips.insertClipAtIndex(firstClip, 0);
-
-		firstClip->loopLength = kDefaultClipLength << insideWorldTickMagnitude;
-
-		ParamManager newParamManager; // Deliberate don't set up.
-
-		ReturnOfConfirmPresetOrNextUnlaunchedOne result;
-		result.error = StorageManager::initSD(); // Still want this here?
-		if (result.error != Error::NONE) {
-			goto couldntLoad;
-		}
-
-		result.error = Browser::currentDir.set("SYNTHS");
-		if (result.error != Error::NONE) {
-			goto couldntLoad;
-		}
-
-		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, OutputType::SYNTH,
-		                                                                                Availability::ANY);
-
-		Instrument* newInstrument;
-
-		if (result.error == Error::NONE) {
-			String newPresetName;
-			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false,
-			                                                      &newInstrument, &result.fileItem->filePointer,
-			                                                      &newPresetName, &Browser::currentDir);
-
-			Browser::emptyFileItems();
-			if (result.error != Error::NONE) {
-				goto couldntLoad;
-			}
-		}
-		else {
-couldntLoad:
-			newInstrument = StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
-
-			// TODO: Clean this up and get rid of infinite loop traps (proper error recovery)
-
-			// If that failed (really unlikely) we're really screwed
-			if (!newInstrument) {
-				display->displayError(Error::INSUFFICIENT_RAM);
-				while (1) {}
-			}
-
-			result.error = newInstrument->dirPath.set("SYNTHS");
-			if (result.error != Error::NONE) {
-				display->displayError(result.error);
-				while (1) {}
-			}
-
-			result.error = newInstrument->name.set("0");
-			if (result.error != Error::NONE) {
-				display->displayError(result.error);
-				while (1) {}
-			}
-
-			((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
-			display->displayError(result.error); // E.g. show the CARD error.
-		}
-
-		newInstrument->loadAllAudioFiles(true);
-
-		firstClip->setAudioInstrument(newInstrument, this, true, &newParamManager);
-		// TODO: error checking?
-		addOutput(newInstrument);
-
-		currentClip = firstClip;
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
-		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(firstClip);
-
-		if (playbackHandler.isEitherClockActive() && currentPlaybackMode == &session) {
-			session.reSyncClip(modelStackWithTimelineCounter, true);
-		}
-
-		newInstrument->setActiveClip(modelStackWithTimelineCounter);
-
-		return true;
+	if (sessionClips.getNumElements()) {
+		return false;
 	}
-	return false;
+
+	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
+	InstrumentClip* firstClip = new (memory) InstrumentClip(this);
+
+	sessionClips.insertClipAtIndex(firstClip, 0);
+
+	firstClip->loopLength = kDefaultClipLength << insideWorldTickMagnitude;
+
+	ParamManager newParamManager; // Deliberate don't set up.
+
+	Instrument* newInstrument = nullptr;
+
+	std::expected<FileItem*, Error> result;
+
+	Error error;
+	error = StorageManager::initSD(); // Still want this here?
+	if (error != Error::NONE) {
+		goto couldntLoad;
+	}
+
+	error = Browser::currentDir.set("SYNTHS");
+	if (error != Error::NONE) {
+		goto couldntLoad;
+	}
+
+	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(NULL, OutputType::SYNTH,
+	                                                                                Availability::ANY);
+	if (result) {
+		String newPresetName;
+		result.value()->getDisplayNameWithoutExtension(&newPresetName);
+		error =
+		    StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false, &newInstrument,
+		                                           &result.value()->filePointer, &newPresetName, &Browser::currentDir);
+
+		Browser::emptyFileItems();
+		if (error != Error::NONE) {
+			goto couldntLoad;
+		}
+	}
+	else {
+couldntLoad:
+		newInstrument = StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
+
+		// TODO: Clean this up and get rid of infinite loop traps (proper error recovery)
+
+		// If that failed (really unlikely) we're really screwed
+		if (!newInstrument) {
+			display->displayError(Error::INSUFFICIENT_RAM);
+			while (1) {}
+		}
+
+		error = newInstrument->dirPath.set("SYNTHS");
+		if (error != Error::NONE) {
+			display->displayError(error);
+			while (1) {}
+		}
+
+		error = newInstrument->name.set("0");
+		if (error != Error::NONE) {
+			display->displayError(error);
+			while (1) {}
+		}
+
+		((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
+		display->displayError(error); // E.g. show the CARD error.
+	}
+
+	newInstrument->loadAllAudioFiles(true);
+
+	firstClip->setAudioInstrument(newInstrument, this, true, &newParamManager);
+	// TODO: error checking?
+	addOutput(newInstrument);
+
+	currentClip = firstClip;
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
+	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(firstClip);
+
+	if (playbackHandler.isEitherClockActive() && currentPlaybackMode == &session) {
+		session.reSyncClip(modelStackWithTimelineCounter, true);
+	}
+
+	newInstrument->setActiveClip(modelStackWithTimelineCounter);
+
+	return true;
 }
 
 /* Chromatic or in-key transposition.
@@ -4378,7 +4380,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 			continue;
 		}
 
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 
 		// If has Clip, that's fine
 		if (getClipWithOutput(thisOutput)) {}
@@ -4398,7 +4401,8 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 			continue;
 		}
 
-		AudioEngine::routineWithClusterLoading(); // -----------------------------------
+		// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+		yield([]() { return true; });
 
 		// If has Clip, it shouldn't!
 		if (getClipWithOutput(thisInstrument)) {
@@ -4878,35 +4882,34 @@ gotAnInstrument: {}
 
 	// Synth or Kit
 	else {
-		ReturnOfConfirmPresetOrNextUnlaunchedOne result;
-		result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-		if (result.error != Error::NONE) {
-			display->displayError(result.error);
+		Error error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
+		if (error != Error::NONE) {
+			display->displayError(error);
 			return nullptr;
 		}
 
-		result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-		    this, newOutputType, Availability::INSTRUMENT_UNUSED);
-		if (result.error != Error::NONE) {
-			display->displayError(result.error);
-			return nullptr;
-		}
+		FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
+		                                     this, newOutputType, Availability::INSTRUMENT_UNUSED),
+		                                 error, {
+			                                 display->displayError(error);
+			                                 return nullptr;
+		                                 });
 
-		newInstrument = result.fileItem->instrument;
-		bool isHibernating = newInstrument && !result.fileItem->instrumentAlreadyInSong;
+		newInstrument = fileItem->instrument;
+		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
 
 		if (!newInstrument) {
 			String newPresetName;
-			result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-			result.error = StorageManager::loadInstrumentFromFile(this, NULL, newOutputType, false, &newInstrument,
-			                                                      &result.fileItem->filePointer, &newPresetName,
-			                                                      &Browser::currentDir);
+			fileItem->getDisplayNameWithoutExtension(&newPresetName);
+			error =
+			    StorageManager::loadInstrumentFromFile(this, NULL, newOutputType, false, &newInstrument,
+			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 		}
 
 		Browser::emptyFileItems();
 
-		if (result.error != Error::NONE) {
-			display->displayError(result.error);
+		if (error != Error::NONE) {
+			display->displayError(error);
 			return nullptr;
 		}
 

@@ -33,27 +33,27 @@ public:
 
 	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                  bool shouldLimitDelayFeedback, bool isClipActive);
+	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,
 	              int32_t fromMIDIChannel = 16, uint8_t velocity = 64, uint32_t sampleSyncLength = 0,
-	              int32_t ticksLate = 0, uint32_t samplesLate = 0);
+	              int32_t ticksLate = 0, uint32_t samplesLate = 0) override;
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) final;
 	ParamManager* getParamManager(Song* song) final;
 
 	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension, int32_t channelOrNote,
 	                                              MIDICharacteristic whichCharacteristic) final;
 
-	void beenEdited(bool shouldMoveToEmptySlot) {} // Probably don't need this anymore...
+	void beenEdited(bool shouldMoveToEmptySlot) override {} // Probably don't need this anymore...
 
-	char const* getSlotXMLTag() { return "channel"; }
-	char const* getSubSlotXMLTag() { return NULL; }
+	char const* getSlotXMLTag() override { return "channel"; }
+	char const* getSubSlotXMLTag() override { return NULL; }
 
 	virtual void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) = 0;
 	virtual void noteOffPostArp(int32_t noteCodePostArp, int32_t oldMIDIChannel, int32_t velocity) = 0;
 
-	bool readTagFromFile(Deserializer& reader, char const* tagName);
+	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
-	ModControllable* toModControllable() { return this; }
+	ModControllable* toModControllable() override { return this; }
 	virtual void setChannel(int newChannel) { channel = newChannel; }
 	inline int32_t getChannel() const { return channel; }
 	// Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.

@@ -31,28 +31,28 @@ class Output;
 class LoadInstrumentPresetUI final : public LoadUI {
 public:
 	LoadInstrumentPresetUI();
-	bool opened();
+	bool opened() override;
 	// void selectEncoderAction(int8_t offset);
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	void instrumentEdited(Instrument* instrument);
 	Error performLoad(bool doClone = false);
 	Error performLoadSynthToKit();
-	ActionResult timerCallback();
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
+	ActionResult timerCallback() override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL, bool drawUndefinedArea = true,
 	                    int32_t navSys = -1) {
 		return true;
 	}
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	ReturnOfConfirmPresetOrNextUnlaunchedOne
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
+	std::expected<FileItem*, Error>
 	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
 	                                                Availability availabilityRequirement);
-	ReturnOfConfirmPresetOrNextUnlaunchedOne confirmPresetOrNextUnlaunchedOne(OutputType outputType, String* searchName,
-	                                                                          Availability availabilityRequirement);
+	std::expected<FileItem*, Error> confirmPresetOrNextUnlaunchedOne(OutputType outputType, String* searchName,
+	                                                                 Availability availabilityRequirement);
 	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
 	                                          Availability availabilityRequirement, bool doBlink);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
@@ -75,20 +75,20 @@ public:
 		noteRow = row;
 	}
 	// ui
-	UIType getUIType() { return UIType::LOAD_INSTRUMENT_PRESET; }
-	const char* getName() { return "load_instrument_preset"; }
+	UIType getUIType() override { return UIType::LOAD_INSTRUMENT_PRESET; }
+	const char* getName() override { return "load_instrument_preset"; }
 
 protected:
-	void enterKeyPress();
-	void folderContentsReady(int32_t entryDirection);
-	void currentFileChanged(int32_t movementDirection);
+	void enterKeyPress() override;
+	void folderContentsReady(int32_t entryDirection) override;
+	void currentFileChanged(int32_t movementDirection) override;
 
 private:
 	bool showingAuditionPads();
 	Error setupForOutputType();
 	void changeOutputType(OutputType newOutputType);
 	void revertToInitialPreset();
-	void exitAction();
+	void exitAction() override;
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(String* oldName, String* newName);
 

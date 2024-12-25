@@ -30,14 +30,14 @@ class ModelStackWithThreeMainThings;
 class SoundInstrument final : public Sound, public MelodicInstrument {
 public:
 	SoundInstrument();
-	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
-	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
-	void cutAllSound();
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
+	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
+	void cutAllSound() override;
 	bool noteIsOn(int32_t noteCode, bool resetTimeEntered);
 
 	void renderOutput(ModelStack* modelStack, StereoSample* startPos, StereoSample* endPos, int32_t numSamples,
 	                  int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                  bool shouldLimitDelayFeedback, bool isClipActive);
+	                  bool shouldLimitDelayFeedback, bool isClipActive) override;
 
 	// A timelineCounter is required
 	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
@@ -49,37 +49,38 @@ public:
 		return Sound::offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, modelStack);
 	}
 
-	Error loadAllAudioFiles(bool mayActuallyReadFiles);
-	void resyncLFOs();
-	ModControllable* toModControllable();
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
-	void setupPatchingForAllParamManagers(Song* song);
-	void setupPatching(ModelStackWithTimelineCounter* modelStack);
+	Error loadAllAudioFiles(bool mayActuallyReadFiles) override;
+	void resyncLFOs() override;
+	ModControllable* toModControllable() override;
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
+	void setupPatchingForAllParamManagers(Song* song) override;
+	void setupPatching(ModelStackWithTimelineCounter* modelStack) override;
 
-	void deleteBackedUpParamManagers(Song* song);
+	void deleteBackedUpParamManagers(Song* song) override;
 	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
-	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension);
+	                                              int32_t channelOrNoteNumber,
+	                                              MIDICharacteristic whichCharacteristic) override;
+	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) override;
 
 	void sendNote(ModelStackWithThreeMainThings* modelStack, bool isOn, int32_t noteCode, int16_t const* mpeValues,
 	              int32_t fromMIDIChannel, uint8_t velocity, uint32_t sampleSyncLength, int32_t ticksLate,
-	              uint32_t samplesLate);
+	              uint32_t samplesLate) override;
 
-	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL);
-	bool readTagFromFile(Deserializer& reader, char const* tagName);
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) override;
+	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
-	void prepareForHibernationOrDeletion();
-	void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack);
-	bool isSkippingRendering() { return skippingRendering; }
-	void loadCrucialAudioFilesOnly();
-	void beenEdited(bool shouldMoveToEmptySlot = true);
-	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos);
-	void setupWithoutActiveClip(ModelStack* modelStack);
+	void prepareForHibernationOrDeletion() override;
+	void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) override;
+	bool isSkippingRendering() override { return skippingRendering; }
+	void loadCrucialAudioFilesOnly() override;
+	void beenEdited(bool shouldMoveToEmptySlot = true) override;
+	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;
+	void setupWithoutActiveClip(ModelStack* modelStack) override;
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound);
-	uint8_t* getModKnobMode() { return &modKnobMode; }
-	ArpeggiatorBase* getArp();
-	char const* getXMLTag() { return "sound"; }
+	                            int32_t* highestReverbAmountFound) override;
+	uint8_t* getModKnobMode() override { return &modKnobMode; }
+	ArpeggiatorBase* getArp() override;
+	char const* getXMLTag() override { return "sound"; }
 	ArpeggiatorSettings defaultArpSettings;
 };

@@ -561,7 +561,8 @@ void AutomationView::openedInBackground() {
 
 	bool renderingToStore = (currentUIMode == UI_MODE_ANIMATION_FADE);
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 	AudioEngine::logAction("AutomationView::beginSession 2");
 
 	if (renderingToStore) {
@@ -1650,10 +1651,10 @@ void AutomationView::getAutomationParameterName(Clip* clip, OutputType outputTyp
 			bool appendedName = false;
 
 			if (clip->lastSelectedParamID >= 0 && clip->lastSelectedParamID < kNumRealCCNumbers) {
-				String* name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
+				std::string_view name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
 				// if we have a name for this midi cc set by the user, display that instead of the cc number
-				if (name && !name->isEmpty()) {
-					parameterName.append(name->get());
+				if (!name.empty()) {
+					parameterName.append(name.data());
 					appendedName = true;
 				}
 			}
@@ -3473,9 +3474,10 @@ void AutomationView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool 
 					// NoteRow is allowed to be NULL in this case.
 					int32_t yNote = clip->getYNoteFromYDisplay(yDisplay, currentSong);
 					((MelodicInstrument*)output)
-					    ->earlyNotes.insertElementIfNonePresent(
-					        yNote, ((Instrument*)output)->defaultVelocity,
-					        clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+					    ->earlyNotes.emplace(yNote, MelodicInstrument::EarlyNoteInfo{
+					                                    ((Instrument*)output)->defaultVelocity,
+					                                    clip->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
+					                                });
 				}
 			}
 

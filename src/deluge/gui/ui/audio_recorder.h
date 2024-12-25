@@ -30,10 +30,10 @@ class SampleRecorder;
 class AudioRecorder final : public UI {
 public:
 	AudioRecorder();
-	bool opened();
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
+	bool opened() override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	bool beginOutputRecording(AudioRecordingFolder folder = AudioRecordingFolder::RESAMPLE,
 	                          AudioInputChannel channel = AudioInputChannel::OUTPUT, bool writeLoopPoints = false,
 	                          bool shouldNormalize = true);
@@ -52,8 +52,8 @@ public:
 	bool updatedRecordingStatus = false;
 
 	// ui
-	UIType getUIType() { return UIType::AUDIO_RECORDER; }
-	const char* getName() { return "audio_recorder"; }
+	UIType getUIType() override { return UIType::AUDIO_RECORDER; }
+	const char* getName() override { return "audio_recorder"; }
 
 private:
 	void finishRecording();

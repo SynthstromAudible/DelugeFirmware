@@ -22,12 +22,12 @@
 class NumericLayerBasicText final : public NumericLayer {
 public:
 	NumericLayerBasicText();
-	virtual ~NumericLayerBasicText();
+	~NumericLayerBasicText() override;
 
-	void render(uint8_t* returnSegments);
-	void renderWithoutBlink(uint8_t* returnSegments);
-	bool callBack();
-	void isNowOnTop();
+	void render(uint8_t* returnSegments) override;
+	void renderWithoutBlink(uint8_t* returnSegments) override;
+	bool callBack() override;
+	void isNowOnTop() override;
 
 	uint8_t segments[kNumericDisplayLength];
 	uint8_t blinkedSegments[kNumericDisplayLength];

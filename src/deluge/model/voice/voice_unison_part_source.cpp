@@ -28,26 +28,20 @@
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
 
-VoiceUnisonPartSource::VoiceUnisonPartSource() {
-	voiceSample = NULL;
-	livePitchShifter = NULL;
-	dxVoice = NULL;
-}
-
 bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
                                    uint32_t oscRetriggerPhase, bool resetEverything, SynthMode synthMode,
                                    uint8_t velocity) {
 
 	if (synthMode != SynthMode::FM && source->oscType == OscType::SAMPLE) {
 
-		if (!guide->audioFileHolder || !guide->audioFileHolder->audioFile
+		if ((guide->audioFileHolder == nullptr) || (guide->audioFileHolder->audioFile == nullptr)
 		    || ((Sample*)guide->audioFileHolder->audioFile)->unplayable) {
 			return true; // We didn't succeed, but don't want to stop the whole Voice from sounding necessarily
 		}
 
-		if (!voiceSample) { // We might actually already have one, and just be restarting this voice
+		if (voiceSample == nullptr) { // We might actually already have one, and just be restarting this voice
 			voiceSample = AudioEngine::solicitVoiceSample();
-			if (!voiceSample) [[unlikely]] {
+			if (voiceSample == nullptr) [[unlikely]] {
 				return false;
 			}
 		}
@@ -59,7 +53,7 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 			voiceSample->beenUnassigned(false);
 		}
 		voiceSample->noteOn(guide, samplesLate, voice->getPriorityRating());
-		if (samplesLate) {
+		if (samplesLate != 0u) {
 			return true; // We're finished in this case
 		}
 		return voiceSample->setupClusersForInitialPlay(guide, (Sample*)guide->audioFileHolder->audioFile, 0, false, 1);
@@ -71,10 +65,11 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		// oscPos = 0;
 	}
 	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
-		if (!dxVoice) { // We might actually already have one, and just be restarting this voice
+		if (dxVoice == nullptr) { // We might actually already have one, and just be restarting this voice
 			dxVoice = getDxEngine()->solicitDxVoice();
-			if (!dxVoice)
+			if (dxVoice == nullptr) {
 				return false;
+			}
 		}
 
 		DxPatch* patch = source->ensureDxPatch();
@@ -95,20 +90,20 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 
 void VoiceUnisonPartSource::unassign(bool deletingSong) {
 	active = false;
-	if (voiceSample) {
+	if (voiceSample != nullptr) {
 		voiceSample->beenUnassigned(deletingSong);
 		AudioEngine::voiceSampleUnassigned(voiceSample);
-		voiceSample = NULL;
+		voiceSample = nullptr;
 	}
 
-	if (dxVoice) {
+	if (dxVoice != nullptr) {
 		dxEngine->dxVoiceUnassigned(dxVoice);
 		dxVoice = NULL;
 	}
 
-	if (livePitchShifter) {
+	if (livePitchShifter != nullptr) {
 		delugeDealloc(livePitchShifter);
-		livePitchShifter = NULL;
+		livePitchShifter = nullptr;
 	}
 }
 
@@ -123,9 +118,9 @@ bool VoiceUnisonPartSource::getPitchAndSpeedParams(Source* source, VoiceSamplePl
 
 		*timeStretchRatio = kMaxSampleValue;
 
+		// That is, after converted to 44.1kHz
 		uint32_t sampleLengthInSamples =
-		    ((SampleHolder*)guide->audioFileHolder)
-		        ->getLengthInSamplesAtSystemSampleRate(true); // That is, after converted to 44.1kHz
+		    ((SampleHolder*)guide->audioFileHolder)->getLengthInSamplesAtSystemSampleRate(true);
 		*noteLengthInSamples = (playbackHandler.getTimePerInternalTickBig() * guide->sequenceSyncLengthTicks)
 		                       >> 32; // No rounding. Should be fine?
 
@@ -206,7 +201,7 @@ uint32_t VoiceUnisonPartSource::getSpeedParamForNoSyncing(Source* source, int32_
 	}
 
 	// And whether or not that was the case, if there's a manual adjustment to time-stretch, apply that now
-	if (source->timeStretchAmount) {
+	if (source->timeStretchAmount != 0) {
 		timeStretchRatio = ((uint64_t)timeStretchRatio * timeStretchAdjustTable[source->timeStretchAmount + 48]) >> 24;
 	}
 

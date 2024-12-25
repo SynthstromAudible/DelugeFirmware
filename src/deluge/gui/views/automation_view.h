@@ -91,7 +91,7 @@ public:
 	int32_t navSysId;
 
 	// vertical encoder action
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 	ActionResult scrollVertical(int32_t scrollAmount);
 	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 

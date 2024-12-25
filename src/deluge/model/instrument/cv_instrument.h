@@ -32,15 +32,15 @@ constexpr int32_t kNumCVInstrumentChannels = both + 1;
 class CVInstrument final : public NonAudioInstrument {
 public:
 	CVInstrument();
-	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote);
-	void noteOffPostArp(int32_t noteCode, int32_t oldMIDIChannel, int32_t velocity);
+	void noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) override;
+	void noteOffPostArp(int32_t noteCode, int32_t oldMIDIChannel, int32_t velocity) override;
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
-	                                              int32_t expressionDmiension, ArpNote* arpNote);
-	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song);
+	                                              int32_t expressionDmiension, ArpNote* arpNote) override;
+	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, const char* tagName) override;
-	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDmiension);
-	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs);
-	void setupWithoutActiveClip(ModelStack* modelStack);
+	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDmiension) override;
+	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
+	void setupWithoutActiveClip(ModelStack* modelStack) override;
 	static int32_t navigateChannels(int oldChannel, int offset) {
 		auto newChannel = (oldChannel + offset) % kNumCVInstrumentChannels;
 		if (newChannel == -1) {
@@ -63,7 +63,7 @@ public:
 	int32_t monophonicPitchBendValue;
 	int32_t polyPitchBendValue;
 
-	char const* getXMLTag() { return "cvChannel"; }
+	char const* getXMLTag() override { return "cvChannel"; }
 	void setChannel(int channel) override {
 		if (channel <= both) {
 			NonAudioInstrument::setChannel(channel);

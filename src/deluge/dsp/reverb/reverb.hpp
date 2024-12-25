@@ -79,17 +79,17 @@ public:
 
 	[[nodiscard]] float getWidth() const override { return base_->getWidth(); };
 
-	virtual void setHPF(float f) {
+	void setHPF(float f) override {
 		hpf_ = f;
 		base_->setHPF(f);
 	}
-	[[nodiscard]] virtual float getHPF() const { return base_->getHPF(); }
+	[[nodiscard]] float getHPF() const override { return base_->getHPF(); }
 
-	virtual void setLPF(float f) {
+	void setLPF(float f) override {
 		lpf_ = f;
 		base_->setLPF(f);
 	}
-	[[nodiscard]] virtual float getLPF() const { return base_->getLPF(); }
+	[[nodiscard]] float getLPF() const override { return base_->getLPF(); }
 
 	template <typename T>
 	constexpr T& reverb_as() {

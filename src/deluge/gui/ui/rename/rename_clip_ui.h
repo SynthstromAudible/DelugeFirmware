@@ -26,22 +26,22 @@ class Clip;
 class RenameClipUI final : public RenameUI {
 public:
 	RenameClipUI();
-	bool opened();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
-	ActionResult padAction(int32_t x, int32_t y, int32_t velocity);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine);
-	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows);
+	bool opened() override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 
 	Output* output;
 	Clip* clip;
 
 	// ui
-	UIType getUIType() { return UIType::RENAME_CLIP; }
-	const char* getName() { return "rename_clip_ui"; }
+	UIType getUIType() override { return UIType::RENAME_CLIP; }
+	const char* getName() override { return "rename_clip_ui"; }
 	bool exitUI() override;
 
 protected:
-	void enterKeyPress();
+	void enterKeyPress() override;
 };
 
 extern RenameClipUI renameClipUI;

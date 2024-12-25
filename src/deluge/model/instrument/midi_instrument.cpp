@@ -27,12 +27,12 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
-#include "modulation/midi/label/midi_label.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
 #include <cstring>
+#include <string_view>
 
 int16_t lastNoteOffOrder = 1;
 
@@ -374,11 +374,11 @@ void MIDIInstrument::writeCCLabelsToFile(Serializer& writer) {
 	writer.writeOpeningTagBeginning("ccLabels");
 	for (int32_t i = 0; i < kNumRealCCNumbers; i++) {
 		if (i != CC_EXTERNAL_MOD_WHEEL) {
-			MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(i);
+			auto it = labels.find(i);
 			char ccNumber[10];
 			intToString(i, ccNumber, 1);
-			if (midiLabel) {
-				writer.writeAttribute(ccNumber, midiLabel->name.get());
+			if (it != labels.end()) {
+				writer.writeAttribute(ccNumber, it->second.data());
 			}
 			else {
 				writer.writeAttribute(ccNumber, "");
@@ -537,7 +537,7 @@ Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader) {
 			continue;
 		}
 
-		midiLabelCollection.labels.setOrCreateLabelForCC(cc, reader.readTagOrAttributeValue());
+		labels[cc] = reader.readTagOrAttributeValue();
 
 		error = Error::NONE;
 
@@ -1237,19 +1237,25 @@ void MIDIInstrument::sendNoteToInternal(bool on, int32_t note, uint8_t velocity,
 	}
 }
 
-String* MIDIInstrument::getNameFromCC(int32_t cc) {
-	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		MIDILabel* midiLabel = midiLabelCollection.labels.getLabelFromCC(cc);
-
-		if (midiLabel) {
-			return &midiLabel->name;
-		}
+std::string_view MIDIInstrument::getNameFromCC(int32_t cc) {
+	if (cc < 0 || cc >= kNumRealCCNumbers) {
+		// out of range
+		return std::string_view{};
 	}
-	return nullptr;
+
+	auto it = labels.find(cc);
+
+	// found
+	if (it != labels.end()) {
+		return it->second;
+	}
+
+	// not found
+	return std::string_view{};
 }
 
 void MIDIInstrument::setNameForCC(int32_t cc, String* name) {
 	if (cc >= 0 && cc < kNumRealCCNumbers) {
-		midiLabelCollection.labels.setOrCreateLabelForCC(cc, name->get());
+		labels[cc] = name->get();
 	}
 }

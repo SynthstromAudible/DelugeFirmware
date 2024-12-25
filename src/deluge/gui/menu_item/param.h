@@ -39,7 +39,7 @@ public:
 
 	uint8_t p;
 
-	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory);
+	ModelStackWithAutoParam* getModelStackWithParam(void* memory) override;
 
 protected:
 	virtual ParamSet* getParamSet() = 0;

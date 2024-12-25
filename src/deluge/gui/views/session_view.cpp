@@ -79,6 +79,7 @@
 #include "util/cfunctions.h"
 #include "util/d_string.h"
 #include "util/functions.h"
+#include "util/try.h"
 #include <algorithm>
 #include <cstdint>
 #include <new>
@@ -1560,34 +1561,30 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 // Will now look in subfolders too if need be.
 Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
                                    bool copyDrumsFromClip = true) {
-	ReturnOfConfirmPresetOrNextUnlaunchedOne result;
-	result.error = Browser::currentDir.set(getInstrumentFolder(outputType));
-	if (result.error != Error::NONE) {
-		return result.error;
+	Error error = Browser::currentDir.set(getInstrumentFolder(outputType));
+	if (error != Error::NONE) {
+		return error;
 	}
 
-	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, outputType,
-	                                                                                Availability::INSTRUMENT_UNUSED);
-	if (result.error != Error::NONE) {
-		return result.error;
-	}
+	FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
+	                                     currentSong, outputType, Availability::INSTRUMENT_UNUSED),
+	                                 error, { return error; });
 
-	Instrument* newInstrument = result.fileItem->instrument;
-	bool isHibernating = newInstrument && !result.fileItem->instrumentAlreadyInSong;
-	*instrumentAlreadyInSong = newInstrument && result.fileItem->instrumentAlreadyInSong;
+	Instrument* newInstrument = fileItem->instrument;
+	bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
+	*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
 
 	if (!newInstrument) {
 		String newPresetName;
-		result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-		result.error =
-		    StorageManager::loadInstrumentFromFile(currentSong, NULL, outputType, false, &newInstrument,
-		                                           &result.fileItem->filePointer, &newPresetName, &Browser::currentDir);
+		fileItem->getDisplayNameWithoutExtension(&newPresetName);
+		error = StorageManager::loadInstrumentFromFile(currentSong, NULL, outputType, false, &newInstrument,
+		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
 
 	Browser::emptyFileItems();
 
-	if (result.error != Error::NONE) {
-		return result.error;
+	if (error != Error::NONE) {
+		return error;
 	}
 
 	if (isHibernating) {
@@ -1606,10 +1603,10 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 	display->removeWorkingAnimation();
 
 	if (copyDrumsFromClip) {
-		result.error = clip->setAudioInstrument(newInstrument, currentSong, true, NULL); // Does a setupPatching()
-		if (result.error != Error::NONE) {
+		error = clip->setAudioInstrument(newInstrument, currentSong, true, NULL); // Does a setupPatching()
+		if (error != Error::NONE) {
 			// TODO: needs more thought - we'd want to deallocate the Instrument...
-			return result.error;
+			return error;
 		}
 
 		if (outputType == OutputType::KIT) {
@@ -2905,7 +2902,8 @@ void SessionView::transitionToSessionView() {
 
 // Might be called during card routine! So renders might fail. Not too likely
 void SessionView::finishedTransitioningHere() {
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 	currentUIMode = UI_MODE_ANIMATION_FADE;
 	PadLEDs::recordTransitionBegin(kFadeSpeed);
 	changeRootUI(this);

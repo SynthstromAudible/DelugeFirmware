@@ -31,34 +31,35 @@ public:
 	bool nameIsDiscardable;
 
 	SoundDrum();
-	bool isDrum() { return true; }
-	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false);
-	bool anyNoteIsOn();
-	bool hasAnyVoices();
+	bool isDrum() override { return true; }
+	bool allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardSampleLoop = false) override;
+	bool anyNoteIsOn() override;
+	bool hasAnyVoices() override;
 	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, Kit* kit, int16_t const* mpeValues,
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
-	            uint32_t samplesLate = 0);
-	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity);
-	void unassignAllVoices();
-	void setupPatchingForAllParamManagers(Song* song);
-	bool readTagFromFile(Deserializer& reader, char const* tagName);
-	Error loadAllSamples(bool mayActuallyReadFiles);
-	void prepareForHibernation();
-	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager);
+	            uint32_t samplesLate = 0) override;
+	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity) override;
+	void unassignAllVoices() override;
+	void setupPatchingForAllParamManagers(Song* song) override;
+	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
+	Error loadAllSamples(bool mayActuallyReadFiles) override;
+	void prepareForHibernation() override;
+	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) override;
 	void writeToFileAsInstrument(bool savingSong, ParamManager* paramManager);
-	void getName(char* buffer);
-	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos);
-	void choke(ModelStackWithSoundFlags* modelStack);
-	void setSkippingRendering(bool newSkipping);
-	uint8_t* getModKnobMode();
-	void drumWontBeRenderedForAWhile();
-	ModControllable* toModControllable() { return this; }
+	void getName(char* buffer) override;
+	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
+	void choke(ModelStackWithSoundFlags* modelStack) override;
+	void setSkippingRendering(bool newSkipping) override;
+	uint8_t* getModKnobMode() override;
+	void drumWontBeRenderedForAWhile() override;
+	ModControllable* toModControllable() override { return this; }
 
-	void expressionEvent(int32_t newValue, int32_t expressionDimension);
+	void expressionEvent(int32_t newValue, int32_t expressionDimension) override;
 	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
-	                                              int32_t channelOrNoteNumber, MIDICharacteristic whichCharacteristic);
+	                                              int32_t channelOrNoteNumber,
+	                                              MIDICharacteristic whichCharacteristic) override;
 
-	ArpeggiatorBase* getArp() { return &arpeggiator; }
-	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) { return &arpSettings; }
+	ArpeggiatorBase* getArp() override { return &arpeggiator; }
+	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) override { return &arpSettings; }
 	void resetTimeEnteredState();
 };

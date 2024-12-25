@@ -73,7 +73,7 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() final;
-	const char* getName() { return "instrument_clip_view"; }
+	const char* getName() override { return "instrument_clip_view"; }
 
 	// BUTTON ACTION button press / release handling
 

@@ -25,11 +25,11 @@ class Source;
 class SampleHolderForVoice final : public SampleHolder {
 public:
 	SampleHolderForVoice();
-	~SampleHolderForVoice();
-	void unassignAllClusterReasons(bool beingDestructed = false);
+	~SampleHolderForVoice() override;
+	void unassignAllClusterReasons(bool beingDestructed = false) override;
 	void setCents(int32_t newCents);
 	void recalculateFineTuner();
-	void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
+	void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
 	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool doingSingleCycle = false,
 	                                        bool rangeCoversJustOneNote = false, bool thatOneNote = 0);
 	uint32_t getMSecLimit(Source* source);
@@ -56,5 +56,5 @@ public:
 	[[nodiscard]] uint32_t loopLength() const { return loopEndPos - loopStartPos; }
 
 protected:
-	void sampleBeenSet(bool reversed, bool manuallySelected);
+	void sampleBeenSet(bool reversed, bool manuallySelected) override;
 };

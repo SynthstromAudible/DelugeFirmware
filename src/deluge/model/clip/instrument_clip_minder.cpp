@@ -142,11 +142,11 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 		bool appendedName = false;
 
 		if (controlNumber >= 0 && controlNumber < kNumRealCCNumbers) {
-			String* name = midiInstrument->getNameFromCC(controlNumber);
+			std::string_view name = midiInstrument->getNameFromCC(controlNumber);
 			// if we have a name for this midi cc set by the user, display that instead of the cc number
-			if (name && !name->isEmpty()) {
-				buffer.append(name->get());
-				doScroll = name->getLength() > 4 ? true : false;
+			if (!name.empty()) {
+				buffer.append(name.data());
+				doScroll = name.size() > 4;
 				appendedName = true;
 			}
 		}

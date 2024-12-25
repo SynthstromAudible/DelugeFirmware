@@ -44,7 +44,7 @@ public:
 
 	deluge::modulation::params::Kind getParamKind();
 	uint32_t getParamIndex();
-	virtual PatchSource getPatchSource();
+	PatchSource getPatchSource() override;
 
 	// OLED Only
 	void renderOLED();
@@ -55,7 +55,7 @@ public:
 		MenuItemWithCCLearning::learnKnob(cable, whichKnob, modKnobMode, midiChannel);
 	};
 
-	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory);
+	ModelStackWithAutoParam* getModelStackWithParam(void* memory) override;
 
 	/// Used when scrolling horizontally to briefly catch on min / max decimal number edit position
 	uint32_t delayHorizontalScrollUntil = 0;

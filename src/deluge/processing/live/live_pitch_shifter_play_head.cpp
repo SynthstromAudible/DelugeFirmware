@@ -28,14 +28,6 @@
 
 #include "arm_neon_shim.h"
 
-LivePitchShifterPlayHead::LivePitchShifterPlayHead() {
-	// TODO Auto-generated constructor stub
-}
-
-LivePitchShifterPlayHead::~LivePitchShifterPlayHead() {
-	// TODO Auto-generated destructor stub
-}
-
 void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_t numSamples, int32_t numChannels,
                                       int32_t phaseIncrement, int32_t amplitude, int32_t amplitudeIncrement,
                                       int32_t* repitchedBuffer, int32_t* rawBuffer, int32_t whichKernel,
@@ -86,9 +78,9 @@ void LivePitchShifterPlayHead::render(int32_t* __restrict__ outputBuffer, int32_
 				interpolator_.jumpForward(numSamplesToJumpForward);
 
 				while (numSamplesToJumpForward--) {
-					interpolator_.bufferL(numSamplesToJumpForward) = rawBuffer[rawBufferReadPos * numChannels] >> 16;
+					interpolator_.buffer_l[numSamplesToJumpForward] = rawBuffer[rawBufferReadPos * numChannels] >> 16;
 					if (numChannels == 2) {
-						interpolator_.bufferR(numSamplesToJumpForward) = rawBuffer[rawBufferReadPos * 2 + 1] >> 16;
+						interpolator_.buffer_r[numSamplesToJumpForward] = rawBuffer[rawBufferReadPos * 2 + 1] >> 16;
 					}
 
 					rawBufferReadPos = (rawBufferReadPos + 1) & (kInputRawBufferSize - 1);
@@ -179,18 +171,22 @@ int32_t LivePitchShifterPlayHead::getNumRawSamplesBehindInput(LiveInputBuffer* l
 
 /// @param numChannels a value between 0 and 1
 void LivePitchShifterPlayHead::fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int32_t numChannels) {
+#pragma unroll
 	for (int32_t i = 1; i <= kInterpolationMaxNumSamples; i++) {
 		int32_t pos = (uint32_t)(rawBufferReadPos - i) & (kInputRawBufferSize - 1);
 
-		interpolator_.bufferL(i - 1) =
+		interpolator_.buffer_l[i - 1] =
 		    (pos < liveInputBuffer->numRawSamplesProcessed) ? liveInputBuffer->rawBuffer[pos * numChannels] >> 16 : 0;
 	}
 
-	for (int32_t i = 1; i <= kInterpolationMaxNumSamples; i++) {
-		int32_t pos = (uint32_t)(rawBufferReadPos - i) & (kInputRawBufferSize - 1);
+	if (numChannels > 1) {
+#pragma unroll
+		for (int32_t i = 1; i <= kInterpolationMaxNumSamples; i++) {
+			int32_t pos = (uint32_t)(rawBufferReadPos - i) & (kInputRawBufferSize - 1);
 
-		interpolator_.bufferR(i - 1) = (pos < liveInputBuffer->numRawSamplesProcessed)
-		                                   ? liveInputBuffer->rawBuffer[pos * numChannels + 1] >> 16
-		                                   : 0;
+			interpolator_.buffer_r[i - 1] = (pos < liveInputBuffer->numRawSamplesProcessed)
+			                                    ? liveInputBuffer->rawBuffer[pos * numChannels + 1] >> 16
+			                                    : 0;
+		}
 	}
 }
