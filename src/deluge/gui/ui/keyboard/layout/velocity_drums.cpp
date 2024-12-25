@@ -38,7 +38,8 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 			uint8_t edgeSizeY = (uint32_t)getState().drums.edgeSizeY;
 			uint8_t note = noteFromCoords(presses[idxPress].x, presses[idxPress].y, edgeSizeX, edgeSizeY);
 
-			uint8_t velocity = (velocityFromCoords(presses[idxPress].x, presses[idxPress].y, edgeSizeX, edgeSizeY) >> 1);
+			uint8_t velocity =
+			    (velocityFromCoords(presses[idxPress].x, presses[idxPress].y, edgeSizeX, edgeSizeY) >> 1);
 			auto noteOnIdx = currentNotesState.enableNote(note, velocity);
 
 			// exceeded maximum number of active notes, ignore this note-on
@@ -79,12 +80,13 @@ void KeyboardLayoutVelocityDrums::handleVerticalEncoder(int32_t offset) {
 }
 
 void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-  PressedPad presses[kMaxNumKeyboardPadPresses], bool encoderPressed) {
+                                                          PressedPad presses[kMaxNumKeyboardPadPresses],
+                                                          bool encoderPressed) {
 	KeyboardStateDrums& state = getState().drums;
 
 	if (shiftEnabled || Buttons::isButtonPressed(hid::button::X_ENC)) {
 		state.zoomLevel += offset;
-		if(state.zoomLevel >= kMinZoomLevel && state.zoomLevel <= kMaxZoomLevel) {
+		if (state.zoomLevel >= kMinZoomLevel && state.zoomLevel <= kMaxZoomLevel) {
 			state.edgeSizeX = zoomArr[state.zoomLevel - 1][0];
 			state.edgeSizeY = zoomArr[state.zoomLevel - 1][1];
 		}
@@ -130,8 +132,7 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 	uint8_t edgeSizeX = getState().drums.edgeSizeX;
 	uint8_t edgeSizeY = getState().drums.edgeSizeY;
 	uint8_t offset = getState().drums.scrollOffset;
-	//  We use two bytes to keep the precision of the calculations high, then shift it down to one byte at the end
-	uint32_t stepSize = 0xFFFF / (edgeSizeX * edgeSizeY);
+	float padArea2 = pow(edgeSizeX * edgeSizeY, 2);
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			uint8_t note = noteFromCoords(x, y, edgeSizeX, edgeSizeY);
@@ -144,15 +145,14 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 
 			uint8_t localX = (x % edgeSizeX);
 			uint8_t localY = (y % edgeSizeY);
-			uint8_t position = localX + (localY * edgeSizeX) + 1;
+			float position = localX + (localY * edgeSizeX) + 1;
+			float colourIntensity = position * position / padArea2; // use quadratic curve for pad brightness
 
-			uint8_t colourIntensity = (position * stepSize) >> 8;
-
-			// Highlight active notes
-			uint8_t brightnessFactor = currentNotesState.noteEnabled(note) ? 90 : 45;
+			// Highlight active notes, but it is easier to see the difference when they are dimmed.
+			float brightnessFactor = currentNotesState.noteEnabled(note) ? 0.5 : 1.0;
 
 			image[y][x] = noteColour.transform([colourIntensity, brightnessFactor](uint8_t chan) {
-				return ((chan * colourIntensity / 255) * brightnessFactor / 100);
+				return (chan * colourIntensity * brightnessFactor);
 			});
 		}
 	}

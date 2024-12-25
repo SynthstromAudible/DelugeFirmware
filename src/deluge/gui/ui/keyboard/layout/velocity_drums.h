@@ -24,20 +24,9 @@ namespace deluge::gui::ui::keyboard::layout {
 constexpr int32_t kMinZoomLevel = 1;
 constexpr int32_t kMaxZoomLevel = 12;
 
-constexpr int32_t zoomArr[12][2] = {
-	{1, 1},
-	{2, 1},
-	{3, 1},
-	{2, 2},
-	{3, 2},
-	{4, 2},
-	{5, 2},
-	{3, 4},
-	{4, 4},
-	{5, 4},
-	{8, 4},
-	{8, 8}
-};
+// The zoomArr is used to set the edge sizes of the pads {x size, y size} on each zoom level.
+constexpr int32_t zoomArr[12][2] = {{1, 1}, {2, 1}, {3, 1}, {2, 2}, {3, 2}, {4, 2},
+                                    {5, 2}, {3, 4}, {4, 4}, {5, 4}, {8, 4}, {8, 8}};
 
 class KeyboardLayoutVelocityDrums : KeyboardLayout {
 public:
@@ -46,9 +35,8 @@ public:
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
-	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled,
-		PressedPad presses[kMaxNumKeyboardPadPresses],
-		bool encoderPressed = false) override;
+	void handleHorizontalEncoder(int32_t offset, bool shiftEnabled, PressedPad presses[kMaxNumKeyboardPadPresses],
+	                             bool encoderPressed = false) override;
 	void precalculate() override;
 
 	void renderPads(RGB image[][kDisplayWidth + kSideBarWidth]) override;
@@ -64,17 +52,19 @@ private:
 	}
 
 	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint8_t edgeSizeX, uint8_t edgeSizeY) {
-		uint8_t localX = (x % edgeSizeX);
-		uint8_t localY = (y % edgeSizeY);
-		uint8_t position = localX + (localY * edgeSizeX) + 1;
 
 		uint8_t zoomLevel = getState().drums.zoomLevel;
-		if(zoomLevel == 1){
-			// No need to use max velocity for the only option.
+		if (zoomLevel == 1) {
+			// No need to do a lot of calculations or use max velocity for the only option.
 			return FlashStorage::defaultVelocity;
 		}
-		else{
-			// We use two bytes to keep the precision of the calculations high, then shift it down to one byte at the end
+		else {
+			uint8_t position = (x % edgeSizeX) + 1;
+			if (zoomLevel > 3) { // only need to calculate y position if we have more than one row per pad
+				position += ((y % edgeSizeY) * edgeSizeX);
+			}
+			// We use two bytes to keep the precision of the calculations high,
+			// then shift it down to one byte at the end
 			uint32_t stepSize = 0xFFFF / (edgeSizeX * edgeSizeY);
 			return (position * stepSize) >> 8;
 		}
