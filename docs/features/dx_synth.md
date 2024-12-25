@@ -20,7 +20,7 @@ Optional: place DX7 compatible patch banks in .syx format in a "DX7/" folder in 
 
 ### Community Feature Setting
 
-Enable the "DX SHORTCUTS" community setting for full access to the relevant UI behaviors.
+Enable the "DX7 ENGINE" community setting for full access to the relevant UI behaviors.
 
 ### Create New Synth
 

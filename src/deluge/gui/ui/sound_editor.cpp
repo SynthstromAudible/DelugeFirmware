@@ -895,7 +895,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 		else {
 			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
-			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
+			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
 			           == RuntimeFeatureStateToggle::On) {
 				if (dxParam.potentialShortcutPadAction(x, y, on)) {
 					return ActionResult::DEALT_WITH;
