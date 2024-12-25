@@ -1073,7 +1073,6 @@ Submenu defaultsSubmenu{
         &defaultStartupSongMenu,
         &defaultPadBrightness,
         &defaultSliceMode,
-        &defaultHighCPUUsageIndicatorMode,
         &defaultHoldTimeMenu,
     },
 };
