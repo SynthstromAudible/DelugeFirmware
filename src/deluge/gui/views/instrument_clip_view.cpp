@@ -507,7 +507,7 @@ doOther:
 
 			if (currentUIMode == UI_MODE_NONE) {
 				if (Buttons::isButtonPressed(MOD7)
-				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
+				    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
 				           == RuntimeFeatureStateToggle::On) {
 					createNewInstrument(OutputType::SYNTH, true);
 				}
