@@ -87,14 +87,6 @@ endif()
 
 string(REPLACE "." "_" BUILD_VERSION_SUFFIX ${BUILD_VERSION_SUFFIX})
 
-if(NOT "${GIT_STATUS}" STREQUAL "")
-    if(NOT RELEASE_TYPE STREQUAL "release")
-        string(APPEND BUILD_VERSION_STRING "-dirty")
-    endif()
-endif()
-
-message(STATUS "Deluge version: v${BUILD_VERSION_STRING}")
-
 option(ENABLE_VERSIONED_OUTPUT "Tag the resulting output files with a semver label" OFF)
 
 if(ENABLE_VERSIONED_OUTPUT)
