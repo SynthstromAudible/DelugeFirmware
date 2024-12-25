@@ -473,7 +473,7 @@ void setupStartupSong() {
 	String failSafePath;
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
 
-	char replaced[sizeof(char) * strlen(filename)];
+	char replaced[sizeof(char) * strlen(filename) + 1]; // +1 for NULL terminator
 	replace_char(replaced, filename, '/', '_');
 	failSafePath.concatenate(replaced);
 
