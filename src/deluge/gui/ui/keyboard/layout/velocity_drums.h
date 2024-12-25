@@ -53,14 +53,13 @@ private:
 
 	inline uint8_t velocityFromCoords(int32_t x, int32_t y, uint8_t edgeSizeX, uint8_t edgeSizeY) {
 
-		uint8_t zoomLevel = getState().drums.zoomLevel;
-		if (zoomLevel == 1) {
-			// No need to do a lot of calculations or use max velocity for the only option.
+		if (edgeSizeX == 1) {
+			// No need to do a lot of calculations or use max velocity for only one option.
 			return FlashStorage::defaultVelocity;
 		}
 		else {
 			uint8_t position = (x % edgeSizeX) + 1;
-			if (zoomLevel > 3) { // only need to calculate y position if we have more than one row per pad
+			if (edgeSizeY > 1) { // only need to calculate y position if we have more than one row per pad
 				position += ((y % edgeSizeY) * edgeSizeX);
 			}
 			// We use two bytes to keep the precision of the calculations high,
