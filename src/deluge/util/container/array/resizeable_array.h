@@ -36,7 +36,7 @@ public:
 	void swapStateWith(ResizeableArray* other);
 	void deleteAtIndex(int32_t i, int32_t numToDelete = 1, bool mayShortenMemoryAfter = true);
 	bool ensureEnoughSpaceAllocated(int32_t numAdditionalElementsNeeded);
-	Error insertAtIndex(int32_t i, int32_t numToInsert = 1, void* thingNotToStealFrom = NULL);
+	Error insertAtIndex(int32_t i, int32_t numToInsert = 1, void* thingNotToStealFrom = nullptr);
 	void swapElements(int32_t i1, int32_t i2);
 	void repositionElement(int32_t iFrom, int32_t iTo);
 	Error beenCloned();

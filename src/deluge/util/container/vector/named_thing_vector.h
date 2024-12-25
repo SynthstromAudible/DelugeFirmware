@@ -35,7 +35,7 @@ public:
 class NamedThingVector : public ResizeableArray {
 public:
 	NamedThingVector(int32_t newStringOffset);
-	int32_t search(char const* searchString, int32_t comparison, bool* foundExact = NULL);
+	int32_t search(char const* searchString, int32_t comparison, bool* foundExact = nullptr);
 	void* getElement(int32_t index);
 	void removeElement(int32_t i);
 	Error insertElement(void* namedThing);

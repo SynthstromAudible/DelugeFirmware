@@ -87,7 +87,7 @@ public:
 	void recordNoteExistenceChange(InstrumentClip* clip, int32_t noteRowId, Note* note, ExistenceChangeType type);
 	void recordNoteChange(InstrumentClip* clip, int32_t noteRowId, Note* note, int32_t lengthAfter,
 	                      int32_t velocityAfter, int32_t probabilityAfter);
-	void updateYScrollClipViewAfter(InstrumentClip* clip = NULL);
+	void updateYScrollClipViewAfter(InstrumentClip* clip = nullptr);
 	void recordClipInstanceExistenceChange(Output* output, ClipInstance* clipInstance, ExistenceChangeType type);
 	void prepareForDestruction(int32_t whichQueueActionIn, Song* song);
 	void recordClipLengthChange(Clip* clip, int32_t oldLength);

@@ -47,7 +47,7 @@ void String::clear(bool destructing) {
 		}
 
 		if (!destructing) {
-			stringMemory = NULL;
+			stringMemory = nullptr;
 		}
 	}
 }

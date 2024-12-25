@@ -30,8 +30,8 @@ JsonSerializer jWriter;
 String activeDirName;
 const size_t blockBufferMax = 1024;
 const size_t sysexBufferMax = blockBufferMax + 256;
-uint8_t* writeBlockBuffer = NULL;
-uint8_t* readBlockBuffer = NULL;
+uint8_t* writeBlockBuffer = nullptr;
+uint8_t* readBlockBuffer = nullptr;
 const uint32_t MAX_OPEN_FILES = 4;
 
 struct FILdata {

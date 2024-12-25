@@ -51,7 +51,7 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 
 size_t MIDICableUSB::sendBufferSpace() {
 	int32_t ip = 0;
-	ConnectedUSBMIDIDevice* connectedDevice = NULL;
+	ConnectedUSBMIDIDevice* connectedDevice = nullptr;
 
 	// find the connected device for this specific device. Note that virtual
 	// port number is specified as part of the message, implemented below.
@@ -77,7 +77,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 	}
 
 	int32_t ip = 0;
-	ConnectedUSBMIDIDevice* connectedDevice = NULL;
+	ConnectedUSBMIDIDevice* connectedDevice = nullptr;
 
 	// find the connected device for this specific device. Note that virtual
 	// port number is specified as part of the message, implemented below.

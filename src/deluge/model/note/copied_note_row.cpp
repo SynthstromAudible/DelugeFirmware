@@ -19,8 +19,8 @@
 #include "memory/general_memory_allocator.h"
 
 CopiedNoteRow::CopiedNoteRow() {
-	next = NULL;
-	notes = NULL;
+	next = nullptr;
+	notes = nullptr;
 }
 
 CopiedNoteRow::~CopiedNoteRow() {

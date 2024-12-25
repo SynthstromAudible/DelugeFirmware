@@ -367,7 +367,7 @@ deleteInstrumentAndGetOut:
 
 	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
 	if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                     NULL)) {
+	                                                     nullptr)) {
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
@@ -538,7 +538,7 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 
 	void* instrumentMemory = GeneralMemoryAllocator::get().allocMaxSpeed(instrumentSize);
 	if (!instrumentMemory) {
-		return NULL;
+		return nullptr;
 	}
 
 	Instrument* newInstrument;
@@ -552,7 +552,7 @@ Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamM
 			if (error != Error::NONE) {
 paramManagerSetupError:
 				delugeDealloc(instrumentMemory);
-				return NULL;
+				return nullptr;
 			}
 			Sound::initParams(paramManager);
 		}
@@ -584,7 +584,7 @@ Instrument* StorageManager::createNewNonAudioInstrument(OutputType outputType, i
 	// Paul: Might make sense to put these into Internal?
 	void* instrumentMemory = GeneralMemoryAllocator::get().allocLowSpeed(size);
 	if (!instrumentMemory) { // RAM fail
-		return NULL;
+		return nullptr;
 	}
 
 	NonAudioInstrument* newInstrument;
@@ -615,7 +615,7 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 
 	void* drumMemory = GeneralMemoryAllocator::get().allocMaxSpeed(memorySize);
 	if (!drumMemory) {
-		return NULL;
+		return nullptr;
 	}
 
 	Drum* newDrum;

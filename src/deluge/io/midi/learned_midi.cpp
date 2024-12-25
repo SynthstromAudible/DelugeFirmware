@@ -43,7 +43,7 @@ MIDIMatchType LearnedMIDI::checkMatch(MIDICable* newCable, int32_t midiChannel) 
 }
 
 void LearnedMIDI::clear() {
-	cable = NULL;
+	cable = nullptr;
 	channelOrZone = MIDI_CHANNEL_NONE;
 	noteOrCC = 255;
 }

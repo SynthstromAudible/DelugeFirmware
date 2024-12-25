@@ -370,7 +370,7 @@ fail:
 			void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 			preLoadedSong->~Song(); // Will also delete paramManager
 			delugeDealloc(toDealloc);
-			preLoadedSong = NULL;
+			preLoadedSong = nullptr;
 			goto someError;
 		}
 
@@ -436,7 +436,7 @@ gotErrorAfterCreatingSong:
 		void* toDealloc = dynamic_cast<void*>(preLoadedSong);
 		preLoadedSong->~Song(); // Will also delete paramManager
 		delugeDealloc(toDealloc);
-		preLoadedSong = NULL;
+		preLoadedSong = nullptr;
 		goto someError;
 	}
 

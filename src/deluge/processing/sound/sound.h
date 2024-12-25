@@ -154,7 +154,7 @@ public:
 	uint32_t startSkippingRenderingAtTime; // Valid when not 0. Allows a wait-time before render skipping starts, for if
 	                                       // mod fx are on
 
-	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = NULL) = 0;
+	virtual ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) = 0;
 	virtual void setSkippingRendering(bool newSkipping);
 
 	ModFXType getModFXType() override;
@@ -240,7 +240,7 @@ public:
 	static Error createParamManagerForLoading(ParamManagerForTimeline* paramManager);
 	int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false,
 	                                 int32_t note = 0);
-	int32_t hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int32_t note, bool* anyLooping = NULL);
+	int32_t hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int32_t note, bool* anyLooping = nullptr);
 	bool hasCutModeSamples(ParamManagerForTimeline* paramManager);
 	bool allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager);
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);

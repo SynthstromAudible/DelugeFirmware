@@ -145,16 +145,16 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 
 	bool success = hostedMIDIDevices.ensureEnoughSpaceAllocated(1);
 	if (!success) {
-		return NULL;
+		return nullptr;
 	}
 
-	MIDIDeviceUSBHosted* device = NULL;
+	MIDIDeviceUSBHosted* device = nullptr;
 
 	SpecificMidiDeviceType devType = getSpecificMidiDeviceType(vendorId, productId);
 	if (devType == SpecificMidiDeviceType::LUMI_KEYS) {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceLumiKeys));
 		if (!memory) {
-			return NULL;
+			return nullptr;
 		}
 
 		MIDIDeviceLumiKeys* instDevice = new (memory) MIDIDeviceLumiKeys();
@@ -163,7 +163,7 @@ MIDIDeviceUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16
 	else {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIDeviceUSBHosted));
 		if (!memory) {
-			return NULL;
+			return nullptr;
 		}
 
 		MIDIDeviceUSBHosted* instDevice = new (memory) MIDIDeviceUSBHosted();
@@ -283,7 +283,7 @@ extern "C" void hostedDeviceDetached(int32_t ip, int32_t midiDeviceNum) {
 		if (device) { // Surely always has one?
 			device->connectionFlags &= ~(1 << midiDeviceNum);
 		}
-		connectedDevice->cable[i] = NULL;
+		connectedDevice->cable[i] = nullptr;
 	}
 	recountSmallestMPEZones();
 }
@@ -313,7 +313,7 @@ extern "C" void detachedAsPeripheral(int32_t ip) {
 	// will need to reset all devices if more are added
 	int32_t ports = connectedUSBMIDIDevices[ip][0].maxPortConnected;
 	for (int32_t i = 0; i <= ports; i++) {
-		connectedUSBMIDIDevices[ip][0].cable[i] = NULL;
+		connectedUSBMIDIDevices[ip][0].cable[i] = nullptr;
 	}
 	upstreamUSBMIDICable1.connectionFlags = 0;
 	upstreamUSBMIDICable2.connectionFlags = 0;
@@ -330,7 +330,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 	uint16_t vendorId = 0;
 	uint16_t productId = 0;
 	String name;
-	MIDICable* device = NULL;
+	MIDICable* device = nullptr;
 
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -371,7 +371,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 		return getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId, productId); // Will return NULL if error.
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory) {
@@ -381,7 +381,7 @@ void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const*
 	MIDICable* device;
 
 	if (vendorId == VENDOR_ID_NONE) {
-		device = NULL;
+		device = nullptr;
 	}
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB) {
 		device = &upstreamUSBMIDICable1;
@@ -397,7 +397,7 @@ void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const*
 	}
 	else {
 		uint16_t productId = *(uint16_t const*)(memory + 2);
-		device = getOrCreateHostedMIDIDeviceFromDetails(NULL, vendorId, productId);
+		device = getOrCreateHostedMIDIDeviceFromDetails(nullptr, vendorId, productId);
 	}
 
 	midiEngine.globalMIDICommands[util::to_underlying(whichCommand)].cable = device;
@@ -416,7 +416,7 @@ void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uin
 	MIDICable* device;
 
 	if (vendorId == VENDOR_ID_NONE) {
-		device = NULL;
+		device = nullptr;
 	}
 	else if (vendorId == VENDOR_ID_UPSTREAM_USB) {
 		device = &upstreamUSBMIDICable1;
@@ -432,7 +432,7 @@ void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uin
 	}
 	else {
 		uint16_t productId = *(uint16_t const*)(memory + 2);
-		device = getOrCreateHostedMIDIDeviceFromDetails(NULL, vendorId, productId);
+		device = getOrCreateHostedMIDIDeviceFromDetails(nullptr, vendorId, productId);
 	}
 
 	midiEngine.midiFollowChannelType[util::to_underlying(whichType)].cable = device;
@@ -478,7 +478,7 @@ worthIt:
 		return;
 	}
 
-	MIDIDeviceUSBHosted* specificMIDIDevice = NULL;
+	MIDIDeviceUSBHosted* specificMIDIDevice = nullptr;
 	Serializer& writer = GetSerializer();
 	writer.writeOpeningTagBeginning("midiDevices");
 	writer.writeFirmwareVersion();
@@ -509,7 +509,7 @@ worthIt:
 	writer.closeFileAfterWriting();
 
 	// Hook point for Hosted USB MIDI Device
-	if (specificMIDIDevice != NULL) {
+	if (specificMIDIDevice != nullptr) {
 		specificMIDIDevice->hookOnWriteHostedDeviceToFile();
 	}
 }
@@ -577,7 +577,7 @@ void readDevicesFromFile() {
 }
 
 void readAHostedDeviceFromFile(Deserializer& reader) {
-	MIDIDeviceUSBHosted* device = NULL;
+	MIDIDeviceUSBHosted* device = nullptr;
 
 	String name;
 	uint16_t vendorId;
@@ -608,8 +608,8 @@ checkDevice:
 			}
 
 			if (device) {
-				device->ports[whichPort].readFromFile(reader,
-				                                      (whichPort == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) ? device : NULL);
+				device->ports[whichPort].readFromFile(
+				    reader, (whichPort == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) ? device : nullptr);
 			}
 		}
 		else if (!strcmp(tagName, "output")) {

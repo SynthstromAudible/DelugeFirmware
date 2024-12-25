@@ -34,9 +34,9 @@ Output::Output(OutputType newType) : type(newType) {
 	mutedInArrangementModeBeforeStemExport = mutedInArrangementMode;
 	exportStem = false;
 	soloingInArrangementMode = false;
-	activeClip = NULL;
+	activeClip = nullptr;
 	inValidState = false;
-	next = NULL;
+	next = nullptr;
 	recordingInArrangement = false;
 	wasCreatedForAutoOverdub = false;
 	armedForRecording = false;
@@ -59,7 +59,7 @@ Clip* Output::getClipFromName(String* name) {
 			return clip;
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 void Output::setupWithoutActiveClip(ModelStack* modelStack) {
@@ -82,7 +82,7 @@ bool Output::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeS
 }
 
 void Output::detachActiveClip(Song* song) {
-	activeClip = NULL;
+	activeClip = nullptr;
 	inValidState = false;
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
@@ -215,7 +215,7 @@ ParamManager* Output::getParamManager(Song* song) {
 	}
 	else {
 		ParamManager* paramManager =
-		    song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)toModControllable(), NULL);
+		    song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)toModControllable(), nullptr);
 		if (!paramManager) {
 			FREEZE_WITH_ERROR("E170");
 		}

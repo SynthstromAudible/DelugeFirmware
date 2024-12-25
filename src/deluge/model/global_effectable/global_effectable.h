@@ -48,9 +48,9 @@ public:
 	Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                      int32_t readAutomationUpToPos, Song* song) override;
 	static void writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                       int32_t* valuesForOverride = NULL);
+	                                       int32_t* valuesForOverride = nullptr);
 	static void writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
-	                                 int32_t* valuesForOverride = NULL);
+	                                 int32_t* valuesForOverride = nullptr);
 	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,

@@ -35,7 +35,7 @@ extern "C" {}
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 VoiceSample::VoiceSample() {
-	timeStretcher = NULL;
+	timeStretcher = nullptr;
 }
 
 void VoiceSample::beenUnassigned(bool wontBeUsedAgain) {
@@ -47,13 +47,13 @@ void VoiceSample::beenUnassigned(bool wontBeUsedAgain) {
 void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating) {
 
 	doneFirstRenderYet = false;
-	cache = NULL;
+	cache = nullptr;
 
 	pendingSamplesLate = samplesLate; // We store this to deal with later, because in order to deal with this we need to
 	                                  // know the pitch-adjustment, and that's not calculated yet
 	oscPos = 0;
 	interpolationBufferSizeLastTime = 0;
-	timeStretcher = NULL; // Just in case
+	timeStretcher = nullptr; // Just in case
 	fudging = false;
 	forAudioClip = false;
 }
@@ -84,7 +84,7 @@ void VoiceSample::endTimeStretching() {
 	if (timeStretcher) {
 		timeStretcher->beenUnassigned();
 		AudioEngine::timeStretcherUnassigned(timeStretcher);
-		timeStretcher = NULL;
+		timeStretcher = nullptr;
 	}
 }
 
@@ -381,7 +381,7 @@ bool VoiceSample::stopUsingCache(SamplePlaybackGuide* guide, Sample* sample, int
 		// If time-stretching needs to be started back up, that'll happen below in call to considerTimeStretching()
 	}
 
-	cache = NULL;
+	cache = nullptr;
 
 	// Now that cache is off, the SampleLowLevelReader probably needs to obey loop points (if no time stretching),
 	// Although, as a side note, if we just abandoned reading cache, we might be just about to set time stretching up.
@@ -509,7 +509,7 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
 					if (cache->writeBytePos < cacheBytePos
 					    || (phaseIncrement != kMaxSampleValue
 					        && interpolationBufferSize != kInterpolationMaxNumSamples)) {
-						cache = NULL;
+						cache = nullptr;
 					}
 
 					// Or if we're still all good
@@ -669,7 +669,7 @@ readCachedWindow:
 
 			// If linear interpolation, no cache writing (or anything) allowed
 			if (interpolationBufferSize != kInterpolationMaxNumSamples) {
-				cache = NULL;
+				cache = nullptr;
 			}
 
 			// Otherwise, record more data into the cache
@@ -827,7 +827,7 @@ readCachedWindow:
 		if (uncachedClusterIndex < sample->getFirstClusterIndexWithAudioData() - 1
 		    || uncachedClusterIndex > sample->getFirstClusterIndexWithNoAudioData()) {
 			unassignAllReasons(false); // Remember, this doesn't cut the voice - just sets clusters[0] to NULL.
-			currentPlayPos = 0;
+			currentPlayPos = nullptr;
 		}
 
 		// But if that hasn't happened...
@@ -867,7 +867,7 @@ readCachedWindow:
 				currentPlayPos = currentPlayPos - 4 + sample->byteDepth;
 			}
 			else {
-				currentPlayPos = 0;
+				currentPlayPos = nullptr;
 			}
 		}
 
@@ -1071,7 +1071,7 @@ readNonTimestretched:
 
 			bool stillActive = considerUpcomingWindow(
 			    guide, sample, &numSamplesThisNonTimestretchedRead, phaseIncrement, loopingType != LoopType::NONE,
-			    interpolationBufferSize, (cache != NULL),
+			    interpolationBufferSize, (cache != nullptr),
 			    priorityRating); // Keep it reading silence forever so we can definitely fill up the cache
 			if (!stillActive) {
 				return false;
@@ -1102,7 +1102,7 @@ readNonTimestretched:
 				// (re-check that?)
 				readSamplesResampled((int32_t**)&outputBufferWritePos, numSamplesThisNonTimestretchedRead, sample,
 				                     jumpAmount, sampleSourceNumChannels, numChannelsInOutputBuffer, phaseIncrement,
-				                     &amplitude, amplitudeIncrement, interpolationBufferSize, (cache != NULL),
+				                     &amplitude, amplitudeIncrement, interpolationBufferSize, (cache != nullptr),
 				                     &cacheWritePos, &doneAnySamplesYet, NULL, false, whichKernel);
 			}
 
