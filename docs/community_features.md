@@ -252,23 +252,19 @@ as the micromonsta and the dreadbox nymphes.
   - Minimum value = Bottom two lights fully lit
     - Between middle and minimum, the bottom two lights will be lit up proportionately to the value in that range
 
-#### 3.17 - High CPU Usage Indicator
-- ([#1506]) The play button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
-  - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
-
-#### 3.18 - Select Audio Clip Source from Audio Clip Menu
+#### 3.17 - Select Audio Clip Source from Audio Clip Menu
 - ([#1531]) Added ability to select audio source from within an Audio Clip by opening the Audio Clip Sound Menu (`SHIFT` + `SELECT`) and Selecting the `AUDIO SOURCE` menu
   - Not included in c1.1.0
 - ([#2371]) Source can now also be set to a specific track on the deluge. This enables an additional TRACK menu to choose
 which track to record from. To run the instrument through the audio clip's FX choose the FX PROCESSING option
 
-#### 3.19 - Set Audio Clip Length Equal to Sample Length
+#### 3.18 - Set Audio Clip Length Equal to Sample Length
 - ([#1542]) Added new shortcut to set the length of an audio clip to the same length as its sample at the current tempo. This functionally removes timestretching until the Audio Clip length or Song tempo is changed.
   - Press `▼︎▲︎` + `◀︎▶︎` to set the Audio Clip length equal to the length of the audio sample.
     - This action is also available in the `Audio Clip Sound Menu` (Press `SELECT`) by Selecting the `ACTIONS` menu and Pressing `SELECT` on the `Set Clip Length to Sample Length` action.
   - Press `SHIFT` + `◀︎▶︎` + `turn ◀︎▶︎` to adjust the audio clip's length independent of timestretching.
 
-#### 3.20 - Sample Slice Default Mode
+#### 3.19 - Sample Slice Default Mode
 
 - ([#1589]) Added a new default setting that controls which playback mode new slices of a kit will get.
 -  To change the setting, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > SAMPLE SLICE MODE`.
@@ -277,42 +273,42 @@ which track to record from. To run the instrument through the audio clip's FX ch
   - the setting is persistent after reboot
   - if a kit slice is shorter then 2s, the slicer will automatically switch to `ONCE` (default behaviour)
 
-#### 3.21 Default Hold Press Time
+#### 3.20 Default Hold Press Time
 
 - ([#1846]) Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
 
-#### 3.22 Eased Timeline Zoom Level Restrictions
+#### 3.21 Eased Timeline Zoom Level Restrictions
 
 - ([#1962]) The maximum zoom level has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - This allows for more flexibility when entering long notes and chord progressions.
 - While changing the zoom level, the horizontal encoder will briefly pause while passing the zoom level which represents the entire sequence. This is to prevent frustration from users who are used to the prior limitations.
 
-#### 3.23 Exit menus by holding back
+#### 3.22 Exit menus by holding back
 
 - ([#2166]) Holding back will now fully exit your current menu
 
-#### 3.24 Automated Audio Exporting
+#### 3.23 Automated Audio Exporting
 
 - For a detailed description of this feature as well the button shortcuts/combos, please refer to the feature documentation: [Audio Export Documentation]
 - ([#2260]) Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SONG VIEW` and `TRACK's` while in `ARRANGER VIEW`. Press `SAVE + RECORD` to start exporting audio. Press `BACK` to cancel the export and stop recording and playback.
 - ([#2327]) You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing `SELECT` on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 - ([#2330]) You can configure settings for the audio export via the `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Enter `SONG\EXPORT EXPORT\CONFIGURE EXPORT\` to configure various export settings.
 
-#### 3.25 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
+#### 3.24 Render Clip / Section Launch Event Playhead in Song Grid and Performance Views
 - ([#2315]) A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
 
-#### 3.26 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
+#### 3.25 Display Number of Bars / Notes Remaining until Clip / Section Launch Event
 - ([#2315]) The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
 
-#### 3.27 Updated UI for Interacting with Toggle Menu's and Sub Menu's
+#### 3.26 Updated UI for Interacting with Toggle Menu's and Sub Menu's
 - ([#2345]) For toggle (ON/OFF) menu's, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
  - OLED renders a checkbox that shows current ON/OFF status. Selecting that menu with select encoder will toggle the checkbox as opposed to entering the menu.
  - 7SEG renders a dot at the end of the menu item to show current ON/OFF status. Selecting that menu with select encoder will toggle the dot as opposed to entering the menu.
  - Submenu's on OLED are rendered with a ">" at the end to indicate that it is a submenu.
 
-#### 3.28 Updated UI for Creating New Clips in New Tracks in Song Grid View
+#### 3.27 Updated UI for Creating New Clips in New Tracks in Song Grid View
 - ([#2429]) Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`
   - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
     - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
@@ -325,7 +321,7 @@ which track to record from. To run the instrument through the audio clip's FX ch
     - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.
 - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
 
-#### 3.29 Add Clip Settings Menu in Song View to set Clip Mode and Clip Name and convert Instrument Clips to Audio Clips
+#### 3.28 Add Clip Settings Menu in Song View to set Clip Mode and Clip Name and convert Instrument Clips to Audio Clips
 - ([#2299]) Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing `SELECT` brings up a `CLIP SETTINGS` menu.
 - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
   1) `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
@@ -334,7 +330,7 @@ which track to record from. To run the instrument through the audio clip's FX ch
   3) `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
 - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
 
-#### 3.30 Polyphony / Voice Count
+#### 3.29 Polyphony / Voice Count
 - ([#1824]) Added new `Max Voices (VCNT)` menu which lets you configure the Maximum number of Voices for a Polyphonic instrument, accessible by pressing `SELECT` in a `Synth clip` or `Kit clip with a Sound Drum selected and Affect Entire Off` under the `VOICE (VOIC)` menu.
   - This menu is also accessible from the `VOICE (VOIC) > Polyphony Type (POLY)` type menu by selecting `Polyphonic` and pressing `SELECT`
 - Updated default `Max Voices` for new synth's to `8 voices`. Old synths for which a max number of voices has not been configured will default to `16 voices`.
