@@ -454,7 +454,7 @@ inline void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		}
 	}
 	// blink LED to alert the user
-	if (culled && FlashStorage::highCPUUsageIndicator) {
+	if (culled && FlashStorage::highCPUUsageIndicator && false) {
 		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
