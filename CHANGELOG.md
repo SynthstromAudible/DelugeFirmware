@@ -189,6 +189,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 - Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
   - With playback off, pressing `PLAY` will start playback from the current grid scroll position
   - With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
+- Removed `High CPU Usage Indicator` feature.
 
 #### <ins>Menu UI Improvements</ins>
 - For toggle (ON/OFF) menus, you can now view and toggle the ON/OFF status without entering the menu by simply pressing on the `SELECT` encoder while the menu is selected.
@@ -358,7 +359,7 @@ at velocity 0 it would look the same as its tail (but you can't have 0 velocity)
 
 #### <ins>General</ins>
 - Added a feature which saves user-defined pad brightness level and restores it at startup. `SETTINGS>DEFAULTS>PAD BRIGHTNESS`
-- Added new `High CPU Usage Indicator`. The `PLAY` button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
+- **(Removed in 1.2)** Added new `High CPU Usage Indicator`. The `PLAY` button button will blink when deluge CPU usage is high which indicates that synth voices / sample playback may be culled.
   - To activate the feature, press `SHIFT` + `SELECT` : `MENU > DEFAULTS > HIGH CPU INDICATOR`.
 - Added new default menu to set the length of time to register a `Hold Press` for use with `Sticky Shift`, `Performance View`, and the `Keyboard Sidebar Layouts.`
   - Set the default Hold Press time by accessing `SETTINGS > DEFAULTS > HOLD PRESS TIME`
