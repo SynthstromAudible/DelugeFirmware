@@ -472,7 +472,11 @@ void setupStartupSong() {
 	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
 	String failSafePath;
 	failSafePath.concatenate("SONGS/__STARTUP_OFF_CHECK_");
-	failSafePath.concatenate(replace_char(filename, '/', '_'));
+
+	char replaced[sizeof(char) * strlen(filename)];
+	replace_char(replaced, filename, '/', '_');
+	failSafePath.concatenate(replaced);
+
 	if (StorageManager::fileExists(failSafePath.get())) {
 		String msgReason;
 		msgReason.concatenate("STARTUP OFF, reason: ");
