@@ -149,7 +149,8 @@ void InstrumentClipView::openedInBackground() {
 
 	recalculateColours();
 
-	AudioEngine::routineWithClusterLoading(); // -----------------------------------
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 	AudioEngine::logAction("InstrumentClipView::beginSession 2");
 
 	if (renderingToStore) {
@@ -4663,9 +4664,11 @@ void InstrumentClipView::recordNoteOnEarly(int32_t velocity, int32_t yDisplay, I
 		// NoteRow is allowed to be NULL in this case.
 		int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
 		((MelodicInstrument*)instrument)
-		    ->earlyNotes.insertElementIfNonePresent(
-		        yNote, instrument->defaultVelocity,
-		        getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip));
+		    ->earlyNotes.emplace(yNote,
+		                         MelodicInstrument::EarlyNoteInfo{
+		                             instrument->defaultVelocity,
+		                             getCurrentInstrumentClip()->allowNoteTails(modelStackWithNoteRowOnCurrentClip),
+		                         });
 	}
 }
 

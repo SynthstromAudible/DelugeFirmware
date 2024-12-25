@@ -29,7 +29,9 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include <cstdint>
 #include <cstring>
+#include <ranges>
 
 bool MelodicInstrument::writeMelodicInstrumentAttributesToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
                                                                Song* song) {
@@ -145,8 +147,9 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 						}
 						else if (currentUIMode == UI_MODE_RECORD_COUNT_IN) {
 recordingEarly:
-							earlyNotes.insertElementIfNonePresent(
-							    note, velocity, instrumentClip->allowNoteTails(modelStackWithNoteRow));
+							earlyNotes.emplace(note,
+							                   EarlyNoteInfo{static_cast<uint8_t>(velocity),
+							                                 instrumentClip->allowNoteTails(modelStackWithNoteRow)});
 							goto justAuditionNote;
 						}
 
@@ -233,8 +236,7 @@ justAuditionNote:
 				highlightNoteValue = 0;
 			}
 			// NoteRow must already be auditioning
-			if (notesAuditioned.searchExact(note) != -1) {
-
+			if (notesAuditioned.contains(note)) {
 				if (noteRow) {
 					// If we get here, we know there is a Clip
 					if (shouldRecordNotes
@@ -490,13 +492,13 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& 
 
 bool MelodicInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) {
 
-	earlyNotes.empty();
+	earlyNotes.clear();
 
 	return Instrument::setActiveClip(modelStack, maySendMIDIPGMs);
 }
 
 bool MelodicInstrument::isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) {
-	return (notesAuditioned.searchExact(noteRow->y) != -1) && (earlyNotes.searchExact(noteRow->y) == -1);
+	return notesAuditioned.contains(noteRow->y) && earlyNotes.contains(noteRow->y);
 }
 
 void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
@@ -505,13 +507,12 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 	    modelStack->addTimelineCounter(activeClip)
 	        ->addOtherTwoThingsButNoNoteRow(toModControllable(), getParamManager(modelStack->song));
 
-	for (int32_t i = 0; i < notesAuditioned.getNumElements(); i++) {
-		EarlyNote* note = (EarlyNote*)notesAuditioned.getElementAddress(i);
-		sendNote(modelStackWithThreeMainThings, false, note->note, nullptr);
+	for (int16_t note : notesAuditioned | std::views::keys) {
+		sendNote(modelStackWithThreeMainThings, false, note, nullptr);
 	}
 
-	notesAuditioned.empty();
-	earlyNotes.empty(); // This is fine, though in a perfect world we'd prefer to just mark the notes as no
+	notesAuditioned.clear();
+	earlyNotes.clear(); // This is fine, though in a perfect world we'd prefer to just mark the notes as no
 	                    // longer active
 	if (activeClip) {
 		activeClip->expectEvent(); // Because the absence of auditioning here means sequenced notes may play
@@ -519,7 +520,7 @@ void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {
 }
 
 bool MelodicInstrument::isNoteAuditioning(int32_t noteCode) {
-	return (notesAuditioned.searchExact(noteCode) != -1);
+	return notesAuditioned.contains(noteCode);
 }
 
 void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity,
@@ -540,7 +541,7 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 	}
 
 	if (!activeClip || ((InstrumentClip*)activeClip)->allowNoteTails(modelStackWithNoteRow)) {
-		notesAuditioned.insertElementIfNonePresent(note, velocity);
+		notesAuditioned.emplace(note, EarlyNoteInfo{static_cast<uint8_t>(velocity)});
 	}
 
 	ParamManager* paramManager = getParamManager(modelStackWithNoteRow->song);
@@ -552,8 +553,8 @@ void MelodicInstrument::beginAuditioningForNote(ModelStack* modelStack, int32_t 
 
 void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t note, int32_t velocity) {
 
-	notesAuditioned.deleteAtKey(note);
-	earlyNotes.noteNoLongerActive(note);
+	notesAuditioned.erase(note);
+	earlyNotes[note].stillActive = false; // set no longer active
 	if (!activeClip) {
 		return;
 	}
@@ -581,7 +582,7 @@ void MelodicInstrument::endAuditioningForNote(ModelStack* modelStack, int32_t no
 }
 
 bool MelodicInstrument::isAnyAuditioningHappening() {
-	return notesAuditioned.getNumElements();
+	return !notesAuditioned.empty();
 }
 
 // Virtual function, gets overridden.

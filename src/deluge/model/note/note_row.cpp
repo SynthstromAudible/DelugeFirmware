@@ -2390,7 +2390,7 @@ bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
 		return drum && drum->auditioned;
 	}
 	else {
-		return (((MelodicInstrument*)output)->notesAuditioned.searchExact(y) != -1);
+		return ((MelodicInstrument*)output)->notesAuditioned.contains(y);
 	}
 }
 

@@ -77,6 +77,7 @@
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include "util/functions.h"
+#include "util/try.h"
 #include <cstdint>
 #include <new>
 
@@ -805,37 +806,34 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 
 // Loads from file, etc - doesn't truly "create"
 Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong) {
-	ReturnOfConfirmPresetOrNextUnlaunchedOne result{};
-
-	result.error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
-	if (result.error != Error::NONE) {
-		display->displayError(result.error);
+	Error error = Browser::currentDir.set(getInstrumentFolder(newOutputType));
+	if (error != Error::NONE) {
+		display->displayError(error);
 		return nullptr;
 	}
 
-	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, newOutputType,
-	                                                                                Availability::INSTRUMENT_UNUSED);
-	if (result.error != Error::NONE) {
-		display->displayError(result.error);
-		return nullptr;
-	}
+	FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
+	                                     currentSong, newOutputType, Availability::INSTRUMENT_UNUSED),
+	                                 error, {
+		                                 display->displayError(error);
+		                                 return nullptr;
+	                                 });
 
-	Instrument* newInstrument = result.fileItem->instrument;
-	bool isHibernating = newInstrument && !result.fileItem->instrumentAlreadyInSong;
-	*instrumentAlreadyInSong = newInstrument && result.fileItem->instrumentAlreadyInSong;
+	Instrument* newInstrument = fileItem->instrument;
+	bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
+	*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
 
 	if (!newInstrument) {
 		String newPresetName;
-		result.fileItem->getDisplayNameWithoutExtension(&newPresetName);
-		result.error =
-		    StorageManager::loadInstrumentFromFile(currentSong, nullptr, newOutputType, false, &newInstrument,
-		                                           &result.fileItem->filePointer, &newPresetName, &Browser::currentDir);
+		fileItem->getDisplayNameWithoutExtension(&newPresetName);
+		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, newOutputType, false, &newInstrument,
+		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
 
 	Browser::emptyFileItems();
 
-	if (result.error != Error::NONE) {
-		display->displayError(result.error);
+	if (error != Error::NONE) {
+		display->displayError(error);
 		return nullptr;
 	}
 
@@ -2567,7 +2565,8 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 	view.setActiveModControllableTimelineCounter(output->getActiveClip());
 
-	AudioEngine::routineWithClusterLoading();
+	// Sean: replace routineWithClusterLoading call, just yield to run a single thing (probably audio)
+	yield([]() { return true; });
 
 	beginAudition(output);
 }
