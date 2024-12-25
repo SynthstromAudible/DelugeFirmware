@@ -118,7 +118,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 
 	// Render actual Drums / AudioClip
 	renderedLastTime = renderGlobalEffectableForClip(
-	    modelStack, globalEffectableBuffer, NULL, numSamples, reverbBuffer, reverbAmountAdjustForDrums,
+	    modelStack, globalEffectableBuffer, nullptr, numSamples, reverbBuffer, reverbAmountAdjustForDrums,
 	    sideChainHitPending, shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
@@ -269,7 +269,7 @@ void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** s
 			int32_t reverbHere = unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
 			if (*highestReverbAmountFound < reverbHere) {
 				*highestReverbAmountFound = reverbHere;
-				*soundWithMostReverb = NULL;
+				*soundWithMostReverb = nullptr;
 				*paramManagerWithMostReverb = activeParamManager;
 				*globalEffectableWithMostReverb = this;
 			}

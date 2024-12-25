@@ -31,8 +31,8 @@ public:
 	void endSession(){};
 	bool performSave(bool mayOverwrite) override;
 
-	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = NULL,
-	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = NULL) override {
+	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
+	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
 		return true;
 	}
 	const char* getName() override { return "save_instrument_preset_ui"; }

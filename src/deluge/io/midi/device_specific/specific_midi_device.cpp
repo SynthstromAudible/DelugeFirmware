@@ -64,7 +64,7 @@ MIDIDeviceUSBHosted* getSpecificDeviceFromMIDICable(MIDICable& cable) {
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 /// @brief Space-saving function to call a specific Hosted USB MIDI device's hook from any entry point

@@ -156,7 +156,7 @@ ParamManagerForTimeline* paramManagerForSamplePreview;
 char paramManagerForSamplePreviewMemory[sizeof(ParamManagerForTimeline)];
 char sampleForPreviewMemory[sizeof(SoundDrum)];
 
-SampleRecorder* firstRecorder = NULL;
+SampleRecorder* firstRecorder = nullptr;
 
 // Let's keep these grouped - the stuff we're gonna access regularly during audio rendering
 int32_t cpuDireness = 0;
@@ -218,7 +218,7 @@ void init() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	ModelStackWithParamCollection* modelStackWithParamCollection =
-	    modelStack->addTimelineCounter(NULL)
+	    modelStack->addTimelineCounter(nullptr)
 	        ->addOtherTwoThingsButNoNoteRow(sampleForPreview, paramManagerForSamplePreview)
 	        ->addParamCollectionSummary(paramManagerForSamplePreview->getPatchCableSetSummary());
 
@@ -292,7 +292,7 @@ Voice* hardCullVoice(bool saveVoice, size_t numSamples, Sound* stopFrom) {
 	bool includeAudio = !saveVoice;
 
 	uint32_t bestRating = 0;
-	Voice* bestVoice = NULL;
+	Voice* bestVoice = nullptr;
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
 
@@ -313,7 +313,7 @@ Voice* hardCullVoice(bool saveVoice, size_t numSamples, Sound* stopFrom) {
 		    "E196"); // ronronsen got!!
 		             // https://forums.synthstrom.com/discussion/4097/beta-4-0-0-beta-1-e196-by-loading-wavetable-osc#latest
 
-		unassignVoice(bestVoice, bestVoice->assignedToSound, NULL, true, !saveVoice);
+		unassignVoice(bestVoice, bestVoice->assignedToSound, nullptr, true, !saveVoice);
 		D_PRINTLN("hard-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
 		          getNumVoices(), getNumAudio());
 	}
@@ -331,7 +331,7 @@ Voice* hardCullVoice(bool saveVoice, size_t numSamples, Sound* stopFrom) {
 Voice* immediateCullVoice(bool saveVoice, CullType type, size_t numSamples, Sound* stopFrom) {
 	// Only include audio if doing a hard cull and not saving the voice
 	uint32_t bestRating = 0;
-	Voice* bestVoice = NULL;
+	Voice* bestVoice = nullptr;
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
 
@@ -368,7 +368,7 @@ Voice* immediateCullVoice(bool saveVoice, CullType type, size_t numSamples, Soun
 Voice* forceCullVoice(size_t numSamples, Sound* stopFrom) {
 
 	uint32_t bestRating = 0;
-	Voice* bestVoice = NULL;
+	Voice* bestVoice = nullptr;
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
 
@@ -411,7 +411,7 @@ Voice* forceCullVoice(size_t numSamples, Sound* stopFrom) {
 Voice* softCullVoice(size_t numSamples, Sound* stopFrom) {
 
 	uint32_t bestRating = 0;
-	Voice* bestVoice = NULL;
+	Voice* bestVoice = nullptr;
 	for (int32_t v = 0; v < activeVoices.getNumElements(); v++) {
 		Voice* thisVoice = activeVoices.getVoice(v);
 
@@ -1323,9 +1323,9 @@ void updateReverbParams() {
 			return;
 		}
 
-		Sound* soundWithMostReverb = NULL;
-		ParamManager* paramManagerWithMostReverb = NULL;
-		GlobalEffectableForClip* globalEffectableWithMostReverb = NULL;
+		Sound* soundWithMostReverb = nullptr;
+		ParamManager* paramManagerWithMostReverb = nullptr;
+		GlobalEffectableForClip* globalEffectableWithMostReverb = nullptr;
 
 		// Set the initial "highest amount found" to that of the song itself, which can't be affected by sidechain.
 		// If nothing found with more reverb, then we don't want the reverb affected by sidechain
@@ -1415,7 +1415,7 @@ void stopAnyPreviewing() {
 	sampleForPreview->unassignAllVoices();
 	if (sampleForPreview->sources[0].ranges.getNumElements()) {
 		MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].ranges.getElement(0);
-		range->sampleHolder.setAudioFile(NULL);
+		range->sampleHolder.setAudioFile(nullptr);
 	}
 }
 
@@ -1451,7 +1451,7 @@ Voice* solicitVoice(Sound* forSound) {
 				memory = hardCullVoice(true, numSamplesLastTime, forSound);
 			}
 			else {
-				return NULL;
+				return nullptr;
 			}
 		}
 
@@ -1469,7 +1469,7 @@ Voice* solicitVoice(Sound* forSound) {
 		// if (ALPHA_OR_BETA_VERSION) FREEZE_WITH_ERROR("E193"); // No, having run out of RAM here isn't a reason to
 		// not continue.
 		disposeOfVoice(newVoice);
-		return NULL;
+		return nullptr;
 	}
 
 	if (forSound->numVoicesAssigned >= forSound->maxVoiceCount) {
@@ -1518,7 +1518,7 @@ VoiceSample* solicitVoiceSample() {
 	else {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(VoiceSample));
 		if (!memory) {
-			return NULL;
+			return nullptr;
 		}
 
 		return new (memory) VoiceSample();
@@ -1546,7 +1546,7 @@ TimeStretcher* solicitTimeStretcher() {
 	else {
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(TimeStretcher));
 		if (!memory) {
-			return NULL;
+			return nullptr;
 		}
 
 		return new (memory) TimeStretcher();
@@ -1569,7 +1569,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 	const auto idx = util::to_underlying(inputType) - util::to_underlying(OscType::INPUT_L);
 	if (!liveInputBuffers[idx]) {
 		if (!mayCreate) {
-			return NULL;
+			return nullptr;
 		}
 
 		int32_t size = sizeof(LiveInputBuffer);
@@ -1579,7 +1579,7 @@ LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(size);
 		if (!memory) {
-			return NULL;
+			return nullptr;
 		}
 
 		liveInputBuffers[idx] = new (memory) LiveInputBuffer();
@@ -1666,7 +1666,7 @@ void slowRoutine() {
 			if (liveInputBuffers[i]->upToTime != audioSampleTimer) {
 				liveInputBuffers[i]->~LiveInputBuffer();
 				delugeDealloc(liveInputBuffers[i]);
-				liveInputBuffers[i] = NULL;
+				liveInputBuffers[i] = nullptr;
 			}
 		}
 	}
@@ -1684,7 +1684,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
 	if (!recorderMemory) {
-		return NULL;
+		return nullptr;
 	}
 
 	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
@@ -1695,7 +1695,7 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 errorAfterAllocation:
 		newRecorder->~SampleRecorder();
 		delugeDealloc(recorderMemory);
-		return NULL;
+		return nullptr;
 	}
 
 	if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {

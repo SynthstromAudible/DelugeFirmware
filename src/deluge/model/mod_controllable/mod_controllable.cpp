@@ -30,7 +30,7 @@ int32_t ModControllable::getKnobPosForNonExistentParam(int32_t whichModEncoder, 
 
 void setTheAutoParamToNull(ModelStackWithThreeMainThings* modelStack) {
 	ModelStackWithAutoParam* modelStackWithAutoParam = (ModelStackWithAutoParam*)modelStack;
-	modelStackWithAutoParam->autoParam = NULL;
+	modelStackWithAutoParam->autoParam = nullptr;
 }
 
 ModelStackWithAutoParam* ModControllable::getParamFromModEncoder(int32_t whichModEncoder,
@@ -48,5 +48,5 @@ ModelStackWithAutoParam* ModControllable::getParamFromMIDIKnob(MIDIKnob* knob,
 }
 
 uint8_t* ModControllable::getModKnobMode() {
-	return NULL;
+	return nullptr;
 }

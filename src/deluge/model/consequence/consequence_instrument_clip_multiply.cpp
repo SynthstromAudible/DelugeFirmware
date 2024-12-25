@@ -27,7 +27,7 @@ ConsequenceInstrumentClipMultiply::ConsequenceInstrumentClipMultiply() {
 Error ConsequenceInstrumentClipMultiply::revert(TimeType time, ModelStack* modelStack) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->song->getCurrentClip();
 	if (time == BEFORE) {
-		modelStack->song->setClipLength(clip, clip->loopLength >> 1, NULL);
+		modelStack->song->setClipLength(clip, clip->loopLength >> 1, nullptr);
 
 		// Deal with any NoteRows with independent length.
 		clip->halveNoteRowsWithIndependentLength(modelStack->addTimelineCounter(clip));

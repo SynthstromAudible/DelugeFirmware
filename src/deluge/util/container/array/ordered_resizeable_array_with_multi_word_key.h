@@ -27,7 +27,7 @@ public:
 	OrderedResizeableArrayWithMultiWordKey(int32_t newElementSize = sizeof(uint32_t) * 2, int32_t newNumWordsInKey = 2);
 	int32_t searchMultiWord(uint32_t* __restrict__ keyWords, int32_t comparison, int32_t rangeBegin = 0,
 	                        int32_t rangeEnd = -1);
-	int32_t searchMultiWordExact(uint32_t* __restrict__ keyWords, int32_t* getIndexToInsertAt = NULL,
+	int32_t searchMultiWordExact(uint32_t* __restrict__ keyWords, int32_t* getIndexToInsertAt = nullptr,
 	                             int32_t rangeBegin = 0);
 	int32_t insertAtKeyMultiWord(uint32_t* __restrict__ keyWords, int32_t rangeBegin = 0, int32_t rangeEnd = -1);
 	bool deleteAtKeyMultiWord(uint32_t* __restrict__ keyWords);

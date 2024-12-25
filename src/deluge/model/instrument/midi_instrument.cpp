@@ -115,7 +115,7 @@ ModelStackWithAutoParam* MIDIInstrument::getParamFromModEncoder(int32_t whichMod
 	if (!modelStack->paramManager) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
 		                             // have no Clips
 noParam:
-		return modelStack->addParamCollectionAndId(NULL, NULL, 0)->addAutoParam(NULL); // "No param"
+		return modelStack->addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
 
 	int32_t paramId = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
@@ -140,7 +140,7 @@ MIDIInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWith
 	if (!modelStack->paramManager) { // Could be NULL - if the user is holding down an audition pad in Arranger, and we
 		                             // have no Clips
 noParam:
-		return modelStack->addParamCollectionAndId(NULL, NULL, 0)->addAutoParam(NULL); // "No param"
+		return modelStack->addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
 
 	ParamCollectionSummary* summary;
@@ -459,7 +459,7 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
-			MIDIParamCollection* midiParamCollection = NULL;
+			MIDIParamCollection* midiParamCollection = nullptr;
 			if (paramManager) {
 				midiParamCollection = paramManager->getMIDIParamCollection();
 			}
@@ -815,7 +815,7 @@ void MIDIInstrument::offerReceivedNote(ModelStackWithTimelineCounter* modelStack
 
 void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote) {
 	int32_t channel = getChannel();
-	ArpeggiatorSettings* arpSettings = NULL;
+	ArpeggiatorSettings* arpSettings = nullptr;
 	if (activeClip) {
 		arpSettings = &((InstrumentClip*)activeClip)->arpSettings;
 	}

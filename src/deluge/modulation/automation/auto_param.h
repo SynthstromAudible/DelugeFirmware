@@ -66,7 +66,7 @@ public:
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
 	void deleteAutomationBasicForSetup();
-	void writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride = NULL);
+	void writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride = nullptr);
 	Error readFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
 	bool containsSomething(uint32_t neutralValue = 0);
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
@@ -87,7 +87,7 @@ public:
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithAutoParam const* modelStack);
 	void stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength,
-	                Action* action, StolenParamNodes* stolenNodeRecord = NULL);
+	                Action* action, StolenParamNodes* stolenNodeRecord = nullptr);
 	void insertStolenNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,
 	                       int32_t loopLength, Action* action, StolenParamNodes* stolenNodeRecord);
 	void moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length, int32_t offset,

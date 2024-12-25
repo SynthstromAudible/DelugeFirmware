@@ -1347,7 +1347,7 @@ bool isAudioFilename(char const* filename) {
 
 bool isAiffFilename(char const* filename) {
 	char* dotPos = strrchr(filename, '.');
-	return (dotPos != 0 && (!strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
+	return (dotPos != NULL && (!strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
 }
 
 int32_t lookupReleaseRate(int32_t input) {

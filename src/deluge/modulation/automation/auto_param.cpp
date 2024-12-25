@@ -142,7 +142,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			// If the Clip is too short to meaningfully record anything / not cause an error
 			int32_t effectiveLength = modelStack->getLoopLength();
 			if (ticksToClear >= effectiveLength) {
-				deleteAutomation(NULL, modelStack);
+				deleteAutomation(nullptr, modelStack);
 				goto getOut;
 			}
 
@@ -1162,8 +1162,8 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	// REGION_EDGE_RIGHT (1)
 
 	ParamNode* edgeNodes[2];
-	edgeNodes[REGION_EDGE_LEFT] = NULL;
-	edgeNodes[REGION_EDGE_RIGHT] = NULL;
+	edgeNodes[REGION_EDGE_LEFT] = nullptr;
+	edgeNodes[REGION_EDGE_RIGHT] = nullptr;
 
 	for (int32_t i = 0; i < 2; i++) {
 		if (edgeIndexes[i] < nodes.getNumElements()) {

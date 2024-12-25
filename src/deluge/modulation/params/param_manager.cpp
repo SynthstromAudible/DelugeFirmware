@@ -49,7 +49,7 @@ ParamManager::~ParamManager() {
 #if ALPHA_OR_BETA_VERSION
 ParamManagerForTimeline* ParamManager::toForTimeline() {
 	FREEZE_WITH_ERROR("E407");
-	return NULL;
+	return nullptr;
 }
 
 ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
@@ -303,7 +303,7 @@ bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 
 ExpressionParamSet* ParamManager::getOrCreateExpressionParamSet(bool forDrum) {
 	if (!ensureExpressionParamSetExists(forDrum)) {
-		return NULL;
+		return nullptr;
 	}
 
 	return getExpressionParamSet();

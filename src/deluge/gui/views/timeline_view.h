@@ -63,7 +63,7 @@ public:
 
 	[[nodiscard]] int32_t getPosFromSquare(int32_t square, int32_t localScroll = -1) const;
 	[[nodiscard]] int32_t getPosFromSquare(int32_t square, int32_t xScroll, uint32_t xZoom) const;
-	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare = NULL, int32_t localScroll = -1);
+	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare = nullptr, int32_t localScroll = -1);
 	int32_t getSquareFromPos(int32_t pos, bool* rightOnSquare, int32_t xScroll, uint32_t xZoom);
 	int32_t getSquareEndFromPos(int32_t pos, int32_t localScroll = -1);
 	bool isSquareDefined(int32_t square, int32_t xScroll = -1);

@@ -153,7 +153,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 	// Allocate memory for Clip
 	void* clipMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
 	if (!clipMemory) {
-		return NULL;
+		return nullptr;
 	}
 
 	ParamManager newParamManager;
@@ -167,7 +167,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 		if (error != Error::NONE) {
 			delugeDealloc(clipMemory);
-			return NULL;
+			return nullptr;
 		}
 	}
 	else if (type == OutputType::CV) {

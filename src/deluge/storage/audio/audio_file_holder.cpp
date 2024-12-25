@@ -21,7 +21,7 @@
 #include "storage/audio/audio_file_manager.h"
 
 AudioFileHolder::AudioFileHolder() {
-	audioFile = NULL;
+	audioFile = nullptr;
 }
 
 AudioFileHolder::~AudioFileHolder() {

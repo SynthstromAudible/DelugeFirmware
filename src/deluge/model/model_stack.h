@@ -323,7 +323,7 @@ inline ModelStackWithModControllable* setupModelStackWithModControllable(void* m
 
 	return setupModelStackWithSong(memory, newSong)
 	    ->addTimelineCounter(newTimelineCounter)
-	    ->addNoteRow(0, NULL)
+	    ->addNoteRow(0, nullptr)
 	    ->addModControllable(newModControllable);
 }
 
@@ -333,7 +333,7 @@ setupModelStackWithThreeMainThingsButNoNoteRow(void* memory, Song* newSong, ModC
 
 	return setupModelStackWithSong(memory, newSong)
 	    ->addTimelineCounter(newTimelineCounter)
-	    ->addNoteRow(0, NULL)
+	    ->addNoteRow(0, nullptr)
 	    ->addOtherTwoThings(newModControllable, newParamManager);
 }
 
@@ -368,13 +368,13 @@ inline ModelStackWithNoteRow* ModelStackWithTimelineCounter::addNoteRow(int32_t 
 
 inline ModelStackWithModControllable*
 ModelStackWithTimelineCounter::addModControllableButNoNoteRow(ModControllable* newModControllable) const {
-	return addNoteRow(0, NULL)->addModControllable(newModControllable);
+	return addNoteRow(0, nullptr)->addModControllable(newModControllable);
 }
 
 inline ModelStackWithThreeMainThings*
 ModelStackWithTimelineCounter::addOtherTwoThingsButNoNoteRow(ModControllable* newModControllable,
                                                              ParamManager* newParamManager) const {
-	return addNoteRow(0, NULL)->addOtherTwoThings(newModControllable, newParamManager);
+	return addNoteRow(0, nullptr)->addOtherTwoThings(newModControllable, newParamManager);
 }
 
 inline ModelStackWithModControllable*

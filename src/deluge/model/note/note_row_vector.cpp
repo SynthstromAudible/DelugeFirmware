@@ -34,7 +34,7 @@ NoteRowVector::~NoteRowVector() {
 NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
 	Error error = insertAtIndex(index);
 	if (error != Error::NONE) {
-		return NULL;
+		return nullptr;
 	}
 	void* memory = getElementAddress(index);
 

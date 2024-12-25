@@ -221,7 +221,7 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 
 		// Various stuff in this block is only relevant for OscType::SAMPLE, but no real harm in it just happening in
 		// other cases.
-		guides[s].audioFileHolder = NULL;
+		guides[s].audioFileHolder = nullptr;
 
 		bool sourceEverActive = modelStack->checkSourceEverActive(s);
 		if (sourceEverActive) [[likely]] {
@@ -1158,7 +1158,7 @@ skipAutoRelease: {}
 		// First, render any mono sources, and note whether there are any stereo ones
 		for (int32_t s = 0; s < kNumSources; s++) {
 
-			uint32_t* getPhaseIncrements = NULL;
+			uint32_t* getPhaseIncrements = nullptr;
 			bool getOutAfterGettingPhaseIncrements = false;
 
 			// If we're doing osc sync and this is osc A...
@@ -1212,8 +1212,8 @@ skipAutoRelease: {}
 			for (int32_t s = 0; s < kNumSources; s++) {
 				if (sourcesToRenderInStereo & (1 << s)) {
 					renderBasicSource(sound, paramManager, s, oscBuffer, numSamples, true, sourceAmplitudesNow[s],
-					                  &unisonPartBecameInactive, overallPitchAdjust, false, 0, 0,
-					                  sourceAmplitudeIncrements[s], NULL, false, sourceWaveIndexIncrements[s]);
+					                  &unisonPartBecameInactive, overallPitchAdjust, false, nullptr, nullptr,
+					                  sourceAmplitudeIncrements[s], nullptr, false, sourceWaveIndexIncrements[s]);
 				}
 			}
 
@@ -1408,7 +1408,7 @@ cantBeDoingOscSyncForFirstOsc:
 					// If mod1 is modulating mod0...
 					if (sound.modulator1ToModulator0) {
 						// .. render modulator0, receiving the FM from mod1
-						renderFMWithFeedback(spareRenderingBuffer[2], numSamples, NULL,
+						renderFMWithFeedback(spareRenderingBuffer[2], numSamples, nullptr,
 						                     &unisonParts[u].modulatorPhase[0], modulatorAmplitudeLastTime[0],
 						                     phaseIncrementModulator[0],
 						                     paramFinalValues[params::LOCAL_MODULATOR_0_FEEDBACK],
@@ -2239,7 +2239,7 @@ dontUseCache: {}
 					D_PRINTLN("stop pitch shifting");
 					source->livePitchShifter->~LivePitchShifter();
 					delugeDealloc(source->livePitchShifter);
-					source->livePitchShifter = NULL;
+					source->livePitchShifter = nullptr;
 				}
 			}
 

@@ -137,7 +137,7 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 void stopAnyPreviewing();
 
 Voice* solicitVoice(Sound* forSound);
-void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = NULL,
+void unassignVoice(Voice* voice, Sound* sound, ModelStackWithSoundFlags* modelStack = nullptr,
                    bool removeFromVector = true, bool shouldDispose = true);
 void disposeOfVoice(Voice* voice);
 
