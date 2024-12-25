@@ -62,7 +62,7 @@ void Integer::renderInHorizontalMenu(int32_t startX, int32_t width, int32_t star
 	deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 
 	std::string_view name = getShortName();
-	size_t nameLen = std::min((size_t)(width / kTextTitleSpacingX), name.size());
+	size_t nameLen = std::min((size_t)(width / kTextSpacingX), name.size());
 	// If we can fit the whole name, we do, if we can't we chop one letter off. It just looks and
 	// feels better, at least with the names we have now.
 	if (name.size() > nameLen) {
