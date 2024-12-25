@@ -27,7 +27,6 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
@@ -582,12 +581,12 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 		else if (!strcmp(tagName, "value")) {
 			if (cc != CC_NUMBER_NONE && midiParamCollection) {
 
-				MIDIParam* midiParam = midiParamCollection->params.getOrCreateParamFromCC(cc, 0);
-				if (!midiParam) {
-					return Error::INSUFFICIENT_RAM;
+				auto maybeMidiParam = midiParamCollection->getOrCreateParamFromCC(cc);
+				if (!maybeMidiParam) {
+					return maybeMidiParam.error();
 				}
 
-				Error error = midiParam->param.readFromFile(reader, readAutomationUpToPos);
+				Error error = maybeMidiParam.value()->second.readFromFile(reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -676,7 +675,7 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 
 	// CC (besides 74)
 	if (modelStackWithAutoParam->paramCollection == midiParamCollection) {
-		midiParamCollection->params.deleteAtKey(oldCC);
+		midiParamCollection->params.erase(oldCC);
 	}
 
 	// Expression param

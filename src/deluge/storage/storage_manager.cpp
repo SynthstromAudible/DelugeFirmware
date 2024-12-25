@@ -31,7 +31,6 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"

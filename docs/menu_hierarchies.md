@@ -399,7 +399,7 @@ NOTE: These options can change depending on how your default resolution is set
 	- Grain FX (GRFX)
 		- OFF
 		- ON
-	- DX Shortcuts (DX7S)
+	- DX7 ENGINE (DX7)
 		- OFF
 		- ON
 	- Emulated Display (EMUL)

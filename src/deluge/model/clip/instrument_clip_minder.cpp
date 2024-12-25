@@ -44,7 +44,6 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "playback/mode/arrangement.h"
 #include "processing/engines/cv_engine.h"
