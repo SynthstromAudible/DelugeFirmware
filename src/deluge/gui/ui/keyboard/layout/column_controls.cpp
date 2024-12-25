@@ -177,7 +177,7 @@ void ColumnControlsKeyboard::checkNewInstrument(Instrument* newInstrument) {
 		}
 	}
 	else {
-		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDxShortcuts)
+		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
 		    == RuntimeFeatureStateToggle::Off) {
 			return;
 		}
